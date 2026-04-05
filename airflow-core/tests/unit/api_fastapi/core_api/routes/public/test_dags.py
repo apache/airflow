@@ -790,6 +790,66 @@ class TestPatchDags(TestDagEndpoint):
             assert paused_dag_ids == set(expected_paused_ids)
             check_last_log(session, dag_id=DAG1_ID, event="patch_dag", logical_date=None)
 
+    @pytest.mark.parametrize(
+        ("tags_to_add", "query_params", "body", "expected_ids", "expected_paused_ids"),
+        [
+            (
+                [(DAG1_ID, "tag_1"), (DAG2_ID, "tag_1")],
+                {"dag_id_pattern": "~", "tags": ["tag_1"], "tags_match_mode": "any"},
+                {"is_paused": True},
+                [DAG1_ID, DAG2_ID],
+                [DAG1_ID, DAG2_ID],
+            ),
+            (
+                [(DAG1_ID, "tag_1"), (DAG2_ID, "tag_2")],
+                {"dag_id_pattern": "~", "tags": ["tag_1", "tag_2"], "tags_match_mode": "any"},
+                {"is_paused": True},
+                [DAG1_ID, DAG2_ID],
+                [DAG1_ID, DAG2_ID],
+            ),
+            (
+                [(DAG1_ID, "tag_1"), (DAG1_ID, "tag_3"), (DAG2_ID, "tag_1"), (DAG2_ID, "tag_3")],
+                {"dag_id_pattern": "~", "tags": ["tag_1", "tag_3"], "tags_match_mode": "all"},
+                {"is_paused": True},
+                [DAG1_ID, DAG2_ID],
+                [DAG1_ID, DAG2_ID],
+            ),
+        ],
+    )
+    def test_patch_dags_by_tags(
+        self,
+        test_client,
+        tags_to_add,
+        query_params,
+        body,
+        expected_ids,
+        expected_paused_ids,
+        session,
+    ):
+        for dag_id, tag_name in tags_to_add:
+            session.add(DagTag(dag_id=dag_id, name=tag_name))
+        session.commit()
+
+        response = test_client.patch("/dags", json=body, params=query_params)
+        assert response.status_code == 200
+        resp_body = response.json()
+        assert {dag["dag_id"] for dag in resp_body["dags"]} == set(expected_ids)
+        paused_dag_ids = {dag["dag_id"] for dag in resp_body["dags"] if dag["is_paused"]}
+        assert paused_dag_ids == set(expected_paused_ids)
+
+    def test_patch_dags_updates_all_beyond_limit(self, test_client, session):
+        response = test_client.patch(
+            "/dags",
+            json={"is_paused": True},
+            params={"dag_id_pattern": "~", "limit": 1},
+        )
+        assert response.status_code == 200
+        assert len(response.json()["dags"]) == 1
+        paused_dags = session.scalars(
+            select(DagModel.dag_id).where(DagModel.is_paused, ~DagModel.is_stale)
+        ).all()
+        assert set(paused_dags) == {DAG1_ID, DAG2_ID}
+
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
     def test_patch_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
         mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}

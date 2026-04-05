@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -83,6 +84,7 @@ from airflow_breeze.utils.pr_display import (
 from airflow_breeze.utils.pr_models import (
     CHECK_FAILURE_GRACE_PERIOD_HOURS,
     PRData,
+    ReviewDecision,
     UnresolvedThread,
 )
 from airflow_breeze.utils.recording import generating_command_images
@@ -132,7 +134,13 @@ _SUSPICIOUS_CHANGES_LABEL = "suspicious changes detected"
 _TRIAGE_COMMENT_MARKER = "Pull Request quality criteria"
 
 # GitHub accounts that should be auto-skipped during triage
-_BOT_ACCOUNT_LOGINS = {"dependabot", "dependabot[bot]", "renovate[bot]", "github-actions[bot]"}
+_BOT_ACCOUNT_LOGINS = {
+    "dependabot",
+    "dependabot[bot]",
+    "renovate[bot]",
+    "github-actions",
+    "github-actions[bot]",
+}
 
 # Proximity threshold for showing "nearby" existing comments (lines)
 _NEARBY_LINE_THRESHOLD = 5
@@ -210,7 +218,8 @@ def _cached_assess_pr(
     from airflow_breeze.utils.github import PRAssessment, Violation
     from airflow_breeze.utils.llm_utils import assess_pr
 
-    cached = _get_cached_assessment(github_repository, pr_number, head_sha)
+    checks_hash = hashlib.md5(check_status_summary.encode()).hexdigest()[:8] if check_status_summary else ""
+    cached = _get_cached_assessment(github_repository, pr_number, head_sha, checks_state=checks_hash)
     if cached is not None:
         violations = [
             Violation(
@@ -283,7 +292,9 @@ def _cached_assess_pr(
             "duration": result.duration,
             "attempts": result.attempts,
         }
-        _save_assessment_cache(github_repository, pr_number, head_sha, assessment_dict)
+        _save_assessment_cache(
+            github_repository, pr_number, head_sha, assessment_dict, checks_state=checks_hash
+        )
 
     return result
 
@@ -430,6 +441,9 @@ query($query: String!, $first: Int!, $after: String) {
         labels(first: 20) {
           nodes { name }
         }
+        reviews(last: 20) {
+          nodes { author { login } authorAssociation state }
+        }
         commits(last: 1) {
           nodes {
             commit {
@@ -464,6 +478,9 @@ query($owner: String!, $repo: String!, $number: Int!) {
       mergeable
       labels(first: 20) {
         nodes { name }
+      }
+      reviews(last: 20) {
+        nodes { author { login } authorAssociation state }
       }
       commits(last: 1) {
         nodes {
@@ -942,6 +959,26 @@ def _extract_basic_check_info(pr_node: dict) -> tuple[str, str]:
     return head_sha, rollup.get("state", "UNKNOWN")
 
 
+def _extract_review_decisions(pr_node: dict) -> list[ReviewDecision]:
+    """Extract the latest review decision per reviewer from a GraphQL PR node.
+
+    Keeps only the most recent review per author (last wins).
+    Excludes COMMENTED and DISMISSED — only APPROVED and CHANGES_REQUESTED are meaningful.
+    """
+    reviews_nodes = (pr_node.get("reviews") or {}).get("nodes", [])
+    latest: dict[str, tuple[str, str]] = {}  # login -> (state, association)
+    for review in reviews_nodes:
+        author = (review.get("author") or {}).get("login", "")
+        state = review.get("state", "")
+        association = review.get("authorAssociation", "")
+        if author and state in ("APPROVED", "CHANGES_REQUESTED"):
+            latest[author] = (state, association)
+    return [
+        ReviewDecision(reviewer_login=login, state=state, reviewer_association=association)
+        for login, (state, association) in latest.items()
+    ]
+
+
 def _process_check_contexts(contexts: list[dict], total_count: int) -> tuple[str, list[str], bool]:
     """Process check context nodes into summary text, failed names, and test-check presence.
 
@@ -1289,13 +1326,21 @@ def _fetch_unresolved_comments_batch(
                 )
             pr.unresolved_threads = unresolved
 
-            # Detect collaborator engagement from reviews
+            # Detect collaborator engagement from reviews and enrich review_decisions
+            # with association data from latestReviews (which has authorAssociation).
             reviews = pr_data.get("latestReviews", {}).get("nodes", [])
+            assoc_by_login: dict[str, str] = {}
             for review in reviews:
                 assoc = review.get("authorAssociation", "NONE")
+                login = (review.get("author") or {}).get("login", "")
+                if login:
+                    assoc_by_login[login] = assoc
                 if assoc in _COLLABORATOR_ASSOCIATIONS:
                     pr.has_collaborator_review = True
-                    break
+            # Back-fill association on existing review_decisions
+            for rd in pr.review_decisions:
+                if not rd.reviewer_association and rd.reviewer_login in assoc_by_login:
+                    rd.reviewer_association = assoc_by_login[rd.reviewer_login]
             # Also count unresolved threads from collaborators as engagement
             if unresolved:
                 pr.has_collaborator_review = True
@@ -1388,17 +1433,18 @@ def _classify_already_triaged_prs(
     require_marker: bool = True,
     on_progress: Callable[[int, int], None] | None = None,
 ) -> dict[str, set[int]]:
-    """Classify already-triaged PRs into waiting vs responded.
+    """Classify already-triaged PRs into waiting vs responded vs stale_draft.
 
     Returns a dict with keys:
     - "waiting": PR numbers where we commented but author has not responded
     - "responded": PR numbers where author responded after our triage comment
+    - "stale_draft": PR numbers that are drafts, triaged >7 days ago, with no author response
 
     :param require_marker: if True, only match comments containing _TRIAGE_COMMENT_MARKER.
         If False, match any comment from the viewer (useful for workflow approval PRs
         where a rebase comment may have been posted instead of a full triage comment).
     """
-    result: dict[str, set[int]] = {"waiting": set(), "responded": set()}
+    result: dict[str, set[int]] = {"waiting": set(), "responded": set(), "stale_draft": set()}
     if not prs:
         return result
 
@@ -1497,7 +1543,20 @@ def _classify_already_triaged_prs(
                     author_responded = True
                     break
 
-            classification = "responded" if author_responded else "waiting"
+            if author_responded:
+                classification = "responded"
+            elif pr.is_draft and triage_comment_date:
+                # Check if triage comment is older than 7 days — stale draft
+                from datetime import datetime, timezone
+
+                try:
+                    triage_dt = datetime.fromisoformat(triage_comment_date.replace("Z", "+00:00"))
+                    days_since_triage = (datetime.now(timezone.utc) - triage_dt).days
+                    classification = "stale_draft" if days_since_triage >= 7 else "waiting"
+                except (ValueError, TypeError):
+                    classification = "waiting"
+            else:
+                classification = "waiting"
             result[classification].add(pr.number)
             # Cache the classification result (keyed by head_sha — invalidated on new commits)
             if pr.head_sha and require_marker:
@@ -1725,6 +1784,7 @@ def _fetch_prs_graphql(
                 mergeable=node.get("mergeable", "UNKNOWN"),
                 labels=[lbl["name"] for lbl in (node.get("labels") or {}).get("nodes", []) if lbl],
                 unresolved_threads=[],
+                review_decisions=_extract_review_decisions(node),
             )
         )
 
@@ -1764,6 +1824,7 @@ def _fetch_single_pr_graphql(token: str, github_repository: str, pr_number: int)
         mergeable=node.get("mergeable", "UNKNOWN"),
         labels=[lbl["name"] for lbl in (node.get("labels") or {}).get("nodes", []) if lbl],
         unresolved_threads=[],
+        review_decisions=_extract_review_decisions(node),
     )
 
 
@@ -2364,12 +2425,31 @@ def _display_pr_info_panels(
                 llm_label += f" [dim]({', '.join(timing_parts)})[/]"
         extra_info += f"\nLLM Review: {llm_label}"
 
+    # Maintainer review summary
+    review_info = ""
+    if pr.review_decisions:
+        maintainer_reviews = [
+            r for r in pr.review_decisions if r.reviewer_association in _COLLABORATOR_ASSOCIATIONS
+        ]
+        if maintainer_reviews:
+            approved = [r for r in maintainer_reviews if r.state == "APPROVED"]
+            changes_requested = [r for r in maintainer_reviews if r.state == "CHANGES_REQUESTED"]
+            review_parts: list[str] = []
+            if approved:
+                names = ", ".join(r.reviewer_login for r in approved)
+                review_parts.append(f"[green]{len(approved)} approved[/] ({names})")
+            if changes_requested:
+                names = ", ".join(r.reviewer_login for r in changes_requested)
+                review_parts.append(f"[red]{len(changes_requested)} changes requested[/] ({names})")
+            review_info = f"\nMaintainer reviews: {' | '.join(review_parts)}"
+
     pr_info = (
         f"[link={pr.url}][cyan]#{pr.number}[/][/link] {pr.title}\n"
         f"Author: [link=https://github.com/{pr.author_login}][bold]{pr.author_login}[/][/link]  |  "
         f"Created: {_human_readable_age(pr.created_at)}  |  "
         f"Updated: {_human_readable_age(pr.updated_at)}"
         f"{status_info}"
+        f"{review_info}"
         f"{extra_info}"
     )
     console.print(Panel(pr_info, title="Pull Request", border_style="cyan"))
@@ -2942,7 +3022,6 @@ class PRStateSnapshot:
     head_sha: str
     updated_at: str
     is_draft: bool
-    mergeable: str
 
 
 def _snapshot_pr_state(pr: PRData) -> PRStateSnapshot:
@@ -2951,7 +3030,6 @@ def _snapshot_pr_state(pr: PRData) -> PRStateSnapshot:
         head_sha=pr.head_sha,
         updated_at=pr.updated_at,
         is_draft=pr.is_draft,
-        mergeable=pr.mergeable,
     )
 
 
@@ -2982,8 +3060,6 @@ def _refresh_pr_if_stale(
             changed_fields.append("PR updated since last check")
     if fresh.is_draft != snapshot.is_draft:
         changed_fields.append(f"draft status changed ({'draft' if fresh.is_draft else 'ready'})")
-    if fresh.mergeable != snapshot.mergeable:
-        changed_fields.append(f"merge status changed ({snapshot.mergeable} → {fresh.mergeable})")
 
     if not changed_fields:
         return None
@@ -3012,10 +3088,16 @@ def _refresh_pr_if_stale(
     )
 
 
-def _confirm_action(pr: PRData, description: str, forced_answer: str | None = None) -> bool:
+def _confirm_action(
+    pr: PRData,
+    description: str,
+    forced_answer: str | None = None,
+    stats: TriageStats | None = None,
+) -> bool:
     """Ask for final confirmation before modifying a PR. Returns True if confirmed.
 
     Uses single-keypress input (no Enter required) for a snappy workflow.
+    Pressing 'q' sets stats.quit_early if stats is provided and returns False.
     """
     import os
 
@@ -3027,7 +3109,7 @@ def _confirm_action(pr: PRData, description: str, forced_answer: str | None = No
         print(f"Forced answer for confirm '{description}': {force}")
         return force.upper() in ("Y", "YES")
 
-    prompt = f"  Confirm: {description} on PR {_pr_link(pr)}? [Y/n] "
+    prompt = f"  Confirm: {description} on PR {_pr_link(pr)}? [Y/n/q] "
     console_print(prompt, end="")
 
     try:
@@ -3046,6 +3128,11 @@ def _confirm_action(pr: PRData, description: str, forced_answer: str | None = No
     # Echo the character and move to next line
     console_print(ch)
 
+    if ch.upper() == "Q":
+        console_print("  [warning]Quitting...[/]")
+        if stats:
+            stats.quit_early = True
+        return False
     if ch.upper() in ("Y", "\r", "\n", ""):
         return True
     console_print(f"  [info]Cancelled — no changes made to PR {_pr_link(pr)}.[/]")
@@ -3087,7 +3174,7 @@ def _execute_triage_action(
             return stale_result
 
     if action == TriageAction.READY:
-        if not _confirm_action(pr, "Add 'ready for maintainer review' label", ctx.answer_triage):
+        if not _confirm_action(pr, "Add 'ready for maintainer review' label", ctx.answer_triage, stats=stats):
             stats.total_skipped_action += 1
             return None
         console_print(
@@ -3137,7 +3224,7 @@ def _execute_triage_action(
         return None
 
     if action == TriageAction.REBASE:
-        if not _confirm_action(pr, "Update (rebase) PR branch", ctx.answer_triage):
+        if not _confirm_action(pr, "Update (rebase) PR branch", ctx.answer_triage, stats=stats):
             stats.total_skipped_action += 1
             return None
 
@@ -3150,7 +3237,7 @@ def _execute_triage_action(
         return None
 
     if action == TriageAction.COMMENT:
-        if not _confirm_action(pr, "Post comment", ctx.answer_triage):
+        if not _confirm_action(pr, "Post comment", ctx.answer_triage, stats=stats):
             stats.total_skipped_action += 1
             return None
         text = comment_only_text or draft_comment
@@ -3163,7 +3250,7 @@ def _execute_triage_action(
         return None
 
     if action == TriageAction.DRAFT:
-        if not _confirm_action(pr, "Convert to draft and post comment", ctx.answer_triage):
+        if not _confirm_action(pr, "Convert to draft and post comment", ctx.answer_triage, stats=stats):
             stats.total_skipped_action += 1
             return None
         console_print(f"  Converting PR {_pr_link(pr)} to draft...")
@@ -3194,7 +3281,7 @@ def _execute_triage_action(
             f"@{pr.author_login}, do you believe the reviewer's concerns have been resolved?\n\n"
             f"If the concerns are resolved, please resolve the conversation threads. Thank you!"
         )
-        if not _confirm_action(pr, f"Ping reviewer(s): {mentions}", ctx.answer_triage):
+        if not _confirm_action(pr, f"Ping reviewer(s): {mentions}", ctx.answer_triage, stats=stats):
             stats.total_skipped_action += 1
             return None
         get_console().print(f"  Pinging reviewer(s) on PR {_pr_link(pr)}...")
@@ -3206,7 +3293,7 @@ def _execute_triage_action(
         return None
 
     if action == TriageAction.CLOSE:
-        if not _confirm_action(pr, "Close PR and post comment", ctx.answer_triage):
+        if not _confirm_action(pr, "Close PR and post comment", ctx.answer_triage, stats=stats):
             stats.total_skipped_action += 1
             return None
         console_print(f"  Closing PR {_pr_link(pr)}...")
@@ -3464,6 +3551,7 @@ def _display_pr_overview_table(
     pr_table.add_column("Status")
     pr_table.add_column("Title", max_width=50)
     pr_table.add_column("Author")
+    pr_table.add_column("Updated", no_wrap=True)
     pr_table.add_column("Behind", justify="right")
     pr_table.add_column("Conflicts")
     pr_table.add_column("CI Status")
@@ -3517,6 +3605,7 @@ def _display_pr_overview_table(
             overall,
             pr.title[:50],
             pr.author_login,
+            _human_readable_age(pr.updated_at),
             behind_text,
             conflicts_text,
             ci_status,
@@ -3702,17 +3791,23 @@ def _execute_tui_direct_action(
         if pending_runs:
             get_console().rule(f"[cyan]PR {_pr_link(pr)}[/]", style="dim")
             console_print(f"  [bold]{pr.title}[/] by {pr.author_login}\n")
-            confirm = _show_diff_and_confirm(
+            diff_confirm = _show_diff_and_confirm(
                 ctx.token,
                 ctx.github_repository,
                 pr,
                 forced_answer=ctx.answer_triage,
-                confirm_message="Press Enter to approve, \\[f] to flag as suspicious, \\[q] to quit",
+                confirm_message="Press Enter to approve, \\[s] to skip, "
+                "\\[f] to flag as suspicious, \\[q] to quit",
             )
-            if confirm == ContinueAction.QUIT:
+            if diff_confirm == ContinueAction.QUIT:
                 ctx.stats.quit_early = True
                 return
-            if confirm == ContinueAction.FLAG:
+            if diff_confirm == ContinueAction.SKIP:
+                console_print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
+                entry.action_taken = "skipped"
+                if on_action:
+                    on_action(pr, "skipped")
+            elif diff_confirm == ContinueAction.FLAG:
                 console_print(f"  [bold red]Flagged PR {_pr_link(pr)} as suspicious — skipping approval.[/]")
                 entry.action_taken = "suspicious"
                 if on_action:
@@ -4755,10 +4850,10 @@ def _run_tui_triage(
 
         # Use timeout when background work is active so we can pick up results
         _poll_timeout = 1.0 if _bg else None
-        entry, action = tui.run_interactive(timeout=_poll_timeout)
+        tui_entry, action = tui.run_interactive(timeout=_poll_timeout)
 
         # Timeout — no input; check for background updates and re-render
-        if action is None:
+        if action is None or tui_entry is None:
             _apply_refresh_results()
             continue
 
@@ -4883,12 +4978,16 @@ def _run_tui_triage(
                         ctx.github_repository,
                         sel_pr,
                         forced_answer=ctx.answer_triage,
-                        confirm_message="Press Enter to approve, \\[f] to flag as suspicious, \\[q] to quit",
+                        confirm_message="Press Enter to approve, \\[s] to skip, "
+                        "\\[f] to flag as suspicious, \\[q] to quit",
                     )
                     if confirm == ContinueAction.QUIT:
                         ctx.stats.quit_early = True
                         break
-                    if confirm == ContinueAction.FLAG:
+                    if confirm == ContinueAction.SKIP:
+                        get_console().print(f"  [info]Skipping PR {_pr_link(sel_pr)} — no action taken.[/]")
+                        sel_entry.selected = False
+                    elif confirm == ContinueAction.FLAG:
                         get_console().print(f"  [bold red]Flagged PR {_pr_link(sel_pr)} as suspicious.[/]")
                         sel_entry.action_taken = "suspicious"
                         _cache_action(sel_pr, "suspicious")
@@ -4927,10 +5026,10 @@ def _run_tui_triage(
             _read_char()
             continue
 
-        if entry is None:
+        if tui_entry is None:
             continue
 
-        pr = entry.pr
+        pr = tui_entry.pr
 
         if action == TUIAction.OPEN:
             webbrowser.open(pr.url)
@@ -4950,7 +5049,7 @@ def _run_tui_triage(
         # Direct triage actions from TUI (without entering detailed review)
         if isinstance(action, TUIAction) and action.name.startswith("ACTION_"):
             tui.disable_mouse()
-            _execute_tui_direct_action(ctx, tui, entry, action, assessment_map, on_action=_cache_action)
+            _execute_tui_direct_action(ctx, tui, tui_entry, action, assessment_map, on_action=_cache_action)
             if ctx.stats.quit_early:
                 break
             continue
@@ -5043,7 +5142,18 @@ def _run_tui_triage(
                     if cur_entry.llm_status in ("in_progress", "pending"):
                         console_print("[info]LLM review is still in progress for this PR.[/]")
                     else:
-                        console_print("[success]This looks like a PR that is ready for review.[/]")
+                        has_approval = any(r.state == "APPROVED" for r in cur_pr.review_decisions)
+                        if has_approval:
+                            approvers = ", ".join(
+                                r.reviewer_login for r in cur_pr.review_decisions if r.state == "APPROVED"
+                            )
+                            console_print(
+                                f"[success]PR passes all checks. "
+                                f"Maintainer approval: {approvers} "
+                                f"— ready for re-review and merge.[/]"
+                            )
+                        else:
+                            console_print("[success]This looks like a PR that is ready for review.[/]")
 
                     if not ctx.dry_run:
                         if cur_entry.llm_status in ("in_progress", "pending"):
@@ -5053,6 +5163,8 @@ def _run_tui_triage(
                         if not go_back:
                             if was_skipped:
                                 passing_default = TriageAction.SKIP
+                            elif any(r.state == "APPROVED" for r in cur_pr.review_decisions):
+                                passing_default = TriageAction.REVIEW_MERGE
                             else:
                                 passing_default = TriageAction.READY
                         if not go_back:
@@ -5073,6 +5185,11 @@ def _run_tui_triage(
                                 ctx.stats.quit_early = True
                             elif act == TriageAction.SKIP:
                                 cur_entry.action_taken = "skipped"
+                            elif act == TriageAction.REVIEW_MERGE:
+                                # Browser already opened by prompt_triage_action
+                                cur_entry.action_taken = "review & merge"
+                                ctx.stats.total_ready += 1
+                                _cache_action(cur_pr, "review & merge")
                             else:
                                 stale = _execute_triage_action(
                                     ctx,
@@ -5954,9 +6071,19 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
         return
 
     console_print(
-        "\n[info]Showing diffs one-by-one. Press Enter to continue, "
-        "\\[f] to flag as suspicious, \\[q] to quit.[/]\n"
+        "\n[info]Please review the diffs below for suspicious code "
+        "(e.g. credential exfiltration, CI abuse, supply-chain attacks). "
+        "Approve safe PRs, skip uncertain ones, or flag malicious ones.[/]"
     )
+    if not ctx.dry_run:
+        start_confirm = prompt_space_continue(
+            message="Press Enter to start reviewing diffs, \\[q] to quit",
+            forced_answer=ctx.answer_triage,
+        )
+        if start_confirm == ContinueAction.QUIT:
+            console_print("[warning]Quitting.[/]")
+            ctx.stats.quit_early = True
+            return
 
     # Track which PRs to approve vs flagged as suspicious
     prs_to_approve: list[tuple[PRData, list[dict]]] = []
@@ -5969,18 +6096,22 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
         get_console().rule(f"[cyan]PR {_pr_link(pr)}[/]", style="dim")
         console_print(f"  [bold]{pr.title}[/] by {pr.author_login}\n")
 
-        action = _show_diff_and_confirm(
+        diff_action = _show_diff_and_confirm(
             ctx.token,
             ctx.github_repository,
             pr,
             forced_answer=ctx.answer_triage,
-            confirm_message="Press Enter to approve, \\[f] to flag as suspicious, \\[q] to quit",
+            confirm_message="Press Enter to approve, \\[s] to skip, \\[f] to flag as suspicious, \\[q] to quit",
         )
-        if action == ContinueAction.QUIT:
+        if diff_action == ContinueAction.QUIT:
             console_print("[warning]Quitting.[/]")
             ctx.stats.quit_early = True
             break
-        if action == ContinueAction.FLAG:
+        if diff_action == ContinueAction.SKIP:
+            console_print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
+            ctx.stats.total_skipped_action += 1
+            continue
+        if diff_action == ContinueAction.FLAG:
             console_print(f"  [bold red]Flagged PR {_pr_link(pr)} by {pr.author_login} as suspicious.[/]")
             flagged_suspicious.append(pr)
         else:
@@ -6289,7 +6420,19 @@ def _review_passing_prs(ctx: TriageContext, passing_prs: list[PRData]) -> None:
         author_profile = _fetch_author_profile(ctx.token, pr.author_login, ctx.github_repository)
         _llm_st = "passed" if pr.number in {p.number for p in ctx.llm_passing} else ""
         _display_pr_info_panels(pr, author_profile, classification="All passed", llm_status=_llm_st)
-        console_print("[success]This looks like a PR that is ready for review.[/]")
+
+        # Check if a maintainer has already approved this PR
+        has_maintainer_approval = any(r.state == "APPROVED" for r in pr.review_decisions)
+        if has_maintainer_approval:
+            approvers = ", ".join(r.reviewer_login for r in pr.review_decisions if r.state == "APPROVED")
+            console_print(
+                f"[success]This PR passes all checks and has maintainer approval ({approvers}) "
+                f"— ready for re-review and merge.[/]"
+            )
+            default_action = TriageAction.REVIEW_MERGE
+        else:
+            console_print("[success]This looks like a PR that is ready for review.[/]")
+            default_action = TriageAction.READY
 
         if ctx.dry_run:
             console_print("[warning]Dry run — skipping.[/]")
@@ -6297,7 +6440,7 @@ def _review_passing_prs(ctx: TriageContext, passing_prs: list[PRData]) -> None:
 
         action = prompt_triage_action(
             f"Action for PR {_pr_link(pr)}?",
-            default=TriageAction.READY,
+            default=default_action,
             forced_answer=ctx.answer_triage,
             exclude={TriageAction.DRAFT} if pr.is_draft else None,
             pr_url=pr.url,
@@ -6311,12 +6454,20 @@ def _review_passing_prs(ctx: TriageContext, passing_prs: list[PRData]) -> None:
             ctx.stats.quit_early = True
             return
 
-        if action == TriageAction.READY:
+        if action == TriageAction.REVIEW_MERGE:
+            # The browser was already opened by prompt_triage_action — just label it ready
+            console_print(f"  [info]Adding '{_READY_FOR_REVIEW_LABEL}' label to PR {_pr_link(pr)}.[/]")
+            if _add_label(ctx.token, ctx.github_repository, pr.node_id, _READY_FOR_REVIEW_LABEL):
+                console_print(f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]")
+                ctx.stats.total_ready += 1
+            else:
+                console_print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
+        elif action == TriageAction.READY:
             if pr.is_draft:
                 confirm_desc = "Mark as ready for review (undraft + label + comment)"
             else:
                 confirm_desc = "Add 'ready for maintainer review' label"
-            if _confirm_action(pr, confirm_desc, ctx.answer_triage):
+            if _confirm_action(pr, confirm_desc, ctx.answer_triage, stats=ctx.stats):
                 if pr.is_draft:
                     # Undraft the PR first
                     if _mark_pr_ready_for_review(ctx.token, pr.node_id):
@@ -6440,7 +6591,7 @@ def _review_stale_review_requests(
             return
 
         if action == TriageAction.COMMENT:
-            if _confirm_action(pr, "Post review nudge comment", ctx.answer_triage):
+            if _confirm_action(pr, "Post review nudge comment", ctx.answer_triage, stats=ctx.stats):
                 if _post_comment(ctx.token, pr.node_id, comment):
                     console_print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
                     ctx.stats.total_review_nudges += 1
@@ -6449,7 +6600,9 @@ def _review_stale_review_requests(
             else:
                 ctx.stats.total_skipped_action += 1
         elif action == TriageAction.READY:
-            if _confirm_action(pr, "Add 'ready for maintainer review' label", ctx.answer_triage):
+            if _confirm_action(
+                pr, "Add 'ready for maintainer review' label", ctx.answer_triage, stats=ctx.stats
+            ):
                 if _add_label(ctx.token, ctx.github_repository, pr.node_id, _READY_FOR_REVIEW_LABEL):
                     console_print(
                         f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]"
@@ -6535,6 +6688,197 @@ def _review_already_triaged_prs(
             console_print(f"[info]PR #{pr.number} has workflows in progress.[/]")
         else:
             console_print(f"[dim]PR #{pr.number} — {det.category.replace('_', ' ')}.[/]")
+
+
+def _has_maintainer_approval(pr: PRData) -> bool:
+    """Check if any maintainer (COLLABORATOR/MEMBER/OWNER) has approved the PR."""
+    return any(
+        r.state == "APPROVED" and r.reviewer_association in _COLLABORATOR_ASSOCIATIONS
+        for r in pr.review_decisions
+    )
+
+
+def _process_stale_pr(
+    ctx: TriageContext,
+    pr: PRData,
+    *,
+    default_action: TriageAction,
+    staleness_reason: str,
+    classification: str,
+) -> None:
+    """Process a single stale PR: assess, show details, and execute action.
+
+    Runs deterministic checks to include issue summary in the comment.
+    If the PR has maintainer approval and no deterministic issues, offers
+    the option to mark as ready for review instead.
+    """
+    author_profile = _fetch_author_profile(ctx.token, pr.author_login, ctx.github_repository)
+
+    # Run deterministic assessment to find issues
+    det = _assess_pr_deterministic(pr, token=ctx.token, github_repository=ctx.github_repository)
+    has_issues = det.category == "flagged" and det.assessment and det.assessment.violations
+    has_approval = _has_maintainer_approval(pr)
+
+    _display_pr_info_panels(pr, author_profile, compact=True, classification=classification)
+
+    # If maintainer approved and no deterministic issues, offer to mark ready
+    if has_approval and not has_issues:
+        approvers = ", ".join(
+            r.reviewer_login
+            for r in pr.review_decisions
+            if r.state == "APPROVED" and r.reviewer_association in _COLLABORATOR_ASSOCIATIONS
+        )
+        console_print(f"  [green]Maintainer approval from {approvers} — no deterministic issues found.[/]")
+        console_print(f"  [info]Reason for staleness: {staleness_reason}[/]")
+        action = prompt_triage_action(
+            f"Action for PR {_pr_link(pr)}",
+            default=TriageAction.READY,
+            forced_answer=ctx.answer_triage,
+            exclude={TriageAction.RERUN, TriageAction.REBASE, TriageAction.PING},
+        )
+        if action == TriageAction.QUIT:
+            ctx.stats.quit_early = True
+            return
+        if action == TriageAction.SKIP:
+            return
+        if action == TriageAction.READY:
+            _execute_triage_action(ctx, pr, TriageAction.READY, draft_comment="", close_comment="")
+            return
+        # Fall through to draft/close with violations below
+
+    # Build comment with issue summary if violations found
+    is_collab = pr.author_association in _COLLABORATOR_ASSOCIATIONS
+    if has_issues and det.assessment:
+        violations = det.assessment.violations
+        draft_comment = _build_comment(
+            pr.author_login,
+            violations,
+            pr.number,
+            pr.commits_behind,
+            pr.base_ref,
+            is_collaborator=is_collab,
+        )
+        close_comment = _build_close_comment(
+            pr.author_login,
+            violations,
+            pr.number,
+            ctx.author_flagged_count.get(pr.author_login, 0),
+            is_collaborator=is_collab,
+        )
+    else:
+        # No violations — use staleness reason as the comment
+        draft_comment = (
+            f"{staleness_reason}\n\n"
+            f"**@{pr.author_login}**, please mark this PR as ready for review when you are "
+            f"ready to continue working on it. Thank you for your contribution!\n\n"
+            f"<!-- {_TRIAGE_COMMENT_MARKER} -->"
+        )
+        close_comment = (
+            f"{staleness_reason}\n\n"
+            f"**@{pr.author_login}**, you are welcome to reopen this PR when you are "
+            f"ready to continue working on it. Thank you for your contribution!\n\n"
+            f"<!-- {_TRIAGE_COMMENT_MARKER} -->"
+        )
+
+    _execute_triage_action(
+        ctx,
+        pr,
+        default_action,
+        draft_comment=draft_comment,
+        close_comment=close_comment,
+    )
+
+
+def _draft_stale_workflow_prs(
+    ctx: TriageContext,
+    stale_workflow_prs: list[PRData],
+) -> None:
+    """Convert stale workflow-approval PRs to draft (no activity for over 4 weeks)."""
+    if ctx.stats.quit_early or not stale_workflow_prs:
+        return
+
+    stale_workflow_prs.sort(key=lambda p: (p.author_login.lower(), p.number))
+    console_print(
+        f"\n[warning]{len(stale_workflow_prs)} stale workflow-approval "
+        f"{'PRs' if len(stale_workflow_prs) != 1 else 'PR'} "
+        f"— no activity for over 4 weeks, converting to draft:[/]\n"
+    )
+    for pr in stale_workflow_prs:
+        if ctx.stats.quit_early:
+            break
+        _process_stale_pr(
+            ctx,
+            pr,
+            default_action=TriageAction.DRAFT,
+            staleness_reason="This pull request has been awaiting workflow approval for over "
+            "4 weeks with no activity from the author.",
+            classification="Stale WF Approval",
+        )
+
+
+def _close_stale_draft_prs(
+    ctx: TriageContext,
+    stale_draft_prs: list[PRData],
+    triaged_stale_nums: set[int] | None = None,
+) -> None:
+    """Close stale draft PRs.
+
+    Handles both triaged drafts (triage comment >7 days, no author response) and
+    non-triaged drafts (no author activity for >3 weeks based on updated_at).
+    """
+    if ctx.stats.quit_early or not stale_draft_prs:
+        return
+
+    triaged_stale_nums = triaged_stale_nums or set()
+    stale_draft_prs.sort(key=lambda p: (p.author_login.lower(), p.number))
+    console_print(
+        f"\n[warning]{len(stale_draft_prs)} stale draft "
+        f"{'PRs' if len(stale_draft_prs) != 1 else 'PR'} "
+        f"— stale drafts, closing:[/]\n"
+    )
+    for pr in stale_draft_prs:
+        if ctx.stats.quit_early:
+            break
+        if pr.number in triaged_stale_nums:
+            reason = (
+                "This pull request has been converted to draft due to quality issues "
+                "more than a week ago and there has been no response from the author."
+            )
+        else:
+            reason = "This draft pull request has had no activity from the author for over 3 weeks."
+        _process_stale_pr(
+            ctx,
+            pr,
+            default_action=TriageAction.CLOSE,
+            staleness_reason=reason,
+            classification="Stale Draft",
+        )
+
+
+def _draft_inactive_open_prs(
+    ctx: TriageContext,
+    inactive_open_prs: list[PRData],
+) -> None:
+    """Convert inactive non-draft PRs to draft (no activity for over 4 weeks)."""
+    if ctx.stats.quit_early or not inactive_open_prs:
+        return
+
+    inactive_open_prs.sort(key=lambda p: (p.author_login.lower(), p.number))
+    console_print(
+        f"\n[warning]{len(inactive_open_prs)} inactive open "
+        f"{'PRs' if len(inactive_open_prs) != 1 else 'PR'} "
+        f"— no activity for over 4 weeks, converting to draft:[/]\n"
+    )
+    for pr in inactive_open_prs:
+        if ctx.stats.quit_early:
+            break
+        _process_stale_pr(
+            ctx,
+            pr,
+            default_action=TriageAction.DRAFT,
+            staleness_reason="This pull request has had no activity from the author for over 4 weeks.",
+            classification="Inactive",
+        )
 
 
 def _display_json_fix_info(fix_info: dict) -> None:
@@ -7156,11 +7500,24 @@ def _review_ready_prs_review_mode(
                 _print_pr_header(pr, index=pass_i, total=len(det_passing))
                 author_profile = _fetch_author_profile(ctx.token, pr.author_login, ctx.github_repository)
                 _display_pr_info_panels(pr, author_profile, open_in_browser=True, classification="All passed")
-                console.print("[success]Deterministic checks pass.[/]")
+
+                has_approval = any(r.state == "APPROVED" for r in pr.review_decisions)
+                if has_approval:
+                    approvers = ", ".join(
+                        r.reviewer_login for r in pr.review_decisions if r.state == "APPROVED"
+                    )
+                    console.print(
+                        f"[success]Deterministic checks pass. "
+                        f"Maintainer approval: {approvers} — ready for re-review and merge.[/]"
+                    )
+                    passing_default = TriageAction.REVIEW_MERGE
+                else:
+                    console.print("[success]Deterministic checks pass.[/]")
+                    passing_default = TriageAction.SKIP
 
                 action = prompt_triage_action(
                     f"Action for PR {_pr_link(pr)}?",
-                    default=TriageAction.SKIP,
+                    default=passing_default,
                     forced_answer=ctx.answer_triage,
                     exclude={TriageAction.RERUN},
                     pr_url=pr.url,
@@ -7173,7 +7530,10 @@ def _review_ready_prs_review_mode(
                     ctx.stats.quit_early = True
                     pr_actions[pr.number] = "quit"
                     return pr_timings, pr_actions
-                if action == TriageAction.SKIP:
+                if action == TriageAction.REVIEW_MERGE:
+                    pr_actions[pr.number] = "review & merge"
+                    ctx.stats.total_ready += 1
+                elif action == TriageAction.SKIP:
                     ctx.stats.total_skipped_action += 1
                     pr_actions[pr.number] = "skipped"
                 else:
@@ -8410,9 +8770,19 @@ def _clear_triage_caches(github_repository: str) -> None:
         if cache_dir.exists():
             count = len(list(cache_dir.glob("*.json")))
             shutil.rmtree(cache_dir)
-            console.print(f"[info]Cleared LLM {label} cache ({count} entries) at {cache_dir}.[/]")
+            console.print(f"[info]Cleared {label} cache ({count} entries) at {cache_dir}.[/]")
         else:
-            console.print(f"[info]LLM {label} cache is already empty.[/]")
+            console.print(f"[info]{label.capitalize()} cache is already empty.[/]")
+
+    # Collaborators cache is a single file outside the CacheStore directories
+    collab_path = _get_collaborators_cache_path(github_repository)
+    if collab_path.exists():
+        collab_path.unlink()
+        console.print(f"[info]Cleared collaborators cache at {collab_path}.[/]")
+
+    # Clear in-memory caches
+    _author_profile_cache.clear()
+    _label_id_cache.clear()
 
 
 def _validate_and_refresh_caches(
@@ -9019,6 +9389,181 @@ def _launch_llm_and_build_context(
     return ctx, llm_executor
 
 
+@dataclass
+class _PrefetchedBatch:
+    """Pre-fetched and enriched next-page data, ready for interactive review."""
+
+    all_prs: list[PRData]
+    has_next_page: bool
+    next_cursor: str | None
+    batch_result: BatchEnrichResult
+    candidate_prs: list[PRData]
+    batch_assessments: dict[int, PRAssessment]
+    batch_llm_candidates: list[PRData]
+    batch_pending: list[PRData]
+    batch_passing: list[PRData]
+
+
+def _prefetch_next_batch(
+    *,
+    token: str,
+    github_repository: str,
+    exact_labels: tuple[str, ...],
+    exact_exclude_labels: tuple[str, ...],
+    filter_user: str | None,
+    sort: str,
+    batch_size: int,
+    created_after: str | None,
+    created_before: str | None,
+    updated_after: str | None,
+    updated_before: str | None,
+    review_requested: str | None,
+    next_cursor: str | None,
+    wildcard_labels: list[str],
+    wildcard_exclude_labels: list[str],
+    author_filter: AuthorFilter,
+    include_drafts: bool,
+    checks_state: str,
+    min_commits_behind: int,
+    max_num: int,
+    viewer_login: str,
+    run_api: bool,
+) -> _PrefetchedBatch | None:
+    """Fetch and enrich the next page of PRs in the background (no interactive review).
+
+    Returns a _PrefetchedBatch with all data needed to start the interactive review,
+    or None if there are no more PRs.
+    """
+    all_prs, has_next_page, new_cursor, _ = _fetch_prs_graphql(
+        token,
+        github_repository,
+        labels=exact_labels,
+        exclude_labels=exact_exclude_labels,
+        filter_user=filter_user,
+        sort=sort,
+        batch_size=batch_size,
+        created_after=created_after,
+        created_before=created_before,
+        updated_after=updated_after,
+        updated_before=updated_before,
+        review_requested=review_requested,
+        after_cursor=next_cursor,
+        quiet=True,
+    )
+    if not all_prs:
+        return None
+
+    batch_result = _enrich_and_filter_batch(
+        token,
+        github_repository,
+        all_prs,
+        wildcard_labels=wildcard_labels,
+        wildcard_exclude_labels=wildcard_exclude_labels,
+        author_filter=author_filter,
+        include_drafts=include_drafts,
+        checks_state=checks_state,
+        min_commits_behind=min_commits_behind,
+        max_num=max_num,
+        viewer_login=viewer_login,
+        quiet=True,
+    )
+    all_prs = batch_result.all_prs
+    candidate_prs = batch_result.candidate_prs
+
+    # Enrich candidates with check details and run deterministic assessment
+    if candidate_prs:
+        _enrich_candidate_details(token, github_repository, candidate_prs, run_api=run_api, quiet=True)
+
+    batch_assessments: dict[int, PRAssessment] = {}
+    batch_llm_candidates: list[PRData] = []
+    batch_pending: list[PRData] = []
+    batch_passing: list[PRData] = []
+
+    if run_api:
+        for pr in candidate_prs:
+            det = _assess_pr_deterministic(pr, token=token, github_repository=github_repository)
+            if det.category == "flagged" and det.assessment:
+                batch_assessments[pr.number] = det.assessment
+            elif det.category in ("in_progress", "draft_skipped", "grace_period"):
+                pass
+            elif det.category == "pending_approval":
+                batch_pending.append(pr)
+            elif det.category == "llm_candidate":
+                batch_llm_candidates.append(pr)
+    else:
+        for pr in candidate_prs:
+            if pr.checks_state == "NOT_RUN":
+                batch_pending.append(pr)
+            else:
+                batch_llm_candidates.append(pr)
+
+    return _PrefetchedBatch(
+        all_prs=all_prs,
+        has_next_page=has_next_page,
+        next_cursor=new_cursor,
+        batch_result=batch_result,
+        candidate_prs=candidate_prs,
+        batch_assessments=batch_assessments,
+        batch_llm_candidates=batch_llm_candidates,
+        batch_pending=batch_pending,
+        batch_passing=batch_passing,
+    )
+
+
+class _SequentialPrefetcher:
+    """Manages background prefetching of the next page during sequential review.
+
+    Call ``maybe_start()`` between review phases — it triggers the prefetch once
+    the number of reviewed items crosses 75 % of the batch total.
+    Call ``get_result()`` to block until the prefetch completes and retrieve the data.
+    """
+
+    def __init__(
+        self,
+        *,
+        total_items: int,
+        has_next_page: bool,
+        fetch_kwargs: dict,
+    ):
+        self._threshold = int(total_items * 0.75)
+        self._has_next_page = has_next_page
+        self._fetch_kwargs = fetch_kwargs
+        self._reviewed = 0
+        self._future: Future | None = None
+        self._executor: ThreadPoolExecutor | None = None
+
+    @property
+    def started(self) -> bool:
+        return self._future is not None
+
+    def maybe_start(self, reviewed_so_far: int) -> None:
+        """Trigger the background prefetch if we've crossed the 75 % threshold."""
+        self._reviewed = reviewed_so_far
+        if self._future is not None or not self._has_next_page:
+            return
+        if self._reviewed >= self._threshold:
+            self._executor = ThreadPoolExecutor(max_workers=1)
+            self._future = self._executor.submit(_prefetch_next_batch, **self._fetch_kwargs)
+
+    def get_result(self) -> _PrefetchedBatch | None:
+        """Block until the prefetch is done and return the result (or None)."""
+        if self._future is None:
+            return None
+        try:
+            return self._future.result(timeout=120)
+        except Exception:
+            return None
+        finally:
+            if self._executor:
+                self._executor.shutdown(wait=False)
+                self._executor = None
+
+    def shutdown(self) -> None:
+        if self._executor:
+            self._executor.shutdown(wait=False, cancel_futures=True)
+            self._executor = None
+
+
 def _process_pagination_batch(
     *,
     token: str,
@@ -9051,59 +9596,84 @@ def _process_pagination_batch(
     main_failures: RecentPRFailureInfo | None,
     stats: TriageStats,
     accepted_prs: list[PRData],
+    prefetched: _PrefetchedBatch | None = None,
 ) -> tuple[bool, str | None]:
-    """Process one pagination batch: fetch, enrich, categorize, review. Returns (has_next, cursor)."""
-    all_prs, has_next_page, new_cursor, _ = _fetch_prs_graphql(
-        token,
-        github_repository,
-        labels=exact_labels,
-        exclude_labels=exact_exclude_labels,
-        filter_user=filter_user,
-        sort=sort,
-        batch_size=batch_size,
-        created_after=created_after,
-        created_before=created_before,
-        updated_after=updated_after,
-        updated_before=updated_before,
-        review_requested=review_requested,
-        after_cursor=next_cursor,
-    )
-    if not all_prs:
-        console_print("[info]No more PRs to process.[/]")
-        return False, new_cursor
+    """Process one pagination batch: fetch, enrich, categorize, review. Returns (has_next, cursor).
 
-    batch_result = _enrich_and_filter_batch(
-        token,
-        github_repository,
-        all_prs,
-        wildcard_labels=wildcard_labels,
-        wildcard_exclude_labels=wildcard_exclude_labels,
-        author_filter=author_filter,
-        include_drafts=include_drafts,
-        checks_state=checks_state,
-        min_commits_behind=min_commits_behind,
-        max_num=max_num,
-        viewer_login=viewer_login,
-    )
-    all_prs = batch_result.all_prs
-    candidate_prs = batch_result.candidate_prs
-    accepted_prs.extend(batch_result.accepted_prs)
+    If ``prefetched`` is provided, the fetch/enrich/assess steps are skipped and the
+    pre-computed data is used directly. This happens when the previous batch triggered
+    a background prefetch via ``_SequentialPrefetcher``.
+    """
+    if prefetched is not None:
+        # Use pre-fetched data
+        all_prs = prefetched.all_prs
+        has_next_page = prefetched.has_next_page
+        new_cursor = prefetched.next_cursor
+        batch_result = prefetched.batch_result
+        candidate_prs = prefetched.candidate_prs
+        accepted_prs.extend(batch_result.accepted_prs)
+        batch_assessments = prefetched.batch_assessments
+        batch_llm_candidates = prefetched.batch_llm_candidates
+        batch_pending = prefetched.batch_pending
+        batch_passing = list(prefetched.batch_passing)
+    else:
+        all_prs, has_next_page, new_cursor, _ = _fetch_prs_graphql(
+            token,
+            github_repository,
+            labels=exact_labels,
+            exclude_labels=exact_exclude_labels,
+            filter_user=filter_user,
+            sort=sort,
+            batch_size=batch_size,
+            created_after=created_after,
+            created_before=created_before,
+            updated_after=updated_after,
+            updated_before=updated_before,
+            review_requested=review_requested,
+            after_cursor=next_cursor,
+        )
+        if not all_prs:
+            console_print("[info]No more PRs to process.[/]")
+            return False, new_cursor
 
-    # Reclassification logging
-    non_collab_success = [
-        pr
-        for pr in all_prs
-        if pr.checks_state == "SUCCESS"
-        and pr.author_association not in _COLLABORATOR_ASSOCIATIONS
-        and not _is_bot_account(pr.author_login)
-    ]
-    if non_collab_success:
-        reclassified = sum(1 for pr in non_collab_success if pr.checks_state == "NOT_RUN")
-        if reclassified:
-            console_print(
-                f"  [warning]{reclassified} {'PRs' if reclassified != 1 else 'PR'} "
-                f"reclassified to NOT_RUN (only bot/labeler checks).[/]"
-            )
+        batch_result = _enrich_and_filter_batch(
+            token,
+            github_repository,
+            all_prs,
+            wildcard_labels=wildcard_labels,
+            wildcard_exclude_labels=wildcard_exclude_labels,
+            author_filter=author_filter,
+            include_drafts=include_drafts,
+            checks_state=checks_state,
+            min_commits_behind=min_commits_behind,
+            max_num=max_num,
+            viewer_login=viewer_login,
+        )
+        all_prs = batch_result.all_prs
+        candidate_prs = batch_result.candidate_prs
+        accepted_prs.extend(batch_result.accepted_prs)
+
+        batch_passing = []
+        batch_assessments = {}
+        batch_llm_candidates = []
+        batch_pending = []
+
+    if prefetched is None:
+        # Reclassification logging
+        non_collab_success = [
+            pr
+            for pr in all_prs
+            if pr.checks_state == "SUCCESS"
+            and pr.author_association not in _COLLABORATOR_ASSOCIATIONS
+            and not _is_bot_account(pr.author_login)
+        ]
+        if non_collab_success:
+            reclassified = sum(1 for pr in non_collab_success if pr.checks_state == "NOT_RUN")
+            if reclassified:
+                console_print(
+                    f"  [warning]{reclassified} {'PRs' if reclassified != 1 else 'PR'} "
+                    f"reclassified to NOT_RUN (only bot/labeler checks).[/]"
+                )
 
     if not candidate_prs:
         console_print("[info]No PRs to assess in this batch.[/]")
@@ -9120,39 +9690,33 @@ def _process_pagination_batch(
         console_print("[info]All PRs in this batch already triaged.[/]")
         return has_next_page, new_cursor
 
-    # Enrich and assess
-    _enrich_candidate_details(token, github_repository, candidate_prs, run_api=run_api)
+    if prefetched is None:
+        # Enrich and assess
+        _enrich_candidate_details(token, github_repository, candidate_prs, run_api=run_api)
 
-    batch_passing: list[PRData] = []
-    if run_api:
-        batch_assessments: dict[int, PRAssessment] = {}
-        batch_llm_candidates: list[PRData] = []
-        batch_pending: list[PRData] = []
-        for pr in candidate_prs:
-            det = _assess_pr_deterministic(pr, token=token, github_repository=github_repository)
-            if det.category == "flagged" and det.assessment:
-                batch_assessments[pr.number] = det.assessment
-            elif det.category == "grace_period":
-                get_console().print(
-                    f"  [dim]Skipped {_pr_link(pr)} — CI failures less than "
-                    f"{pr.ci_grace_period_hours}h old"
-                    f"{' (collaborator engaged)' if pr.has_collaborator_review else ''}[/]"
-                )
-            elif det.category in ("in_progress", "draft_skipped"):
-                pass
-            elif det.category == "pending_approval":
-                batch_pending.append(pr)
-            elif det.category == "llm_candidate":
-                batch_llm_candidates.append(pr)
-    else:
-        batch_assessments = {}
-        batch_llm_candidates = []
-        batch_pending = []
-        for pr in candidate_prs:
-            if pr.checks_state == "NOT_RUN":
-                batch_pending.append(pr)
-            else:
-                batch_llm_candidates.append(pr)
+        if run_api:
+            for pr in candidate_prs:
+                det = _assess_pr_deterministic(pr, token=token, github_repository=github_repository)
+                if det.category == "flagged" and det.assessment:
+                    batch_assessments[pr.number] = det.assessment
+                elif det.category == "grace_period":
+                    get_console().print(
+                        f"  [dim]Skipped {_pr_link(pr)} — CI failures less than "
+                        f"{pr.ci_grace_period_hours}h old"
+                        f"{' (collaborator engaged)' if pr.has_collaborator_review else ''}[/]"
+                    )
+                elif det.category in ("in_progress", "draft_skipped"):
+                    pass
+                elif det.category == "pending_approval":
+                    batch_pending.append(pr)
+                elif det.category == "llm_candidate":
+                    batch_llm_candidates.append(pr)
+        else:
+            for pr in candidate_prs:
+                if pr.checks_state == "NOT_RUN":
+                    batch_pending.append(pr)
+                else:
+                    batch_llm_candidates.append(pr)
 
     if not run_llm:
         batch_passing.extend(batch_llm_candidates)
@@ -9516,8 +10080,11 @@ class StartupEnrichResult:
     already_triaged: list[PRData]
     already_triaged_nums: set[int]
     triaged_classification: dict[str, set[int]]
+    stale_draft_prs: list[PRData]
+    inactive_open_prs: list[PRData]
     triaged_waiting_count: int
     triaged_responded_count: int
+    triaged_stale_draft_count: int
     total_skipped_collaborator: int
     total_skipped_bot: int
     total_skipped_accepted: int
@@ -9668,23 +10235,84 @@ def _run_startup_enrichment(
     triaged_classification = _classify_already_triaged_prs(
         token, github_repository, candidate_prs, viewer_login, on_progress=on_triage_progress
     )
-    already_triaged_nums = triaged_classification["waiting"] | triaged_classification["responded"]
+    stale_draft_nums = triaged_classification["stale_draft"]
+    already_triaged_nums = (
+        triaged_classification["waiting"] | triaged_classification["responded"] | stale_draft_nums
+    )
     triaged_waiting_count = len(triaged_classification["waiting"])
     triaged_responded_count = len(triaged_classification["responded"])
+    triaged_stale_draft_count = len(stale_draft_nums)
+    stale_draft_prs: list[PRData] = []
     already_triaged: list[PRData] = []
     if already_triaged_nums:
-        already_triaged = [pr for pr in candidate_prs if pr.number in already_triaged_nums]
+        stale_draft_prs = [pr for pr in candidate_prs if pr.number in stale_draft_nums]
+        already_triaged = [
+            pr
+            for pr in candidate_prs
+            if pr.number in already_triaged_nums and pr.number not in stale_draft_nums
+        ]
         candidate_prs = [pr for pr in candidate_prs if pr.number not in already_triaged_nums]
-        if not quiet:
+
+    # Check non-triaged draft PRs: if updated_at is >3 weeks old, treat as stale and close.
+    # Otherwise, skip them from triage (they stay in draft until stale).
+    # Also check non-draft PRs: if updated_at is >4 weeks old, propose closing.
+    from datetime import datetime, timedelta, timezone
+
+    _now = datetime.now(timezone.utc)
+    _draft_stale_cutoff = _now - timedelta(weeks=3)
+    _open_inactive_cutoff = _now - timedelta(weeks=4)
+    non_stale_draft_count = 0
+    inactive_open_prs: list[PRData] = []
+    for pr_list in (candidate_prs, already_triaged):
+        kept: list[PRData] = []
+        for pr in pr_list:
+            if pr.is_draft:
+                # Check if this non-triaged draft is stale based on updated_at
+                try:
+                    updated_dt = datetime.fromisoformat(pr.updated_at.replace("Z", "+00:00"))
+                    if updated_dt < _draft_stale_cutoff:
+                        stale_draft_prs.append(pr)
+                    else:
+                        non_stale_draft_count += 1
+                except (ValueError, TypeError):
+                    non_stale_draft_count += 1
+                continue
+            # Non-draft: check if inactive for >4 weeks
+            try:
+                updated_dt = datetime.fromisoformat(pr.updated_at.replace("Z", "+00:00"))
+                if updated_dt < _open_inactive_cutoff:
+                    inactive_open_prs.append(pr)
+                    continue
+            except (ValueError, TypeError):
+                pass
+            kept.append(pr)
+        pr_list[:] = kept
+
+    if not quiet:
+        has_skipped = already_triaged_nums or non_stale_draft_count or stale_draft_prs or inactive_open_prs
+        if has_skipped:
+            parts = []
+            if triaged_waiting_count:
+                parts.append(f"{triaged_waiting_count} commented")
+            if triaged_responded_count:
+                parts.append(f"{triaged_responded_count} author responded")
+            if stale_draft_prs:
+                parts.append(f"{len(stale_draft_prs)} stale drafts to close")
+            if inactive_open_prs:
+                parts.append(f"{len(inactive_open_prs)} inactive open PRs to draft")
+            if non_stale_draft_count:
+                parts.append(f"{non_stale_draft_count} non-stale drafts skipped")
+            total_skipped = (
+                len(already_triaged) + len(stale_draft_prs) + len(inactive_open_prs) + non_stale_draft_count
+            )
             console_print(
-                f"[info]Skipped {len(already_triaged)} already-triaged "
-                f"{'PRs' if len(already_triaged) != 1 else 'PR'} "
-                f"({triaged_waiting_count} commented, "
-                f"{triaged_responded_count} author responded) "
+                f"[info]Skipped/classified {total_skipped} "
+                f"{'PRs' if total_skipped != 1 else 'PR'} "
+                f"({', '.join(parts)}) "
                 f"({_fmt_duration(time.monotonic() - t_step)})[/]"
             )
-    elif not quiet:
-        console_print(f"  [dim]None found ({_fmt_duration(time.monotonic() - t_step)})[/]")
+        else:
+            console_print(f"  [dim]None found ({_fmt_duration(time.monotonic() - t_step)})[/]")
 
     # Overview table
     if not quiet:
@@ -9699,9 +10327,12 @@ def _run_startup_enrichment(
         accepted_prs=accepted_prs,
         already_triaged=already_triaged,
         already_triaged_nums=already_triaged_nums,
+        stale_draft_prs=stale_draft_prs,
+        inactive_open_prs=inactive_open_prs,
         triaged_classification=triaged_classification,
         triaged_waiting_count=triaged_waiting_count,
         triaged_responded_count=triaged_responded_count,
+        triaged_stale_draft_count=triaged_stale_draft_count,
         total_skipped_collaborator=total_skipped_collaborator,
         total_skipped_bot=total_skipped_bot,
         total_skipped_accepted=total_skipped_accepted,
@@ -9845,7 +10476,6 @@ def _build_selection_criteria(
     updated_before: str | None,
     checks_state: str,
     min_commits_behind: int,
-    include_drafts: bool,
     author_filter: AuthorFilter,
     sort: str,
     batch_size: int,
@@ -9875,8 +10505,6 @@ def _build_selection_criteria(
         parts.append(f"checks={checks_state}")
     if min_commits_behind > 0:
         parts.append(f"behind>={min_commits_behind}")
-    if include_drafts:
-        parts.append("include_drafts")
     if author_filter != AuthorFilter.CONTRIBUTORS:
         parts.append(f"authors={author_filter.value}")
     if sort != "created":
@@ -10057,12 +10685,6 @@ def _display_review_mode_summary(
     help="Only PRs updated on or before this date (YYYY-MM-DD).",
 )
 @click.option(
-    "--include-drafts",
-    is_flag=True,
-    default=False,
-    help="Include draft PRs in triage (normally skipped). Passing drafts can be marked as ready for review.",
-)
-@click.option(
     "--pending-approval-only",
     is_flag=True,
     default=False,
@@ -10116,7 +10738,7 @@ def _display_review_mode_summary(
 @click.option(
     "--sort",
     type=click.Choice(["created-asc", "created-desc", "updated-asc", "updated-desc"]),
-    default="created-desc",
+    default="updated-asc",
     show_default=True,
     help="Sort order for PR search results.",
 )
@@ -10167,7 +10789,6 @@ def auto_triage(
     updated_after: str | None,
     updated_before: str | None,
     authors: str,
-    include_drafts: bool,
     pending_approval_only: bool,
     triage_mode: str,
     tui: bool,
@@ -10189,6 +10810,9 @@ def auto_triage(
     )
 
     author_filter = AuthorFilter(authors)
+    # Draft PRs are always included — they go through the same triage pipeline.
+    # Stale drafts (triaged >7 days or inactive >3 weeks) are auto-closed.
+    include_drafts = True
 
     token = _resolve_github_token(github_token)
     if not token:
@@ -10440,6 +11064,8 @@ def auto_triage(
     accepted_prs = enrich_result.accepted_prs
     already_triaged = enrich_result.already_triaged
     already_triaged_nums = enrich_result.already_triaged_nums
+    stale_draft_prs = enrich_result.stale_draft_prs
+    inactive_open_prs = enrich_result.inactive_open_prs
     total_skipped_collaborator = enrich_result.total_skipped_collaborator
     total_skipped_bot = enrich_result.total_skipped_bot
     total_skipped_accepted = enrich_result.total_skipped_accepted
@@ -10462,7 +11088,14 @@ def auto_triage(
     )
     _step_done("verify_ci", f"{reclassified} reclassified" if reclassified else "none to verify")
     _step_done("classify", f"{len(candidate_prs)} candidates")
-    triage_status = f"{len(already_triaged)} skipped" if already_triaged_nums else "none found"
+    triage_parts = []
+    if already_triaged:
+        triage_parts.append(f"{len(already_triaged)} skipped")
+    if stale_draft_prs:
+        triage_parts.append(f"{len(stale_draft_prs)} stale drafts")
+    if inactive_open_prs:
+        triage_parts.append(f"{len(inactive_open_prs)} inactive")
+    triage_status = ", ".join(triage_parts) if triage_parts else "none found"
     _step_done("triage_check", triage_status)
 
     t_phase1_end = time.monotonic()
@@ -10624,6 +11257,29 @@ def auto_triage(
                     f"already commented on (no new commits since).[/]"
                 )
 
+    # Split out workflow-approval PRs that have been inactive for >4 weeks — close instead of approve
+    from datetime import datetime, timedelta, timezone
+
+    _wf_stale_cutoff = datetime.now(timezone.utc) - timedelta(weeks=4)
+    stale_workflow_prs: list[PRData] = []
+    active_pending: list[PRData] = []
+    for pr in pending_approval:
+        try:
+            updated_dt = datetime.fromisoformat(pr.updated_at.replace("Z", "+00:00"))
+            if updated_dt < _wf_stale_cutoff:
+                stale_workflow_prs.append(pr)
+            else:
+                active_pending.append(pr)
+        except (ValueError, TypeError):
+            active_pending.append(pr)
+    pending_approval = active_pending
+    if stale_workflow_prs and not use_tui:
+        console_print(
+            f"[info]Found {len(stale_workflow_prs)} workflow-approval "
+            f"{'PRs' if len(stale_workflow_prs) != 1 else 'PR'} "
+            f"inactive for >4 weeks — will convert to draft.[/]"
+        )
+
     # If --pending-approval-only, discard all assessment results and only keep pending_approval
     if pending_approval_only:
         assessments = {}
@@ -10704,8 +11360,14 @@ def auto_triage(
     det_flagged_prs = [(pr, assessments[pr.number]) for pr in candidate_prs if pr.number in assessments]
     det_flagged_prs.sort(key=lambda pair: (pair[0].author_login.lower(), pair[0].number))
 
+    # Remove non-stale draft PRs from all_prs so they don't appear in TUI or summaries.
+    # Only stale drafts (in stale_draft_prs) are kept for the closing phase.
+    _stale_draft_nums = {pr.number for pr in stale_draft_prs}
+    all_prs = [pr for pr in all_prs if not pr.is_draft or pr.number in _stale_draft_nums]
+
     _tui_acted_entries: list[dict] = []
     _t_tui_start: float = 0.0
+    prefetcher: _SequentialPrefetcher | None = None
     try:
         if use_tui:
             # Full-screen TUI mode: show all PRs in an interactive full-screen view
@@ -10721,7 +11383,6 @@ def auto_triage(
                 updated_before=updated_before,
                 checks_state=checks_state,
                 min_commits_behind=min_commits_behind,
-                include_drafts=include_drafts,
                 author_filter=author_filter,
                 sort=sort,
                 batch_size=batch_size,
@@ -10779,26 +11440,89 @@ def auto_triage(
             )
         else:
             # Sequential mode (CI / forced answer / no TTY)
+            # Set up background prefetch of the next page — triggers at 75 % of this batch.
+            _prefetch_kwargs = dict(
+                token=token,
+                github_repository=github_repository,
+                exact_labels=exact_labels,
+                exact_exclude_labels=exact_exclude_labels,
+                filter_user=filter_user,
+                sort=sort,
+                batch_size=batch_size,
+                created_after=created_after,
+                created_before=created_before,
+                updated_after=updated_after,
+                updated_before=updated_before,
+                review_requested=review_requested_user,
+                next_cursor=next_cursor,
+                wildcard_labels=wildcard_labels,
+                wildcard_exclude_labels=wildcard_exclude_labels,
+                author_filter=author_filter,
+                include_drafts=include_drafts,
+                checks_state=checks_state,
+                min_commits_behind=min_commits_behind,
+                max_num=max_num,
+                viewer_login=viewer_login,
+                run_api=run_api,
+            )
+            _total_review_items = (
+                len(pending_approval)
+                + len(det_flagged_prs)
+                + len(llm_candidates)
+                + len(passing_prs)
+                + len(accepted_prs)
+                + len(already_triaged)
+                + len(stale_draft_prs)
+                + len(inactive_open_prs)
+                + len(stale_workflow_prs)
+            )
+            prefetcher = _SequentialPrefetcher(
+                total_items=_total_review_items,
+                has_next_page=has_next_page and not pr_number,
+                fetch_kwargs=_prefetch_kwargs,
+            )
+
             # Phase 4b: Present NOT_RUN PRs for workflow approval (LLM runs in background)
+            _reviewed = 0
             _review_workflow_approval_prs(ctx, pending_approval)
+            _reviewed += len(pending_approval)
+            prefetcher.maybe_start(_reviewed)
 
             # Phase 5a: Present deterministically flagged PRs
             _review_deterministic_flagged_prs(ctx, det_flagged_prs)
+            _reviewed += len(det_flagged_prs)
+            prefetcher.maybe_start(_reviewed)
 
             # Phase 5b: Present LLM-flagged PRs as they become ready (streaming)
             _review_llm_flagged_prs(ctx, llm_candidates)
+            _reviewed += len(llm_candidates)
+            prefetcher.maybe_start(_reviewed)
 
             # Add LLM passing PRs to the passing list
             passing_prs.extend(llm_passing)
 
             # Phase 5c: Present passing PRs for optional ready-for-review marking
             _review_passing_prs(ctx, passing_prs)
+            _reviewed += len(passing_prs)
+            prefetcher.maybe_start(_reviewed)
 
             # Phase 5d: Check accepted PRs for stale CHANGES_REQUESTED reviews
             _review_stale_review_requests(ctx, accepted_prs)
+            _reviewed += len(accepted_prs)
+            prefetcher.maybe_start(_reviewed)
 
             # Phase 5e: Present already-triaged PRs for optional re-evaluation
             _review_already_triaged_prs(ctx, already_triaged, run_api=run_api)
+
+            # Phase 5f: Close stale draft PRs
+            _triaged_stale_nums = enrich_result.triaged_classification["stale_draft"]
+            _close_stale_draft_prs(ctx, stale_draft_prs, triaged_stale_nums=_triaged_stale_nums)
+
+            # Phase 5g: Convert inactive open PRs to draft (no activity for >4 weeks)
+            _draft_inactive_open_prs(ctx, inactive_open_prs)
+
+            # Phase 5h: Convert stale workflow-approval PRs to draft (no activity for >4 weeks)
+            _draft_stale_workflow_prs(ctx, stale_workflow_prs)
     except KeyboardInterrupt:
         console_print("\n[warning]Interrupted — shutting down.[/]")
         stats.quit_early = True
@@ -10807,11 +11531,21 @@ def auto_triage(
         if llm_executor is not None:
             llm_executor.shutdown(wait=False, cancel_futures=True)
 
-    # Fetch and process next batch if available and user hasn't quit
+    # Fetch and process next batch if available and user hasn't quit.
+    # If the prefetcher already fetched the next batch in the background, use it.
+    _pending_prefetch: _PrefetchedBatch | None = None
+    if prefetcher is not None:
+        if prefetcher.started and not stats.quit_early:
+            console_print("[dim]Waiting for background prefetch to complete...[/]")
+            _pending_prefetch = prefetcher.get_result()
+        prefetcher.shutdown()
     while has_next_page and not stats.quit_early and not pr_number:
         batch_num = getattr(stats, "_batch_count", 1) + 1
         stats._batch_count = batch_num  # type: ignore[attr-defined]
-        console_print(f"\n[info]Batch complete. Fetching next batch (page {batch_num})...[/]\n")
+        if _pending_prefetch:
+            console_print(f"\n[info]Batch complete. Next batch already prefetched (page {batch_num}).[/]\n")
+        else:
+            console_print(f"\n[info]Batch complete. Fetching next batch (page {batch_num})...[/]\n")
         has_next_page, next_cursor = _process_pagination_batch(
             token=token,
             github_repository=github_repository,
@@ -10843,7 +11577,9 @@ def auto_triage(
             main_failures=main_failures,
             stats=stats,
             accepted_prs=accepted_prs,
+            prefetched=_pending_prefetch,
         )
+        _pending_prefetch = None  # Only use prefetched data for the first iteration
 
     # Session summary
     t_total_end = time.monotonic()
@@ -10951,3 +11687,709 @@ def auto_triage(
     import os as _os
 
     _os._exit(0)
+
+
+# ---------------------------------------------------------------------------
+# breeze pr stats — aggregate statistics of open PRs by area
+# ---------------------------------------------------------------------------
+
+_AGE_BUCKET_LABELS = ["<1w", "1-2w", "2-4w", ">1m"]
+
+_AGE_BUCKET_THRESHOLDS: list[tuple[int, str]] = [
+    (7, "<1w"),
+    (14, "1-2w"),
+    (28, "2-4w"),
+]
+
+
+_DRAFT_AGE_BUCKET_LABELS = ["<1w", "1-2w", "2-4w", ">1m"]
+
+
+@dataclass
+class _AreaStats:
+    """Aggregated statistics for a single area label."""
+
+    total: int = 0
+    drafts: int = 0
+    non_drafts: int = 0
+    contributors: int = 0  # non-collaborator authors
+    triaged_waiting: int = 0
+    triaged_responded: int = 0
+    ready_for_review: int = 0
+    triager_drafted: int = 0
+    draft_age_buckets: dict[str, int] = field(
+        default_factory=lambda: {b: 0 for b in _DRAFT_AGE_BUCKET_LABELS}
+    )
+    age_buckets: dict[str, int] = field(default_factory=lambda: {b: 0 for b in _AGE_BUCKET_LABELS})
+
+
+def _compute_age_bucket(last_interaction_iso: str) -> str:
+    """Map an ISO-8601 datetime string to an age bucket label."""
+    from datetime import datetime, timezone
+
+    try:
+        dt = datetime.fromisoformat(last_interaction_iso.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return ">1m"
+    delta = datetime.now(tz=timezone.utc) - dt
+    days = delta.total_seconds() / 86400
+    for threshold_days, label in _AGE_BUCKET_THRESHOLDS:
+        if days < threshold_days:
+            return label
+    return ">1m"
+
+
+def _fetch_all_open_prs(token: str, github_repository: str, batch_size: int = 100) -> list[PRData]:
+    """Fetch all open PRs from the repository, paginating through all results."""
+    console = get_console()
+    all_prs: list[PRData] = []
+    after_cursor: str | None = None
+    page = 0
+
+    while True:
+        page += 1
+        prs, has_next_page, end_cursor, total_count = _fetch_prs_graphql(
+            token,
+            github_repository,
+            labels=(),
+            exclude_labels=(),
+            filter_user=None,
+            sort="created-desc",
+            batch_size=batch_size,
+            after_cursor=after_cursor,
+            quiet=page > 1,
+        )
+        all_prs.extend(prs)
+        if page == 1:
+            console.print(f"[info]Total open PRs: {total_count}[/]")
+        else:
+            console.print(f"[info]  Fetched page {page}: {len(all_prs)}/{total_count} PRs[/]")
+
+        if not has_next_page:
+            break
+        after_cursor = end_cursor
+
+    return all_prs
+
+
+@dataclass
+class _PRInteractionData:
+    """Interaction data for a single PR."""
+
+    last_interaction: str  # ISO-8601 datetime of last author interaction
+    drafted_by_triager_at: str  # ISO-8601 datetime when triager converted to draft, or ""
+
+
+def _fetch_pr_interaction_data(
+    token: str, github_repository: str, prs: list[PRData], viewer_login: str
+) -> dict[int, _PRInteractionData]:
+    """Fetch interaction data for each PR: last author activity and triager draft conversion.
+
+    Uses a file-based cache keyed by PR number and ``updated_at`` — if a PR hasn't
+    been updated since the last run, the cached data is reused.
+    """
+    from airflow_breeze.utils.pr_cache import stats_interaction_cache
+
+    if not prs:
+        return {}
+
+    owner, repo = github_repository.split("/", 1)
+    result: dict[int, _PRInteractionData] = {}
+
+    # Check cache — only fetch PRs whose updated_at changed since last cache write
+    uncached_prs: list[PRData] = []
+    for pr in prs:
+        cached = stats_interaction_cache.get(
+            github_repository, f"pr_{pr.number}", match={"updated_at": pr.updated_at}
+        )
+        if cached and "last_interaction" in cached:
+            result[pr.number] = _PRInteractionData(
+                last_interaction=cached["last_interaction"],
+                drafted_by_triager_at=cached.get("drafted_by_triager_at", ""),
+            )
+        else:
+            uncached_prs.append(pr)
+
+    console = get_console()
+    cache_hits = len(prs) - len(uncached_prs)
+    console.print(
+        f"[info]Fetching PR interaction data: {cache_hits}/{len(prs)} cached, "
+        f"{len(uncached_prs)} to fetch...[/]"
+    )
+
+    if not uncached_prs:
+        return result
+
+    chunk_size = _COMMITS_BEHIND_BATCH_SIZE  # reuse existing batch constant (20)
+
+    for chunk_start in range(0, len(uncached_prs), chunk_size):
+        chunk = uncached_prs[chunk_start : chunk_start + chunk_size]
+
+        pr_fields = []
+        for pr in chunk:
+            alias = f"pr{pr.number}"
+            pr_fields.append(
+                f"    {alias}: pullRequest(number: {pr.number}) {{\n"
+                f"      comments(last: 10) {{\n"
+                f"        nodes {{ author {{ login }} createdAt }}\n"
+                f"      }}\n"
+                f"      commits(last: 1) {{\n"
+                f"        nodes {{ commit {{ committedDate }} }}\n"
+                f"      }}\n"
+                f"      timelineItems(last: 10, itemTypes: CONVERT_TO_DRAFT_EVENT) {{\n"
+                f"        nodes {{\n"
+                f"          ... on ConvertToDraftEvent {{\n"
+                f"            createdAt\n"
+                f"            actor {{ login }}\n"
+                f"          }}\n"
+                f"        }}\n"
+                f"      }}\n"
+                f"    }}"
+            )
+
+        query = (
+            f'query {{\n  repository(owner: "{owner}", name: "{repo}") {{\n'
+            + "\n".join(pr_fields)
+            + "\n  }\n}"
+        )
+
+        try:
+            data = _graphql_request(token, query, {})
+        except SystemExit:
+            # On API failure, fall back to updated_at for this chunk
+            for pr in chunk:
+                result[pr.number] = _PRInteractionData(
+                    last_interaction=pr.updated_at or pr.created_at,
+                    drafted_by_triager_at="",
+                )
+            continue
+
+        repo_data = data.get("repository", {})
+        for pr in chunk:
+            alias = f"pr{pr.number}"
+            pr_data = repo_data.get(alias) or {}
+
+            # Start with PR creation as the baseline
+            latest = pr.created_at
+
+            # Check last commit date
+            commits = pr_data.get("commits", {}).get("nodes", [])
+            if commits:
+                commit_date = commits[0].get("commit", {}).get("committedDate", "")
+                if commit_date and commit_date > latest:
+                    latest = commit_date
+
+            # Check last comment from the PR author
+            comments = pr_data.get("comments", {}).get("nodes", [])
+            for comment in reversed(comments):
+                comment_author = (comment.get("author") or {}).get("login", "")
+                if comment_author == pr.author_login:
+                    comment_date = comment.get("createdAt", "")
+                    if comment_date and comment_date > latest:
+                        latest = comment_date
+                    break
+
+            # Check if the triager (viewer) converted this PR to draft
+            drafted_by_triager_at = ""
+            timeline_nodes = pr_data.get("timelineItems", {}).get("nodes", [])
+            for event in reversed(timeline_nodes):
+                actor = (event.get("actor") or {}).get("login", "")
+                if actor == viewer_login:
+                    drafted_by_triager_at = event.get("createdAt", "")
+                    break
+
+            result[pr.number] = _PRInteractionData(
+                last_interaction=latest,
+                drafted_by_triager_at=drafted_by_triager_at,
+            )
+            # Cache the result keyed by updated_at so it invalidates on any PR change
+            stats_interaction_cache.save(
+                github_repository,
+                f"pr_{pr.number}",
+                {
+                    "updated_at": pr.updated_at,
+                    "last_interaction": latest,
+                    "drafted_by_triager_at": drafted_by_triager_at,
+                },
+            )
+
+        if chunk_start + chunk_size < len(uncached_prs):
+            console.print(
+                f"[info]  Fetched interactions: "
+                f"{min(chunk_start + chunk_size, len(uncached_prs))}/{len(uncached_prs)}[/]"
+            )
+
+    return result
+
+
+def _aggregate_stats_by_area(
+    prs: list[PRData],
+    triage_classification: dict[str, set[int]],
+    interaction_data: dict[int, _PRInteractionData],
+) -> dict[str, _AreaStats]:
+    """Aggregate PR statistics grouped by area: labels."""
+    waiting = triage_classification.get("waiting", set())
+    responded = triage_classification.get("responded", set())
+    area_stats: dict[str, _AreaStats] = {}
+
+    for pr in prs:
+        # Extract area labels
+        areas = [label.removeprefix("area:") for label in pr.labels if label.startswith("area:")]
+        if not areas:
+            areas = ["(no area)"]
+
+        pr_data = interaction_data.get(pr.number)
+        last_interaction = pr_data.last_interaction if pr_data else pr.created_at
+        drafted_at = pr_data.drafted_by_triager_at if pr_data else ""
+
+        age_bucket = _compute_age_bucket(last_interaction)
+        is_ready = _READY_FOR_REVIEW_LABEL in pr.labels
+        is_triaged_waiting = pr.number in waiting
+        is_triaged_responded = pr.number in responded
+
+        is_contributor = pr.author_association not in _COLLABORATOR_ASSOCIATIONS
+
+        for area in areas:
+            stats = area_stats.setdefault(area, _AreaStats())
+            stats.total += 1
+            if pr.is_draft:
+                stats.drafts += 1
+            else:
+                stats.non_drafts += 1
+            if is_contributor:
+                stats.contributors += 1
+            if is_triaged_waiting:
+                stats.triaged_waiting += 1
+            if is_triaged_responded:
+                stats.triaged_responded += 1
+            if is_ready:
+                stats.ready_for_review += 1
+            stats.age_buckets[age_bucket] += 1
+            if drafted_at:
+                stats.triager_drafted += 1
+                draft_bucket = _compute_age_bucket(drafted_at)
+                stats.draft_age_buckets[draft_bucket] += 1
+
+    return area_stats
+
+
+def _compute_totals(
+    prs: list[PRData],
+    triage_classification: dict[str, set[int]],
+    interaction_data: dict[int, _PRInteractionData],
+) -> _AreaStats:
+    """Compute totals across all PRs (unique counts, not sum of per-area)."""
+    waiting = triage_classification.get("waiting", set())
+    responded = triage_classification.get("responded", set())
+    totals = _AreaStats()
+    for pr in prs:
+        totals.total += 1
+        if pr.is_draft:
+            totals.drafts += 1
+        else:
+            totals.non_drafts += 1
+        if pr.author_association not in _COLLABORATOR_ASSOCIATIONS:
+            totals.contributors += 1
+        if pr.number in waiting:
+            totals.triaged_waiting += 1
+        if pr.number in responded:
+            totals.triaged_responded += 1
+        if _READY_FOR_REVIEW_LABEL in pr.labels:
+            totals.ready_for_review += 1
+        pr_data = interaction_data.get(pr.number)
+        last_interaction = pr_data.last_interaction if pr_data else pr.created_at
+        drafted_at = pr_data.drafted_by_triager_at if pr_data else ""
+        totals.age_buckets[_compute_age_bucket(last_interaction)] += 1
+        if drafted_at:
+            totals.triager_drafted += 1
+            totals.draft_age_buckets[_compute_age_bucket(drafted_at)] += 1
+    return totals
+
+
+def _pct(numerator: int, denominator: int) -> str:
+    """Format a percentage, returning '-' when the denominator is zero."""
+    return f"{100 * numerator / denominator:.0f}%" if denominator else "-"
+
+
+def _render_stats_tables(
+    area_stats: dict[str, _AreaStats],
+    totals: _AreaStats,
+    github_repository: str,
+    closed_stats: dict[str, _ClosedTriagedAreaStats],
+    closed_since_date: str,
+) -> None:
+    """Render two tables: triaged final-state and triaged still-open."""
+    console = get_console()
+    closed_totals = closed_stats.get("__total__", _ClosedTriagedAreaStats())
+
+    # Collect all area names across both open and closed stats
+    all_areas = set(area_stats.keys()) | {k for k in closed_stats if k != "__total__"}
+    sorted_area_names = sorted(
+        all_areas, key=lambda a: (a == "(no area)", -(area_stats.get(a, _AreaStats()).total))
+    )
+
+    # ── Table 1: Triaged PRs — Final State (closed/merged) ──────────
+    t1 = Table(
+        title=f"Triaged PRs — Final State since {closed_since_date} ({github_repository})",
+        title_style="bold",
+        show_lines=True,
+        show_footer=True,
+    )
+    t1.add_column("Area", style="bold cyan", min_width=12, footer="Area")
+    t1.add_column("Triaged\nTotal", justify="right", style="yellow", footer="Triaged\nTotal")
+    t1.add_column("Closed", justify="right", style="red", footer="Closed")
+    t1.add_column("%Closed", justify="right", footer="%Closed")
+    t1.add_column("Merged", justify="right", style="green", footer="Merged")
+    t1.add_column("%Merged", justify="right", footer="%Merged")
+    t1.add_column("Responded", justify="right", footer="Responded")
+    t1.add_column("%Responded", justify="right", footer="%Responded")
+
+    for area in sorted_area_names:
+        cs = closed_stats.get(area, _ClosedTriagedAreaStats())
+        if cs.total == 0:
+            continue
+        t1.add_row(
+            area,
+            str(cs.total),
+            str(cs.closed),
+            cs.pct_closed,
+            str(cs.merged),
+            cs.pct_merged,
+            str(cs.responded_before_close),
+            cs.pct_responded,
+        )
+
+    t1.add_row(
+        "[bold white]TOTAL[/]",
+        f"[bold white]{closed_totals.total}[/]",
+        f"[bold white]{closed_totals.closed}[/]",
+        f"[bold white]{closed_totals.pct_closed}[/]",
+        f"[bold white]{closed_totals.merged}[/]",
+        f"[bold white]{closed_totals.pct_merged}[/]",
+        f"[bold white]{closed_totals.responded_before_close}[/]",
+        f"[bold white]{closed_totals.pct_responded}[/]",
+        style="on grey7",
+        end_section=True,
+    )
+
+    console.print()
+    console.print(t1)
+
+    # ── Table 2: Triaged PRs — Still Open ────────────────────────────
+    t2 = Table(
+        title=f"Triaged PRs — Still Open ({github_repository})",
+        title_style="bold",
+        show_lines=True,
+        show_footer=True,
+    )
+    t2.add_column("Area", style="bold cyan", min_width=12, footer="Area")
+    t2.add_column("Total", justify="right", footer="Total")
+    t2.add_column("Draft", justify="right", footer="Draft")
+    t2.add_column("%Draft", justify="right", footer="%Draft")
+    t2.add_column("Non-Draft", justify="right", footer="Non-Draft")
+    t2.add_column("Contrib.", justify="right", footer="Contrib.")
+    t2.add_column("%Contrib.", justify="right", footer="%Contrib.")
+    t2.add_column("Triaged", justify="right", style="yellow", footer="Triaged")
+    t2.add_column("Responded", justify="right", style="green", footer="Responded")
+    t2.add_column("%Responded", justify="right", footer="%Responded")
+    t2.add_column("Ready", justify="right", style="bold green", footer="Ready")
+    t2.add_column("%Ready", justify="right", footer="%Ready")
+    t2.add_column("Drafted\nby triager", justify="right", style="magenta", footer="Drafted\nby triager")
+    for bucket in _DRAFT_AGE_BUCKET_LABELS:
+        t2.add_column(f"Drafted\n{bucket}", justify="right", style="magenta dim", footer=f"Drafted\n{bucket}")
+    for bucket in _AGE_BUCKET_LABELS:
+        t2.add_column(f"Author resp\n{bucket}", justify="right", style="dim", footer=f"Author resp\n{bucket}")
+
+    for area in sorted_area_names:
+        s = area_stats.get(area)
+        if not s or s.total == 0:
+            continue
+        triaged = s.triaged_waiting + s.triaged_responded
+        t2.add_row(
+            area,
+            str(s.total),
+            str(s.drafts),
+            _pct(s.drafts, s.total),
+            str(s.non_drafts),
+            str(s.contributors),
+            _pct(s.contributors, s.total),
+            str(triaged),
+            str(s.triaged_responded),
+            _pct(s.triaged_responded, triaged),
+            str(s.ready_for_review),
+            _pct(s.ready_for_review, s.total),
+            str(s.triager_drafted),
+            *[str(s.draft_age_buckets.get(b, 0)) for b in _DRAFT_AGE_BUCKET_LABELS],
+            *[str(s.age_buckets.get(b, 0)) for b in _AGE_BUCKET_LABELS],
+        )
+
+    total_triaged = totals.triaged_waiting + totals.triaged_responded
+    t2.add_row(
+        "[bold white]TOTAL[/]",
+        f"[bold white]{totals.total}[/]",
+        f"[bold white]{totals.drafts}[/]",
+        f"[bold white]{_pct(totals.drafts, totals.total)}[/]",
+        f"[bold white]{totals.non_drafts}[/]",
+        f"[bold white]{totals.contributors}[/]",
+        f"[bold white]{_pct(totals.contributors, totals.total)}[/]",
+        f"[bold white]{total_triaged}[/]",
+        f"[bold white]{totals.triaged_responded}[/]",
+        f"[bold white]{_pct(totals.triaged_responded, total_triaged)}[/]",
+        f"[bold white]{totals.ready_for_review}[/]",
+        f"[bold white]{_pct(totals.ready_for_review, totals.total)}[/]",
+        f"[bold white]{totals.triager_drafted}[/]",
+        *[f"[bold white]{totals.draft_age_buckets.get(b, 0)}[/]" for b in _DRAFT_AGE_BUCKET_LABELS],
+        *[f"[bold white]{totals.age_buckets.get(b, 0)}[/]" for b in _AGE_BUCKET_LABELS],
+        style="on grey7",
+        end_section=True,
+    )
+
+    console.print()
+    console.print(t2)
+
+    # ── Legend ────────────────────────────────────────────────────────
+    legend_lines = [
+        "[bold]Column legend:[/]",
+        "  [bold]Contrib.[/]      = PRs by non-collaborator contributors",
+        "  [yellow]Triaged[/]       = PRs where a triage comment was posted",
+        "  [green]Responded[/]     = author replied after the triage comment",
+        "  [bold green]Ready[/]         = PRs with the [bold]'ready for maintainer review'[/] label",
+        "  [magenta]Drafted by triager[/] = PRs converted to draft by the triager",
+        "",
+        "[bold]Author resp[/] columns show time since the PR author's last interaction "
+        "(comment, commit, or PR creation).",
+        "[bold magenta]Drafted[/] columns show time since the triager converted the PR to draft.",
+    ]
+    console.print(Panel("\n".join(legend_lines), border_style="dim", expand=False))
+    console.print()
+
+
+_CLOSED_TRIAGED_SINCE = "2026-03-11"
+
+_CLOSED_PRS_SEARCH_QUERY = """
+query($query: String!, $first: Int!, $after: String) {
+  search(query: $query, type: ISSUE, first: $first, after: $after) {
+    issueCount
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    nodes {
+      ... on PullRequest {
+        number
+        author { login }
+        authorAssociation
+        state
+        mergedAt
+        closedAt
+        labels(first: 20) {
+          nodes { name }
+        }
+        comments(last: 20) {
+          nodes { author { login } body createdAt }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+@dataclass
+class _ClosedTriagedAreaStats:
+    """Per-area stats for triaged PRs that reached a final state."""
+
+    closed: int = 0
+    merged: int = 0
+    responded_before_close: int = 0
+    contributors: int = 0  # non-collaborator authors
+
+    @property
+    def total(self) -> int:
+        return self.closed + self.merged
+
+    @property
+    def pct_closed(self) -> str:
+        return f"{100 * self.closed / self.total:.0f}%" if self.total else "-"
+
+    @property
+    def pct_merged(self) -> str:
+        return f"{100 * self.merged / self.total:.0f}%" if self.total else "-"
+
+    @property
+    def pct_responded(self) -> str:
+        return f"{100 * self.responded_before_close / self.total:.0f}%" if self.total else "-"
+
+    @property
+    def pct_contributors(self) -> str:
+        return f"{100 * self.contributors / self.total:.0f}%" if self.total else "-"
+
+
+def _fetch_closed_triaged_prs(
+    token: str, github_repository: str, viewer_login: str, since: str
+) -> dict[str, _ClosedTriagedAreaStats]:
+    """Fetch closed/merged PRs since *since* that had a triage comment.
+
+    Returns a dict mapping area label (or "(no area)") to stats.
+    Also includes a "__total__" key with aggregate counts.
+    """
+    console = get_console()
+    console.print(f"[info]Fetching closed/merged triaged PRs since {since}...[/]")
+
+    search_query = (
+        f"repo:{github_repository} type:pr is:closed closed:>={since} "
+        f"commenter:{viewer_login} sort:updated-desc"
+    )
+
+    area_stats: dict[str, _ClosedTriagedAreaStats] = {}
+    total_stats = _ClosedTriagedAreaStats()
+    after_cursor: str | None = None
+
+    while True:
+        variables: dict = {"query": search_query, "first": 100}
+        if after_cursor:
+            variables["after"] = after_cursor
+
+        try:
+            data = _graphql_request(token, _CLOSED_PRS_SEARCH_QUERY, variables)
+        except SystemExit:
+            break
+
+        search_data = data["search"]
+        for node in search_data.get("nodes") or []:
+            if not node:
+                continue
+            comments = (node.get("comments") or {}).get("nodes") or []
+            author_login = (node.get("author") or {}).get("login", "")
+
+            # Check if any comment from viewer contains the triage marker
+            triage_comment_date = ""
+            for comment in reversed(comments):
+                commenter = (comment.get("author") or {}).get("login", "")
+                body = comment.get("body", "")
+                if commenter == viewer_login and _TRIAGE_COMMENT_MARKER in body:
+                    triage_comment_date = comment.get("createdAt", "")
+                    break
+
+            if not triage_comment_date:
+                continue
+
+            # Determine state: MERGED or CLOSED
+            is_merged = node.get("state") == "MERGED" or bool(node.get("mergedAt"))
+            is_contributor = node.get("authorAssociation", "") not in _COLLABORATOR_ASSOCIATIONS
+
+            # Extract area labels
+            labels = [n["name"] for n in (node.get("labels") or {}).get("nodes") or []]
+            areas = [lbl.removeprefix("area:") for lbl in labels if lbl.startswith("area:")]
+            if not areas:
+                areas = ["(no area)"]
+
+            # Check if author responded after triage
+            author_responded = False
+            for comment in comments:
+                commenter = (comment.get("author") or {}).get("login", "")
+                comment_date = comment.get("createdAt", "")
+                if commenter == author_login and comment_date > triage_comment_date:
+                    author_responded = True
+                    break
+
+            # Update per-area stats
+            for area in areas:
+                stats = area_stats.setdefault(area, _ClosedTriagedAreaStats())
+                if is_merged:
+                    stats.merged += 1
+                else:
+                    stats.closed += 1
+                if author_responded:
+                    stats.responded_before_close += 1
+                if is_contributor:
+                    stats.contributors += 1
+
+            # Update totals
+            if is_merged:
+                total_stats.merged += 1
+            else:
+                total_stats.closed += 1
+            if author_responded:
+                total_stats.responded_before_close += 1
+            if is_contributor:
+                total_stats.contributors += 1
+
+        page_info = search_data.get("pageInfo", {})
+        if not page_info.get("hasNextPage", False):
+            break
+        after_cursor = page_info.get("endCursor")
+
+    area_stats["__total__"] = total_stats
+    console.print(
+        f"[info]Found {total_stats.total} triaged PRs in final state "
+        f"({total_stats.closed} closed, {total_stats.merged} merged) since {since}.[/]"
+    )
+    return area_stats
+
+
+@pr_group.command(name="stats", help="Show statistics of open PRs grouped by area label.")
+@option_github_token
+@option_github_repository
+@click.option(
+    "--batch-size",
+    type=int,
+    default=100,
+    show_default=True,
+    help="Number of PRs to fetch per GraphQL page.",
+)
+@click.option(
+    "--clear-cache",
+    is_flag=True,
+    default=False,
+    help="Clear cached interaction data before fetching.",
+)
+def stats(github_token: str | None, github_repository: str, batch_size: int, clear_cache: bool) -> None:
+    """Produce aggregate statistics of open PRs, split by area."""
+    from airflow_breeze.utils.pr_cache import stats_interaction_cache
+
+    token = _resolve_github_token(github_token)
+    if not token:
+        console_print("[error]GitHub token is required. Use --github-token or set GITHUB_TOKEN.[/]")
+        sys.exit(1)
+
+    console = get_console()
+
+    if clear_cache:
+        import shutil
+
+        cache_dir = stats_interaction_cache.cache_dir(github_repository)
+        shutil.rmtree(cache_dir, ignore_errors=True)
+        console.print("[info]Cleared interaction cache.[/]")
+
+    # Step 1: Fetch all open PRs
+    all_prs = _fetch_all_open_prs(token, github_repository, batch_size)
+    if not all_prs:
+        console.print("[warning]No open PRs found.[/]")
+        return
+
+    # Step 2: Resolve viewer login and classify triage status
+    viewer_login = _resolve_viewer_login(token)
+    console.print(f"[info]Classifying triage status (viewer: {viewer_login})...[/]")
+    triage_classification = _classify_already_triaged_prs(token, github_repository, all_prs, viewer_login)
+
+    # Step 3: Fetch interaction data (last author activity + triager draft conversion)
+    interaction_data = _fetch_pr_interaction_data(token, github_repository, all_prs, viewer_login)
+
+    # Step 4: Aggregate by area
+    area_stats = _aggregate_stats_by_area(all_prs, triage_classification, interaction_data)
+
+    # Step 5: Compute totals (unique PR counts)
+    totals = _compute_totals(all_prs, triage_classification, interaction_data)
+
+    # Step 6: Fetch closed/merged triaged PRs since March 11, 2026
+    closed_stats = _fetch_closed_triaged_prs(token, github_repository, viewer_login, _CLOSED_TRIAGED_SINCE)
+
+    # Step 7: Render
+    _render_stats_tables(
+        area_stats,
+        totals,
+        github_repository,
+        closed_stats=closed_stats,
+        closed_since_date=_CLOSED_TRIAGED_SINCE,
+    )

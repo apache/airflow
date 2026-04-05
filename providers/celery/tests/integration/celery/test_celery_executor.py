@@ -27,7 +27,7 @@ from datetime import datetime, timedelta
 from time import sleep
 from unittest import mock
 
-# leave this it is used by the test worker
+# Leave this it is used by the test worker.
 import celery.contrib.testing.tasks  # noqa: F401
 import pytest
 import uuid6
@@ -84,8 +84,8 @@ def _prepare_app(broker_url=None, execute=None):
     test_config = dict(celery_executor_utils.get_celery_configuration())
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
-    # Register the fake execute function with the test_app using the correct task name
-    # This ensures workers using test_app will execute the fake function
+    # Register the fake execute function with the test_app using the correct task name.
+    # This ensures workers using test_app will execute the fake function.
     test_execute = test_app.task(name=execute_name)(execute)
     patch_app = mock.patch.object(celery_executor_utils, "app", test_app)
 
@@ -95,7 +95,7 @@ def _prepare_app(broker_url=None, execute=None):
         celery_executor_utils.execute_command.__wrapped__ = execute
 
     patch_execute = mock.patch.object(celery_executor_utils, execute_name, test_execute)
-    # Patch factory function so CeleryExecutor instances get the test app
+    # Patch factory function so CeleryExecutor instances get the test app.
     patch_factory = mock.patch.object(celery_executor_utils, "create_celery_app", return_value=test_app)
 
     backend = test_app.backend
@@ -105,7 +105,7 @@ def _prepare_app(broker_url=None, execute=None):
         # race condition where it one of the subprocesses can die with "Table
         # already exists" error, because SQLA checks for which tables exist,
         # then issues a CREATE TABLE, rather than doing CREATE TABLE IF NOT
-        # EXISTS
+        # EXISTS.
         session = backend.ResultSession()
         session.close()
 
@@ -127,6 +127,17 @@ class TestCeleryExecutor:
     def teardown_method(self) -> None:
         db.clear_db_runs()
         db.clear_db_jobs()
+
+
+def setup_dagrun_with_success_and_fail_workloads(dag_maker):
+    date = timezone.utcnow()
+    start_date = date - timedelta(days=2)
+
+    with dag_maker("test_celery_integration"):
+        BaseOperator(task_id="success", start_date=start_date)
+        BaseOperator(task_id="fail", start_date=start_date)
+
+    return dag_maker.create_dagrun(logical_date=date)
 
     @pytest.mark.flaky(reruns=5, reruns_delay=3)
     @pytest.mark.parametrize("broker_url", _prepare_test_bodies())
@@ -164,19 +175,19 @@ class TestCeleryExecutor:
         from airflow.providers.celery.executors import celery_executor
 
         if AIRFLOW_V_3_0_PLUS:
-            # Airflow 3: execute_workload receives JSON string
+            # Airflow 3: execute_workload receives JSON string.
             def fake_execute(input: str) -> None:
                 """Fake execute_workload that parses JSON and fails for tasks with 'fail' in task_id."""
                 import json
 
                 workload_dict = json.loads(input)
-                # Check if this is a task that should fail (task_id contains "fail")
+                # Check if this is a workload that should fail (task_id contains "fail").
                 if "ti" in workload_dict and "task_id" in workload_dict["ti"]:
                     if "fail" in workload_dict["ti"]["task_id"]:
                         raise AirflowException("fail")
         else:
-            # Airflow 2: execute_command receives command list
-            def fake_execute(input: str) -> None:  # Use same parameter name as Airflow 3 version
+            # Airflow 2: execute_command receives command list.
+            def fake_execute(input: str) -> None:  # Use same parameter name as Airflow 3 version.
                 if "fail" in input:
                     raise AirflowException("fail")
 
@@ -218,6 +229,18 @@ class TestCeleryExecutor:
                         bundle_info=BundleInfo(name="test"),
                         log_path="test.log",
                     )
+                keys = [
+                    TaskInstanceKey("id", "success", "abc", 0, -1),
+                    TaskInstanceKey("id", "fail", "abc", 0, -1),
+                ]
+                dagrun = setup_dagrun_with_success_and_fail_workloads(dag_maker)
+                ti_success, ti_fail = dagrun.task_instances
+                for w in (
+                    workloads.ExecuteTask.make(
+                        ti=ti_success,
+                    ),
+                    workloads.ExecuteTask.make(ti=ti_fail),
+                ):
                     executor.queue_workload(w, session=None)
 
                 executor.trigger_tasks(open_slots=10)
@@ -244,7 +267,7 @@ class TestCeleryExecutor:
 
         assert executor.queued_tasks == {}
 
-    def test_error_sending_task(self):
+    def test_error_sending_workload(self):
         from airflow.providers.celery.executors import celery_executor, celery_executor_utils
 
         with _prepare_app():
@@ -263,8 +286,8 @@ class TestCeleryExecutor:
             executor.queued_tasks[key] = workload
             executor.task_publish_retries[key] = 1
 
-            # Mock send_task_to_executor to return an error result
-            # This simulates a failure when sending the task to Celery
+            # Mock send_workload_to_executor to return an error result.
+            # This simulates a failure when sending the workload to Celery.
             def mock_send_error(task_tuple):
                 key_from_tuple = task_tuple[0]
                 return (
@@ -277,14 +300,14 @@ class TestCeleryExecutor:
                 )
 
             with mock.patch.object(
-                celery_executor_utils, "send_task_to_executor", side_effect=mock_send_error
+                celery_executor_utils, "send_workload_to_executor", side_effect=mock_send_error
             ):
                 executor.heartbeat()
-        assert len(executor.queued_tasks) == 0, "Task should no longer be queued"
+        assert len(executor.queued_tasks) == 0, "Workload should no longer be queued"
         assert executor.event_buffer[key][0] == State.FAILED
 
-    def test_retry_on_error_sending_task(self, caplog):
-        """Test that Airflow retries publishing tasks to Celery Broker at least 3 times"""
+    def test_retry_on_error_sending_workload(self, caplog):
+        """Test that Airflow retries publishing workloads to Celery Broker at least 3 times"""
         from airflow.providers.celery.executors import celery_executor, celery_executor_utils
 
         with (
@@ -298,8 +321,8 @@ class TestCeleryExecutor:
             ),
         ):
             executor = celery_executor.CeleryExecutor()
-            assert executor.task_publish_retries == {}
-            assert executor.task_publish_max_retries == 3, "Assert Default Max Retries is 3"
+            assert executor.workload_publish_retries == {}
+            assert executor.workload_publish_max_retries == 3, "Assert Default Max Retries is 3"
 
             with DAG(dag_id="id"):
                 task = BashOperator(task_id="test", bash_command="true", start_date=datetime.now())
@@ -314,27 +337,27 @@ class TestCeleryExecutor:
             key = (task.dag.dag_id, task.task_id, ti.run_id, 0, -1)
             executor.queued_tasks[key] = workload
 
-            # Test that when heartbeat is called again, task is published again to Celery Queue
+            # Test that when heartbeat is called again, workload is published again to Celery Queue.
             executor.heartbeat()
-            assert dict(executor.task_publish_retries) == {key: 1}
-            assert len(executor.queued_tasks) == 1, "Task should remain in queue"
+            assert dict(executor.workload_publish_retries) == {key: 1}
+            assert len(executor.queued_tasks) == 1, "Workload should remain in queue"
             assert executor.event_buffer == {}
-            assert f"[Try 1 of 3] Task Timeout Error for Task: ({key})." in caplog.text
+            assert f"[Try 1 of 3] Celery Task Timeout Error for Workload: ({key})." in caplog.text
 
             executor.heartbeat()
-            assert dict(executor.task_publish_retries) == {key: 2}
-            assert len(executor.queued_tasks) == 1, "Task should remain in queue"
+            assert dict(executor.workload_publish_retries) == {key: 2}
+            assert len(executor.queued_tasks) == 1, "Workload should remain in queue"
             assert executor.event_buffer == {}
-            assert f"[Try 2 of 3] Task Timeout Error for Task: ({key})." in caplog.text
+            assert f"[Try 2 of 3] Celery Task Timeout Error for Workload: ({key})." in caplog.text
 
             executor.heartbeat()
-            assert dict(executor.task_publish_retries) == {key: 3}
-            assert len(executor.queued_tasks) == 1, "Task should remain in queue"
+            assert dict(executor.workload_publish_retries) == {key: 3}
+            assert len(executor.queued_tasks) == 1, "Workload should remain in queue"
             assert executor.event_buffer == {}
-            assert f"[Try 3 of 3] Task Timeout Error for Task: ({key})." in caplog.text
+            assert f"[Try 3 of 3] Celery Task Timeout Error for Workload: ({key})." in caplog.text
 
             executor.heartbeat()
-            assert dict(executor.task_publish_retries) == {}
+            assert dict(executor.workload_publish_retries) == {}
             assert len(executor.queued_tasks) == 0, "Task should no longer be in queue"
             assert executor.event_buffer[key][0] == State.FAILED
 
@@ -389,7 +412,7 @@ class TestBulkStateFetcher:
                     ]
                 )
 
-        # Assert called - ignore order
+        # Assert called - ignore order.
         mget_args, _ = mock_mget.call_args
         assert set(mget_args[0]) == {b"celery-task-meta-456", b"celery-task-meta-123"}
         mock_mget.assert_called_once_with(mock.ANY)

@@ -378,6 +378,10 @@
                         "description": "Hook class name that implements the connection type",
                         "type": "string"
                     },
+                    "hook-name": {
+                        "description": "Display name for the connection type in the UI (e.g. 'File (path)', 'Slack')",
+                        "type": "string"
+                    },
                     "ui-field-behaviour": {
                         "description": "Customizations for standard connection form fields",
                         "type": "object",
