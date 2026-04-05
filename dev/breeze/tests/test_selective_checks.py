@@ -1256,6 +1256,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "true",
                     "run-remote-logging-elasticsearch-e2e-tests": "false",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
                 id="S3 remote logging changes enable only S3 e2e",
@@ -1267,6 +1268,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "false",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
                 id="Elasticsearch remote logging changes enable only Elasticsearch e2e",
@@ -1278,6 +1280,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "false",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
                 id="Elasticsearch helper changes enable Elasticsearch e2e",
@@ -1289,6 +1292,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "true",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
                 id="Shared remote logging changes enable both remote logging e2e jobs",
@@ -1300,6 +1304,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "true",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
                 id="Shared logging library changes enable both remote logging e2e jobs",
@@ -1628,6 +1633,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "run-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
+                    "run-ui-e2e-tests": "true",
                 },
                 id="Everything should run including all providers when full tests are needed "
                 "but with single python and kubernetes if no version label is set",
@@ -1969,6 +1975,7 @@ def test_expected_output_pull_request_v2_7(
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "run-mypy": "true",
                 "mypy-checks": ALL_MYPY_CHECKS,
+                "run-ui-e2e-tests": "false",
             },
             id="All tests run on push if core file changed",
         ),

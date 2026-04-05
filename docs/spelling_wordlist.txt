@@ -104,6 +104,7 @@ astroid
 Async
 async
 asyncio
+asyncssh
 athena
 Atlassian
 atlassian
@@ -1503,8 +1504,7 @@ srv
 ssc
 ssd
 SSHClient
-sshtunnel
-SSHTunnelForwarder
+SSHTunnel
 ssl
 sslcert
 sslkey

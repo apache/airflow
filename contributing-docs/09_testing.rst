@@ -47,12 +47,12 @@ includes:
 * `Task SDK integration tests <testing/task_sdk_integration_tests.rst>`__ are specialized tests that verify
   the integration between the Apache Airflow Task SDK package and a running Airflow instance.
 
-* `Airflow Ctl integration tests <testing/airflow_ctl_integration_tests.rst>`__ are tests we run to verify
+* `Airflow Ctl integration tests <testing/airflow_ctl_tests.rst>`__ are tests we run to verify
   if the ``airflowctl`` command-line tool works correctly with a running Airflow instance.
 
 You can also run other kinds of tests when you are developing Airflow packages:
 
-* `Testing distributions <testing/testing_distributions.rst>`__ is a document that describes how to
+* `Testing distributions <testing/testing_packages.rst>`__ is a document that describes how to
   manually build and test pre-release candidate distributions of Airflow and providers.
 
 * `Python client tests <testing/python_client_tests.rst>`__ are tests we run to check if the Python API

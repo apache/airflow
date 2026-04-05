@@ -118,6 +118,7 @@ transfers:
 
 connection-types:
   - hook-class-name: airflow.providers.mysql.hooks.mysql.MySqlHook
+    hook-name: "MySQL"
     connection-type: mysql
 
 asset-uris:

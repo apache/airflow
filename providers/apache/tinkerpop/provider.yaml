@@ -52,4 +52,5 @@ hooks:
       - airflow.providers.apache.tinkerpop.hooks.gremlin
 connection-types:
   - hook-class-name: airflow.providers.apache.tinkerpop.hooks.gremlin.GremlinHook
+    hook-name: "Gremlin"
     connection-type: gremlin
