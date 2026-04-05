@@ -95,6 +95,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apache.hive.hooks.hive.HiveCliHook",
+                "hook-name": "Hive Client Wrapper",
                 "connection-type": "hive_cli",
                 "ui-field-behaviour": {"hidden-fields": ["extra"], "relabeling": {}},
                 "conn-fields": {
@@ -118,10 +119,12 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.apache.hive.hooks.hive.HiveServer2Hook",
+                "hook-name": "Hive Server 2 Thrift",
                 "connection-type": "hiveserver2",
             },
             {
                 "hook-class-name": "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook",
+                "hook-name": "Hive Metastore Thrift",
                 "connection-type": "hive_metastore",
             },
         ],

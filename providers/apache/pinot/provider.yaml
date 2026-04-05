@@ -83,6 +83,8 @@ hooks:
 
 connection-types:
   - hook-class-name: airflow.providers.apache.pinot.hooks.pinot.PinotDbApiHook
+    hook-name: "Pinot Broker"
     connection-type: pinot
   - hook-class-name: airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook
+    hook-name: "Pinot Admin"
     connection-type: pinot_admin

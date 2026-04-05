@@ -46,6 +46,7 @@ from airflow.api_fastapi.common.parameters import (
     FilterParam,
     LimitFilter,
     OffsetFilter,
+    QueryConsumingAssetPatternSearch,
     QueryDagRunPartitionKeySearch,
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
@@ -385,6 +386,7 @@ def get_dag_runs(
     ],
     dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.dag_id, "dag_id_pattern"))],
     partition_key_pattern: QueryDagRunPartitionKeySearch,
+    consuming_asset_pattern: QueryConsumingAssetPatternSearch,
 ) -> DAGRunCollectionResponse:
     """
     Get all DAG Runs.
@@ -420,6 +422,7 @@ def get_dag_runs(
             triggering_user_name_pattern,
             dag_id_pattern,
             partition_key_pattern,
+            consuming_asset_pattern,
         ],
         order_by=order_by,
         offset=offset,
@@ -566,7 +569,6 @@ def wait_dag_run_until_finished(
         run_id=dag_run_id,
         interval=interval,
         result_task_ids=result_task_ids,
-        session=session,
     )
     return StreamingResponse(waiter.wait())
 

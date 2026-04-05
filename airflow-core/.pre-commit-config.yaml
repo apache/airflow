@@ -313,6 +313,7 @@ repos:
           ^src/airflow/api_fastapi/core_api/services/ui/task_group.py$|
           ^src/airflow/api_fastapi/execution_api/routes/hitl\.py$|
           ^src/airflow/api_fastapi/execution_api/routes/task_instances\.py$|
+          ^src/airflow/api_fastapi/execution_api/versions/v2026_04_06\.py$|
           ^src/airflow/api_fastapi/logging/decorators\.py$|
           ^src/airflow/assets/evaluation\.py$|
           ^src/airflow/assets/manager\.py$|

@@ -695,7 +695,6 @@ class FileTaskHandler(logging.Handler):
             }
 
     @staticmethod
-    @staticmethod
     def _get_pod_namespace(ti: TaskInstance | TaskInstanceHistory):
         pod_override = getattr(ti.executor_config, "pod_override", None)
         metadata = getattr(pod_override, "metadata", None)

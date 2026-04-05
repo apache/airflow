@@ -91,7 +91,7 @@ paths:
       tags:
       - FabAuthManager
       summary: Logout
-      description: Generate a new API token.
+      description: Clear session cookies and redirect to the login page.
       operationId: logout
       responses:
         '307':

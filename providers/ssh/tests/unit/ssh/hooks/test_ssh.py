@@ -354,8 +354,9 @@ class TestSSHHook:
                 auth_timeout=None,
             )
 
-    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder")
-    def test_tunnel_with_password(self, ssh_mock):
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnel", autospec=True)
+    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
+    def test_tunnel_with_password(self, ssh_client_mock, tunnel_mock):
         hook = SSHHook(
             remote_host="remote_host",
             port="port",
@@ -366,34 +367,27 @@ class TestSSHHook:
         )
 
         with hook.get_tunnel(1234):
-            ssh_mock.assert_called_once_with(
-                "remote_host",
-                ssh_port="port",
-                ssh_username="username",
-                ssh_password="password",
-                ssh_pkey="fake.file",
-                ssh_proxy=None,
-                local_bind_address=("localhost",),
-                remote_bind_address=("localhost", 1234),
+            tunnel_mock.assert_called_once_with(
+                ssh_client=ssh_client_mock.return_value,
+                remote_host="localhost",
+                remote_port=1234,
+                local_port=None,
                 logger=hook.log,
             )
 
-    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder")
-    def test_tunnel_without_password(self, ssh_mock):
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnel", autospec=True)
+    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
+    def test_tunnel_without_password(self, ssh_client_mock, tunnel_mock):
         hook = SSHHook(
             remote_host="remote_host", port="port", username="username", conn_timeout=10, key_file="fake.file"
         )
 
         with hook.get_tunnel(1234):
-            ssh_mock.assert_called_once_with(
-                "remote_host",
-                ssh_port="port",
-                ssh_username="username",
-                ssh_pkey="fake.file",
-                ssh_proxy=None,
-                local_bind_address=("localhost",),
-                remote_bind_address=("localhost", 1234),
-                host_pkey_directories=None,
+            tunnel_mock.assert_called_once_with(
+                ssh_client=ssh_client_mock.return_value,
+                remote_host="localhost",
+                remote_port=1234,
+                local_port=None,
                 logger=hook.log,
             )
 
@@ -408,8 +402,9 @@ class TestSSHHook:
         ssh_hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_EXTRA_FALSE_LOOK_FOR_KEYS)
         assert ssh_hook.look_for_keys is False
 
-    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder")
-    def test_tunnel_with_private_key(self, ssh_mock):
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnel", autospec=True)
+    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
+    def test_tunnel_with_private_key(self, ssh_client_mock, tunnel_mock):
         hook = SSHHook(
             ssh_conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
             remote_host="remote_host",
@@ -419,20 +414,17 @@ class TestSSHHook:
         )
 
         with hook.get_tunnel(1234):
-            ssh_mock.assert_called_once_with(
-                "remote_host",
-                ssh_port="port",
-                ssh_username="username",
-                ssh_pkey=TEST_PKEY,
-                ssh_proxy=None,
-                local_bind_address=("localhost",),
-                remote_bind_address=("localhost", 1234),
-                host_pkey_directories=None,
+            tunnel_mock.assert_called_once_with(
+                ssh_client=ssh_client_mock.return_value,
+                remote_host="localhost",
+                remote_port=1234,
+                local_port=None,
                 logger=hook.log,
             )
 
-    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder")
-    def test_tunnel_with_private_key_passphrase(self, ssh_mock):
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnel", autospec=True)
+    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
+    def test_tunnel_with_private_key_passphrase(self, ssh_client_mock, tunnel_mock):
         hook = SSHHook(
             ssh_conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_PASSPHRASE_EXTRA,
             remote_host="remote_host",
@@ -442,20 +434,17 @@ class TestSSHHook:
         )
 
         with hook.get_tunnel(1234):
-            ssh_mock.assert_called_once_with(
-                "remote_host",
-                ssh_port="port",
-                ssh_username="username",
-                ssh_pkey=TEST_PKEY,
-                ssh_proxy=None,
-                local_bind_address=("localhost",),
-                remote_bind_address=("localhost", 1234),
-                host_pkey_directories=None,
+            tunnel_mock.assert_called_once_with(
+                ssh_client=ssh_client_mock.return_value,
+                remote_host="localhost",
+                remote_port=1234,
+                local_port=None,
                 logger=hook.log,
             )
 
-    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder")
-    def test_tunnel_with_private_key_ecdsa(self, ssh_mock):
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnel", autospec=True)
+    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
+    def test_tunnel_with_private_key_ecdsa(self, ssh_client_mock, tunnel_mock):
         hook = SSHHook(
             ssh_conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA,
             remote_host="remote_host",
@@ -465,15 +454,11 @@ class TestSSHHook:
         )
 
         with hook.get_tunnel(1234):
-            ssh_mock.assert_called_once_with(
-                "remote_host",
-                ssh_port="port",
-                ssh_username="username",
-                ssh_pkey=TEST_PKEY_ECDSA,
-                ssh_proxy=None,
-                local_bind_address=("localhost",),
-                remote_bind_address=("localhost", 1234),
-                host_pkey_directories=None,
+            tunnel_mock.assert_called_once_with(
+                ssh_client=ssh_client_mock.return_value,
+                remote_host="localhost",
+                remote_port=1234,
+                local_port=None,
                 logger=hook.log,
             )
 
@@ -945,3 +930,141 @@ class TestSSHHook:
             banner_timeout=30.0,
             auth_timeout=None,
         )
+
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnel", autospec=True)
+    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
+    def test_tunnel_with_local_port(self, ssh_client_mock, tunnel_mock):
+        hook = SSHHook(
+            remote_host="remote_host",
+            port="port",
+            username="username",
+            conn_timeout=10,
+            key_file="fake.file",
+        )
+
+        with hook.get_tunnel(remote_port=5432, local_port=15432):
+            tunnel_mock.assert_called_once_with(
+                ssh_client=ssh_client_mock.return_value,
+                remote_host="localhost",
+                remote_port=5432,
+                local_port=15432,
+                logger=hook.log,
+            )
+
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnel", autospec=True)
+    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
+    def test_tunnel_with_remote_host(self, ssh_client_mock, tunnel_mock):
+        hook = SSHHook(
+            remote_host="remote_host",
+            port="port",
+            username="username",
+            conn_timeout=10,
+            key_file="fake.file",
+        )
+
+        with hook.get_tunnel(remote_port=5432, remote_host="dbhost"):
+            tunnel_mock.assert_called_once_with(
+                ssh_client=ssh_client_mock.return_value,
+                remote_host="dbhost",
+                remote_port=5432,
+                local_port=None,
+                logger=hook.log,
+            )
+
+
+class TestSSHTunnel:
+    """Tests for the SSHTunnel class."""
+
+    def test_deprecation_warning_on_start(self):
+        """Calling .start() should emit a DeprecationWarning."""
+        import warnings
+
+        from airflow.providers.ssh.tunnel import SSHTunnel
+
+        ssh_client = mock.MagicMock(spec=paramiko.SSHClient)
+        tunnel = SSHTunnel(ssh_client, "remote", 5432)
+        try:
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                tunnel.start()
+                assert len(w) == 1
+                assert issubclass(w[0].category, DeprecationWarning)
+                assert "deprecated" in str(w[0].message).lower()
+        finally:
+            tunnel._stop_forwarding()
+
+    def test_deprecation_warning_on_stop(self):
+        """Calling .stop() should emit a DeprecationWarning."""
+        import warnings
+
+        from airflow.providers.ssh.tunnel import SSHTunnel
+
+        ssh_client = mock.MagicMock(spec=paramiko.SSHClient)
+        tunnel = SSHTunnel(ssh_client, "remote", 5432)
+        try:
+            tunnel._start_forwarding()
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                tunnel.stop()
+                assert len(w) == 1
+                assert issubclass(w[0].category, DeprecationWarning)
+                assert "deprecated" in str(w[0].message).lower()
+        finally:
+            tunnel._stop_forwarding()
+
+    def test_getattr_migration_hint(self):
+        """Accessing SSHTunnelForwarder-specific attrs raises AttributeError with migration hint."""
+        from airflow.providers.ssh.tunnel import SSHTunnel
+
+        ssh_client = mock.MagicMock(spec=paramiko.SSHClient)
+        tunnel = SSHTunnel(ssh_client, "remote", 5432)
+        try:
+            with pytest.raises(AttributeError, match="SSHTunnelForwarder has been replaced"):
+                tunnel.tunnel_is_up
+            with pytest.raises(AttributeError, match="SSHTunnelForwarder has been replaced"):
+                tunnel.skip_tunnel_checkup
+        finally:
+            tunnel._stop_forwarding()
+
+    def test_getattr_unknown_attr(self):
+        """Accessing a truly unknown attr raises a normal AttributeError."""
+        from airflow.providers.ssh.tunnel import SSHTunnel
+
+        ssh_client = mock.MagicMock(spec=paramiko.SSHClient)
+        tunnel = SSHTunnel(ssh_client, "remote", 5432)
+        try:
+            with pytest.raises(AttributeError, match="has no attribute 'nonexistent'"):
+                tunnel.nonexistent
+        finally:
+            tunnel._stop_forwarding()
+
+    def test_ephemeral_port(self):
+        """When local_port is None, an ephemeral port is assigned."""
+        from airflow.providers.ssh.tunnel import SSHTunnel
+
+        ssh_client = mock.MagicMock(spec=paramiko.SSHClient)
+        tunnel = SSHTunnel(ssh_client, "remote", 5432)
+        try:
+            assert tunnel.local_bind_port > 0
+            assert tunnel.local_bind_address == ("localhost", tunnel.local_bind_port)
+        finally:
+            tunnel._stop_forwarding()
+
+    def test_explicit_port(self):
+        """When local_port is given, it binds to that port."""
+        from airflow.providers.ssh.tunnel import SSHTunnel
+
+        ssh_client = mock.MagicMock(spec=paramiko.SSHClient)
+        tunnel = SSHTunnel(ssh_client, "remote", 5432, local_port=19999)
+        try:
+            assert tunnel.local_bind_port == 19999
+        finally:
+            tunnel._stop_forwarding()
+
+    def test_context_manager(self):
+        """Context manager enters and exits cleanly."""
+        from airflow.providers.ssh.tunnel import SSHTunnel
+
+        ssh_client = mock.MagicMock(spec=paramiko.SSHClient)
+        with SSHTunnel(ssh_client, "remote", 5432) as tunnel:
+            assert tunnel.local_bind_port > 0
