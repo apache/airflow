@@ -135,23 +135,29 @@ class TestWorker:
 
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
 
-    def test_should_add_extra_containers(self):
+    def test_should_add_extra_containers_with_template(self):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
                     "extraContainers": [
-                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
-                    ],
+                        {
+                            "name": "{{ .Chart.Name }}-test-container",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
+                    ]
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[-1]", docs[0]) == {
-            "name": "airflow",
-            "image": "test-registry/test-repo:test-tag",
-        }
+        # [2:] -> Skipping worker and worker-log-groomer containers
+        assert jmespath.search("spec.template.spec.containers[2:]", docs[0]) == [
+            {
+                "name": "airflow-test-container",
+                "image": "test-registry/test-repo:test-tag",
+            }
+        ]
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -186,21 +192,6 @@ class TestWorker:
 
         assert jmespath.search("spec.persistentVolumeClaimRetentionPolicy", docs[0]) == {
             "whenDeleted": "Delete",
-        }
-
-    def test_should_template_extra_containers(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
-                },
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.template.spec.containers[-1]", docs[0]) == {
-            "name": "release-name-test-container"
         }
 
     @pytest.mark.parametrize(

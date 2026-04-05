@@ -1113,10 +1113,12 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.containers[-1]", docs[0]) == {
-            "name": "test-container",
-            "image": "test-registry/test-repo:test-tag",
-        }
+        assert jmespath.search("spec.containers[1:]", docs[0]) == [
+            {
+                "name": "test-container",
+                "image": "test-registry/test-repo:test-tag",
+            }
+        ]
 
     def test_should_template_extra_containers(self):
         docs = render_chart(
@@ -1129,9 +1131,11 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.containers[-1]", docs[0]) == {
-            "name": "release-name-test-container",
-        }
+        assert jmespath.search("spec.containers[1:]", docs[0]) == [
+            {
+                "name": "release-name-test-container",
+            }
+        ]
 
     def test_should_add_pod_labels(self):
         docs = render_chart(
