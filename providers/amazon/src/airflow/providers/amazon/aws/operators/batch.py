@@ -380,7 +380,8 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         try:
             awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
         except AirflowException as ae:
-            self.log.warning("Cannot determine where to find the AWS logs for this Batch job: %s", ae)
+            # CloudWatch logs may not be available immediately after job submission
+            self.log.info("CloudWatch logs not yet available for Batch job: %s", ae)
 
         if awslogs:
             self.log.info("AWS Batch job (%s) CloudWatch Events details found.", self.job_id)
@@ -393,6 +394,13 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
                 region_name=self.hook.conn_region_name,
                 aws_partition=self.hook.conn_partition,
                 **awslogs[0],
+            )
+        else:
+            # Persist placeholder to prevent "XCom not found" warnings
+            # CloudWatch logs will be updated when job completes
+            context["task_instance"].xcom_push(
+                key="cloudwatch_events",
+                value=None,
             )
 
     def monitor_job(self, context: Context):
