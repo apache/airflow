@@ -222,6 +222,9 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
             if not self.job_id:
                 raise AirflowException("AWS Batch job - job_id was not found")
 
+            # Persist operator links before deferring so they're available in the UI
+            self._persist_links(context)
+
             job = self.hook.get_job_description(self.job_id)
             job_status = job.get("status")
             if job_status == self.hook.SUCCESS_STATE:
