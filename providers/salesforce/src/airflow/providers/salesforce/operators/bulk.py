@@ -92,31 +92,27 @@ class SalesforceBulkOperator(BaseOperator):
         via ``success=False`` in the result list.  Without this, those failures are completely
         invisible unless the caller manually inspects the XCom value.
         """
-        failed = [r for r in result if not r.get("success")]
         total = len(result)
+        failed_count = 0
 
-        if failed:
-            self.log.warning(
-                "Salesforce Bulk API %s on %s: %d/%d record(s) failed.",
-                self.operation,
-                self.object_name,
-                len(failed),
-                total,
-            )
-            for idx, record in enumerate(failed):
+        for orig_idx, record in enumerate(result):
+            if not record.get("success"):
+                failed_count += 1
                 for error in record.get("errors", []):
                     self.log.warning(
-                        "Record failure %d — status: %s | message: %s | fields: %s",
-                        idx,
+                        "Record failure at result index %d — status: %s | message: %s | fields: %s",
+                        orig_idx,
                         error.get("statusCode"),
                         error.get("message"),
                         error.get("fields"),
                     )
-        else:
-            self.log.info(
-                "Salesforce Bulk API %s on %s completed: %d record(s) processed successfully.",
+
+        if failed_count:
+            self.log.warning(
+                "Salesforce Bulk API %s on %s: %d/%d record(s) failed.",
                 self.operation,
                 self.object_name,
+                failed_count,
                 total,
             )
 
