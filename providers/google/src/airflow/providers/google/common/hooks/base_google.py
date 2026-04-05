@@ -312,6 +312,8 @@ class GoogleBaseHook(BaseHook):
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        if quota_project_id is not None:
+            self._validate_quota_project(quota_project_id)
         self.quota_project_id = quota_project_id
         self.extras: dict = self.get_connection(self.gcp_conn_id).extra_dejson
         self._cached_credentials: Credentials | None = None

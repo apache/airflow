@@ -593,15 +593,8 @@ class TestGoogleBaseHook:
     )
     def test_quota_project_invalid_format(self, invalid_id):
         """Test validation of quota project ID format."""
-        mock_creds = mock.MagicMock()
-        mock_creds.with_quota_project.return_value = mock_creds
-        with mock.patch(
-            MODULE_NAME + ".GoogleBaseHook.get_credentials_and_project_id",
-            return_value=(mock_creds, None),
-        ):
-            hook = GoogleBaseHook(quota_project_id=invalid_id)
-            with pytest.raises((TypeError, ValueError)):
-                hook.get_credentials()
+        with pytest.raises((TypeError, ValueError)):
+            GoogleBaseHook(quota_project_id=invalid_id)
 
     def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(self):
         self.instance.extras = {
