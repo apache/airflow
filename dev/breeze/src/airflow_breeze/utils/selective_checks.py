@@ -953,7 +953,26 @@ class SelectiveChecks:
 
     @cached_property
     def run_ui_e2e_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.UI_FILES)
+        # E2E tests should not be triggered by derived full_tests_needed (push events,
+        # env file changes, large PRs, etc.) - only by explicit label or actual file changes.
+        if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
+            console_print(
+                f"[warning]{FileGroupForCi.UI_FILES} e2e enabled because "
+                f"'{FULL_TESTS_NEEDED_LABEL}' label is set[/]"
+            )
+            return True
+        matched_files = self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
+        if matched_files:
+            console_print(
+                f"[warning]{FileGroupForCi.UI_FILES} e2e enabled because "
+                f"it matched {len(matched_files)} changed files[/]"
+            )
+            return True
+        console_print(
+            f"[warning]{FileGroupForCi.UI_FILES} e2e disabled because "
+            f"it did not match any changed files and no explicit label[/]"
+        )
+        return False
 
     @cached_property
     def run_remote_logging_s3_e2e_tests(self) -> bool:
@@ -1062,12 +1081,10 @@ class SelectiveChecks:
             self.run_unit_tests
             or self.docs_build
             or self.run_kubernetes_tests
-            or self.run_task_sdk_integration_tests
-            or self.run_airflow_ctl_integration_tests
-            or self.run_helm_tests
             or self.run_ui_tests
             or self.pyproject_toml_changed
             or self.any_provider_yaml_or_pyproject_toml_changed
+            or self.prod_image_build
         )
 
     @cached_property

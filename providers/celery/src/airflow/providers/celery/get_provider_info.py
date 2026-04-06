@@ -198,7 +198,7 @@ def get_provider_info():
                         "default": "prefork",
                     },
                     "operation_timeout": {
-                        "description": "The number of seconds to wait before timing out ``send_task_to_executor`` or\n``fetch_celery_task_state`` operations.\n",
+                        "description": "The number of seconds to wait before timing out ``send_workload_to_executor`` or\n``fetch_celery_task_state`` operations.\n",
                         "version_added": None,
                         "type": "float",
                         "example": None,

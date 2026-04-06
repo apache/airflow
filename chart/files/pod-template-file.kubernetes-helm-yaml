@@ -30,7 +30,7 @@
 {{- $containerLifecycleHooks := or .Values.workers.kubernetes.containerLifecycleHooks .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (or .Values.workers.kubernetes.safeToEvict (and (not (has .Values.workers.kubernetes.safeToEvict (list true false))) .Values.workers.safeToEvict) | toString) }}
 {{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict .Values.workers.podAnnotations }}
-{{- $schedulerName := or .Values.workers.schedulerName .Values.schedulerName }}
+{{- $schedulerName := or .Values.workers.kubernetes.schedulerName .Values.workers.schedulerName .Values.schedulerName }}
 apiVersion: v1
 kind: Pod
 metadata:
