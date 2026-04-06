@@ -222,6 +222,8 @@ class GCSHook(GoogleBaseHook):
         source_object: str,
         destination_bucket: str,
         destination_object: str | None = None,
+        retain_until_time: datetime | None = None,
+        retention_mode: str | None = None,
     ) -> None:
         """
         Similar to copy; supports files over 5 TB, and copying between locations and/or storage classes.
@@ -233,6 +235,12 @@ class GCSHook(GoogleBaseHook):
         :param destination_bucket: The destination of the object to copied to.
         :param destination_object: The (renamed) path of the object if given.
             Can be omitted; then the same name is used.
+        :param retain_until_time: Optional datetime specifying until when the destination
+            object should be retained. Requires the destination bucket to have
+            object retention enabled.
+        :param retention_mode: Optional retention mode for the destination object.
+            Can be ``"Locked"`` or ``"Unlocked"``. Only used when ``retain_until_time``
+            is set.
         """
         destination_object = destination_object or source_object
         if source_bucket == destination_bucket and source_object == destination_object:
@@ -248,18 +256,30 @@ class GCSHook(GoogleBaseHook):
         source_object = source_bucket.blob(blob_name=source_object)  # type: ignore[attr-defined]
         destination_bucket = client.bucket(destination_bucket)
 
-        token, bytes_rewritten, total_bytes = destination_bucket.blob(  # type: ignore[attr-defined]
+        destination_blob = destination_bucket.blob(  # type: ignore[attr-defined]
             blob_name=destination_object
-        ).rewrite(source=source_object)
+        )
+
+        token, bytes_rewritten, total_bytes = destination_blob.rewrite(source=source_object)
 
         self.log.info("Total Bytes: %s | Bytes Written: %s", total_bytes, bytes_rewritten)
 
         while token is not None:
-            token, bytes_rewritten, total_bytes = destination_bucket.blob(  # type: ignore[attr-defined]
-                blob_name=destination_object
-            ).rewrite(source=source_object, token=token)
+            token, bytes_rewritten, total_bytes = destination_blob.rewrite(source=source_object, token=token)
 
             self.log.info("Total Bytes: %s | Bytes Written: %s", total_bytes, bytes_rewritten)
+
+        if retain_until_time is not None:
+            destination_blob.retention.mode = retention_mode or "Unlocked"
+            destination_blob.retention.retain_until_time = retain_until_time
+            destination_blob.patch()
+            self.log.info(
+                "Applied retention (mode=%s, retain_until_time=%s) to object %s in bucket %s",
+                destination_blob.retention.mode,
+                retain_until_time,
+                destination_object,
+                destination_bucket.name,  # type: ignore[attr-defined]
+            )
         get_hook_lineage_collector().add_input_asset(
             context=self,
             scheme="gs",
