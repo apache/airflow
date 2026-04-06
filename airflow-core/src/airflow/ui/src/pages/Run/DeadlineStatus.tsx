@@ -56,8 +56,8 @@ export const DeadlineStatus = ({ dagId, dagRunId }: DeadlineStatusProps) => {
   if (deadlines.length === 0 && hasAlerts) {
     return (
       <HStack gap={1}>
-        <FiCheck color="var(--chakra-colors-fg-success)" />
         <Badge colorPalette="green" size="sm" variant="solid">
+          <FiCheck color="var(--chakra-colors-fg-white)" />
           {translate("deadlineStatus.met")}
         </Badge>
       </HStack>
@@ -72,8 +72,8 @@ export const DeadlineStatus = ({ dagId, dagRunId }: DeadlineStatusProps) => {
       <VStack alignItems="flex-start" gap={1}>
         {missedDeadlines.map((dl) => (
           <HStack gap={1} key={dl.id}>
-            <FiAlertTriangle color="var(--chakra-colors-fg-error)" />
             <Badge colorPalette="red" size="sm" variant="solid">
+              <FiAlertTriangle color="var(--chakra-colors-fg-white)" />
               {translate("deadlineStatus.missed")}
             </Badge>
             <Time datetime={dl.deadline_time} fontSize="sm" />
@@ -92,8 +92,8 @@ export const DeadlineStatus = ({ dagId, dagRunId }: DeadlineStatusProps) => {
     <VStack alignItems="flex-start" gap={1}>
       {upcomingDeadlines.map((dl) => (
         <HStack gap={1} key={dl.id}>
-          <FiClock color="var(--chakra-colors-fg-info)" />
           <Badge colorPalette="blue" size="sm" variant="solid">
+            <FiClock color="var(--chakra-colors-fg-white)" />
             {translate("deadlineStatus.upcoming")}
           </Badge>
           <Time datetime={dl.deadline_time} fontSize="sm" />
