@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # Number of hours after which a CI failure is considered "stale" and should be flagged.
 # Default grace period for new PRs without collaborator engagement.
@@ -26,6 +26,15 @@ CHECK_FAILURE_GRACE_PERIOD_HOURS = 24
 # Extended grace period (in hours) when a collaborator/member/owner has left
 # a review or comment on the PR — gives contributors more time to respond.
 CHECK_FAILURE_GRACE_PERIOD_WITH_ENGAGEMENT_HOURS = 96
+
+
+@dataclass
+class ReviewDecision:
+    """A reviewer's latest review state on a PR."""
+
+    reviewer_login: str
+    state: str  # APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED
+    reviewer_association: str = ""  # COLLABORATOR, MEMBER, OWNER, etc.
 
 
 @dataclass
@@ -67,6 +76,7 @@ class PRData:
     mergeable: str
     labels: list[str]
     unresolved_threads: list[UnresolvedThread]
+    review_decisions: list[ReviewDecision] = field(default_factory=list)
     has_collaborator_review: bool = False
 
     @property

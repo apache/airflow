@@ -3050,6 +3050,36 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "volumeClaimTemplates": [
+                        {
+                            "metadata": {"name": "test-volume"},
+                            "spec": {
+                                "storageClassName": "class",
+                                "accessModes": ["ReadOnce"],
+                                "resources": {"requests": {"storage": "1Gi"}},
+                            },
+                        }
+                    ],
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "volumeClaimTemplates": [
+                                {
+                                    "metadata": {"name": "test-volume-airflow-1"},
+                                    "spec": {
+                                        "storageClassName": "storage-class-1",
+                                        "accessModes": ["ReadWriteOnce"],
+                                        "resources": {"requests": {"storage": "10Gi"}},
+                                    },
+                                }
+                            ],
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_volume_claim_templates(self, workers_values):
@@ -3070,3 +3100,36 @@ class TestWorkerSets:
                 },
             }
         ]
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "schedulerName": "most-allocated",
+                "celery": {"enableDefault": False, "sets": [{"name": "set1"}]},
+            },
+            {
+                "schedulerName": "test",
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "schedulerName": "most-allocated"}],
+                },
+            },
+            {
+                "celery": {
+                    "schedulerName": "test",
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "schedulerName": "most-allocated"}],
+                },
+            },
+        ],
+    )
+    def test_overwrite_scheduler_name(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.schedulerName", docs[0]) == "most-allocated"

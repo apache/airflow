@@ -41,6 +41,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.grpc.hooks.grpc.GrpcHook",
+                "hook-name": "GRPC Connection",
                 "connection-type": "grpc",
                 "ui-field-behaviour": {
                     "hidden-fields": ["login", "password", "schema", "extra"],

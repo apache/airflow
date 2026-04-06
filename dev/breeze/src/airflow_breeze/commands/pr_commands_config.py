@@ -18,7 +18,7 @@ from __future__ import annotations
 
 PR_COMMANDS: dict[str, str | list[str]] = {
     "name": "PR commands",
-    "commands": ["auto-triage"],
+    "commands": ["auto-triage", "stats"],
 }
 
 PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -49,7 +49,6 @@ PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--created-before",
                 "--updated-after",
                 "--updated-before",
-                "--include-drafts",
                 "--pending-approval-only",
                 "--checks-state",
                 "--min-commits-behind",
@@ -71,6 +70,17 @@ PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Other",
             "options": [
                 "--answer-triage",
+                "--github-token",
+                "--github-repository",
+            ],
+        },
+    ],
+    "breeze pr stats": [
+        {
+            "name": "Options",
+            "options": [
+                "--batch-size",
+                "--clear-cache",
                 "--github-token",
                 "--github-repository",
             ],

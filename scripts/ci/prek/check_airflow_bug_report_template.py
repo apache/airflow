@@ -30,7 +30,7 @@ import sys
 import yaml
 from common_prek_utils import AIRFLOW_ROOT_PATH, check_list_sorted, console
 
-BUG_REPORT_TEMPLATE = AIRFLOW_ROOT_PATH / ".github" / "ISSUE_TEMPLATE" / "3-airflow_providers_bug_report.yml"
+BUG_REPORT_TEMPLATE = AIRFLOW_ROOT_PATH / ".github" / "ISSUE_TEMPLATE" / "1-airflow_bug_report.yml"
 
 DEPENDENCIES_JSON_FILE_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 

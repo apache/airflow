@@ -1832,6 +1832,40 @@ class TestTIHealthEndpoint:
             "message": "Task Instance not found",
         }
 
+    def test_ti_heartbeat_cleared_task_returns_410(self, client, session, create_task_instance):
+        """Test that a 410 error is returned when a TI was cleared and moved to TIH."""
+        ti = create_task_instance(
+            task_id="test_ti_heartbeat_cleared",
+            state=State.RUNNING,
+            hostname="random-hostname",
+            pid=1547,
+            session=session,
+        )
+        session.commit()
+        old_ti_id = ti.id
+
+        # Simulate task being cleared: this archives the current try to TIH
+        # and assigns a new UUID to the TI, mirroring prepare_db_for_next_try().
+        ti.prepare_db_for_next_try(session)
+        session.commit()
+
+        assert session.get(TaskInstance, old_ti_id) is None
+        tih = session.scalar(
+            select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_ti_id)
+        )
+        assert tih is not None
+
+        response = client.put(
+            f"/execution/task-instances/{old_ti_id}/heartbeat",
+            json={"hostname": "random-hostname", "pid": 1547},
+        )
+
+        assert response.status_code == 410
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": "Task Instance not found, it may have been moved to the Task Instance History table",
+        }
+
     @pytest.mark.parametrize(
         "ti_state",
         [State.SUCCESS, State.FAILED],
@@ -2336,6 +2370,7 @@ class TestGetCount:
         ("map_index", "dynamic_task_args", "task_ids", "task_group_name", "expected_count"),
         (
             pytest.param(None, [1, 2, 3], None, None, 5, id="use-default-map-index-None"),
+            pytest.param(0, [1, 2, 3], None, None, 1, id="with-map-index-0-no-task-group"),
             pytest.param(-1, [1, 2, 3], ["task1"], None, 1, id="with-task-ids-and-map-index-(-1)"),
             pytest.param(None, [1, 2, 3], None, "group1", 4, id="with-task-group-id-and-map-index-None"),
             pytest.param(0, [1, 2, 3], None, "group1", 1, id="with-task-group-id-and-map-index-0"),
@@ -2852,6 +2887,15 @@ class TestGetTaskStates:
                     "task1": "success",
                 },
                 id="with-default-map-index-None",
+            ),
+            pytest.param(
+                0,
+                [1, 2, 3],
+                None,
+                None,
+                {"-1": State.SUCCESS, "0": State.FAILED, "1": State.SUCCESS, "2": State.SUCCESS},
+                {"group1.add_one_0": "failed"},
+                id="with-map-index-0-no-task-group",
             ),
             pytest.param(
                 -1,

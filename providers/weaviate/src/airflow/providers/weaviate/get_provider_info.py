@@ -41,6 +41,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.weaviate.hooks.weaviate.WeaviateHook",
+                "hook-name": "Weaviate",
                 "connection-type": "weaviate",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema"],

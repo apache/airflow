@@ -84,6 +84,8 @@ class SparkSubmitOperator(BaseOperator):
                         (will overwrite any deployment mode defined in the connection's extra JSON)
     :param use_krb5ccache: if True, configure spark to use ticket cache instead of relying
                            on keytab for Kerberos login
+    :param post_submit_commands: Optional list of shell commands to run after the Spark job finishes.
+        Useful for cleaning up sidecars such as Istio. Failures produce a warning but do not fail the task.
     """
 
     template_fields: Sequence[str] = (
@@ -101,6 +103,7 @@ class SparkSubmitOperator(BaseOperator):
         "name",
         "application_args",
         "env_vars",
+        "post_submit_commands",
         "properties_file",
     )
 
@@ -137,6 +140,7 @@ class SparkSubmitOperator(BaseOperator):
         yarn_queue: str | None = None,
         deploy_mode: str | None = None,
         use_krb5ccache: bool = False,
+        post_submit_commands: list[str] | None = None,
         openlineage_inject_parent_job_info: bool = conf.getboolean(
             "openlineage", "spark_inject_parent_job_info", fallback=False
         ),
@@ -175,8 +179,11 @@ class SparkSubmitOperator(BaseOperator):
         self._yarn_queue = yarn_queue
         self._deploy_mode = deploy_mode
         self._hook: SparkSubmitHook | None = None
+        self.post_submit_commands = post_submit_commands
+        self._post_submit_commands = list(post_submit_commands) if post_submit_commands else []
         self._conn_id = conn_id
         self._use_krb5ccache = use_krb5ccache
+
         self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self._openlineage_inject_transport_info = openlineage_inject_transport_info
 
@@ -229,4 +236,5 @@ class SparkSubmitOperator(BaseOperator):
             yarn_queue=self._yarn_queue,
             deploy_mode=self._deploy_mode,
             use_krb5ccache=self._use_krb5ccache,
+            post_submit_commands=self.post_submit_commands,
         )
