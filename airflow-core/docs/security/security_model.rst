@@ -69,7 +69,7 @@ the Dag File Processor, and the Triggerer, and potentially access the credential
 code uses to access external systems. In Airflow 3, worker task code communicates with
 the API server exclusively through the Execution API and does not have direct access to
 the metadata database. However, Dag author code that executes in the Dag File Processor
-and Triggerer still has direct access to the metadata database, as these components
+and Triggerer potentially still has direct access to the metadata database, as these components
 require it for their operation (see :ref:`jwt-authentication-and-workload-isolation` for details).
 
 Authenticated UI users
@@ -204,7 +204,7 @@ Limiting Dag Author access to subset of Dags
 Airflow does not yet provide full task-level isolation between different groups of users when
 it comes to task execution. While, in Airflow 3.0 and later, worker task code cannot directly access the
 metadata database (it communicates through the Execution API), Dag author code that runs in the Dag File
-Processor and Triggerer still has direct database access. Regardless of execution context, Dag authors
+Processor and Triggerer potentially still has direct database access. Regardless of execution context, Dag authors
 have access to all Dags in the Airflow installation and they can
 modify any of those Dags - no matter which Dag the task code is executed for. This means that Dag authors can
 modify state of any task instance of any Dag, and there are no finer-grained access controls to limit that access.
@@ -256,9 +256,10 @@ enforcement mechanisms that would allow to isolate tasks that are using deferrab
 each other and arbitrary code from various tasks can be executed in the same process/machine. The default
 deployment runs a single Triggerer instance that handles triggers from all teams — there is no built-in
 support for per-team Triggerer instances. Additionally, the Triggerer uses an in-process Execution API
-transport that bypasses JWT authentication and has direct access to the metadata database. For
-multi-team deployments, Deployment Managers must run separate Triggerer instances per team as a
-deployment-level measure, but even then each instance retains direct database access and a Dag author
+transport that potentially bypasses JWT authentication and potentially has direct access to the metadata
+database. For multi-team deployments, Deployment Managers must run separate Triggerer instances per team
+as a deployment-level measure, but even then each instance potentially retains direct database access
+and a Dag author
 whose trigger code runs there can potentially access the database directly — including data belonging
 to other teams. Deployment Manager must trust that Dag authors will not abuse this capability.
 
@@ -317,34 +318,35 @@ Current isolation limitations
 While Airflow 3 significantly improved the security model by preventing worker task code from
 directly accessing the metadata database (workers now communicate exclusively through the
 Execution API), **perfect isolation between Dag authors is not yet achieved**. Dag author code
-still executes with direct database access in the Dag File Processor and Triggerer. The
-following gaps exist:
+potentially still executes with direct database access in the Dag File Processor and Triggerer.
+The following gaps exist:
 
-**Dag File Processor and Triggerer bypass JWT authentication**
+**Dag File Processor and Triggerer potentially bypass JWT authentication**
    The Dag File Processor and Triggerer use an in-process transport to access the Execution API,
-   which bypasses JWT authentication entirely. Since these components execute user-submitted code
-   (Dag files and trigger code respectively), a Dag author whose code runs in these components has
-   unrestricted access to all Execution API operations — including the ability to read any connection,
-   variable, or XCom — without needing a valid JWT token.
+   which potentially bypasses JWT authentication. Since these components execute user-submitted code
+   (Dag files and trigger code respectively), a Dag author whose code runs in these components
+   potentially has unrestricted access to all Execution API operations — including the ability to
+   read any connection, variable, or XCom — without needing a valid JWT token.
 
-   Furthermore, the Dag File Processor has direct access to the metadata database (it needs this to
-   store serialized Dags). Dag author code executing in the Dag File Processor context could potentially
-   access the database directly, including the signing key configuration if it is available in the
-   process environment. If a Dag author obtains the JWT signing key, they could forge arbitrary tokens.
+   Furthermore, the Dag File Processor potentially has direct access to the metadata database (it
+   needs this to store serialized Dags). Dag author code executing in the Dag File Processor context
+   could potentially access the database directly, including the signing key configuration if it is
+   available in the process environment. If a Dag author obtains the JWT signing key, they could
+   potentially forge arbitrary tokens.
 
 **Dag File Processor and Triggerer are shared across teams**
    In the default deployment, a **single Dag File Processor instance** parses all Dag files and a
    **single Triggerer instance** handles all triggers — regardless of team assignment. There is no
    built-in support for running per-team Dag File Processor or Triggerer instances. This means that
-   Dag author code from different teams executes within the same process, sharing the in-process
-   Execution API and direct database access.
+   Dag author code from different teams executes within the same process, potentially sharing the
+   in-process Execution API and direct database access.
 
    For multi-team deployments that require separation, Deployment Managers must run **separate
    Dag File Processor and Triggerer instances per team** as a deployment-level measure (for example,
    by configuring each instance to only process bundles belonging to a specific team). However, even
-   with separate instances, each Dag File Processor and Triggerer retains direct access to the
-   metadata database — a Dag author whose code runs in these components can potentially access the
-   database directly, including reading or modifying data belonging to other teams, unless the
+   with separate instances, each Dag File Processor and Triggerer potentially retains direct access
+   to the metadata database — a Dag author whose code runs in these components can potentially access
+   the database directly, including reading or modifying data belonging to other teams, unless the
    Deployment Manager restricts the database credentials and configuration available to each instance.
 
 **No cross-workload isolation in the Execution API**
@@ -550,7 +552,7 @@ Dag authors executing arbitrary code
 
 Dag authors can execute arbitrary code on workers, the Dag File Processor, and the Triggerer. This
 includes accessing credentials, environment variables, and (in the case of the Dag File Processor
-and Triggerer) the metadata database directly. This is the intended behavior as described in
+and Triggerer) potentially the metadata database directly. This is the intended behavior as described in
 :ref:`capabilities-of-dag-authors` — Dag authors are trusted users. Reports that a Dag author can
 "achieve RCE" or "access the database" by writing Dag code are restating a documented capability,
 not discovering a vulnerability.
@@ -572,14 +574,14 @@ arbitrary code. See also :doc:`/security/sql`.
 An exception exists when official Airflow documentation explicitly recommends a pattern that leads to
 injection — in that case, the documentation guidance itself is the issue and may warrant an advisory.
 
-Dag File Processor and Triggerer having database access
-.......................................................
+Dag File Processor and Triggerer potentially having database access
+...................................................................
 
-The Dag File Processor requires direct database access to store serialized Dags. The Triggerer requires
-direct database access to manage trigger state. Both components execute user-submitted code (Dag files
-and trigger code respectively) and bypass JWT authentication via an in-process Execution API transport.
-These are intentional architectural choices, not vulnerabilities. They are documented in
-:ref:`jwt-authentication-and-workload-isolation`.
+The Dag File Processor potentially has direct database access to store serialized Dags. The Triggerer
+potentially has direct database access to manage trigger state. Both components execute user-submitted
+code (Dag files and trigger code respectively) and potentially bypass JWT authentication via an
+in-process Execution API transport. These are intentional architectural choices, not vulnerabilities.
+They are documented in :ref:`jwt-authentication-and-workload-isolation`.
 
 Workers accessing shared Execution API resources
 .................................................

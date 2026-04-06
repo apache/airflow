@@ -298,28 +298,29 @@ interact with the Execution API, but they do so via an **in-process** transport
 
 - Runs the Execution API application directly within the same process, using an ASGI/WSGI
   bridge.
-- **Bypasses JWT authentication entirely** — the JWT bearer dependency is overridden to
-  always return a synthetic ``TIToken`` with the ``"execution"`` scope.
-- Also bypasses per-resource access controls (connection, variable, and XCom access checks
-  are overridden to always allow).
+- **Potentially bypasses JWT authentication** — the JWT bearer dependency is overridden to
+  always return a synthetic ``TIToken`` with the ``"execution"`` scope, effectively bypassing
+  token validation.
+- Also potentially bypasses per-resource access controls (connection, variable, and XCom access
+  checks are overridden to always allow).
 
-This design means that code running in the Dag File Processor or Triggerer has **unrestricted
-access** to all Execution API operations without needing a valid JWT token. Since the Dag File
-Processor parses user-submitted Dag files and the Triggerer executes user-submitted trigger
-code, Dag authors whose code runs in these components effectively have the same level of
-access as the internal API itself.
+This design means that code running in the Dag File Processor or Triggerer potentially has
+**unrestricted access** to all Execution API operations without needing a valid JWT token. Since
+the Dag File Processor parses user-submitted Dag files and the Triggerer executes user-submitted
+trigger code, Dag authors whose code runs in these components could potentially have the same
+level of access as the internal API itself.
 
 In the default deployment, a **single Dag File Processor instance** parses Dag files for all
 teams and a **single Triggerer instance** handles all triggers across all teams. This means
-that Dag author code from different teams executes within the same process, with shared access
-to the in-process Execution API and the metadata database.
+that Dag author code from different teams executes within the same process, with potentially
+shared access to the in-process Execution API and the metadata database.
 
 For multi-team deployments that require isolation, Deployment Managers must run **separate
 Dag File Processor and Triggerer instances per team** as a deployment-level measure — Airflow
 does not provide built-in support for per-team DFP or Triggerer instances. However, even with
-separate instances, these components still have direct access to the metadata database
-(the Dag File Processor needs it to store serialized Dags, and the Triggerer needs it to
-manage trigger state). A Dag author whose code runs in these components can potentially
+separate instances, these components still potentially have direct access to the metadata
+database (the Dag File Processor needs it to store serialized Dags, and the Triggerer needs it
+to manage trigger state). A Dag author whose code runs in these components can potentially
 access the database directly, including reading or modifying data belonging to other teams,
 or obtaining the JWT signing key if it is available in the process environment.
 
@@ -374,13 +375,13 @@ The current JWT authentication model operates under the following assumptions an
    separation between teams. Task-level team isolation will be improved in future versions
    of Airflow.
 
-**Dag File Processor and Triggerer bypass**
+**Dag File Processor and Triggerer potentially bypass JWT and access the database**
    As described above, the default deployment runs a single Dag File Processor and a single
-   Triggerer for all teams. Both bypass JWT authentication entirely via in-process transport.
+   Triggerer for all teams. Both potentially bypass JWT authentication via in-process transport.
    For multi-team isolation, Deployment Managers must run separate instances per team, but
-   even then, each instance retains direct database access. A Dag author whose code runs
-   in these components can potentially access the database directly — including data belonging
-   to other teams or the JWT signing key configuration — unless the Deployment Manager
+   even then, each instance potentially retains direct database access. A Dag author whose code
+   runs in these components can potentially access the database directly — including data
+   belonging to other teams or the JWT signing key configuration — unless the Deployment Manager
    restricts the database credentials and configuration available to each instance.
 
 **Planned improvements**

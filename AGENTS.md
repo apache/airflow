@@ -67,11 +67,11 @@ UV workspace monorepo. Key paths:
 ## Architecture Boundaries
 
 1. Users author Dags with the Task SDK (`airflow.sdk`).
-2. Dag File Processor parses Dag files in separate processes and stores serialized Dags in the metadata DB. It has **direct database access** and uses an in-process Execution API transport that **bypasses JWT authentication**.
+2. Dag File Processor parses Dag files in separate processes and stores serialized Dags in the metadata DB. It potentially has **direct database access** and uses an in-process Execution API transport that **potentially bypasses JWT authentication**.
 3. Scheduler reads serialized Dags — **never runs user code** — and creates Dag runs / task instances.
 4. Workers execute tasks via Task SDK and communicate with the API server through the Execution API — **never access the metadata DB directly**. Each task receives a short-lived JWT token scoped to its task instance ID.
 5. API Server serves the React UI and handles all client-database interactions.
-6. Triggerer evaluates deferred tasks/sensors in separate processes. Like the Dag File Processor, it has **direct database access** and uses an in-process Execution API transport that **bypasses JWT authentication**.
+6. Triggerer evaluates deferred tasks/sensors in separate processes. Like the Dag File Processor, it potentially has **direct database access** and uses an in-process Execution API transport that **potentially bypasses JWT authentication**.
 7. Shared libraries that are symbolically linked to different Python distributions are in `shared` folder.
 8. Airflow uses `uv workspace` feature to keep all the distributions sharing dependencies and venv
 9. Each of the distributions should declare other needed distributions: `uv --project <FOLDER> sync` command acts on the selected project in the monorepo with only dependencies that it has
@@ -85,13 +85,14 @@ and [`airflow-core/docs/security/jwt_token_authentication.rst`](airflow-core/doc
 
 **The following are intentional design choices, not security vulnerabilities:**
 
-- **Dag File Processor and Triggerer bypass JWT authentication.** They use `InProcessExecutionAPI`
-  which overrides the JWT bearer dependency to always allow access. This is by design — these
-  components run within trusted infrastructure and need direct database access for their core
-  operations (storing serialized Dags, managing trigger state).
-- **Dag File Processor and Triggerer have direct metadata database access.** User-submitted code
-  (Dag files, trigger code) executes in these components and can potentially access the database.
-  This is a known limitation documented in the security model, not an undiscovered vulnerability.
+- **Dag File Processor and Triggerer potentially bypass JWT authentication.** They use
+  `InProcessExecutionAPI` which overrides the JWT bearer dependency to always allow access. This
+  is by design — these components run within trusted infrastructure and potentially need direct
+  database access for their core operations (storing serialized Dags, managing trigger state).
+- **Dag File Processor and Triggerer potentially have direct metadata database access.**
+  User-submitted code (Dag files, trigger code) executes in these components and can potentially
+  access the database. This is a known limitation documented in the security model, not an
+  undiscovered vulnerability.
 - **Worker Execution API tokens grant access to shared resources.** While `ti:self` scope prevents
   cross-task state manipulation, connections, variables, and XComs are accessible to all tasks.
   This is the current design — finer-grained scoping is planned for future versions.
