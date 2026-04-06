@@ -131,7 +131,7 @@ In order to see UI in Airflow, you need to compile front-end assets first.
 In case you already installed `breeze` and `prek`, you can build the assets with
 the following commands:
 
-    prek --hook-stage manual compile-ui-assets --all-files
+    prek --stage manual compile-ui-assets --all-files
 
 or simply:
 

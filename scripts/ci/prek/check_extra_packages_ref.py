@@ -19,7 +19,7 @@
 # /// script
 # requires-python = ">=3.10,<3.11"
 # dependencies = [
-#   "hatchling==1.27.0",
+#   "hatchling==1.29.0",
 #   "rich>=13.6.0",
 #   "tabulate>=0.9.0",
 # ]
@@ -32,25 +32,17 @@ from __future__ import annotations
 
 import re
 import sys
-from pathlib import Path
 
-from common_prek_utils import AIRFLOW_ROOT_PATH
+from common_prek_utils import AIRFLOW_ROOT_PATH, console
 from tabulate import tabulate
 
 try:
     import tomllib
 except ImportError:
-    import tomli as tomllib
+    import tomli as tomllib  # type: ignore[no-redef]
 
-
-COMMON_PREK_PATH = Path(__file__).parent.resolve()
 EXTRA_PACKAGES_REF_FILE = AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "extra-packages-ref.rst"
 PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
-
-sys.path.insert(0, COMMON_PREK_PATH.as_posix())  # make sure common_prek_utils is imported
-from common_prek_utils import console
-
-sys.path.insert(0, AIRFLOW_ROOT_PATH.as_posix())  # make sure airflow root is imported
 
 doc_ref_content = EXTRA_PACKAGES_REF_FILE.read_text()
 

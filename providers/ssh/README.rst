@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-ssh``
 
-Release: ``4.3.1``
+Release: ``4.3.3``
 
 
 `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
@@ -36,7 +36,7 @@ This is a provider package for ``ssh`` provider. All classes for this provider p
 are in ``airflow.providers.ssh`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ssh/4.3.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ssh/4.3.3/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-ssh``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -56,7 +56,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``asyncssh``                                ``>=2.12.0``
-``paramiko``                                ``>=2.9.0,<4.0.0``
+``paramiko``                                ``>=3.4.0,<4.0.0``
 ``sshtunnel``                               ``>=0.3.2``
 ==========================================  ==================
 
@@ -80,4 +80,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ssh/4.3.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ssh/4.3.3/changelog.html>`_.

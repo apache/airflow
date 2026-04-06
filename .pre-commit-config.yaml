@@ -16,7 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.2.22'
+minimum_prek_version: '0.3.4'
 default_language_version:
   python: python3
   node: 22.19.0
@@ -30,16 +30,8 @@ repos:
         description: Print input to the static check hooks for troubleshooting
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
-  - repo: https://github.com/eclipse-csi/octopin
-    rev: 67eac129b3e1d8ddb47e657bb2fda28c33d948ca  # frozen: v0.1.4
-    hooks:
-      - id: pin-versions
-        name: Pin versions of dependencies in CI workflows (manual)
-        stages: ['manual']
-        language: python
-        language_version: python311
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: 68f070c98b9a053eabfa7f8899d1f42b9919f98c  # frozen: v2.2.0
+    rev: d7815f1f950f8d5ec933fa4f70208bf316bb13f8  # frozen: v2.3.0
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -55,7 +47,9 @@ repos:
           ^airflow-core/tests/system/README\.md$
         exclude:
             (?x)
-            .github/PULL_REQUEST_TEMPLATE\.md$
+            .github/PULL_REQUEST_TEMPLATE\.md$|
+            .github/instructions/|
+            .github/skills/
         args:
           - "--maxlevel"
           - "2"
@@ -67,7 +61,8 @@ repos:
         files: \.sql$
         exclude: |
           (?x)
-          ^\.github/
+          ^\.github/|
+          ^scripts/ci/license-templates/
         args:
           - --comment-style
           - "/*||*/"
@@ -76,7 +71,6 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all RST files
-        exclude: ^\.github/.*$|newsfragments/.*\.rst$
         args:
           - --comment-style
           - "||"
@@ -84,6 +78,11 @@ repos:
           - scripts/ci/license-templates/LICENSE.rst
           - --fuzzy-match-generates-todo
         files: \.rst$
+        exclude:
+          (?x)
+          ^\.github/.*$|
+          newsfragments/.*\.rst$|
+          ^scripts/ci/license-templates/
       - id: insert-license
         name: Add license for CSS/JS/JSX/PUML/TS/TSX
         files: \.(css|jsx?|puml|tsx?)$
@@ -164,18 +163,54 @@ repos:
           - --fuzzy-match-generates-todo
         exclude:
           (?x)
-          .github/PULL_REQUEST_TEMPLATE\.md$
+          ^\.github/.*\.md$|
+          ^\.claude/|
+          ^(?:.*/)?AGENTS\.md$|
+          ^(?:.*/)?CLAUDE\.md$|
+          ^(?:.*/)?SKILL\.md$|
+          ^scripts/ci/license-templates/
+      - id: insert-license
+        name: Add short license for agentic Markdown files
+        args:
+          - --comment-style
+          - "||"
+          - --license-filepath
+          - scripts/ci/license-templates/SHORT_LICENSE.md
+          - --fuzzy-match-generates-todo
+        files:
+          (?x)
+          ^\.github/.*\.md$|
+          ^\.claude/|
+          ^(?:.*/)?AGENTS\.md$|
+          ^(?:.*/)?CLAUDE\.md$|
+          ^(?:.*/)?SKILL\.md$
+        exclude:
+          (?x)
+          ^scripts/ci/license-templates/|
+          ^\.github/instructions/|
+          ^\.github/skills/airflow-translations/SKILL\.md$
       - id: insert-license
         name: Add license for all other files
-        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "|#|"
           - --license-filepath
           - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
-        files: >
-          \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.service$|\.tf$|Dockerfile.*$
+        files: |
+          (?x)
+          \.cfg$|
+          \.conf$|
+          \.ini$|
+          \.ldif$|
+          \.properties$|
+          \.service$|
+          \.tf$|
+          Dockerfile.*$
+        exclude:
+          (?x)
+          ^\.github/.*$|
+          ^scripts/ci/license-templates/
   - repo: local
     hooks:
       - id: check-min-python-version
@@ -200,6 +235,18 @@ repos:
           ^pyproject\.toml$
         pass_filenames: false
         require_serial: true
+      - id: check-distribution-gitignore
+        name: Check distribution .gitignore files have *.iml
+        entry: ./scripts/ci/prek/check_distribution_gitignore.py
+        language: python
+        files: >
+          (?x)
+          ^.*/\.gitignore$|
+          ^\.gitignore$|
+          ^.*/pyproject\.toml$|
+          ^pyproject\.toml$
+        pass_filenames: false
+        require_serial: true
       - id: upgrade-important-versions
         name: Upgrade important versions (manual)
         entry: ./scripts/ci/prek/upgrade_important_versions.py
@@ -209,7 +256,7 @@ repos:
           (?x)
           ^\.pre-commit-config\.yaml$|
           ^\.github/\.pre-commit-config\.yaml$|
-          ^scripts/ci/prek/update_installers_and_prek\.py$
+          ^scripts/ci/prek/upgrade_important_versions\.py$
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/adamchainz/blacken-docs
@@ -302,7 +349,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: 63c8f8312b7559622c0d82815639671ae42132ac  # frozen: v2.4.1
+    rev: 2ccb47ff45ad361a21071a7eedda4c37e6ae8c5a  # frozen: v2.4.2
     hooks:
       - id: codespell
         name: Run codespell
@@ -321,13 +368,14 @@ repos:
           ^.*/kinglear\.txt$|
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
-          ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/
+          ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
+          ^\.github/skills/airflow-translations/
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: b546b77c44c466a54a42af5499dcc0dcc1a3193f  # frozen: v1.22.0
+    rev: ea2eb407b4cbce87cf0d502f36578950494f5ac9  # frozen: v1.23.1
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -368,12 +416,30 @@ repos:
           ^shared/logging/src/airflow_shared/logging/remote\.py$|
           ^shared/observability/src/airflow_shared/observability/metrics/stats\.py$|
           ^shared/secrets_backend/src/airflow_shared/secrets_backend/base\.py$
+      - id: check-test-only-imports-in-src
+        name: Check for test-only imports in production source
+        entry: ./scripts/ci/prek/check_test_only_imports_in_src.py
+        language: python
+        pass_filenames: true
+        files: >
+          (?x)
+          ^airflow-core/src/.*\.py$|
+          ^airflow-ctl/src/.*\.py$|
+          ^providers/.*/src/.*\.py$|
+          ^task-sdk/src/.*\.py$|
+          ^shared/.*/src/.*\.py$
       - id: check-secrets-search-path-sync
         name: Check sync between sdk and core
         entry: ./scripts/ci/prek/check_secrets_search_path_sync.py
         language: python
         pass_filenames: false
         files: ^airflow-core/src/airflow/secrets/base_secrets\.py$|^task-sdk/src/airflow/sdk/execution_time/secrets/__init__\.py$
+      - id: check-registry-types-json-sync
+        name: Check registry types.json in sync with types.py
+        entry: ./scripts/ci/prek/check_registry_types_json_sync.py
+        language: python
+        pass_filenames: false
+        files: ^dev/registry/registry_tools/types\.py$|^registry/src/_data/types\.json$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -382,7 +448,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.0']
+        additional_dependencies: ['ruff==0.15.8']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -403,6 +469,7 @@ repos:
           ^clients/gen/go\.sh$|
           ^\.gitmodules$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/openapi-gen/|
           ^providers/edge3/src/airflow/providers/edge3/plugins/www/openapi-gen/|
           .*/dist/.*|
           \.go$|
@@ -414,10 +481,10 @@ repos:
         files: Dockerfile.*$
         pass_filenames: true
         require_serial: true
-      - id: check-airflow-providers-bug-report-template
+      - id: check-airflow-bug-report-template
         name: Sort airflow-bug-report provider list
         language: python
-        files: ^\.github/ISSUE_TEMPLATE/3-airflow_providers_bug_report\.yml$
+        files: ^\.github/ISSUE_TEMPLATE/1-airflow_bug_report\.yml$
         require_serial: true
         entry: ./scripts/ci/prek/check_airflow_bug_report_template.py
       - id: update-local-yml-file
@@ -519,6 +586,7 @@ repos:
         exclude: >
           (?x)
           ^README\.md$|
+          ^pyproject\.toml$|
           ^generated/PYPI_README\.md$|
           ^airflow-core/docs/.*commits\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|
@@ -536,6 +604,7 @@ repos:
           ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
           ^airflow-core/src/airflow/ui/pnpm-lock\.yaml$|
+          ^providers/common/ai/src/airflow/providers/common/ai/plugins/www/pnpm-lock\.yaml$|
           ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
           ^airflow-core/src/airflow/utils/db\.py$|
@@ -558,18 +627,21 @@ repos:
           git|
           ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
           package-lock\.json$|
-          ^.*\.(png|gif|jp[e]?g|svg|tgz|lock)$|
+          ^.*\.(png|gif|jp[e]?g|svg|tgz|lock|woff2?)$|
           ^\.pre-commit-config\.yaml$|
           ^.*/provider_conf\.py$|
           ^providers/\.pre-commit-config\.yaml$|
           ^providers/amazon/src/airflow/providers/amazon/aws/hooks/emr\.py$|
           ^providers/amazon/src/airflow/providers/amazon/aws/operators/emr\.py$|
+          ^providers/.*/get_provider_info\.py$|
+          ^providers/.*/provider\.yaml$|
           ^providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra\.py$|
           ^providers/apache/hdfs/docs/connections\.rst$|
           ^providers/apache/hive/src/airflow/providers/apache/hive/operators/hive_stats\.py$|
           ^providers/apache/hive/src/airflow/providers/apache/hive/transfers/vertica_to_hive\.py$|
           ^providers/apache/kafka/docs/connections/kafka\.rst$|
           ^providers/apache/spark/docs/decorators/pyspark\.rst$|
+          ^providers/apache/spark/docs/connections/spark-submit.rst$|
           ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
@@ -599,6 +671,7 @@ repos:
           ^scripts/ci/docker-compose/integration-keycloak\.yml$|
           ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint\.sh$|
           ^scripts/ci/prek/upgrade_important_versions.py$|
+          ^scripts/ci/prek/download_k8s_schemas\.py$|
           ^scripts/ci/prek/vendor_k8s_json_schema\.py$
       - id: check-template-context-variable-in-sync
         name: Sync template context variable refs
@@ -641,7 +714,15 @@ repos:
         name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
-        exclude: ^airflow-core/src/airflow/configuration\.py$|^airflow-core/tests/.*$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^providers/.*/tests/.*$|^devel-common/
+        exclude: >
+          (?x)
+          ^airflow-core/src/airflow/configuration\.py$|
+          ^airflow-core/tests/.*$|
+          ^providers/.*/src/airflow/providers/|
+          ^scripts/in_container/verify_providers\.py$|
+          ^providers/.*/tests/.*$|
+          ^scripts/tests/.*$|
+          ^devel-common/
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
@@ -668,6 +749,14 @@ repos:
         language: python
         files: ^LICENSE$
         pass_filenames: false
+      - id: check-metrics-synced-with-registry
+        name: Check that metrics in the codebase are in sync with the metrics registry YAML file.
+        entry: ./scripts/ci/prek/check_metrics_synced_with_the_registry.py
+        language: python
+        files: \.py$
+        exclude: ^(tests/|.*/tests/)
+        pass_filenames: true
+        additional_dependencies: ["PyYAML>=6.0", "rich>=13.6.0"]
       - id: check-boring-cyborg-configuration
         name: Checks for Boring Cyborg configuration consistency
         language: python
@@ -708,6 +797,15 @@ repos:
         files: ^scripts/ci/docker-compose/integration-.*\.yml$|^contributing-docs/testing/integration_tests\.rst$
         require_serial: true
         pass_filenames: false
+      - id: sync-translation-namespaces
+        name: Sync translation namespace file list
+        entry: ./scripts/ci/prek/sync_translation_namespaces.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$|
+          ^\.github/skills/airflow-translations/SKILL\.md$
+        pass_filenames: false
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml
         language: python
@@ -720,6 +818,17 @@ repos:
           ^providers/.*/provider\.yaml$
         pass_filenames: false
         require_serial: true
+      - id: check-excluded-provider-markers
+        name: Check excluded-provider python_version markers in pyproject.toml
+        language: python
+        entry: ./scripts/ci/prek/check_excluded_provider_markers.py
+        files: >
+          (?x)
+          ^pyproject\.toml$|
+          ^providers/.*/provider\.yaml$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['packaging>=25', 'pyyaml', 'tomli>=2.0.1', 'rich>=13.6.0']
       - id: update-reproducible-source-date-epoch
         name: Update Source Date Epoch for reproducible builds
         language: python
@@ -885,43 +994,55 @@ repos:
           - "B101,B301,B324,B403,B404,B603"
           - "--severity-level"
           - "high"  # TODO: remove this line when we fix all the issues
-        ## ADD MOST PREK HOOK ABOVE THAT LINE
-        # The below prek hooks are those requiring CI image to be built
+      - id: check-k8s-schemas-published
+        name: Check K8s schemas are published on airflow.apache.org
+        entry: ./scripts/ci/prek/check_k8s_schemas_published.py
+        language: python
+        pass_filenames: false
+        files: ^dev/breeze/src/airflow_breeze/global_constants\.py$
+        require_serial: true
+        # This is a fast regular hook that runs when any pyproject.toml changes
+        # It runs locally and usually will not result in modifying the lock unnecessarily
+        # Unless there is a conflict and uv will determine that the lock needs to be updated to resolve it
+      - id: update-uv-lock
+        name: Update uv.lock
+        entry: uv lock
+        language: system
+        files: >
+          (?x)
+          (^|/)pyproject\.toml$|
+          ^uv\.lock$
+        pass_filenames: false
+        require_serial: true
       - id: mypy-dev
-        stages: ['pre-push']
         name: Run mypy for dev
         language: python
-        entry: ./scripts/ci/prek/mypy.py
-        files: ^dev/.*\.py$|^scripts/.*\.py$
-        require_serial: true
-      - id: mypy-dev
-        stages: ['manual']
-        name: Run mypy for dev (manual)
-        language: python
-        entry: ./scripts/ci/prek/mypy_folder.py dev scripts
+        entry: ./scripts/ci/prek/mypy_local_folder.py dev scripts
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
       - id: mypy-devel-common
-        stages: ['pre-push']
         name: Run mypy for devel-common
         language: python
-        entry: ./scripts/ci/prek/mypy.py
-        files: ^devel-common/.*\.py$
-        require_serial: true
-      - id: mypy-devel-common
-        stages: ['manual']
-        name: Run mypy for devel-common (manual)
-        language: python
-        entry: ./scripts/ci/prek/mypy_folder.py devel-common
+        entry: ./scripts/ci/prek/mypy_local_folder.py devel-common
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
+      ## ADD MOST PREK HOOK ABOVE THAT LINE
+      # The below prek hooks are those requiring CI image to be built
+      ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
       - id: check-template-fields-valid
         name: Check templated fields mapped in operators/sensors
         language: python
         entry: ./scripts/ci/prek/check_template_fields.py
         files: ^(providers/.*/)?airflow-core/.*/(sensors|operators)/.*\.py$
+        require_serial: true
+      - id: check-execution-api-versions
+        name: Check execution API datamodel changes have corresponding version updates
+        entry: ./scripts/ci/prek/check_execution_api_versions.py
+        language: python
+        pass_filenames: true
+        files: ^airflow-core/src/airflow/api_fastapi/execution_api/(datamodels|versions)/.*\.py$
         require_serial: true
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client
@@ -943,7 +1064,6 @@ repos:
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/.*\.py$|
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/(datamodels|routes|services|openapi)/.*\.py$
         require_serial: true
-        ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
       - id: check-contextmanager-class-decorators
         name: Check for problematic context manager class decorators
         entry: ./scripts/ci/prek/check_contextmanager_class_decorators.py

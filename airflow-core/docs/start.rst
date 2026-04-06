@@ -24,7 +24,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
 .. note::
 
-   Successful installation requires a Python 3 environment. Starting with Airflow 3.1.0, Airflow supports Python 3.10, 3.11, 3.12, 3.13.
+   Successful installation requires a Python 3 environment. Starting with Airflow 3.2.0, Airflow supports Python 3.10, 3.11, 3.12, 3.13, 3.14.
 
    Officially supported installation methods is with ``pip`` or ``uv``.
 
@@ -67,7 +67,11 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
     For creating virtual environment with ``uv``, refer to the documentation here:
     `Creating and Maintaining Local virtual environment with uv <https://github.com/apache/airflow/blob/main/contributing-docs/07_local_virtualenv.rst#creating-and-maintaining-local-virtualenv-with-uv-recommended>`_
 
-For installation using ``pip`` and ``venv``, carry out following steps:
+For installation using ``pip`` and ``venv``, carry out following steps.
+On Debian/Ubuntu systems, Python may enforce
+externally managed environments (PEP 668), so use a virtual environment
+before running ``pip install`` commands:
+
 .. code-block:: bash
 
    # For Windows after WSL2 install, restart computer, then in WSL Ubuntu terminal

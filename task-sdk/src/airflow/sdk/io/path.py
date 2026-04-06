@@ -17,13 +17,14 @@
 
 from __future__ import annotations
 
+import logging
 import shutil
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urlsplit
 
 from fsspec.utils import stringify_path
 from upath import UPath
-from upath.extensions import ProxyUPath
+from upath.extensions import ProxyUPath, classmethod_or_method
 
 from airflow.sdk.io.stat import stat_result
 from airflow.sdk.io.store import attach
@@ -32,6 +33,8 @@ if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
     from typing_extensions import Self
     from upath.types import JoinablePathLike
+
+log = logging.getLogger(__name__)
 
 
 class _TrackingFileWrapper:
@@ -84,7 +87,7 @@ class ObjectStoragePath(ProxyUPath):
     sep: ClassVar[str] = "/"
     root_marker: ClassVar[str] = "/"
 
-    __slots__ = ("_hash_cached",)
+    __slots__ = ("_conn_id", "_hash_cached")
 
     def __init__(
         self,
@@ -99,7 +102,7 @@ class ObjectStoragePath(ProxyUPath):
         if args:
             arg0 = args[0]
             if isinstance(arg0, type(self)):
-                storage_options["conn_id"] = arg0.storage_options.get("conn_id")
+                storage_options["conn_id"] = arg0.conn_id
             else:
                 parsed_url = urlsplit(stringify_path(arg0))
                 userinfo, have_info, hostinfo = parsed_url.netloc.rpartition("@")
@@ -111,13 +114,68 @@ class ObjectStoragePath(ProxyUPath):
         # override conn_id if explicitly provided
         if conn_id is not None:
             storage_options["conn_id"] = conn_id
+
+        # pop conn_id before calling super to prevent it from being passed
+        # to the underlying fsspec filesystem, which doesn't understand it
+        self._conn_id = storage_options.pop("conn_id", None)
         super().__init__(*args, protocol=protocol, **storage_options)
+        # ProxyUPath delegates all operations to self.__wrapped__, which was
+        # constructed with empty storage_options (conn_id stripped above).
+        # Pre-populating __wrapped__._fs_cached with the Airflow-authenticated
+        # filesystem fixes every delegated method (exists, mkdir, iterdir, glob,
+        # walk, rename, read_bytes, write_bytes, …) in one place rather than
+        # requiring individual overrides for each one.
+        self._inject_authenticated_fs(self.__wrapped__)
+
+    @classmethod_or_method  # type: ignore[arg-type]
+    def _from_upath(cls_or_self, upath, /):
+        """Wrap a UPath, propagating conn_id from the calling instance."""
+        is_instance = isinstance(cls_or_self, ObjectStoragePath)
+        cls = type(cls_or_self) if is_instance else cls_or_self
+        if isinstance(upath, cls):
+            return upath
+        obj = object.__new__(cls)
+        obj.__wrapped__ = upath
+        obj._conn_id = getattr(cls_or_self, "_conn_id", None) if is_instance else None
+        # If the wrapped UPath has not yet had its fs cached (e.g. when _from_upath is
+        # called as a classmethod with a fresh UPath), inject the authenticated fs now.
+        # Child UPaths produced by __wrapped__ operations (iterdir, glob, etc.) already
+        # inherit _fs_cached from the parent UPath, so the hasattr check is a no-op for them.
+        if not hasattr(upath, "_fs_cached"):
+            obj._inject_authenticated_fs(upath)
+        return obj
+
+    def _inject_authenticated_fs(self, wrapped: UPath) -> None:
+        """
+        Inject the Airflow-authenticated filesystem into wrapped._fs_cached.
+
+        This ensures that all ProxyUPath-delegated operations use the connection-aware
+        filesystem rather than an unauthenticated one constructed from empty storage_options.
+        Failures are logged at DEBUG level and silently skipped so that construction always
+        succeeds — errors will surface naturally at first use of the path.
+        """
+        if self._conn_id is None:
+            return
+        try:
+            wrapped._fs_cached = attach(wrapped.protocol or "file", self._conn_id).fs
+        except Exception:
+            log.debug(
+                "Could not pre-populate authenticated filesystem for %r (conn_id=%r); "
+                "operations will attempt lazy resolution at first use.",
+                self,
+                self._conn_id,
+                exc_info=True,
+            )
+
+    @property
+    def conn_id(self) -> str | None:
+        """Return the connection ID for this path."""
+        return getattr(self, "_conn_id", None)
 
     @property
     def fs(self) -> AbstractFileSystem:
         """Return the filesystem for this path, using airflow's attach mechanism."""
-        conn_id = self.storage_options.get("conn_id")
-        return attach(self.protocol or "file", conn_id).fs
+        return attach(self.protocol or "file", self.conn_id).fs
 
     def __hash__(self) -> int:
         self._hash_cached: int
@@ -134,7 +192,7 @@ class ObjectStoragePath(ProxyUPath):
         return (
             isinstance(other, ObjectStoragePath)
             and self.protocol == other.protocol
-            and self.storage_options.get("conn_id") == other.storage_options.get("conn_id")
+            and self.conn_id == other.conn_id
         )
 
     @property
@@ -169,7 +227,7 @@ class ObjectStoragePath(ProxyUPath):
         return stat_result(
             self.fs.stat(self.path),
             protocol=self.protocol,
-            conn_id=self.storage_options.get("conn_id"),
+            conn_id=self.conn_id,
         )
 
     def samefile(self, other_path: Any) -> bool:
@@ -353,7 +411,7 @@ class ObjectStoragePath(ProxyUPath):
                 src_obj = ObjectStoragePath(
                     path,
                     protocol=self.protocol,
-                    conn_id=self.storage_options.get("conn_id"),
+                    conn_id=self.conn_id,
                 )
 
                 # skip directories, empty directories will not be created
@@ -424,13 +482,10 @@ class ObjectStoragePath(ProxyUPath):
         self.move(dst_path, recursive=recursive, **kwargs)
 
     def serialize(self) -> dict[str, Any]:
-        _kwargs = {**self.storage_options}
-        conn_id = _kwargs.pop("conn_id", None)
-
         return {
             "path": str(self),
-            "conn_id": conn_id,
-            "kwargs": _kwargs,
+            "conn_id": self.conn_id,
+            "kwargs": {**self.storage_options},
         }
 
     @classmethod
@@ -445,7 +500,6 @@ class ObjectStoragePath(ProxyUPath):
         return ObjectStoragePath(path, conn_id=conn_id, **_kwargs)
 
     def __str__(self):
-        conn_id = self.storage_options.get("conn_id")
-        if self.protocol and conn_id:
-            return f"{self.protocol}://{conn_id}@{self.path}"
+        if self.protocol and self.conn_id:
+            return f"{self.protocol}://{self.conn_id}@{self.path}"
         return super().__str__()

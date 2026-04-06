@@ -57,7 +57,16 @@ def get_provider_info():
             }
         ],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook", "connection-type": "sftp"}
+            {
+                "hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook",
+                "hook-name": "SFTP",
+                "connection-type": "sftp",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema"],
+                    "relabeling": {"login": "Username"},
+                    "placeholders": {},
+                },
+            }
         ],
         "task-decorators": [
             {

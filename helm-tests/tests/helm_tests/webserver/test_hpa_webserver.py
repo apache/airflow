@@ -35,7 +35,7 @@ class TestWebserverHPA:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "webserver": {
                     "hpa": {"enabled": True},
                     "labels": {"test_label": "test_label_value"},
@@ -58,7 +58,7 @@ class TestWebserverHPA:
         """Verify minimum and maximum replicas."""
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "webserver": {
                     "hpa": {
                         "enabled": True,
@@ -82,7 +82,7 @@ class TestWebserverHPA:
         }
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "webserver": {
                     "hpa": {
                         "enabled": True,
@@ -129,7 +129,7 @@ class TestWebserverHPA:
     def test_should_use_hpa_metrics(self, metrics, expected_metrics):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "webserver": {
                     "hpa": {"enabled": True, **({"metrics": metrics} if metrics else {})},
                 },

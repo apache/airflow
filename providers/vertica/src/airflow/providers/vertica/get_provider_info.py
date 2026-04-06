@@ -41,6 +41,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.vertica.hooks.vertica.VerticaHook",
+                "hook-name": "Vertica",
                 "connection-type": "vertica",
             }
         ],

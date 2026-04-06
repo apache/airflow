@@ -112,7 +112,7 @@ class FABAuthManagerRoles:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Role with name {name!r} does not exist.",
             )
-        security_manager.delete_role(existing)
+        security_manager.delete_role(existing.name)
 
     @classmethod
     def get_role(cls, name: str) -> RoleResponse:
@@ -138,9 +138,10 @@ class FABAuthManagerRoles:
             )
 
         if update_mask:
+            fields_to_update = {f.strip() for f in update_mask.split(",") if f.strip()}
             update_data = RoleResponse.model_validate(existing)
 
-            for field in update_mask:
+            for field in fields_to_update:
                 if field == "actions":
                     update_data.permissions = body.permissions
                 elif hasattr(body, field):
@@ -163,13 +164,22 @@ class FABAuthManagerRoles:
         return RoleResponse.model_validate(update_data)
 
     @classmethod
-    def get_permissions(cls, *, limit: int, offset: int) -> PermissionCollectionResponse:
+    def get_permissions(cls, *, order_by: str, limit: int, offset: int) -> PermissionCollectionResponse:
         security_manager = get_fab_auth_manager().security_manager
         session = security_manager.session
         total_entries = session.scalars(select(func.count(Permission.id))).one()
+        ordering = build_ordering(
+            order_by,
+            allowed={
+                "id": Permission.id,
+                "action_id": Permission.action_id,
+                "resource_id": Permission.resource_id,
+            },
+        )
         query = (
             select(Permission)
             .options(joinedload(Permission.action), joinedload(Permission.resource))
+            .order_by(ordering)
             .offset(offset)
             .limit(limit)
         )

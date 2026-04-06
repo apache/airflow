@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+6.2.3
+.....
+
+Misc
+~~~~
+
+* ``Support Python 3.13 in apache beam provider (#61978)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
 6.2.2
 .....
 

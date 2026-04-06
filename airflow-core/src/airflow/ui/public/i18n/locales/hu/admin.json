@@ -3,6 +3,7 @@
     "description": "Leírás",
     "key": "Kulcs",
     "name": "Név",
+    "team": "Csapat",
     "value": "Érték"
   },
   "config": {
@@ -43,12 +44,18 @@
     "nothingFound": {
       "description": "A környezeti változókon vagy secret kezelőkön keresztül meghatározott kapcsolatok itt nem jelennek meg.",
       "documentationLink": "További információkért tekintse meg az Airflow dokumentációját.",
-      "learnMore": "Ezek futásidőben kerülnek feldogozásra, és nem láthatók a felhasználói felületen.",
+      "learnMore": "Ezek futásidőben kerülnek feldolgozásra, és nem láthatók a felhasználói felületen.",
       "title": "Nem található kapcsolat!"
     },
     "searchPlaceholder": "Kapcsolatok keresése",
     "test": "Kapcsolat tesztelése",
     "testDisabled": "A kapcsolat tesztelése funkció le van tiltva. Kérjük, forduljon az adminisztrátorhoz az engedélyezéshez.",
+    "testError": {
+      "title": "Kapcsolat tesztelése sikertelen"
+    },
+    "testSuccess": {
+      "title": "Kapcsolat tesztelése sikeres"
+    },
     "typeMeta": {
       "error": "Nem sikerült lekérni a kapcsolat típus metaadatait",
       "standardFields": {
@@ -73,6 +80,23 @@
   },
   "formActions": {
     "save": "Mentés"
+  },
+  "jobs": {
+    "columns": {
+      "executorClass": "Végrehajtó osztály",
+      "hostname": "Gépnév",
+      "id": "Azonosító",
+      "jobType": "Feladat típusa",
+      "latestHeartbeat": "Utolsó életjel",
+      "unixname": "Unix-felhasználónév"
+    },
+    "filters": {
+      "allStates": "Minden állapot",
+      "allTypes": "Minden típus",
+      "dagProcessorJob": "DAG-feldolgozó feladat",
+      "schedulerJob": "Ütemező feladat",
+      "triggererJob": "Triggerelő feladat"
+    }
   },
   "plugins": {
     "columns": {

@@ -91,19 +91,49 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.alibaba.cloud.hooks.oss.OSSHook",
+                "hook-name": "OSS",
                 "connection-type": "oss",
             },
             {
                 "hook-class-name": "airflow.providers.alibaba.cloud.hooks.analyticdb_spark.AnalyticDBSparkHook",
+                "hook-name": "AnalyticDB Spark",
                 "connection-type": "adb_spark",
             },
             {
                 "hook-class-name": "airflow.providers.alibaba.cloud.hooks.base_alibaba.AlibabaBaseHook",
+                "hook-name": "Alibaba Cloud",
                 "connection-type": "alibaba_cloud",
+                "conn-fields": {
+                    "access_key_id": {
+                        "label": "Access Key ID",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "access_key_secret": {
+                        "label": "Access Key Secret",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.alibaba.cloud.hooks.maxcompute.MaxComputeHook",
+                "hook-name": "MaxCompute",
                 "connection-type": "maxcompute",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "login", "password", "port", "extra"],
+                    "relabeling": {},
+                },
+                "conn-fields": {
+                    "access_key_id": {
+                        "label": "Access Key ID",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "access_key_secret": {
+                        "label": "Access Key Secret",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "project": {"label": "Project", "schema": {"type": ["string", "null"]}},
+                    "endpoint": {"label": "Endpoint", "schema": {"type": ["string", "null"]}},
+                },
             },
         ],
         "logging": ["airflow.providers.alibaba.cloud.log.oss_task_handler.OSSTaskHandler"],

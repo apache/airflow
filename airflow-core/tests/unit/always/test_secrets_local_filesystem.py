@@ -29,6 +29,7 @@ from airflow.exceptions import (
     AirflowException,
     AirflowFileParseException,
     ConnectionNotUnique,
+    FileSyntaxError,
     VariableNotUnique,
 )
 from airflow.models import Variable
@@ -87,6 +88,12 @@ class TestFileParsers:
                 local_filesystem.load_variables("a.yaml")
 
 
+class TestFileSyntaxError:
+    def test_str(self):
+        error = FileSyntaxError(line_no=10, message="Invalid line format")
+        assert str(error) == "Invalid line format. Line number: 10,"
+
+
 class TestLoadVariables:
     @pytest.mark.parametrize(
         ("file_content", "expected_variables"),
@@ -121,6 +128,7 @@ class TestLoadVariables:
             ({}, {}),
             ({"KEY": "AAA"}, {"KEY": "AAA"}),
             ({"KEY_A": "AAA", "KEY_B": "BBB"}, {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            ({"KEY": [{"AAA": "BBB"}, {"CCC": "DDD"}]}, {"KEY": [{"AAA": "BBB"}, {"CCC": "DDD"}]}),
         ],
     )
     def test_json_file_should_load_variables(self, file_content, expected_variables):

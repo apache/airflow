@@ -22,6 +22,7 @@ from typing import Annotated
 
 from fastapi import Depends, status
 from sqlalchemy import and_, func, select
+from sqlalchemy.orm import defaultload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
@@ -52,7 +53,7 @@ from airflow.api_fastapi.common.parameters import (
     filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
+from airflow.api_fastapi.core_api.datamodels.dags import DAG_ALIAS_MAPPING, DAGResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGWithLatestDagRunsCollectionResponse,
@@ -219,6 +220,9 @@ def get_dags(
                 HITLDetail,
             )
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
+            .options(
+                defaultload(HITLDetail.task_instance).joinedload(TaskInstance.rendered_task_instance_fields)
+            )
             .where(
                 HITLDetail.responded_at.is_(None),
                 TaskInstance.state == TaskInstanceState.DEFERRED,
@@ -234,18 +238,25 @@ def get_dags(
             pending_actions_by_dag_id[dag_id].append(hitl_detail)
 
     # aggregate rows by dag_id
-    dag_runs_by_dag_id: dict[str, DAGWithLatestDagRunsResponse] = {
-        dag.dag_id: DAGWithLatestDagRunsResponse.model_validate(
+    # Build the dict dynamically from DAGResponse.model_fields so that new fields
+    # added to DAGResponse are picked up automatically without code changes here.
+    dag_runs_by_dag_id: dict[str, DAGWithLatestDagRunsResponse] = {}
+    for dag in dags:
+        dag_data = {
+            DAG_ALIAS_MAPPING.get(field_name, field_name): getattr(
+                dag, DAG_ALIAS_MAPPING.get(field_name, field_name)
+            )
+            for field_name in DAGResponse.model_fields
+        }
+        dag_data.update(
             {
-                **DAGResponse.model_validate(dag).model_dump(),
                 "asset_expression": dag.asset_expression,
                 "latest_dag_runs": [],
                 "pending_actions": pending_actions_by_dag_id[dag.dag_id],
                 "is_favorite": dag.dag_id in favorite_dag_ids,
             }
         )
-        for dag in dags
-    }
+        dag_runs_by_dag_id[dag.dag_id] = DAGWithLatestDagRunsResponse.model_validate(dag_data)
 
     for row in recent_dag_runs:
         dag_run_response = DAGRunLightResponse.model_validate(row)

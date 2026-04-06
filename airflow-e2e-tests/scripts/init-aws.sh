@@ -17,4 +17,5 @@
 # under the License.
 
 aws --endpoint-url=http://localstack:4566 s3 mb s3://test-airflow-logs
+aws --endpoint-url=http://localstack:4566 s3 mb s3://test-xcom-objectstorage-backend
 aws --endpoint-url=http://localstack:4566 s3 ls

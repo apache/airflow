@@ -48,8 +48,8 @@ def reset_db():
 
 @pytest.fixture
 def access_denied(client):
-    from airflow.api_fastapi.execution_api.deps import JWTBearerDep
     from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
+    from airflow.api_fastapi.execution_api.security import CurrentTIToken
 
     last_route = client.app.routes[-1]
     assert isinstance(last_route.app, FastAPI)
@@ -61,7 +61,7 @@ def access_denied(client):
         run_id: str = Path(),
         task_id: str = Path(),
         xcom_key: str = Path(alias="key"),
-        token=JWTBearerDep,
+        token=CurrentTIToken,
     ):
         await has_xcom_access(dag_id, run_id, task_id, xcom_key, request, token)
         raise HTTPException(
@@ -394,7 +394,7 @@ class TestXComsSetEndpoint:
         Test that deserialization works when XCom values are stored directly in the DB with API Server.
 
         This tests the case where the XCom value is stored from the Task API where the value is serialized
-        via Client SDK into JSON object and passed via the API Server to the DB. It by-passes
+        via Client SDK into JSON object and passed via the API Server to the DB. It bypasses
         the XComModel.serialize_value and stores valid Python JSON compatible objects to DB.
 
         This test is to ensure that the deserialization works correctly in this case as well as
@@ -559,6 +559,26 @@ class TestXComsSetEndpoint:
 
         assert response.status_code == 200
         assert XComResponse.model_validate_json(response.read()).value == expected_value
+
+    def test_xcom_dag_result(self, client, create_task_instance, session):
+        """
+        Test that the dag_result flag propagates to XComModel.
+        """
+        ti = create_task_instance()
+        client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/return_value",
+            params={"dag_result": True},
+            json=123,
+        )
+
+        dag_result = session.scalar(
+            select(XComModel.dag_result).where(
+                XComModel.task_id == ti.task_id,
+                XComModel.dag_id == ti.dag_id,
+                XComModel.key == "return_value",
+            )
+        )
+        assert dag_result is True
 
 
 class TestXComsDeleteEndpoint:

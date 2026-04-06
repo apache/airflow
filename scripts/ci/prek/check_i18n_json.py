@@ -33,9 +33,6 @@ import json
 import sys
 from pathlib import Path
 
-COMMON_PREK_PATH = Path(__file__).parent.resolve()
-
-sys.path.insert(0, COMMON_PREK_PATH.as_posix())  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_ROOT_PATH, console
 
 LOCALES_DIR = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "ui" / "public" / "i18n" / "locales"

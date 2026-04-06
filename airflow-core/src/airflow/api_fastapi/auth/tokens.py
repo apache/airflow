@@ -93,7 +93,7 @@ def _guess_best_algorithm(key: AllowedPrivateKeys):
     from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 
     if isinstance(key, RSAPrivateKey):
-        return "RS512"
+        return "RS256"
     if isinstance(key, Ed25519PrivateKey):
         return "EdDSA"
     raise ValueError(f"Unknown key object {type(key)}")
@@ -291,14 +291,8 @@ class JWTValidator:
             raise ValueError("Exactly one of private_key and secret_key must be specified")
 
         if self.algorithm == ["GUESS"]:
-            if self.jwks:
-                # TODO: We could probably populate this from the jwks document, but we don't have that at
-                # construction time.
-                raise ValueError(
-                    "Cannot guess the algorithm when using JWKS - please specify it in the config option "
-                    "[api_auth] jwt_algorithm"
-                )
-            self.algorithm = ["HS512"]
+            if not self.jwks:
+                self.algorithm = ["HS512"]
 
     def _get_kid_from_header(self, unvalidated: str) -> str:
         header = jwt.get_unverified_header(unvalidated)
@@ -326,13 +320,21 @@ class JWTValidator:
     ) -> dict[str, Any]:
         """Decode the JWT token, returning the validated claims or raising an exception."""
         key = await self._get_validation_key(unvalidated)
+        algorithms = self.algorithm
+        validation_key: str | jwt.PyJWK | Any = key
+        if algorithms == ["GUESS"] and isinstance(key, jwt.PyJWK):
+            if not key.algorithm_name:
+                raise jwt.InvalidTokenError("Missing algorithm in JWK")
+            algorithms = [key.algorithm_name]
+            validation_key = key.key
+
         claims = jwt.decode(
             unvalidated,
-            key,
+            validation_key,
             audience=self.audience,
             issuer=self.issuer,
             options={"require": list(self.required_claims)},
-            algorithms=self.algorithm,
+            algorithms=algorithms,
             leeway=self.leeway,
         )
 
@@ -382,11 +384,12 @@ def _load_key_from_configured_file() -> AllowedPrivateKeys | None:
 
 
 def _generate_kid(gen) -> str:
-    if not gen._private_key:
-        return "not-used"
-
+    # Always check config first — both symmetric and asymmetric keys can have a configured kid
     if kid := _conf_factory("api_auth", "jwt_kid", fallback=None)():
         return kid
+
+    if not gen._private_key:
+        return "not-used"
 
     # Generate it from the thumbprint of the private key
     info = key_to_jwk_dict(gen._private_key)
@@ -467,8 +470,7 @@ class JWTGenerator:
         if extras is not None:
             claims = extras | claims
         headers = {"alg": self.algorithm, **(headers or {})}
-        if self._private_key:
-            headers["kid"] = self.kid
+        headers["kid"] = self.kid
         return jwt.encode(claims, self.signing_arg, algorithm=self.algorithm, headers=headers)
 
 

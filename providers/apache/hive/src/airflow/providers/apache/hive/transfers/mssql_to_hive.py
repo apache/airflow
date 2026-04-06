@@ -119,9 +119,10 @@ class MsSqlToHiveOperator(BaseOperator):
                 with NamedTemporaryFile(mode="w", encoding="utf-8") as tmp_file:
                     csv_writer = csv.writer(tmp_file, delimiter=self.delimiter)
                     field_dict = {}
-                    for col_count, field in enumerate(cursor.description, start=1):
-                        col_position = f"Column{col_count}"
-                        field_dict[col_position if field[0] == "" else field[0]] = self.type_map(field[1])
+                    if cursor.description is not None:
+                        for col_count, field in enumerate(cursor.description, start=1):
+                            col_position = f"Column{col_count}"
+                            field_dict[col_position if field[0] == "" else field[0]] = self.type_map(field[1])
                     csv_writer.writerows(cursor)  # type:ignore[arg-type]
                     tmp_file.flush()
 

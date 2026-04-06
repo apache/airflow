@@ -29,6 +29,64 @@
 Changelog
 ---------
 
+6.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  - The ``pyspark`` package is no longer included by default, so only the spark-connect connection will works by default.
+    If you want to keep using other spark connection types you must install the airflow spark provider
+    with the  ``pyspark`` extra
+
+    example: ``apache-airflow-providers-apache-spark[pyspark]==X.Y.Z``
+
+    Because the package ``pyspark`` is more than 400mb and is not necessary if only using spark-connect to trigger a job
+
+  - The minimum pyspark and spark-connect version is now 4.0.0
+
+* ``[breaking] Make pyspark-client as default and  pyspark package optional (#60031)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix unclear error when pyspark is not installed for JDBC script (#64174)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Standardize connection docs labels across providers (#63455)``
+
+5.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``spark-pipelines operator (#61681)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: resolve connection master URL construction for various protocols in SparkSubmitHook (#61528)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Migrate apache/spark connection UI metadata to YAML (#62381)``
+
 5.5.0
 .....
 

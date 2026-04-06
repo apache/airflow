@@ -21,9 +21,11 @@ from unittest import mock
 from unittest.mock import PropertyMock
 
 import google
+import pytest
 from google.cloud.bigtable import Client, enums
 from google.cloud.bigtable.instance import Instance
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 
@@ -486,6 +488,27 @@ class TestBigtableHookDefaultProjectId:
         instance_exists_method.assert_called_once_with()
         table_delete_method.assert_called_once_with()
 
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id"
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client")
+    def test_delete_table_when_no_table_exists(self, mock_get_client, mock_get_creds_and_project):
+        mock_get_creds_and_project.return_value = (mock.Mock(), "test-project")
+        mock_client = mock.Mock()
+        mock_get_client.return_value = mock_client
+        instance = mock_client.instance.return_value
+        instance.exists.return_value = True
+        table = instance.table.return_value
+        table.delete.side_effect = google.api_core.exceptions.NotFound("Table not found")
+        self.bigtable_hook_default_project_id.delete_table(
+            instance_id=CBT_INSTANCE,
+            table_id=CBT_TABLE,
+        )
+        mock_get_client.assert_called_once_with(project_id="test-project")
+        instance.exists.assert_called_once_with()
+        instance.table.assert_called_once_with(table_id=CBT_TABLE)
+        table.delete.assert_called_once_with()
+
     @mock.patch("google.cloud.bigtable.table.Table.create")
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client")
     def test_create_table(self, get_client, create):
@@ -513,6 +536,30 @@ class TestBigtableHookDefaultProjectId:
         get_client.assert_not_called()
         reload.assert_called_once_with()
         update.assert_called_once_with()
+
+    @mock.patch("google.cloud.bigtable.cluster.Cluster.update")
+    @mock.patch("google.cloud.bigtable.cluster.Cluster.reload")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client")
+    def test_update_cluster_does_not_exist(self, get_client, reload, update):
+        instance_method = get_client.return_value.instance
+        instance_method = instance_method.return_value
+        instance_exists_method = instance_method.exists
+        instance_exists_method.return_value = True
+        reload.side_effect = google.api_core.exceptions.NotFound("Cluster not found")
+        client = mock.Mock(Client)
+        instance = google.cloud.bigtable.instance.Instance(instance_id=CBT_INSTANCE, client=client)
+        with pytest.raises(
+            AirflowException,
+            match=f"Dependency: cluster '{CBT_CLUSTER}' does not exist for instance '{CBT_INSTANCE}'.",
+        ):
+            self.bigtable_hook_default_project_id.update_cluster(
+                instance=instance,
+                cluster_id=CBT_CLUSTER,
+                nodes=4,
+            )
+        get_client.assert_not_called()
+        reload.assert_called_once_with()
+        update.assert_not_called()
 
     @mock.patch("google.cloud.bigtable.table.Table.list_column_families")
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client")

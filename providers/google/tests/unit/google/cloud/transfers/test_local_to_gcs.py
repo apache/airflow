@@ -235,3 +235,44 @@ class TestFileToGcsOperator:
         assert result.outputs[0].namespace == "gs://dummy"
         assert all(inp.name in expected_inputs for inp in result.inputs)
         assert all(inp.namespace == "file" for inp in result.inputs)
+
+    # Return value tests
+    @mock.patch("airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook", autospec=True)
+    def test_execute_returns_list_of_destination_uris_single_file(self, mock_hook):
+        operator = LocalFilesystemToGCSOperator(
+            task_id="file_to_gcs_operator",
+            dag=self.dag,
+            src=self.testfile1,
+            dst="test/test1.csv",
+            **self._config,
+        )
+        result = operator.execute(None)
+        assert result == [f"gs://{self._config['bucket']}/test/test1.csv"]
+
+    @mock.patch("airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook", autospec=True)
+    def test_execute_returns_list_of_destination_uris_multiple_files(self, mock_hook):
+        operator = LocalFilesystemToGCSOperator(
+            task_id="file_to_gcs_operator",
+            dag=self.dag,
+            src=self.testfiles,
+            dst="test/",
+            **self._config,
+        )
+        result = operator.execute(None)
+        expected = [
+            f"gs://{self._config['bucket']}/test/{os.path.basename(self.testfile1)}",
+            f"gs://{self._config['bucket']}/test/{os.path.basename(self.testfile2)}",
+        ]
+        assert result == expected
+
+    @mock.patch("airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook", autospec=True)
+    def test_execute_returns_deduplicated_uris(self, mock_hook):
+        operator = LocalFilesystemToGCSOperator(
+            task_id="file_to_gcs_operator",
+            dag=self.dag,
+            src=[self.testfile1, self.testfile1],
+            dst="test/",
+            **self._config,
+        )
+        result = operator.execute(None)
+        assert result == [f"gs://{self._config['bucket']}/test/{os.path.basename(self.testfile1)}"]

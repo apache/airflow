@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy_utils import UUIDType
 
 from airflow.migrations.db_types import StringID
 from airflow.models import ID_LEN
@@ -45,7 +44,7 @@ airflow_version = "3.0.0"
 def upgrade():
     op.create_table(
         "deadline",
-        sa.Column("id", UUIDType(binary=False), nullable=False),
+        sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("dag_id", StringID(length=ID_LEN), nullable=True),
         sa.Column("dagrun_id", sa.Integer(), nullable=True),
         sa.Column("deadline", sa.DateTime(), nullable=False),

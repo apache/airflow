@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Apache TinkerPop",
                 "external-doc-url": "https://tinkerpop.apache.org/",
+                "logo": "/docs/integration-logos/Apache-TinkerPop.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-apache-tinkerpop/operators/tinkerpop.rst"],
                 "tags": ["apache"],
             }
@@ -49,6 +50,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apache.tinkerpop.hooks.gremlin.GremlinHook",
+                "hook-name": "Gremlin",
                 "connection-type": "gremlin",
             }
         ],

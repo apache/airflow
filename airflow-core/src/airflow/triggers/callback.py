@@ -23,7 +23,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from airflow._shared.module_loading import import_string, qualname
-from airflow.models.callback import CallbackState
+from airflow.models.callback import CallbackState, _accepts_context
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 log = logging.getLogger(__name__)
@@ -52,9 +52,14 @@ class CallbackTrigger(BaseTrigger):
         try:
             yield TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.RUNNING})
             callback = import_string(self.callback_path)
+            # TODO: get full context and run template rendering. Right now, a simple context is included in `callback_kwargs`
+            context = self.callback_kwargs.pop("context", None)
 
-            # TODO: get full context and run template rendering. Right now, a simple context in included in `callback_kwargs`
-            result = await callback(**self.callback_kwargs)
+            if _accepts_context(callback) and context is not None:
+                result = await callback(**self.callback_kwargs, context=context)
+            else:
+                result = await callback(**self.callback_kwargs)
+
             yield TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: result})
 
         except Exception as e:

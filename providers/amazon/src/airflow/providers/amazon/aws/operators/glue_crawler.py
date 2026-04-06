@@ -20,6 +20,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from botocore.exceptions import ClientError
+
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
@@ -49,6 +51,12 @@ class GlueCrawlerOperator(AwsBaseOperator[GlueCrawlerHook]):
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
+    :param fail_on_already_running: If True (default), the operator will raise an exception when
+        ``start_crawler()`` or ``update_crawler()`` encounters a ``CrawlerRunningException``
+        (i.e., the crawler is already running). If False, the operator logs a warning
+        and waits for the existing run to complete. Setting this to False is useful for handling
+        retry-induced race conditions where boto3 retries trigger a second ``start_crawler()``
+        call after a network timeout on the first (successful) call. (default: True)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -74,12 +82,14 @@ class GlueCrawlerOperator(AwsBaseOperator[GlueCrawlerHook]):
         poll_interval: int = 5,
         wait_for_completion: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        fail_on_already_running: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.poll_interval = poll_interval
         self.wait_for_completion = wait_for_completion
         self.deferrable = deferrable
+        self.fail_on_already_running = fail_on_already_running
         self.config = config
 
     def execute(self, context: Context) -> str:
@@ -90,12 +100,36 @@ class GlueCrawlerOperator(AwsBaseOperator[GlueCrawlerHook]):
         """
         crawler_name = self.config["Name"]
         if self.hook.has_crawler(crawler_name):
-            self.hook.update_crawler(**self.config)
+            try:
+                self.hook.update_crawler(**self.config)
+            except ClientError as e:
+                if (
+                    not self.fail_on_already_running
+                    and e.response["Error"]["Code"] == "CrawlerRunningException"
+                ):
+                    self.log.warning(
+                        "Crawler '%s' is currently running. "
+                        "Skipping update and waiting for the existing run to complete.",
+                        crawler_name,
+                    )
+                else:
+                    raise
         else:
             self.hook.create_crawler(**self.config)
 
         self.log.info("Triggering AWS Glue Crawler")
-        self.hook.start_crawler(crawler_name)
+        try:
+            self.hook.start_crawler(crawler_name)
+        except ClientError as e:
+            if not self.fail_on_already_running and e.response["Error"]["Code"] == "CrawlerRunningException":
+                self.log.warning(
+                    "Crawler '%s' is already running. "
+                    "Waiting for the existing run to complete instead of failing.",
+                    crawler_name,
+                )
+            else:
+                raise
+
         if self.deferrable:
             self.defer(
                 trigger=GlueCrawlerCompleteTrigger(

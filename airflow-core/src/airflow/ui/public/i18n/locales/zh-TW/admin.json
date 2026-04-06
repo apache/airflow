@@ -81,6 +81,23 @@
   "formActions": {
     "save": "儲存"
   },
+  "jobs": {
+    "columns": {
+      "executorClass": "執行器類別",
+      "hostname": "主機名稱",
+      "id": "ID",
+      "jobType": "工作類型",
+      "latestHeartbeat": "最近心跳",
+      "unixname": "Unix 使用者"
+    },
+    "filters": {
+      "allStates": "所有狀態",
+      "allTypes": "所有類型",
+      "dagProcessorJob": "Dag 處理器工作",
+      "schedulerJob": "排程器工作",
+      "triggererJob": "觸發者工作"
+    }
+  },
   "plugins": {
     "columns": {
       "source": "來源"

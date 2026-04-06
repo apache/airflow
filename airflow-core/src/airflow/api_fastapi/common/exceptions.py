@@ -74,22 +74,26 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
             for tb in traceback.format_tb(exc.__traceback__):
                 stacktrace += tb
 
-            log_message = f"Error with id {exception_id}\n{stacktrace}"
+            log_message = f"Error with id {exception_id}, statement: {exc.statement}\n{stacktrace}"
             log.error(log_message)
             if conf.get("api", "expose_stacktrace") == "True":
                 message = log_message
+                statement = str(exc.statement)
+                orig_error = str(exc.orig)
             else:
                 message = (
                     "Serious error when handling your request. Check logs for more details - "
                     f"you will find it in api server when you look for ID {exception_id}"
                 )
+                statement = "hidden"
+                orig_error = "hidden"
 
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={
                     "reason": "Unique constraint violation",
-                    "statement": str(exc.statement),
-                    "orig_error": str(exc.orig),
+                    "statement": statement,
+                    "orig_error": orig_error,
                     "message": message,
                 },
             )

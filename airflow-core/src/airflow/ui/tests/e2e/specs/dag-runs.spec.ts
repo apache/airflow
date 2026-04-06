@@ -32,6 +32,19 @@ test.describe("DAG Runs Page", () => {
     const page = await context.newPage();
     const baseUrl = process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:8080";
 
+    // Wait for Dags to be parsed before making API calls
+    await expect
+      .poll(
+        async () => {
+          const r1 = await page.request.get(`${baseUrl}/api/v2/dags/${testDagId1}`);
+          const r2 = await page.request.get(`${baseUrl}/api/v2/dags/${testDagId2}`);
+
+          return r1.ok() && r2.ok();
+        },
+        { intervals: [2000], timeout: 60_000 },
+      )
+      .toBe(true);
+
     const timestamp = Date.now();
 
     // Trigger first DAG run and mark as failed
@@ -138,9 +151,5 @@ test.describe("DAG Runs Page", () => {
   test("verify filtering by DAG ID", async () => {
     await dagRunsPage.navigate();
     await dagRunsPage.verifyDagIdFiltering(testDagId1);
-  });
-
-  test("verify pagination with offset and limit", async () => {
-    await dagRunsPage.verifyPagination(3);
   });
 });

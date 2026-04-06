@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 import logging
+import warnings
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_3_PLUS, AIRFLOW_V_3_1_PLUS
 
@@ -25,14 +27,13 @@ if not AIRFLOW_V_3_1_PLUS:
     raise AirflowOptionalProviderFeatureException("Human in the loop functionality needs Airflow 3.1+.")
 
 from collections.abc import Collection, Mapping, Sequence
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from urllib.parse import ParseResult, urlencode, urlparse, urlunparse
 
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import BranchMixIn, SkipMixin, conf
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError, HITLTriggerEventError
-from airflow.providers.standard.operators.branch import BranchMixIn
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
-from airflow.providers.standard.utils.skipmixin import SkipMixin
 from airflow.providers.standard.version_compat import BaseOperator
 from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.param import ParamsDict
@@ -57,6 +58,9 @@ class HITLOperator(BaseOperator):
     :param params: dictionary of parameter definitions that are in the format of Dag params such that
         a Form Field can be rendered. Entered data is validated (schema, required fields) like for a Dag run
         and added to XCom of the task result.
+    :param response_timeout: Maximum time to wait for a human response after deferring to the trigger.
+        This is separate from ``execution_timeout`` which controls the pre-defer execution phase.
+        If not set, no timeout is applied to the human response wait.
     """
 
     template_fields: Collection[str] = ("subject", "body")
@@ -72,9 +76,26 @@ class HITLOperator(BaseOperator):
         params: ParamsDict | dict[str, Any] | None = None,
         notifiers: Sequence[BaseNotifier] | BaseNotifier | None = None,
         assigned_users: HITLUser | list[HITLUser] | None = None,
+        response_timeout: timedelta | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+
+        # Handle backward compatibility: if execution_timeout is set but response_timeout is not,
+        # migrate execution_timeout to response_timeout and clear it to prevent the BaseOperator
+        # timeout from racing the defer() call.
+        if self.execution_timeout and not response_timeout:
+            warnings.warn(
+                "Passing `execution_timeout` to HITLOperator to control the human response wait is "
+                "deprecated. Use `response_timeout` instead. `execution_timeout` will be cleared to "
+                "prevent it from killing the task before defer() is reached.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            response_timeout = self.execution_timeout
+            self.execution_timeout = None
+
+        self.response_timeout = response_timeout
         self.subject = subject
         self.body = body
 
@@ -101,6 +122,17 @@ class HITLOperator(BaseOperator):
         self.validate_params()
         self.validate_defaults()
 
+        # HITL summary for the use of listeners; subclasses can extend it.
+        self.hitl_summary: dict[str, Any] = {
+            "subject": self.subject,
+            "body": self.body,
+            "options": self.options,
+            "defaults": self.defaults,
+            "multiple": self.multiple,
+            "assigned_users": self.assigned_users,
+            "serialized_params": self.serialized_params or None,
+        }
+
     def validate_options(self) -> None:
         """
         Validate the `options` attribute of the instance.
@@ -115,10 +147,15 @@ class HITLOperator(BaseOperator):
         """
         Validate the `params` attribute of the instance.
 
+        Note: Value validation (e.g., required fields, schema) is intentionally skipped here
+        because HITLOperator params represent form fields that are filled by a human at runtime.
+        Values do not exist at Dag parse time, so validating them in ``__init__`` would cause
+        a ``ParamValidationError`` for any param without a default. Value validation happens
+        in ``validate_params_input`` after the human submits the form.
+
         Raises:
-            ValueError: If `"_options"` key is present in `params`, which is not allowed.
+            ValueError: If ``"_options"`` key is present in ``params``, which is not allowed.
         """
-        self.params.validate()
         if "_options" in self.params:
             raise ValueError('"_options" is not allowed in params')
 
@@ -151,10 +188,13 @@ class HITLOperator(BaseOperator):
             assigned_users=self.assigned_users,
         )
 
-        if self.execution_timeout:
-            timeout_datetime = utcnow() + self.execution_timeout
+        if self.response_timeout:
+            timeout_datetime = utcnow() + self.response_timeout
         else:
             timeout_datetime = None
+
+        # Enrich summary with runtime info
+        self.hitl_summary["timeout_datetime"] = timeout_datetime.isoformat() if timeout_datetime else None
 
         self.log.info("Waiting for response")
         for notifier in self.notifiers:
@@ -181,12 +221,23 @@ class HITLOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         if "error" in event:
+            self.hitl_summary["error_type"] = event["error_type"]
             self.process_trigger_event_error(event)
 
         chosen_options = event["chosen_options"]
         params_input = event["params_input"] or {}
         self.validate_chosen_options(chosen_options)
         self.validate_params_input(params_input)
+
+        self.hitl_summary.update(
+            {
+                "chosen_options": chosen_options,
+                "params_input": params_input,
+                "responded_at": event["responded_at"].isoformat(),
+                "responded_by_user": event["responded_by_user"],
+            }
+        )
+
         return HITLTriggerEventSuccessPayload(
             chosen_options=chosen_options,
             params_input=params_input,
@@ -356,10 +407,14 @@ class ApprovalOperator(HITLOperator, SkipMixin):
             **kwargs,
         )
 
+        self.hitl_summary["ignore_downstream_trigger_rules"] = self.ignore_downstream_trigger_rules
+        self.hitl_summary["fail_on_reject"] = self.fail_on_reject
+
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         ret = super().execute_complete(context=context, event=event)
 
         chosen_option = ret["chosen_options"][0]
+        self.hitl_summary["approved"] = chosen_option == self.APPROVE
         if chosen_option == self.APPROVE:
             self.log.info("Approved. Proceeding with downstream tasks...")
             return ret
@@ -413,6 +468,7 @@ class HITLBranchOperator(HITLOperator, BranchMixIn):
         super().__init__(**kwargs)
         self.options_mapping = options_mapping or {}
         self.validate_options_mapping()
+        self.hitl_summary["options_mapping"] = self.options_mapping
 
     def validate_options_mapping(self) -> None:
         """
@@ -447,6 +503,7 @@ class HITLBranchOperator(HITLOperator, BranchMixIn):
 
         # Map options to task IDs using the mapping, fallback to original option
         chosen_options = [self.options_mapping.get(option, option) for option in chosen_options]
+        self.hitl_summary["branches_to_execute"] = chosen_options
         return self.do_branch(context=context, branches_to_execute=chosen_options)
 
 

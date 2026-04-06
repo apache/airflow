@@ -33,7 +33,7 @@ import jinja2
 import pendulum
 import pytest
 import time_machine
-from sqlalchemy import delete, inspect, select, update
+from sqlalchemy import delete, func, inspect, select, update
 
 from airflow import settings
 from airflow._shared.module_loading import qualname
@@ -60,6 +60,7 @@ from airflow.models.dag import (
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.bash import BashOperator
@@ -921,8 +922,8 @@ class TestDag:
             )
 
             # should not raise any exception
-        dag_run.handle_dag_callback(dag=dag, success=False)
-        dag_run.handle_dag_callback(dag=dag, success=True)
+        dag_run.execute_dag_callbacks(dag=dag, success=False)
+        dag_run.execute_dag_callbacks(dag=dag, success=True)
 
         mock_stats.incr.assert_called_with(
             "dag.callback_exceptions",
@@ -962,8 +963,8 @@ class TestDag:
             assert dag_run.get_task_instance(task_removed.task_id).state == TaskInstanceState.REMOVED
 
             # should not raise any exception
-            dag_run.handle_dag_callback(dag=dag, success=False)
-            dag_run.handle_dag_callback(dag=dag, success=True)
+            dag_run.execute_dag_callbacks(dag=dag, success=False)
+            dag_run.execute_dag_callbacks(dag=dag, success=True)
 
     @time_machine.travel(timezone.datetime(2025, 11, 11))
     @pytest.mark.parametrize(("catchup", "expected_next_dagrun"), [(True, DEFAULT_DATE), (False, None)])
@@ -1196,6 +1197,22 @@ class TestDag:
             triggered_by=DagRunTriggeredByType.TEST,
         )
         assert dr.creating_job_id == job_id
+
+    def test_create_dagrun_note_is_set(self, testing_dag_bundle):
+        note = "This is a test note"
+        dag = DAG(dag_id="test_create_dagrun_note_is_set", schedule=None)
+        scheduler_dag = sync_dag_to_db(dag)
+        dr = scheduler_dag.create_dagrun(
+            run_id="test_create_dagrun_note_is_set",
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_after=DEFAULT_DATE,
+            run_type=DagRunType.MANUAL,
+            state=State.NONE,
+            note=note,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        assert dr.note == note
 
     @pytest.mark.parametrize("partition_key", [None, "my-key", 123])
     def test_create_dagrun_partition_key(self, partition_key, dag_maker):
@@ -1872,7 +1889,7 @@ my_postgres_conn:
         assert dr.deadlines[0].deadline_time == getattr(dr, reference_column, DEFAULT_DATE) + interval
 
     def test_dag_with_multiple_deadlines(self, testing_dag_bundle, session):
-        """Test that a DAG with multiple deadlines stores all deadlines in the database."""
+        """Test that a Dag with multiple deadlines stores all deadlines and persists on re-serialization."""
         deadlines = [
             DeadlineAlert(
                 reference=DeadlineReference.DAGRUN_QUEUED_AT,
@@ -1890,6 +1907,7 @@ my_postgres_conn:
                 callback=AsyncCallback(empty_callback_for_deadline),
             ),
         ]
+        expected_num_deadlines = 3
 
         dag = DAG(
             dag_id="test_multiple_deadlines",
@@ -1899,6 +1917,28 @@ my_postgres_conn:
 
         scheduler_dag = sync_dag_to_db(dag, session=session)
 
+        deadline_alerts = session.scalars(select(DeadlineAlertModel)).all()
+        assert len(deadline_alerts) == expected_num_deadlines
+        initial_uuids = {alert.id for alert in deadline_alerts}
+
+        # Re-serialize the Dag
+        SerializedDagModel.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="testing",
+            session=session,
+        )
+        session.commit()
+
+        # Verify deadline alerts still exist after re-serialization
+        stored_alerts = session.scalars(
+            select(DeadlineAlertModel).where(DeadlineAlertModel.id.in_(initial_uuids))
+        ).all()
+        assert len(stored_alerts) == expected_num_deadlines
+
+        intervals = sorted([alert.interval for alert in stored_alerts])
+        assert intervals == [300.0, 600.0, 3600.0]
+
+        # Now create a dagrun and verify deadlines are created
         dr = scheduler_dag.create_dagrun(
             run_id="test_multiple_deadlines",
             run_type=DagRunType.SCHEDULED,
@@ -1910,8 +1950,8 @@ my_postgres_conn:
         session.flush()
         dr = session.merge(dr)
 
-        # Check that all 3 deadlines were created
-        assert len(dr.deadlines) == 3
+        # Check that all deadlines were created
+        assert len(dr.deadlines) == expected_num_deadlines
 
         # Verify each deadline has correct properties
         deadline_times = [d.deadline_time for d in dr.deadlines]
@@ -2006,6 +2046,134 @@ class TestDagModel:
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == [dag_model]
+
+    def test_dags_needing_dagruns_skips_adrq_when_serialized_dag_missing(
+        self, session, caplog, testing_dag_bundle
+    ):
+        """ADRQ rows for a Dag without SerializedDagModel must be skipped (no triggered_date_by_dag).
+
+        Rows must remain in ``asset_dag_run_queue`` so the scheduler can re-evaluate on a later run once
+        ``SerializedDagModel`` exists (``dags_needing_dagruns`` only drops them from the in-memory
+        candidate set, it does not delete ORM rows).
+        """
+        orphan_dag_id = "adrq_no_serialized_dag"
+        orphan_uri = "test://asset_for_orphan_adrq"
+        session.add(AssetModel(uri=orphan_uri))
+        session.flush()
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == orphan_uri))
+
+        dag_model = DagModel(
+            dag_id=orphan_dag_id,
+            bundle_name="testing",
+            max_active_tasks=1,
+            has_task_concurrency_limits=False,
+            max_consecutive_failed_dag_runs=0,
+            next_dagrun=timezone.datetime(2038, 1, 1),
+            next_dagrun_create_after=timezone.datetime(2038, 1, 2),
+            is_stale=False,
+            has_import_errors=False,
+            is_paused=False,
+            asset_expression={"any": [{"uri": orphan_uri}]},
+        )
+        session.add(dag_model)
+        session.flush()
+
+        session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=orphan_dag_id))
+        session.flush()
+
+        with caplog.at_level(logging.DEBUG, logger="airflow.models.dag"):
+            _query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+
+        assert orphan_dag_id not in triggered_date_by_dag
+        assert (
+            "Dags have queued asset events (ADRQ), but are not found in the serialized_dag table."
+            in caplog.text
+        )
+        assert orphan_dag_id in caplog.text
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(AssetDagRunQueue)
+                .where(AssetDagRunQueue.target_dag_id == orphan_dag_id)
+            )
+            == 1
+        )
+
+    def test_dags_needing_dagruns_missing_serialized_debug_lists_sorted_dag_ids(
+        self, session, caplog, testing_dag_bundle
+    ):
+        """When multiple dags lack SerializedDagModel, the debug log lists dag_ids sorted."""
+        session.add_all(
+            [
+                AssetModel(uri="test://ds_ghost_z"),
+                AssetModel(uri="test://ds_ghost_a"),
+            ]
+        )
+        session.flush()
+        id_z = session.scalar(select(AssetModel.id).where(AssetModel.uri == "test://ds_ghost_z"))
+        id_a = session.scalar(select(AssetModel.id).where(AssetModel.uri == "test://ds_ghost_a"))
+        far = timezone.datetime(2038, 1, 1)
+        far_after = timezone.datetime(2038, 1, 2)
+        session.add_all(
+            [
+                DagModel(
+                    dag_id="ghost_z",
+                    bundle_name="testing",
+                    max_active_tasks=1,
+                    has_task_concurrency_limits=False,
+                    max_consecutive_failed_dag_runs=0,
+                    next_dagrun=far,
+                    next_dagrun_create_after=far_after,
+                    is_stale=False,
+                    has_import_errors=False,
+                    is_paused=False,
+                    asset_expression={"any": [{"uri": "test://ds_ghost_z"}]},
+                ),
+                DagModel(
+                    dag_id="ghost_a",
+                    bundle_name="testing",
+                    max_active_tasks=1,
+                    has_task_concurrency_limits=False,
+                    max_consecutive_failed_dag_runs=0,
+                    next_dagrun=far,
+                    next_dagrun_create_after=far_after,
+                    is_stale=False,
+                    has_import_errors=False,
+                    is_paused=False,
+                    asset_expression={"any": [{"uri": "test://ds_ghost_a"}]},
+                ),
+            ]
+        )
+        session.flush()
+
+        session.add_all(
+            [
+                AssetDagRunQueue(asset_id=id_z, target_dag_id="ghost_z"),
+                AssetDagRunQueue(asset_id=id_a, target_dag_id="ghost_a"),
+            ]
+        )
+        session.flush()
+
+        with caplog.at_level(logging.DEBUG, logger="airflow.models.dag"):
+            _query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+
+        assert "ghost_a" not in triggered_date_by_dag
+        assert "ghost_z" not in triggered_date_by_dag
+        msg = next(
+            r.message
+            for r in caplog.records
+            if "Dags have queued asset events (ADRQ), but are not found in the serialized_dag table."
+            in r.message
+        )
+        assert msg.index("ghost_a") < msg.index("ghost_z")
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(AssetDagRunQueue)
+                .where(AssetDagRunQueue.target_dag_id.in_(("ghost_a", "ghost_z")))
+            )
+            == 2
+        )
 
     def test_dags_needing_dagruns_query_count(self, dag_maker, session):
         """Test that dags_needing_dagruns avoids N+1 on adrq.asset access."""
@@ -2794,7 +2962,7 @@ def test_iter_dagrun_infos_between_error(caplog):
         (
             "airflow.serialization.definitions.dag",
             logging.ERROR,
-            f"Failed to fetch run info for Dag {dag.dag_id!r}",
+            "Failed to fetch run info",
         ),
     ]
     assert caplog.entries[0].get("exception"), "should contain exception context"
@@ -3565,15 +3733,17 @@ def test_get_run_data_interval_pre_aip_39():
 
 
 @pytest.mark.parametrize(
-    ("schedule", "next_run", "next_interval", "next_run_after"),
+    ("schedule", "next_run", "next_interval", "next_run_after", "next_partition_key", "next_partition_date"),
     [
         (
             CronPartitionTimetable(
                 "0 0 * * *",
                 timezone=pendulum.UTC,
             ),
-            TEST_DATE + timedelta(days=1),
             None,
+            None,
+            TEST_DATE + timedelta(days=1),
+            (TEST_DATE + timedelta(days=1)).strftime(r"%Y-%m-%dT%H:%M:%S"),
             TEST_DATE + timedelta(days=1),
         ),
         (
@@ -3581,8 +3751,12 @@ def test_get_run_data_interval_pre_aip_39():
             TEST_DATE,
             DataInterval(start=TEST_DATE, end=TEST_DATE + timedelta(days=1)),
             TEST_DATE + timedelta(days=1),
+            None,
+            None,
         ),
         (
+            None,
+            None,
             None,
             None,
             None,
@@ -3593,10 +3767,20 @@ def test_get_run_data_interval_pre_aip_39():
             None,
             None,
             None,
+            None,
+            None,
         ),
     ],
 )
-def test_calculate_dagrun_date_fields(schedule, next_run, next_interval, next_run_after, dag_maker, session):
+def test_calculate_dagrun_date_fields(
+    schedule,
+    dag_maker,
+    next_run,
+    next_interval,
+    next_run_after,
+    next_partition_key,
+    next_partition_date,
+):
     with dag_maker(schedule=schedule, catchup=True, start_date=TEST_DATE):
         BashOperator(task_id="hi", bash_command="yo")
 
@@ -3607,3 +3791,5 @@ def test_calculate_dagrun_date_fields(schedule, next_run, next_interval, next_ru
     assert dag_model.next_dagrun_data_interval == next_interval
     assert dag_model.next_dagrun == next_run
     assert dag_model.next_dagrun_create_after == next_run_after
+    assert dag_model.next_dagrun_partition_key == next_partition_key
+    assert dag_model.next_dagrun_partition_date == next_partition_date

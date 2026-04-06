@@ -20,11 +20,12 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
+import sqlalchemy as sa
 import uuid6
 from sqlalchemy import ForeignKey, Integer, UniqueConstraint, select
 from sqlalchemy.orm import Mapped, joinedload, mapped_column, relationship
-from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -44,7 +45,7 @@ class DagVersion(Base):
     """Model to track the versions of DAGs in the database."""
 
     __tablename__ = "dag_version"
-    id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    id: Mapped[UUID] = mapped_column(sa.Uuid(), primary_key=True, default=uuid6.uuid7)
     version_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     dag_id: Mapped[str] = mapped_column(
         StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), nullable=False

@@ -16,102 +16,56 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import { BasePage } from "./BasePage";
 
 export class ProvidersPage extends BasePage {
+  public readonly adminMenuButton: Locator;
   public readonly heading: Locator;
-  public readonly paginationNextButton: Locator;
-  public readonly paginationPrevButton: Locator;
+  public readonly providersMenuItem: Locator;
   public readonly rows: Locator;
   public readonly table: Locator;
 
   public constructor(page: Page) {
     super(page);
 
+    this.adminMenuButton = page.getByRole("button", { name: /^admin$/i });
     this.heading = page.getByRole("heading", { name: /^providers$/i });
+    this.providersMenuItem = page.getByRole("menuitem", { name: /^providers$/i });
     this.table = page.getByTestId("table-list");
     this.rows = this.table.locator("tbody tr").filter({
       has: page.locator("td"),
     });
-    this.paginationNextButton = page.locator('[data-testid="next"]');
-    this.paginationPrevButton = page.locator('[data-testid="prev"]');
   }
 
-  /**
-   * Click next page button
-   */
-  public async clickNextPage(): Promise<void> {
-    const initialProviderNames = await this.providerNames();
-
-    await this.paginationNextButton.click();
-
-    await expect.poll(() => this.providerNames(), { timeout: 10_000 }).not.toEqual(initialProviderNames);
-    await this.waitForTableData();
-  }
-
-  /**
-   * Click previous page button
-   */
-  public async clickPrevPage(): Promise<void> {
-    const initialProviderNames = await this.providerNames();
-
-    await this.paginationPrevButton.click();
-
-    await expect.poll(() => this.providerNames(), { timeout: 10_000 }).not.toEqual(initialProviderNames);
-    await this.waitForTableData();
-  }
-
-  public async getRowCount(): Promise<number> {
-    return this.rows.count();
-  }
-
-  public async getRowDetails(index: number) {
-    const row = this.rows.nth(index);
-    const cells = row.locator("td");
-
-    const pkg = await cells.nth(0).locator("a").textContent();
-    const ver = await cells.nth(1).textContent();
-    const desc = await cells.nth(2).textContent();
-
-    return {
-      description: (desc ?? "").trim(),
-      packageName: (pkg ?? "").trim(),
-      version: (ver ?? "").trim(),
-    };
+  public descriptionCellAt(index: number): Locator {
+    return this.rows.nth(index).locator("td").nth(2);
   }
 
   public async navigate(): Promise<void> {
     await this.navigateTo("/providers");
   }
 
-  public async providerNames(): Promise<Array<string>> {
-    return this.rows.locator("td a").allTextContents();
+  public async navigateFromAdminMenu(): Promise<void> {
+    await this.navigateTo("/");
+    await this.adminMenuButton.click();
+    await expect(this.providersMenuItem).toBeVisible();
+    await this.providersMenuItem.click();
+  }
+
+  public packageLinkAt(index: number): Locator {
+    return this.rows.nth(index).locator("td").nth(0).getByRole("link");
+  }
+
+  public versionCellAt(index: number): Locator {
+    return this.rows.nth(index).locator("td").nth(1);
   }
 
   public async waitForLoad(): Promise<void> {
-    await this.table.waitFor({ state: "visible", timeout: 30_000 });
-    await this.waitForTableData();
-  }
-
-  private async waitForTableData(): Promise<void> {
-    // Wait for actual data links to appear (not skeleton loaders)
-    await this.page.waitForFunction(
-      () => {
-        const table = document.querySelector('[data-testid="table-list"]');
-
-        if (!table) {
-          return false;
-        }
-
-        // Check for actual links in tbody (real data, not skeleton)
-        const links = table.querySelectorAll("tbody tr td a");
-
-        return links.length > 0;
-      },
-      undefined,
-      { timeout: 30_000 },
-    );
+    await expect(this.table).toBeVisible({ timeout: 30_000 });
+    await expect(this.rows.first()).toBeVisible({ timeout: 30_000 });
+    await expect(this.packageLinkAt(0)).toBeVisible({ timeout: 30_000 });
   }
 }

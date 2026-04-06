@@ -43,6 +43,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook",
+                "hook-name": "Elasticsearch",
                 "connection-type": "elasticsearch",
             }
         ],
@@ -142,6 +143,13 @@ def get_provider_info():
                         "type": "string",
                         "example": "module.callable",
                         "default": "",
+                    },
+                    "max_lines_per_page": {
+                        "description": "The Page size of logs to retrieve from elasticsearch using the ElasticsearchTaskHandler.\nIf this is set too low, this can cause log read queries to become very slow.\nThis is limited on the server side (default limit of 10,000).\n",
+                        "version_added": "6.4.4",
+                        "type": "string",
+                        "example": None,
+                        "default": "1000",
                     },
                 },
             },

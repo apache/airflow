@@ -87,6 +87,23 @@
   "formActions": {
     "save": "Zapisz"
   },
+  "jobs": {
+    "columns": {
+      "executorClass": "Klasa wykonawcy",
+      "hostname": "Nazwa hosta",
+      "id": "ID",
+      "jobType": "Typ zadania",
+      "latestHeartbeat": "Ostatni sygnał",
+      "unixname": "Nazwa Unixowa"
+    },
+    "filters": {
+      "allStates": "Wszystkie stany",
+      "allTypes": "Wszystkie typy",
+      "dagProcessorJob": "Zadanie procesora Dagów",
+      "schedulerJob": "Zadanie harmonogramu",
+      "triggererJob": "Zadanie cyngla"
+    }
+  },
   "plugins": {
     "columns": {
       "source": "Źródło"

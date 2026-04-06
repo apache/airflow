@@ -79,7 +79,7 @@ There are a few repositories under `apache` organization that are used to build 
 We have two S3 buckets where we can publish the documentation generated from the `apache-airflow` repository:
 
 * `s3://live-docs-airflow-apache-org/docs/` - live, [official documentation](https://airflow.apache.org/docs/)
-* `s3://staging-docs-airflow-apache-org/docs/` - staging documentation [official documentation](https://staging-airflow.apache.org/docs/)
+* `s3://staging-docs-airflow-apache-org/docs/` - staging documentation [official documentation](https://airflow.staged.apache.org/docs/)
 
 Note that those S3 buckets are not served directly to Apache Server, but they are served via Cloudfront
 in order to provide caching and automated resolution of folders into index.html files.
@@ -237,6 +237,12 @@ bad links or when we change some of the structure in the documentation. This can
 2. Make the changes to the documentation in `airflow-site-archive` repository. This can be done using any
    text editor, script, etc. Those files are generated as `html` files and are not meant to be regenerated,
    they should be modified as `html` files in-place
+
+> [!IMPORTANT]
+> When you modify a file for latest published version of the documentation you should do it in two
+> places - in the `stable` version and in the `X.Y.Z` version of the documentation, as `stable` is just a
+> copy of the latest version of the documentation.
+
 3. Commit the changes to `airflow-site-archive` repository and push them to `some` branch of the repository.
 4. Create a Pull Request from that branch and merge it to `main`
 5. Run `Sync GitHub to S3` workflow in `airflow-site-archive` repository. This will upload the modified

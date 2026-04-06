@@ -63,7 +63,7 @@ class TestYandexHook:
 
         with conf_vars({("yandex", "sdk_user_agent_prefix"): sdk_prefix}):
             hook = YandexCloudBaseHook()
-            assert hook.sdk._channels._client_user_agent.startswith(sdk_prefix)
+            assert sdk_prefix in str(hook.sdk._channels.channel_options)
 
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @mock.patch("airflow.providers.yandex.utils.credentials.get_credentials")

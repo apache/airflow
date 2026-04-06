@@ -43,7 +43,6 @@ Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator`
 parameters which allow you to dynamically determine values.
 
-
 .. _howto/operator:GoogleDisplayVideo360SDFtoGCSOperator:
 
 Save SDF files in the Google Cloud Storage

@@ -131,6 +131,6 @@ describe("Task log grouping", () => {
 
     fireEvent.click(collapseItem);
 
-    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeVisible());
+    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).not.toBeVisible());
   }, 10_000);
 });

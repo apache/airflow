@@ -71,6 +71,7 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
                   type: translate("dagRun_one"),
                 })}
                 colorPalette="brand"
+                data-testid="mark-run-as-button"
                 size="md"
                 variant="ghost"
               >

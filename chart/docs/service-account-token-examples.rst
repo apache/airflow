@@ -22,10 +22,6 @@ This document provides comprehensive examples for configuring Service Account To
 in the Apache Airflow Helm Chart. These examples demonstrate various security scenarios and
 use cases for pod-launching executors.
 
-.. contents:: Table of Contents
-   :local:
-   :depth: 2
-
 Overview
 --------
 
@@ -35,11 +31,11 @@ service account tokens are mounted into pods launched by Airflow. This feature i
 
 **Container-Specific Security Model:**
 
-- **Scheduler Container**: Receives Service Account Token (requires API access for pod management)
-- **Init Container**: No Service Account Token (only performs database migrations)
-- **Sidecar Container**: No Service Account Token (only performs log cleanup operations)
+- **Scheduler Container**: Receives Service Account Token as it requires API access for pod management
+- **Init Container**: No Service Account Token as it only performs database migrations
+- **Sidecar Container**: No Service Account Token as it only performs log cleanup operations
 
-This feature is particularly useful for:
+**This feature is particularly useful for**:
 
 - Compliance with security policies that restrict automatic token mounting
 - Implementation of defense-in-depth security strategies
@@ -50,14 +46,14 @@ This feature is particularly useful for:
 Basic Configuration Examples
 ----------------------------
 
-Default Automatic Token Mounting (Current Behavior)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Default Automatic Token Mounting
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This is the default behavior that continues to work without any changes:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: true  # Default value
@@ -68,8 +64,8 @@ Manual Token Volume Configuration
 Basic manual configuration that disables automatic mounting and enables manual token volume:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -91,8 +87,8 @@ High-Security Environment
 For environments requiring enhanced security with shorter token lifetimes:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -106,17 +102,8 @@ For environments requiring enhanced security with shorter token lifetimes:
 
 - **Shorter token lifetime** reduces exposure window if compromised
 - **Explicit control** over token mounting makes security intentional
-- **Container isolation**: Only scheduler container receives API access
-- **Reduced attack surface**: Init and sidecar containers cannot access Kubernetes API
+- **Container isolation** as only scheduler container receives API access
 - **Clear naming** for security auditing and compliance reporting
-
-**Important Security Note:**
-
-This configuration ensures that:
-
-- **Database migration container** (``wait-for-airflow-migrations``) operates without API access
-- **Log cleanup container** (``scheduler-log-groomer``) operates without API access
-- **Only the scheduler container** receives the service account token for pod management
 
 Kyverno Policy Compliance
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -128,8 +115,8 @@ Configuration that complies with Kyverno policies requiring ``automountServiceAc
 .. _Restrict Auto-Mount of Service Account Tokens: https://kyverno.io/policies/other/restrict-sa-automount-sa-token/restrict-sa-automount-sa-token/
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false  # Required by Kyverno policy
@@ -144,8 +131,8 @@ Custom Mount Path Configuration
 For applications that expect service account tokens at custom locations:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -163,11 +150,11 @@ Executor-Specific Examples
 KubernetesExecutor Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Optimal configuration for KubernetesExecutor with security focus:
+Optimal configuration for ``KubernetesExecutor`` with security focus:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    executor: KubernetesExecutor
 
    scheduler:
@@ -189,8 +176,8 @@ CeleryKubernetesExecutor Configuration
 Configuration for hybrid executor that launches both Celery workers and Kubernetes task pods:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    executor: CeleryKubernetesExecutor
 
    scheduler:
@@ -214,8 +201,8 @@ Development Environment
 Relaxed configuration for development with longer token lifetimes:
 
 .. code-block:: yaml
+   :caption: values-dev.yaml
 
-   # values-dev.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -230,16 +217,7 @@ Production Environment
 Strict production configuration with enhanced security:
 
 .. code-block:: yaml
-
-   # values-prod.yaml
-   scheduler:
-     serviceAccount:
-       automountServiceAccountToken: false
-       serviceAccountTokenVolume:
-         enabled: true
-         expirationSeconds: 1800   # 30 minutes for production security
-         audience: "https://kubernetes.default.svc.cluster.local"
-         volumeName: prod-airflow-token
+   :caption: values-prod.yaml
 
    # Additional production security settings
    securityContexts:
@@ -252,46 +230,60 @@ Strict production configuration with enhanced security:
        readOnlyRootFilesystem: true
        runAsNonRoot: true
 
+   scheduler:
+     serviceAccount:
+       automountServiceAccountToken: false
+       serviceAccountTokenVolume:
+         enabled: true
+         expirationSeconds: 1800   # 30 minutes for production security
+         audience: "https://kubernetes.default.svc.cluster.local"
+         volumeName: prod-airflow-token
+
+.. note::
+
+   Remember that it is a good practice to have the production configuration on the test environment to ensure
+   reliable testing before moving changes to production.
+
 Migration Examples
 ------------------
 
 Gradual Migration from Automatic to Manual
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Step 1: Test manual configuration alongside automatic (for validation):
+1. Test manual configuration alongside automatic (for validation):
 
-.. code-block:: yaml
+   .. code-block:: yaml
+      :caption: values-test.yaml
 
-   # values-test.yaml
-   scheduler:
-     serviceAccount:
-       automountServiceAccountToken: true   # Keep automatic for now
-       serviceAccountTokenVolume:
-         enabled: false                     # Disable manual for testing
+      scheduler:
+        serviceAccount:
+          automountServiceAccountToken: true   # Keep automatic for now
+          serviceAccountTokenVolume:
+            enabled: false                     # Disable manual for testing
 
-Step 2: Enable manual configuration while keeping automatic (transition phase):
+2. Enable manual configuration while keeping automatic (transition phase):
 
-.. code-block:: yaml
+   .. code-block:: yaml
+      :caption: values-transition.yaml
 
-   # values-transition.yaml
-   scheduler:
-     serviceAccount:
-       automountServiceAccountToken: true   # Still automatic
-       serviceAccountTokenVolume:
-         enabled: true                      # Test manual mounting
-         expirationSeconds: 3600
+      scheduler:
+        serviceAccount:
+          automountServiceAccountToken: true   # Still automatic
+          serviceAccountTokenVolume:
+            enabled: true                      # Test manual mounting
+            expirationSeconds: 3600
 
-Step 3: Complete migration to manual-only:
+3. Complete migration to manual-only:
 
-.. code-block:: yaml
+   .. code-block:: yaml
+      :caption: values-final.yaml
 
-   # values-final.yaml
-   scheduler:
-     serviceAccount:
-       automountServiceAccountToken: false  # Disable automatic
-       serviceAccountTokenVolume:
-         enabled: true                      # Use manual only
-         expirationSeconds: 3600
+      scheduler:
+        serviceAccount:
+          automountServiceAccountToken: false  # Disable automatic
+          serviceAccountTokenVolume:
+            enabled: true                      # Use manual only
+            expirationSeconds: 3600
 
 Troubleshooting Examples
 ------------------------
@@ -302,8 +294,8 @@ Debug Configuration
 Configuration with extended token lifetime for troubleshooting:
 
 .. code-block:: yaml
+   :caption: values-debug.yaml
 
-   # values-debug.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -346,8 +338,8 @@ Custom Audience Configuration
 For environments requiring specific token audiences:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -362,8 +354,8 @@ Multi-Cluster Configuration
 Configuration for multi-cluster deployments:
 
 .. code-block:: yaml
+   :caption: values-cluster-a.yaml
 
-   # values-cluster-a.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -379,8 +371,13 @@ Integration with External Security Tools
 Configuration compatible with external security scanning and policy tools:
 
 .. code-block:: yaml
+   :caption: values-security-compliant.yaml
 
-   # values-security-compliant.yaml
+   # Additional security annotations
+   airflowPodAnnotations:
+     security.policy/scanned: "true"
+     security.policy/compliant: "service-account-token-manual"
+
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -389,11 +386,6 @@ Configuration compatible with external security scanning and policy tools:
          expirationSeconds: 1800  # Short-lived tokens
          mountPath: /var/run/secrets/kubernetes.io/serviceaccount
          volumeName: security-compliant-token
-
-   # Additional security annotations
-   airflowPodAnnotations:
-     security.policy/scanned: "true"
-     security.policy/compliant: "service-account-token-manual"
 
 Best Practices Summary
 ----------------------
@@ -406,29 +398,29 @@ Best Practices Summary
 
 **Configuration Management:**
 
-4. **Always test** manual token configuration in non-production environments first
-5. **Use shorter token lifetimes** in production environments (1800-3600 seconds)
-6. **Set explicit audiences** when integrating with external systems
-7. **Use descriptive volume names** for easier troubleshooting and security auditing
+1. **Always test** manual token configuration in non-production environments first
+2. **Use shorter token lifetimes** around 1800-3600 seconds
+3. **Set explicit audiences** when integrating with external systems
+4. **Use descriptive volume names** for easier troubleshooting and security auditing
 
 **Security Monitoring:**
 
-8. **Monitor logs** for authentication issues after migration
-9. **Document your configuration** for security auditing and compliance purposes
-10. **Audit container permissions** regularly to ensure compliance with security policies
-11. **Combine with other security measures** like Pod Security Standards and network policies
+1. **Monitor logs** for authentication issues after migration
+2. **Document your configuration** for security auditing and compliance purposes
+3. **Audit container permissions** regularly to ensure compliance with security policies
+4. **Combine with other security measures** like Pod Security Standards and network policies
 
 **Migration Strategy:**
 
-12. **Plan gradual migration** from automatic to manual token mounting
-13. **Validate functionality** of each container type after configuration changes
-14. **Maintain backward compatibility** during transition periods
+1. **Plan gradual migration** from automatic to manual token mounting
+2. **Validate functionality** of each container type after configuration changes
+3. **Maintain backward compatibility** during transition periods
 
 **Why This Approach is More Secure:**
 
-- **Reduced attack surface**: Containers without API access cannot be used to compromise the cluster
-- **Clear security boundaries**: Explicit definition of which containers have API privileges
-- **Compliance ready**: Meets requirements for container-specific privilege assignment
-- **Audit friendly**: Clear documentation of security controls for compliance reporting
+1. **Reduced attack surface**: Containers without API access cannot be used to compromise the cluster
+2. **Clear security boundaries**: Explicit definition of which containers have API privileges
+3. **Compliance ready**: Meets requirements for container-specific privilege assignment
+4. **Audit friendly**: Clear documentation of security controls for compliance reporting
 
 For more detailed information, see the :doc:`production-guide` section on Service Account Token Volume Configuration.

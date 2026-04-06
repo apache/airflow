@@ -244,6 +244,35 @@ class TestAwsS3Hook:
             region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get("LocationConstraint")
             assert region == (region_name if region_name != "us-east-1" else None)
 
+    @mock_aws
+    def test_create_bucket_account_regional_namespace(self):
+        hook = S3Hook()
+        with mock.patch.object(hook, "get_conn") as mock_conn:
+            hook.create_bucket(
+                bucket_name="new_bucket",
+                region_name="us-east-2",
+                bucket_namespace="account-regional",
+            )
+            mock_conn().create_bucket.assert_called_once_with(
+                Bucket="new_bucket",
+                CreateBucketConfiguration={"LocationConstraint": "us-east-2"},
+                BucketNamespace="account-regional",
+            )
+
+    @mock_aws
+    def test_create_bucket_account_regional_namespace_us_east_1(self):
+        hook = S3Hook()
+        with mock.patch.object(hook, "get_conn") as mock_conn:
+            hook.create_bucket(
+                bucket_name="new_bucket",
+                region_name="us-east-1",
+                bucket_namespace="account-regional",
+            )
+            mock_conn().create_bucket.assert_called_once_with(
+                Bucket="new_bucket",
+                BucketNamespace="account-regional",
+            )
+
     def test_create_bucket_no_region_regional_endpoint(self, monkeypatch):
         conn = Connection(
             conn_id="no-region-regional-endpoint",
@@ -474,17 +503,25 @@ class TestAwsS3Hook:
         mock_get_client_type.return_value.select_object_content.return_value = {
             "Payload": [{"Records": {"Payload": b"Cont\xc3"}}, {"Records": {"Payload": b"\xa9nt"}}]
         }
-        hook = S3Hook(requester_pays=True)
+        hook = S3Hook(requester_pays=False)
         assert hook.select_key("my_key", s3_bucket) == "Contént"
         mock_get_client_type.return_value.select_object_content.assert_called_with(
             Bucket="airflow-test-s3-bucket",
             Expression="SELECT * FROM S3Object",
             ExpressionType="SQL",
-            ExtraArgs={"RequestPayer": "requester"},
             InputSerialization={"CSV": {}},
             Key="my_key",
             OutputSerialization={"CSV": {}},
         )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type")
+    def test_select_key_with_requester_pay(self, mock_get_client_type, s3_bucket):
+        mock_get_client_type.return_value.select_object_content.return_value = {
+            "Payload": [{"Records": {"Payload": b"Cont\xc3"}}, {"Records": {"Payload": b"\xa9nt"}}]
+        }
+        hook = S3Hook(requester_pays=True)
+        with pytest.raises(ValueError, match="select_key cannot be used with requester_pays"):
+            hook.select_key("my_key", s3_bucket)
 
     def test_check_for_wildcard_key(self, s3_bucket):
         hook = S3Hook()
@@ -1312,6 +1349,48 @@ class TestAwsS3Hook:
             )
 
     @mock_aws
+    def test_copy_object_with_kms_encryption(self, s3_bucket):
+        mock_hook = S3Hook()
+        with mock.patch.object(S3Hook, "get_conn") as get_conn:
+            mock_hook.copy_object(
+                "my_key",
+                "my_key_encrypted",
+                s3_bucket,
+                s3_bucket,
+                kms_key_id="arn:aws:kms:us-east-1:123456789012:key/abcd1234",
+                kms_encryption_type="aws:kms",
+            )
+            get_conn.return_value.copy_object.assert_called_once_with(
+                Bucket=s3_bucket,
+                Key="my_key_encrypted",
+                CopySource={"Bucket": s3_bucket, "Key": "my_key", "VersionId": None},
+                ACL="private",
+                SSEKMSKeyId="arn:aws:kms:us-east-1:123456789012:key/abcd1234",
+                ServerSideEncryption="aws:kms",
+            )
+
+    @mock_aws
+    def test_copy_object_with_kms_one_missing_raises(self, s3_bucket):
+        hook = S3Hook()
+
+        with pytest.raises(ValueError, match="kms_key_id and kms_encryption_type must both be specified"):
+            hook.copy_object(
+                source_bucket_key="my_key",
+                dest_bucket_key="my_key_copy",
+                source_bucket_name=s3_bucket,
+                dest_bucket_name=s3_bucket,
+                kms_key_id="arn:aws:kms:us-east-1:123456789012:key/abcd1234",
+            )
+        with pytest.raises(ValueError, match="kms_key_id and kms_encryption_type must both be specified"):
+            hook.copy_object(
+                source_bucket_key="my_key",
+                dest_bucket_key="my_key_copy",
+                source_bucket_name=s3_bucket,
+                dest_bucket_name=s3_bucket,
+                kms_encryption_type="aws:kms",
+            )
+
+    @mock_aws
     def test_delete_bucket_if_bucket_exist(self, s3_bucket):
         # assert if the bucket is created
         mock_hook = S3Hook()
@@ -1407,8 +1486,8 @@ class TestAwsS3Hook:
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile")
     def test_download_file(self, mock_temp_file, tmp_path):
-        path = tmp_path / "airflow_tmp_test_s3_hook"
-        mock_temp_file.return_value = path
+        mock_file = mock_temp_file.return_value
+        mock_file.name = str(tmp_path / "airflow_tmp_test_s3_hook")
         s3_hook = S3Hook(aws_conn_id="s3_test", requester_pays=True)
         s3_hook.check_for_key = Mock(return_value=True)
         s3_obj = Mock()
@@ -1421,17 +1500,17 @@ class TestAwsS3Hook:
 
         s3_hook.get_key.assert_called_once_with(key, bucket)
         s3_obj.download_fileobj.assert_called_once_with(
-            path,
+            mock_file,
             Config=s3_hook.transfer_config,
             ExtraArgs={"RequestPayer": "requester"},
         )
 
-        assert path.name == output_file
+        assert mock_file.name == output_file
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile")
     def test_download_file_exposes_lineage(self, mock_temp_file, tmp_path, hook_lineage_collector):
-        path = tmp_path / "airflow_tmp_test_s3_hook"
-        mock_temp_file.return_value = path
+        mock_file = mock_temp_file.return_value
+        mock_file.name = str(tmp_path / "airflow_tmp_test_s3_hook")
         s3_hook = S3Hook(aws_conn_id="s3_test")
         s3_hook.check_for_key = Mock(return_value=True)
         s3_obj = Mock()
@@ -1820,14 +1899,28 @@ class TestAwsS3Hook:
         local_file_that_should_be_deleted.write_text("test dag")
         local_folder_should_be_deleted = Path(sync_local_dir).joinpath("local_folder_should_be_deleted")
         local_folder_should_be_deleted.mkdir(exist_ok=True)
+        nested_stale_file = Path(sync_local_dir).joinpath("subproject1", "stale_nested.py")
+        nested_stale_file.write_text("stale nested file")
+        deep_nested_dir = Path(sync_local_dir).joinpath("subproject1", "deep")
+        deep_nested_dir.mkdir()
+        deep_stale_file = deep_nested_dir.joinpath("stale_deep.py")
+        deep_stale_file.write_text("stale deep file")
         hook.log.debug = MagicMock()
         hook.sync_to_local_dir(
             bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
         )
         logs_string = get_logs_string(hook.log.debug.call_args_list)
         assert f"Deleted stale local file: {local_file_that_should_be_deleted.as_posix()}" in logs_string
+        assert f"Deleted stale local file: {nested_stale_file.as_posix()}" in logs_string
+        assert f"Deleted stale local file: {deep_stale_file.as_posix()}" in logs_string
 
         assert f"Deleted stale empty directory: {local_folder_should_be_deleted.as_posix()}" in logs_string
+        assert f"Deleted stale empty directory: {deep_nested_dir.as_posix()}" in logs_string
+        assert not nested_stale_file.exists()
+        assert not deep_stale_file.exists()
+        assert not deep_nested_dir.exists()
+        assert Path(sync_local_dir).joinpath("dag_01.py").exists()
+        assert Path(sync_local_dir).joinpath("subproject1", "dag_a.py").exists()
 
         s3_client.put_object(Bucket=s3_bucket, Key="dag_03.py", Body=b"test data-changed")
         hook.log.debug = MagicMock()

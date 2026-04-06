@@ -18,10 +18,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TypedDict
+from uuid import UUID
 
 import sqlalchemy as sa
-from sqlalchemy import Boolean, ForeignKeyConstraint, String, Text, func, literal
-from sqlalchemy.dialects import postgresql
+from sqlalchemy import Boolean, ForeignKeyConstraint, String, Text, Uuid, func, literal
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -137,8 +137,8 @@ class HITLDetail(Base, HITLDetailPropertyMixin):
     """Human-in-the-loop request and corresponding response."""
 
     __tablename__ = "hitl_detail"
-    ti_id: Mapped[str] = mapped_column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+    ti_id: Mapped[UUID] = mapped_column(
+        Uuid(),
         primary_key=True,
         nullable=False,
     )

@@ -17,19 +17,20 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import warnings
+from contextlib import suppress
 from functools import cached_property
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 from cachetools import TTLCache, cachedmethod
-from connexion import FlaskApi
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
-from flask import Blueprint, current_app, g
+from flask import current_app, g
 from flask_appbuilder.const import AUTH_LDAP
 from sqlalchemy import select
+from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -51,19 +52,13 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagModel, Pool, Variable
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.fab.www.app import create_app
-from airflow.providers.fab.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
-from airflow.providers.fab.www.extensions.init_views import (
-    _CustomErrorRequestBodyValidator,
-    _LazyResolver,
-)
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_READ,
@@ -92,14 +87,12 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
 )
-from airflow.providers.fab.www.utils import (
-    get_fab_action_from_method_map,
-    get_method_from_fab_action_map,
-)
+from airflow.providers.fab.www.utils import get_fab_action_from_method_map
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.yaml import safe_load
 
 if TYPE_CHECKING:
+    from flask import Flask
+
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.cli.cli_config import (
         CLICommand,
@@ -118,6 +111,8 @@ else:
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
     )
+
+log = logging.getLogger(__name__)
 
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
@@ -181,6 +176,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     cache: TTLCache = TTLCache(maxsize=1024, ttl=CACHE_TTL)
     appbuilder: AirflowAppBuilder | None = None
+    flask_app: Flask | None = None
 
     def init_flask_resources(self) -> None:
         self._sync_appbuilder_roles()
@@ -198,13 +194,14 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_fastapi_app(self) -> FastAPI | None:
         """Get the FastAPI app."""
-        from airflow.providers.fab.auth_manager.api_fastapi.routes.login import (
-            login_router,
+        from airflow.providers.fab.auth_manager.api_fastapi.routes.router import (
+            auth_router,
+            fab_router,
+            register_routes,
         )
-        from airflow.providers.fab.auth_manager.api_fastapi.routes.roles import roles_router
-        from airflow.providers.fab.auth_manager.api_fastapi.routes.users import users_router
 
         flask_app = create_app(enable_plugins=False)
+        self.flask_app = flask_app
 
         app = FastAPI(
             title="FAB auth manager API",
@@ -216,31 +213,36 @@ class FabAuthManager(BaseAuthManager[User]):
             ),
         )
 
-        # Add the login router to the FastAPI app
-        app.include_router(login_router)
-        app.include_router(roles_router)
-        app.include_router(users_router)
+        register_routes()
+        app.include_router(auth_router)
+        app.include_router(fab_router)
+
+        # Session cleanup middleware to prevent PendingRollbackError.
+        # FAB's Flask views (e.g., /users/list/, /roles/list/) are mounted below via
+        # WSGIMiddleware. These views use settings.Session (SQLAlchemy scoped_session),
+        # but unlike a native Flask app where teardown_appcontext calls Session.remove(),
+        # the WSGI wrapper does not trigger Flask's teardown hooks.
+        # Without explicit cleanup, sessions remain in "idle in transaction" state.
+        # When the database connection times out (e.g., PostgreSQL's
+        # idle_in_transaction_session_timeout), subsequent requests reusing the
+        # invalidated session raise PendingRollbackError.
+        @app.middleware("http")
+        async def cleanup_session_middleware(request, call_next):
+            try:
+                response = await call_next(request)
+                return response
+            finally:
+                from airflow import settings
+
+                if settings.Session:
+                    try:
+                        settings.Session.remove()
+                    except Exception:
+                        log.warning("Failed to remove session during cleanup", exc_info=True)
 
         app.mount("/", WSGIMiddleware(flask_app))
 
         return app
-
-    def get_api_endpoints(self) -> None | Blueprint:
-        folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
-        with folder.joinpath("openapi", "v1-flask-api.yaml").open() as f:
-            specification = safe_load(f)
-        return FlaskApi(
-            specification=specification,
-            resolver=_LazyResolver(),
-            base_path="/fab/v1",
-            options={
-                "swagger_ui": SWAGGER_ENABLED,
-                "swagger_path": SWAGGER_BUNDLE.__fspath__(),
-            },
-            strict_validation=True,
-            validate_responses=True,
-            validator_map={"body": _CustomErrorRequestBodyValidator},
-        ).blueprint
 
     def get_user(self) -> User:
         """
@@ -265,7 +267,29 @@ class FabAuthManager(BaseAuthManager[User]):
 
     @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
     def deserialize_user(self, token: dict[str, Any]) -> User:
-        return self.session.scalars(select(User).where(User.id == int(token["sub"]))).one()
+        user_id = int(token["sub"])
+
+        def _fetch_user() -> User:
+            try:
+                return self.session.scalars(select(User).where(User.id == user_id)).one()
+            except NoResultFound:
+                raise ValueError(f"User with id {token['sub']} not found")
+
+        try:
+            return _fetch_user()
+        except SQLAlchemyError:
+            # Discard the poisoned scoped session so the next request gets a
+            # fresh connection from the pool instead of a PendingRollbackError.
+            with suppress(Exception):
+                self.session.remove()
+            try:
+                return _fetch_user()
+            except SQLAlchemyError:
+                # If retry also fails, remove the scoped session again to keep
+                # future requests from reusing a broken transaction state.
+                with suppress(Exception):
+                    self.session.remove()
+                raise
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
@@ -500,15 +524,11 @@ class FabAuthManager(BaseAuthManager[User]):
         )
         roles = user_query.roles
 
-        map_fab_action_name_to_method_name = get_method_from_fab_action_map()
+        fab_action = get_fab_action_from_method_map().get(method)
         resources = set()
         for role in roles:
             for permission in role.permissions:
-                action = permission.action.name
-                if (
-                    action in map_fab_action_name_to_method_name
-                    and map_fab_action_name_to_method_name[action] == method
-                ):
+                if permission.action.name == fab_action:
                     resource = permission.resource.name
                     if resource == permissions.RESOURCE_DAG:
                         return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
@@ -534,7 +554,7 @@ class FabAuthManager(BaseAuthManager[User]):
         :param session: the session
         """
         rows = session.execute(select(Pool.pool)).scalars().all()
-        return set(rows)
+        return {r for r in rows if r is not None}
 
     @provide_session
     def get_authorized_variables(
@@ -626,6 +646,8 @@ class FabAuthManager(BaseAuthManager[User]):
 
     @staticmethod
     def get_db_manager() -> str | None:
+        # This method can be removed once the min Airflow version supported in FAB provider is >= 3.2
+        # https://github.com/apache/airflow/pull/62308 auto uses DB managers from installed providers
         return "airflow.providers.fab.auth_manager.models.db.FABDBManager"
 
     def _is_authorized(

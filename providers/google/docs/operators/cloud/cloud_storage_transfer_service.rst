@@ -52,8 +52,8 @@ The function accepts time in two formats:
 
 - as an :class:`~datetime.time` object
 
-If you want to create a job transfer that copies data from AWS S3 then you must have a connection configured. Information about configuration for AWS is available: :doc:`apache-airflow-providers-amazon:connections/aws`
-The selected connection for AWS can be indicated by the parameter ``aws_conn_id``.
+If you want to create a transfer job that copies data from AWS S3, you must have an AWS connection configured.
+Information about configuration for AWS is available in :doc:`apache-airflow-providers-amazon:connections/aws`.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceCreateJobOperator`.
@@ -66,6 +66,8 @@ Using the operator
       :language: python
       :start-after: [START howto_operator_gcp_transfer_create_job_body_gcp]
       :end-before: [END howto_operator_gcp_transfer_create_job_body_gcp]
+
+.. note:: For AWS S3 sources, pass ``aws_conn_id`` to the operator.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/storage_transfer/example_cloud_storage_transfer_service_aws.py
       :language: python
@@ -128,7 +130,7 @@ More information
 See `Google Cloud Transfer Service - REST Resource: transferJobs - Status
 <https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs#Status>`_
 
-.. _howto/operator:CloudDataTransferServiceUpdateJobOperator:
+.. _howto/operator:CloudDataTransferServiceRunJobOperator:
 
 CloudDataTransferServiceRunJobOperator
 -----------------------------------------
@@ -163,12 +165,15 @@ More information
 See `Google Cloud Transfer Service - REST Resource: transferJobs - Run
 <https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/run>`_
 
-.. _howto/operator:CloudDataTransferServiceRunJobOperator:
+.. _howto/operator:CloudDataTransferServiceUpdateJobOperator:
 
 CloudDataTransferServiceUpdateJobOperator
 -----------------------------------------
 
 Updates a transfer job.
+
+For AWS S3 sources you must have an AWS connection configured.
+Information about configuration for AWS is available in :doc:`apache-airflow-providers-amazon:connections/aws`.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceUpdateJobOperator`.
@@ -183,6 +188,20 @@ Using the operator
       :end-before: [END howto_operator_gcp_transfer_update_job_body]
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/storage_transfer/example_cloud_storage_transfer_service_gcp.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_gcp_transfer_update_job]
+      :end-before: [END howto_operator_gcp_transfer_update_job]
+
+.. note:: For AWS S3 updates, pass ``aws_conn_id`` and include ``transferSpec`` in the update payload.
+          If your spec uses an IAM role (for example ``roleArn``), static credentials are not injected.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/storage_transfer/example_cloud_storage_transfer_service_aws.py
+      :language: python
+      :start-after: [START howto_operator_gcp_transfer_update_job_body_aws]
+      :end-before: [END howto_operator_gcp_transfer_update_job_body_aws]
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/storage_transfer/example_cloud_storage_transfer_service_aws.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_update_job]

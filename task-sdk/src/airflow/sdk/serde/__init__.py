@@ -31,7 +31,18 @@ import attr
 
 from airflow.sdk._shared.module_loading import import_string, iter_namespace, qualname
 from airflow.sdk._shared.observability.metrics.stats import Stats
+from airflow.sdk._shared.serialization import (
+    CLASSNAME,
+    DATA,
+    OLD_DATA,
+    OLD_DICT,
+    OLD_TYPE,
+    OLD_TYPE_TO_FULL_QUALNAME,
+    SCHEMA_ID,
+    VERSION,
+)
 from airflow.sdk.configuration import conf
+from airflow.sdk.observability.metrics import stats_utils
 from airflow.sdk.serde.typing import is_pydantic_model
 
 if TYPE_CHECKING:
@@ -41,16 +52,6 @@ log = logging.getLogger(__name__)
 
 MAX_RECURSION_DEPTH = sys.getrecursionlimit() - 1
 
-CLASSNAME = "__classname__"
-VERSION = "__version__"
-DATA = "__data__"
-SCHEMA_ID = "__id__"
-CACHE = "__cache__"
-
-OLD_TYPE = "__type"
-OLD_SOURCE = "__source"
-OLD_DATA = "__var"
-OLD_DICT = "dict"
 PYDANTIC_MODEL_QUALNAME = "pydantic.main.BaseModel"
 
 DEFAULT_VERSION = 0
@@ -307,7 +308,11 @@ def _convert(old: dict) -> dict:
         # Return old style dicts directly as they do not need wrapping
         if old[OLD_TYPE] == OLD_DICT:
             return old[OLD_DATA]
-        return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA]}
+        return {
+            CLASSNAME: OLD_TYPE_TO_FULL_QUALNAME.get(old[OLD_TYPE], old[OLD_TYPE]),
+            VERSION: DEFAULT_VERSION,
+            DATA: old[OLD_DATA],
+        }
 
     return old
 
@@ -370,11 +375,8 @@ def _register():
     _deserializers.clear()
     _stringifiers.clear()
 
-    Stats.initialize(
-        is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
-        is_statsd_on=conf.getboolean("metrics", "statsd_on"),
-        is_otel_on=conf.getboolean("metrics", "otel_on"),
-    )
+    stats_factory = stats_utils.get_stats_factory(Stats)
+    Stats.initialize(factory=stats_factory)
 
     with Stats.timer("serde.load_serializers") as timer:
         serializers_module = import_module("airflow.sdk.serde.serializers")
@@ -406,7 +408,7 @@ def _register():
                 log.debug("registering %s for stringifying", c_qualname)
                 _stringifiers[c_qualname] = module
 
-    log.debug("loading serializers took %.3f seconds", timer.duration)
+    log.debug("loading serializers took %.3f ms", timer.duration)
 
 
 @functools.cache

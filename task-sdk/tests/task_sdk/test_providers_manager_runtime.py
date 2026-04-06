@@ -236,3 +236,44 @@ class TestProvidersManagerRuntime:
             assert self._caplog.messages == [
                 "Optional provider feature disabled when importing 'HookClass' from 'test_package' package"
             ]
+
+    def test_already_initialized_provider_configs_emits_deprecation_warning(self):
+        """Test that already_initialized_provider_configs emits a DeprecationWarning."""
+        pm = ProvidersManagerTaskRuntime()
+        with pytest.warns(DeprecationWarning, match="already_initialized_provider_configs.*deprecated"):
+            pm.already_initialized_provider_configs
+
+    def test_initialize_provider_configs_can_reload_sdk_conf(self):
+        from airflow.sdk.configuration import conf
+
+        providers_manager = ProvidersManagerTaskRuntime()
+        provider_config = {
+            "test_sdk_provider": {
+                "description": "Provider config used in runtime tests.",
+                "options": {
+                    "test_option": {
+                        "default": "provider-default",
+                    }
+                },
+            }
+        }
+
+        def initialize_provider_configs() -> None:
+            providers_manager._provider_dict["apache-airflow-providers-test-sdk"] = ProviderInfo(
+                version="0.0.1",
+                data={"config": provider_config},
+            )
+            with patch.object(providers_manager, "initialize_providers_list"):
+                providers_manager.initialize_provider_configs()
+
+        conf.invalidate_cache()
+        try:
+            initialize_provider_configs()
+            assert conf.get("test_sdk_provider", "test_option") == "provider-default"
+
+            providers_manager._cleanup()
+
+            initialize_provider_configs()
+            assert conf.get("test_sdk_provider", "test_option") == "provider-default"
+        finally:
+            conf.invalidate_cache()

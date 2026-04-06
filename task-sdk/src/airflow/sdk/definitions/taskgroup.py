@@ -22,6 +22,7 @@ from __future__ import annotations
 import copy
 import re
 import weakref
+from collections import deque
 from collections.abc import Generator, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -586,10 +587,10 @@ class TaskGroup(DAGNode):
         """Return an iterator of the child tasks."""
         from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 
-        groups_to_visit = [self]
+        groups_to_visit = deque([self])
 
         while groups_to_visit:
-            visiting = groups_to_visit.pop(0)
+            visiting = groups_to_visit.popleft()
 
             for child in visiting.children.values():
                 if isinstance(child, AbstractOperator):

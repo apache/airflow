@@ -194,6 +194,48 @@ class TestBaseOperations:
 
         assert expected_response == response
 
+    def test_execute_list_sends_limit_to_server(self):
+        """``limit`` must be included in request params so the server returns
+        the expected page size.  Without it the server uses its own default
+        (e.g. 100) which causes duplicate entries when ``limit`` differs."""
+        mock_client = Mock()
+        mock_client.get.return_value = Mock(
+            content=json.dumps({"hellos": [{"name": "hello"}] * 3, "total_entries": 3})
+        )
+        base_operation = BaseOperations(client=mock_client)
+
+        base_operation.execute_list(path="hello", data_model=HelloCollectionResponse, limit=50)
+
+        call_params = mock_client.get.call_args_list[0]
+        assert call_params.kwargs["params"]["limit"] == 50
+
+    def test_execute_list_sends_limit_on_subsequent_pages(self):
+        """Every paginated request must include ``limit`` so that offset
+        arithmetic stays consistent with the actual page size returned."""
+        mock_client = Mock()
+        mock_client.get.side_effect = [
+            Mock(content=json.dumps({"hellos": [{"name": "a"}, {"name": "b"}], "total_entries": 3})),
+            Mock(content=json.dumps({"hellos": [{"name": "c"}], "total_entries": 3})),
+        ]
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(path="hello", data_model=HelloCollectionResponse, limit=2)
+
+        assert len(response.hellos) == 3
+        # Verify limit is sent on both the first and second request
+        for call in mock_client.get.call_args_list:
+            assert call.kwargs["params"]["limit"] == 2
+
+    @pytest.mark.parametrize("limit", [0, -1])
+    def test_execute_list_rejects_non_positive_limit(self, limit):
+        mock_client = Mock()
+        base_operation = BaseOperations(client=mock_client)
+
+        with pytest.raises(ValueError, match="limit must be a positive integer"):
+            base_operation.execute_list(path="hello", data_model=HelloCollectionResponse, limit=limit)
+
+        mock_client.get.assert_not_called()
+
 
 class TestAssetsOperations:
     asset_id: int = 1
@@ -272,6 +314,7 @@ class TestAssetsOperations:
         state="RUNNING",
         data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
         data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        partition_key=None,
     )
 
     asset_event_response = AssetEventResponse(
@@ -683,6 +726,7 @@ class TestDagOperations:
         description="description",
         timetable_summary="timetable_summary",
         timetable_description="timetable_description",
+        timetable_partitioned=False,
         tags=[],
         max_active_tasks=1,
         max_active_runs=1,
@@ -710,6 +754,7 @@ class TestDagOperations:
         description="description",
         timetable_summary="timetable_summary",
         timetable_description="timetable_description",
+        timetable_partitioned=False,
         tags=[],
         max_active_tasks=1,
         max_active_runs=1,
@@ -1026,6 +1071,63 @@ class TestDagRunOperations:
             end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
             state=DagRunState.RUNNING,
             limit=1,
+        )
+        assert response == self.dag_run_collection_response
+
+    @pytest.mark.parametrize(
+        (
+            "dag_id_input",
+            "state",
+            "limit",
+            "start_date",
+            "end_date",
+            "expected_path_suffix",
+            "expected_params_subset",
+        ),
+        [
+            # Test --limit with various values and configurations (covers CLI --limit flag)
+            ("dag1", "queued", 5, None, None, "dag1", {"state": "queued", "limit": "5"}),
+            (None, "running", 1, None, None, "~", {"state": "running", "limit": "1"}),
+            (
+                "example_dag",
+                "success",
+                10,
+                None,
+                None,
+                "example_dag",
+                {"state": "success", "limit": "10"},
+            ),
+            ("dag2", "failed", 0, None, None, "dag2", {"state": "failed", "limit": "0"}),
+        ],
+        ids=["limit-5", "all-dags-limit-1", "string-state-limit-10", "limit-zero"],
+    )
+    def test_list_with_various_limits(
+        self,
+        dag_id_input: str | None,
+        state: str | DagRunState,
+        limit: int,
+        start_date: datetime.datetime | None,
+        end_date: datetime.datetime | None,
+        expected_path_suffix: str,
+        expected_params_subset: dict,
+    ) -> None:
+        """Test listing dag runs with various limit values (especially --limit flag)."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path.endswith(f"/dags/{expected_path_suffix}/dagRuns")
+            params = dict(request.url.params)
+            for key, value in expected_params_subset.items():
+                assert key in params
+                assert str(params[key]) == str(value)
+            return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.list(
+            state=state,
+            limit=limit,
+            start_date=start_date,
+            end_date=end_date,
+            dag_id=dag_id_input,
         )
         assert response == self.dag_run_collection_response
 

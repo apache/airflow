@@ -161,7 +161,7 @@ export const TrendCountChart = ({ endDate, events, startDate }: Props) => {
   };
 
   return (
-    <Box h="25px" w="200px">
+    <Box data-testid="trend-count-chart" h="25px" w="200px">
       <Line data={data} options={options} ref={chartRef} />
     </Box>
   );

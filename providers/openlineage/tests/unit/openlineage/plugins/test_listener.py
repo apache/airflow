@@ -205,10 +205,11 @@ class TestOpenLineageListenerAirflow2:
             execution_date=date,  # type: ignore
         )
         if AIRFLOW_V_3_0_PLUS:
+            assert dagrun.created_dag_version_id is not None
             task_instance = create_task_instance(
                 t,
                 run_id=run_id,
-                dag_version_id=uuid.UUID(dagrun.created_dag_version_id),
+                dag_version_id=dagrun.created_dag_version_id,
             )
         else:
             task_instance = TaskInstance(t, run_id=run_id)  # type: ignore

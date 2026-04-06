@@ -27,6 +27,13 @@ import { ErrorAlert } from "src/alert/ErrorAlert";
 import { LoginForm } from "src/login/LoginForm";
 import { useCreateToken } from "src/queries/useCreateToken";
 
+// Derive the cookie path from the <base> tag so the _token cookie is scoped
+// to the Airflow subpath (e.g. "/team-a/") instead of "/".
+const cookiePath = new URL(
+  document.querySelector("head>base")?.getAttribute("href") ?? "/",
+  globalThis.location.origin,
+).pathname;
+
 export type LoginBody = {
   password: string;
   username: string;
@@ -47,20 +54,30 @@ const LOCAL_STORAGE_DISABLE_BANNER_KEY = "disable-sam-banner";
 
 export const Login = () => {
   const [searchParams] = useSearchParams();
-  const [, setCookie] = useCookies(["_token"]);
+  const [, setCookie, removeCookie] = useCookies(["_token"]);
   const [isBannerDisabled, setIsBannerDisabled] = useState(
     localStorage.getItem(LOCAL_STORAGE_DISABLE_BANNER_KEY),
   );
 
   const onSuccess = (data: LoginResponse) => {
-    // Fallback similar to FabAuthManager, strip off the next
-    const fallback = "/";
+    // Fall back to the Airflow base path (e.g. "/team-a/") so that
+    // logins without a "next" parameter (e.g. after logout) redirect
+    // to the correct subpath instead of the server root "/".
+    const fallback = cookiePath;
 
     // Redirect to appropriate page with the token
     const next = searchParams.get("next") ?? fallback;
 
+    // Remove any stale _token cookie at root path to prevent duplicate
+    // cookies.  When two _token cookies exist (one at "/" and one at the
+    // subpath), the server's SimpleCookie parser picks the last one which
+    // may be the stale value, causing authentication failures.
+    if (cookiePath !== "/") {
+      removeCookie("_token", { path: "/" });
+    }
+
     setCookie("_token", data.access_token, {
-      path: "/",
+      path: cookiePath,
       secure: globalThis.location.protocol !== "http:",
     });
 
