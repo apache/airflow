@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException
@@ -96,6 +96,12 @@ class GCSToGCSOperator(BaseOperator):
         copied.
     :param match_glob: (Optional) filters objects based on the glob pattern given by the string (
         e.g, ``'**/*/.json'``)
+    :param retain_until_time: (Optional) A datetime specifying until when the destination
+        objects should be retained. Requires the destination bucket to have object retention
+        enabled. The retention is applied after each object is copied/moved.
+    :param retention_mode: (Optional) The retention mode for destination objects.
+        Can be ``"Locked"`` or ``"Unlocked"``. Only used when ``retain_until_time`` is set.
+        Defaults to ``"Unlocked"`` if not specified.
 
     :Example:
 
@@ -199,6 +205,8 @@ class GCSToGCSOperator(BaseOperator):
         source_object_required=False,
         exact_match=False,
         match_glob: str | None = None,
+        retain_until_time=None,
+        retention_mode: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -237,6 +245,8 @@ class GCSToGCSOperator(BaseOperator):
         self.source_object_required = source_object_required
         self.exact_match = exact_match
         self.match_glob = match_glob
+        self.retain_until_time = retain_until_time
+        self.retention_mode = retention_mode
 
     def execute(self, context: Context) -> list[str]:
         hook = GCSHook(
@@ -566,7 +576,18 @@ class GCSToGCSOperator(BaseOperator):
             dest_bucket,
             destination_object,
         )
-        hook.rewrite(self.source_bucket, source_object, dest_bucket, destination_object)
+        rewrite_kwargs: dict[str, Any] = {}
+        if self.retain_until_time is not None:
+            rewrite_kwargs["retain_until_time"] = self.retain_until_time
+            if self.retention_mode is not None:
+                rewrite_kwargs["retention_mode"] = self.retention_mode
+        hook.rewrite(
+            self.source_bucket,
+            source_object,
+            dest_bucket,
+            destination_object,
+            **rewrite_kwargs,
+        )
 
         if self.move_object:
             hook.delete(self.source_bucket, source_object)
