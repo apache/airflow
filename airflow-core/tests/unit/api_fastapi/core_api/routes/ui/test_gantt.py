@@ -328,25 +328,63 @@ class TestGetGanttDataEndpoint:
         assert response.status_code == 404
 
     def test_gantt_with_start_date(self, test_client):
+        """Filtering by start_date excludes tasks that ended before the filter."""
+        # Get all tasks without filter
+        unfiltered = test_client.get(f"/gantt/{DAG_ID}/run_1")
+        assert unfiltered.status_code == 200
+        unfiltered_ids = [ti["task_id"] for ti in unfiltered.json()["task_instances"]]
+
+        # Filter: only tasks with end_date >= 10:06 (or NULL end_date for running tasks)
+        # task  ends at 10:05 → excluded
+        # task2 ends at 10:10 → included
+        # task3 has NULL end_date (running) → always included
         response = test_client.get(
             f"/gantt/{DAG_ID}/run_1",
-            params={"start_date": "2024-11-30T10:06:00"},
+            params={"start_date": "2024-11-30T10:06:00Z"},
         )
         assert response.status_code == 200
 
         data = response.json()
-
-        # running task (NULL end_date) should STILL be included
         task_ids = [ti["task_id"] for ti in data["task_instances"]]
+
+        # running task (NULL end_date) must always be included
         assert "task3" in task_ids
+        # task2 ended after the filter start → included
+        assert "task2" in task_ids
+        # task ended before the filter start → excluded
+        assert "task" not in task_ids
+        # filtered result must have fewer tasks than unfiltered
+        assert len(task_ids) < len(unfiltered_ids)
 
+    def test_gantt_with_end_date(self, test_client):
+        """Filtering by end_date excludes tasks that started after the filter."""
+        # Filter: only tasks with start_date <= 10:04
+        # task  starts at 10:00 → included
+        # task2 starts at 10:05 → excluded
+        # task3 starts at 10:10 → excluded
+        response = test_client.get(
+            f"/gantt/{DAG_ID}/run_1",
+            params={"end_date": "2024-11-30T10:04:00Z"},
+        )
+        assert response.status_code == 200
 
-    def test_gantt_invalid_date_range(self, test_client):
+        data = response.json()
+        task_ids = [ti["task_id"] for ti in data["task_instances"]]
+
+        # task started before end_date → included
+        assert "task" in task_ids
+        # task3 started after end_date → excluded
+        assert "task3" not in task_ids
+        # task2 started after end_date → excluded
+        assert "task2" not in task_ids
+
+    def test_invalid_date_range_returns_400(self, test_client):
+        """start_date after end_date must return 400."""
         response = test_client.get(
             f"/gantt/{DAG_ID}/run_1",
             params={
-                "start_date": "2024-12-01T00:00:00",
-                "end_date": "2024-11-01T00:00:00",
+                "start_date": "2024-12-01T00:00:00Z",
+                "end_date": "2024-11-01T00:00:00Z",
             },
         )
         assert response.status_code == 400

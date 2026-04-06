@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Input, Text, useToken } from "@chakra-ui/react";
+import { Box, Field, Input, useToken } from "@chakra-ui/react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -85,6 +85,7 @@ export const Gantt = ({ dagRunState, limit, runAfterGte, runAfterLte, runType, t
   const { dagId = "", groupId: selectedGroupId, runId = "", taskId: selectedTaskId } = useParams();
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
+  const [dateError, setDateError] = useState("");
 
   const [searchParams] = useSearchParams();
   const { openGroupIds } = useOpenGroups();
@@ -146,7 +147,6 @@ export const Gantt = ({ dagRunState, limit, runAfterGte, runAfterLte, runType, t
   const gridTiSummaries = summariesByRunId.get(runId);
   const summariesLoading = Boolean(runId && selectedRun && !summariesByRunId.has(runId));
 
-  // Single fetch for all Gantt data (individual task tries)
   // startDate and endDate are sent to the backend as query parameters.
   // The server filters the data — NOT the browser.
   const { data: ganttData, isLoading: ganttLoading } = useGanttServiceGetGanttData(
@@ -239,22 +239,23 @@ export const Gantt = ({ dagRunState, limit, runAfterGte, runAfterLte, runType, t
 
   return (
     <>
-      {/* Date inputs that trigger a new API fetch when changed */}
-      <Box mb="4" display="flex" gap="4" alignItems="flex-end">
-        <Box display="flex" flexDirection="column">
-          <Text color="fg.muted" fontSize="xs" mb={1}>
+      {/* Date range inputs — values are sent to backend as query params, no client-side filtering */}
+      <Box alignItems="flex-start" display="flex" gap="4" mb="4">
+        <Field.Root invalid={Boolean(dateError)} maxW="200px">
+          <Field.Label color="fg.muted" fontSize="xs">
             {translate("startDate")}
-          </Text>
+          </Field.Label>
           <Input
             fontSize="sm"
             fontWeight="medium"
-            maxW="200px"
             onChange={(e) => {
               const value = e.target.value;
-              if (filterEndDate && value > filterEndDate) {
-                alert("Start date cannot be after end date");
+
+              if (value && filterEndDate && value > filterEndDate) {
+                setDateError(translate("startDateAfterEndDate"));
                 return;
               }
+              setDateError("");
               setFilterStartDate(value);
             }}
             placeholder="YYYY-MM-DD"
@@ -262,21 +263,23 @@ export const Gantt = ({ dagRunState, limit, runAfterGte, runAfterLte, runType, t
             type="date"
             value={filterStartDate}
           />
-        </Box>
-        <Box display="flex" flexDirection="column">
-          <Text color="fg.muted" fontSize="xs" mb={1}>
+        </Field.Root>
+
+        <Field.Root invalid={Boolean(dateError)} maxW="200px">
+          <Field.Label color="fg.muted" fontSize="xs">
             {translate("endDate")}
-          </Text>
+          </Field.Label>
           <Input
             fontSize="sm"
             fontWeight="medium"
-            maxW="200px"
             onChange={(e) => {
               const value = e.target.value;
-              if (filterStartDate && value < filterStartDate) {
-                alert("End date cannot be before start date");
+
+              if (value && filterStartDate && value < filterStartDate) {
+                setDateError(translate("endDateBeforeStartDate"));
                 return;
               }
+              setDateError("");
               setFilterEndDate(value);
             }}
             placeholder="YYYY-MM-DD"
@@ -284,7 +287,8 @@ export const Gantt = ({ dagRunState, limit, runAfterGte, runAfterLte, runType, t
             type="date"
             value={filterEndDate}
           />
-        </Box>
+          {dateError ? <Field.ErrorText fontSize="xs">{dateError}</Field.ErrorText> : undefined}
+        </Field.Root>
       </Box>
       <Box
         height={`${fixedHeight}px`}

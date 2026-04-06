@@ -96,6 +96,7 @@
   "duration": "Duration",
   "edit": "Edit",
   "endDate": "End Date",
+  "endDateBeforeStartDate": "End date cannot be before start date",
   "error": {
     "back": "Back",
     "defaultMessage": "An unexpected error occurred",
@@ -212,6 +213,7 @@
   "sourceAssetEvent_one": "Source Asset Event",
   "sourceAssetEvent_other": "Source Asset Events",
   "startDate": "Start Date",
+  "startDateAfterEndDate": "Start date cannot be after end date",
   "state": "State",
   "states": {
     "deferred": "Deferred",
