@@ -23,6 +23,7 @@ import { describe, it, expect, type vi } from "vitest";
 import type { GanttDataItem } from "./utils";
 import { createChartOptions, transformGanttData } from "./utils";
 
+// eslint-disable-next-line no-empty-function, @typescript-eslint/no-empty-function
 const noop = () => {};
 
 const defaultChartParams = {
