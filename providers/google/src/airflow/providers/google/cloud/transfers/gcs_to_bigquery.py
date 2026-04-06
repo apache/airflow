@@ -138,14 +138,17 @@ class GCSToBigQueryOperator(BaseOperator):
     :param schema_update_options: Allows the schema of the destination
         table to be updated as a side effect of the load job.
     :param src_fmt_configs: (Deprecated) configure optional fields specific to the source format.
-        Use ``extra_config`` instead.
-    :param extra_config: Dict of additional properties to merge into the BigQuery job configuration.
-        When ``external_table=False``, merged into the load job configuration
+        Use ``extra_config`` instead. Note when migrating that ``extra_config`` uses the fully-nested API
+        structure, so format-specific options must be nested under their parent key
+        (e.g., ``{"parquetOptions": {"enableListInference": True}}`` rather than
+        ``{"enableListInference": True}``).
+    :param extra_config: Dict of additional properties to apply over the BigQuery job configuration.
+        When ``external_table=False``, applied over the load job configuration
         (see `JobConfigurationLoad <https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad>`_).
-        When ``external_table=True``, merged into the external table configuration
+        When ``external_table=True``, applied over the external table configuration
         (see `ExternalDataConfiguration <https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ExternalDataConfiguration>`_).
-        Merged after all top-level params, so keys here take precedence over overlapping top-level
-        operator params.
+        Applied after all top-level params, so keys here take precedence over overlapping top-level
+        operator params. Nested dicts are replaced entirely, not deep-merged.
     :param external_table: Flag to specify if the destination table should be
         a BigQuery external table. Default Value is False.
     :param time_partitioning: configure optional time partitioning fields i.e.
@@ -302,7 +305,11 @@ class GCSToBigQueryOperator(BaseOperator):
         self.src_fmt_configs = src_fmt_configs
         if src_fmt_configs:
             warnings.warn(
-                "The 'src_fmt_configs' parameter is deprecated. Use 'extra_config' instead.",
+                "The 'src_fmt_configs' parameter is deprecated. Use 'extra_config' instead. "
+                "Note: 'extra_config' uses the fully-nested API structure, so format-specific "
+                "options must be nested under their parent key "
+                "(e.g., {'parquetOptions': {'enableListInference': True}} rather than "
+                "{'enableListInference': True}).",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
