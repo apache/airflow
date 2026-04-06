@@ -35,6 +35,7 @@ from airflow.providers.common.compat.sdk import conf
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse
 from airflow.providers.elasticsearch.log.es_task_handler import (
+    TASK_LOG_FIELDS,
     VALID_ES_CONFIG_KEYS,
     ElasticsearchRemoteLogIO,
     ElasticsearchTaskHandler,
@@ -538,6 +539,23 @@ class TestElasticsearchTaskHandler:
             filename_template=None,
         )
 
+    def test_get_es_source_includes_legacy_json_format_includes_json_fields(self):
+        self.es_task_handler.json_format = True
+
+        with patch("airflow.providers.elasticsearch.log.es_task_handler.AIRFLOW_V_3_0_PLUS", False):
+            fields = self.es_task_handler._get_es_source_includes()
+
+        assert fields == [
+            "@timestamp",
+            *TASK_LOG_FIELDS,
+            self.host_field,
+            self.offset_field,
+            "asctime",
+            "filename",
+            "lineno",
+            "exc_text",
+        ]
+
 
 class TestTaskHandlerHelpers:
     def test_safe_attrgetter(self):
@@ -634,6 +652,30 @@ class TestElasticsearchRemoteLogIO:
         assert [line["offset"] for line in json_log_lines] == [1, 2, 3]
         assert all(line["log_id"] == log_id for line in json_log_lines)
 
+    def test_get_source_includes(self):
+        assert self.elasticsearch_io._get_source_includes() == [
+            "@timestamp",
+            *TASK_LOG_FIELDS,
+            self.elasticsearch_io.host_field,
+            self.elasticsearch_io.offset_field,
+        ]
+
+    def test_get_source_includes_with_custom_host_and_offset_fields(self):
+        self.elasticsearch_io.host_field = "host.name"
+        self.elasticsearch_io.offset_field = "log.offset"
+
+        assert self.elasticsearch_io._get_source_includes() == [
+            "@timestamp",
+            *TASK_LOG_FIELDS,
+            "host.name",
+            "log.offset",
+        ]
+
+    def test_get_source_includes_deduplicates_when_offset_overlaps_task_fields(self):
+        self.elasticsearch_io.offset_field = "timestamp"  # already in TASK_LOG_FIELDS
+        fields = self.elasticsearch_io._get_source_includes()
+        assert fields.count("timestamp") == 1
+
     def test_es_read_builds_expected_query(self, ti):
         self.elasticsearch_io.client = Mock()
         self.elasticsearch_io.client.search.return_value = _build_es_search_response(
@@ -661,6 +703,12 @@ class TestElasticsearchRemoteLogIO:
             sort=[self.elasticsearch_io.offset_field],
             size=self.elasticsearch_io.MAX_LINE_PER_PAGE,
             from_=0,
+            source_includes=[
+                "@timestamp",
+                *TASK_LOG_FIELDS,
+                self.elasticsearch_io.host_field,
+                self.elasticsearch_io.offset_field,
+            ],
         )
         assert response is not None
         assert response.hits[0].event == "hello"
