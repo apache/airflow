@@ -347,8 +347,8 @@ export const createChartOptions = ({
         max:
           data.length > 0
             ? (() => {
-                const maxTime = Math.max(...data.map((item) => dayjs(item.x[1] ?? undefined).valueOf()));
-                const minTime = Math.min(...data.map((item) => dayjs(item.x[0] ?? undefined).valueOf()));
+                const maxTime = Math.max(...data.map((item) => dayjs(item.x[1]).valueOf()));
+                const minTime = Math.min(...data.map((item) => dayjs(item.x[0]).valueOf()));
                 const totalDuration = maxTime - minTime;
 
                 // add 5% to the max time to avoid the last tick being cut off

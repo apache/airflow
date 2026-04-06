@@ -18,7 +18,7 @@
  */
 import type { ChartEvent, ActiveElement } from "chart.js";
 import dayjs from "dayjs";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, type vi } from "vitest";
 
 import type { GanttDataItem } from "./utils";
 import { createChartOptions, transformGanttData } from "./utils";
@@ -104,9 +104,9 @@ describe("createChartOptions", () => {
         data,
         selectedRun: {
           dag_id: "test_dag",
+          duration: 0,
           // eslint-disable-next-line unicorn/no-null
           end_date: null,
-          duration: 0,
           queued_at: "2024-03-14T09:59:00+00:00",
           run_after: "2024-03-14T10:00:00+00:00",
           run_id: "run_1",
@@ -171,7 +171,7 @@ describe("transformGanttData", () => {
           try_number: 1,
         },
       ],
-      flatNodes: [{ id: "task_1", label: "task_1", is_mapped: false }],
+      flatNodes: [{ id: "task_1", is_mapped: false, label: "task_1" }],
       gridSummaries: [],
     });
 
@@ -195,7 +195,7 @@ describe("transformGanttData", () => {
           try_number: 1,
         },
       ],
-      flatNodes: [{ id: "task_1", label: "task_1", is_mapped: false }],
+      flatNodes: [{ id: "task_1", is_mapped: false, label: "task_1" }],
       gridSummaries: [],
     });
 
@@ -210,7 +210,7 @@ describe("transformGanttData", () => {
   it("should skip groups with null min_start_date or max_end_date", () => {
     const result = transformGanttData({
       allTries: [],
-      flatNodes: [{ id: "group_1", label: "group_1", is_mapped: false, isGroup: true }],
+      flatNodes: [{ id: "group_1", is_mapped: false, isGroup: true, label: "group_1" }],
       gridSummaries: [
         {
           // eslint-disable-next-line unicorn/no-null
@@ -244,7 +244,7 @@ describe("transformGanttData", () => {
           try_number: 1,
         },
       ],
-      flatNodes: [{ id: "task_1", label: "task_1", is_mapped: false }],
+      flatNodes: [{ id: "task_1", is_mapped: false, label: "task_1" }],
       gridSummaries: [],
     });
 
