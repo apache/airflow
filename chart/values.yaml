@@ -1173,6 +1173,9 @@ workers:
   #         requests:
   #           storage: "20Gi"
 
+  # (deprecated, use `workers.celery.schedulerName` and/or `workers.kubernetes.schedulerName` instead)
+  schedulerName: ~
+
   celery:
     # Number of Airflow Celery workers
     replicas: ~
@@ -1400,6 +1403,8 @@ workers:
     #   hostnames:
     #   - "test.hostname.two"
 
+    schedulerName: ~
+
   kubernetes:
     # Command to use in pod-template-file (templated)
     command: ~
@@ -1487,6 +1492,8 @@ workers:
     # - ip: "127.0.0.3"
     #   hostnames:
     #   - "test.hostname.two"
+
+    schedulerName: ~
 
 # Airflow scheduler settings
 scheduler:
