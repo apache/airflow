@@ -64,6 +64,7 @@ describe("createChartOptions", () => {
           dag_id: "test_dag",
           duration: 600,
           end_date: "2024-03-14T10:10:00+00:00",
+          has_missed_deadline: false,
           queued_at: "2024-03-14T09:59:00+00:00",
           run_after: "2024-03-14T10:00:00+00:00",
           run_id: "run_1",
@@ -108,6 +109,7 @@ describe("createChartOptions", () => {
           duration: 0,
           // eslint-disable-next-line unicorn/no-null
           end_date: null,
+          has_missed_deadline: false,
           queued_at: "2024-03-14T09:59:00+00:00",
           run_after: "2024-03-14T10:00:00+00:00",
           run_id: "run_1",
@@ -135,6 +137,7 @@ describe("createChartOptions", () => {
           duration: 0,
           // eslint-disable-next-line unicorn/no-null
           end_date: null,
+          has_missed_deadline: false,
           queued_at: "2024-03-14T09:59:00+00:00",
           run_after: "2024-03-14T10:00:00+00:00",
           run_id: "run_1",
@@ -158,11 +161,9 @@ describe("transformGanttData", () => {
     const result = transformGanttData({
       allTries: [
         {
-          dag_id: "test",
           // eslint-disable-next-line unicorn/no-null
           end_date: null,
           is_mapped: false,
-          map_index: -1,
           // eslint-disable-next-line unicorn/no-null
           start_date: null,
           // eslint-disable-next-line unicorn/no-null
@@ -172,7 +173,7 @@ describe("transformGanttData", () => {
           try_number: 1,
         },
       ],
-      flatNodes: [{ id: "task_1", is_mapped: false, label: "task_1" }],
+      flatNodes: [{ depth: 0, id: "task_1", is_mapped: false, label: "task_1" }],
       gridSummaries: [],
     });
 
@@ -184,11 +185,9 @@ describe("transformGanttData", () => {
     const result = transformGanttData({
       allTries: [
         {
-          dag_id: "test",
           // eslint-disable-next-line unicorn/no-null
           end_date: null,
           is_mapped: false,
-          map_index: -1,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "running",
           task_display_name: "task_1",
@@ -196,7 +195,7 @@ describe("transformGanttData", () => {
           try_number: 1,
         },
       ],
-      flatNodes: [{ id: "task_1", is_mapped: false, label: "task_1" }],
+      flatNodes: [{ depth: 0, id: "task_1", is_mapped: false, label: "task_1" }],
       gridSummaries: [],
     });
 
@@ -211,7 +210,7 @@ describe("transformGanttData", () => {
   it("should skip groups with null min_start_date or max_end_date", () => {
     const result = transformGanttData({
       allTries: [],
-      flatNodes: [{ id: "group_1", is_mapped: false, isGroup: true, label: "group_1" }],
+      flatNodes: [{ depth: 0, id: "group_1", is_mapped: false, isGroup: true, label: "group_1" }],
       gridSummaries: [
         {
           // eslint-disable-next-line unicorn/no-null
@@ -222,6 +221,7 @@ describe("transformGanttData", () => {
           min_start_date: null,
           // eslint-disable-next-line unicorn/no-null
           state: null,
+          task_display_name: "group_1",
           task_id: "group_1",
         },
       ],
@@ -234,10 +234,8 @@ describe("transformGanttData", () => {
     const result = transformGanttData({
       allTries: [
         {
-          dag_id: "test",
           end_date: "2024-03-14T10:05:00+00:00",
           is_mapped: false,
-          map_index: -1,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "success",
           task_display_name: "task_1",
@@ -245,7 +243,7 @@ describe("transformGanttData", () => {
           try_number: 1,
         },
       ],
-      flatNodes: [{ id: "task_1", is_mapped: false, label: "task_1" }],
+      flatNodes: [{ depth: 0, id: "task_1", is_mapped: false, label: "task_1" }],
       gridSummaries: [],
     });
 
