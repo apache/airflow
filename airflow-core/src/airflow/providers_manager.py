@@ -208,6 +208,14 @@ class DialectInfo(NamedTuple):
     provider_name: str
 
 
+class ObjectStorageProviderInfo(NamedTuple):
+    """Object storage provider class and Provider it comes from."""
+
+    name: str
+    provider_class_name: str
+    provider_name: str
+
+
 class TriggerInfo(NamedTuple):
     """Trigger class and provider it comes from."""
 
@@ -420,6 +428,7 @@ class ProvidersManager(LoggingMixin):
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: dict[str, HookClassProvider] = {}
         self._dialect_provider_dict: dict[str, DialectInfo] = {}
+        self._object_storage_provider_dict: dict[str, ObjectStorageProviderInfo] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
         self._hooks_lazy_dict: LazyDictWithCache[str, HookInfo | Callable] = LazyDictWithCache()
         # Keeps hook display names read from provider.yaml (hook-name field)
@@ -773,6 +782,7 @@ class ProvidersManager(LoggingMixin):
             duplicated_connection_types: set[str] = set()
             hook_class_names_registered: set[str] = set()
             self._discover_provider_dialects(package_name, provider)
+            self._discover_object_storage_providers(package_name, provider)
             provider_uses_connection_types = self._discover_hooks_from_connection_types(
                 hook_class_names_registered, duplicated_connection_types, package_name, provider
             )
@@ -797,6 +807,25 @@ class ProvidersManager(LoggingMixin):
                     )
                     for item in dialects
                 }
+            )
+
+    def _discover_object_storage_providers(self, provider_name: str, provider: ProviderInfo):
+        entries = provider.data.get("object-storage-providers", [])
+        for item in entries:
+            storage_type = item["storage-type"]
+            if storage_type in self._object_storage_provider_dict:
+                existing = self._object_storage_provider_dict[storage_type]
+                log.warning(
+                    "ObjectStorageProvider for '%s' already registered by %s, "
+                    "overriding with %s",
+                    storage_type,
+                    existing.provider_name,
+                    provider_name,
+                )
+            self._object_storage_provider_dict[storage_type] = ObjectStorageProviderInfo(
+                name=storage_type,
+                provider_class_name=item["provider-class-name"],
+                provider_name=provider_name,
             )
 
     @provider_info_cache("import_all_hooks")
@@ -1410,6 +1439,12 @@ class ProvidersManager(LoggingMixin):
         return self._dialect_provider_dict
 
     @property
+    def object_storage_providers(self) -> MutableMapping[str, ObjectStorageProviderInfo]:
+        """Return dictionary of storage-type to ObjectStorageProviderInfo mapping."""
+        self.initialize_providers_hooks()
+        return self._object_storage_provider_dict
+
+    @property
     def plugins(self) -> list[PluginInfo]:
         """Returns information about plugins available in providers."""
         self.initialize_providers_plugins()
@@ -1527,6 +1562,7 @@ class ProvidersManager(LoggingMixin):
         self._taskflow_decorators.clear()
         self._hook_provider_dict.clear()
         self._dialect_provider_dict.clear()
+        self._object_storage_provider_dict.clear()
         self._hooks_lazy_dict.clear()
         self._connection_form_widgets.clear()
         self._field_behaviours.clear()
