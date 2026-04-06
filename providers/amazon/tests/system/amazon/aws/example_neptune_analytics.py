@@ -250,7 +250,7 @@ with DAG(
     # [END howto_operator_neptune_analytics_cancel_import_task]
 
     # [START howto_operator_neptune_analytics_delete_graph]
-    delete_graph = NeptuneDeletePrivateGraphEndpointOperator(
+    delete_graph = NeptuneDeleteGraphOperator(
         task_id="delete_graph",
         graph_id="{{ ti.xcom_pull(task_ids='create_graph')['graph_id'] }}",
         skip_snapshot=True,

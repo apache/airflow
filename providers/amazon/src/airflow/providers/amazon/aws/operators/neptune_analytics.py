@@ -935,7 +935,7 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
             self.log.info("Deferring until import task %s is cancelled", self.import_task_id)
             self.defer(
                 trigger=NeptuneImportTaskCancelledTrigger(
-                    import_task_id=self.import_task_id,
+                    task_identifier=self.import_task_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
