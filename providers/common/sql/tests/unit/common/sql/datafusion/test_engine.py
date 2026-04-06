@@ -23,7 +23,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from datafusion import SessionContext
 
-from airflow.models import Connection
 from airflow.providers.common.sql.config import ConnectionConfig, DataSourceConfig
 from airflow.providers.common.sql.datafusion.base import ObjectStorageProvider
 from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
@@ -32,30 +31,10 @@ from airflow.providers.common.sql.datafusion.exceptions import (
     QueryExecutionException,
 )
 
-TEST_CONNECTION_CONFIG = ConnectionConfig(
-    conn_id="aws_default",
-    credentials={
-        "access_key_id": "test",
-        "secret_access_key": "test",
-        "session_token": None,
-    },
-    extra_config={"region_name": "us-east-1"},
-)
+TEST_CONNECTION_CONFIG = ConnectionConfig(conn_id="test_conn")
 
 
 class TestDataFusionEngine:
-    @pytest.fixture(autouse=True)
-    def setup_connections(self, create_connection_without_db):
-        create_connection_without_db(
-            Connection(
-                conn_id="aws_default",
-                conn_type="aws",
-                login="fake_id",
-                password="fake_secret",
-                extra='{"region": "us-east-1"}',
-            )
-        )
-
     def test_init(self):
         engine = DataFusionEngine()
         assert engine.df_ctx is not None
@@ -88,7 +67,7 @@ class TestDataFusionEngine:
         engine = DataFusionEngine()
 
         datasource_config = DataSourceConfig(
-            conn_id="aws_default", table_name="test_table", uri=f"{scheme}://bucket/path", format=format
+            conn_id="test_conn", table_name="test_table", uri=f"{scheme}://bucket/path", format=format
         )
 
         engine.df_ctx = MagicMock(spec=SessionContext)
@@ -118,7 +97,7 @@ class TestDataFusionEngine:
 
         engine = DataFusionEngine()
         datasource_config = DataSourceConfig(
-            conn_id="aws_default", table_name="test_table", uri="s3://bucket/path", format="parquet"
+            conn_id="test_conn", table_name="test_table", uri="s3://bucket/path", format="parquet"
         )
 
         with pytest.raises(ObjectStoreCreationException, match="Error while creating object store"):
@@ -131,7 +110,7 @@ class TestDataFusionEngine:
         engine.registered_tables["test_table"] = "s3://old/path"
 
         datasource_config = DataSourceConfig(
-            conn_id="aws_default", table_name="test_table", uri="s3://new/path", format="parquet"
+            conn_id="test_conn", table_name="test_table", uri="s3://new/path", format="parquet"
         )
 
         with patch.object(engine, "_register_object_store"):
@@ -235,7 +214,7 @@ class TestDataFusionEngine:
         engine = DataFusionEngine()
 
         datasource_config = DataSourceConfig(
-            conn_id="aws_default",
+            conn_id="test_conn",
             table_name="test_table",
             uri="s3://bucket/path/",
             format="parquet",
@@ -260,34 +239,13 @@ class TestDataFusionEngine:
 
         assert engine.registered_tables == {"test_table": "s3://bucket/path/"}
 
-    def test_remove_none_values(self):
-        result = DataFusionEngine._remove_none_values({"a": 1, "b": None, "c": "test", "d": None})
-        assert result == {"a": 1, "c": "test"}
-
-    def test_get_connection_config(self):
-
+    def test_get_connection_config_delegates_to_provider(self):
+        """_get_connection_config only passes conn_id; credential resolution is the provider's job."""
         engine = DataFusionEngine()
-
-        result = engine._get_connection_config("aws_default")
-        expected = ConnectionConfig(
-            conn_id="aws_default",
-            credentials={
-                "access_key_id": "fake_id",
-                "secret_access_key": "fake_secret",
-            },
-            extra_config={"region": "us-east-1"},
-        )
-        assert result.conn_id == expected.conn_id
-        assert result.credentials == expected.credentials
-        assert result.extra_config == expected.extra_config
-
-    def test_get_credentials_unknown_type(self):
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "dummy"
-        engine = DataFusionEngine()
-
-        with pytest.raises(ValueError, match="Unknown connection type dummy"):
-            engine._get_credentials(mock_conn)
+        result = engine._get_connection_config("my_conn")
+        assert result == ConnectionConfig(conn_id="my_conn")
+        assert result.credentials == {}
+        assert result.extra_config == {}
 
     def test_get_schema_success(self):
         engine = DataFusionEngine()

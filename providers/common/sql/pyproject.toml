@@ -87,9 +87,6 @@ dependencies = [
 "sqlalchemy" = [
     "sqlalchemy>=1.4.54",
 ]
-"amazon" = [
-    "apache-airflow-providers-amazon"
-]
 # DataFusion 52.0.0 crate is not supported at the moment with iceberg-core
 "datafusion" = [
     "datafusion>=50.0.0,<52.0.0",
@@ -106,7 +103,6 @@ dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
-    "apache-airflow-providers-amazon",
     "apache-airflow-providers-apache-iceberg",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-openlineage",
