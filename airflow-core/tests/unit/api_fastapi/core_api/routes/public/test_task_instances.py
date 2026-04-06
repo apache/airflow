@@ -21,7 +21,7 @@ import datetime as dt
 import itertools
 import os
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import pendulum
@@ -151,7 +151,7 @@ class TestTaskInstanceEndpoint:
                 assert dag_version
 
             for mi in map_indexes:
-                kwargs = self.ti_init | {"map_index": mi}
+                kwargs: dict[str, Any] = self.ti_init | {"map_index": mi}
                 ti = TaskInstance(task=tasks[i], **kwargs, dag_version_id=dag_version.id)
                 session.add(ti)
                 ti.dag_run = dr
