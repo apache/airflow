@@ -79,3 +79,4 @@ hooks:
 connection-types:
   - connection-type: pig_cli
     hook-class-name: airflow.providers.apache.pig.hooks.pig.PigCliHook
+    hook-name: "Pig Client Wrapper"
