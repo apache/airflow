@@ -16,49 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.common.sql.config import ConnectionConfig, StorageType
-from airflow.providers.common.sql.datafusion.exceptions import ObjectStoreCreationException
+from airflow.providers.common.sql.config import StorageType
 from airflow.providers.common.sql.datafusion.object_storage_provider import (
     LocalObjectStorageProvider,
-    S3ObjectStorageProvider,
     get_object_storage_provider,
 )
+from airflow.providers_manager import ObjectStorageProviderInfo
 
 
-class TestObjectStorageProvider:
-    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.AmazonS3")
-    def test_s3_provider_success(self, mock_s3):
-        provider = S3ObjectStorageProvider()
-        connection_config = ConnectionConfig(
-            conn_id="aws_default",
-            credentials={"access_key_id": "fake_key", "secret_access_key": "fake_secret"},
-        )
-
-        store = provider.create_object_store("s3://demo-data/path", connection_config)
-
-        mock_s3.assert_called_once_with(
-            access_key_id="fake_key", secret_access_key="fake_secret", bucket_name="demo-data"
-        )
-        assert store == mock_s3.return_value
-        assert provider.get_storage_type == StorageType.S3
-        assert provider.get_scheme() == "s3://"
-
-    def test_s3_provider_failure(self):
-        provider = S3ObjectStorageProvider()
-        connection_config = ConnectionConfig(conn_id="aws_default")
-
-        with patch(
-            "airflow.providers.common.sql.datafusion.object_storage_provider.AmazonS3",
-            side_effect=Exception("Error"),
-        ):
-            with pytest.raises(ObjectStoreCreationException, match="Failed to create S3 object store"):
-                provider.create_object_store("s3://demo-data/path", connection_config)
-
-    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.LocalFileSystem")
+class TestLocalObjectStorageProvider:
+    @patch(
+        "airflow.providers.common.sql.datafusion.object_storage_provider.LocalFileSystem",
+        autospec=True,
+    )
     def test_local_provider(self, mock_local):
         provider = LocalObjectStorageProvider()
         assert provider.get_storage_type == StorageType.LOCAL
@@ -66,9 +40,84 @@ class TestObjectStorageProvider:
         local_store = provider.create_object_store("file://path")
         assert local_store == mock_local.return_value
 
-    def test_get_object_storage_provider(self):
-        assert isinstance(get_object_storage_provider(StorageType.S3), S3ObjectStorageProvider)
-        assert isinstance(get_object_storage_provider(StorageType.LOCAL), LocalObjectStorageProvider)
 
-        with pytest.raises(ValueError, match="Unsupported storage type"):
-            get_object_storage_provider("invalid")
+class TestGetObjectStorageProvider:
+    def test_returns_local_provider_directly(self):
+        provider = get_object_storage_provider(StorageType.LOCAL)
+        assert isinstance(provider, LocalObjectStorageProvider)
+
+    @patch("airflow._shared.module_loading.import_string", autospec=True)
+    @patch("airflow.providers_manager.ProvidersManager", autospec=True)
+    def test_resolves_s3_via_registry(self, mock_pm_cls, mock_import_string):
+        mock_provider_cls = MagicMock()
+        mock_import_string.return_value = mock_provider_cls
+
+        mock_pm_cls.return_value.object_storage_providers = {
+            "s3": ObjectStorageProviderInfo(
+                name="s3",
+                provider_class_name="airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider",
+                provider_name="apache-airflow-providers-amazon",
+            ),
+        }
+
+        provider = get_object_storage_provider(StorageType.S3)
+
+        mock_import_string.assert_called_once_with(
+            "airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider"
+        )
+        assert provider == mock_provider_cls.return_value
+
+    @patch("airflow.providers_manager.ProvidersManager", autospec=True)
+    def test_unregistered_storage_type_raises(self, mock_pm_cls):
+        mock_pm_cls.return_value.object_storage_providers = {}
+
+        with pytest.raises(ValueError, match="No ObjectStorageProvider registered.*Install or upgrade"):
+            get_object_storage_provider(StorageType.S3)
+
+    def test_error_message_includes_install_hint_for_s3(self):
+        with patch("airflow.providers_manager.ProvidersManager", autospec=True) as mock_pm_cls:
+            mock_pm_cls.return_value.object_storage_providers = {}
+
+            with pytest.raises(ValueError, match="apache-airflow-providers-amazon"):
+                get_object_storage_provider(StorageType.S3)
+
+    def test_no_amazon_imports_at_module_level(self):
+        """Verify common-sql no longer statically imports amazon provider code at the top level."""
+        import airflow.providers.common.sql.datafusion.object_storage_provider as mod
+
+        top_level_names = [
+            name
+            for name, obj in vars(mod).items()
+            if not name.startswith("_")
+            and hasattr(obj, "__module__")
+            and "amazon" in getattr(obj, "__module__", "")
+        ]
+        assert top_level_names == [], f"Amazon symbols found at module level: {top_level_names}"
+
+
+class TestS3DeprecationShim:
+    def test_old_import_path_emits_deprecation_warning(self):
+        """Importing S3ObjectStorageProvider from the old path still works but warns."""
+        import airflow.providers.common.sql.datafusion.object_storage_provider as mod
+
+        with pytest.warns(DeprecationWarning, match="Import it from airflow.providers.amazon"):
+            cls = mod.S3ObjectStorageProvider
+
+        assert cls.__name__ == "S3ObjectStorageProvider"
+
+    def test_old_import_path_returns_same_class(self):
+        """The shim re-exports the exact same class from the new location."""
+        import airflow.providers.common.sql.datafusion.object_storage_provider as mod
+
+        with pytest.warns(DeprecationWarning):
+            old_cls = mod.S3ObjectStorageProvider
+
+        from airflow.providers.amazon.aws.datafusion.object_storage import S3ObjectStorageProvider
+
+        assert old_cls is S3ObjectStorageProvider
+
+    def test_unknown_attr_raises_attribute_error(self):
+        import airflow.providers.common.sql.datafusion.object_storage_provider as mod
+
+        with pytest.raises(AttributeError, match="has no attribute"):
+            _ = mod.NonExistentClass
