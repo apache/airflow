@@ -513,6 +513,22 @@ def test_serialize_deserialize_deadline_alert(reference):
     assert deserialized.callback == original.callback
 
 
+def test_deserialize_deadline_alert_none_interval_raises():
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+
+    serialized = BaseSerialization.serialize(valid)
+
+    # Inject downgrade corruption.
+    serialized[Encoding.VAR][DeadlineAlertFields.INTERVAL] = None
+
+    with pytest.raises(ValueError, match="interval"):
+        BaseSerialization.deserialize(serialized)
+
+
 @pytest.mark.parametrize(
     "conn_uri",
     [
