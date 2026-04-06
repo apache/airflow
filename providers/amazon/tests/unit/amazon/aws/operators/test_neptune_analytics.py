@@ -17,13 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Generator
 from unittest import mock
 
 import pytest
-from moto import mock_aws
+from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.neptune_analytics import NeptuneAnalyticsHook
+from airflow.providers.amazon.aws.links.neptune_analytics import NeptuneGraphLink
 from airflow.providers.amazon.aws.operators.neptune_analytics import (
     NeptuneCancelImportTaskOperator,
     NeptuneCreateGraphOperator,
@@ -33,7 +33,11 @@ from airflow.providers.amazon.aws.operators.neptune_analytics import (
     NeptuneDeletePrivateGraphEndpointOperator,
     NeptuneStartImportTaskOperator,
 )
-from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.providers.amazon.aws.triggers.neptune_analytics import (
+    NeptuneGraphAvailableTrigger,
+    NeptuneImportTaskCompleteTrigger,
+)
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 GRAPH_NAME = "test_graph"
 GRAPH_ID = "test-graph-id"
@@ -43,12 +47,6 @@ SECURITY_GROUP_IDS = ["sg-1", "sg-2"]
 ENDPOINT_ID = "vpce-12345"
 SOURCE_S3_URI = "s3://my-bucket/my-data/"
 ROLE_ARN = "arn:aws:iam::123456789012:role/NeptuneImportRole"
-
-
-@pytest.fixture
-def hook() -> Generator[NeptuneAnalyticsHook, None, None]:
-    with mock_aws():
-        yield NeptuneAnalyticsHook(aws_conn_id="aws_default")
 
 
 class TestNeptuneCreateGraphOperator:
@@ -63,7 +61,6 @@ class TestNeptuneCreateGraphOperator:
         assert NeptuneCreateGraphOperator.template_fields_renderers == {"vector_search_config": "json"}
 
     def test_operator_extra_links(self):
-        from airflow.providers.amazon.aws.links.neptune_analytics import NeptuneGraphLink
 
         assert len(NeptuneCreateGraphOperator.operator_extra_links) == 1
         assert isinstance(NeptuneCreateGraphOperator.operator_extra_links[0], NeptuneGraphLink)
@@ -200,8 +197,6 @@ class TestNeptuneCreateGraphOperator:
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     def test_deferrable_defers_with_graph_available_trigger(self, mock_conn, mock_persist):
         """Test that deferrable mode defers with NeptuneGraphAvailableTrigger."""
-        from airflow.providers.amazon.aws.triggers.neptune_analytics import NeptuneGraphAvailableTrigger
-
         mock_conn.create_graph.return_value = {"id": GRAPH_ID, "status": "CREATING"}
 
         operator = NeptuneCreateGraphOperator(
@@ -373,7 +368,6 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
 
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     def test_create_endpoint_failed_status(self, mock_conn):
-        from airflow.providers.common.compat.sdk import AirflowException
 
         mock_conn.create_private_graph_endpoint.return_value = {
             "status": "FAILED",
@@ -658,7 +652,6 @@ class TestNeptuneDeleteGraphOperator:
 
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     def test_delete_graph_resource_not_found(self, mock_conn):
-        from botocore.exceptions import ClientError
 
         # Simulate ResourceNotFoundException
         error_response = {
@@ -688,9 +681,6 @@ class TestNeptuneDeleteGraphOperator:
 
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     def test_delete_graph_other_client_error(self, mock_conn):
-        from botocore.exceptions import ClientError
-
-        from airflow.providers.common.compat.sdk import AirflowException
 
         # Simulate other ClientError
         error_response = {
@@ -932,7 +922,6 @@ class TestNeptuneCreateGraphWithImportOperator:
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     def test_defer_wait_for_task(self, mock_conn):
         """Test that defer_wait_for_task defers with the import task trigger."""
-        from airflow.providers.amazon.aws.triggers.neptune_analytics import NeptuneImportTaskCompleteTrigger
 
         operator = NeptuneCreateGraphWithImportOperator(
             task_id="test_task",
@@ -958,7 +947,6 @@ class TestNeptuneCreateGraphWithImportOperator:
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     def test_deferrable_defers_with_graph_available_trigger(self, mock_conn):
         """Test that execute defers with graph_available trigger and passes import_task_id."""
-        from airflow.providers.amazon.aws.triggers.neptune_analytics import NeptuneGraphAvailableTrigger
 
         mock_conn.create_graph_using_import_task.return_value = {
             "graphId": GRAPH_ID,
@@ -1163,7 +1151,6 @@ class TestNeptuneStartImportTaskOperator:
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     def test_deferrable_defers_with_import_task_trigger(self, mock_conn, mock_persist):
         """Test that deferrable mode defers with NeptuneImportTaskCompleteTrigger."""
-        from airflow.providers.amazon.aws.triggers.neptune_analytics import NeptuneImportTaskCompleteTrigger
 
         mock_conn.start_import_task.return_value = {
             "taskId": TASK_ID,
