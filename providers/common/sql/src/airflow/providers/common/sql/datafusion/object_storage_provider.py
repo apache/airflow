@@ -16,41 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from datafusion.object_store import AmazonS3, LocalFileSystem
+import warnings
+from typing import Any
+
+from datafusion.object_store import LocalFileSystem
 
 from airflow.providers.common.sql.config import ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.base import ObjectStorageProvider
-from airflow.providers.common.sql.datafusion.exceptions import ObjectStoreCreationException
-
-
-class S3ObjectStorageProvider(ObjectStorageProvider):
-    """S3 Object Storage Provider using DataFusion's AmazonS3."""
-
-    @property
-    def get_storage_type(self) -> StorageType:
-        """Return the storage type."""
-        return StorageType.S3
-
-    def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
-        """Create an S3 object store using DataFusion's AmazonS3."""
-        if connection_config is None:
-            raise ValueError("connection_config must be provided for %s", self.get_storage_type)
-
-        try:
-            credentials = connection_config.credentials
-            bucket = self.get_bucket(path)
-
-            s3_store = AmazonS3(**credentials, **connection_config.extra_config, bucket_name=bucket)
-            self.log.info("Created S3 object store for bucket %s", bucket)
-
-            return s3_store
-
-        except Exception as e:
-            raise ObjectStoreCreationException(f"Failed to create S3 object store: {e}")
-
-    def get_scheme(self) -> str:
-        """Return the scheme for S3."""
-        return "s3://"
 
 
 class LocalObjectStorageProvider(ObjectStorageProvider):
@@ -70,18 +42,43 @@ class LocalObjectStorageProvider(ObjectStorageProvider):
         return "file://"
 
 
+_STORAGE_TYPE_PROVIDER_HINTS: dict[str, str] = {
+    "s3": "apache-airflow-providers-amazon[datafusion]",
+}
+
+
 def get_object_storage_provider(storage_type: StorageType) -> ObjectStorageProvider:
     """Get an object storage provider based on the storage type."""
-    # TODO: Add support for GCS, Azure, HTTP: https://datafusion.apache.org/python/autoapi/datafusion/object_store/index.html
-    providers: dict[StorageType, type] = {
-        StorageType.S3: S3ObjectStorageProvider,
-        StorageType.LOCAL: LocalObjectStorageProvider,
-    }
+    if storage_type == StorageType.LOCAL:
+        return LocalObjectStorageProvider()
 
-    if storage_type not in providers:
-        raise ValueError(
-            f"Unsupported storage type: {storage_type}. Supported types: {list(providers.keys())}"
+    from airflow._shared.module_loading import import_string
+    from airflow.providers_manager import ProvidersManager
+
+    registry = ProvidersManager().object_storage_providers
+    type_key = storage_type.value
+
+    if type_key in registry:
+        provider_cls = import_string(registry[type_key].provider_class_name)
+        return provider_cls()
+
+    hint = _STORAGE_TYPE_PROVIDER_HINTS.get(type_key, "the appropriate provider package")
+    raise ValueError(
+        f"No ObjectStorageProvider registered for storage type '{type_key}'. "
+        f"Install or upgrade {hint}."
+    )
+
+
+def __getattr__(name: str) -> Any:
+    if name == "S3ObjectStorageProvider":
+        warnings.warn(
+            "Importing S3ObjectStorageProvider from "
+            "airflow.providers.common.sql.datafusion.object_storage_provider is deprecated. "
+            "Import it from airflow.providers.amazon.aws.datafusion.object_storage instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
+        from airflow.providers.amazon.aws.datafusion.object_storage import S3ObjectStorageProvider
 
-    provider_class = providers[storage_type]
-    return provider_class()
+        return S3ObjectStorageProvider
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

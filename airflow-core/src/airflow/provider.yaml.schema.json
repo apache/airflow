@@ -192,6 +192,27 @@
                 ]
             }
         },
+        "object-storage-providers": {
+            "type": "array",
+            "description": "Array of object storage providers mapped to provider class names",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "storage-type": {
+                        "description": "Type of object storage (e.g. s3, gcs, azure)",
+                        "type": "string"
+                    },
+                    "provider-class-name": {
+                        "description": "Provider class name that implements the ObjectStorageProvider",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "storage-type",
+                    "provider-class-name"
+                ]
+            }
+        },
         "hooks": {
             "type": "array",
             "items": {

@@ -34,6 +34,7 @@ import pytest
 from airflow.providers_manager import (
     DialectInfo,
     LazyDictWithCache,
+    ObjectStorageProviderInfo,
     PluginInfo,
     ProviderInfo,
     ProvidersManager,
@@ -257,6 +258,88 @@ class TestProviderManager:
         dialect_class_names = list(provider_manager.dialects)
         assert len(dialect_class_names) == 3
         assert dialect_class_names == ["default", "mssql", "postgresql"]
+
+    def test_discover_object_storage_providers(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["airflow.providers.amazon"] = ProviderInfo(
+            version="1.0.0",
+            data={
+                "object-storage-providers": [
+                    {
+                        "storage-type": "s3",
+                        "provider-class-name": "airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider",
+                    }
+                ]
+            },
+        )
+        providers_manager._discover_hooks()
+        assert len(providers_manager._object_storage_provider_dict) == 1
+        assert providers_manager._object_storage_provider_dict["s3"] == ObjectStorageProviderInfo(
+            name="s3",
+            provider_class_name="airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider",
+            provider_name="airflow.providers.amazon",
+        )
+
+    def test_discover_object_storage_providers_empty(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["airflow.providers.example"] = ProviderInfo(
+            version="1.0.0",
+            data={},
+        )
+        providers_manager._discover_hooks()
+        assert len(providers_manager._object_storage_provider_dict) == 0
+
+    def test_discover_object_storage_providers_duplicate_logs_warning(self, caplog):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["airflow.providers.first"] = ProviderInfo(
+            version="1.0.0",
+            data={
+                "object-storage-providers": [
+                    {
+                        "storage-type": "s3",
+                        "provider-class-name": "first.S3Provider",
+                    }
+                ]
+            },
+        )
+        providers_manager._provider_dict["airflow.providers.second"] = ProviderInfo(
+            version="1.0.0",
+            data={
+                "object-storage-providers": [
+                    {
+                        "storage-type": "s3",
+                        "provider-class-name": "second.S3Provider",
+                    }
+                ]
+            },
+        )
+        with caplog.at_level(logging.WARNING):
+            providers_manager._discover_hooks()
+        assert "already registered" in caplog.text
+        assert providers_manager._object_storage_provider_dict["s3"].provider_class_name == "second.S3Provider"
+
+    def test_object_storage_providers_property(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["airflow.providers.amazon"] = ProviderInfo(
+            version="1.0.0",
+            data={
+                "object-storage-providers": [
+                    {
+                        "storage-type": "s3",
+                        "provider-class-name": "airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider",
+                    }
+                ]
+            },
+        )
+        providers_manager._discover_hooks()
+        osp = providers_manager._object_storage_provider_dict
+        assert isinstance(osp, dict)
+        assert "s3" in osp
+        assert osp["s3"].provider_name == "airflow.providers.amazon"
 
 
 class TestWithoutCheckProviderManager:

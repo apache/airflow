@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING, Any
 
 from datafusion import SessionContext
 
-from airflow.providers.common.compat.sdk import BaseHook, Connection
 from airflow.providers.common.sql.config import ConnectionConfig, DataSourceConfig, StorageType
 from airflow.providers.common.sql.datafusion.exceptions import (
     ObjectStoreCreationException,
@@ -36,7 +35,6 @@ class DataFusionEngine(LoggingMixin):
 
     def __init__(self):
         super().__init__()
-        # TODO: session context has additional parameters via SessionConfig see what's possible we can use Possible via DataFusionHook ?
         self.df_ctx = SessionContext()
         self.registered_tables: dict[str, str] = {}
 
@@ -122,61 +120,8 @@ class DataFusionEngine(LoggingMixin):
             raise QueryExecutionException(f"Error while executing query: {e}")
 
     def _get_connection_config(self, conn_id: str) -> ConnectionConfig:
-
-        airflow_conn = BaseHook.get_connection(conn_id)
-
-        credentials, extra_config = self._get_credentials(airflow_conn)
-
-        return ConnectionConfig(
-            conn_id=airflow_conn.conn_id,
-            credentials=credentials,
-            extra_config=extra_config,
-        )
-
-    def _get_credentials(self, conn: Connection) -> tuple[dict[str, Any], dict[str, Any]]:
-
-        credentials = {}
-        extra_config = {}
-
-        def _fetch_extra_configs(keys: list[str]) -> dict[str, Any]:
-            conf = {}
-            extra_dejson = conn.extra_dejson
-            for key in keys:
-                if key in extra_dejson:
-                    conf[key] = conn.extra_dejson[key]
-            return conf
-
-        match conn.conn_type:
-            case "aws":
-                try:
-                    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
-                except ImportError:
-                    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-                    raise AirflowOptionalProviderFeatureException(
-                        "Failed to import AwsGenericHook. To use the S3 storage functionality, please install the "
-                        "apache-airflow-providers-amazon package."
-                    )
-                aws_hook: AwsGenericHook = AwsGenericHook(aws_conn_id=conn.conn_id, client_type="s3")
-                creds = aws_hook.get_credentials()
-                credentials.update(
-                    {
-                        "access_key_id": conn.login or creds.access_key,
-                        "secret_access_key": conn.password or creds.secret_key,
-                        "session_token": creds.token if creds.token else None,
-                    }
-                )
-                credentials = self._remove_none_values(credentials)
-                extra_config = _fetch_extra_configs(["region", "endpoint"])
-
-            case _:
-                raise ValueError(f"Unknown connection type {conn.conn_type}")
-        return credentials, extra_config
-
-    @staticmethod
-    def _remove_none_values(params: dict[str, Any]) -> dict[str, Any]:
-        """Filter out None values from the dictionary."""
-        return {k: v for k, v in params.items() if v is not None}
+        """Build a ConnectionConfig; credential resolution is delegated to the provider."""
+        return ConnectionConfig(conn_id=conn_id)
 
     def get_schema(self, table_name: str):
         """Get the schema of a table."""
