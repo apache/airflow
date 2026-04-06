@@ -41,7 +41,7 @@ TASK_ID = "test-task-id"
 class TestNeptuneGraphAvailableTrigger:
     def test_serialization(self):
         """
-        Asserts that the TaskStateTrigger correctly serializes its arguments
+        Asserts that the NeptuneGraphAvailableTrigger correctly serializes its arguments
         and classpath.
         """
         trigger = NeptuneGraphAvailableTrigger(graph_id=GRAPH_ID)
