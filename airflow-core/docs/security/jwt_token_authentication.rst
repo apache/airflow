@@ -304,11 +304,16 @@ interact with the Execution API, but they do so via an **in-process** transport
 - Also potentially bypasses per-resource access controls (connection, variable, and XCom access
   checks are overridden to always allow).
 
-This design means that code running in the Dag File Processor or Triggerer potentially has
-**unrestricted access** to all Execution API operations without needing a valid JWT token. Since
-the Dag File Processor parses user-submitted Dag files and the Triggerer executes user-submitted
-trigger code, Dag authors whose code runs in these components could potentially have the same
-level of access as the internal API itself.
+Airflow implements software guards that prevent accidental direct database access from Dag
+author code in these components. However, because the child processes that parse Dag files and
+execute trigger code run as the **same Unix user** as their parent processes, these guards do
+not protect against intentional access. A deliberately malicious Dag author can potentially
+retrieve the parent process's database credentials (via ``/proc/<PID>/environ``, configuration
+files, or secrets manager access) and gain full read/write access to the metadata database and
+all Execution API operations — without needing a valid JWT token.
+
+This is in contrast to workers, where the isolation is genuine: worker processes do not receive
+database credentials at all and communicate exclusively through the Execution API.
 
 In the default deployment, a **single Dag File Processor instance** parses Dag files for all
 teams and a **single Triggerer instance** handles all triggers across all teams. This means
@@ -317,15 +322,13 @@ shared access to the in-process Execution API and the metadata database.
 
 For multi-team deployments that require isolation, Deployment Managers must run **separate
 Dag File Processor and Triggerer instances per team** as a deployment-level measure — Airflow
-does not provide built-in support for per-team DFP or Triggerer instances. However, even with
-separate instances, these components still potentially have direct access to the metadata
-database (the Dag File Processor needs it to store serialized Dags, and the Triggerer needs it
-to manage trigger state). A Dag author whose code runs in these components can potentially
-access the database directly, including reading or modifying data belonging to other teams,
-or obtaining the JWT signing key if it is available in the process environment.
+does not provide built-in support for per-team DFP or Triggerer instances. Even with separate
+instances, each retains the same Unix user as the parent process. To prevent credential
+retrieval, Deployment Managers must implement Unix user-level isolation (running child
+processes as a different, low-privilege user) or network-level restrictions.
 
-See :doc:`/security/security_model` for the full security implications and deployment
-hardening guidance.
+See :doc:`/security/security_model` for the full security implications, deployment hardening
+guidance, and the planned strategic and tactical improvements.
 
 
 Workload Isolation and Current Limitations

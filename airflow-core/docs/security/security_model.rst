@@ -66,11 +66,20 @@ code in Dag files is executed on workers, in the Dag File Processor,
 and in the Triggerer.
 Therefore, Dag authors can create and change code executed on workers,
 the Dag File Processor, and the Triggerer, and potentially access the credentials that the Dag
-code uses to access external systems. In Airflow 3, worker task code communicates with
-the API server exclusively through the Execution API and does not have direct access to
-the metadata database. However, Dag author code that executes in the Dag File Processor
-and Triggerer potentially still has direct access to the metadata database, as these components
-require it for their operation (see :ref:`jwt-authentication-and-workload-isolation` for details).
+code uses to access external systems.
+
+In Airflow 3, the level of database isolation depends on the component:
+
+* **Workers**: Task code on workers communicates with the API server exclusively through the
+  Execution API. Workers do not receive database credentials and genuinely cannot access the
+  metadata database directly.
+* **Dag File Processor and Triggerer**: Airflow implements software guards that prevent
+  accidental direct database access from Dag author code. However, because Dag parsing and
+  trigger execution processes run as the same Unix user as their parent processes (which do
+  have database credentials), a deliberately malicious Dag author can potentially retrieve
+  credentials from the parent process and gain direct database access. See
+  :ref:`jwt-authentication-and-workload-isolation` for details on the specific mechanisms and
+  deployment hardening measures.
 
 Authenticated UI users
 .......................
@@ -319,20 +328,52 @@ While Airflow 3 significantly improved the security model by preventing worker t
 directly accessing the metadata database (workers now communicate exclusively through the
 Execution API), **perfect isolation between Dag authors is not yet achieved**. Dag author code
 potentially still executes with direct database access in the Dag File Processor and Triggerer.
-The following gaps exist:
+
+**Software guards vs. intentional access**
+   Airflow implements software-level guards that prevent **accidental and unintentional** direct database
+   access from Dag author code. The Dag File Processor removes the database session and connection
+   information before forking child processes that parse Dag files, and worker tasks use the Execution
+   API exclusively.
+
+   However, these software guards **do not protect against intentional, malicious access**. The child
+   processes that parse Dag files and execute trigger code run as the **same Unix user** as their parent
+   processes (the Dag File Processor manager and the Triggerer respectively). Because of how POSIX
+   process isolation works, a child process running as the same user can retrieve the parent's
+   credentials through several mechanisms:
+
+   * **Environment variables**: On Linux, any process can read ``/proc/<PID>/environ`` of another
+     process running as the same user — so database credentials passed via environment variables
+     (e.g., ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN``) can be read from the parent process.
+   * **Configuration files**: If configuration is stored in files, those files must be readable by the
+     parent process and are therefore also readable by the child process running as the same user.
+   * **Command-based secrets** (``_CMD`` suffix options): The child process can execute the same
+     commands to retrieve secrets.
+   * **Secrets manager access**: If the parent uses a secrets backend, the child can access the same
+     secrets manager using credentials available in the process environment or filesystem.
+
+   This means that a deliberately malicious Dag author can retrieve database credentials and gain
+   **full read/write access to the metadata database** — including the ability to modify any Dag,
+   task instance, connection, or variable. The software guards address accidental access (e.g., a Dag
+   author importing ``airflow.settings.Session`` out of habit from Airflow 2) but do not prevent a
+   determined actor from circumventing them.
+
+   On workers, the isolation is stronger: worker processes do not receive database credentials at all
+   (neither via environment variables nor configuration). Workers communicate exclusively through the
+   Execution API using short-lived JWT tokens. A task running on a worker genuinely cannot access the
+   metadata database directly — there are no credentials to retrieve.
 
 **Dag File Processor and Triggerer potentially bypass JWT authentication**
    The Dag File Processor and Triggerer use an in-process transport to access the Execution API,
-   which potentially bypasses JWT authentication. Since these components execute user-submitted code
+   which bypasses JWT authentication. Since these components execute user-submitted code
    (Dag files and trigger code respectively), a Dag author whose code runs in these components
    potentially has unrestricted access to all Execution API operations — including the ability to
    read any connection, variable, or XCom — without needing a valid JWT token.
 
-   Furthermore, the Dag File Processor potentially has direct access to the metadata database (it
-   needs this to store serialized Dags). Dag author code executing in the Dag File Processor context
-   could potentially access the database directly, including the signing key configuration if it is
-   available in the process environment. If a Dag author obtains the JWT signing key, they could
-   potentially forge arbitrary tokens.
+   Furthermore, the Dag File Processor has direct access to the metadata database (it needs this to
+   store serialized Dags). As described above, Dag author code executing in the Dag File Processor
+   context could potentially retrieve the database credentials from the parent process and access
+   the database directly, including the JWT signing key configuration if it is available in the
+   process environment. If a Dag author obtains the JWT signing key, they could forge arbitrary tokens.
 
 **Dag File Processor and Triggerer are shared across teams**
    In the default deployment, a **single Dag File Processor instance** parses all Dag files and a
@@ -345,9 +386,10 @@ The following gaps exist:
    Dag File Processor and Triggerer instances per team** as a deployment-level measure (for example,
    by configuring each instance to only process bundles belonging to a specific team). However, even
    with separate instances, each Dag File Processor and Triggerer potentially retains direct access
-   to the metadata database — a Dag author whose code runs in these components can potentially access
-   the database directly, including reading or modifying data belonging to other teams, unless the
-   Deployment Manager restricts the database credentials and configuration available to each instance.
+   to the metadata database — a Dag author whose code runs in these components can potentially
+   retrieve credentials from the parent process and access the database directly, including reading
+   or modifying data belonging to other teams, unless the Deployment Manager implements Unix
+   user-level isolation (see :ref:`deployment-hardening-for-improved-isolation`).
 
 **No cross-workload isolation in the Execution API**
    All worker workloads authenticate to the same Execution API with tokens signed by the same key and
@@ -360,6 +402,14 @@ The following gaps exist:
    In symmetric key mode (``[api_auth] jwt_secret``), the same secret key is used to both generate and
    validate tokens. Any component that has access to this secret can forge tokens with arbitrary claims,
    including tokens for other task instances or with elevated scopes.
+
+**Sensitive configuration values can be leaked through logs**
+   Dag authors can write code that prints environment variables or configuration values to task logs
+   (e.g., ``print(os.environ)``). Airflow masks known sensitive values in logs, but masking depends on
+   recognizing the value patterns. Dag authors who intentionally or accidentally log raw environment
+   variables may expose database credentials, JWT signing keys, Fernet keys, or other secrets in task
+   logs. Deployment Managers should restrict access to task logs and ensure that sensitive configuration
+   is only provided to components where it is needed (see the sensitive variables tables below).
 
 .. _deployment-hardening-for-improved-isolation:
 
@@ -515,18 +565,54 @@ model — Airflow does not enforce these natively.
    * Workers cannot forge tokens even if they could access the JWKS endpoint, since they would
      not have the private key.
 
+**Unix user-level isolation for Dag File Processor and Triggerer**
+   Since the child processes of the Dag File Processor and Triggerer run as the same Unix user as
+   their parent processes, a Dag author's code can read the parent's credentials. To prevent this,
+   Deployment Managers can configure the child processes to run as a **different Unix user** that has
+   no access to Airflow's configuration files or the parent process's ``/proc/<PID>/environ``.
+
+   This requires:
+
+   * Creating a dedicated low-privilege Unix user for Dag parsing / trigger execution.
+   * Configuring ``sudo`` access so the Airflow user can impersonate this low-privilege user.
+   * Ensuring that Airflow configuration files and directories are not readable by the low-privilege
+     user (e.g., using Unix group permissions).
+   * Ensuring that the low-privilege user has no network access to the metadata database.
+
+   This approach is analogous to the existing ``run_as_user`` impersonation support for tasks (see
+   :doc:`/security/workload`). It is a deployment-level measure — Airflow does not currently
+   automate this separation for the Dag File Processor or Triggerer, but future versions plan to
+   support it natively.
+
 **Network-level isolation**
    Use network policies, VPCs, or similar mechanisms to restrict which components can communicate
    with each other. For example, workers should only be able to reach the Execution API endpoint,
-   not the metadata database or internal services directly.
+   not the metadata database or internal services directly. The Dag File Processor and Triggerer
+   child processes should ideally not have network access to the metadata database either, if
+   Unix user-level isolation is implemented.
 
-**Other measures**
-   Deployment Managers may need to implement additional measures depending on their security requirements.
-   These may include monitoring and auditing of Execution API access patterns, runtime sandboxing of
-   Dag code, or dedicated infrastructure per team. Future versions of Airflow will address workload
-   isolation in a more complete way, with finer-grained token scopes, team-based Execution API enforcement,
-   and improved sandboxing of user-submitted code. The Airflow community is actively working on these
-   features.
+**Restrict access to task logs**
+   Task logs may contain sensitive information if Dag authors (accidentally or intentionally) print
+   environment variables or configuration values. Deployment Managers should restrict who can view
+   task logs via RBAC and ensure that log storage backends are properly secured.
+
+**Other measures and future improvements**
+   Deployment Managers may need to implement additional measures depending on their security
+   requirements. These may include monitoring and auditing of Execution API access patterns,
+   runtime sandboxing of Dag code, or dedicated infrastructure per team.
+
+   Future versions of Airflow plan to address these limitations through two approaches:
+
+   * **Strategic (longer-term)**: Move the Dag File Processor and Triggerer to communicate with
+     the metadata database exclusively through the API server (similar to how workers use the
+     Execution API today). This would eliminate the need for these components to have database
+     credentials at all, providing security by design rather than relying on deployment-level
+     measures.
+   * **Tactical (shorter-term)**: Native support for Unix user impersonation in the Dag File
+     Processor and Triggerer child processes, so that Dag author code runs as a different, low-
+     privilege user that cannot access the parent's credentials or the database.
+
+   The Airflow community is actively working on these improvements.
 
 
 Custom RBAC limitations
