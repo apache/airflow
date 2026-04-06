@@ -778,16 +778,8 @@ def upgrade(
             "Commands may fail if they require authentication.[/]"
         )
 
-    # Build the CI image for Python 3.10 first so that subsequent steps (e.g. uv lock
-    # updates inside the image) use an up-to-date environment.
-    console_print("[info]Building CI image for Python 3.10 …[/]")
-    run_command(
-        ["breeze", "ci-image", "build", "--python", "3.10"],
-        check=False,
-        env=command_env,
-    )
-
-    # Define all upgrade commands to run (all run with check=False to continue on errors)
+    # All upgrade commands run locally with check=False to continue on errors.
+    # The uv lock --upgrade step must run last so it can incorporate changes from the other steps.
     upgrade_commands: list[tuple[str, str]] = [
         ("autoupdate", "prek autoupdate --cooldown-days 4 --freeze"),
         (
@@ -800,9 +792,10 @@ def upgrade(
         ),
         (
             "update-uv-lock",
-            "prek --all-files --show-diff-on-failure --color always --verbose update-uv-lock --stage manual",
+            "uv lock --upgrade",
         ),
     ]
+
     step_enabled = {
         "autoupdate": autoupdate,
         "update-chart-dependencies": update_chart_dependencies,
@@ -810,7 +803,7 @@ def upgrade(
         "update-uv-lock": update_uv_lock,
     }
 
-    # Execute enabled upgrade commands with the environment containing GitHub token
+    # Execute upgrade commands
     for step_name, command in upgrade_commands:
         if step_enabled[step_name]:
             run_command(command.split(), check=False, env=command_env)

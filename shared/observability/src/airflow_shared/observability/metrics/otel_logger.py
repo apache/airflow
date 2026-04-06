@@ -433,6 +433,22 @@ def get_otel_logger(
         )
         readers.append(export_to_console)
 
+    # Reset the OTel SDK's Once() guard so set_meter_provider() can succeed.
+    # This is necessary when get_otel_logger() is called after a process fork:
+    # the parent's _METER_PROVIDER_SET_ONCE._done = True is inherited by the child,
+    # causing set_meter_provider() to silently fail with "Overriding of current
+    # MeterProvider is not allowed". The child then uses the parent's stale provider
+    # whose PeriodicExportingMetricReader thread is dead after fork.
+    # On first call (no fork), _done is already False so this is a no-op.
+    # See: https://github.com/apache/airflow/issues/64690
+    try:
+        import opentelemetry.metrics._internal as _metrics_internal
+
+        _metrics_internal._METER_PROVIDER_SET_ONCE._done = False
+        _metrics_internal._METER_PROVIDER = None
+    except (ImportError, AttributeError):
+        pass
+
     metrics.set_meter_provider(
         MeterProvider(
             resource=resource,

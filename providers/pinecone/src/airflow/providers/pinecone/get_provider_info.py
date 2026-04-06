@@ -41,6 +41,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.pinecone.hooks.pinecone.PineconeHook",
+                "hook-name": "Pinecone",
                 "connection-type": "pinecone",
                 "ui-field-behaviour": {
                     "hidden-fields": ["port", "schema"],

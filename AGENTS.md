@@ -30,7 +30,8 @@
 - **Run other suites of tests** `breeze testing <test_group>` (test groups: `airflow-ctl-tests`, `docker-compose-tests`, `task-sdk-tests`)
 - **Run scripts tests:** `uv run --project scripts pytest scripts/tests/ -xvs`
 - **Run Airflow CLI:** `breeze run airflow dags list`
-- **Type-check:** `breeze run mypy path/to/code`
+- **Type-check (non-providers):** `uv run --project <PROJECT> --with "apache-airflow-devel-common[mypy]" mypy path/to/code`
+- **Type-check (providers):** `breeze run mypy path/to/code`
 - **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`
 - **Format with ruff only:** `prek run ruff-format --from-ref <target_branch>`
 - **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`
@@ -94,6 +95,7 @@ UV workspace monorepo. Key paths:
 - Guard heavy type-only imports (e.g., `kubernetes.client`) with `TYPE_CHECKING` in multi-process code paths.
 - Define dedicated exception classes or use existing exceptions such as `ValueError` instead of raising the broad `AirflowException` directly. Each error case should have a specific exception type that conveys what went wrong.
 - Apache License header on all new files (prek enforces this).
+- Newsfragments are only added if a major change or breaking change is applied. This is usually coordinate during review. Please do not add newsfragments per default as in most cases this needs a reversion during review.
 
 ## Testing Standards
 
@@ -146,7 +148,7 @@ code review checklist in [`.github/instructions/code-review.instructions.md`](.g
 3. Confirm the code follows the project's coding standards and architecture boundaries
    described in this file.
 4. Run regular (fast) static checks (`prek run --from-ref <target_branch> --stage pre-commit`)
-   and fix any failures.
+   and fix any failures. This includes mypy checks for non-provider projects (airflow-core, task-sdk, airflow-ctl, dev, scripts, devel-common).
 5. Run manual (slower) checks (`prek run --from-ref <target_branch> --stage manual`) and fix any failures.
 6. Run relevant individual tests and confirm they pass.
 7. Find which tests to run for the changes with selective-checks and run those tests in parallel to confirm they pass and check for CI-specific issues.

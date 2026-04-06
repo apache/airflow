@@ -22,7 +22,7 @@ import asyncio
 import json
 from collections.abc import Collection, Iterable, Sequence
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from dateutil import parser
 from google.api_core.exceptions import NotFound
@@ -31,6 +31,9 @@ from google.cloud.orchestration.airflow.service_v1.types import ExecuteAirflowCo
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.utils.state import TerminalTIState
 
 
 class CloudComposerExecutionTrigger(BaseTrigger):
@@ -183,7 +186,7 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         composer_dag_id: str,
         start_date: datetime,
         end_date: datetime,
-        allowed_states: list[str],
+        allowed_states: list[str] | list[TerminalTIState],
         composer_dag_run_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -358,7 +361,7 @@ class CloudComposerExternalTaskTrigger(BaseTrigger):
         environment_id: str,
         start_date: datetime,
         end_date: datetime,
-        allowed_states: list[str],
+        allowed_states: list[str] | list[TerminalTIState],
         skipped_states: list[str],
         failed_states: list[str],
         composer_external_dag_id: str,

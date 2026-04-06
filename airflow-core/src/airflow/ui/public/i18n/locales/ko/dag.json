@@ -45,7 +45,8 @@
     "buttons": {
       "resetToLatest": "최신 버전으로 재설정",
       "toggleGroup": "그룹 토글"
-    }
+    },
+    "runTypeLegend": "실행 유형 범례"
   },
   "header": {
     "buttons": {
@@ -70,7 +71,7 @@
     "warning": "경고"
   },
   "navigation": {
-    "navigation": "탐색: {{arrow}}",
+    "navigation": "탐색: Shift+{{arrow}}",
     "toggleGroup": "그룹 전환: Space"
   },
   "notFound": {
@@ -184,6 +185,6 @@
   },
   "taskGroups": {
     "collapseAll": "모든 작업 그룹 접기",
-    "expandAll": "모든 작업 그룹 확장"
+    "expandAll": "모든 작업 그룹 펼치기"
   }
 }

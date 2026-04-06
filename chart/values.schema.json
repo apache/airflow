@@ -2419,7 +2419,7 @@
                     }
                 },
                 "schedulerName": {
-                    "description": "Specify kube scheduler name for Airflow Celery workers objects and pods created with pod-template-file.",
+                    "description": "Specify kube scheduler name for Airflow Celery workers objects and pods created with pod-template-file (deprecated, use ``workers.celery.schedulerName`` and/or ``workers.kubernetes.schedulerName`` instead).",
                     "type": [
                         "string",
                         "null"
@@ -2634,7 +2634,7 @@
                     }
                 },
                 "volumeClaimTemplates": {
-                    "description": "Specify additional volume claim template for Airflow Celery workers.",
+                    "description": "Specify additional volume claim template for Airflow Celery workers (deprecated, use ``workers.celery.volumeClaimTemplates`` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -3323,7 +3323,8 @@
                             "type": [
                                 "string",
                                 "null"
-                            ]
+                            ],
+                            "default": null
                         },
                         "hostAliases": {
                             "description": "Specify HostAliases for Airflow Celery worker pods.",
@@ -3346,6 +3347,49 @@
                                     ]
                                 }
                             ]
+                        },
+                        "volumeClaimTemplates": {
+                            "description": "Specify additional volume claim template for Airflow Celery workers.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.PersistentVolumeClaimTemplate"
+                            },
+                            "examples": [
+                                {
+                                    "name": "data-volume-1",
+                                    "storageClassName": "storage-class-1",
+                                    "accessModes": [
+                                        "ReadWriteOnce"
+                                    ],
+                                    "resources": {
+                                        "requests": {
+                                            "storage": "10Gi"
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "data-volume-2",
+                                    "storageClassName": "storage-class-2",
+                                    "accessModes": [
+                                        "ReadWriteOnce"
+                                    ],
+                                    "resources": {
+                                        "requests": {
+                                            "storage": "20Gi"
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "schedulerName": {
+                            "description": "Specify kube scheduler name for Airflow Celery worker pods.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null,
+                            "x-docsSection": "Common"
                         }
                     }
                 },
@@ -3681,6 +3725,15 @@
                                     ]
                                 }
                             ]
+                        },
+                        "schedulerName": {
+                            "description": "Specify kube scheduler name for pods created with pod-template-file.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null,
+                            "x-docsSection": "Common"
                         }
                     }
                 }

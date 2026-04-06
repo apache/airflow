@@ -141,7 +141,7 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
 
     try:
         if celery_ssl_active:
-            if broker_url and "amqp://" in broker_url:
+            if broker_url and re.search(r"amqps?://", broker_url):
                 broker_use_ssl = {
                     "keyfile": team_conf.get("celery", "SSL_KEY"),
                     "certfile": team_conf.get("celery", "SSL_CERT"),
