@@ -503,7 +503,7 @@ class NeptuneDeleteGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         if event:
             graph_id = event.get("graph_id", "Unknown")
 
-            self.log.info("Neptune graph % deleted", graph_id)
+            self.log.info("Neptune graph %s deleted", graph_id)
 
 
 class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
