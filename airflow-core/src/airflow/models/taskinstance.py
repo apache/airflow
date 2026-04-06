@@ -1269,7 +1269,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             # start date that is recorded in task_reschedule table
             # If the task continues after being deferred (next_method is set), use the original start_date
             ti.start_date = ti.start_date if ti.next_method else timezone.utcnow()
-            if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
+            if not ti.next_method:
+                # Restore original start_date for rescheduled tasks. We cannot check
+                # ti.state == UP_FOR_RESCHEDULE here because in the normal scheduler flow
+                # the scheduler already advances the state to QUEUED before the worker
+                # calls this method. The try_number-scoped query returns None for
+                # non-rescheduled tasks, so this is safe for all cases.
                 tr_start_date = session.scalar(
                     TR.stmt_for_task_instance(ti, descending=False).with_only_columns(TR.start_date).limit(1)
                 )

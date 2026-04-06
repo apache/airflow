@@ -1,0 +1,1 @@
+Fix ``TaskInstance.start_date`` not being restored for rescheduled tasks when the scheduler advances state to ``QUEUED``, which caused ``dagrun.first_task_start_delay`` and ``dagrun.first_task_scheduling_delay`` metrics to be inflated by reschedule wait time.

@@ -851,6 +851,66 @@ class TestTaskInstance:
         # Check that reschedules for ti have also been cleared.
         assert not task_reschedules_for_ti(ti)
 
+    def test_reschedule_start_date_preserved_when_scheduler_advances_to_queued(
+        self, dag_maker, task_reschedules_for_ti
+    ):
+        """
+        Verify start_date is preserved from the first poke even when the scheduler has
+        already advanced the task state from UP_FOR_RESCHEDULE to QUEUED.
+
+        In production the scheduler transitions UP_FOR_RESCHEDULE -> QUEUED before the
+        worker calls _check_and_change_state_before_execution. The previous code checked
+        ``if ti.state == UP_FOR_RESCHEDULE``, which was always False by that point,
+        causing start_date to be reset to utcnow() on every re-execution and inflating
+        the dagrun.first_task_start_delay metric.
+        """
+        done = False
+
+        def func():
+            return done
+
+        with dag_maker(dag_id="test_reschedule_start_date_preserved", serialized=True):
+            task = PythonSensor(
+                task_id="test_reschedule_sensor",
+                poke_interval=0,
+                mode="reschedule",
+                python_callable=func,
+                pool="test_pool",
+            )
+
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
+
+        date1 = timezone.utcnow()
+        date2 = date1 + datetime.timedelta(minutes=1)
+
+        # First run: sensor not ready, task is rescheduled
+        done = False
+        with time_machine.travel(date1, tick=False):
+            run_task_instance(ti, task)
+        ti.refresh_from_db()
+        assert ti.state == State.UP_FOR_RESCHEDULE
+        assert ti.start_date == date1
+
+        # Simulate the scheduler advancing state from UP_FOR_RESCHEDULE -> QUEUED
+        # (this is what happens in production before the worker picks up the task)
+        with create_session() as session:
+            ti.set_state(TaskInstanceState.QUEUED, session)
+
+        ti.refresh_from_db()
+        assert ti.state == TaskInstanceState.QUEUED
+
+        # Second run (sensor succeeds): start_date must be restored from the
+        # TaskReschedule record, not reset to utcnow()
+        done = True
+        with time_machine.travel(date2, tick=False):
+            run_task_instance(ti, task)
+        ti.refresh_from_db()
+        assert ti.state == State.SUCCESS
+        assert ti.start_date == date1, (
+            "start_date should be restored from TaskReschedule even when the task state "
+            "was QUEUED (not UP_FOR_RESCHEDULE) at the start of execution"
+        )
+
     def test_depends_on_past_catchup_true(self, dag_maker):
         class CustomOp(BaseOperator):
             def execute(self, context): ...
