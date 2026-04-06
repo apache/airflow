@@ -9,8 +9,8 @@
     "postbuild": "cleancss -o _site/css/main.css _site/css/main.css && node scripts/build-pagefind-index.mjs"
   },
   "dependencies": {
-    "@11ty/eleventy": "^3.1.2",
-    "swagger-ui-dist": "^5.32.0"
+    "@11ty/eleventy": "^3.1.5",
+    "swagger-ui-dist": "^5.32.1"
   },
   "devDependencies": {
     "clean-css-cli": "^5.6.3",
