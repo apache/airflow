@@ -571,6 +571,7 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.poll_interval,
                     waiter_max_attempts=self.max_polling_attempts,
+                    cancel_on_kill=True,
                 )
                 if self.max_polling_attempts
                 else EmrContainerTrigger(
@@ -578,6 +579,7 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
                     job_id=self.job_id,
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.poll_interval,
+                    cancel_on_kill=True,
                 ),
                 method_name="execute_complete",
             )
@@ -608,10 +610,12 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         validated_event = validate_execute_complete_event(event)
 
-        if validated_event["status"] != "success":
-            raise AirflowException(f"Error while running job: {validated_event}")
-
-        return validated_event["job_id"]
+        if validated_event["status"] == "success":
+            return validated_event["job_id"]
+        if self.job_id:
+            self.log.info("Cancelling EMR container job %s", self.job_id)
+            self.hook.stop_query(self.job_id)
+        raise AirflowException(f"Error while running job: {validated_event}")
 
     def on_kill(self) -> None:
         """Cancel the submitted job run."""
