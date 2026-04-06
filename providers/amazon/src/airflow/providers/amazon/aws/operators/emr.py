@@ -58,6 +58,10 @@ from airflow.providers.amazon.aws.utils.waiter import (
 )
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet
+from airflow.providers.common.compat.openlineage.utils.spark import (
+    inject_parent_job_information_into_emr_serverless_properties,
+    inject_transport_information_into_emr_serverless_properties,
+)
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import exactly_one, prune_dict
 
@@ -1197,6 +1201,14 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
     :param cancel_on_kill: If True, the EMR Serverless job will be cancelled when the task is killed
         while in deferrable mode. This ensures that orphan jobs are not left running in EMR Serverless
         when an Airflow task is cancelled. Defaults to True.
+    :param openlineage_inject_parent_job_info: If True, injects OpenLineage parent job information
+        into the EMR Serverless ``spark-defaults`` configuration so the Spark job emits a
+        ``parentRunFacet`` linking back to the Airflow task. Defaults to the
+        ``openlineage.spark_inject_parent_job_info`` config value.
+    :param openlineage_inject_transport_info: If True, injects OpenLineage transport configuration
+        into the EMR Serverless ``spark-defaults`` configuration so the Spark job sends OL events
+        to the same backend as Airflow. Defaults to the
+        ``openlineage.spark_inject_transport_info`` config value.
     """
 
     aws_hook_class = EmrServerlessHook
@@ -1236,6 +1248,12 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         enable_application_ui_links: bool = False,
         cancel_on_kill: bool = True,
+        openlineage_inject_parent_job_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_parent_job_info", fallback=False
+        ),
+        openlineage_inject_transport_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_transport_info", fallback=False
+        ),
         **kwargs,
     ):
         waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
@@ -1254,6 +1272,8 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         self.deferrable = deferrable
         self.enable_application_ui_links = enable_application_ui_links
         self.cancel_on_kill = cancel_on_kill
+        self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
+        self.openlineage_inject_transport_info = openlineage_inject_transport_info
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -1287,6 +1307,19 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
             )
         self.log.info("Starting job on Application: %s", self.application_id)
         self.name = self.name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
+
+        configuration_overrides = self.configuration_overrides
+        if self.openlineage_inject_parent_job_info:
+            self.log.info("Injecting OpenLineage parent job information into EMR Serverless configuration.")
+            configuration_overrides = inject_parent_job_information_into_emr_serverless_properties(
+                configuration_overrides, context
+            )
+        if self.openlineage_inject_transport_info:
+            self.log.info("Injecting OpenLineage transport information into EMR Serverless configuration.")
+            configuration_overrides = inject_transport_information_into_emr_serverless_properties(
+                configuration_overrides, context
+            )
+
         args = {
             "clientToken": self.client_request_token,
             "applicationId": self.application_id,
@@ -1295,8 +1328,8 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
             "name": self.name,
             **self.config,
         }
-        if self.configuration_overrides is not None:
-            args["configurationOverrides"] = self.configuration_overrides
+        if configuration_overrides is not None:
+            args["configurationOverrides"] = configuration_overrides
         response = self.hook.conn.start_job_run(
             **args,
         )
