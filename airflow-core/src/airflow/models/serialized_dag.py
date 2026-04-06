@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 import uuid6
-from sqlalchemy import JSON, ForeignKey, LargeBinary, String, Uuid, exists, select, tuple_, update
+from sqlalchemy import JSON, ForeignKey, Index, LargeBinary, String, Uuid, exists, select, tuple_, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.sql.expression import func, literal
@@ -303,6 +303,8 @@ class SerializedDagModel(Base):
         UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
     )
     dag_hash: Mapped[str] = mapped_column(String(32), nullable=False)
+
+    __table_args__ = (Index("idx_serialized_dag_dag_id_last_updated", dag_id, last_updated),)
 
     dag_runs = relationship(
         DagRun,

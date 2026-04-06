@@ -23,7 +23,7 @@ from uuid import UUID
 
 import sqlalchemy as sa
 import uuid6
-from sqlalchemy import ForeignKey, String, Text, select
+from sqlalchemy import ForeignKey, Index, String, Text, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql.expression import literal
@@ -70,6 +70,8 @@ class DagCode(Base):
         sa.Uuid(), ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
     )
     dag_version = relationship("DagVersion", back_populates="dag_code", uselist=False)
+
+    __table_args__ = (Index("idx_dag_code_dag_id", dag_id),)
 
     def __init__(self, dag_version, full_filepath: str, source_code: str | None = None):
         self.dag_version = dag_version

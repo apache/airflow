@@ -180,6 +180,9 @@ class TestDb:
             lambda t: t[0] == "add_index" and t[1].name == "idx_ab_user_username",
             lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_register_user_username",
             lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_user_username",
+            # MySQL auto-creates an index on FK columns; the migration skips creating this
+            # index on MySQL to avoid a duplicate, but the ORM always declares it.
+            lambda t: t[0] == "add_index" and t[1].name == "idx_task_instance_dag_version_id",
         ]
 
         for ignore in ignores:
