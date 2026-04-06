@@ -67,14 +67,72 @@ UV workspace monorepo. Key paths:
 ## Architecture Boundaries
 
 1. Users author Dags with the Task SDK (`airflow.sdk`).
-2. Dag Processor parses Dag files in isolated processes and stores serialized Dags in the metadata DB.
+2. Dag File Processor parses Dag files in separate processes and stores serialized Dags in the metadata DB. It has **direct database access** and uses an in-process Execution API transport that **bypasses JWT authentication**.
 3. Scheduler reads serialized Dags — **never runs user code** — and creates Dag runs / task instances.
-4. Workers execute tasks via Task SDK and communicate with the API server through the Execution API — **never access the metadata DB directly**.
+4. Workers execute tasks via Task SDK and communicate with the API server through the Execution API — **never access the metadata DB directly**. Each task receives a short-lived JWT token scoped to its task instance ID.
 5. API Server serves the React UI and handles all client-database interactions.
-6. Triggerer evaluates deferred tasks/sensors in isolated processes.
+6. Triggerer evaluates deferred tasks/sensors in separate processes. Like the Dag File Processor, it has **direct database access** and uses an in-process Execution API transport that **bypasses JWT authentication**.
 7. Shared libraries that are symbolically linked to different Python distributions are in `shared` folder.
 8. Airflow uses `uv workspace` feature to keep all the distributions sharing dependencies and venv
 9. Each of the distributions should declare other needed distributions: `uv --project <FOLDER> sync` command acts on the selected project in the monorepo with only dependencies that it has
+
+## Security Model
+
+When reviewing code, writing security documentation, or performing security research, keep in
+mind the following aspects of Airflow's security model. The authoritative reference is
+[`airflow-core/docs/security/security_model.rst`](airflow-core/docs/security/security_model.rst)
+and [`airflow-core/docs/security/jwt_token_authentication.rst`](airflow-core/docs/security/jwt_token_authentication.rst).
+
+**The following are intentional design choices, not security vulnerabilities:**
+
+- **Dag File Processor and Triggerer bypass JWT authentication.** They use `InProcessExecutionAPI`
+  which overrides the JWT bearer dependency to always allow access. This is by design — these
+  components run within trusted infrastructure and need direct database access for their core
+  operations (storing serialized Dags, managing trigger state).
+- **Dag File Processor and Triggerer have direct metadata database access.** User-submitted code
+  (Dag files, trigger code) executes in these components and can potentially access the database.
+  This is a known limitation documented in the security model, not an undiscovered vulnerability.
+- **Worker Execution API tokens grant access to shared resources.** While `ti:self` scope prevents
+  cross-task state manipulation, connections, variables, and XComs are accessible to all tasks.
+  This is the current design — finer-grained scoping is planned for future versions.
+- **The experimental multi-team feature (`[core] multi_team`) does not guarantee task-level
+  isolation.** It provides UI-level and REST API-level RBAC isolation only. At the Execution API
+  and database level, there is no enforcement of team boundaries. This is documented and expected.
+- **Execution API tokens are not subject to revocation.** They are short-lived (default 10 min)
+  with automatic refresh, so revocation is intentionally not part of the Execution API security model.
+- **A single Dag File Processor and Triggerer instance serves all teams by default.** Per-team
+  instances require deployment-level configuration by the Deployment Manager.
+
+**The following are NOT security vulnerabilities (per Airflow's security policy and trust model):**
+
+- Dag authors executing arbitrary code, accessing credentials, or reading environment variables —
+  Dag authors are trusted users with broad capabilities by design.
+- Dag author code passing unsanitized input to operators/hooks — responsibility lies with the Dag
+  author, not Airflow. SQL injection or command injection is only a vulnerability if exploitable by
+  a non-Dag-author role without the Dag author deliberately writing unsafe code.
+- Connection configuration users being able to trigger RCE/DoS/arbitrary reads via connection
+  parameters — these users are highly privileged by design. Test connection is disabled by default.
+- DoS by authenticated users — Airflow is an internal application with known, authenticated users.
+  DoS by authenticated users is an operational concern, not a CVE-worthy vulnerability.
+- Self-XSS by authenticated users — only considered a vulnerability if it crosses privilege
+  boundaries (lower-privileged user's payload executes in higher-privileged session).
+- Simple Auth Manager security issues — it is for development/testing only, with a prominent warning.
+- Third-party dependency CVEs in Docker images — expected over time; users should build their own
+  images. Only report if you have a proof-of-concept exploiting the vulnerability in Airflow's context.
+- Automated scanner results without human verification against the security model.
+
+**When flagging security concerns, distinguish between:**
+
+1. **Actual vulnerabilities** — code that violates the documented security model (e.g., a worker
+   gaining database access it shouldn't have, a Scheduler executing user code, an unauthenticated
+   user accessing protected endpoints).
+2. **Known limitations** — documented gaps where the current implementation doesn't provide full
+   isolation (e.g., DFP/Triggerer database access, shared Execution API resources, multi-team
+   not enforcing task-level isolation). These are tracked for improvement in future versions and
+   should not be reported as new findings.
+3. **Deployment hardening opportunities** — measures a Deployment Manager can take to improve
+   isolation beyond what Airflow enforces natively (e.g., per-component configuration, asymmetric
+   JWT keys, network policies). These belong in deployment guidance, not as code-level issues.
 
 # Shared libraries
 
