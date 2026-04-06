@@ -3711,6 +3711,37 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    def test_dagrun_timeout_emits_run_type_in_stats_tags(self, dag_maker):
+        """
+        Test that dagrun.duration.failed metric includes run_type tag when failure
+        is caused by dagrun_timeout (regression test for missing run_type tag).
+        """
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_scheduler_fail_dagrun_timeout_stats",
+            dagrun_timeout=datetime.timedelta(seconds=60),
+            schedule="@daily",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        dr = dag_maker.create_dagrun(start_date=timezone.utcnow() - datetime.timedelta(days=1))
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with mock.patch("airflow.jobs.scheduler_job_runner.DualStatsManager.timing") as mock_timing:
+            self.job_runner._schedule_dag_run(dr, session)
+            session.flush()
+
+        timing_calls = {call.args[0]: call.kwargs for call in mock_timing.call_args_list}
+        assert "dagrun.duration.failed" in timing_calls
+        tags = timing_calls["dagrun.duration.failed"].get("tags", {})
+        assert "run_type" in tags, f"run_type missing from dagrun.duration.failed tags: {tags}"
+
+        session.rollback()
+        session.close()
+
     def test_dagrun_timeout_fails_run_and_update_next_dagrun(self, dag_maker):
         """
         Test that dagrun timeout fails run and update the next dagrun

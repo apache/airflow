@@ -2421,7 +2421,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 stats.timing(
                     "dagrun.duration.failed",
                     duration,
-                    tags={"dag_id": dag_run.dag_id},
+                    tags=dag_run.stats_tags,
                 )
             return callback_to_execute
 
