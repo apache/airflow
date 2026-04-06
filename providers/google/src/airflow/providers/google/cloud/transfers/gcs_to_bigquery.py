@@ -32,7 +32,6 @@ from google.cloud.bigquery import (
     ExtractJob,
     LoadJob,
     QueryJob,
-    SchemaField,
     UnknownJob,
 )
 from google.cloud.bigquery.table import EncryptionConfiguration, Table, TableReference
@@ -589,14 +588,15 @@ class GCSToBigQueryOperator(BaseOperator):
             )
             external_config_api_repr[src_fmt_to_param_mapping[self.source_format]] = self.src_fmt_configs
 
+        if self.schema_fields:
+            external_config_api_repr["schema"] = {"fields": self.schema_fields}
+        if self.max_bad_records:
+            external_config_api_repr["maxBadRecords"] = self.max_bad_records
+
         if self.extra_config:
             external_config_api_repr.update(self.extra_config)
 
         external_config = ExternalConfig.from_api_repr(external_config_api_repr)
-        if self.schema_fields:
-            external_config.schema = [SchemaField.from_api_repr(f) for f in self.schema_fields]
-        if self.max_bad_records:
-            external_config.max_bad_records = self.max_bad_records
 
         # build table definition
         table = Table(
