@@ -123,7 +123,13 @@ class RuntimeTaskInstanceProtocol(Protocol):
     hostname: str | None = None
     start_date: AwareDatetime
     end_date: AwareDatetime | None = None
+    queued_dttm: AwareDatetime | None = None
     state: TaskInstanceState | None = None
+
+    @property
+    def duration(self) -> float | None:
+        """Duration of the task execution in seconds, computed from start_date and end_date."""
+        ...
 
     def xcom_pull(
         self,

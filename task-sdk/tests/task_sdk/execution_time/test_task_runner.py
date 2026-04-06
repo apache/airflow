@@ -4741,3 +4741,126 @@ def test_dag_add_result(create_runtime_ti, mock_supervisor_comms):
             dag_result=True,
         )
     )
+
+
+class TestRuntimeTaskInstanceDuration:
+    """Tests for the duration property on RuntimeTaskInstance."""
+
+    def test_duration_with_both_dates(self, create_runtime_ti):
+        """Test duration is computed correctly when both start_date and end_date are set."""
+        task = BaseOperator(task_id="test_duration")
+        ti = create_runtime_ti(task=task)
+        ti.start_date = timezone.parse("2024-12-01T01:00:00Z")
+        ti.end_date = timezone.parse("2024-12-01T01:05:30Z")
+        assert ti.duration == 330.0  # 5 minutes and 30 seconds
+
+    def test_duration_without_end_date(self, create_runtime_ti):
+        """Test duration is None when end_date is not set (task still running)."""
+        task = BaseOperator(task_id="test_duration_no_end")
+        ti = create_runtime_ti(task=task)
+        ti.start_date = timezone.parse("2024-12-01T01:00:00Z")
+        ti.end_date = None
+        assert ti.duration is None
+
+    def test_duration_zero(self, create_runtime_ti):
+        """Test duration is zero when start_date equals end_date."""
+        task = BaseOperator(task_id="test_duration_zero")
+        ti = create_runtime_ti(task=task)
+        same_time = timezone.parse("2024-12-01T01:00:00Z")
+        ti.start_date = same_time
+        ti.end_date = same_time
+        assert ti.duration == 0.0
+
+
+class TestRuntimeTaskInstanceQueuedDttm:
+    """Tests for the queued_dttm field on RuntimeTaskInstance."""
+
+    def test_queued_dttm_from_ti_context(self, mocked_parse, make_ti_context):
+        """Test that queued_dttm flows from TIRunContext to RuntimeTaskInstance via parse."""
+        queued_time = timezone.parse("2024-12-01T00:30:00Z")
+        ti_context = make_ti_context()
+        ti_context.queued_dttm = queued_time
+
+        task = BaseOperator(task_id="test_queued")
+        task.dag = DAG(dag_id="test_dag", start_date=timezone.datetime(2024, 12, 3))
+
+        startup = StartupDetails(
+            ti=TaskInstance(
+                id=uuid7(),
+                task_id="test_queued",
+                dag_id="test_dag",
+                run_id="test_run",
+                try_number=1,
+                dag_version_id=uuid7(),
+            ),
+            dag_rel_path="",
+            bundle_info=BundleInfo(name="anything", version="any"),
+            ti_context=ti_context,
+            start_date=timezone.utcnow(),
+            sentry_integration="",
+        )
+
+        ti = mocked_parse(startup, "test_dag", task)
+        assert ti.queued_dttm == queued_time
+
+    def test_queued_dttm_none_by_default(self, create_runtime_ti):
+        """Test that queued_dttm is None when not provided."""
+        task = BaseOperator(task_id="test_no_queued")
+        ti = create_runtime_ti(task=task)
+        assert ti.queued_dttm is None
+
+    def test_start_date_from_ti_context(self, mocked_parse, make_ti_context):
+        """Test that DB-persisted start_date from TIRunContext is used over supervisor start_date."""
+        db_start = timezone.parse("2024-12-01T00:00:00Z")
+        supervisor_start = timezone.parse("2024-12-01T01:00:00Z")
+        ti_context = make_ti_context()
+        ti_context.start_date = db_start
+
+        task = BaseOperator(task_id="test_start_date")
+        task.dag = DAG(dag_id="test_dag", start_date=timezone.datetime(2024, 12, 3))
+
+        startup = StartupDetails(
+            ti=TaskInstance(
+                id=uuid7(),
+                task_id="test_start_date",
+                dag_id="test_dag",
+                run_id="test_run",
+                try_number=1,
+                dag_version_id=uuid7(),
+            ),
+            dag_rel_path="",
+            bundle_info=BundleInfo(name="anything", version="any"),
+            ti_context=ti_context,
+            start_date=supervisor_start,
+            sentry_integration="",
+        )
+
+        ti = mocked_parse(startup, "test_dag", task)
+        assert ti.start_date == db_start
+
+    def test_start_date_falls_back_to_supervisor(self, mocked_parse, make_ti_context):
+        """Test that supervisor start_date is used when TIRunContext has no start_date."""
+        supervisor_start = timezone.parse("2024-12-01T01:00:00Z")
+        ti_context = make_ti_context()
+
+        task = BaseOperator(task_id="test_start_fallback")
+        task.dag = DAG(dag_id="test_dag", start_date=timezone.datetime(2024, 12, 3))
+
+        startup = StartupDetails(
+            ti=TaskInstance(
+                id=uuid7(),
+                task_id="test_start_fallback",
+                dag_id="test_dag",
+                run_id="test_run",
+                try_number=1,
+                dag_version_id=uuid7(),
+            ),
+            dag_rel_path="",
+            bundle_info=BundleInfo(name="anything", version="any"),
+            ti_context=ti_context,
+            start_date=supervisor_start,
+            sentry_integration="",
+        )
+
+        ti = mocked_parse(startup, "test_dag", task)
+        assert ti.start_date == supervisor_start

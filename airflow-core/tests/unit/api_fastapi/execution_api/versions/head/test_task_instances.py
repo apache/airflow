@@ -236,6 +236,7 @@ class TestTIRunState:
             "variables": [],
             "connections": [],
             "xcom_keys_to_clear": [],
+            "start_date": instant_str,
         }
         # upstream_map_indexes is now computed by Task SDK, not returned by the server in HEAD version
         assert "upstream_map_indexes" not in result
@@ -599,6 +600,7 @@ class TestTIRunState:
             "xcom_keys_to_clear": [],
             "next_method": "execute_complete",
             "next_kwargs": expected_next_kwargs,
+            "start_date": instant_str,
         }
 
     @pytest.mark.parametrize("resume", [True, False])
@@ -670,6 +672,7 @@ class TestTIRunState:
             "xcom_keys_to_clear": [],
             "next_method": "execute_complete",
             "next_kwargs": expected_next_kwargs,
+            "start_date": orig_task_start_time.isoformat().replace("+00:00", "Z"),
         }
         session.expunge_all()
         ti = session.get(TaskInstance, ti.id)
@@ -863,6 +866,107 @@ class TestTIRunState:
         assert logs[0].logical_date == instant
         assert logs[0].owner == ti.task.owner
         assert logs[0].extra == '{"host_name": "random-hostname"}'
+
+    def test_ti_run_includes_queued_dttm(self, client, session, create_task_instance, time_machine):
+        """Test that queued_dttm is included in the TIRunContext response when set on the TaskInstance."""
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        queued_str = "2024-09-30T11:55:00Z"
+        queued_time = timezone.parse(queued_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_queued_dttm",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = queued_time
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        result = response.json()
+        assert result["queued_dttm"] == queued_str
+
+    def test_ti_run_excludes_queued_dttm_when_not_set(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """Test that queued_dttm is excluded from the response when not set on the TaskInstance."""
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_no_queued_dttm",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        result = response.json()
+        assert "queued_dttm" not in result
+
+    def test_ti_run_includes_start_date(self, client, session, create_task_instance, time_machine):
+        """Test that start_date from DB is included in the TIRunContext response."""
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        original_start_str = "2024-09-30T11:50:00Z"
+        original_start = timezone.parse(original_start_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_start_date",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        ti.start_date = original_start
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        result = response.json()
+        assert result["start_date"] == original_start_str
 
 
 class TestTIUpdateState:

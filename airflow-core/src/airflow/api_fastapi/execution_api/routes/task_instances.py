@@ -140,6 +140,8 @@ def ti_run(
             TI.hostname,
             TI.unixname,
             TI.pid,
+            TI.queued_dttm,
+            TI.start_date,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -287,6 +289,13 @@ def ti_run(
         if ti.next_method:
             context.next_method = ti.next_method
             context.next_kwargs = ti.next_kwargs
+        if ti.queued_dttm:
+            context.queued_dttm = ti.queued_dttm
+        # For deferred tasks resuming, use the persisted DB start_date (preserved from original run).
+        # For fresh tasks, use the start_date from the request (just written to DB).
+        effective_start_date = ti.start_date or ti_run_payload.start_date
+        if effective_start_date:
+            context.start_date = effective_start_date
 
         return context
     except SQLAlchemyError:

@@ -190,6 +190,9 @@ class RuntimeTaskInstance(TaskInstance):
 
     end_date: AwareDatetime | None = None
 
+    queued_dttm: AwareDatetime | None = None
+    """When the task instance was queued."""
+
     state: TaskInstanceState | None = None
 
     is_mapped: bool | None = None
@@ -198,6 +201,13 @@ class RuntimeTaskInstance(TaskInstance):
     rendered_map_index: str | None = None
 
     sentry_integration: str = ""
+
+    @property
+    def duration(self) -> float | None:
+        """Duration of the task execution in seconds, computed from start_date and end_date."""
+        if self.end_date and self.start_date:
+            return (self.end_date - self.start_date).total_seconds()
+        return None
 
     def __rich_repr__(self):
         yield "id", self.id
@@ -248,6 +258,7 @@ class RuntimeTaskInstance(TaskInstance):
                 },
                 "conn": ConnectionAccessor(),
             }
+
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:
@@ -827,7 +838,8 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         bundle_instance=bundle_instance,
         _ti_context_from_server=what.ti_context,
         max_tries=what.ti_context.max_tries,
-        start_date=what.start_date,
+        queued_dttm=what.ti_context.queued_dttm,
+        start_date=what.ti_context.start_date or what.start_date,
         state=TaskInstanceState.RUNNING,
         sentry_integration=what.sentry_integration,
     )

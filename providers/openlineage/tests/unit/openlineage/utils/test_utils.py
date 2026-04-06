@@ -3032,13 +3032,19 @@ def test_taskinstance_info_af3():
     bundle_instance.name = "bundle_name"
     runtime_ti.bundle_instance = bundle_instance
 
-    assert dict(TaskInstanceInfo(runtime_ti)) == {
+    expected = {
         "log_url": runtime_ti.log_url,
         "map_index": 2,
         "try_number": 1,
         "dag_bundle_version": "bundle_version",
         "dag_bundle_name": "bundle_name",
     }
+    if hasattr(runtime_ti, "duration"):
+        expected["duration"] = 12.345
+    if hasattr(runtime_ti, "queued_dttm"):
+        expected["queued_dttm"] = None
+
+    assert dict(TaskInstanceInfo(runtime_ti)) == expected
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 test")
