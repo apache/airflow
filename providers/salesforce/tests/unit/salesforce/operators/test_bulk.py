@@ -19,10 +19,9 @@ from __future__ import annotations
 import logging
 from unittest.mock import Mock, patch
 
-from airflow.providers.common.compat.sdk import AirflowException
-
 import pytest
 
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.salesforce.operators.bulk import SalesforceBulkOperator
 
 
