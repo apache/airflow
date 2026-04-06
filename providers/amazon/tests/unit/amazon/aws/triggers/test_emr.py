@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
     EmrContainerTrigger,
@@ -295,9 +296,9 @@ class TestEmrContainerTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
-    async def test_run_yields_failure_on_exception(self, mock_async_wait):
-        """Test that a generic exception yields a failure TriggerEvent."""
-        mock_async_wait.side_effect = Exception("Something went wrong")
+    async def test_run_yields_error_on_airflow_exception(self, mock_async_wait):
+        """Test that an AirflowException yields an error TriggerEvent."""
+        mock_async_wait.side_effect = AirflowException("Something went wrong")
 
         trigger = EmrContainerTrigger(
             virtual_cluster_id="test_cluster",
@@ -322,8 +323,9 @@ class TestEmrContainerTrigger:
                 events.append(event)
 
         assert len(events) == 1
-        assert events[0].payload["status"] == "failure"
+        assert events[0].payload["status"] == "error"
         assert "Something went wrong" in events[0].payload["message"]
+        assert events[0].payload["job_id"] == "test_job"
 
 
 class TestEmrStepSensorTrigger:

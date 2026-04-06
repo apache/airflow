@@ -614,7 +614,13 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
             return validated_event["job_id"]
         if self.job_id:
             self.log.info("Cancelling EMR container job %s", self.job_id)
-            self.hook.stop_query(self.job_id)
+            try:
+                self.hook.stop_query(self.job_id)
+            except Exception:
+                self.log.exception(
+                    "Failed to cancel EMR container job %s. The job may still be running.",
+                    self.job_id,
+                )
         raise AirflowException(f"Error while running job: {validated_event}")
 
     def on_kill(self) -> None:

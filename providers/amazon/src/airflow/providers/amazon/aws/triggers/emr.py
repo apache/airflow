@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 from asgiref.sync import sync_to_async
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
@@ -238,13 +239,13 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
         )
         try:
             task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
-        except Exception:
+        except (KeyError, TypeError) as e:
             raise ValueError(
                 f"TaskInstance with dag_id: {self.task_instance.dag_id}, "
                 f"task_id: {self.task_instance.task_id}, "
                 f"run_id: {self.task_instance.run_id} and "
                 f"map_index: {self.task_instance.map_index} is not found"
-            )
+            ) from e
         return task_state
 
     async def safe_to_cancel(self) -> bool:
@@ -288,24 +289,39 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
                 )
             yield TriggerEvent({"status": "success", self.return_key: self.return_value})
         except asyncio.CancelledError:
-            if self.job_id and self.cancel_on_kill and await self.safe_to_cancel():
-                self.log.info(
-                    "Task was cancelled. Cancelling EMR container job. Virtual Cluster ID: %s, Job ID: %s",
-                    self.virtual_cluster_id,
-                    self.job_id,
-                )
-                hook.stop_query(self.job_id)
-                self.log.info("EMR container job %s cancelled successfully.", self.job_id)
-            else:
-                self.log.info(
-                    "Trigger may have shutdown or cancel_on_kill is disabled. "
-                    "Skipping job cancellation. Virtual Cluster ID: %s, Job ID: %s",
-                    self.virtual_cluster_id,
+            try:
+                if self.job_id and self.cancel_on_kill and await self.safe_to_cancel():
+                    self.log.info(
+                        "Task was cancelled. Cancelling EMR container job. "
+                        "Virtual Cluster ID: %s, Job ID: %s",
+                        self.virtual_cluster_id,
+                        self.job_id,
+                    )
+                    try:
+                        hook.stop_query(self.job_id)
+                        self.log.info("EMR container job %s cancelled successfully.", self.job_id)
+                    except Exception:
+                        self.log.exception(
+                            "Failed to cancel EMR container job %s. The job may still be running.",
+                            self.job_id,
+                        )
+                else:
+                    self.log.info(
+                        "Trigger may have shutdown or cancel_on_kill is disabled. "
+                        "Skipping job cancellation. Virtual Cluster ID: %s, Job ID: %s",
+                        self.virtual_cluster_id,
+                        self.job_id,
+                    )
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                self.log.exception(
+                    "Error during cancellation check for EMR container job %s. The job may still be running.",
                     self.job_id,
                 )
             raise
-        except Exception as e:
-            yield TriggerEvent({"status": "failure", "message": str(e)})
+        except AirflowException as e:
+            yield TriggerEvent({"status": "error", "message": str(e), self.return_key: self.return_value})
 
 
 class EmrStepSensorTrigger(AwsBaseWaiterTrigger):
