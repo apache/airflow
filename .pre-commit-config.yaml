@@ -1086,17 +1086,3 @@ repos:
         language: python
         files: .*test.*\.py$
         pass_filenames: true
-        # This is a manual hook, run by `breeze ci upgrade` - upgrading all dependencies inside the
-        # Breeze CI image - which allows checking all dependencies for all providers.
-        # ALWAYS keep it at the end so that it can take into account all the other hook's changes.
-      - id: update-uv-lock
-        stages: ['manual']
-        name: Update uv.lock (manual)
-        entry: breeze run uv lock --upgrade
-        language: system
-        files: >
-          (?x)
-          (^|/)pyproject\.toml$|
-          ^uv\.lock$
-        pass_filenames: false
-        require_serial: true
