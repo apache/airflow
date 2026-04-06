@@ -23,6 +23,7 @@ import os
 import re
 import shutil
 import sys
+from datetime import datetime
 from functools import cache
 from pathlib import Path
 from typing import NamedTuple
@@ -1127,7 +1128,8 @@ def _install_airflow_and_optionally_providers_together(
         "install",
     ]
     if installation_spec.pre_release:
-        base_install_cmd.append("--pre")
+        console.print("[bright_blue]Allowing pre-release versions of airflow and providers")
+        base_install_cmd.extend(["--pre", "--exclude-newer", datetime.now().isoformat()])
     if installation_spec.airflow_distribution:
         console.print(
             f"\n[bright_blue]Adding airflow distribution to installation: {installation_spec.airflow_distribution} "
@@ -1223,8 +1225,8 @@ def _install_only_airflow_airflow_core_task_sdk_with_constraints(
         "install",
     ]
     if installation_spec.pre_release:
-        console.print("[bright_blue]Allowing pre-release versions of airflow")
-        base_install_airflow_cmd.append("--pre")
+        console.print("[bright_blue]Allowing pre-release versions of airflow and providers")
+        base_install_airflow_cmd.extend(["--pre", "--exclude-newer", datetime.now().isoformat()])
     if installation_spec.airflow_distribution:
         console.print(
             f"\n[bright_blue]Installing airflow distribution: {installation_spec.airflow_distribution} with constraints"

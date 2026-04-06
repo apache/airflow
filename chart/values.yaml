@@ -1151,6 +1151,7 @@ workers:
 
   # Additional volume claim templates for Airflow Celery workers.
   # Requires mounting of specified volumes under extraVolumeMounts.
+  # (deprecated, use `workers.celery.volumeClaimTemplates` instead)
   volumeClaimTemplates: []
   # Volume Claim Templates example:
   # volumeClaimTemplates:
@@ -1172,6 +1173,9 @@ workers:
   #       resources:
   #         requests:
   #           storage: "20Gi"
+
+  # (deprecated, use `workers.celery.schedulerName` and/or `workers.kubernetes.schedulerName` instead)
+  schedulerName: ~
 
   celery:
     # Number of Airflow Celery workers
@@ -1400,6 +1404,32 @@ workers:
     #   hostnames:
     #   - "test.hostname.two"
 
+    # Additional volume claim templates for Airflow Celery workers.
+    # Requires mounting of specified volumes under extraVolumeMounts.
+    volumeClaimTemplates: []
+    # Volume Claim Templates example:
+    # volumeClaimTemplates:
+    #   - metadata:
+    #       name: data-volume-1
+    #     spec:
+    #       storageClassName: "storage-class-1"
+    #       accessModes:
+    #         - "ReadWriteOnce"
+    #       resources:
+    #         requests:
+    #           storage: "10Gi"
+    #   - metadata:
+    #       name: data-volume-2
+    #     spec:
+    #       storageClassName: "storage-class-2"
+    #       accessModes:
+    #         - "ReadWriteOnce"
+    #       resources:
+    #         requests:
+    #           storage: "20Gi"
+
+    schedulerName: ~
+
   kubernetes:
     # Command to use in pod-template-file (templated)
     command: ~
@@ -1487,6 +1517,8 @@ workers:
     # - ip: "127.0.0.3"
     #   hostnames:
     #   - "test.hostname.two"
+
+    schedulerName: ~
 
 # Airflow scheduler settings
 scheduler:
