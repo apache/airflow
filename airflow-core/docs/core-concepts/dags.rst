@@ -774,10 +774,7 @@ in which one Dag can depend on another:
 - waiting - :class:`~airflow.providers.standard.sensors.external_task.ExternalTaskSensor`
 
 Additional difficulty is that one Dag could wait for or trigger several runs of the other Dag
-with different data intervals. The **Dag Dependencies** view
-``Menu -> Browse -> Dag Dependencies`` helps visualize dependencies between Dags. The dependencies
-are calculated by the scheduler during Dag serialization and the webserver uses them to build
-the dependency graph.
+with different data intervals. These dependencies are calculated by the scheduler during Dag serialization.
 
 The dependency detector is configurable, so you can implement your own logic different than the defaults in
 :class:`~airflow.serialization.serialized_objects.DependencyDetector`
