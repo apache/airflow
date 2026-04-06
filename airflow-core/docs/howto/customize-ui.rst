@@ -70,14 +70,18 @@ We can provide a JSON configuration to customize the UI.
 
 .. important::
 
-  - You can customize the ``brand`` color palette, ``globalCss`` and the navigation icon via ``icon`` (and ``icon_dark_mode``).
-  - You must supply ``50``-``950`` OKLCH color values for ``brand`` color.
-  - OKLCH colors must have next format ``oklch(l c h)`` For more info see :ref:`config:api__theme`
-  - There is also the ability to provide custom global CSS for a fine grained theme control.
+  - You can customize the ``brand``, ``gray``, ``black``, and ``white`` color tokens, ``globalCss``, and the navigation icon via ``icon`` (and ``icon_dark_mode``).
+  - All color tokens are **optional** — you can override any subset without supplying the others.
+  - ``brand`` and ``gray`` each accept an 11-shade scale with keys ``50``–``950``.
+  - ``black`` and ``white`` each accept a single color: ``{ "value": "oklch(...)" }``.
+  - OKLCH colors must use the format ``oklch(l c h)``. For more info see :ref:`config:api__theme`
+  - There is also the ability to provide custom global CSS for fine-grained theme control.
 
 .. note::
 
-  Modifying the ``brand`` color palette you also modify the navbar/sidebar.
+  Modifying the ``brand`` color palette also modifies the navbar/sidebar.
+  Modifying ``gray`` controls neutral surfaces and borders.
+  Modifying ``black`` and ``white`` controls the darkest and lightest surface colors.
 
 To customize the UI, simply:
 
@@ -176,6 +180,37 @@ Dark Mode
     "globalCss": {
       "button": {
         "text-transform": "uppercase"
+      }
+    }
+  }'
+
+Customizing gray, black, and white tokens
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can override the neutral palette and surface colors independently of ``brand``. ``gray`` controls
+borders and neutral UI elements, while ``black`` and ``white`` control the darkest and lightest surface
+backgrounds. All fields are optional — supply only the tokens you want to change.
+
+.. code-block::
+
+  AIRFLOW__API__THEME='{
+    "tokens": {
+      "colors": {
+        "gray": {
+          "50":  { "value": "oklch(0.975 0.002 264.0)" },
+          "100": { "value": "oklch(0.950 0.003 264.0)" },
+          "200": { "value": "oklch(0.880 0.005 264.0)" },
+          "300": { "value": "oklch(0.780 0.008 264.0)" },
+          "400": { "value": "oklch(0.640 0.012 264.0)" },
+          "500": { "value": "oklch(0.520 0.015 264.0)" },
+          "600": { "value": "oklch(0.420 0.015 264.0)" },
+          "700": { "value": "oklch(0.340 0.012 264.0)" },
+          "800": { "value": "oklch(0.260 0.009 264.0)" },
+          "900": { "value": "oklch(0.200 0.007 264.0)" },
+          "950": { "value": "oklch(0.145 0.005 264.0)" }
+        },
+        "black": { "value": "oklch(0.220 0.025 288.6)" },
+        "white": { "value": "oklch(0.985 0.002 264.0)" }
       }
     }
   }'

@@ -34,6 +34,7 @@ from airflow.providers.edge3.models.edge_worker import (
     add_worker_queues,
     change_maintenance_comment,
     exit_maintenance,
+    get_query_filter_by_worker_name,
     remove_worker,
     remove_worker_queues,
     request_maintenance,
@@ -164,15 +165,13 @@ def request_worker_maintenance(
     user: GetUserDep,
 ) -> None:
     """Put a worker into maintenance mode."""
-    # Check if worker exists first
-    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker_query = get_query_filter_by_worker_name(worker_name)
     worker = session.scalar(worker_query)
     if not worker:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
     if not maintenance_request.maintenance_comment:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Maintenance comment is required")
 
-    # Format the comment with timestamp and username (username will be added by plugin layer)
     formatted_comment = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {user.get_name()} put node into maintenance mode\nComment: {maintenance_request.maintenance_comment}"
 
     try:
@@ -194,15 +193,13 @@ def update_worker_maintenance(
     user: GetUserDep,
 ) -> None:
     """Update maintenance comments for a worker."""
-    # Check if worker exists first
-    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker_query = get_query_filter_by_worker_name(worker_name)
     worker = session.scalar(worker_query)
     if not worker:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
     if not maintenance_request.maintenance_comment:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Maintenance comment is required")
 
-    # Format the comment with timestamp and username (username will be added by plugin layer)
     first_line = worker.maintenance_comment.split("\n", 1)[0] if worker.maintenance_comment else ""
     formatted_comment = f"{first_line}\n[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {user.get_name()} updated comment:\n{maintenance_request.maintenance_comment}"
 
@@ -223,8 +220,7 @@ def exit_worker_maintenance(
     session: SessionDep,
 ) -> None:
     """Exit a worker from maintenance mode."""
-    # Check if worker exists first
-    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker_query = get_query_filter_by_worker_name(worker_name)
     worker = session.scalar(worker_query)
     if not worker:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
@@ -246,8 +242,7 @@ def request_worker_shutdown(
     session: SessionDep,
 ) -> None:
     """Request shutdown of a worker."""
-    # Check if worker exists first
-    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker_query = get_query_filter_by_worker_name(worker_name)
     worker = session.scalar(worker_query)
     if not worker:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
@@ -269,8 +264,7 @@ def delete_worker(
     session: SessionDep,
 ) -> None:
     """Delete a worker record from the system."""
-    # Check if worker exists first
-    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker_query = get_query_filter_by_worker_name(worker_name)
     worker = session.scalar(worker_query)
     if not worker:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
@@ -294,7 +288,7 @@ def add_worker_queue(
 ) -> None:
     """Add a queue to a worker."""
     # Check if worker exists first
-    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker_query = get_query_filter_by_worker_name(worker_name)
     worker = session.scalar(worker_query)
     if not worker:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
@@ -317,8 +311,7 @@ def remove_worker_queue(
     session: SessionDep,
 ) -> None:
     """Remove a queue from a worker."""
-    # Check if worker exists first
-    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker_query = get_query_filter_by_worker_name(worker_name)
     worker = session.scalar(worker_query)
     if not worker:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")

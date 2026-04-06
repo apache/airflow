@@ -118,7 +118,7 @@ with DAG(
         subject="Please choose option to proceed: ",
         options=["option 7", "option 8", "option 9"],
         defaults=["option 7"],
-        execution_timeout=datetime.timedelta(seconds=1),
+        response_timeout=datetime.timedelta(seconds=1),
         notifiers=[hitl_request_callback],
         on_success_callback=hitl_success_callback,
         on_failure_callback=hitl_failure_callback,
@@ -136,7 +136,7 @@ with DAG(
         Timeout Option: {{ ti.xcom_pull(task_ids='wait_for_default_option')["chosen_options"] }}
         """,
         defaults="Reject",
-        execution_timeout=datetime.timedelta(minutes=5),
+        response_timeout=datetime.timedelta(minutes=5),
         notifiers=[hitl_request_callback],
         on_success_callback=hitl_success_callback,
         on_failure_callback=hitl_failure_callback,

@@ -52,10 +52,9 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagModel, Pool, Variable
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
@@ -92,6 +91,8 @@ from airflow.providers.fab.www.utils import get_fab_action_from_method_map
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from flask import Flask
+
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.cli.cli_config import (
         CLICommand,
@@ -175,6 +176,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     cache: TTLCache = TTLCache(maxsize=1024, ttl=CACHE_TTL)
     appbuilder: AirflowAppBuilder | None = None
+    flask_app: Flask | None = None
 
     def init_flask_resources(self) -> None:
         self._sync_appbuilder_roles()
@@ -199,6 +201,7 @@ class FabAuthManager(BaseAuthManager[User]):
         )
 
         flask_app = create_app(enable_plugins=False)
+        self.flask_app = flask_app
 
         app = FastAPI(
             title="FAB auth manager API",

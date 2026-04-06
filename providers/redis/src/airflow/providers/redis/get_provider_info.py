@@ -60,6 +60,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.redis.hooks.redis.RedisHook",
+                "hook-name": "Redis",
                 "connection-type": "redis",
                 "ui-field-behaviour": {"hidden-fields": ["schema", "extra"], "relabeling": {}},
                 "conn-fields": {
@@ -84,5 +85,5 @@ def get_provider_info():
                 },
             }
         ],
-        "logging": ["airflow.providers.redis.redis_task_handler.RedisTaskHandler"],
+        "logging": ["airflow.providers.redis.log.redis_task_handler.RedisTaskHandler"],
     }

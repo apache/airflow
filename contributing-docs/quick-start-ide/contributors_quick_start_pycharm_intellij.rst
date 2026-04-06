@@ -93,132 +93,132 @@ Setup your project
               alt="modules.xml">
         </div>
 
-   Script options
-   ==============
+Script options
+==============
 
-   ``--python VERSION``
-     Choose the Python minor version for the virtualenv (e.g. ``3.12``).  The version is passed
-     to ``uv sync --python`` and must be compatible with the project's ``requires-python``
-     constraint.  When omitted, ``uv`` picks the default version.
+``--python VERSION``
+  Choose the Python minor version for the virtualenv (e.g. ``3.12``).  The version is passed
+  to ``uv sync --python`` and must be compatible with the project's ``requires-python``
+  constraint.  When omitted, ``uv`` picks the default version.
 
-      .. code-block:: bash
+  .. code-block:: bash
 
-        $ uv run dev/ide_setup/setup_idea.py --python 3.12
+     $ uv run dev/ide_setup/setup_idea.py --python 3.12
 
-   ``--multi-module`` / ``--single-module``
-     Control whether the project is configured as a single IntelliJ module (all source roots in
-     one ``.iml`` file) or as multiple modules (one ``.iml`` per distribution/package, e.g.
-     ``airflow-core/airflow-core.iml``, ``providers/amazon/providers-amazon.iml``).
+``--multi-module`` / ``--single-module``
+  Control whether the project is configured as a single IntelliJ module (all source roots in
+  one ``.iml`` file) or as multiple modules (one ``.iml`` per distribution/package, e.g.
+  ``airflow-core/airflow-core.iml``, ``providers/amazon/providers-amazon.iml``).
 
-     **By default the script auto-detects which IDE is installed** and picks the appropriate
-     mode: multi-module when IntelliJ IDEA is found, single-module when only PyCharm is found
-     (or when no IDE can be detected).  Use ``--multi-module`` or ``--single-module`` to
-     override the auto-detected default.
+  **By default the script auto-detects which IDE is installed** and picks the appropriate
+  mode: multi-module when IntelliJ IDEA is found, single-module when only PyCharm is found
+  (or when no IDE can be detected).  Use ``--multi-module`` or ``--single-module`` to
+  override the auto-detected default.
 
-     In multi-module mode the script also creates a dedicated ``dev/breeze`` virtualenv
-     (via a second ``uv sync``) with its own Python SDK named *Python X.Y (breeze)*.
-     All other sub-modules inherit the project-level SDK.
+  In multi-module mode the script also creates a dedicated ``dev/breeze`` virtualenv
+  (via a second ``uv sync``) with its own Python SDK named *Python X.Y (breeze)*.
+  All other sub-modules inherit the project-level SDK.
 
-      .. code-block:: bash
+  .. code-block:: bash
 
-        # Force multi-module (requires IntelliJ IDEA)
-        $ uv run dev/ide_setup/setup_idea.py --multi-module
+     # Force multi-module (requires IntelliJ IDEA)
+     $ uv run dev/ide_setup/setup_idea.py --multi-module
 
-        # Force single-module (works in both PyCharm and IntelliJ IDEA)
-        $ uv run dev/ide_setup/setup_idea.py --single-module
+     # Force single-module (works in both PyCharm and IntelliJ IDEA)
+     $ uv run dev/ide_setup/setup_idea.py --single-module
 
-   ``--confirm``
-     Automatically answer yes to all interactive confirmation prompts (IDE close, process kill,
-     file overwrite).  Useful for non-interactive, scripted, or agent-driven runs.
+``--confirm``
+  Automatically answer yes to all interactive confirmation prompts (IDE close, process kill,
+  file overwrite).  Useful for non-interactive, scripted, or agent-driven runs.
 
-      .. code-block:: bash
+  .. code-block:: bash
 
-        $ uv run dev/ide_setup/setup_idea.py --confirm
+     $ uv run dev/ide_setup/setup_idea.py --confirm
 
-   ``--open-ide``
-     Open IntelliJ IDEA or PyCharm in the project directory after setup completes.  On macOS
-     uses ``open -a``, on Linux looks for JetBrains Toolbox launcher scripts and falls back to
-     commands on ``PATH``.  Prefers IntelliJ IDEA when both IDEs are installed.
+``--open-ide``
+  Open IntelliJ IDEA or PyCharm in the project directory after setup completes.  On macOS
+  uses ``open -a``, on Linux looks for JetBrains Toolbox launcher scripts and falls back to
+  commands on ``PATH``.  Prefers IntelliJ IDEA when both IDEs are installed.
 
-      .. code-block:: bash
+  .. code-block:: bash
 
-        $ uv run dev/ide_setup/setup_idea.py --open-ide
+     $ uv run dev/ide_setup/setup_idea.py --open-ide
 
-        # Combine with --confirm for fully non-interactive setup + open
-        $ uv run dev/ide_setup/setup_idea.py --confirm --open-ide
+     # Combine with --confirm for fully non-interactive setup + open
+     $ uv run dev/ide_setup/setup_idea.py --confirm --open-ide
 
-   ``--no-kill``
-     Do not attempt to detect and kill running PyCharm/IntelliJ IDEA processes.  By default,
-     the script looks for running IDE processes, asks for confirmation, sends ``SIGTERM``, and
-     falls back to ``SIGKILL`` if they don't exit within 5 seconds.  Use ``--no-kill`` to
-     disable this behaviour and fall back to the manual confirmation prompt instead.
+``--no-kill``
+  Do not attempt to detect and kill running PyCharm/IntelliJ IDEA processes.  By default,
+  the script looks for running IDE processes, asks for confirmation, sends ``SIGTERM``, and
+  falls back to ``SIGKILL`` if they don't exit within 5 seconds.  Use ``--no-kill`` to
+  disable this behaviour and fall back to the manual confirmation prompt instead.
 
-      .. code-block:: bash
+  .. code-block:: bash
 
-        $ uv run dev/ide_setup/setup_idea.py --no-kill
+     $ uv run dev/ide_setup/setup_idea.py --no-kill
 
-   ``--idea-path PATH``
-     Path to the JetBrains configuration directory to update instead of auto-detecting all
-     installed IDEs.  Can point to the base JetBrains directory
-     (e.g. ``~/Library/Application Support/JetBrains``) or a specific product directory
-     (e.g. ``.../JetBrains/IntelliJIdea2025.1``).  Useful when auto-detection does not find
-     your IDE or when you want to target a specific installation.
+``--idea-path PATH``
+  Path to the JetBrains configuration directory to update instead of auto-detecting all
+  installed IDEs.  Can point to the base JetBrains directory
+  (e.g. ``~/Library/Application Support/JetBrains``) or a specific product directory
+  (e.g. ``.../JetBrains/IntelliJIdea2025.1``).  Useful when auto-detection does not find
+  your IDE or when you want to target a specific installation.
 
-      .. code-block:: bash
+  .. code-block:: bash
 
-        $ uv run dev/ide_setup/setup_idea.py --idea-path ~/Library/Application\ Support/JetBrains/IntelliJIdea2025.1
+     $ uv run dev/ide_setup/setup_idea.py --idea-path ~/Library/Application\ Support/JetBrains/IntelliJIdea2025.1
 
-   ``--exclude MODULE_OR_GROUP``
-     Exclude modules from the generated project configuration.  Can be specified multiple times.
-     Useful when you only work on a subset of the codebase and want faster IDE indexing.
+``--exclude MODULE_OR_GROUP``
+  Exclude modules from the generated project configuration.  Can be specified multiple times.
+  Useful when you only work on a subset of the codebase and want faster IDE indexing.
 
-     A value can be either a module path relative to the project root (e.g. ``providers/amazon``,
-     ``dev/breeze``) or one of the recognised group names:
+  A value can be either a module path relative to the project root (e.g. ``providers/amazon``,
+  ``dev/breeze``) or one of the recognised group names:
 
-     * ``providers`` — all provider modules under ``providers/``
-     * ``shared`` — all shared libraries under ``shared/``
-     * ``dev`` — the ``dev`` module
-     * ``tests`` — test-only modules (``docker-tests``, ``kubernetes-tests``, etc.)
+  * ``providers`` — all provider modules under ``providers/``
+  * ``shared`` — all shared libraries under ``shared/``
+  * ``dev`` — the ``dev`` module
+  * ``tests`` — test-only modules (``docker-tests``, ``kubernetes-tests``, etc.)
 
-     Examples:
+  Examples:
 
-      .. code-block:: bash
+  .. code-block:: bash
 
-        # Exclude all providers and shared libraries
-        $ uv run dev/ide_setup/setup_idea.py --exclude providers --exclude shared
+     # Exclude all providers and shared libraries
+     $ uv run dev/ide_setup/setup_idea.py --exclude providers --exclude shared
 
-        # Exclude a single provider
-        $ uv run dev/ide_setup/setup_idea.py --exclude providers/amazon
+     # Exclude a single provider
+     $ uv run dev/ide_setup/setup_idea.py --exclude providers/amazon
 
-        # Multi-module with only core modules
-        $ uv run dev/ide_setup/setup_idea.py --multi-module --exclude providers --exclude shared
+     # Multi-module with only core modules
+     $ uv run dev/ide_setup/setup_idea.py --multi-module --exclude providers --exclude shared
 
-   Options can be combined freely.  For instance, to create a multi-module project with
-   Python 3.12 excluding all providers:
+Options can be combined freely.  For instance, to create a multi-module project with
+Python 3.12 excluding all providers:
 
-    .. code-block:: bash
+.. code-block:: bash
 
-      $ uv run dev/ide_setup/setup_idea.py --multi-module --python 3.12 --exclude providers
+   $ uv run dev/ide_setup/setup_idea.py --multi-module --python 3.12 --exclude providers
 
-   What the script generates
-   =========================
+What the script generates
+=========================
 
-   * ``.idea/airflow.iml`` — root module definition with source roots (single-module mode) or
-     exclude-only root module (multi-module mode).
-   * ``.idea/modules.xml`` — module registry listing all IntelliJ modules.
-   * ``.idea/misc.xml`` — project-level Python SDK reference (derived from ``.venv``).
-   * ``.idea/.name`` — sets the PyCharm project name to ``airflow-<dirname>`` so the
-     auto-detected SDK name matches the configuration.
-   * ``<module>/<module>.iml`` — per-module files (multi-module mode only).
+* ``.idea/airflow.iml`` — root module definition with source roots (single-module mode) or
+  exclude-only root module (multi-module mode).
+* ``.idea/modules.xml`` — module registry listing all IntelliJ modules.
+* ``.idea/misc.xml`` — project-level Python SDK reference (derived from ``.venv``).
+* ``.idea/.name`` — sets the PyCharm project name to ``airflow-<dirname>`` so the
+  auto-detected SDK name matches the configuration.
+* ``<module>/<module>.iml`` — per-module files (multi-module mode only).
 
-   The script also registers the Python SDKs (root project and Breeze) in the global
-   JetBrains ``jdk.table.xml`` configuration using the ``uv (<name>)`` naming convention
-   that matches PyCharm's auto-detected uv interpreters.  This means the SDKs are
-   immediately available when you open the project — no manual interpreter setup needed.
+The script also registers the Python SDKs (root project and Breeze) in the global
+JetBrains ``jdk.table.xml`` configuration using the ``uv (<name>)`` naming convention
+that matches PyCharm's auto-detected uv interpreters.  This means the SDKs are
+immediately available when you open the project — no manual interpreter setup needed.
 
-   The script also configures project-wide exclusion patterns (``__pycache__``,
-   ``node_modules``, ``*.egg-info``, cache directories, etc.) so that IntelliJ does not
-   index or search generated/build artifacts.
+The script also configures project-wide exclusion patterns (``__pycache__``,
+``node_modules``, ``*.egg-info``, cache directories, etc.) so that IntelliJ does not
+index or search generated/build artifacts.
 
 4. Alternatively, you can configure your project manually. Configure the source root directories
    for ``airflow-core``, ``task-sdk``, ``airflow-ctl`` and ``devel-common``. You also have to set

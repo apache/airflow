@@ -35,15 +35,18 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+# Use the hybrid_property for dag_display_name so the CASE WHEN fallback to dag_id
+# is applied when dag_display_name is NULL.  Using __table__.c would return raw NULLs
+# and crash DagStatsResponse validation (https://github.com/apache/airflow/issues/64247).
 dagruns_select_with_state_count = (
-    select(
+    select(  # type: ignore[call-overload]
         DagRun.__table__.c.dag_id,
         DagRun.__table__.c.state,
-        DagModel.__table__.c.dag_display_name,
+        DagModel.dag_display_name,
         func.count(DagRun.__table__.c.state).label("count"),
     )
     .join(DagModel, DagRun.__table__.c.dag_id == DagModel.__table__.c.dag_id)
-    .group_by(DagRun.__table__.c.dag_id, DagRun.__table__.c.state, DagModel.__table__.c.dag_display_name)
+    .group_by(DagRun.__table__.c.dag_id, DagRun.__table__.c.state, DagModel.dag_display_name)
     .order_by(DagRun.__table__.c.dag_id)
 )
 

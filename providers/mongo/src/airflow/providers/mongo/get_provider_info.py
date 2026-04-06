@@ -41,6 +41,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.mongo.hooks.mongo.MongoHook",
+                "hook-name": "MongoDB",
                 "connection-type": "mongo",
                 "conn-fields": {
                     "srv": {"label": "Srv", "schema": {"type": ["boolean", "null"]}},

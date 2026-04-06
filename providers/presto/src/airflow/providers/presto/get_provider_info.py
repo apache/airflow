@@ -49,6 +49,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.presto.hooks.presto.PrestoHook",
+                "hook-name": "Presto",
                 "connection-type": "presto",
             }
         ],

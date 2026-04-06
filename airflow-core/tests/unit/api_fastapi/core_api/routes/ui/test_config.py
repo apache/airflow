@@ -72,23 +72,67 @@ expected_config_response = {
 }
 
 
+def _theme_conf_vars(theme: dict) -> dict:
+    return {
+        ("api", "instance_name"): "Airflow",
+        ("api", "enable_swagger_ui"): "true",
+        ("api", "hide_paused_dags_by_default"): "true",
+        ("api", "fallback_page_limit"): "100",
+        ("api", "default_wrap"): "false",
+        ("api", "auto_refresh_interval"): "3",
+        ("api", "require_confirmation_dag_change"): "false",
+        ("api", "theme"): json.dumps(theme),
+    }
+
+
 @pytest.fixture
 def mock_config_data():
     """
     Mock configuration settings used in the endpoint.
     """
-    with conf_vars(
-        {
-            ("api", "instance_name"): "Airflow",
-            ("api", "enable_swagger_ui"): "true",
-            ("api", "hide_paused_dags_by_default"): "true",
-            ("api", "fallback_page_limit"): "100",
-            ("api", "default_wrap"): "false",
-            ("api", "auto_refresh_interval"): "3",
-            ("api", "require_confirmation_dag_change"): "false",
-            ("api", "theme"): json.dumps(THEME),
+    with conf_vars(_theme_conf_vars(THEME)):
+        yield
+
+
+THEME_WITH_ALL_COLORS = {
+    "tokens": {
+        "colors": {
+            "brand": {
+                "50": {"value": "oklch(0.975 0.008 298.0)"},
+                "100": {"value": "oklch(0.950 0.020 298.0)"},
+                "200": {"value": "oklch(0.900 0.045 298.0)"},
+                "300": {"value": "oklch(0.800 0.080 298.0)"},
+                "400": {"value": "oklch(0.680 0.120 298.0)"},
+                "500": {"value": "oklch(0.560 0.160 298.0)"},
+                "600": {"value": "oklch(0.460 0.190 298.0)"},
+                "700": {"value": "oklch(0.390 0.160 298.0)"},
+                "800": {"value": "oklch(0.328 0.080 298.0)"},
+                "900": {"value": "oklch(0.230 0.050 298.0)"},
+                "950": {"value": "oklch(0.155 0.030 298.0)"},
+            },
+            "gray": {
+                "50": {"value": "oklch(0.975 0.002 264.0)"},
+                "100": {"value": "oklch(0.950 0.003 264.0)"},
+                "200": {"value": "oklch(0.880 0.005 264.0)"},
+                "300": {"value": "oklch(0.780 0.008 264.0)"},
+                "400": {"value": "oklch(0.640 0.012 264.0)"},
+                "500": {"value": "oklch(0.520 0.015 264.0)"},
+                "600": {"value": "oklch(0.420 0.015 264.0)"},
+                "700": {"value": "oklch(0.340 0.012 264.0)"},
+                "800": {"value": "oklch(0.260 0.009 264.0)"},
+                "900": {"value": "oklch(0.200 0.007 264.0)"},
+                "950": {"value": "oklch(0.145 0.005 264.0)"},
+            },
+            "black": {"value": "oklch(0.220 0.025 288.6)"},
+            "white": {"value": "oklch(0.985 0.002 264.0)"},
         }
-    ):
+    },
+}
+
+
+@pytest.fixture
+def mock_config_data_all_colors():
+    with conf_vars(_theme_conf_vars(THEME_WITH_ALL_COLORS)):
         yield
 
 
@@ -112,3 +156,17 @@ class TestGetConfig:
         response = unauthorized_test_client.get("/config")
         assert response.status_code == 200
         assert response.json() == expected_config_response
+
+    def test_should_response_200_with_all_color_tokens(self, mock_config_data_all_colors, test_client):
+        """Theme with gray, black, and white tokens (in addition to brand) passes validation and round-trips."""
+        response = test_client.get("/config")
+
+        assert response.status_code == 200
+        theme = response.json()["theme"]
+        colors = theme["tokens"]["colors"]
+        assert "brand" in colors
+        assert "gray" in colors
+        assert "black" in colors
+        assert "white" in colors
+        assert colors["black"] == {"value": "oklch(0.22 0.025 288.6)"}
+        assert colors["white"] == {"value": "oklch(0.985 0.002 264.0)"}
