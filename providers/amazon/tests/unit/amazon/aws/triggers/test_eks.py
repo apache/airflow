@@ -398,14 +398,7 @@ class TestEksPodTrigger:
 
         # Mock reading the kubeconfig file
         with patch("pathlib.Path.read_text", return_value="apiVersion: v1\nkind: Config\nclusters: []"):
-            # Mock the parent run to yield one event
-            mock_parent_run.return_value.__aiter__ = AsyncMock(
-                return_value=AsyncMock(
-                    __anext__=AsyncMock(side_effect=[TriggerEvent({"status": "success"}), StopAsyncIteration])
-                )
-            )
 
-            # Use a simpler approach: just make parent run an async generator
             async def mock_gen():
                 yield TriggerEvent({"status": "success"})
 
