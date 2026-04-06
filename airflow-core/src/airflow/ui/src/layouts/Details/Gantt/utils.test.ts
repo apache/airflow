@@ -18,7 +18,8 @@
  */
 import type { ChartEvent, ActiveElement } from "chart.js";
 import dayjs from "dayjs";
-import { describe, it, expect, type vi } from "vitest";
+import type { TFunction } from "i18next";
+import { describe, it, expect } from "vitest";
 
 import type { GanttDataItem } from "./utils";
 import { createChartOptions, transformGanttData } from "./utils";
@@ -36,7 +37,7 @@ const defaultChartParams = {
   selectedId: undefined,
   selectedItemColor: "#ddd",
   selectedTimezone: "UTC",
-  translate: ((key: string) => key) as ReturnType<typeof vi.fn>,
+  translate: ((key: string) => key) as unknown as TFunction,
 };
 
 describe("createChartOptions", () => {
