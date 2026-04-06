@@ -21,6 +21,9 @@ labelPRBasedOnFilePath:
   provider:airbyte:
     - providers/airbyte/**
 
+  provider:akeyless:
+    - providers/akeyless/**
+
   provider:alibaba:
     - providers/alibaba/**
 

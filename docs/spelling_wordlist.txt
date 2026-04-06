@@ -32,6 +32,8 @@ Airbnb
 airbnb
 Airbyte
 airbyte
+Akeyless
+akeyless
 AirflowConfigParser
 airflowctl
 AirflowException
