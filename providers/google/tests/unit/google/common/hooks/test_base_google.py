@@ -546,32 +546,30 @@ class TestGoogleBaseHook:
         hook = GoogleBaseHook(gcp_conn_id="google_cloud_default", quota_project_id="test-quota-project")
         assert hook.quota_project_id == "test-quota-project"
 
-    @mock.patch("google.auth._default._load_credentials_from_file")
-    @mock.patch("os.environ", {CREDENTIALS: "/test/key-path"})
-    def test_quota_project_id_from_connection(self, mock_load_creds):
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    def test_quota_project_id_from_connection(self, mock_get_creds_and_proj_id):
         """Test that quota project ID from connection is applied to credentials."""
         mock_creds = mock.MagicMock()
         mock_creds.with_quota_project.return_value = mock_creds
-        mock_load_creds.return_value = (mock_creds, "test-project")
+        mock_get_creds_and_proj_id.return_value = (mock_creds, "test-project")
 
         # Mock connection with quota_project_id in extras
-        uri = f"google-cloud-platform://?extras={json.dumps({'quota_project_id': 'test-quota-project'})}"
+        uri = "google-cloud-platform://?quota_project_id=test-quota-project"
         with mock.patch.dict("os.environ", {"AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT": uri}):
             hook = GoogleBaseHook(gcp_conn_id="google_cloud_default")
             creds, _ = hook.get_credentials_and_project_id()
             mock_creds.with_quota_project.assert_called_once_with("test-quota-project")
 
-    @mock.patch("google.auth._default._load_credentials_from_file")
-    @mock.patch("os.environ", {CREDENTIALS: "/test/key-path"})
-    def test_quota_project_id_param_overrides_connection(self, mock_load_creds):
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    def test_quota_project_id_param_overrides_connection(self, mock_get_creds_and_proj_id):
         """Test that quota project ID from param overrides connection value."""
         mock_creds = mock.MagicMock()
         mock_creds.with_quota_project.return_value = mock_creds
-        mock_load_creds.return_value = (mock_creds, "test-project")
+        mock_get_creds_and_proj_id.return_value = (mock_creds, "test-project")
 
         # Connection with quota_project_id in extras
         conn_quota = "connection-quota-project"
-        uri = f"google-cloud-platform://?extras={json.dumps({'quota_project_id': conn_quota})}"
+        uri = f"google-cloud-platform://?quota_project_id={conn_quota}"
 
         with mock.patch.dict("os.environ", {"AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT": uri}):
             hook = GoogleBaseHook(gcp_conn_id="google_cloud_default", quota_project_id="test-quota-project")

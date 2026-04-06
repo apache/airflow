@@ -225,6 +225,10 @@ class GoogleBaseHook(BaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
+    :param quota_project_id: Optional Google Cloud project ID to use for billing and
+        quota purposes. If set, API usage will be charged to this project instead of
+        the project associated with the credentials. If not set, the connection's
+        ``quota_project_id`` field is used as a fallback.
     """
 
     conn_name_attr = "gcp_conn_id"
