@@ -130,6 +130,7 @@ class TestEmrContainerTrigger:
             "waiter_delay": 30,
             "waiter_max_attempts": 600,
             "aws_conn_id": "aws_default",
+            "cancel_on_kill": True,
         }
 
     def test_serialization_default_max_attempts(self):
@@ -152,7 +153,177 @@ class TestEmrContainerTrigger:
             "waiter_delay": 30,
             "waiter_max_attempts": sys.maxsize,
             "aws_conn_id": "aws_default",
+            "cancel_on_kill": True,
         }
+
+    def test_serialization_includes_cancel_on_kill(self):
+        """Test that cancel_on_kill=True is correctly serialized."""
+        trigger = EmrContainerTrigger(
+            virtual_cluster_id="test_cluster",
+            job_id="test_job",
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+            cancel_on_kill=True,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrContainerTrigger"
+        assert kwargs["cancel_on_kill"] is True
+
+    def test_serialization_cancel_on_kill_false(self):
+        """Test that cancel_on_kill=False is correctly serialized."""
+        trigger = EmrContainerTrigger(
+            virtual_cluster_id="test_cluster",
+            job_id="test_job",
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+            cancel_on_kill=False,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrContainerTrigger"
+        assert kwargs["cancel_on_kill"] is False
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
+    @mock.patch("airflow.providers.amazon.aws.triggers.emr.EmrContainerTrigger.safe_to_cancel")
+    async def test_run_cancels_job_on_killed_when_safe(self, mock_safe_to_cancel, mock_async_wait):
+        """
+        Test that EmrContainerTrigger cancels the job when task is killed
+        and safe_to_cancel returns True.
+        """
+        mock_safe_to_cancel.return_value = True
+        mock_async_wait.side_effect = asyncio.CancelledError()
+
+        trigger = EmrContainerTrigger(
+            virtual_cluster_id="test_cluster",
+            job_id="test_job",
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+            cancel_on_kill=True,
+        )
+
+        mock_hook = mock.MagicMock()
+        mock_hook.get_waiter.return_value = mock.MagicMock()
+        mock_hook.stop_query.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+
+        mock_client = mock.MagicMock()
+        mock_async_cm = mock.MagicMock()
+        mock_async_cm.__aenter__ = mock.AsyncMock(return_value=mock_client)
+        mock_async_cm.__aexit__ = mock.AsyncMock(return_value=None)
+        mock_hook.get_async_conn = mock.AsyncMock(return_value=mock_async_cm)
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            with pytest.raises(asyncio.CancelledError):
+                async for _ in trigger.run():
+                    pass
+
+        mock_hook.stop_query.assert_called_once_with("test_job")
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
+    @mock.patch("airflow.providers.amazon.aws.triggers.emr.EmrContainerTrigger.safe_to_cancel")
+    async def test_run_no_cancel_when_unsafe(self, mock_safe_to_cancel, mock_async_wait):
+        """
+        Test that EmrContainerTrigger does NOT cancel the job when
+        safe_to_cancel returns False (e.g., triggerer shutdown).
+        """
+        mock_safe_to_cancel.return_value = False
+        mock_async_wait.side_effect = asyncio.CancelledError()
+
+        trigger = EmrContainerTrigger(
+            virtual_cluster_id="test_cluster",
+            job_id="test_job",
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+            cancel_on_kill=True,
+        )
+
+        mock_hook = mock.MagicMock()
+        mock_hook.get_waiter.return_value = mock.MagicMock()
+
+        mock_client = mock.MagicMock()
+        mock_async_cm = mock.MagicMock()
+        mock_async_cm.__aenter__ = mock.AsyncMock(return_value=mock_client)
+        mock_async_cm.__aexit__ = mock.AsyncMock(return_value=None)
+        mock_hook.get_async_conn = mock.AsyncMock(return_value=mock_async_cm)
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            with pytest.raises(asyncio.CancelledError):
+                async for _ in trigger.run():
+                    pass
+
+        mock_hook.stop_query.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
+    @mock.patch("airflow.providers.amazon.aws.triggers.emr.EmrContainerTrigger.safe_to_cancel")
+    async def test_run_no_cancel_when_disabled(self, mock_safe_to_cancel, mock_async_wait):
+        """
+        Test that EmrContainerTrigger does NOT cancel the job when
+        cancel_on_kill=False.
+        """
+        mock_safe_to_cancel.return_value = True
+        mock_async_wait.side_effect = asyncio.CancelledError()
+
+        trigger = EmrContainerTrigger(
+            virtual_cluster_id="test_cluster",
+            job_id="test_job",
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+            cancel_on_kill=False,
+        )
+
+        mock_hook = mock.MagicMock()
+        mock_hook.get_waiter.return_value = mock.MagicMock()
+
+        mock_client = mock.MagicMock()
+        mock_async_cm = mock.MagicMock()
+        mock_async_cm.__aenter__ = mock.AsyncMock(return_value=mock_client)
+        mock_async_cm.__aexit__ = mock.AsyncMock(return_value=None)
+        mock_hook.get_async_conn = mock.AsyncMock(return_value=mock_async_cm)
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            with pytest.raises(asyncio.CancelledError):
+                async for _ in trigger.run():
+                    pass
+
+        mock_hook.stop_query.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
+    async def test_run_yields_failure_on_exception(self, mock_async_wait):
+        """Test that a generic exception yields a failure TriggerEvent."""
+        mock_async_wait.side_effect = Exception("Something went wrong")
+
+        trigger = EmrContainerTrigger(
+            virtual_cluster_id="test_cluster",
+            job_id="test_job",
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+        )
+
+        mock_hook = mock.MagicMock()
+        mock_hook.get_waiter.return_value = mock.MagicMock()
+
+        mock_client = mock.MagicMock()
+        mock_async_cm = mock.MagicMock()
+        mock_async_cm.__aenter__ = mock.AsyncMock(return_value=mock_client)
+        mock_async_cm.__aexit__ = mock.AsyncMock(return_value=None)
+        mock_hook.get_async_conn = mock.AsyncMock(return_value=mock_async_cm)
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            events = []
+            async for event in trigger.run():
+                events.append(event)
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == "failure"
+        assert "Something went wrong" in events[0].payload["message"]
 
 
 class TestEmrStepSensorTrigger:
