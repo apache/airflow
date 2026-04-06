@@ -62,6 +62,7 @@ UV workspace monorepo. Key paths:
   - `ci/prek/` — prek (pre-commit) hook scripts; shared utilities in `common_prek_utils.py`
   - `tests/` — pytest tests for the scripts; run with `uv run --project scripts pytest scripts/tests/`
 
+
 ## Architecture Boundaries
 
 1. Users author Dags with the Task SDK (`airflow.sdk`).
@@ -95,23 +96,6 @@ UV workspace monorepo. Key paths:
 - Apache License header on all new files (prek enforces this).
 - Newsfragments are only added if a major change or breaking change is applied. This is usually coordinate during review. Please do not add newsfragments per default as in most cases this needs a reversion during review.
 
-## UI Development (airflow-core/src/airflow/ui)
-
-- **Never add placeholder translations to i18n JSON files.** The English files (`en.json`) are already the source/placeholder — other locale files should only contain real translations. Do not duplicate English strings into non-English locale files as stand-ins.
-- **Reuse existing translation keys whenever possible** instead of adding new ones. Before adding a new i18n key, check whether an existing key with the same or equivalent meaning already exists and use that instead.
-- **Dev server:** `cd airflow-core/src/airflow/ui && pnpm dev` — runs on port 5173.
-- **Lint/format:** `pnpm lint` (ESLint + tsc) and `pnpm format` (Prettier). Run these after every UI file change, the same way ruff is run for Python.
-- **Unit tests:** `pnpm test` (Vitest + React Testing Library). Test files live under `tests/` and mirror the `src/` structure.
-- **E2e tests:** `pnpm test:e2e` (Playwright). E2e tests live under `playwright/`.
-- **Component library:** Chakra UI v3 (`@chakra-ui/react`). Use Chakra primitives and the project theme — do not introduce other component libraries.
-- **Colors:** Prefer semantic tokens over raw values. In order: semantic tokens (e.g. `fg.error`) → Chakra semantic palette (e.g. `red.solid`) → Chakra scale tokens (e.g. `red.500`) → hex codes. Avoid hex codes entirely if a token exists.
-- **Icons:** Use `react-icons` exclusively. Do not add other icon packages. Prefer the three icon sets already dominant in the codebase — `react-icons/fi` (Feather, 82 uses), `react-icons/md` (Material Design, 28 uses), and `react-icons/lu` (Lucide, 26 uses) — before reaching for a less-used set.
-- **Shared components:** Place reusable components in `src/components/`. The `src/components/ui/` subdirectory is reserved for customized Chakra components only — do not put generic app components there.
-- **API calls:** Use the auto-generated clients in `openapi-gen/` (generated from the OpenAPI spec via `pnpm codegen`). Do not write raw `axios` calls against API endpoints by hand.
-- **State:** Server state via TanStack Query (`@tanstack/react-query`); client state via Zustand. Custom query hooks live in `src/queries/`.
-- **Path aliases:** Use the configured aliases (`src/*`, `openapi/*`, `tests/*`) rather than relative `../../` imports.
-- **TypeScript:** Strict mode is enabled (`strict`, `noUnusedLocals`, `noUnusedParameters`, `noUncheckedIndexedAccess`). Do not use `any`; fix type errors rather than suppressing them.
-
 ## Testing Standards
 
 - Add tests for new behavior — cover success, failure, and edge cases.
@@ -122,6 +106,7 @@ UV workspace monorepo. Key paths:
 - Use `@pytest.mark.db_test` for tests that require database access.
 - Test fixtures: `devel-common/src/tests_common/pytest_plugin.py`.
 - Test location mirrors source: `airflow/cli/cli_parser.py` → `tests/cli/test_cli_parser.py`.
+
 
 ## Commits and PRs
 
