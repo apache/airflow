@@ -38,6 +38,7 @@ from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
 from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
+    DatabricksDeleteJobsOperator,
     DatabricksNotebookOperator,
     DatabricksRunNowOperator,
     DatabricksSQLStatementsOperator,
@@ -602,6 +603,42 @@ class TestDatabricksCreateJobsOperator:
 
         db_mock.update_job_permission.assert_not_called()
 
+class TestDatabricksDeleteJobsOperator:
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute(self, mock_hook_class):
+        # Set up the mock hook instance
+        mock_hook = mock_hook_class.return_value
+
+        # Instantiate the DatabricksDeleteJobOperator
+        op = DatabricksDeleteJobsOperator(
+            task_id="delete_job_task",
+            job_id=12345,
+            databricks_conn_id="databricks_default",
+        )
+
+        # Execute the operator
+        op.execute({})
+
+        # Verify that the DatabricksHook was initialized with the correct connection ID and default retry arguments
+        mock_hook_class.assert_called_once_with(
+            "databricks_default",
+            retry_limit=3,
+            retry_delay=1,
+            retry_args=None,
+            caller="DatabricksDeleteJobsOperator",
+        )
+
+        # Verify that the 'delete_job' method of the hook was called directly with the correct job_id
+        mock_hook.delete_job.assert_called_once_with(12345)
+
+    def test_template_fields(self):
+        # Ensure that 'job_id' is registered as a template field for dynamic injection (e.g., via Jinja or XCom)
+        op = DatabricksDeleteJobsOperator(
+            task_id="test_template",
+            job_id="{{ task_instance.xcom_pull(task_ids='create_job') }}",
+        )
+
+        assert "job_id" in op.template_fields
 
 class TestDatabricksSubmitRunOperator:
     def test_init_with_notebook_task_named_parameters(self):

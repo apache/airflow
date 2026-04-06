@@ -271,7 +271,6 @@ class DatabricksJobRunLink(BaseOperatorLink):
     ) -> str:
         return XCom.get_value(key=XCOM_RUN_PAGE_URL_KEY, ti_key=ti_key)
 
-
 class DatabricksCreateJobsOperator(BaseOperator):
     """
     Creates (or resets) a Databricks job using the API endpoint.
@@ -409,6 +408,50 @@ class DatabricksCreateJobsOperator(BaseOperator):
         self._hook.reset_job(str(job_id), self.json)
         return job_id
 
+class DatabricksDeleteJobsOperator(BaseOperator):
+    """
+    Deletes a Databricks job.
+
+    :param job_id: The ID of the Databricks job to delete. (templated)
+    :param databricks_conn_id: Reference to the Databricks connection.
+    """
+
+    template_fields: Sequence[str] = ("job_id",)
+
+    def __init__(
+        self,
+        *,
+        job_id: int,
+        databricks_conn_id: str = "databricks_default",
+        polling_period_seconds: int = 30,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: int = 1,
+        databricks_retry_args: dict[Any, Any] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.job_id = job_id
+        self.databricks_conn_id = databricks_conn_id
+        self.polling_period_seconds = polling_period_seconds
+        self.databricks_retry_limit = databricks_retry_limit
+        self.databricks_retry_delay = databricks_retry_delay
+        self.databricks_retry_args = databricks_retry_args
+
+    @cached_property
+    def _hook(self):
+        return DatabricksHook(
+            self.databricks_conn_id,
+            retry_limit=self.databricks_retry_limit,
+            retry_delay=self.databricks_retry_delay,
+            retry_args=self.databricks_retry_args,
+            caller="DatabricksDeleteJobsOperator",
+        )
+
+
+    def execute(self, context: Context) -> None:
+        self._hook.delete_job(self.job_id)
+
+        self.log.info("Successfully deleted Databricks job ID: %s", self.job_id)
 
 class DatabricksSubmitRunOperator(BaseOperator):
     """
