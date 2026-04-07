@@ -21,7 +21,7 @@ import { debounce } from "lodash";
 import React, { useEffect, useState } from "react";
 
 // For an html element, keep it within view height by calculating the top offset and footer height
-const useOffsetTop = (contentRef: React.RefObject<HTMLElement>) => {
+const useOffsetTop = (contentRef: React.RefObject<HTMLElement | null>) => {
   const [top, setTop] = useState(0);
 
   useEffect(() => {
