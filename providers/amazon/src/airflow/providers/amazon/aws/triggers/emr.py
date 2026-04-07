@@ -269,7 +269,7 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
         If the task is cancelled while waiting, attempt to cancel the EMR container job
         if cancel_on_kill is enabled and it's safe to do so.
         """
-        hook = self.hook()
+        hook: EmrContainerHook = self.hook()  # type: ignore[assignment]
         try:
             async with await hook.get_async_conn() as client:
                 waiter = hook.get_waiter(
