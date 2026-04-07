@@ -1,0 +1,109 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Jaeger Deployment (all-in-one)
+################################
+{{- if .Values.jaeger.enabled }}
+{{- $nodeSelector := or .Values.jaeger.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.jaeger.affinity .Values.affinity }}
+{{- $tolerations := or .Values.jaeger.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.jaeger.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.jaeger.revisionHistoryLimit .Values.revisionHistoryLimit) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "airflow.fullname" . }}-jaeger
+  labels:
+    tier: airflow
+    component: jaeger
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- if or .Values.labels .Values.jaeger.labels }}
+      {{- mustMerge .Values.jaeger.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
+  {{- with .Values.jaeger.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: 1
+  {{- if ne $revisionHistoryLimit "" }}
+  revisionHistoryLimit: {{ $revisionHistoryLimit }}
+  {{- end }}
+  selector:
+    matchLabels:
+      tier: airflow
+      component: jaeger
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        tier: airflow
+        component: jaeger
+        release: {{ .Release.Name }}
+        {{- if or .Values.labels .Values.jaeger.labels }}
+          {{- mustMerge .Values.jaeger.labels .Values.labels | toYaml | nindent 8 }}
+        {{- end }}
+      {{- with .Values.jaeger.podAnnotations }}
+      annotations: {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+    spec:
+      nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
+      affinity: {{- toYaml $affinity | nindent 8 }}
+      tolerations: {{- toYaml $tolerations | nindent 8 }}
+      topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.jaeger.terminationGracePeriodSeconds }}
+      {{- if .Values.jaeger.priorityClassName }}
+      priorityClassName: {{ .Values.jaeger.priorityClassName }}
+      {{- end }}
+      restartPolicy: Always
+      securityContext: {{- toYaml .Values.jaeger.securityContexts.pod | nindent 8 }}
+      containers:
+        - name: jaeger
+          image: {{ template "jaeger_image" . }}
+          imagePullPolicy: {{ .Values.images.jaeger.pullPolicy }}
+          securityContext: {{- toYaml .Values.jaeger.securityContexts.container | nindent 12 }}
+          env:
+            - name: COLLECTOR_OTLP_ENABLED
+              value: "true"
+          ports:
+            - name: ui
+              containerPort: {{ .Values.ports.jaegerUI }}
+              protocol: TCP
+            - name: otlp-grpc
+              containerPort: {{ .Values.ports.jaegerOtlpGrpc }}
+              protocol: TCP
+            - name: otlp-http
+              containerPort: {{ .Values.ports.jaegerOtlpHttp }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.ports.jaegerUI }}
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.ports.jaegerUI }}
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources: {{- toYaml .Values.jaeger.resources | nindent 12 }}
+{{- end }}

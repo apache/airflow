@@ -29,3 +29,15 @@ nodes:
         hostPort: {{FORWARDED_PORT_NUMBER}}
         listenAddress: "127.0.0.1"
         protocol: TCP
+      - containerPort: 30008
+        hostPort: {{JAEGER_PORT_NUMBER}}
+        listenAddress: "127.0.0.1"
+        protocol: TCP
+      - containerPort: 30009
+        hostPort: {{PROMETHEUS_PORT_NUMBER}}
+        listenAddress: "127.0.0.1"
+        protocol: TCP
+      - containerPort: 30010
+        hostPort: {{GRAFANA_PORT_NUMBER}}
+        listenAddress: "127.0.0.1"
+        protocol: TCP

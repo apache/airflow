@@ -889,7 +889,7 @@ def _build_skaffold_config(
         else "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
     )
 
-    _, api_server_port = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
+    _, api_server_port, *_ = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
 
     # --------------------
     # Helm values (NON-image)
@@ -1218,7 +1218,7 @@ def _deploy_helm_chart(
     from packaging.version import Version
 
     cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
-    _, api_server_port = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
+    _, api_server_port, *_ = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
     action = "Deploying" if not upgrade else "Upgrading"
     get_console(output=output).print(f"[info]{action} {cluster_name} with airflow Helm Chart.")
     with tempfile.TemporaryDirectory(prefix="chart_") as tmp_dir:

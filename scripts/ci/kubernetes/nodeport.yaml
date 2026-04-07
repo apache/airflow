@@ -29,3 +29,48 @@ spec:
     - port: 8080
       targetPort: 8080
       nodePort: 30007
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-jaeger-node-port
+spec:
+  type: NodePort
+  selector:
+    component: jaeger
+    release: airflow
+    tier: airflow
+  ports:
+    - port: 16686
+      targetPort: 16686
+      nodePort: 30008
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-prometheus-node-port
+spec:
+  type: NodePort
+  selector:
+    component: prometheus
+    release: airflow
+    tier: airflow
+  ports:
+    - port: 9090
+      targetPort: 9090
+      nodePort: 30009
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-grafana-node-port
+spec:
+  type: NodePort
+  selector:
+    component: grafana
+    release: airflow
+    tier: airflow
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 30010

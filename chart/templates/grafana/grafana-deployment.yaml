@@ -1,0 +1,129 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Grafana Deployment
+################################
+{{- if .Values.grafana.enabled }}
+{{- $nodeSelector := or .Values.grafana.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.grafana.affinity .Values.affinity }}
+{{- $tolerations := or .Values.grafana.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.grafana.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.grafana.revisionHistoryLimit .Values.revisionHistoryLimit) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "airflow.fullname" . }}-grafana
+  labels:
+    tier: airflow
+    component: grafana
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- if or .Values.labels .Values.grafana.labels }}
+      {{- mustMerge .Values.grafana.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
+  {{- with .Values.grafana.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: 1
+  {{- if ne $revisionHistoryLimit "" }}
+  revisionHistoryLimit: {{ $revisionHistoryLimit }}
+  {{- end }}
+  selector:
+    matchLabels:
+      tier: airflow
+      component: grafana
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        tier: airflow
+        component: grafana
+        release: {{ .Release.Name }}
+        {{- if or .Values.labels .Values.grafana.labels }}
+          {{- mustMerge .Values.grafana.labels .Values.labels | toYaml | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/grafana-config: {{ include (print $.Template.BasePath "/configmaps/grafana-configmap.yaml") . | sha256sum }}
+        {{- with .Values.grafana.podAnnotations }}
+          {{- tpl (toYaml .) $ | nindent 8 }}
+        {{- end }}
+    spec:
+      nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
+      affinity: {{- toYaml $affinity | nindent 8 }}
+      tolerations: {{- toYaml $tolerations | nindent 8 }}
+      topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.grafana.terminationGracePeriodSeconds }}
+      {{- if .Values.grafana.priorityClassName }}
+      priorityClassName: {{ .Values.grafana.priorityClassName }}
+      {{- end }}
+      restartPolicy: Always
+      securityContext: {{- toYaml .Values.grafana.securityContexts.pod | nindent 8 }}
+      containers:
+        - name: grafana
+          image: {{ template "grafana_image" . }}
+          imagePullPolicy: {{ .Values.images.grafana.pullPolicy }}
+          securityContext: {{- toYaml .Values.grafana.securityContexts.container | nindent 12 }}
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: {{ .Values.grafana.adminUser | quote }}
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: {{ .Values.grafana.adminPassword | quote }}
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: {{ .Values.grafana.anonymousEnabled | quote }}
+            - name: GF_AUTH_ANONYMOUS_ORG_NAME
+              value: "Main Org."
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: "Viewer"
+            - name: GF_PATHS_PROVISIONING
+              value: /etc/grafana/provisioning
+          ports:
+            - name: grafana
+              containerPort: {{ .Values.ports.grafanaUI }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: {{ .Values.ports.grafanaUI }}
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: {{ .Values.ports.grafanaUI }}
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources: {{- toYaml .Values.grafana.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/grafana/provisioning/datasources/datasources.yaml
+              subPath: datasources.yaml
+            - name: config
+              mountPath: /etc/grafana/provisioning/dashboards/dashboards.yaml
+              subPath: dashboards.yaml
+            - name: config
+              mountPath: /var/lib/grafana/dashboards/airflow_metrics.json
+              subPath: airflow_metrics.json
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "airflow.fullname" . }}-grafana
+{{- end }}

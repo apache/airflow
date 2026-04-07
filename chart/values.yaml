@@ -122,6 +122,22 @@ images:
     repository: registry.k8s.io/git-sync/git-sync
     tag: v4.4.2
     pullPolicy: IfNotPresent
+  otelCollector:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.70.0"
+    pullPolicy: IfNotPresent
+  prometheus:
+    repository: prom/prometheus
+    tag: v3.1.0
+    pullPolicy: IfNotPresent
+  grafana:
+    repository: grafana/grafana
+    tag: "8.2.4"
+    pullPolicy: IfNotPresent
+  jaeger:
+    repository: jaegertracing/all-in-one
+    tag: "1.57"
+    pullPolicy: IfNotPresent
 
 # Select certain nodes for Airflow pods.
 nodeSelector: {}
@@ -3179,6 +3195,168 @@ statsd:
   # Environment variables to add to StatsD container
   env: []
 
+# OpenTelemetry Collector settings
+otelCollector:
+  enabled: false
+
+  # Send Airflow traces to the OTel Collector (sets [traces] otel_on).
+  tracesEnabled: false
+
+  # Send Airflow metrics to the OTel Collector (sets [metrics] otel_on and disables statsd).
+  # Requires enabled: true.
+  metricsEnabled: false
+
+  # Max number of old ReplicaSets to retain
+  revisionHistoryLimit: ~
+
+  # Annotations to add to the OTel Collector Deployment
+  annotations: {}
+
+  # Grace period for OTel Collector to finish after SIGTERM
+  terminationGracePeriodSeconds: 30
+
+  resources: {}
+  #   limits:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
+
+  service:
+    extraAnnotations: {}
+
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+  priorityClassName: ~
+  labels: {}
+  podAnnotations: {}
+
+  securityContexts:
+    pod: {}
+    container: {}
+
+# Prometheus settings
+prometheus:
+  enabled: false
+
+  # Max number of old ReplicaSets to retain
+  revisionHistoryLimit: ~
+
+  # Annotations to add to the Prometheus Deployment
+  annotations: {}
+
+  # Grace period for Prometheus to finish after SIGTERM
+  terminationGracePeriodSeconds: 30
+
+  resources: {}
+  #   limits:
+  #     cpu: 500m
+  #     memory: 512Mi
+  #   requests:
+  #     cpu: 500m
+  #     memory: 512Mi
+
+  service:
+    extraAnnotations: {}
+
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+  priorityClassName: ~
+  labels: {}
+  podAnnotations: {}
+
+  securityContexts:
+    pod: {}
+    container: {}
+
+  # Additional scrape configs appended to the default prometheus.yml.
+  # Each entry is a full Prometheus scrape_config object.
+  extraScrapeConfigs: []
+
+# Grafana settings
+grafana:
+  enabled: false
+
+  # Max number of old ReplicaSets to retain
+  revisionHistoryLimit: ~
+
+  # Annotations to add to the Grafana Deployment
+  annotations: {}
+
+  # Grace period for Grafana to finish after SIGTERM
+  terminationGracePeriodSeconds: 30
+
+  # Admin credentials
+  adminUser: admin
+  adminPassword: admin
+
+  # Allow anonymous read-only access (useful for dev environments)
+  anonymousEnabled: true
+
+  resources: {}
+  #   limits:
+  #     cpu: 200m
+  #     memory: 256Mi
+  #   requests:
+  #     cpu: 200m
+  #     memory: 256Mi
+
+  service:
+    extraAnnotations: {}
+
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+  priorityClassName: ~
+  labels: {}
+  podAnnotations: {}
+
+  securityContexts:
+    pod: {}
+    container: {}
+
+# Jaeger settings
+jaeger:
+  enabled: false
+
+  # Max number of old ReplicaSets to retain
+  revisionHistoryLimit: ~
+
+  # Annotations to add to the Jaeger Deployment
+  annotations: {}
+
+  # Grace period for Jaeger to finish after SIGTERM
+  terminationGracePeriodSeconds: 30
+
+  resources: {}
+  #   limits:
+  #     cpu: 200m
+  #     memory: 256Mi
+  #   requests:
+  #     cpu: 200m
+  #     memory: 256Mi
+
+  service:
+    extraAnnotations: {}
+
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+  priorityClassName: ~
+  labels: {}
+  podAnnotations: {}
+
+  securityContexts:
+    pod: {}
+    container: {}
+
 # PgBouncer settings
 pgbouncer:
   # Enable PgBouncer
@@ -3574,6 +3752,14 @@ ports:
   redisDB: 6379
   statsdIngest: 9125
   statsdScrape: 9102
+  otelCollectorOtlpHttp: 4318
+  otelCollectorOtlpGrpc: 4317
+  otelCollectorScrape: 8889
+  prometheusServer: 9090
+  grafanaUI: 3000
+  jaegerUI: 16686
+  jaegerOtlpGrpc: 4317
+  jaegerOtlpHttp: 4318
   pgbouncer: 6543
   pgbouncerScrape: 9127
   apiServer: 8080
@@ -3793,10 +3979,15 @@ config:
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     colored_console_log: 'False'
   metrics:
-    statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
+    statsd_on: '{{ ternary "True" "False" (and .Values.statsd.enabled (not .Values.otelCollector.metricsEnabled)) }}'
     statsd_port: 9125
     statsd_prefix: airflow
     statsd_host: '{{ printf "%s-statsd" (include "airflow.fullname" .) }}'
+    otel_on: '{{ ternary "True" "False" .Values.otelCollector.metricsEnabled }}'
+    otel_host: '{{ if .Values.otelCollector.metricsEnabled }}{{ printf "%s-otel-collector" (include "airflow.fullname" .) }}{{ end }}'
+    otel_port: '4318'
+  traces:
+    otel_on: '{{ ternary "True" "False" .Values.otelCollector.tracesEnabled }}'
   fab:
     enable_proxy_fix: 'True'
   celery:

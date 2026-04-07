@@ -141,6 +141,24 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "opensearch_secret" . }}
         key: connection
   {{- end }}
+  {{- if or .Values.otelCollector.tracesEnabled .Values.otelCollector.metricsEnabled }}
+  - name: OTEL_SERVICE_NAME
+    value: "airflow"
+  - name: OTEL_EXPORTER_OTLP_PROTOCOL
+    value: "http/protobuf"
+  {{- end }}
+  {{- if .Values.otelCollector.tracesEnabled }}
+  - name: OTEL_TRACES_EXPORTER
+    value: "otlp_proto_http"
+  - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+    value: "http://{{ include "airflow.fullname" . }}-otel-collector:{{ .Values.ports.otelCollectorOtlpHttp }}/v1/traces"
+  {{- end }}
+  {{- if .Values.otelCollector.metricsEnabled }}
+  - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+    value: "http://{{ include "airflow.fullname" . }}-otel-collector:{{ .Values.ports.otelCollectorOtlpHttp }}/v1/metrics"
+  - name: OTEL_METRIC_EXPORT_INTERVAL
+    value: "30000"
+  {{- end }}
 {{- end }}
 
 {{/* User defined Airflow environment variables */}}
@@ -402,6 +420,22 @@ If release name contains chart name it will be used as a full name.
 
 {{- define "git_sync_image" -}}
   {{- printf "%s:%s" .Values.images.gitSync.repository .Values.images.gitSync.tag }}
+{{- end }}
+
+{{- define "otel_collector_image" -}}
+  {{- printf "%s:%s" .Values.images.otelCollector.repository .Values.images.otelCollector.tag }}
+{{- end }}
+
+{{- define "prometheus_image" -}}
+  {{- printf "%s:%s" .Values.images.prometheus.repository .Values.images.prometheus.tag }}
+{{- end }}
+
+{{- define "grafana_image" -}}
+  {{- printf "%s:%s" .Values.images.grafana.repository .Values.images.grafana.tag }}
+{{- end }}
+
+{{- define "jaeger_image" -}}
+  {{- printf "%s:%s" .Values.images.jaeger.repository .Values.images.jaeger.tag }}
 {{- end }}
 
 {{- define "fernet_key_secret" -}}

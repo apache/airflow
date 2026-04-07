@@ -111,7 +111,7 @@ def load_file(file_path: str):
             return json.load(input_file)
     elif file_path.lower().endswith((".yaml", ".yml")):
         with open(file_path) as input_file:
-            return yaml.safe_load(input_file)
+            return list(yaml.safe_load_all(input_file))
     raise _ValidatorError("Unknown file format. Supported extension: '.yaml', '.json'")
 
 
@@ -134,10 +134,12 @@ def _process_files(validator, file_paths: list[str]):
     exit_code = 0
     for input_path in file_paths:
         print("Processing file: ", input_path)
-        instance = load_file(input_path)
-        for error in validator.iter_errors(instance):
-            print(error)
-            exit_code = 1
+        documents = load_file(input_path)
+        docs = documents if isinstance(documents, list) else [documents]
+        for doc in docs:
+            for error in validator.iter_errors(doc):
+                print(error)
+                exit_code = 1
     return exit_code
 
 

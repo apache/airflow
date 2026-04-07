@@ -333,8 +333,16 @@ def get_k8s_env(python: str, kubernetes_version: str, executor: str | None = Non
     new_env["KINDCONFIG"] = str(
         get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)
     )
-    _, api_server_port = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
-    new_env["CLUSTER_FORWARDED_PORT"] = str(api_server_port)
+    _, api_server_port, jaeger_port, prometheus_port, grafana_port = get_kubernetes_port_numbers(
+        python=python, kubernetes_version=kubernetes_version
+    )
+    new_env["AIRFLOW_API_SERVER_PORT"] = str(api_server_port)
+    if jaeger_port:
+        new_env["JAEGER_PORT"] = str(jaeger_port)
+    if prometheus_port:
+        new_env["PROMETHEUS_PORT"] = str(prometheus_port)
+    if grafana_port:
+        new_env["GRAFANA_PORT"] = str(grafana_port)
     kubectl_cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
     if executor:
         new_env["PS1"] = f"({kubectl_cluster_name}:{executor})> "
@@ -386,8 +394,12 @@ def set_random_cluster_ports(python: str, kubernetes_version: str, output: Outpu
     """
     forwarded_port_number = _get_free_port()
     k8s_api_server_port = _get_free_port()
+    jaeger_port_number = _get_free_port()
+    prometheus_port_number = _get_free_port()
+    grafana_port_number = _get_free_port()
     get_console(output=output).print(
-        f"[info]Random ports: K8S API: {k8s_api_server_port}, API Server: {forwarded_port_number}"
+        f"[info]Random ports: K8S API: {k8s_api_server_port}, API Server: {forwarded_port_number}, "
+        f"Jaeger: {jaeger_port_number}, Prometheus: {prometheus_port_number}, Grafana: {grafana_port_number}"
     )
     cluster_conf_path = get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)
     config = (
@@ -395,6 +407,9 @@ def set_random_cluster_ports(python: str, kubernetes_version: str, output: Outpu
         .read_text()
         .replace("{{FORWARDED_PORT_NUMBER}}", str(forwarded_port_number))
         .replace("{{API_SERVER_PORT}}", str(k8s_api_server_port))
+        .replace("{{JAEGER_PORT_NUMBER}}", str(jaeger_port_number))
+        .replace("{{PROMETHEUS_PORT_NUMBER}}", str(prometheus_port_number))
+        .replace("{{GRAFANA_PORT_NUMBER}}", str(grafana_port_number))
     )
     cluster_conf_path.write_text(config)
     get_console(output=output).print(f"[info]Config created in {cluster_conf_path}:\n")
@@ -402,13 +417,19 @@ def set_random_cluster_ports(python: str, kubernetes_version: str, output: Outpu
     get_console(output=output).print("\n")
 
 
-def get_kubernetes_port_numbers(python: str, kubernetes_version: str) -> tuple[int, int]:
+def get_kubernetes_port_numbers(python: str, kubernetes_version: str) -> tuple[int, int, int, int, int]:
+    """Returns (k8s_api_server_port, api_server_port, jaeger_port, prometheus_port, grafana_port)."""
     conf = _get_kind_cluster_config_content(python=python, kubernetes_version=kubernetes_version)
     if not conf:
-        return 0, 0
+        return 0, 0, 0, 0, 0
     k8s_api_server_port = conf["networking"]["apiServerPort"]
-    api_server_port = conf["nodes"][1]["extraPortMappings"][0]["hostPort"]
-    return k8s_api_server_port, api_server_port
+    mappings = conf["nodes"][1]["extraPortMappings"]
+    # Order matches kind-cluster-conf.yaml: api-server(0), jaeger(1), prometheus(2), grafana(3)
+    api_server_port = mappings[0]["hostPort"]
+    jaeger_port = mappings[1]["hostPort"] if len(mappings) > 1 else 0
+    prometheus_port = mappings[2]["hostPort"] if len(mappings) > 2 else 0
+    grafana_port = mappings[3]["hostPort"] if len(mappings) > 3 else 0
+    return k8s_api_server_port, api_server_port, jaeger_port, prometheus_port, grafana_port
 
 
 def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: int = 0) -> bool:
@@ -450,8 +471,8 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
 def print_cluster_urls(
     python: str, kubernetes_version: str, output: Output | None, wait_time_in_seconds: int = 0
 ):
-    k8s_api_server_port, api_server_port = get_kubernetes_port_numbers(
-        python=python, kubernetes_version=kubernetes_version
+    k8s_api_server_port, api_server_port, jaeger_port, prometheus_port, grafana_port = (
+        get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
     )
     get_console(output=output).print(
         f"\n[info]Kubeconfig file in: {get_kubeconfig_file(python, kubernetes_version)}\n"
@@ -469,6 +490,12 @@ def print_cluster_urls(
             f"Run `breeze k8s deploy-airflow --python {python} --kubernetes-version {kubernetes_version}` "
             "to (re)deploy airflow\n"
         )
+    if jaeger_port:
+        get_console(output=output).print(f"[info]Jaeger UI URL:      [/]http://localhost:{jaeger_port}")
+    if prometheus_port:
+        get_console(output=output).print(f"[info]Prometheus UI URL:  [/]http://localhost:{prometheus_port}")
+    if grafana_port:
+        get_console(output=output).print(f"[info]Grafana UI URL:     [/]http://localhost:{grafana_port}")
 
 
 class KubernetesPythonVersion(NamedTuple):

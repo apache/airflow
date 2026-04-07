@@ -37,8 +37,8 @@ from urllib3.util.retry import Retry
 
 from tests_common.test_utils.api_client_helpers import generate_access_token
 
-CLUSTER_FORWARDED_PORT = os.environ.get("CLUSTER_FORWARDED_PORT") or "8080"
-KUBERNETES_HOST_PORT = (os.environ.get("CLUSTER_HOST") or "localhost") + ":" + CLUSTER_FORWARDED_PORT
+API_SERVER_FORWARDED_PORT = os.environ.get("AIRFLOW_API_SERVER_PORT") or "8080"
+KUBERNETES_HOST_PORT = (os.environ.get("CLUSTER_HOST") or "localhost") + ":" + API_SERVER_FORWARDED_PORT
 EXECUTOR = os.environ.get("EXECUTOR")
 CONFIG_MAP_NAME = "airflow-config"
 CONFIG_MAP_KEY = "airflow.cfg"
