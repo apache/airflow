@@ -67,14 +67,37 @@ UV workspace monorepo. Key paths:
 ## Architecture Boundaries
 
 1. Users author Dags with the Task SDK (`airflow.sdk`).
-2. Dag Processor parses Dag files in isolated processes and stores serialized Dags in the metadata DB.
+2. Dag File Processor parses Dag files in separate processes and stores serialized Dags in the metadata DB. Software guards prevent individual parsing processes from accessing the database directly and enforce use of the Execution API, but these guards do not protect against intentional bypassing by malicious or misconfigured code.
 3. Scheduler reads serialized Dags — **never runs user code** — and creates Dag runs / task instances.
-4. Workers execute tasks via Task SDK and communicate with the API server through the Execution API — **never access the metadata DB directly**.
+4. Workers execute tasks via Task SDK and communicate with the API server through the Execution API — **never access the metadata DB directly**. Each task receives a short-lived JWT token scoped to its task instance ID.
 5. API Server serves the React UI and handles all client-database interactions.
-6. Triggerer evaluates deferred tasks/sensors in isolated processes.
+6. Triggerer evaluates deferred tasks/sensors in separate processes. Like the Dag File Processor, software guards steer it through the Execution API rather than direct database access, but these guards do not protect against intentional bypassing by malicious or misconfigured code.
 7. Shared libraries that are symbolically linked to different Python distributions are in `shared` folder.
 8. Airflow uses `uv workspace` feature to keep all the distributions sharing dependencies and venv
 9. Each of the distributions should declare other needed distributions: `uv --project <FOLDER> sync` command acts on the selected project in the monorepo with only dependencies that it has
+
+## Security Model
+
+When reviewing code, writing security documentation, or performing security research, keep in
+mind the following aspects of Airflow's security model. The authoritative reference is
+[`airflow-core/docs/security/security_model.rst`](airflow-core/docs/security/security_model.rst)
+and [`airflow-core/docs/security/jwt_token_authentication.rst`](airflow-core/docs/security/jwt_token_authentication.rst).
+
+Particularly, the intentional design choices, that are not security vulnerabilities and should not be
+reported as such are described in "What is NOT considered a security vulnerability" chapter of the security model.
+
+**When flagging security concerns, distinguish between:**
+
+1. **Actual vulnerabilities** — code that violates the documented security model (e.g., a worker
+   gaining database access it shouldn't have, a Scheduler executing user code, an unauthenticated
+   user accessing protected endpoints).
+2. **Known limitations** — documented gaps where the current implementation doesn't provide full
+   isolation (e.g., DFP/Triggerer database access, shared Execution API resources, multi-team
+   not enforcing task-level isolation). These are tracked for improvement in future versions and
+   should not be reported as new findings.
+3. **Deployment hardening opportunities** — measures a Deployment Manager can take to improve
+   isolation beyond what Airflow enforces natively (e.g., per-component configuration, asymmetric
+   JWT keys, network policies). These belong in deployment guidance, not as code-level issues.
 
 # Shared libraries
 

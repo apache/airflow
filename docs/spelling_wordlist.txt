@@ -510,6 +510,7 @@ dttm
 dtypes
 du
 duckdb
+dumpable
 dunder
 dup
 durations
@@ -1384,6 +1385,7 @@ salesforce
 samesite
 saml
 sandboxed
+sandboxing
 sanitization
 sas
 Sasl
@@ -1728,6 +1730,7 @@ unpause
 unpaused
 unpausing
 unpredicted
+unsanitized
 untestable
 untransformed
 untrusted
@@ -1832,6 +1835,7 @@ Xiaodong
 xlarge
 xml
 xpath
+XSS
 xyz
 yaml
 Yandex

@@ -54,7 +54,7 @@ In Airflow 3, direct metadata database access from task code is now restricted. 
 
 - **No Direct Database Access**: Task code can no longer directly import and use Airflow database sessions or models.
 - **API-Based Resource Access**: All runtime interactions (state transitions, heartbeats, XComs, and resource fetching) are handled through a dedicated Task Execution API.
-- **Enhanced Security**: This ensures isolation and security by preventing malicious task code from accessing or modifying the Airflow metadata database.
+- **Enhanced Security**: This improves isolation and security by preventing worker task code from directly accessing or modifying the Airflow metadata database. Note that Dag author code potentially still executes with direct database access in the Dag File Processor and Triggerer — see :doc:`/security/security_model` for details.
 - **Stable Interface**: The Task SDK provides a stable, forward-compatible interface for accessing Airflow resources without direct database dependencies.
 
 Step 1: Take care of prerequisites
