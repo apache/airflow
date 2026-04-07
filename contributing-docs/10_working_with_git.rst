@@ -181,7 +181,10 @@ we will be adding the remote as "apache" so you can refer to it easily
    push your changes to your repository. That should trigger the build in our CI if you have a
    Pull Request (PR) opened already
 
-8. While rebasing you might have conflicts. Read carefully what git tells you when it prints information
+8. When you have conflicts with ``uv.lock`` when rebasing, simply delete the ``uv.lock`` file and run
+   ``uv lock`` to regenerate it. This is the recommended way to solve conflicts in ``uv.lock`` file.
+
+9. While rebasing you might have conflicts. Read carefully what git tells you when it prints information
    about the conflicts. You need to solve the conflicts manually. This is sometimes the most difficult
    part and requires deliberately correcting your code and looking at what has changed since you developed your
    changes
@@ -195,7 +198,7 @@ we will be adding the remote as "apache" so you can refer to it easily
    you have a very intuitive and helpful merge tool. For more information, see
    `Resolve conflicts <https://www.jetbrains.com/help/idea/resolving-conflicts.html>`_.
 
-9. After you've solved your conflict run
+10. After you've solved your conflict run
 
    ``git rebase --continue``
 
