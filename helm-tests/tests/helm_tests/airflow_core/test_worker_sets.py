@@ -2866,16 +2866,27 @@ class TestWorkerSets:
         assert labels["test"] == "echo"
         assert labels.get("echo") is None
 
-    def test_overwrite_wait_for_migration_disable(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "set1", "waitForMigrations": {"enabled": False}}],
-                    },
-                },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "waitForMigrations": {"enabled": False}}],
+                }
             },
+            {
+                "celery": {
+                    "waitForMigrations": {"enabled": True},
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "waitForMigrations": {"enabled": False}}],
+                }
+            },
+        ],
+    )
+    def test_overwrite_wait_for_migration_disable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         assert (
@@ -2885,17 +2896,28 @@ class TestWorkerSets:
             is None
         )
 
-    def test_overwrite_wait_for_migration_enable(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "waitForMigrations": {"enabled": False},
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "set1", "waitForMigrations": {"enabled": True}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "waitForMigrations": {"enabled": False},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "waitForMigrations": {"enabled": True}}],
                 },
             },
+            {
+                "celery": {
+                    "waitForMigrations": {"enabled": False},
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "waitForMigrations": {"enabled": True}}],
+                }
+            },
+        ],
+    )
+    def test_overwrite_wait_for_migration_enable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         assert (
@@ -2915,6 +2937,18 @@ class TestWorkerSets:
             {
                 "waitForMigrations": {"env": [{"name": "TEST", "value": "test"}]},
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "waitForMigrations": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]},
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "waitForMigrations": {"env": [{"name": "TEST", "value": "test"}]},
                     "enableDefault": False,
                     "sets": [
                         {
@@ -2951,6 +2985,20 @@ class TestWorkerSets:
             {
                 "waitForMigrations": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "waitForMigrations": {"securityContexts": {"container": {"runAsUser": 10}}},
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "waitForMigrations": {
+                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}}
+                    },
                     "enableDefault": False,
                     "sets": [
                         {

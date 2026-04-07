@@ -2520,17 +2520,17 @@
                     }
                 },
                 "waitForMigrations": {
-                    "description": "Configuration of wait-for-airflow-migration init container for Airflow Celery workers.",
+                    "description": "Configuration of wait-for-airflow-migration init container for Airflow Celery workers (deprecated, use ``workers.celery.waitForMigrations`` instead).",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "description": "Enable wait-for-airflow-migrations init container (deprecated, use ``workers.celery.waitForMigrations.enabled`` instead).",
                             "type": "boolean",
                             "default": true
                         },
                         "env": {
-                            "description": "Add additional env vars to wait-for-airflow-migrations init container.",
+                            "description": "Add additional env vars to wait-for-airflow-migrations init container (deprecated, use ``workers.celery.waitForMigrations.env`` instead).",
                             "type": "array",
                             "default": [],
                             "items": {
@@ -2551,12 +2551,12 @@
                             }
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the wait-for-airflow-migrations container. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the wait-for-airflow-migrations container (deprecated, use ``workers.celery.waitForMigrations.securityContexts`` instead). If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
                                 "container": {
-                                    "description": "Container security context definition for the wait-for-airflow-migrations container.",
+                                    "description": "Container security context definition for the wait-for-airflow-migrations container (deprecated, use ``workers.celery.waitForMigrations.securityContexts.container`` instead).",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                                     "default": {},
@@ -3347,6 +3347,66 @@
                                     ]
                                 }
                             ]
+                        },
+                        "waitForMigrations": {
+                            "description": "Configuration of wait-for-airflow-migration init container for Airflow Celery workers.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Whether to create init container to wait for db migrations.",
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "env": {
+                                    "description": "Add additional env vars to wait-for-airflow-migrations init container.",
+                                    "type": "array",
+                                    "default": [],
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "name",
+                                            "value"
+                                        ],
+                                        "additionalProperties": false
+                                    }
+                                },
+                                "securityContexts": {
+                                    "description": "Security context definition for the wait-for-airflow-migrations container. If not set, the values from ``workers.waitForMigrations.securityContexts`` will be used.",
+                                    "type": "object",
+                                    "x-docsSection": "Kubernetes",
+                                    "properties": {
+                                        "container": {
+                                            "description": "Container security context definition for the wait-for-airflow-migrations container.",
+                                            "type": "object",
+                                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                            "default": {},
+                                            "x-docsSection": "Kubernetes",
+                                            "examples": [
+                                                {
+                                                    "allowPrivilegeEscalation": false,
+                                                    "capabilities": {
+                                                        "drop": [
+                                                            "ALL"
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
                         },
                         "volumeClaimTemplates": {
                             "description": "Specify additional volume claim template for Airflow Celery workers.",
