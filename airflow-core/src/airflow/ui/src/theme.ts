@@ -406,16 +406,20 @@ const defaultAirflowTheme = {
 export const createTheme = (userTheme?: Theme) => {
   const defaultAirflowConfig = defineConfig({ theme: defaultAirflowTheme });
 
-  const userConfig = defineConfig(
-    userTheme
-      ? {
-          theme: { tokens: userTheme.tokens },
+  const userConfig = userTheme
+    ? defineConfig({
+        ...(userTheme.tokens !== undefined && {
+          theme: { tokens: userTheme.tokens as Record<string, unknown> },
+        }),
+        ...(userTheme.globalCss !== undefined && {
           globalCss: userTheme.globalCss as Record<string, SystemStyleObject>,
-        }
-      : {},
-  );
+        }),
+      })
+    : undefined;
 
-  const mergedConfig = mergeConfigs(defaultConfig, defaultAirflowConfig, userConfig);
+  const mergedConfig = userConfig
+    ? mergeConfigs(defaultConfig, defaultAirflowConfig, userConfig)
+    : mergeConfigs(defaultConfig, defaultAirflowConfig);
 
   return createSystem(mergedConfig);
 };

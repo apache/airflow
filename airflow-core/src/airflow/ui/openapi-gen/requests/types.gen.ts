@@ -2199,9 +2199,9 @@ export type TeamResponse = {
  * JSON to modify Chakra's theme.
  */
 export type Theme = {
-    tokens: {
-        [key: string]: ThemeColors;
-    };
+    tokens?: {
+    [key: string]: ThemeColors;
+} | null;
     globalCss?: {
     [key: string]: {
         [key: string]: unknown;
@@ -2211,8 +2211,26 @@ export type Theme = {
     icon_dark_mode?: string | null;
 };
 
+/**
+ * Color tokens for the UI theme. All fields are optional; at least one must be provided.
+ */
 export type ThemeColors = {
-    [key: string]: unknown;
+    brand?: {
+    [key: string]: {
+        [key: string]: OklchColor;
+    };
+} | null;
+    gray?: {
+    [key: string]: {
+        [key: string]: OklchColor;
+    };
+} | null;
+    black?: {
+    [key: string]: OklchColor;
+} | null;
+    white?: {
+    [key: string]: OklchColor;
+} | null;
 };
 
 /**

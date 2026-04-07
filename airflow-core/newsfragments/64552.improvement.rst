@@ -1,0 +1,1 @@
+Allow UI theme config with only CSS overrides, icon only, or empty ``{}`` to restore OSS defaults. The ``tokens`` field is now optional in the theme configuration.
