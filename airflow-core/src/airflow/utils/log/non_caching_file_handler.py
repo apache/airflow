@@ -25,7 +25,7 @@ from typing import IO
 def make_file_io_non_caching(io: IO[str]) -> IO[str]:
     try:
         fd = io.fileno()
-        os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
+        os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)  # type: ignore[attr-defined]
     except Exception:
         # in case either file descriptor cannot be retrieved or fadvise is not available
         # we should simply return the wrapper retrieved by FileHandler's open method

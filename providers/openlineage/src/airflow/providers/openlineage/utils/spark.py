@@ -195,3 +195,163 @@ def inject_transport_information_into_spark_properties(properties: dict, context
         return properties
 
     return {**properties, **_get_transport_information_as_spark_properties()}
+
+
+def inject_parent_job_information_into_glue_arguments(script_args: dict, context: Context) -> dict:
+    """
+    Inject parent job information into Glue job arguments if not already present.
+
+    Glue jobs pass Spark properties via the ``--conf`` key in the script_args dict.
+    Multiple Spark conf properties are combined into the ``--conf`` key value with
+    ``' --conf '`` as separator between each property assignment.
+
+    Args:
+        script_args: Glue job script arguments dict (maps to boto3 ``Arguments``).
+        context: The context containing task instance information.
+
+    Returns:
+        Modified script_args dict with OpenLineage parent job information injected, if applicable.
+    """
+    existing_conf = script_args.get("--conf", "")
+
+    if "spark.openlineage.parent" in existing_conf:
+        log.info(
+            "Some OpenLineage properties with parent job information are already present "
+            "in Glue job arguments. Skipping the injection of OpenLineage "
+            "parent job information into Glue job arguments."
+        )
+        return script_args
+
+    parent_props = _get_parent_job_information_as_spark_properties(context)
+    if not parent_props:
+        return script_args
+
+    new_conf_parts = " --conf ".join(f"{k}={v}" for k, v in parent_props.items())
+
+    combined_conf = f"{existing_conf} --conf {new_conf_parts}" if existing_conf else new_conf_parts
+    return {**script_args, "--conf": combined_conf}
+
+
+def inject_transport_information_into_glue_arguments(script_args: dict, context: Context) -> dict:
+    """
+    Inject transport information into Glue job arguments if not already present.
+
+    Glue jobs pass Spark properties via the ``--conf`` key in the script_args dict.
+    Multiple Spark conf properties are combined into the ``--conf`` key value with
+    ``' --conf '`` as separator between each property assignment.
+
+    Args:
+        script_args: Glue job script arguments dict (maps to boto3 ``Arguments``).
+        context: The context containing task instance information.
+
+    Returns:
+        Modified script_args dict with OpenLineage transport information injected, if applicable.
+    """
+    existing_conf = script_args.get("--conf", "")
+
+    if "spark.openlineage.transport" in existing_conf:
+        log.info(
+            "Some OpenLineage properties with transport information are already present "
+            "in Glue job arguments. Skipping the injection of OpenLineage "
+            "transport information into Glue job arguments."
+        )
+        return script_args
+
+    transport_props = _get_transport_information_as_spark_properties()
+    if not transport_props:
+        return script_args
+
+    new_conf_parts = " --conf ".join(f"{k}={v}" for k, v in transport_props.items())
+
+    combined_conf = f"{existing_conf} --conf {new_conf_parts}" if existing_conf else new_conf_parts
+    return {**script_args, "--conf": combined_conf}
+
+
+def _get_or_create_spark_defaults_properties(configuration_overrides: dict) -> dict:
+    """
+    Find or create the ``spark-defaults`` classification entry and return its ``properties`` dict.
+
+    The ``configuration_overrides`` structure for EMR Serverless is::
+
+        {"applicationConfiguration": [{"classification": "spark-defaults", "properties": {...}}, ...]}
+
+    If no ``spark-defaults`` entry exists, one is created.
+    """
+    app_config = configuration_overrides.setdefault("applicationConfiguration", [])
+    for entry in app_config:
+        if entry.get("classification") == "spark-defaults":
+            entry.setdefault("properties", {})
+            return entry["properties"]
+    new_entry: dict = {"classification": "spark-defaults", "properties": {}}
+    app_config.append(new_entry)
+    return new_entry["properties"]
+
+
+def inject_parent_job_information_into_emr_serverless_properties(
+    configuration_overrides: dict | None, context: Context
+) -> dict:
+    """
+    Inject parent job information into EMR Serverless configuration if not already present.
+
+    EMR Serverless passes Spark properties via a nested ``applicationConfiguration``
+    structure with ``classification: spark-defaults``.
+
+    Args:
+        configuration_overrides: EMR Serverless configuration overrides dict (may be None).
+        context: The context containing task instance information.
+
+    Returns:
+        Modified configuration_overrides dict with OpenLineage parent job information injected.
+    """
+    import copy
+
+    result = copy.deepcopy(configuration_overrides) if configuration_overrides else {}
+    properties = _get_or_create_spark_defaults_properties(result)
+
+    if _is_parent_job_information_present_in_spark_properties(properties):
+        log.info(
+            "Some OpenLineage properties with parent job information are already present "
+            "in EMR Serverless Spark properties. Skipping the injection of OpenLineage "
+            "parent job information into EMR Serverless configuration."
+        )
+        return result
+
+    parent_props = _get_parent_job_information_as_spark_properties(context)
+    if parent_props:
+        properties.update(parent_props)
+    return result
+
+
+def inject_transport_information_into_emr_serverless_properties(
+    configuration_overrides: dict | None, context: Context
+) -> dict:
+    """
+    Inject transport information into EMR Serverless configuration if not already present.
+
+    EMR Serverless passes Spark properties via a nested ``applicationConfiguration``
+    structure with ``classification: spark-defaults``.
+
+    Args:
+        configuration_overrides: EMR Serverless configuration overrides dict (may be None).
+        context: The context containing task instance information.
+
+    Returns:
+        Modified configuration_overrides dict with OpenLineage transport information injected.
+    """
+    import copy
+
+    result = copy.deepcopy(configuration_overrides) if configuration_overrides else {}
+    properties = _get_or_create_spark_defaults_properties(result)
+
+    if _is_transport_information_present_in_spark_properties(properties):
+        log.info(
+            "Some OpenLineage properties with transport information are already present "
+            "in EMR Serverless Spark properties. Skipping the injection of OpenLineage "
+            "transport information into EMR Serverless configuration."
+        )
+        return result
+
+    transport_props = _get_transport_information_as_spark_properties()
+    if transport_props:
+        properties.update(transport_props)
+    return result

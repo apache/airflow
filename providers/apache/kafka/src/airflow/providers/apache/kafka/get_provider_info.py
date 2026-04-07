@@ -73,6 +73,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apache.kafka.hooks.base.KafkaBaseHook",
+                "hook-name": "Apache Kafka",
                 "connection-type": "kafka",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "login", "password", "port", "host"],

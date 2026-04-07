@@ -80,15 +80,21 @@ class TestAzureContainerInstanceHook:
         self.hook.get_state("resource_group", "aci-test")
         get_state_mock.assert_called_once_with("resource_group", "aci-test")
 
+    @pytest.mark.parametrize(
+        ("content", "expected"),
+        [
+            ("log line 1\nlog line 2\nlog line 3\n", ["log line 1\n", "log line 2\n", "log line 3\n"]),
+            (None, []),
+        ],
+    )
     @patch("azure.mgmt.containerinstance.operations.ContainersOperations.list_logs")
-    def test_get_logs(self, list_logs_mock):
-        expected_messages = ["log line 1\n", "log line 2\n", "log line 3\n"]
-        logs = Logs(content="".join(expected_messages))
+    def test_get_logs(self, list_logs_mock, content, expected):
+        logs = Logs(content=content)
         list_logs_mock.return_value = logs
 
-        logs = self.hook.get_logs("resource_group", "name", "name")
+        result = self.hook.get_logs("resource_group", "name", "name")
 
-        assert logs == expected_messages
+        assert result == expected
 
     @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.begin_delete")
     def test_delete(self, delete_mock):

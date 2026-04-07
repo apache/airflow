@@ -2375,6 +2375,16 @@ paths:
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported."
+      - name: consuming_asset_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by consuming asset name or URI using pattern matching
+          title: Consuming Asset Pattern
+        description: Filter by consuming asset name or URI using pattern matching
       responses:
         '200':
           description: Successful Response
@@ -3291,7 +3301,14 @@ paths:
       tags:
       - DAG
       summary: Patch Dags
-      description: Patch multiple DAGs.
+      description: 'Patch multiple DAGs.
+
+
+        If `dag_id_pattern` is not provided, no DAGs will be matched regardless
+
+        of other filters. To match all DAGs, pass a wildcard value such as `~`
+
+        or `%` for `dag_id_pattern`.'
       operationId: patch_dags
       security:
       - OAuth2PasswordBearer: []
@@ -11165,6 +11182,7 @@ components:
       - backfill
       - scheduled
       - manual
+      - operator_triggered
       - asset_triggered
       - asset_materialization
       title: DagRunType

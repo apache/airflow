@@ -50,6 +50,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.opensearch.hooks.opensearch.OpenSearchHook",
+                "hook-name": "OpenSearch Hook",
                 "connection-type": "opensearch",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema"],

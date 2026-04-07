@@ -221,23 +221,15 @@ repos:
         additional_dependencies: ['pnpm@10.25.0']
         pass_filenames: true
         require_serial: true
-        ## ADD MOST PREK HOOK ABOVE THAT LINE
-        # The below prek hooks are those requiring CI image to be built
       - id: mypy-airflow-core
-        stages: ['pre-push']
         name: Run mypy for airflow-core
         language: python
-        entry: ../scripts/ci/prek/mypy.py
-        files: ^.*\.py$
-        require_serial: true
-      - id: mypy-airflow-core
-        stages: ['manual']
-        name: Run mypy for airflow-core (manual)
-        language: python
-        entry: ../scripts/ci/prek/mypy_folder.py airflow-core
+        entry: ../scripts/ci/prek/mypy_local_folder.py airflow-core
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
+      ## ADD MOST PREK HOOK ABOVE THAT LINE
+      # The below prek hooks are those requiring CI image to be built
       - id: generate-openapi-spec
         name: Generate the FastAPI API spec
         language: python
@@ -313,6 +305,7 @@ repos:
           ^src/airflow/api_fastapi/core_api/services/ui/task_group.py$|
           ^src/airflow/api_fastapi/execution_api/routes/hitl\.py$|
           ^src/airflow/api_fastapi/execution_api/routes/task_instances\.py$|
+          ^src/airflow/api_fastapi/execution_api/versions/v2026_04_06\.py$|
           ^src/airflow/api_fastapi/logging/decorators\.py$|
           ^src/airflow/assets/evaluation\.py$|
           ^src/airflow/assets/manager\.py$|

@@ -24,13 +24,21 @@ log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from airflow.providers.openlineage.utils.spark import (
+        inject_parent_job_information_into_emr_serverless_properties,
+        inject_parent_job_information_into_glue_arguments,
         inject_parent_job_information_into_spark_properties,
+        inject_transport_information_into_emr_serverless_properties,
+        inject_transport_information_into_glue_arguments,
         inject_transport_information_into_spark_properties,
     )
     from airflow.sdk import Context
 try:
     from airflow.providers.openlineage.utils.spark import (
+        inject_parent_job_information_into_emr_serverless_properties,
+        inject_parent_job_information_into_glue_arguments,
         inject_parent_job_information_into_spark_properties,
+        inject_transport_information_into_emr_serverless_properties,
+        inject_transport_information_into_glue_arguments,
         inject_transport_information_into_spark_properties,
     )
 except ImportError:
@@ -49,8 +57,46 @@ except ImportError:
         )
         return properties
 
+    def inject_parent_job_information_into_glue_arguments(script_args: dict, context: Context) -> dict:
+        log.warning(
+            "Could not import `airflow.providers.openlineage.plugins.macros`."
+            "Skipping the injection of OpenLineage parent job information into Glue job arguments."
+        )
+        return script_args
+
+    def inject_transport_information_into_glue_arguments(script_args: dict, context: Context) -> dict:
+        log.warning(
+            "Could not import `airflow.providers.openlineage.plugins.listener`."
+            "Skipping the injection of OpenLineage transport information into Glue job arguments."
+        )
+        return script_args
+
+    def inject_parent_job_information_into_emr_serverless_properties(
+        configuration_overrides: dict | None, context: Context
+    ) -> dict:
+        log.warning(
+            "Could not import `airflow.providers.openlineage.plugins.macros`."
+            "Skipping the injection of OpenLineage parent job information into "
+            "EMR Serverless configuration."
+        )
+        return configuration_overrides or {}
+
+    def inject_transport_information_into_emr_serverless_properties(
+        configuration_overrides: dict | None, context: Context
+    ) -> dict:
+        log.warning(
+            "Could not import `airflow.providers.openlineage.plugins.listener`."
+            "Skipping the injection of OpenLineage transport information into "
+            "EMR Serverless configuration."
+        )
+        return configuration_overrides or {}
+
 
 __all__ = [
+    "inject_parent_job_information_into_emr_serverless_properties",
+    "inject_parent_job_information_into_glue_arguments",
     "inject_parent_job_information_into_spark_properties",
+    "inject_transport_information_into_emr_serverless_properties",
+    "inject_transport_information_into_glue_arguments",
     "inject_transport_information_into_spark_properties",
 ]

@@ -26,7 +26,7 @@ import shutil
 import sys
 import time
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from operator import attrgetter
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -80,6 +80,11 @@ LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 
 TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger", "error_detail", "message", "levelname"]
+
+
+def _deduplicate_fields(fields: Iterable[str]) -> list[str]:
+    """Return non-empty field names in order without duplicates."""
+    return list(dict.fromkeys(field for field in fields if field))
 
 
 def _format_error_detail(error_detail: Any) -> str | None:
@@ -318,6 +323,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def _read_grouped_logs(self):
         return True
 
+    def _get_es_source_includes(self) -> list[str]:
+        extra_fields = self.json_fields if self.json_format and not AIRFLOW_V_3_0_PLUS else []
+        return self.io._get_source_includes(extra_fields=extra_fields)
+
     def _read(
         self, ti: TaskInstance, try_number: int, metadata: LogMetadata | None = None
     ) -> tuple[EsLogMsgType, LogMetadata]:
@@ -339,7 +348,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         offset = metadata["offset"]
         log_id = _render_log_id(self.log_id_template, ti, try_number)
-        response = self.io._es_read(log_id, offset, ti)
+        response = self.io._es_read(log_id, offset, ti, source_includes=self._get_es_source_includes())
         # TODO: Can we skip group logs by host ?
         if response is not None and response.hits:
             logs_by_host = self.io._group_logs_by_host(response)
@@ -629,6 +638,12 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
 
+    def _get_source_includes(self, extra_fields: Iterable[str] = ()) -> list[str]:
+        """Return the Elasticsearch source fields to include when reading task logs."""
+        return _deduplicate_fields(
+            ["@timestamp", *TASK_LOG_FIELDS, self.host_field, self.offset_field, *extra_fields]
+        )
+
     def upload(self, path: os.PathLike | str, ti: RuntimeTI):
         """Write the log to ElasticSearch."""
         path = Path(path)
@@ -693,7 +708,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
         self.log.info("Reading log %s from Elasticsearch", log_id)
         offset = 0
-        response = self._es_read(log_id, offset, ti)
+        response = self._es_read(log_id, offset, ti, source_includes=self._get_source_includes())
         if response is not None and response.hits:
             logs_by_host = self._group_logs_by_host(response)
         else:
@@ -720,7 +735,14 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         return header, message
 
-    def _es_read(self, log_id: str, offset: int | str, ti: RuntimeTI) -> ElasticSearchResponse | None:
+    def _es_read(
+        self,
+        log_id: str,
+        offset: int | str,
+        ti: RuntimeTI,
+        *,
+        source_includes: Iterable[str] | None = None,
+    ) -> ElasticSearchResponse | None:
         """
         Return the logs matching log_id in Elasticsearch and next offset or ''.
 
@@ -730,6 +752,9 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         :meta private:
         """
+        source_includes = _deduplicate_fields(
+            self._get_source_includes() if source_includes is None else source_includes
+        )
         query: dict[Any, Any] = {
             "bool": {
                 "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
@@ -739,25 +764,26 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         index_patterns = self._get_index_patterns(ti)
         try:
-            max_log_line = self.client.count(index=index_patterns, query=query)["count"]
-        except NotFoundError as e:
+            res = self.client.search(
+                index=index_patterns,
+                query=query,
+                sort=[self.offset_field],
+                size=self.MAX_LINE_PER_PAGE,
+                from_=self.MAX_LINE_PER_PAGE * self.PAGE,
+                source_includes=source_includes,
+            )
+        except NotFoundError:
             self.log.exception("The target index pattern %s does not exist", index_patterns)
-            raise e
+            raise
+        except Exception:
+            self.log.exception("Could not read log with log_id: %s", log_id)
+            return None
 
-        if max_log_line != 0:
-            try:
-                res = self.client.search(
-                    index=index_patterns,
-                    query=query,
-                    sort=[self.offset_field],
-                    size=self.MAX_LINE_PER_PAGE,
-                    from_=self.MAX_LINE_PER_PAGE * self.PAGE,
-                )
-                return ElasticSearchResponse(self, res)
-            except Exception as err:
-                self.log.exception("Could not read log with log_id: %s. Exception: %s", log_id, err)
+        # Short-circuit on empty hits to avoid constructing ElasticSearchResponse unnecessarily.
+        if not res.get("hits", {}).get("hits"):
+            return None
 
-        return None
+        return ElasticSearchResponse(self, res)
 
     def _get_index_patterns(self, ti: RuntimeTI | None) -> str:
         """

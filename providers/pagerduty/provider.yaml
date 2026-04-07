@@ -76,6 +76,7 @@ integrations:
 
 connection-types:
   - hook-class-name: airflow.providers.pagerduty.hooks.pagerduty.PagerdutyHook
+    hook-name: "Pagerduty"
     connection-type: pagerduty
     conn-fields:
       routing_key:
@@ -95,6 +96,7 @@ connection-types:
       relabeling:
         password: Pagerduty API token
   - hook-class-name: airflow.providers.pagerduty.hooks.pagerduty_events.PagerdutyEventsHook
+    hook-name: "Pagerduty Events"
     connection-type: pagerduty_events
     ui-field-behaviour:
       hidden-fields:

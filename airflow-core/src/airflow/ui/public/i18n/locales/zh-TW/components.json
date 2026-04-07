@@ -99,7 +99,7 @@
   "limitedList.allTags_other": "所有標籤 ({{count}})",
   "limitedList.clickToInteract": "點擊標籤以篩選 Dags",
   "limitedList.clickToOpenFull": "點擊 \"+{{count}} 更多\" 以開啟完整檢視",
-  "limitedList.copyPasteText": "你可以複製並貼上上方文字",
+  "limitedList.copyPasteText": "您可以複製並貼上上方文字",
   "limitedList.showingItems_one": "顯示 1 個項目",
   "limitedList.showingItems_other": "顯示 {{count}} 個項目",
   "logs": {
@@ -144,7 +144,7 @@
         "title": "已觸發 Dag 執行"
       }
     },
-    "triggerAgainWithConfig": "使用此配置再次觸發",
+    "triggerAgainWithConfig": "使用此設定再次觸發",
     "unpause": "觸發時取消暫停 {{dagDisplayName}}"
   },
   "trimText": {

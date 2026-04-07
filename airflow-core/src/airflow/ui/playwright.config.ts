@@ -50,7 +50,7 @@ export const AUTH_FILE = path.join(currentDirname, "playwright/.auth/user.json")
 
 export default defineConfig({
   expect: {
-    timeout: 5000,
+    timeout: 10_000,
   },
   forbidOnly: process.env.CI !== undefined && process.env.CI !== "",
   fullyParallel: true,
