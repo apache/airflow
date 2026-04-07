@@ -12,8 +12,137 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-10T12:24:23.8467168Z"
+exclude-newer = "2026-04-02T19:44:45.502210462Z"
 exclude-newer-span = "P4D"
+
+[options.exclude-newer-package]
+apache-airflow-providers-informatica = false
+apache-airflow-providers-amazon = false
+apache-airflow-providers-elasticsearch = false
+apache-airflow-providers-microsoft-winrm = false
+apache-airflow-docker-tests = false
+apache-airflow-providers = false
+apache-airflow-providers-fab = false
+apache-airflow-providers-openlineage = false
+apache-airflow-providers-sftp = false
+apache-airflow-e2e-tests = false
+apache-airflow-shared-logging = false
+apache-airflow-providers-apache-drill = false
+apache-airflow-providers-pgvector = false
+apache-airflow-providers-imap = false
+apache-airflow-providers-qdrant = false
+apache-airflow-providers-edge3 = false
+apache-airflow-providers-neo4j = false
+apache-airflow-providers-discord = false
+apache-airflow-providers-opensearch = false
+apache-airflow-providers-samba = false
+apache-airflow-providers-arangodb = false
+apache-airflow-providers-apache-spark = false
+apache-airflow-providers-ftp = false
+apache-airflow-helm-tests = false
+apache-airflow-providers-jenkins = false
+apache-airflow-shared-listeners = false
+apache-airflow-providers-telegram = false
+apache-airflow-shared-providers-discovery = false
+apache-airflow-providers-celery = false
+apache-airflow-providers-docker = false
+apache-airflow-providers-sendgrid = false
+apache-airflow-providers-common-ai = false
+apache-airflow = false
+apache-airflow-shared-observability = false
+apache-airflow-dev = false
+apache-airflow-providers-dbt-cloud = false
+apache-airflow-providers-openfaas = false
+apache-airflow-devel-common = false
+apache-airflow-providers-apache-cassandra = false
+apache-airflow-providers-asana = false
+apache-airflow-providers-oracle = false
+apache-airflow-providers-mysql = false
+apache-airflow-providers-alibaba = false
+apache-airflow-providers-microsoft-mssql = false
+apache-airflow-providers-teradata = false
+apache-airflow-providers-jdbc = false
+apache-airflow-providers-common-io = false
+apache-airflow-providers-cohere = false
+apache-airflow-providers-pinecone = false
+apache-airflow-providers-segment = false
+apache-airflow-providers-redis = false
+apache-airflow-shared-dagnode = false
+apache-airflow-providers-apache-pinot = false
+apache-airflow-providers-weaviate = false
+apache-airflow-providers-salesforce = false
+apache-airflow-providers-ssh = false
+apache-airflow-providers-papermill = false
+apache-airflow-providers-google = false
+apache-airflow-providers-microsoft-psrp = false
+apache-airflow-providers-vertica = false
+apache-airflow-providers-apache-hdfs = false
+apache-airflow-shared-template-rendering = false
+apache-airflow-providers-http = false
+apache-airflow-providers-slack = false
+apache-airflow-providers-databricks = false
+apache-airflow-providers-sqlite = false
+apache-airflow-shared-module-loading = false
+apache-airflow-providers-yandex = false
+apache-airflow-shared-serialization = false
+apache-airflow-scripts = false
+apache-airflow-providers-exasol = false
+apache-airflow-providers-mongo = false
+apache-airflow-providers-apprise = false
+apache-airflow-providers-apache-impala = false
+apache-airflow-ctl = false
+apache-airflow-providers-zendesk = false
+apache-airflow-providers-github = false
+apache-airflow-providers-snowflake = false
+apache-airflow-providers-presto = false
+apache-airflow-providers-airbyte = false
+apache-airflow-providers-apache-hive = false
+apache-airflow-kubernetes-tests = false
+apache-airflow-providers-grpc = false
+apache-airflow-providers-apache-druid = false
+apache-airflow-providers-cncf-kubernetes = false
+apache-airflow-providers-apache-flink = false
+apache-airflow-providers-apache-pig = false
+apache-airflow-providers-apache-tinkerpop = false
+apache-airflow-shared-timezones = false
+apache-airflow-providers-apache-iceberg = false
+apache-airflow-breeze = false
+apache-airflow-providers-opsgenie = false
+apache-airflow-providers-apache-livy = false
+apache-airflow-core = false
+apache-airflow-providers-hashicorp = false
+apache-airflow-providers-pagerduty = false
+apache-airflow-providers-datadog = false
+apache-airflow-providers-apache-kafka = false
+apache-airflow-providers-influxdb = false
+apache-airflow-providers-keycloak = false
+apache-airflow-providers-trino = false
+apache-airflow-providers-common-messaging = false
+apache-airflow-providers-standard = false
+apache-airflow-providers-singularity = false
+apache-airflow-providers-common-compat = false
+apache-airflow-ctl-tests = false
+apache-airflow-providers-tableau = false
+apache-airflow-providers-common-sql = false
+apache-airflow-shared-configuration = false
+apache-airflow-providers-facebook = false
+apache-airflow-providers-ydb = false
+apache-airflow-providers-microsoft-azure = false
+apache-airflow-shared-plugins-manager = false
+apache-airflow-shared-secrets-backend = false
+apache-airflow-shared-secrets-masker = false
+apache-airflow-providers-git = false
+apache-airflow-task-sdk = false
+apache-airflow-providers-atlassian-jira = false
+apache-airflow-providers-odbc = false
+apache-airflow-providers-postgres = false
+apache-airflow-providers-openai = false
+apache-airflow-task-sdk-integration-tests = false
+apache-airflow-providers-smtp = false
+apache-airflow-providers-dingding = false
+apache-airflow-providers-apache-kylin = false
+apache-airflow-providers-cloudant = false
+apache-aurflow-docker-stack = false
 
 [manifest]
 members = [
@@ -146,7 +275,6 @@ members = [
     "apache-airflow-task-sdk-integration-tests",
     "docker-stack",
 ]
-constraints = [{ name = "lxml", specifier = "==6.0.2" }]
 
 [[package]]
 name = "a2wsgi"
@@ -19676,8 +19804,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography" },
-    { name = "jeepney" },
+    { name = "cryptography", marker = "(python_full_version < '3.14' and sys_platform == 'emscripten') or (python_full_version < '3.14' and sys_platform == 'win32') or (sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "jeepney", marker = "(python_full_version < '3.14' and sys_platform == 'emscripten') or (python_full_version < '3.14' and sys_platform == 'win32') or (sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
