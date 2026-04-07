@@ -91,6 +91,120 @@ from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
+# ---------------------------------------------------------------------------
+# Imports from extracted modules (backward-compatible aliases)
+# ---------------------------------------------------------------------------
+from airflow_breeze.utils.pr_github import (  # noqa: E402
+    BOT_ACCOUNT_LOGINS as _BOT_ACCOUNT_LOGINS,
+    COLLABORATOR_ASSOCIATIONS as _COLLABORATOR_ASSOCIATIONS,
+    DANGEROUS_ANSWER_VALUES as _DANGEROUS_ANSWER_VALUES,
+    TRUSTED_REPOSITORIES as _TRUSTED_REPOSITORIES,
+    add_label as _add_label,
+    close_pr as _close_pr,
+    convert_pr_to_draft as _convert_pr_to_draft,
+    fetch_collaborators_from_api as _fetch_collaborators_from_api,
+    get_collaborators_cache_path as _get_collaborators_cache_path,
+    github_rest as _github_rest,
+    graphql_mutation as _graphql_mutation,
+    graphql_request as _graphql_request,
+    is_bot_account as _is_bot_account,
+    load_collaborators_cache as _load_collaborators_cache,
+    mark_pr_ready_for_review as _mark_pr_ready_for_review,
+    post_comment as _post_comment,
+    post_review_comment as _post_review_comment,
+    refresh_collaborators_cache_in_background as _refresh_collaborators_cache_in_background,
+    remove_label as _remove_label,
+    resolve_github_token as _resolve_github_token,
+    resolve_label_id as _resolve_label_id,
+    resolve_viewer_login as _resolve_viewer_login,
+    save_collaborators_cache as _save_collaborators_cache,
+    submit_pr_review as _submit_pr_review,
+    update_pr_branch as _update_pr_branch,
+    validate_llm_safety as _validate_llm_safety,
+)
+from airflow_breeze.utils.pr_actions import (  # noqa: E402
+    AUTHOR_FLAGGED_CLOSE_THRESHOLD,
+    MAX_CI_FAILURES_FOR_RERUN,
+    MAX_COMMITS_BEHIND_FOR_RERUN,
+    PRStateSnapshot,
+    are_only_static_check_failures as _are_only_static_check_failures,
+    compute_default_action as _compute_default_action,
+    confirm_action as _confirm_action,
+    execute_triage_action as _execute_triage_action,
+    refresh_pr_if_stale as _refresh_pr_if_stale,
+    select_violations as _select_violations,
+    snapshot_pr_state as _snapshot_pr_state,
+)
+from airflow_breeze.utils.pr_authors import (  # noqa: E402
+    AuthorFilter,
+    _author_profile_cache,
+    compute_author_scoring as _compute_author_scoring,
+    fetch_author_profile as _fetch_author_profile,
+)
+from airflow_breeze.utils.pr_checks import (  # noqa: E402
+    CHECK_CONTEXTS_QUERY as _CHECK_CONTEXTS_QUERY,
+    CHECK_DETAIL_BATCH_SIZE as _CHECK_DETAIL_BATCH_SIZE,
+    CHECK_FAILURE_CONCLUSIONS as _CHECK_FAILURE_CONCLUSIONS,
+    LOG_DOWNLOAD_MAX_BYTES as _LOG_DOWNLOAD_MAX_BYTES,
+    LOG_SNIPPET_MAX_LINES as _LOG_SNIPPET_MAX_LINES,
+    LOG_TAIL_BYTES as _LOG_TAIL_BYTES,
+    LOG_TAIL_LINES as _LOG_TAIL_LINES,
+    LogSnippetInfo,
+    RecentPRFailureInfo,
+    STATUS_FAILURE_STATES as _STATUS_FAILURE_STATES,
+    TEST_WORKFLOW_PATTERNS as _TEST_WORKFLOW_PATTERNS,
+    are_failures_recent as _are_failures_recent,
+    extract_basic_check_info as _extract_basic_check_info,
+    extract_error_lines as _extract_error_lines,
+    extract_review_decisions as _extract_review_decisions,
+    extract_static_check_errors as _extract_static_check_errors,
+    fetch_check_details_batch as _fetch_check_details_batch,
+    fetch_check_status_counts as _fetch_check_status_counts,
+    fetch_failed_checks as _fetch_failed_checks,
+    format_check_status_counts as _format_check_status_counts,
+    format_snippet as _format_snippet,
+    has_running_checks as _has_running_checks,
+    is_test_check as _is_test_check,
+    process_check_contexts as _process_check_contexts,
+)
+from airflow_breeze.utils.pr_enrichment import (  # noqa: E402
+    CategorizationResult,
+    DeterministicResult,
+    READY_FOR_REVIEW_LABEL as _READY_FOR_REVIEW_LABEL,
+    TRIAGE_COMMENT_MARKER as _TRIAGE_COMMENT_MARKER,
+    apply_wildcard_label_filters as _apply_wildcard_label_filters,
+    assess_pr_deterministic as _assess_pr_deterministic,
+    categorize_all_candidates as _categorize_all_candidates,
+    enrich_candidate_details as _enrich_candidate_details,
+    filter_candidate_prs as _filter_candidate_prs,
+    load_labels_from_boring_cyborg as _load_labels_from_boring_cyborg,
+    merge_pr_assessments as _merge_pr_assessments,
+    reevaluate_triaged_pr as _reevaluate_triaged_pr,
+    split_label_filters as _split_label_filters,
+)
+from airflow_breeze.utils.pr_fetching import (  # noqa: E402
+    COMMITS_BEHIND_BATCH_SIZE as _COMMITS_BEHIND_BATCH_SIZE,
+    ExistingComment,
+    FetchResult,
+    fetch_commits_behind_batch as _fetch_commits_behind_batch,
+    fetch_existing_review_comments as _fetch_existing_review_comments,
+    fetch_pr_diff as _fetch_pr_diff,
+    fetch_prs_graphql as _fetch_prs_graphql,
+    fetch_single_pr_graphql as _fetch_single_pr_graphql,
+    fetch_unresolved_comments_batch as _fetch_unresolved_comments_batch,
+)
+from airflow_breeze.utils.pr_workflows import (  # noqa: E402
+    approve_workflow_runs as _approve_workflow_runs,
+    cancel_and_rerun_in_progress_workflows as _cancel_and_rerun_in_progress_workflows,
+    cancel_workflow_run as _cancel_workflow_run,
+    find_pending_workflow_runs as _find_pending_workflow_runs,
+    find_workflow_runs_by_status as _find_workflow_runs_by_status,
+    has_in_progress_workflows as _has_in_progress_workflows,
+    post_workflow_run_action as _post_workflow_run_action,
+    rerun_failed_workflow_runs as _rerun_failed_workflow_runs,
+    rerun_workflow_run as _rerun_workflow_run,
+)
+
 if TYPE_CHECKING:
     from airflow_breeze.utils.github import PRAssessment
     from airflow_breeze.utils.tui_display import PRListEntry, TriageTUI, TUIAction
@@ -99,9 +213,6 @@ QUALITY_CRITERIA_LINK = (
     "[Pull Request quality criteria](https://github.com/apache/airflow/blob/main/"
     "contributing-docs/05_pull_requests.rst#pull-request-quality-criteria)"
 )
-
-# authorAssociation values that indicate the author has write access
-_COLLABORATOR_ASSOCIATIONS = {"COLLABORATOR", "MEMBER", "OWNER"}
 
 
 class AuthorFilter(Enum):
