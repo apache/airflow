@@ -2012,7 +2012,7 @@ class TestTaskInstanceOperations:
             return httpx.Response(200, json=json.loads(self.task_instance_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.task_instances.get(
+        response = client.tasks.get(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
             task_id=self.task_id,
@@ -2029,7 +2029,7 @@ class TestTaskInstanceOperations:
             return httpx.Response(200, json=[json.loads(self.task_instance_response.model_dump_json())])
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.task_instances.get(
+        response = client.tasks.get(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
             task_id=self.task_id,
@@ -2043,10 +2043,12 @@ class TestTaskInstanceOperations:
             assert request.url.path == (
                 f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}"
             )
-            return httpx.Response(200, json=json.loads(self.task_instance_collection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.task_instance_collection_response.model_dump_json())
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.task_instances.get(
+        response = client.tasks.get(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
             task_id=self.task_id,
@@ -2063,7 +2065,7 @@ class TestTaskInstanceOperations:
             )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.task_instances.list(
+        response = client.tasks.list(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
         )
@@ -2082,7 +2084,7 @@ class TestTaskInstanceOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         body = ClearTaskInstancesBody(dry_run=True)
-        response = client.task_instances.clear(
+        response = client.tasks.clear(
             dag_id=self.dag_id,
             body=body,
         )
@@ -2109,7 +2111,7 @@ class TestTaskInstanceOperations:
             task_ids=[self.task_id],
             dag_run_id=self.dag_run_id,
         )
-        response = client.task_instances.clear(
+        response = client.tasks.clear(
             dag_id=self.dag_id,
             body=body,
         )
