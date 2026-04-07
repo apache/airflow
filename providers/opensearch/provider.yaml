@@ -143,6 +143,20 @@ config:
         type: string
         example: ~
         default: "False"
+      write_to_os:
+        description: |
+          Write the task logs directly to OpenSearch
+        version_added: 1.9.0
+        type: string
+        example: ~
+        default: "False"
+      target_index:
+        description: |
+          Name of the index to write to when direct OpenSearch log writing is enabled
+        version_added: 1.9.0
+        type: string
+        example: ~
+        default: "airflow-logs"
       json_format:
         description: |
           Instead of the default log formatter, write the log lines as JSON

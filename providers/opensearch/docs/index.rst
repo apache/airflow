@@ -96,12 +96,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``3.0.0``.
 
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.11.0``
+``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``opensearch-py``                           ``>=2.2.0``
 ==========================================  ==================
