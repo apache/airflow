@@ -660,13 +660,12 @@ class CommandFactory:
                                 and args_dict[expanded_parameter] is not None
                             ):
                                 val = args_dict[expanded_parameter]
-                                # Automatically convert comma-separated strings to lists if the field expects a list
-                                field_annotation = str(
-                                    datamodel.model_fields[expanded_parameter].annotation
-                                ).lower()
-                                if "list" in field_annotation and isinstance(val, str):
-                                    val = [v.strip() for v in val.split(",") if v.strip()]
-
+                                if isinstance(val, str) and expanded_parameter in datamodel.model_fields:
+                                    import typing
+                                    annotation = datamodel.model_fields[expanded_parameter].annotation
+                                    origin = typing.get_origin(annotation)
+                                    if origin is list or getattr(annotation, "__origin__", None) is list:
+                                        val = [v.strip() for v in val.split(",") if v.strip()]
                                 method_params[parameter_key][
                                     self._sanitize_method_param_key(expanded_parameter)
                                 ] = val

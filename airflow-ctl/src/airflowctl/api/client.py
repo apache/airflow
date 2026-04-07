@@ -435,7 +435,7 @@ class Client(httpx.Client):
 
     @lru_cache()  # type: ignore[prop-decorator]
     @property
-    def task_instances(self):
+    def tasks(self):
         """Operations related to task instances."""
         return TaskInstanceOperations(self)
 

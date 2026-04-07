@@ -1795,6 +1795,40 @@ class TestTaskInstanceOperations:
         )
         assert response == self.task_instance_response
 
+    def test_get_list(self):
+        """Test fetching a task instance that returns a list (e.g. mapped tasks)."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}"
+            )
+            return httpx.Response(200, json=[json.loads(self.task_instance_response.model_dump_json())])
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.get(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+        )
+        assert response == [self.task_instance_response]
+
+    def test_get_collection(self):
+        """Test fetching a task instance that returns a collection."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}"
+            )
+            return httpx.Response(200, json=json.loads(self.task_instance_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.get(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+        )
+        assert response == self.task_instance_collection_response
+
     def test_list(self):
         """Test listing task instances for a DAG run."""
 
@@ -1900,3 +1934,41 @@ class TestTaskInstanceOperations:
             body=body,
         )
         assert response == self.task_instance_response
+
+    def test_update_list(self):
+        """Test updating a task instance that returns a list (e.g. mapped tasks)."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}"
+            )
+            return httpx.Response(200, json=[json.loads(self.task_instance_response.model_dump_json())])
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        body = PatchTaskInstanceBody(new_state=TaskInstanceState.FAILED)
+        response = client.task_instances.update(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            body=body,
+        )
+        assert response == [self.task_instance_response]
+
+    def test_update_collection(self):
+        """Test updating a task instance that returns a collection."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}"
+            )
+            return httpx.Response(200, json=json.loads(self.task_instance_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        body = PatchTaskInstanceBody(new_state=TaskInstanceState.FAILED)
+        response = client.task_instances.update(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            body=body,
+        )
+        assert response == self.task_instance_collection_response
