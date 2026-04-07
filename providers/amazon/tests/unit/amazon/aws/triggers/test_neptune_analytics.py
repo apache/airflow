@@ -29,7 +29,6 @@ from airflow.providers.amazon.aws.triggers.neptune_analytics import (
     NeptuneImportTaskCancelledTrigger,
     NeptuneImportTaskCompleteTrigger,
 )
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
 
 GRAPH_ID = "test-graph"
@@ -79,9 +78,12 @@ class TestNeptuneGraphAvailableTrigger:
         mock_get_waiter.return_value.wait = wait_mock
 
         trigger = NeptuneGraphAvailableTrigger(graph_id=GRAPH_ID)
+        generator = trigger.run()
+        resp = await generator.asend(None)
 
-        with pytest.raises(AirflowException):
-            await trigger.run().asend(None)
+        assert resp.payload["status"] == "error"
+        assert resp.payload["graph_id"] == GRAPH_ID
+        assert "Failed to create Neptune graph" in resp.payload["message"]
 
 
 class TestNeptuneGraphPrivateEndpointAvailableTrigger:
@@ -127,9 +129,12 @@ class TestNeptuneGraphPrivateEndpointAvailableTrigger:
         mock_get_waiter.return_value.wait = wait_mock
 
         trigger = NeptuneGraphPrivateEndpointAvailableTrigger(graph_id=GRAPH_ID, vpc_id=VPC_ID)
+        generator = trigger.run()
+        resp = await generator.asend(None)
 
-        with pytest.raises(AirflowException):
-            await trigger.run().asend(None)
+        assert resp.payload["status"] == "error"
+        assert resp.payload["graph_id"] == GRAPH_ID
+        assert "Failed to create Neptune graph endpoint" in resp.payload["message"]
 
 
 class TestNeptuneGraphPrivateEndpointDeletedTrigger:
@@ -183,9 +188,12 @@ class TestNeptuneGraphPrivateEndpointDeletedTrigger:
         trigger = NeptuneGraphPrivateEndpointDeletedTrigger(
             graph_id=GRAPH_ID, vpc_id=VPC_ID, endpoint_id=ENDPOINT_ID
         )
+        generator = trigger.run()
+        resp = await generator.asend(None)
 
-        with pytest.raises(AirflowException):
-            await trigger.run().asend(None)
+        assert resp.payload["status"] == "error"
+        assert resp.payload["endpoint_id"] == ENDPOINT_ID
+        assert "Failed to delete Neptune graph endpoint" in resp.payload["message"]
 
 
 class TestNeptuneImportTaskCompleteTrigger:
@@ -229,9 +237,12 @@ class TestNeptuneImportTaskCompleteTrigger:
         mock_get_waiter.return_value.wait = wait_mock
 
         trigger = NeptuneImportTaskCompleteTrigger(import_task_id=TASK_ID)
+        generator = trigger.run()
+        resp = await generator.asend(None)
 
-        with pytest.raises(AirflowException):
-            await trigger.run().asend(None)
+        assert resp.payload["status"] == "error"
+        assert resp.payload["import_task_id"] == TASK_ID
+        assert "Import task failed" in resp.payload["message"]
 
 
 class TestNeptuneImportTaskCancelledTrigger:
@@ -275,6 +286,9 @@ class TestNeptuneImportTaskCancelledTrigger:
         mock_get_waiter.return_value.wait = wait_mock
 
         trigger = NeptuneImportTaskCancelledTrigger(task_identifier=TASK_ID)
+        generator = trigger.run()
+        resp = await generator.asend(None)
 
-        with pytest.raises(AirflowException):
-            await trigger.run().asend(None)
+        assert resp.payload["status"] == "error"
+        assert resp.payload["task_identifier"] == TASK_ID
+        assert "Import task cancellation failed" in resp.payload["message"]
