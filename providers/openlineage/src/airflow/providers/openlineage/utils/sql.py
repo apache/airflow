@@ -79,7 +79,7 @@ class TableSchema:
         )
 
 
-def _filter_schemas_by_default(
+def _prefer_default_schema_for_duplicate_tables(
     table_schemas: list[TableSchema],
     default_schema: str,
 ) -> list[TableSchema]:
@@ -129,7 +129,7 @@ def get_table_schemas(
             cursor.execute(in_query)
             in_table_schemas = parse_query_result(cursor)
             if schema:
-                in_table_schemas = _filter_schemas_by_default(in_table_schemas, schema)
+                in_table_schemas = _prefer_default_schema_for_duplicate_tables(in_table_schemas, schema)
             in_datasets = [x.to_dataset(namespace, database, schema) for x in in_table_schemas]
         else:
             in_datasets = []
@@ -137,7 +137,7 @@ def get_table_schemas(
             cursor.execute(out_query)
             out_table_schemas = parse_query_result(cursor)
             if schema:
-                out_table_schemas = _filter_schemas_by_default(out_table_schemas, schema)
+                out_table_schemas = _prefer_default_schema_for_duplicate_tables(out_table_schemas, schema)
             out_datasets = [x.to_dataset(namespace, database, schema) for x in out_table_schemas]
         else:
             out_datasets = []
