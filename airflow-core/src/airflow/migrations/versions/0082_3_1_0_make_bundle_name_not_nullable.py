@@ -27,8 +27,6 @@ Create Date: 2025-08-13 04:20:04.155103
 
 from __future__ import annotations
 
-import contextlib
-
 from alembic import op
 from sqlalchemy.sql import text
 
@@ -64,9 +62,7 @@ def upgrade():
                     """)
         )
 
-    sqlite_context = disable_sqlite_fkeys(op) if dialect_name == "sqlite" else contextlib.nullcontext()
-
-    with sqlite_context:
+    with disable_sqlite_fkeys(op):
         if dialect_name == "sqlite":
             op.execute(
                 text("""

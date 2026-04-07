@@ -48,11 +48,6 @@ def upgrade():
 
 def downgrade():
     """Unapply add last_parse_duration to dag model."""
-    if op.get_bind().dialect.name == "sqlite":
-        # SQLite requires foreign key constraints to be disabled during batch operations
-        with disable_sqlite_fkeys(op):
-            with op.batch_alter_table("dag", schema=None) as batch_op:
-                batch_op.drop_column("last_parse_duration")
-    else:
+    with disable_sqlite_fkeys(op):
         with op.batch_alter_table("dag", schema=None) as batch_op:
             batch_op.drop_column("last_parse_duration")
