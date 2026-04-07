@@ -116,3 +116,58 @@ def test_migration_stairway(stairway_db) -> None:
             upgradedb(to_revision=revision_id)
         except Exception as e:
             raise AssertionError(f"Stairway test failed at revision {revision_id!r}") from e
+from __future__ import annotations
+
+import pytest
+
+from airflow.migrations.utils import disable_sqlite_fkeys
+
+
+class _Dialect:
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+
+class _Bind:
+    def __init__(self, dialect_name: str) -> None:
+        self.dialect = _Dialect(name=dialect_name)
+
+
+class _FakeOp:
+    def __init__(self, dialect_name: str) -> None:
+        self._bind = _Bind(dialect_name=dialect_name)
+        self.executed: list[str] = []
+
+    def get_bind(self) -> _Bind:
+        return self._bind
+
+    def execute(self, statement: str) -> None:
+        self.executed.append(statement)
+
+
+def test_disable_sqlite_fkeys_restores_pragma_on_success() -> None:
+    op = _FakeOp(dialect_name="sqlite")
+
+    with disable_sqlite_fkeys(op) as yielded_op:
+        assert yielded_op is op
+
+    assert op.executed == ["PRAGMA foreign_keys=off", "PRAGMA foreign_keys=on"]
+
+
+def test_disable_sqlite_fkeys_restores_pragma_on_exception() -> None:
+    op = _FakeOp(dialect_name="sqlite")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        with disable_sqlite_fkeys(op):
+            raise RuntimeError("boom")
+
+    assert op.executed == ["PRAGMA foreign_keys=off", "PRAGMA foreign_keys=on"]
+
+
+def test_disable_sqlite_fkeys_noop_for_non_sqlite() -> None:
+    op = _FakeOp(dialect_name="postgresql")
+
+    with disable_sqlite_fkeys(op) as yielded_op:
+        assert yielded_op is op
+
+    assert op.executed == []

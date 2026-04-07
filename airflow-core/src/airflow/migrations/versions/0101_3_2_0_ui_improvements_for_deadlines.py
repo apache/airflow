@@ -45,6 +45,7 @@ from alembic import context, op
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
+from airflow.migrations.utils import disable_sqlite_fkeys
 from airflow.serialization.enums import Encoding
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -188,19 +189,30 @@ def upgrade() -> None:
     dialect_name = conn.dialect.name
 
     if dialect_name == "sqlite":
-        conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
-
-    with op.batch_alter_table("deadline", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("deadline_alert_id", sa.Uuid(), nullable=True))
-        batch_op.add_column(sa.Column("created_at", UtcDateTime, nullable=True))
-        batch_op.add_column(sa.Column("last_updated_at", UtcDateTime, nullable=True))
-        batch_op.create_foreign_key(
-            batch_op.f("deadline_deadline_alert_id_fkey"),
-            "deadline_alert",
-            ["deadline_alert_id"],
-            ["id"],
-            ondelete="SET NULL",
-        )
+        with disable_sqlite_fkeys(op):
+            with op.batch_alter_table("deadline", schema=None) as batch_op:
+                batch_op.add_column(sa.Column("deadline_alert_id", sa.Uuid(), nullable=True))
+                batch_op.add_column(sa.Column("created_at", UtcDateTime, nullable=True))
+                batch_op.add_column(sa.Column("last_updated_at", UtcDateTime, nullable=True))
+                batch_op.create_foreign_key(
+                    batch_op.f("deadline_deadline_alert_id_fkey"),
+                    "deadline_alert",
+                    ["deadline_alert_id"],
+                    ["id"],
+                    ondelete="SET NULL",
+                )
+    else:
+        with op.batch_alter_table("deadline", schema=None) as batch_op:
+            batch_op.add_column(sa.Column("deadline_alert_id", sa.Uuid(), nullable=True))
+            batch_op.add_column(sa.Column("created_at", UtcDateTime, nullable=True))
+            batch_op.add_column(sa.Column("last_updated_at", UtcDateTime, nullable=True))
+            batch_op.create_foreign_key(
+                batch_op.f("deadline_deadline_alert_id_fkey"),
+                "deadline_alert",
+                ["deadline_alert_id"],
+                ["id"],
+                ondelete="SET NULL",
+            )
 
     # For migration/backcompat purposes if no timestamp is there from the migration, use now()
     # then lock the columns down so all new entries require the timestamps to be provided.
@@ -227,9 +239,6 @@ def upgrade() -> None:
             ondelete="CASCADE",
         )
 
-    if dialect_name == "sqlite":
-        conn.execute(sa.text("PRAGMA foreign_keys=ON"))
-
     migrate_existing_deadline_alert_data_from_serialized_dag()
 
 
@@ -241,19 +250,26 @@ def downgrade() -> None:
     dialect_name = conn.dialect.name
 
     if dialect_name == "sqlite":
-        conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
+        with disable_sqlite_fkeys(op):
+            with op.batch_alter_table("deadline", schema=None) as batch_op:
+                batch_op.drop_constraint(batch_op.f("deadline_deadline_alert_id_fkey"), type_="foreignkey")
+                batch_op.drop_column("deadline_alert_id")
+                batch_op.drop_column("last_updated_at")
+                batch_op.drop_column("created_at")
 
-    with op.batch_alter_table("deadline", schema=None) as batch_op:
-        batch_op.drop_constraint(batch_op.f("deadline_deadline_alert_id_fkey"), type_="foreignkey")
-        batch_op.drop_column("deadline_alert_id")
-        batch_op.drop_column("last_updated_at")
-        batch_op.drop_column("created_at")
+            with op.batch_alter_table("deadline_alert", schema=None) as batch_op:
+                batch_op.drop_constraint(
+                    batch_op.f("deadline_alert_serialized_dag_id_fkey"), type_="foreignkey"
+                )
+    else:
+        with op.batch_alter_table("deadline", schema=None) as batch_op:
+            batch_op.drop_constraint(batch_op.f("deadline_deadline_alert_id_fkey"), type_="foreignkey")
+            batch_op.drop_column("deadline_alert_id")
+            batch_op.drop_column("last_updated_at")
+            batch_op.drop_column("created_at")
 
-    with op.batch_alter_table("deadline_alert", schema=None) as batch_op:
-        batch_op.drop_constraint(batch_op.f("deadline_alert_serialized_dag_id_fkey"), type_="foreignkey")
-
-    if dialect_name == "sqlite":
-        conn.execute(sa.text("PRAGMA foreign_keys=ON"))
+        with op.batch_alter_table("deadline_alert", schema=None) as batch_op:
+            batch_op.drop_constraint(batch_op.f("deadline_alert_serialized_dag_id_fkey"), type_="foreignkey")
 
     op.drop_table("deadline_alert")
 
