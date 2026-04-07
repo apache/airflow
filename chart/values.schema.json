@@ -1951,27 +1951,27 @@
                     }
                 },
                 "hpa": {
-                    "description": "HPA configuration for Airflow Celery workers.",
+                    "description": "HPA configuration for Airflow Celery workers (deprecated, use ``workers.celery.hpa`` instead).",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Allow HPA autoscaling (KEDA must be disabled).",
+                            "description": "Allow HPA autoscaling (KEDA must be disabled) (deprecated, use ``workers.celery.hpa.enabled`` instead).",
                             "type": "boolean",
                             "default": false
                         },
                         "minReplicaCount": {
-                            "description": "Minimum number of Airflow Celery workers created by HPA.",
+                            "description": "Minimum number of Airflow Celery workers created by HPA (deprecated, use ``workers.celery.hpa.minReplicaCount`` instead).",
                             "type": "integer",
                             "default": 0
                         },
                         "maxReplicaCount": {
-                            "description": "Maximum number of Airflow Celery workers created by HPA.",
+                            "description": "Maximum number of Airflow Celery workers created by HPA (deprecated, use ``workers.celery.hpa.maxReplicaCount`` instead).",
                             "type": "integer",
                             "default": 5
                         },
                         "metrics": {
-                            "description": "Specifications for which to use to calculate the desired replica count.",
+                            "description": "Specifications for which to use to calculate the desired replica count (deprecated, use ``workers.celery.hpa.metrics`` instead).",
                             "type": "array",
                             "default": [
                                 {
@@ -1990,7 +1990,7 @@
                             }
                         },
                         "behavior": {
-                            "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
+                            "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target (deprecated, use ``workers.celery.hpa.behavior`` instead).",
                             "type": "object",
                             "default": {},
                             "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
@@ -3048,6 +3048,54 @@
                                         "null"
                                     ],
                                     "default": null
+                                }
+                            }
+                        },
+                        "hpa": {
+                            "description": "HPA configuration for Airflow Celery workers.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Allow HPA autoscaling (KEDA must be disabled).",
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "minReplicaCount": {
+                                    "description": "Minimum number of Airflow Celery workers created by HPA.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "maxReplicaCount": {
+                                    "description": "Maximum number of Airflow Celery workers created by HPA.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "metrics": {
+                                    "description": "Specifications for which to use to calculate the desired replica count.",
+                                    "type": [
+                                        "array",
+                                        "null"
+                                    ],
+                                    "default": null,
+                                    "items": {
+                                        "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricSpec"
+                                    }
+                                },
+                                "behavior": {
+                                    "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
+                                    "type": "object",
+                                    "default": {},
+                                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
                                 }
                             }
                         },

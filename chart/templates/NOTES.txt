@@ -517,6 +517,46 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if .Values.workers.hpa.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.hpa.enabled` has been renamed to `workers.celery.hpa.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.hpa.minReplicaCount) 0 }}
+
+ DEPRECATION WARNING:
+    `workers.hpa.minReplicaCount` has been renamed to `workers.celery.hpa.minReplicaCount`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.hpa.maxReplicaCount) 5 }}
+
+ DEPRECATION WARNING:
+    `workers.hpa.maxReplicaCount` has been renamed to `workers.celery.hpa.maxReplicaCount`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (toJson .Values.workers.hpa.metrics | quote) (toJson "[{\"resource\":{\"name\":\"cpu\",\"target\":{\"averageUtilization\":80,\"type\":\"Utilization\"}},\"type\":\"Resource\"}]") }}
+
+ DEPRECATION WARNING:
+    `workers.hpa.metrics` has been renamed to `workers.celery.hpa.metrics`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.hpa.behavior) }}
+
+ DEPRECATION WARNING:
+    `workers.hpa.behavior` has been renamed to `workers.celery.hpa.behavior`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not .Values.workers.persistence.enabled }}
 
  DEPRECATION WARNING:

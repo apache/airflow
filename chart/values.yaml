@@ -865,16 +865,21 @@ workers:
     usePgbouncer: true
 
   # Allow HPA for Airflow Celery workers (KEDA must be disabled)
+  # (deprecated, use `workers.celery.hpa` instead)
   hpa:
+    # (deprecated, use `workers.celery.hpa.enabled` instead)
     enabled: false
 
     # Minimum number of Airflow Celery workers created by HPA
+    # (deprecated, use `workers.celery.hpa.minReplicaCount` instead)
     minReplicaCount: 0
 
     # Maximum number of Airflow Celery workers created by HPA
+    # (deprecated, use `workers.celery.hpa.maxReplicaCount` instead)
     maxReplicaCount: 5
 
     # Specifications for which to use to calculate the desired replica count
+    # (deprecated, use `workers.celery.hpa.metrics` instead)
     metrics:
       - type: Resource
         resource:
@@ -884,6 +889,7 @@ workers:
             averageUtilization: 80
 
     # Scaling behavior of the target in both Up and Down directions
+    # (deprecated, use `workers.celery.hpa.behavior` instead)
     behavior: {}
 
   # Persistence volume configuration for Airflow Celery workers
@@ -1333,6 +1339,22 @@ workers:
       # Weather to use PGBouncer to connect to the database or not when it is enabled
       # This configuration will be ignored if PGBouncer is not enabled
       usePgbouncer: ~
+
+    # Allow HPA for Airflow Celery workers (KEDA must be disabled)
+    hpa:
+      enabled: ~
+
+      # Minimum number of Airflow Celery workers created by HPA
+      minReplicaCount: ~
+
+      # Maximum number of Airflow Celery workers created by HPA
+      maxReplicaCount: ~
+
+      # Specifications for which to use to calculate the desired replica count
+      metrics: ~
+
+      # Scaling behavior of the target in both Up and Down directions
+      behavior: {}
 
     # Persistence volume configuration for Airflow Celery workers
     persistence:

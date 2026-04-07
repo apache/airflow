@@ -2191,29 +2191,26 @@ class TestWorkerHPAAutoScaler:
     """Tests worker HPA auto scaler."""
 
     @pytest.mark.parametrize(
-        "workers_keda_values",
+        "workers_values",
         [
-            {"keda": {"enabled": True}},
-            {"celery": {"keda": {"enabled": True}}},
+            {"keda": {"enabled": True}, "hpa": {"enabled": True}},
+            {"celery": {"keda": {"enabled": True}}, "hpa": {"enabled": True}},
+            {"celery": {"keda": {"enabled": True}, "hpa": {"enabled": True}}},
+            {"keda": {"enabled": True}, "celery": {"hpa": {"enabled": True}}},
         ],
     )
-    def test_should_be_disabled_on_keda_enabled(self, workers_keda_values):
+    def test_should_be_disabled_on_keda_enabled(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    **workers_keda_values,
-                    "hpa": {"enabled": True},
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "workers": workers_values,
             },
             show_only=[
                 "templates/workers/worker-kedaautoscaler.yaml",
                 "templates/workers/worker-hpa.yaml",
             ],
         )
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
         assert len(docs) == 1
 
     def test_should_add_component_specific_labels(self):
@@ -2221,7 +2218,7 @@ class TestWorkerHPAAutoScaler:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "hpa": {"enabled": True},
+                    "celery": {"hpa": {"enabled": True}},
                     "labels": {"test_label": "test_label_value"},
                 },
             },
@@ -2243,51 +2240,112 @@ class TestWorkerHPAAutoScaler:
         )
         assert "replicas" not in jmespath.search("spec", docs[0])
 
+    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryKubernetesExecutor"])
     @pytest.mark.parametrize(
-        ("metrics", "executor", "expected_metrics"),
+        "workers_values",
         [
-            # default metrics
-            (
-                None,
-                "CeleryExecutor",
-                {
-                    "type": "Resource",
-                    "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
-                },
-            ),
-            # custom metric
-            (
-                [
-                    {
-                        "type": "Pods",
-                        "pods": {
-                            "metric": {"name": "custom"},
-                            "target": {"type": "Utilization", "averageUtilization": 80},
-                        },
-                    }
-                ],
-                "CeleryKubernetesExecutor",
-                {
-                    "type": "Pods",
-                    "pods": {
-                        "metric": {"name": "custom"},
-                        "target": {"type": "Utilization", "averageUtilization": 80},
-                    },
-                },
-            ),
+            {"hpa": {"enabled": True}},
+            {"celery": {"hpa": {"enabled": True}}},
         ],
     )
-    def test_should_use_hpa_metrics(self, metrics, executor, expected_metrics):
+    def test_hpa_metrics_default(self, executor, workers_values):
         docs = render_chart(
             values={
                 "executor": executor,
-                "workers": {
-                    "hpa": {"enabled": True, **({"metrics": metrics} if metrics else {})},
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-hpa.yaml"],
         )
-        assert expected_metrics == jmespath.search("spec.metrics[0]", docs[0])
+
+        assert jmespath.search("spec.metrics", docs[0]) == [
+            {
+                "type": "Resource",
+                "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
+            }
+        ]
+
+    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryKubernetesExecutor"])
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "hpa": {
+                    "enabled": True,
+                    "metrics": [
+                        {
+                            "type": "Pods",
+                            "pods": {
+                                "metric": {"name": "custom"},
+                                "target": {"type": "Utilization", "averageUtilization": 80},
+                            },
+                        }
+                    ],
+                }
+            },
+            {
+                "celery": {
+                    "hpa": {
+                        "enabled": True,
+                        "metrics": [
+                            {
+                                "type": "Pods",
+                                "pods": {
+                                    "metric": {"name": "custom"},
+                                    "target": {"type": "Utilization", "averageUtilization": 80},
+                                },
+                            }
+                        ],
+                    }
+                }
+            },
+            {
+                "hpa": {
+                    "enabled": True,
+                    "metrics": [
+                        {
+                            "type": "Resource",
+                            "resource": {
+                                "name": "memory",
+                                "target": {"type": "Utilization", "averageUtilization": 1},
+                            },
+                        }
+                    ],
+                },
+                "celery": {
+                    "hpa": {
+                        "enabled": True,
+                        "metrics": [
+                            {
+                                "type": "Pods",
+                                "pods": {
+                                    "metric": {"name": "custom"},
+                                    "target": {"type": "Utilization", "averageUtilization": 80},
+                                },
+                            }
+                        ],
+                    }
+                },
+            },
+        ],
+    )
+    def test_hpa_metrics_override(self, executor, workers_values):
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-hpa.yaml"],
+        )
+
+        assert jmespath.search("spec.metrics", docs[0]) == [
+            {
+                "type": "Pods",
+                "pods": {
+                    "metric": {"name": "custom"},
+                    "target": {"type": "Utilization", "averageUtilization": 80},
+                },
+            }
+        ]
 
 
 class TestWorkerNetworkPolicy:
