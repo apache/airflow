@@ -22,50 +22,51 @@ Before running, create an Airflow Connection:
 
 from __future__ import annotations
 
-import pendulum
+from datetime import datetime
 
-from airflow.decorators import dag, task
+from airflow import DAG
+from airflow.operators.python import PythonOperator
 
 AKEYLESS_CONN_ID = "akeyless_default"
 
 
-@dag(
+def _get_static_secret():
+    from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
+
+    hook = AkeylessHook(akeyless_conn_id=AKEYLESS_CONN_ID)
+    value = hook.get_secret_value("/example/my-secret")
+    print(f"Secret retrieved (length={len(value) if value else 0})")
+    return value is not None
+
+
+def _list_secrets():
+    from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
+
+    hook = AkeylessHook(akeyless_conn_id=AKEYLESS_CONN_ID)
+    items = hook.list_items("/example")
+    print(f"Found {len(items)} items under /example")
+    return len(items)
+
+
+def _get_dynamic_secret():
+    from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
+
+    hook = AkeylessHook(akeyless_conn_id=AKEYLESS_CONN_ID)
+    creds = hook.get_dynamic_secret_value("/example/dynamic-db-producer")
+    if creds:
+        print(f"Dynamic secret generated with keys: {list(creds.keys())}")
+    return creds is not None
+
+
+with DAG(
     dag_id="example_akeyless",
     schedule=None,
-    start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+    start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=["example", "akeyless"],
-)
-def example_akeyless():
-    @task
-    def get_static_secret():
-        from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
+) as dag:
+    get_secret = PythonOperator(task_id="get_static_secret", python_callable=_get_static_secret)
+    list_items = PythonOperator(task_id="list_secrets", python_callable=_list_secrets)
+    get_dynamic = PythonOperator(task_id="get_dynamic_secret", python_callable=_get_dynamic_secret)
 
-        hook = AkeylessHook(akeyless_conn_id=AKEYLESS_CONN_ID)
-        value = hook.get_secret_value("/example/my-secret")
-        print(f"Secret retrieved (length={len(value) if value else 0})")
-        return value is not None
-
-    @task
-    def list_secrets():
-        from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
-
-        hook = AkeylessHook(akeyless_conn_id=AKEYLESS_CONN_ID)
-        items = hook.list_items("/example")
-        print(f"Found {len(items)} items under /example")
-        return len(items)
-
-    @task
-    def get_dynamic_secret():
-        from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
-
-        hook = AkeylessHook(akeyless_conn_id=AKEYLESS_CONN_ID)
-        creds = hook.get_dynamic_secret_value("/example/dynamic-db-producer")
-        if creds:
-            print(f"Dynamic secret generated with keys: {list(creds.keys())}")
-        return creds is not None
-
-    get_static_secret() >> list_secrets() >> get_dynamic_secret()
-
-
-example_akeyless()
+    get_secret >> list_items >> get_dynamic

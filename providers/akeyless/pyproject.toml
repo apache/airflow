@@ -40,11 +40,13 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.8.0",
     "akeyless>=5.0.0",
 ]
 
@@ -58,6 +60,7 @@ dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-common-compat",
 ]
 docs = [
     "apache-airflow-devel-common[docs]",
@@ -69,6 +72,11 @@ docs = [
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
+
+[tool.uv.sources]
+apache-airflow = {workspace = true}
+apache-airflow-devel-common = {workspace = true}
+apache-airflow-task-sdk = {workspace = true}
 
 [project.entry-points."apache_airflow_provider"]
 provider_info = "airflow.providers.akeyless.get_provider_info:get_provider_info"

@@ -18,7 +18,7 @@ from typing import Any
 
 import akeyless
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 VALID_AUTH_TYPES = ("api_key", "aws_iam", "gcp", "azure_ad", "uid", "jwt", "k8s", "certificate")
 
