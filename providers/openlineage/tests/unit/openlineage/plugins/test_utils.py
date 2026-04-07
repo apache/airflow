@@ -527,7 +527,7 @@ def test_serialize_timetable_with_dataset_or_time_schedule():
                 "expression": "0 0 * 3 *",
                 "timezone": "UTC",
                 "interval": 0.0,
-                "run_immediately": False,
+                "run_immediately": True,
             },
         },
         "asset_condition": {

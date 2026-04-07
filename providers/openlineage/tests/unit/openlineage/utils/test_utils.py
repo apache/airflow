@@ -2654,7 +2654,7 @@ class TestDagInfoAirflow3:
                         "expression": "*/4 3 * * *",
                         "timezone": "UTC",
                         "interval": 0.0,
-                        "run_immediately": False,
+                        "run_immediately": True,
                     },
                 },
             },
