@@ -208,18 +208,6 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
     return None
 
 
-def _resolve_namespace(hook, conn_id: str | None) -> str | None:
-    """Resolve the OpenLineage namespace from a hook."""
-    if not conn_id:
-        return None
-    try:
-        connection = hook.get_connection(conn_id)
-        database_info = hook.get_openlineage_database_info(connection)
-    except Exception as e:
-        log.debug("Failed to get OpenLineage database info: %s", e)
-        return None
-    return SQLParser.create_namespace(database_info) if database_info is not None else None
-
 
 def _get_hook_conn_id(hook) -> str | None:
     """
