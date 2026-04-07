@@ -390,19 +390,26 @@ class TestWorker:
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
         assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
-    def test_workers_host_aliases(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}],
-                },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]},
+            {"celery": {"hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]}},
+            {
+                "hostAliases": [{"ip": "192.168.0.1", "hostnames": ["hostname"]}],
+                "celery": {"hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]},
             },
+        ],
+    )
+    def test_workers_host_aliases(self, workers_values):
+        docs = render_chart(
+            values={"executor": "CeleryExecutor", "workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0]) == "127.0.0.2"
-        assert jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0]) == "test.hostname"
+        assert jmespath.search("spec.template.spec.hostAliases", docs[0]) == [
+            {"ip": "127.0.0.2", "hostnames": ["test.hostname"]}
+        ]
 
     @pytest.mark.parametrize(
         ("workers_values", "expected_update_strategy"),
@@ -688,18 +695,26 @@ class TestWorker:
         assert jmespath.search("spec.template.spec.nodeSelector", docs[0]) == {"diskType": "ssd"}
 
     @pytest.mark.parametrize(
-        ("base_scheduler_name", "worker_scheduler_name", "expected"),
+        ("base_scheduler_name", "worker_values", "expected"),
         [
-            ("default-scheduler", "most-allocated", "most-allocated"),
-            ("default-scheduler", None, "default-scheduler"),
-            (None, None, None),
+            ("default-scheduler", {"schedulerName": "most-allocated"}, "most-allocated"),
+            ("default-scheduler", {"celery": {"schedulerName": "most-allocated"}}, "most-allocated"),
+            (
+                "default-scheduler",
+                {"schedulerName": "least-allocated", "celery": {"schedulerName": "most-allocated"}},
+                "most-allocated",
+            ),
+            ("default-scheduler", {"schedulerName": None}, "default-scheduler"),
+            ("default-scheduler", {"celery": {"schedulerName": None}}, "default-scheduler"),
+            (None, {"schedulerName": None}, None),
+            (None, {"celery": {"schedulerName": None}}, None),
         ],
     )
-    def test_scheduler_name(self, base_scheduler_name, worker_scheduler_name, expected):
+    def test_scheduler_name(self, base_scheduler_name, worker_values, expected):
         docs = render_chart(
             values={
                 "schedulerName": base_scheduler_name,
-                "workers": {"schedulerName": worker_scheduler_name},
+                "workers": worker_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -721,11 +736,17 @@ class TestWorker:
             docs[0],
         ) == {"component": "worker"}
 
-    def test_runtime_class_name_values_are_configurable(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"runtimeClassName": "nvidia"},
+            {"celery": {"runtimeClassName": "nvidia"}},
+            {"runtimeClassName": "test", "celery": {"runtimeClassName": "nvidia"}},
+        ],
+    )
+    def test_runtime_class_name_values_are_configurable(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": {"runtimeClassName": "nvidia"},
-            },
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -1269,7 +1290,11 @@ class TestWorker:
         [
             ({}, {}, "false"),
             ({}, {"safeToEvict": True}, "true"),
+            ({}, {"celery": {"safeToEvict": True}}, "true"),
             ({}, {"safeToEvict": False}, "false"),
+            ({}, {"celery": {"safeToEvict": False}}, "false"),
+            ({}, {"safeToEvict": False, "celery": {"safeToEvict": True}}, "true"),
+            ({}, {"safeToEvict": True, "celery": {"safeToEvict": False}}, "false"),
             (
                 {},
                 {
@@ -1282,7 +1307,23 @@ class TestWorker:
                 {},
                 {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"safeToEvict": True},
+                },
+                "true",
+            ),
+            (
+                {},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                     "safeToEvict": False,
+                },
+                "true",
+            ),
+            (
+                {},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"safeToEvict": False},
                 },
                 "true",
             ),
@@ -1298,7 +1339,23 @@ class TestWorker:
                 {},
                 {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"safeToEvict": True},
+                },
+                "false",
+            ),
+            (
+                {},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                     "safeToEvict": False,
+                },
+                "false",
+            ),
+            (
+                {},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"safeToEvict": False},
                 },
                 "false",
             ),
@@ -1309,7 +1366,17 @@ class TestWorker:
             ),
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {"celery": {"safeToEvict": True}},
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {"safeToEvict": False},
+                "false",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {"celery": {"safeToEvict": False}},
                 "false",
             ),
             (
@@ -1319,10 +1386,20 @@ class TestWorker:
             ),
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {"celery": {"safeToEvict": True}},
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {"safeToEvict": False},
                 "false",
             ),
             (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {"celery": {"safeToEvict": False}},
+                "false",
+            ),
+            (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
@@ -1333,8 +1410,24 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"safeToEvict": False},
+                },
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                     "safeToEvict": False,
+                },
+                "false",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"safeToEvict": False},
                 },
                 "false",
             ),
@@ -1349,12 +1442,28 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"safeToEvict": False},
+                },
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                     "safeToEvict": False,
                 },
                 "false",
             ),
             (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"safeToEvict": False},
+                },
+                "false",
+            ),
+            (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
@@ -1365,8 +1474,24 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"safeToEvict": True},
+                },
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                     "safeToEvict": True,
+                },
+                "false",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"safeToEvict": True},
                 },
                 "false",
             ),
@@ -1381,8 +1506,24 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"safeToEvict": True},
+                },
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                     "safeToEvict": True,
+                },
+                "false",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"safeToEvict": True},
                 },
                 "false",
             ),
@@ -1400,11 +1541,63 @@ class TestWorker:
             == precedence
         )
 
-    def test_should_add_extra_volume_claim_templates(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "volumeClaimTemplates": [
+                    {
+                        "metadata": {"name": "test-volume-airflow-1"},
+                        "spec": {
+                            "storageClassName": "storage-class-1",
+                            "accessModes": ["ReadWriteOnce"],
+                            "resources": {"requests": {"storage": "10Gi"}},
+                        },
+                    },
+                    {
+                        "metadata": {"name": "test-volume-airflow-2"},
+                        "spec": {
+                            "storageClassName": "storage-class-2",
+                            "accessModes": ["ReadWriteOnce"],
+                            "resources": {"requests": {"storage": "20Gi"}},
+                        },
+                    },
+                ]
+            },
+            {
+                "celery": {
+                    "volumeClaimTemplates": [
+                        {
+                            "metadata": {"name": "test-volume-airflow-1"},
+                            "spec": {
+                                "storageClassName": "storage-class-1",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "10Gi"}},
+                            },
+                        },
+                        {
+                            "metadata": {"name": "test-volume-airflow-2"},
+                            "spec": {
+                                "storageClassName": "storage-class-2",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "20Gi"}},
+                            },
+                        },
+                    ]
+                }
+            },
+            {
+                "volumeClaimTemplates": [
+                    {
+                        "metadata": {"name": "test"},
+                        "spec": {
+                            "storageClassName": "storage",
+                            "accessModes": ["ReadOnce"],
+                            "resources": {"requests": {"storage": "1Gi"}},
+                        },
+                    }
+                ],
+                "celery": {
                     "volumeClaimTemplates": [
                         {
                             "metadata": {"name": "test-volume-airflow-1"},
@@ -1425,31 +1618,36 @@ class TestWorker:
                     ]
                 },
             },
+        ],
+    )
+    def test_should_add_extra_volume_claim_templates(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
+            },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[1].metadata.name", docs[0]) == "test-volume-airflow-1"
-        )
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[2].metadata.name", docs[0]) == "test-volume-airflow-2"
-        )
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[1].spec.storageClassName", docs[0])
-            == "storage-class-1"
-        )
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[2].spec.storageClassName", docs[0])
-            == "storage-class-2"
-        )
-        assert jmespath.search("spec.volumeClaimTemplates[1].spec.accessModes", docs[0]) == ["ReadWriteOnce"]
-        assert jmespath.search("spec.volumeClaimTemplates[2].spec.accessModes", docs[0]) == ["ReadWriteOnce"]
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[1].spec.resources.requests.storage", docs[0]) == "10Gi"
-        )
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[2].spec.resources.requests.storage", docs[0]) == "20Gi"
-        )
+        # Skipping the first object as it is logs volume claim
+        assert jmespath.search("spec.volumeClaimTemplates[1:]", docs[0]) == [
+            {
+                "metadata": {"name": "test-volume-airflow-1"},
+                "spec": {
+                    "storageClassName": "storage-class-1",
+                    "accessModes": ["ReadWriteOnce"],
+                    "resources": {"requests": {"storage": "10Gi"}},
+                },
+            },
+            {
+                "metadata": {"name": "test-volume-airflow-2"},
+                "spec": {
+                    "storageClassName": "storage-class-2",
+                    "accessModes": ["ReadWriteOnce"],
+                    "resources": {"requests": {"storage": "20Gi"}},
+                },
+            },
+        ]
 
     def test_should_add_extra_volume_claim_templates_with_logs_persistence_enabled(self):
         """
@@ -1463,17 +1661,19 @@ class TestWorker:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "celery": {"persistence": {"enabled": True}},
-                    "volumeClaimTemplates": [
-                        {
-                            "metadata": {"name": "data"},
-                            "spec": {
-                                "storageClassName": "longhorn",
-                                "accessModes": ["ReadWriteOnce"],
-                                "resources": {"requests": {"storage": "10Gi"}},
+                    "celery": {
+                        "persistence": {"enabled": True},
+                        "volumeClaimTemplates": [
+                            {
+                                "metadata": {"name": "data"},
+                                "spec": {
+                                    "storageClassName": "longhorn",
+                                    "accessModes": ["ReadWriteOnce"],
+                                    "resources": {"requests": {"storage": "10Gi"}},
+                                },
                             },
-                        },
-                    ],
+                        ],
+                    },
                 },
                 "logs": {
                     "persistence": {"enabled": True},  # This is the key: logs persistence enabled
@@ -1583,8 +1783,10 @@ class TestWorker:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "celery": {"persistence": {"enabled": workers_persistence_enabled}},
-                    "volumeClaimTemplates": custom_templates,
+                    "celery": {
+                        "persistence": {"enabled": workers_persistence_enabled},
+                        "volumeClaimTemplates": custom_templates,
+                    },
                 },
                 "logs": {
                     "persistence": {"enabled": logs_persistence_enabled},
@@ -1799,6 +2001,27 @@ class TestWorker:
         )
 
         assert jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0]) == 5
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"extraPorts": [{"name": "test-extra-port", "containerPort": 10}]},
+            {"celery": {"extraPorts": [{"name": "test-extra-port", "containerPort": 10}]}},
+            {
+                "extraPorts": [{"name": "test", "containerPort": 1}],
+                "celery": {"extraPorts": [{"name": "test-extra-port", "containerPort": 10}]},
+            },
+        ],
+    )
+    def test_overwrite_extra_ports(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].ports[:-1]", docs[0]) == [
+            {"name": "test-extra-port", "containerPort": 10}
+        ]
 
 
 class TestWorkerLogGroomer(LogGroomerTestBase):

@@ -39,6 +39,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksCreateFargateProfileTrigger,
     EksCreateNodegroupTrigger,
     EksDeleteFargateProfileTrigger,
+    EksPodTrigger,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 from airflow.providers.common.compat.sdk import TaskDeferred
@@ -1116,3 +1117,60 @@ class TestEksPodOperator:
 
         # Verify super()._refresh_cached_properties() was NOT called since we raised
         mock_super_refresh.assert_not_called()
+
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.convert_config_file_to_dict"
+    )
+    def test_invoke_defer_method_uses_eks_trigger(self, mock_convert_config):
+        """invoke_defer_method should create an EksPodTrigger and call defer."""
+        op = EksPodOperator(
+            task_id="run_pod",
+            pod_name="run_pod",
+            cluster_name=CLUSTER_NAME,
+            image="amazon/aws-cli:latest",
+            cmds=["sh", "-c", "ls"],
+            labels={"demo": "hello_world"},
+            get_logs=True,
+            on_finish_action="delete_pod",
+        )
+
+        # Set up pod metadata as it would be after execute creates the pod
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.name = "test-pod-abc123"
+        mock_pod.metadata.namespace = "default"
+        # Set status to None so define_container_state returns UNDEFINED (not terminal)
+        mock_pod.status = None
+        op.pod = mock_pod
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.invoke_defer_method()
+
+        # Verify the trigger is an EksPodTrigger (not the base KubernetesPodTrigger)
+        trigger = exc.value.trigger
+        assert isinstance(trigger, EksPodTrigger)
+        assert trigger.eks_cluster_name == CLUSTER_NAME
+        assert trigger._aws_conn_id == "aws_default"
+        assert trigger.pod_name == "test-pod-abc123"
+        assert trigger.pod_namespace == "default"
+
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.convert_config_file_to_dict"
+    )
+    def test_invoke_defer_method_raises_when_pod_is_none(self, mock_convert_config):
+        """invoke_defer_method should raise RuntimeError when pod is None."""
+        op = EksPodOperator(
+            task_id="run_pod",
+            pod_name="run_pod",
+            cluster_name=CLUSTER_NAME,
+            image="amazon/aws-cli:latest",
+            cmds=["sh", "-c", "ls"],
+            labels={"demo": "hello_world"},
+            get_logs=True,
+            on_finish_action="delete_pod",
+        )
+
+        # pod is None by default
+        op.pod = None
+
+        with pytest.raises(RuntimeError, match="Pod must be created with metadata before deferring"):
+            op.invoke_defer_method()

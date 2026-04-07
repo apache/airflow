@@ -148,9 +148,9 @@ def _make_task_span(msg: StartupDetails):
         TraceContextTextMapPropagator().extract(msg.ti.context_carrier) if msg.ti.context_carrier else None
     )
     ti = msg.ti
-    span_name = f"task_run.{ti.task_id}"
+    span_name = f"worker.{ti.task_id}"
     if ti.map_index is not None and ti.map_index >= 0:
-        span_name += f"_{ti.map_index}"
+        span_name += f"[{ti.map_index}]"
     with tracer.start_as_current_span(span_name, context=parent_context) as span:
         span.set_attributes(
             {
@@ -225,28 +225,31 @@ class RuntimeTaskInstance(TaskInstance):
 
         # Cache the context object, which ensures that all calls to get_template_context
         # are operating on the same context object.
-        self._cached_template_context: Context = self._cached_template_context or {
-            # From the Task Execution interface
-            "dag": self.task.dag,
-            "inlets": self.task.inlets,
-            "map_index_template": self.task.map_index_template,
-            "outlets": self.task.outlets,
-            "run_id": self.run_id,
-            "task": self.task,
-            "task_instance": self,
-            "ti": self,
-            "outlet_events": OutletEventAccessors(),
-            "inlet_events": InletEventsAccessors(self.task.inlets),
-            "macros": MacrosAccessor(),
-            "params": validated_params,
-            # TODO: Make this go through Public API longer term.
-            # "test_mode": task_instance.test_mode,
-            "var": {
-                "json": VariableAccessor(deserialize_json=True),
-                "value": VariableAccessor(deserialize_json=False),
-            },
-            "conn": ConnectionAccessor(),
-        }
+        if self._cached_template_context is None:
+            self._cached_template_context = {
+                # From the Task Execution interface
+                "dag": self.task.dag,
+                "inlets": self.task.inlets,
+                "map_index_template": self.task.map_index_template,
+                "outlets": self.task.outlets,
+                "run_id": self.run_id,
+                "task": self.task,
+                "task_instance": self,
+                "ti": self,
+                "outlet_events": OutletEventAccessors(),
+                "inlet_events": InletEventsAccessors(self.task.inlets),
+                "macros": MacrosAccessor(),
+                "params": validated_params,
+                # TODO: Make this go through Public API longer term.
+                # "test_mode": task_instance.test_mode,
+                "var": {
+                    "json": VariableAccessor(deserialize_json=True),
+                    "value": VariableAccessor(deserialize_json=False),
+                },
+                "conn": ConnectionAccessor(),
+            }
+        if TYPE_CHECKING:
+            assert self._cached_template_context is not None
         if from_server:
             dag_run = from_server.dag_run
             context_from_server: Context = {
@@ -703,7 +706,13 @@ class RuntimeTaskInstance(TaskInstance):
         return self.log_url
 
 
-def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
+def _xcom_push(
+    ti: RuntimeTaskInstance,
+    key: str,
+    value: Any,
+    *,
+    mapped_length: int | None = None,
+) -> None:
     """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
@@ -715,6 +724,7 @@ def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int
         task_id=ti.task_id,
         run_id=ti.run_id,
         map_index=ti.map_index,
+        dag_result=ti.task.returns_dag_result,
         _mapped_length=mapped_length,
     )
 
@@ -1777,11 +1787,7 @@ def finalize(
             try:
                 SUPERVISOR_COMMS.send(SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)))
             except Exception:
-                log.exception(
-                    "Failed to set rendered fields during finalization",
-                    task_id=ti.task_id,
-                    dag_id=ti.dag_id,
-                )
+                log.exception("Failed to set rendered fields during finalization", ti=ti, task=ti.task)
 
     log.debug("Running finalizers", ti=ti)
     if state == TaskInstanceState.SUCCESS:

@@ -21,6 +21,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
+from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 
@@ -135,7 +136,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         """
         logs = self.connection.containers.list_logs(resource_group, name, name, tail=tail)
         if logs.content is None:
-            return [None]
+            return []
         return logs.content.splitlines(True)
 
     def delete(self, resource_group: str, name: str) -> None:
@@ -154,10 +155,11 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param resource_group: the name of the resource group
         :param name: the name of the container group
         """
-        for container in self.connection.container_groups.list_by_resource_group(resource_group):
-            if container.name == name:
-                return True
-        return False
+        try:
+            self.connection.container_groups.get(resource_group, name)
+            return True
+        except ResourceNotFoundError:
+            return False
 
     def test_connection(self):
         """Test a configured Azure Container Instance connection."""

@@ -562,12 +562,6 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     help="Run prek autoupdate to update hook revisions",
 )
 @click.option(
-    "--pin-versions/--no-pin-versions",
-    default=True,
-    show_default=True,
-    help="Run pin-versions to pin CI dependency versions",
-)
-@click.option(
     "--update-chart-dependencies/--no-update-chart-dependencies",
     default=True,
     show_default=True,
@@ -602,7 +596,6 @@ def upgrade(
     airflow_site: Path,
     force_k8s_schema_sync: bool,
     autoupdate: bool,
-    pin_versions: bool,
     update_chart_dependencies: bool,
     upgrade_important_versions: bool,
     update_uv_lock: bool,
@@ -785,10 +778,10 @@ def upgrade(
             "Commands may fail if they require authentication.[/]"
         )
 
-    # Define all upgrade commands to run (all run with check=False to continue on errors)
+    # All upgrade commands run locally with check=False to continue on errors.
+    # The uv lock --upgrade step must run last so it can incorporate changes from the other steps.
     upgrade_commands: list[tuple[str, str]] = [
         ("autoupdate", "prek autoupdate --cooldown-days 4 --freeze"),
-        ("pin-versions", "prek --all-files --verbose --stage manual pin-versions"),
         (
             "update-chart-dependencies",
             "prek --all-files --show-diff-on-failure --color always --verbose --stage manual update-chart-dependencies",
@@ -799,18 +792,18 @@ def upgrade(
         ),
         (
             "update-uv-lock",
-            "prek --all-files --show-diff-on-failure --color always --verbose update-uv-lock --stage manual",
+            "uv lock --upgrade",
         ),
     ]
+
     step_enabled = {
         "autoupdate": autoupdate,
-        "pin-versions": pin_versions,
         "update-chart-dependencies": update_chart_dependencies,
         "upgrade-important-versions": upgrade_important_versions,
         "update-uv-lock": update_uv_lock,
     }
 
-    # Execute enabled upgrade commands with the environment containing GitHub token
+    # Execute upgrade commands
     for step_name, command in upgrade_commands:
         if step_enabled[step_name]:
             run_command(command.split(), check=False, env=command_env)

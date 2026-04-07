@@ -1383,6 +1383,18 @@ export const $ClearTaskInstancesBody = {
             type: 'boolean',
             title: 'Prevent Running Task',
             default: false
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 1000
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
         }
     },
     additionalProperties: false,
@@ -3311,7 +3323,7 @@ export const $DagRunTriggeredByType = {
 
 export const $DagRunType = {
     type: 'string',
-    enum: ['backfill', 'scheduled', 'manual', 'asset_triggered', 'asset_materialization'],
+    enum: ['backfill', 'scheduled', 'manual', 'operator_triggered', 'asset_triggered', 'asset_materialization'],
     title: 'DagRunType',
     description: 'Class with DagRun types.'
 } as const;
@@ -4459,6 +4471,108 @@ export const $LastAssetEventResponse = {
     type: 'object',
     title: 'LastAssetEventResponse',
     description: 'Last asset event response serializer.'
+} as const;
+
+export const $MaterializeAssetBody = {
+    properties: {
+        dag_run_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Run Id'
+        },
+        data_interval_start: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Data Interval Start'
+        },
+        data_interval_end: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Data Interval End'
+        },
+        logical_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logical Date'
+        },
+        run_after: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run After'
+        },
+        conf: {
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Conf'
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
+        },
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    title: 'MaterializeAssetBody',
+    description: 'Materialize asset request.'
 } as const;
 
 export const $PatchTaskInstanceBody = {
@@ -7844,6 +7958,76 @@ export const $DashboardDagStatsResponse = {
     description: 'Dashboard DAG Stats serializer for responses.'
 } as const;
 
+export const $DeadlineAlertCollectionResponse = {
+    properties: {
+        deadline_alerts: {
+            items: {
+                '$ref': '#/components/schemas/DeadlineAlertResponse'
+            },
+            type: 'array',
+            title: 'Deadline Alerts'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['deadline_alerts', 'total_entries'],
+    title: 'DeadlineAlertCollectionResponse',
+    description: 'DeadlineAlert Collection serializer for responses.'
+} as const;
+
+export const $DeadlineAlertResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Name'
+        },
+        description: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Description'
+        },
+        reference_type: {
+            type: 'string',
+            title: 'Reference Type'
+        },
+        interval: {
+            type: 'number',
+            title: 'Interval',
+            description: 'Interval in seconds between deadline evaluations.'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        }
+    },
+    type: 'object',
+    required: ['id', 'reference_type', 'interval', 'created_at'],
+    title: 'DeadlineAlertResponse',
+    description: 'DeadlineAlert serializer for responses.'
+} as const;
+
 export const $DeadlineCollectionResponse = {
     properties: {
         deadlines: {
@@ -7885,6 +8069,14 @@ export const $DeadlineResponse = {
             format: 'date-time',
             title: 'Created At'
         },
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        dag_run_id: {
+            type: 'string',
+            title: 'Dag Run Id'
+        },
         alert_name: {
             anyOf: [
                 {
@@ -7909,7 +8101,7 @@ export const $DeadlineResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'deadline_time', 'missed', 'created_at'],
+    required: ['id', 'deadline_time', 'missed', 'created_at', 'dag_id', 'dag_run_id'],
     title: 'DeadlineResponse',
     description: 'Deadline serializer for responses.'
 } as const;
@@ -8896,25 +9088,7 @@ export const $Theme = {
     properties: {
         tokens: {
             additionalProperties: {
-                additionalProperties: {
-                    additionalProperties: {
-                        additionalProperties: {
-                            '$ref': '#/components/schemas/OklchColor'
-                        },
-                        propertyNames: {
-                            const: 'value'
-                        },
-                        type: 'object'
-                    },
-                    propertyNames: {
-                        enum: ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']
-                    },
-                    type: 'object'
-                },
-                propertyNames: {
-                    const: 'brand'
-                },
-                type: 'object'
+                '$ref': '#/components/schemas/ThemeColors'
             },
             propertyNames: {
                 const: 'colors'
@@ -8964,6 +9138,11 @@ export const $Theme = {
     required: ['tokens'],
     title: 'Theme',
     description: "JSON to modify Chakra's theme."
+} as const;
+
+export const $ThemeColors = {
+    additionalProperties: true,
+    type: 'object'
 } as const;
 
 export const $TokenType = {

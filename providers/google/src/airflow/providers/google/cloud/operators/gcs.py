@@ -231,7 +231,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         self.prefix = prefix
         if delimiter:
             warnings.warn(
-                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead",
+                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
@@ -280,6 +280,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         of objects in the bucket, not including gs://bucket/
     :param prefix: String or list of strings, which filter objects whose name begin with
            it/them. (templated)
+    :param ignore_error: (Optional) whether to ignore NotFound exceptions. Default: False
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -305,6 +306,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         bucket_name: str,
         objects: list[str] | None = None,
         prefix: str | list[str] | None = None,
+        ignore_error: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -312,6 +314,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         self.bucket_name = bucket_name
         self.objects = objects
         self.prefix = prefix
+        self.ignore_error = ignore_error
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
@@ -338,7 +341,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
         self.log.info("Deleting %s objects from %s", len(objects), self.bucket_name)
         for object_name in objects:
-            hook.delete(bucket_name=self.bucket_name, object_name=object_name)
+            hook.delete(bucket_name=self.bucket_name, object_name=object_name, ignore_error=self.ignore_error)
 
     def get_openlineage_facets_on_start(self):
         from airflow.providers.common.compat.openlineage.facet import (
@@ -876,10 +879,13 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             temp_input_dir_path = Path(temp_input_dir)
             temp_output_dir_path = Path(temp_output_dir)
 
+            num_downloads = len(blobs_to_transform)
+            download_workers = min(self.max_download_workers, num_downloads) if num_downloads > 0 else 1
+
             self.log.info(
                 "Downloading %d files using %d workers",
-                len(blobs_to_transform),
-                self.max_download_workers,
+                num_downloads,
+                download_workers,
             )
 
             # Get storage client once (storage.Client is thread-safe for concurrent requests).
@@ -897,7 +903,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
                 return blob_name
 
-            with ThreadPoolExecutor(max_workers=self.max_download_workers) as executor:
+            with ThreadPoolExecutor(max_workers=download_workers) as executor:
                 futures = {executor.submit(_download, blob): blob for blob in blobs_to_transform}
 
                 for future in as_completed(futures):
@@ -906,6 +912,10 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                         future.result()
                     except GoogleCloudError as e:
                         if not self.download_continue_on_fail:
+                            # Attempt to cancel pending futures to reduce unnecessary work.
+                            # Note: futures already running cannot be cancelled.
+                            for f in futures:
+                                f.cancel()
                             raise
                         self.log.warning("Download failed for %s: %s", blob, e)
 
@@ -935,10 +945,13 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
             upload_candidates = [f for f in temp_output_dir_path.glob("**/*") if f.is_file()]
 
+            num_uploads = len(upload_candidates)
+            upload_workers = min(self.max_upload_workers, num_uploads) if num_uploads > 0 else 1
+
             self.log.info(
                 "Uploading %d files using %d workers",
-                len(upload_candidates),
-                self.max_upload_workers,
+                num_uploads,
+                upload_workers,
             )
 
             destination_hook = GCSHook(
@@ -969,7 +982,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
             files_uploaded: list[str] = []
 
-            with ThreadPoolExecutor(max_workers=self.max_upload_workers) as executor:
+            with ThreadPoolExecutor(max_workers=upload_workers) as executor:
                 futures = {
                     executor.submit(_upload, upload_file): str(upload_file)
                     for upload_file in upload_candidates
@@ -982,6 +995,10 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                         files_uploaded.append(uploaded_name)
                     except GoogleCloudError as e:
                         if not self.upload_continue_on_fail:
+                            # Attempt to cancel pending futures to reduce unnecessary work.
+                            # Note: futures already running cannot be cancelled.
+                            for f in futures:
+                                f.cancel()
                             raise
                         self.log.warning("Upload failed for %s: %s", upload_file, e)
 

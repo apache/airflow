@@ -62,6 +62,8 @@ fi
 AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
 PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
+RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
+RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
 
 if [[ "${1}" == "runtime" ]]; then
@@ -433,6 +435,33 @@ function install_golang() {
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
 }
 
+function install_rustup() {
+    local arch
+    arch="$(dpkg --print-architecture)"
+    declare -A rustup_targets=(
+        [amd64]="x86_64-unknown-linux-gnu"
+        [arm64]="aarch64-unknown-linux-gnu"
+    )
+    declare -A rustup_sha256s=(
+        # https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/{target}/rustup-init.sha256
+        [amd64]="4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10"
+        [arm64]="9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792"
+    )
+    local target="${rustup_targets[${arch}]}"
+    local rustup_sha256="${rustup_sha256s[${arch}]}"
+    if [[ -z "${target}" ]]; then
+        echo "Unsupported architecture for rustup: ${arch}"
+        exit 1
+    fi
+    curl --proto '=https' --tlsv1.2 -sSf \
+        "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${target}/rustup-init" \
+        -o /tmp/rustup-init
+    echo "${rustup_sha256}  /tmp/rustup-init" | sha256sum --check
+    chmod +x /tmp/rustup-init
+    /tmp/rustup-init -y --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
+    rm -f /tmp/rustup-init
+}
+
 function apt_clean() {
     apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
     rm -rf /var/lib/apt/lists/* /var/log/*
@@ -448,6 +477,7 @@ else
     install_debian_dev_dependencies
     install_python
     install_additional_dev_dependencies
+    install_rustup
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
         install_golang
     fi
@@ -1474,8 +1504,26 @@ function check_force_lowest_dependencies() {
         # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
-        uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
-            --no-python-downloads --no-managed-python
+
+        local sync_successful="false"
+        for attempt in 1 2 3; do
+            echo "Attempt ${attempt} of syncing to lowest dependencies"
+            set -x
+            if UV_LOCK_TIMEOUT=200 uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
+                --no-python-downloads --no-managed-python; then
+                set +x
+                sync_successful="true"
+                break
+            fi
+            set +x
+            echo "Sleeping 30s"
+            sleep 30
+            echo "Attempt ${attempt} failed. Retrying..."
+        done
+        if [[ "${sync_successful}" != "true" ]]; then
+            echo "${COLOR_RED}Failed to sync lowest dependencies after 3 attempts.${COLOR_RESET}"
+            exit 1
+        fi
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
@@ -1628,6 +1676,9 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
 ARG AIRFLOW_PYTHON_VERSION="3.12.13"
 ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
 ENV GOLANG_MAJOR_MINOR_VERSION="1.26.1"
+ENV RUSTUP_HOME="/usr/local/rustup"
+ENV CARGO_HOME="/usr/local/cargo"
+ENV PATH="${CARGO_HOME}/bin:${PATH}"
 
 ARG PYTHON_LTO
 
@@ -1683,7 +1734,7 @@ RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && chmod +x /usr/local/bin/helm
 
 # Install mprocs - a modern process manager for managing multiple Airflow components
-ARG MPROCS_VERSION="0.8.3"
+ARG MPROCS_VERSION="0.9.2"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && PLATFORM="$(uname -m)" \
@@ -1777,8 +1828,8 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.10.12
-ARG AIRFLOW_PREK_VERSION="0.3.6"
+ARG AIRFLOW_UV_VERSION=0.11.3
+ARG AIRFLOW_PREK_VERSION="0.3.8"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
@@ -1787,7 +1838,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_PREK_VERSION=${AIRFLOW_PREK_VERSION}
 
 # The PATH is needed for python to find installed and cargo to build the wheels
-ENV PATH="/usr/python/bin:/root/.local/bin:/root/.cargo/bin:${PATH}"
+ENV PATH="/usr/python/bin:/root/.local/bin:${PATH}"
 # Useful for creating a cache id based on the underlying architecture, preventing the use of cached python packages from
 # an incorrect architecture.
 ARG TARGETARCH

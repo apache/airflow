@@ -114,8 +114,11 @@ class AirflowClient:
         )
 
     def trigger_dag(self, dag_id: str, json=None):
+        self.un_pause_dag(dag_id)
+
         if json is None:
             json = {}
+
         return self._make_request(method="POST", endpoint=f"dags/{dag_id}/dagRuns", json=json)
 
     def wait_for_dag_run(self, dag_id: str, run_id: str, timeout=300, check_interval=5):
