@@ -22,7 +22,7 @@ from contextlib import contextmanager
 
 @contextmanager
 def disable_sqlite_fkeys(op):
-    if op.get_bind().dialect.name == "sqlite":
+    if get_dialect_name(op) == "sqlite":
         with contextlib.ExitStack() as exit_stack:
             op.execute("PRAGMA foreign_keys=off")
             exit_stack.callback(op.execute, "PRAGMA foreign_keys=on")
