@@ -50,6 +50,7 @@ except ImportError:
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from system.amazon.aws.utils.k8s import get_describe_pod_operator
 
 DAG_ID = "example_emr_eks"
 
@@ -180,26 +181,6 @@ def update_trust_policy_execution_role(cluster_name, cluster_namespace, role_nam
     time.sleep(int(wait_time))
 
 
-@task(trigger_rule=TriggerRule.ONE_FAILED)
-def describe_emr_eks_pods(cluster_name: str, namespace: str):
-    """Describe all pods in the namespace to help diagnose EMR on EKS job failures."""
-    commands = f"""
-        aws eks update-kubeconfig --name {cluster_name};
-        echo "***** pods in namespace {namespace} *****";
-        kubectl get pods -n {namespace} -o wide;
-        echo "***** pod descriptions *****";
-        kubectl describe pods -n {namespace};
-    """
-    build = subprocess.Popen(
-        commands,
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    stdout, _ = build.communicate()
-    print(stdout.decode())
-
-
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_virtual_cluster(virtual_cluster_id):
     boto3.client("emr-containers").delete_virtual_cluster(
@@ -312,6 +293,10 @@ with DAG(
     )
     # [END howto_sensor_emr_container]
 
+    # Describe pods only on failure to help diagnose EMR on EKS job issues.
+    describe_pod = get_describe_pod_operator(cluster_name=eks_cluster_name, namespace=eks_namespace)
+    describe_pod.trigger_rule = TriggerRule.ONE_FAILED
+
     delete_eks_cluster = EksDeleteClusterOperator(
         task_id="delete_eks_cluster",
         cluster_name=eks_cluster_name,
@@ -350,8 +335,7 @@ with DAG(
         create_emr_eks_cluster,
         job_starter,
         job_waiter,
-        # Describe pods only on failure to help diagnose EMR on EKS job issues.
-        describe_emr_eks_pods(eks_cluster_name, eks_namespace),
+        describe_pod,
         # TEST TEARDOWN
         delete_iam_oidc_identity_provider(eks_cluster_name),
         delete_virtual_cluster(str(create_emr_eks_cluster.output)),
