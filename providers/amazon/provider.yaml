@@ -402,6 +402,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/mwaa.rst
     tags: [aws]
+  - integration-name: Amazon Neptune Analytics
+    external-doc-url: https://docs.aws.amazon.com/neptune-analytics/latest/userguide/gettingStarted.html
+    logo: /docs/integration-logos/Amazon-Neptune_64.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/neptune-analytics.rst
+    tags: [aws]
   - integration-name: Amazon S3 Vectors
     external-doc-url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors.html
     logo: /docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png
