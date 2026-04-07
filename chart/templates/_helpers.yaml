@@ -644,7 +644,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Helper for service account name generation */}}
 {{- define "_serviceAccountNameGen" -}}
   {{- if .sa.create }}
-    {{- default (printf "%s-%s" (include "airflow.serviceAccountName" .) (default .key .nameSuffix )) .sa.name | quote }}
+    {{- default (printf "%s-%s" (include "airflow.serviceAccountName" .) (default .key .nameSuffix)) .sa.name | quote }}
   {{- else }}
     {{- default "default" .sa.name | quote }}
   {{- end }}
