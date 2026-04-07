@@ -1,0 +1,125 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Upgrade check
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      target-branch:
+        description: >-
+          Branch to upgrade (e.g. 'main' or 'v3-2-test')
+        required: true
+        type: string
+    secrets:
+      SLACK_BOT_TOKEN:
+        description: "Slack bot token for notifications"
+        required: true
+permissions:
+  contents: write
+  pull-requests: write
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  TARGET_BRANCH: ${{ inputs.target-branch }}
+jobs:
+  createupgrade-check:
+    timeout-minutes: 45
+    name: >-
+      [${{ inputs.target-branch }}] Upgrade checks and PR
+    runs-on: ["ubuntu-22.04"]
+    steps:
+      - name: >-
+          [${{ inputs.target-branch }}] Cleanup repo
+        shell: bash
+        run: >
+          docker run -v "${GITHUB_WORKSPACE}:/workspace"
+          -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: >-
+          [${{ inputs.target-branch }}] Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          ref: ${{ inputs.target-branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: >-
+          [${{ inputs.target-branch }}] Configure git credentials
+        run: |
+          git remote set-url origin \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: >-
+          [${{ inputs.target-branch }}] Install Breeze
+        uses: ./.github/actions/breeze
+        id: breeze
+      - name: >-
+          [${{ inputs.target-branch }}] Install prek
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          python-version: >-
+            ${{ steps.breeze.outputs.host-python-version }}
+          platform: "linux/amd64"
+          save-cache: false
+      - name: >-
+          [${{ inputs.target-branch }}] Run breeze ci upgrade
+        run: >
+          breeze ci upgrade
+          --target-branch "${TARGET_BRANCH}"
+          --create-pr
+          --draft
+          --switch-to-base
+          --no-k8s-schema-sync
+          --answer yes
+      - name: >-
+          [${{ inputs.target-branch }}] Find upgrade PR
+        id: find-pr
+        run: |
+          PR_URL=$(gh pr list \
+            --repo "${GITHUB_REPOSITORY}" \
+            --head "ci-upgrade-${TARGET_BRANCH}" \
+            --base "${TARGET_BRANCH}" \
+            --state open \
+            --json url \
+            --jq '.[0].url' 2>/dev/null || true)
+          echo "pr-url=${PR_URL}" >> "${GITHUB_OUTPUT}"
+      - name: >-
+          [${{ inputs.target-branch }}] Notify Slack
+        if: steps.find-pr.outputs.pr-url != ''
+        uses: >-
+          slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95
+        with:
+          method: chat.postMessage
+          token: ${{ env.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: "internal-airflow-ci-cd"
+            text: >-
+              🔧 [${{ inputs.target-branch }}] CI upgrade PR
+              ready for review. Please undraft, review and
+              merge: ${{ steps.find-pr.outputs.pr-url }}
+            blocks:
+              - type: section
+                text:
+                  type: mrkdwn
+                  text: >-
+                    🔧 *[${{ inputs.target-branch }}] CI upgrade
+                    PR ready for review*
+
+                    Please undraft, review and merge:
+                    <${{ steps.find-pr.outputs.pr-url }}|View PR>
