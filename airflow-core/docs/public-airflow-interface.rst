@@ -548,8 +548,8 @@ but in Airflow they are not parts of the Public Interface and might change any t
   internal implementation detail and you should not assume they will be maintained
   in a backwards-compatible way.
 
-**Direct metadata database access from worker task code is no longer allowed**.
-Worker task code cannot directly access the metadata database to query Dag state, task history,
+**Direct metadata database access from code authored by Dag Authors is no longer allowed**.
+The code authored by Dag Authors cannot directly access the metadata database to query Dag state, task history,
 or Dag runs — workers communicate exclusively through the Execution API. Instead, use one
 of the following alternatives:
 

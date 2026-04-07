@@ -63,9 +63,9 @@ the :doc:`Celery executor <apache-airflow-providers-celery:celery_executor>`.
 
 Once you have configured the executor, it is necessary to make sure that every node in the cluster contains
 the Dags and configuration appropriate for its role. Airflow sends simple instructions such as
-"execute task X of Dag Y", but does not send any Dag files or configuration. You can use a simple cronjob
-or any other mechanism to sync Dags across your nodes, e.g., checkout Dags from git repo every 5 minutes
-on all nodes. For security-sensitive deployments, restrict sensitive configuration (JWT signing keys,
+"execute task X of Dag Y", but does not send any Dag files or configuration. For synchronization of Dags
+we recommend the Dag Bundle mechanism (including ``GitDagBundle``), which allows you to make use of
+DAG versioning. For security-sensitive deployments, restrict sensitive configuration (JWT signing keys,
 database credentials, Fernet keys) to only the components that need them rather than sharing all
 configuration across all nodes — see :doc:`/security/security_model` for guidance.
 

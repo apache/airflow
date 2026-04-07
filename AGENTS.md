@@ -67,11 +67,11 @@ UV workspace monorepo. Key paths:
 ## Architecture Boundaries
 
 1. Users author Dags with the Task SDK (`airflow.sdk`).
-2. Dag File Processor parses Dag files in separate processes and stores serialized Dags in the metadata DB. It potentially has **direct database access** and uses an in-process Execution API transport that **potentially bypasses JWT authentication**.
+2. Dag File Processor parses Dag files in separate processes and stores serialized Dags in the metadata DB. Software guards prevent individual parsing processes from accessing the database directly and enforce use of the Execution API, but these guards do not protect against intentional bypassing by malicious or misconfigured code.
 3. Scheduler reads serialized Dags — **never runs user code** — and creates Dag runs / task instances.
 4. Workers execute tasks via Task SDK and communicate with the API server through the Execution API — **never access the metadata DB directly**. Each task receives a short-lived JWT token scoped to its task instance ID.
 5. API Server serves the React UI and handles all client-database interactions.
-6. Triggerer evaluates deferred tasks/sensors in separate processes. Like the Dag File Processor, it potentially has **direct database access** and uses an in-process Execution API transport that **potentially bypasses JWT authentication**.
+6. Triggerer evaluates deferred tasks/sensors in separate processes. Like the Dag File Processor, software guards steer it through the Execution API rather than direct database access, but these guards do not protect against intentional bypassing by malicious or misconfigured code.
 7. Shared libraries that are symbolically linked to different Python distributions are in `shared` folder.
 8. Airflow uses `uv workspace` feature to keep all the distributions sharing dependencies and venv
 9. Each of the distributions should declare other needed distributions: `uv --project <FOLDER> sync` command acts on the selected project in the monorepo with only dependencies that it has
@@ -83,44 +83,8 @@ mind the following aspects of Airflow's security model. The authoritative refere
 [`airflow-core/docs/security/security_model.rst`](airflow-core/docs/security/security_model.rst)
 and [`airflow-core/docs/security/jwt_token_authentication.rst`](airflow-core/docs/security/jwt_token_authentication.rst).
 
-**The following are intentional design choices, not security vulnerabilities:**
-
-- **Dag File Processor and Triggerer potentially bypass JWT authentication.** They use
-  `InProcessExecutionAPI` which overrides the JWT bearer dependency to always allow access. This
-  is by design — these components run within trusted infrastructure and potentially need direct
-  database access for their core operations (storing serialized Dags, managing trigger state).
-- **Dag File Processor and Triggerer potentially have direct metadata database access.**
-  User-submitted code (Dag files, trigger code) executes in these components and can potentially
-  access the database. This is a known limitation documented in the security model, not an
-  undiscovered vulnerability.
-- **Worker Execution API tokens grant access to shared resources.** While `ti:self` scope prevents
-  cross-task state manipulation, connections, variables, and XComs are accessible to all tasks.
-  This is the current design — finer-grained scoping is planned for future versions.
-- **The experimental multi-team feature (`[core] multi_team`) does not guarantee task-level
-  isolation.** It provides UI-level and REST API-level RBAC isolation only. At the Execution API
-  and database level, there is no enforcement of team boundaries. This is documented and expected.
-- **Execution API tokens are not subject to revocation.** They are short-lived (default 10 min)
-  with automatic refresh, so revocation is intentionally not part of the Execution API security model.
-- **A single Dag File Processor and Triggerer instance serves all teams by default.** Per-team
-  instances require deployment-level configuration by the Deployment Manager.
-
-**The following are NOT security vulnerabilities (per Airflow's security policy and trust model):**
-
-- Dag authors executing arbitrary code, accessing credentials, or reading environment variables —
-  Dag authors are trusted users with broad capabilities by design.
-- Dag author code passing unsanitized input to operators/hooks — responsibility lies with the Dag
-  author, not Airflow. SQL injection or command injection is only a vulnerability if exploitable by
-  a non-Dag-author role without the Dag author deliberately writing unsafe code.
-- Connection configuration users being able to trigger RCE/DoS/arbitrary reads via connection
-  parameters — these users are highly privileged by design. Test connection is disabled by default.
-- DoS by authenticated users — Airflow is an internal application with known, authenticated users.
-  DoS by authenticated users is an operational concern, not a CVE-worthy vulnerability.
-- Self-XSS by authenticated users — only considered a vulnerability if it crosses privilege
-  boundaries (lower-privileged user's payload executes in higher-privileged session).
-- Simple Auth Manager security issues — it is for development/testing only, with a prominent warning.
-- Third-party dependency CVEs in Docker images — expected over time; users should build their own
-  images. Only report if you have a proof-of-concept exploiting the vulnerability in Airflow's context.
-- Automated scanner results without human verification against the security model.
+Particularly, the intentional design choices, that are not security vulnerabilities and should not be
+reported as such are described in "What is NOT considered a security vulnerability" chapter of the security model.
 
 **When flagging security concerns, distinguish between:**
 

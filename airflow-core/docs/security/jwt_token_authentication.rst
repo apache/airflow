@@ -55,8 +55,8 @@ Airflow supports two mutually exclusive signing modes:
 
 **Asymmetric (public/private key pair)**
    Uses a PEM-encoded private key (``[api_auth] jwt_private_key_path``) for signing and
-   the corresponding public key for validation. Supported algorithms: **RS256** (RSA) and
-   **EdDSA** (Ed25519). The algorithm is auto-detected from the key type when
+   the corresponding public key for validation. Supported algorithms: **RS256** (``RSA``) and
+   **EdDSA** (``Ed25519``). The algorithm is auto-detected from the key type when
    ``[api_auth] jwt_algorithm`` is set to ``GUESS`` (the default).
 
    Validation can use either:
@@ -65,11 +65,6 @@ Airflow supports two mutually exclusive signing modes:
      (local file or remote HTTP/HTTPS URL, polled periodically for updates).
    - The public key derived from the configured private key (automatic fallback when
      ``trusted_jwks_url`` is not set).
-
-The asymmetric mode is recommended for production deployments where you want workers
-and the API server to operate with different credentials (workers only need the private key for
-token generation; the API server only needs the JWKS for validation).
-
 
 REST API Authentication Flow
 -----------------------------
@@ -101,9 +96,9 @@ Token structure (REST API)
    * - ``jti``
      - Unique token identifier (UUID4 hex). Used for token revocation.
    * - ``iss``
-     - Issuer (from ``[api_auth] jwt_issuer``). Optional but recommended.
+     - Issuer (from ``[api_auth] jwt_issuer``).
    * - ``aud``
-     - Audience (from ``[api_auth] jwt_audience``). Optional but recommended.
+     - Audience (from ``[api_auth] jwt_audience``).
    * - ``sub``
      - User identifier (serialized by the auth manager).
    * - ``iat``
@@ -136,11 +131,6 @@ Revoked tokens are tracked in the ``revoked_token`` database table by their ``jt
 On logout or explicit revocation, the token's ``jti`` and ``exp`` are inserted into this
 table. Expired entries are automatically cleaned up at a cadence of ``2× jwt_expiration_time``.
 
-Execution API tokens are not subject to revocation. They are short-lived (default 10 minutes)
-and automatically refreshed by the ``JWTReissueMiddleware``, so revocation is not part of the
-Execution API security model. Once an Execution API token is issued to a worker, it remains
-valid until it expires.
-
 Token refresh (REST API)
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -168,15 +158,16 @@ Default timings (REST API)
 Execution API Authentication Flow
 ----------------------------------
 
-The Execution API is an internal API used by workers to report task state transitions,
-heartbeats, and to retrieve connections, variables, and XComs at task runtime.
+The Execution API is an  API used for use by Airflow itself (not third party callers)
+to report and set task state transitions, send heartbeats, and to retrieve connections,
+variables, and XComs at task runtime, trigger execution and Dag parsing.
 
 Token generation (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-1. The **Scheduler** (via the executor) generates a JWT for each task instance before
-   dispatching it to a worker. The executor's ``jwt_generator`` property creates a
-   ``JWTGenerator`` configured with the ``[execution_api]`` settings.
+1. The **Scheduler** generates a JWT for each task instance before
+   dispatching it (via the executor) to a worker. The executor's
+   ``jwt_generator`` property creates a ``JWTGenerator`` configured with the ``[execution_api]`` settings.
 2. The token's ``sub`` (subject) claim is set to the **task instance UUID**.
 3. The token is embedded in the workload JSON payload (``BaseWorkloadSchema.token`` field)
    that is sent to the worker process.
@@ -193,13 +184,13 @@ Token structure (Execution API)
    * - ``jti``
      - Unique token identifier (UUID4 hex).
    * - ``iss``
-     - Issuer (from ``[api_auth] jwt_issuer``). Optional.
+     - Issuer (from ``[api_auth] jwt_issuer``).
    * - ``aud``
      - Audience (from ``[execution_api] jwt_audience``, default: ``urn:airflow.apache.org:task``).
    * - ``sub``
      - Task instance UUID — the identity of the workload.
    * - ``scope``
-     - Token scope: ``"execution"`` (default) or ``"workload"`` (restricted).
+     - Token scope: ``"execution"`` or ``"workload"``.
    * - ``iat``
      - Issued-at timestamp.
    * - ``nbf``
@@ -212,14 +203,14 @@ Token scopes (Execution API)
 
 The Execution API defines two token scopes:
 
-**execution** (default)
-   Accepted by all Execution API endpoints. This is the standard scope for worker
-   communication.
-
 **workload**
    A restricted scope accepted only on endpoints that explicitly opt in via
    ``Security(require_auth, scopes=["token:workload"])``. Used for endpoints that
    manage task state transitions.
+
+**execution**
+   Accepted by all Execution API endpoints. This is the standard scope for worker
+   communication and allows access
 
 Tokens without a ``scope`` claim default to ``"execution"`` for backwards compatibility.
 
@@ -228,7 +219,8 @@ Token delivery to workers
 
 The token flows through the execution stack as follows:
 
-1. **Executor** generates the token and embeds it in the workload JSON payload.
+1. **Scheduler** generates the token and embeds it in the workload JSON payload that it passes to
+   **Executor**.
 2. The workload JSON is passed to the worker process (via the executor-specific mechanism:
    Celery message, Kubernetes Pod spec, local subprocess arguments, etc.).
 3. The worker's ``execute_workload()`` function reads the workload JSON and extracts the token.
@@ -259,7 +251,7 @@ Route-level enforcement is handled by ``require_auth``:
 Token refresh (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The ``JWTReissueMiddleware`` automatically refreshes tokens that are approaching expiry:
+The ``JWTReissueMiddleware`` automatically refreshes valid tokens that are approaching expiry:
 
 1. After each response, the middleware checks the token's remaining validity.
 2. If less than **20%** of the total validity remains (minimum 30 seconds), the server
@@ -270,6 +262,16 @@ The ``JWTReissueMiddleware`` automatically refreshes tokens that are approaching
 
 This mechanism ensures long-running tasks do not lose API access due to token expiry,
 without requiring the worker to re-authenticate.
+
+No token revocation (Execution API)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Execution API tokens are not subject to revocation. They are short-lived (default 10 minutes)
+and automatically refreshed by the ``JWTReissueMiddleware``, so revocation is not part of the
+Execution API security model. Once an Execution API token is issued to a worker, it remains
+valid until it expires.
+
+
 
 Default timings (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -312,8 +314,10 @@ retrieve the parent process's database credentials (via ``/proc/<PID>/environ``,
 files, or secrets manager access) and gain full read/write access to the metadata database and
 all Execution API operations — without needing a valid JWT token.
 
-This is in contrast to workers, where the isolation is genuine: worker processes do not receive
-database credentials at all and communicate exclusively through the Execution API.
+This is in contrast to workers/task execution, where the isolation is implemented ad deployment
+level - where sensitive configuration of database credentials is not available to Airflow
+processes because they are not set in their deployment configuration at all, and communicate
+exclusively through the Execution API.
 
 In the default deployment, a **single Dag File Processor instance** parses Dag files for all
 teams and a **single Triggerer instance** handles all triggers across all teams. This means
@@ -334,67 +338,8 @@ guidance, and the planned strategic and tactical improvements.
 Workload Isolation and Current Limitations
 ------------------------------------------
 
-The current JWT authentication model operates under the following assumptions and limitations:
-
-**Worker process memory protection (Linux)**
-   On Linux, the supervisor process calls ``prctl(PR_SET_DUMPABLE, 0)`` at the start of
-   ``supervise()`` before forking the task process. This flag is inherited by the forked
-   child. Marking processes as non-dumpable prevents same-UID sibling processes from reading
-   ``/proc/<pid>/mem``, ``/proc/<pid>/environ``, or ``/proc/<pid>/maps``, and blocks
-   ``ptrace(PTRACE_ATTACH)``. This is critical because each supervisor holds a distinct JWT
-   token in memory — without this protection, a malicious task process running as the same
-   Unix user could steal tokens from sibling supervisor processes.
-
-   This protection is one of the reasons that passing sensitive configuration via environment
-   variables is safer than via configuration files: environment variables are only readable
-   by the process itself (and root), whereas configuration files on disk are readable by any
-   process with filesystem access running as the same user.
-
-   .. note::
-
-      This protection is Linux-specific. On non-Linux platforms, the
-      ``_make_process_nondumpable()`` call is a no-op. Deployment Managers running Airflow
-      on non-Linux platforms should implement alternative isolation measures.
-
-**No cross-workload isolation**
-   All worker workloads authenticate to the same Execution API with tokens that share the
-   same signing key, audience, and issuer. While the ``ti:self`` scope enforcement prevents
-   a worker from accessing *another task instance's* specific endpoints (e.g., heartbeat,
-   state transitions), the token grants access to shared resources such as connections,
-   variables, and XComs that are not scoped to individual tasks.
-
-**No team-level isolation in Execution API (experimental multi-team feature)**
-   The experimental multi-team feature (``[core] multi_team``) provides UI-level and REST
-   API-level RBAC isolation between teams, but **does not yet guarantee task-level isolation**.
-   At the Execution API level, there is no enforcement of team-based access boundaries.
-   A task from one team can access the same connections, variables, and XComs as a task from
-   another team. All workloads share the same JWT signing keys and audience regardless of team
-   assignment.
-
-   In deployments where additional hardening measures are not implemented at the deployment
-   level, a task from one team can potentially access resources belonging to another team
-   (see :doc:`/security/security_model`). A deep understanding of configuration and deployment
-   security is required by Deployment Managers to configure it in a way that can guarantee
-   separation between teams. Task-level team isolation will be improved in future versions
-   of Airflow.
-
-**Dag File Processor and Triggerer potentially bypass JWT and access the database**
-   As described above, the default deployment runs a single Dag File Processor and a single
-   Triggerer for all teams. Both potentially bypass JWT authentication via in-process transport.
-   For multi-team isolation, Deployment Managers must run separate instances per team, but
-   even then, each instance potentially retains direct database access. A Dag author whose code
-   runs in these components can potentially access the database directly — including data
-   belonging to other teams or the JWT signing key configuration — unless the Deployment Manager
-   restricts the database credentials and configuration available to each instance.
-
-**Planned improvements**
-   Future versions of Airflow will address these limitations with:
-
-   - Finer-grained token scopes tied to specific resources (connections, variables) and teams.
-   - Enforcement of team-based isolation in the Execution API.
-   - Built-in support for per-team Dag File Processor and Triggerer instances.
-   - Improved sandboxing of user-submitted code in the Dag File Processor and Triggerer.
-   - Full task-level isolation for the multi-team feature.
+For a detailed discussion of workload isolation protections, current limitations, and planned
+improvements, see :ref:`workload-isolation`.
 
 
 Configuration Reference
@@ -410,16 +355,16 @@ All JWT-related configuration parameters:
      - Default
      - Description
    * - ``[api_auth] jwt_secret``
-     - Auto-generated
+     - Auto-generated if missing
      - Symmetric secret key for signing tokens. Must be the same across all components. Mutually exclusive with ``jwt_private_key_path``.
    * - ``[api_auth] jwt_private_key_path``
      - None
-     - Path to PEM-encoded private key (RSA or Ed25519). Mutually exclusive with ``jwt_secret``.
+     - Path to PEM-encoded private key (``RSA`` or ``Ed25519``). Mutually exclusive with ``jwt_secret``.
    * - ``[api_auth] jwt_algorithm``
      - ``GUESS``
-     - Signing algorithm. Auto-detected from key type: HS512 for symmetric, RS256 for RSA, EdDSA for Ed25519.
+     - Signing algorithm. Auto-detected from key type: ``HS512`` for symmetric, ``RS256`` for ``RSA``, ``EdDSA`` for ``Ed25519``.
    * - ``[api_auth] jwt_kid``
-     - Auto (RFC 7638 thumbprint)
+     - Auto (``RFC 7638`` thumbprint)
      - Key ID placed in token header. Ignored for symmetric keys.
    * - ``[api_auth] jwt_issuer``
      - None
