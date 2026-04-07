@@ -337,7 +337,7 @@ class TestCliTasks:
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_mapped_task_render_out_of_range_map_index(self):
         """Raise ValueError when map_index exceeds the parse-time mapped count."""
-        with pytest.raises(ValueError, match=r"map_index 5 is out of range.*3 mapped instance"):
+        with pytest.raises(ValueError) as exc_info:
             task_command.task_render(
                 self.parser.parse_args(
                     [
@@ -351,6 +351,9 @@ class TestCliTasks:
                     ]
                 )
             )
+        assert exc_info.value.args == (
+            "map_index 5 is out of range. Task 'consumer_literal' has 3 mapped instance(s) [0..2].",
+        )
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_mapped_task_render_boundary_map_index(self):
