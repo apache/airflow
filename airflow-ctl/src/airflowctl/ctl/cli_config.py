@@ -413,6 +413,7 @@ class CommandFactory:
             "_check_flag_and_exit_if_server_response_error",
             # Excluding bulk operation. Out of scope for CLI. Should use implemented commands.
             "bulk",
+            "_parse_task_instance_response",
         ]
         self.excluded_output_keys = [
             "total_entries",
@@ -729,6 +730,7 @@ class CommandFactory:
                                 val = args_dict[expanded_parameter]
                                 if isinstance(val, str) and expanded_parameter in datamodel.model_fields:
                                     import typing
+
                                     annotation = datamodel.model_fields[expanded_parameter].annotation
                                     origin = typing.get_origin(annotation)
                                     if origin is list or getattr(annotation, "__origin__", None) is list:
