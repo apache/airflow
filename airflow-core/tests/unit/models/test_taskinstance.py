@@ -875,7 +875,6 @@ class TestTaskInstance:
                 poke_interval=0,
                 mode="reschedule",
                 python_callable=func,
-                pool="test_pool",
             )
 
         ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
