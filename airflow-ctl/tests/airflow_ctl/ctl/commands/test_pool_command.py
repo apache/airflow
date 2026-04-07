@@ -174,11 +174,11 @@ class TestPoolExportCommand:
 
         # Verify output message
         captured = capsys.readouterr()
-        out_str = captured.out.replace("\n", "")
-        # The output contains rich ANSI codes, so we check for key substrings instead
-        assert "Exported" in out_str
-        assert str(len(exported_data)) in out_str
-        assert "pool" in out_str
+        import re
+
+        ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+        out_str = ansi_escape.sub("", captured.out).strip()
+        assert out_str == f"Exported {len(exported_data)} pool(s) to {export_file}"
 
     @pytest.mark.parametrize("output_format", ["table", "yaml", "plain"])
     def test_export_non_json_uses_airflow_console(self, mock_client, tmp_path, output_format):
