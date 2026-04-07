@@ -154,6 +154,13 @@ class AirflowClient:
             endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances",
         )
 
+    def list_dag_runs(self, dag_id: str, limit: int = 100):
+        """List DAG runs for a given DAG."""
+        return self._make_request(
+            method="GET",
+            endpoint=f"dags/{dag_id}/dagRuns?limit={limit}",
+        )
+
     def get_task_logs(
         self, dag_id: str, run_id: str, task_id: str, try_number: int = 1, map_index: int | None = None
     ):

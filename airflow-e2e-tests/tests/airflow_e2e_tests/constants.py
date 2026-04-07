@@ -47,3 +47,5 @@ AWS_INIT_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "scripts" / "init-aws.
 
 # s3 bucket name for XComObjectStorageBackend tests. This bucket will be created in the `init-aws.sh` script that is run as part of the LocalStack container initialization.
 XCOM_BUCKET = "test-xcom-objectstorage-backend"
+
+KAFKA_DIR_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "kafka"
