@@ -67,23 +67,19 @@ class CronTriggerTimetable(CronMixin, BaseTimetable):
     :param timezone: Which timezone to use to interpret the cron string
     :param interval: timedelta that defines the data interval start. Default 0.
 
-    *run_immediately* controls, if no *start_time* is given to the Dag, when
-    the first run of the Dag should be scheduled. It has no effect if there
-    already exist runs for this Dag.
+    *run_immediately* controls which cron point is scheduled when a Dag is
+    first enabled or re-enabled after a pause. It always takes effect
+    regardless of whether ``start_date`` is set, but has no effect when
+    ``catchup=True``.
 
-    * If *True*, always run immediately the most recent possible Dag run.
-    * If *False*, wait to run until the next scheduled time in the future.
-    * If passed a ``timedelta``, will run the most recent possible Dag run
-      if that run's ``data_interval_end`` is within timedelta of now.
-    * If *None*, the timedelta is calculated as 10% of the time between the
-      most recent past scheduled time and the next scheduled time. E.g. if
-      running every hour, this would run the previous time if less than 6
-      minutes had past since the previous run time, otherwise it would wait
-      until the next hour.
+    * If *True* (default), always run the most recent past cron point immediately.
+    * If *False*, skip the past cron point and wait for the next future one.
+    * If passed a ``timedelta``, run the most recent past cron point only if it
+      is within that timedelta of now; otherwise wait for the next future one.
     """
 
     interval: datetime.timedelta | relativedelta = attrs.field(kw_only=True, default=datetime.timedelta())
-    run_immediately: bool | datetime.timedelta = attrs.field(kw_only=True, default=False)
+    run_immediately: bool | datetime.timedelta = attrs.field(kw_only=True, default=True)
 
 
 @attrs.define(init=False)
@@ -105,7 +101,7 @@ class MultipleCronTriggerTimetable(BaseTimetable):
         *crons: str,
         timezone: str | Timezone | FixedTimezone,
         interval: datetime.timedelta | relativedelta = datetime.timedelta(),
-        run_immediately: bool | datetime.timedelta = False,
+        run_immediately: bool | datetime.timedelta = True,
     ) -> None:
         if not crons:
             raise ValueError("cron expression required")
@@ -138,18 +134,15 @@ class CronPartitionTimetable(CronTriggerTimetable):
         The partition key will be derived from the partition date.
     :param key_format: How to translate the partition date into a string partition key.
 
-    *run_immediately* controls, if no *start_time* is given to the Dag, when
-    the first run of the Dag should be scheduled. It has no effect if there already exist runs for this Dag.
+    *run_immediately* controls which cron point is scheduled when a Dag is
+    first enabled or re-enabled after a pause. It always takes effect
+    regardless of whether ``start_date`` is set, but has no effect when
+    ``catchup=True``.
 
-    * If *True*, always run immediately the most recent possible Dag run.
-    * If *False*, wait to run until the next scheduled time in the future.
-    * If passed a ``timedelta``, will run the most recent possible Dag run
-      if that run's ``data_interval_end`` is within timedelta of now.
-    * If *None*, the timedelta is calculated as 10% of the time between the
-      most recent past scheduled time and the next scheduled time. E.g. if
-      running every hour, this would run the previous time if less than 6
-      minutes had past since the previous run time, otherwise it would wait
-      until the next hour.
+    * If *True* (default), always run the most recent past cron point immediately.
+    * If *False*, skip the past cron point and wait for the next future one.
+    * If passed a ``timedelta``, run the most recent past cron point only if it
+      is within that timedelta of now; otherwise wait for the next future one.
 
     # todo: AIP-76 talk about how we can have auto-reprocessing of partitions
     # todo: AIP-76 we could allow a tuple of integer + time-based
@@ -166,7 +159,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
         *,
         timezone: str | Timezone | FixedTimezone,
         run_offset: int | datetime.timedelta | relativedelta | None = None,
-        run_immediately: bool | datetime.timedelta = False,
+        run_immediately: bool | datetime.timedelta = True,
         # todo: AIP-76 we can't infer partition date from this, so we need to store it separately
         key_format: str = r"%Y-%m-%dT%H:%M:%S",
     ) -> None:

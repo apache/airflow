@@ -155,8 +155,8 @@ must be a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`
     The ``run_immediately`` argument was introduced in Airflow 3.
 
 The optional ``run_immediately`` argument controls which cron point is scheduled when a Dag is first
-enabled or re-enabled after a pause. It has no effect when ``catchup=True`` or when prior Dag runs
-already exist (in those cases the scheduler always continues from where it left off).
+enabled or re-enabled after a pause. It has no effect when ``catchup=True`` (in that case the
+scheduler always continues from where it left off).
 
 * ``run_immediately=True`` *(default)* — schedule the **most recent past** cron point immediately.
 * ``run_immediately=False`` — skip the past cron point and wait for the **next future** cron point.
@@ -165,15 +165,15 @@ already exist (in those cases the scheduler always continues from where it left 
 
 .. code-block:: python
 
-    from datetime import timedelta
+    from datetime import datetime, timedelta
 
     from airflow.timetables.trigger import CronTriggerTimetable
 
 
     @dag(
         # Runs every 10 minutes.
-        # run_immediately=False: on first enable, skip any past slot that is more than
-        # 5 minutes old (the minimum buffer) and wait for the next 10-minute boundary.
+        # run_immediately=False: always skip the most recent past slot and wait
+        # for the next 10-minute boundary.
         schedule=CronTriggerTimetable(
             "*/10 * * * *",
             timezone="UTC",
@@ -189,8 +189,8 @@ already exist (in those cases the scheduler always continues from where it left 
 
     @dag(
         # Runs hourly.
-        # run_immediately=timedelta(minutes=10): on first enable, run the most recent
-        # past slot only if it fired within the last 10 minutes; otherwise wait for next.
+        # run_immediately=timedelta(minutes=10): run the most recent past slot
+        # only if it fired within the last 10 minutes; otherwise wait for next.
         schedule=CronTriggerTimetable(
             "0 * * * *",
             timezone="UTC",
