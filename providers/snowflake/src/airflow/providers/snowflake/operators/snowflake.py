@@ -568,6 +568,6 @@ class SnowflakeNotebookOperator(SnowflakeSqlApiOperator):
         """Build the ``EXECUTE NOTEBOOK`` SQL statement."""
         params_clause = ""
         if self.parameters:
-            escaped = ", ".join(f"'{p.replace(chr(39), chr(39) + chr(39))}'" for p in self.parameters)
-            params_clause = escaped
+            sanitized = [p.replace("'", "''") for p in self.parameters]
+            params_clause = ", ".join(f"'{p}'" for p in sanitized)
         return f"EXECUTE NOTEBOOK {self.notebook}({params_clause})"
