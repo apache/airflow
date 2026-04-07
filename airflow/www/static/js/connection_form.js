@@ -237,33 +237,52 @@ $(document).ready(() => {
    * @param {string} status - Status can be either success, error, or warning
    * @param {string} message - The text message to show in alert box
    */
-  function displayAlert(status, message) {
-    const alertClass = `alert-${status}`;
-    let alertBox = $(".container .row .alert");
-    if (alertBox.length) {
-      alertBox.removeClass("alert-success").removeClass("alert-error");
-      alertBox.addClass(alertClass);
-      alertBox.text(message);
-      alertBox.show();
-    } else {
-      alertBox = $(
-        `<div class="alert ${alertClass}">\n` +
-          `<button type="button" class="close" data-dismiss="alert">×</button>\n${message}</div>`,
-      );
-
-      $(".container .row").prepend(alertBox).show();
-    }
-  }
-
-  displayAlert(
-    "warning",
-    "Warning: Fields that are currently populated can be modified but cannot be deleted. To delete data from a field, delete the Connection object and create a new one.",
-  );
-
+  
   function hideAlert() {
     const alertBox = $(".container .row .alert");
     alertBox.hide();
   }
+/**
+ * Displays the Flask style alert on UI via JS
+ *
+ * @param {string} status - Status can be either success, error, or warning
+ * @param {string} message - The text message to show in alert box
+ */
+function displayAlert(status, message) {
+  const alertClass = `alert-${status}`;
+
+  // FIX: Do NOT override existing validation errors
+  if ($(".alert-error").length) {
+    return;
+  }
+
+  // Use dedicated alert container to avoid conflicts
+  let alertBox = $("#connection-alert");
+
+  if (alertBox.length) {
+    alertBox
+      .removeClass("alert-success alert-error alert-warning")
+      .addClass(alertClass)
+      .text(message)
+      .show();
+  } else {
+    alertBox = $(
+      `<div id="connection-alert" class="alert ${alertClass}">
+        <button type="button" class="close" data-dismiss="alert">×</button>
+        ${message}
+      </div>`
+    );
+
+    $(".container .row").prepend(alertBox);
+  }
+}
+
+// Default warning message (will NOT override validation errors now)
+displayAlert(
+  "warning",
+  "Warning: Fields that are currently populated can be modified but cannot be deleted. To delete data from a field, delete the Connection object and create a new one."
+);
+
 
   /**
    * Produces JSON stringified data from a html form data
