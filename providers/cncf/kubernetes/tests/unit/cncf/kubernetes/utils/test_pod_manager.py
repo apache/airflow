@@ -36,6 +36,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodManager,
     PodPhase,
     XComRetrievalError,
+    _parse_log_level,
     log_pod_event,
     parse_log_line,
 )
@@ -152,6 +153,47 @@ class TestPodManager:
             kube_client=self.mock_kube_client,
             callbacks=[MockKubernetesPodOperatorCallback],
         )
+
+    @pytest.mark.parametrize(
+        ("message", "expected_level"),
+        [
+            ("ERROR: something went wrong", logging.ERROR),
+            ("WARNING: low disk space", logging.WARNING),
+            ("WARN: deprecated usage", logging.WARNING),
+            ("DEBUG: entering function", logging.DEBUG),
+            ("CRITICAL: system failure", logging.CRITICAL),
+            ("FATAL: unrecoverable error", logging.CRITICAL),
+            ("INFO: starting up", logging.INFO),
+            ("[ERROR] bracketed prefix", logging.ERROR),
+            ("plain log line with no level", logging.INFO),
+            ("", logging.INFO),
+        ],
+    )
+    def test_parse_log_level(self, message, expected_level):
+        assert _parse_log_level(message) == expected_level
+
+    def test_log_message_uses_detected_log_level(self):
+        """_log_message should forward ERROR lines at ERROR level, not INFO."""
+        with mock.patch.object(self.pod_manager.log, "log") as mock_log:
+            self.pod_manager._log_message(
+                message="ERROR: something failed",
+                container_name="base",
+                container_name_log_prefix_enabled=True,
+                log_formatter=None,
+            )
+        mock_log.assert_called_once()
+        assert mock_log.call_args[0][0] == logging.ERROR
+
+    def test_log_message_defaults_to_info_for_plain_lines(self):
+        """_log_message should use INFO for lines without a known level prefix."""
+        with mock.patch.object(self.pod_manager.log, "log") as mock_log:
+            self.pod_manager._log_message(
+                message="Starting application",
+                container_name="base",
+                container_name_log_prefix_enabled=True,
+                log_formatter=None,
+            )
+        assert mock_log.call_args[0][0] == logging.INFO
 
     def test_read_pod_logs_successfully_returns_logs(self):
         mock.sentinel.metadata = mock.MagicMock()
