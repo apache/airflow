@@ -473,13 +473,24 @@ class SQLParser(LoggingMixin):
 
 
 def get_openlineage_facets_with_sql(
-    hook: DbApiHook, sql: str | list[str], conn_id: str, database: str | None, use_connection: bool = True
+    hook: DbApiHook,
+    sql: str | list[str],
+    conn_id: str,
+    database: str | None,
+    use_connection: bool = True,
+    connection=None,
+    database_info=None,
 ) -> OperatorLineage | None:
-    connection = hook.get_connection(conn_id)
-    try:
-        database_info = hook.get_openlineage_database_info(connection)
-    except AttributeError:
-        database_info = None
+    # Accept pre-fetched connection and database_info to avoid redundant hook.get_connection()
+    # calls when processing multiple SQL extras from the same hook. Each get_connection() call
+    # hits SecretsManager (miss) then the Airflow API server — passing these in caches that cost.
+    if connection is None or database_info is None:
+        connection = hook.get_connection(conn_id)
+        if database_info is None:
+            try:
+                database_info = hook.get_openlineage_database_info(connection)
+            except AttributeError:
+                database_info = None
 
     if database_info is None:
         log.debug("%s has no database info provided", hook)
