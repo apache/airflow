@@ -24,7 +24,7 @@ requires = [
     "pathspec==1.0.4",
     "pluggy==1.6.0",
     "smmap==5.0.3",
-    "tomli==2.4.0; python_version < '3.11'",
+    "tomli==2.4.1; python_version < '3.11'",
     "trove-classifiers==2026.1.14.14",
 ]
 build-backend = "hatchling.build"
@@ -36,12 +36,11 @@ description = "Core packages for Apache Airflow, schedule and API server"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-# We know that it will take a while before we can support Python 3.14 because of all our dependencies
-# It takes about 4-7 months after Python release before we can support it, so we limit it to <3.14
-# proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
-# and manually mark providers that do not support it yet with !-3.14 - until they support it - which will
-# also exclude resolving uv workspace dependencies for those providers.
-requires-python = ">=3.10,!=3.14"
+# Supporting new Python releases typically takes 4-7 months due to all our dependencies.
+# We proactively exclude the next major version to avoid dependency conflicts, then test it and
+# bump the upper binding once ready. Providers that don't support it yet are marked with
+# != constraint - until they support it - which also excludes resolving uv workspace dependencies.
+requires-python = ">=3.10,!=3.15"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -60,6 +59,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 
@@ -80,7 +80,8 @@ dependencies = [
     # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
     "alembic>=1.13.1, <2.0",
     "argcomplete>=1.10",
-    "asgiref>=2.3.0",
+    "asgiref>=2.3.0; python_version < '3.14'",
+    "asgiref>=3.11.1; python_version >= '3.14'",
     "attrs>=22.1.0, !=25.2.0",
     "cadwyn>=6.0.4",
     "colorlog>=6.8.2",
@@ -103,7 +104,8 @@ dependencies = [
     "jinja2>=3.1.5",
     "jsonschema>=4.19.1",
     "lazy-object-proxy>=1.2.0",
-    'libcst >=1.8.2',
+    'libcst >=1.8.2; python_version < "3.14"',
+    'libcst >=1.8.6; python_version >= "3.14"',
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "methodtools>=0.4.7",
@@ -125,7 +127,7 @@ dependencies = [
     'pendulum>=3.1.0',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
-    "pydantic>=2.12.3",
+    "pydantic>=2.11.0",
     # Pygments 2.19.0 improperly renders .ini files with dictionaries as values
     # See https://github.com/pygments/pygments/issues/2834
     "pygments>=2.0.1,!=2.19.0",
@@ -138,8 +140,7 @@ dependencies = [
     "rich-argparse>=1.0.0",
     "rich>=13.6.0",
     "setproctitle>=1.3.3",
-    # SQLAlchemy >=2.0.36 fixes Python 3.13 TypingOnly import AssertionError caused by new typing attributes (__static_attributes__, __firstlineno__)
-    "sqlalchemy[asyncio]>=2.0.36",
+    "sqlalchemy[asyncio]>=2.0.48",
     "svcs>=25.1.0",
     "tabulate>=0.9.0",
     "tenacity>=8.3.0",
@@ -173,7 +174,8 @@ dependencies = [
 "async" = [
     "eventlet>=0.37.0",
     "gevent>=25.4.1",
-    "greenlet>=3.1.0",
+    "greenlet>=3.1.0; python_version < '3.14'",
+    "greenlet>=3.3.2; python_version >= '3.14'",
     "greenback>=1.2.1",
 ]
 "graphviz" = [
@@ -191,12 +193,7 @@ dependencies = [
     "memray>=1.19.0",
 ]
 "gunicorn" = [
-    # Temporary upper bound due to Gunicorn 25.1.0 control-socket deadlock
-    # seen in the Airflow API server path (preload + fork).
-    # Upstream tracking:
-    # - https://github.com/benoitc/gunicorn/issues/3529
-    # - https://github.com/benoitc/gunicorn/pull/3520
-    "gunicorn>=23.0.0,<25.1.0",
+    "gunicorn>=23.0.0,!=25.1.0",
 ]
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
@@ -249,6 +246,7 @@ exclude = [
 "../shared/observability/src/airflow_shared/observability" = "src/airflow/_shared/observability"
 "../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/_shared/secrets_backend"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/_shared/secrets_masker"
+"../shared/serialization/src/airflow_shared/serialization" = "src/airflow/_shared/serialization"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
 "../shared/listeners/src/airflow_shared/listeners" = "src/airflow/_shared/listeners"
 "../shared/plugins_manager/src/airflow_shared/plugins_manager" = "src/airflow/_shared/plugins_manager"
@@ -331,6 +329,7 @@ shared_distributions = [
     "apache-airflow-shared-observability",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
+    "apache-airflow-shared-serialization",
     "apache-airflow-shared-timezones",
     "apache-airflow-shared-plugins-manager",
     "apache-airflow-shared-providers-discovery",

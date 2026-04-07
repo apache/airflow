@@ -28,6 +28,25 @@
 Changelog
 ---------
 
+4.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implement execution_timeout semantics for DbtCloudRunJobOperator in deferrable mode (#61472)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Migrate dbt Cloud connection UI fields to YAML config (#62579)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Standardize connection docs labels across providers (#63455)``
+
 4.7.0
 .....
 

@@ -26,11 +26,11 @@
     },
     "delete": {
       "error": "刪除 XCom 失敗",
-      "errorTitle": "Error",
+      "errorTitle": "錯誤",
       "success": "成功刪除 XCom",
       "successTitle": "已刪除 XCom",
       "title": "刪除 XCom",
-      "warning": "你確定要刪除這個 XCom 嗎？此動作無法復原。"
+      "warning": "您確定要刪除這個 XCom 嗎？此動作無法復原。"
     },
     "edit": {
       "error": "更新 XCom 失敗",

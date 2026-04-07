@@ -26,10 +26,7 @@ from sqlalchemy import delete, func, insert, select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
-from airflow.api_fastapi.common.db.common import (
-    SessionDep,
-    paginated_select,
-)
+from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_query
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -328,7 +325,13 @@ def patch_dags(
     session: SessionDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGCollectionResponse:
-    """Patch multiple DAGs."""
+    """
+    Patch multiple DAGs.
+
+    If `dag_id_pattern` is not provided, no DAGs will be matched regardless
+    of other filters. To match all DAGs, pass a wildcard value such as `~`
+    or `%` for `dag_id_pattern`.
+    """
     if update_mask:
         if update_mask != ["is_paused"]:
             raise HTTPException(
@@ -356,10 +359,22 @@ def patch_dags(
         session=session,
     )
     dags = session.scalars(dags_select).all()
-    dags_to_update = {dag.dag_id for dag in dags}
+
+    filtered_dag_ids = apply_filters_to_select(
+        statement=select(DagModel.dag_id),
+        filters=[
+            exclude_stale,
+            paused,
+            dag_id_pattern,
+            tags,
+            owners,
+            editable_dags_filter,
+        ],
+    ).subquery()
+
     session.execute(
         update(DagModel)
-        .where(DagModel.dag_id.in_(dags_to_update))
+        .where(DagModel.dag_id.in_(select(filtered_dag_ids.c.dag_id)))
         .values(is_paused=patch_body.is_paused)
         .execution_options(synchronize_session="fetch")
     )

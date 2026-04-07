@@ -21,10 +21,7 @@ on:  # yamllint disable-line rule:truthy
   pull_request:
     branches:
       - main
-      - v[0-9]+-[0-9]+-test
-      - v[0-9]+-[0-9]+-stable
-      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, labeled, unlabeled]
 
 permissions:
   contents: read
@@ -32,10 +29,11 @@ permissions:
 
 concurrency:
   group: check-newsfragment-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   check-newsfragment-pr-number:
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip newsfragment check') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -52,6 +50,11 @@ jobs:
             | grep -v "/newsfragments/${PR_NUMBER}\." || true)
 
           if [ -n "$bad" ]; then
-            echo "::error::Newsfragment PR number mismatch. Expected ${PR_NUMBER} but found: ${bad}"
+            msg="Newsfragment PR number mismatch."
+            msg+=" Expected ${PR_NUMBER} but found: ${bad}."
+            msg+=" Rename the newsfragment to use the correct"
+            msg+=" PR number, or add the 'skip newsfragment"
+            msg+=" check' label to the PR to skip this check."
+            echo "::error::${msg}"
             exit 1
           fi

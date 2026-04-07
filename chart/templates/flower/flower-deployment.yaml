@@ -20,8 +20,7 @@
 ################################
 ## Airflow Flower Deployment
 #################################
-{{- if .Values.flower.enabled }}
-{{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
+{{- if and .Values.flower.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
 {{- $nodeSelector := or .Values.flower.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.flower.affinity .Values.affinity }}
 {{- $tolerations := or .Values.flower.tolerations .Values.tolerations }}
@@ -62,13 +61,13 @@ spec:
         tier: airflow
         component: flower
         release: {{ .Release.Name }}
-        {{- if or (.Values.labels) (.Values.flower.labels) }}
+        {{- if or .Values.labels .Values.flower.labels }}
           {{- mustMerge .Values.flower.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
         checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
         checksum/flower-secret: {{ include (print $.Template.BasePath "/secrets/flower-secret.yaml") . | sha256sum }}
-        {{- if or (.Values.airflowPodAnnotations) (.Values.flower.podAnnotations) }}
+        {{- if or .Values.airflowPodAnnotations .Values.flower.podAnnotations }}
           {{- tpl (mustMerge .Values.flower.podAnnotations .Values.airflowPodAnnotations | toYaml) . | nindent 8 }}
         {{- end }}
     spec:
@@ -117,7 +116,7 @@ spec:
             exec:
               command:
                 - curl
-                {{- if (or .Values.flower.secretName (and .Values.flower.username .Values.flower.password))}}
+                {{- if or .Values.flower.secretName (and .Values.flower.username .Values.flower.password) }}
                 - "--user"
                 - $AIRFLOW__CELERY__FLOWER_BASIC_AUTH
                 {{- end }}
@@ -130,7 +129,7 @@ spec:
             exec:
               command:
                 - curl
-                {{- if (or .Values.flower.secretName (and .Values.flower.username .Values.flower.password))}}
+                {{- if or .Values.flower.secretName (and .Values.flower.username .Values.flower.password) }}
                 - "--user"
                 - $AIRFLOW__CELERY__FLOWER_BASIC_AUTH
                 {{- end }}
@@ -143,7 +142,7 @@ spec:
             exec:
               command:
                 - curl
-                {{- if (or .Values.flower.secretName (and .Values.flower.username .Values.flower.password))}}
+                {{- if or .Values.flower.secretName (and .Values.flower.username .Values.flower.password) }}
                 - "--user"
                 - $AIRFLOW__CELERY__FLOWER_BASIC_AUTH
                 {{- end }}
@@ -154,7 +153,7 @@ spec:
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
-            {{- if (or .Values.flower.secretName (and .Values.flower.username .Values.flower.password))}}
+            {{- if or .Values.flower.secretName (and .Values.flower.username .Values.flower.password) }}
             - name: AIRFLOW__CELERY__FLOWER_BASIC_AUTH
               valueFrom:
                 secretKeyRef:
@@ -177,5 +176,4 @@ spec:
         {{- if .Values.flower.extraVolumes }}
           {{- tpl (toYaml .Values.flower.extraVolumes) . | nindent 8 }}
         {{- end }}
-{{- end }}
 {{- end }}

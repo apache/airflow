@@ -25,14 +25,14 @@ requires = [
     "packaging==26.0",
     "pathspec==1.0.4",
     "pluggy==1.6.0",
-    "tomli==2.4.0; python_version < '3.11'",
+    "tomli==2.4.1; python_version < '3.11'",
     "trove-classifiers==2026.1.14.14",
 ]
 build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-common-ai"
-version = "0.0.1"
+version = "0.1.0"
 description = "Provider package apache-airflow-providers-common-ai for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -56,6 +56,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -68,7 +69,7 @@ dependencies = [
     "apache-airflow>=3.0.0",
     "apache-airflow-providers-common-compat>=1.14.1",
     "apache-airflow-providers-standard>=1.12.1",
-    "pydantic-ai-slim>=1.14.0",
+    "pydantic-ai-slim>=1.34.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -79,6 +80,14 @@ dependencies = [
 "google" = ["pydantic-ai-slim[google]"]
 "openai" = ["pydantic-ai-slim[openai]"]
 "mcp" = ["pydantic-ai-slim[mcp]"]
+"avro" = [
+    'fastavro>=1.10.0; python_version < "3.14"',
+    'fastavro>=1.12.1; python_version >= "3.14"',
+]
+"parquet" = [
+    "pyarrow>=18.0.0; python_version < '3.14'",
+    "pyarrow>=22.0.0; python_version >= '3.14'",
+]
 "sql" = [
     "apache-airflow-providers-common-sql",
     "sqlglot>=30.0.0",
@@ -127,8 +136,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.0.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.0.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.1.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.1.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

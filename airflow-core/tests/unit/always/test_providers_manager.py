@@ -428,6 +428,14 @@ class TestProvidersMetadataLoading:
         assert "relabeling" in behaviour
         assert "placeholders" in behaviour
 
+    def test_iter_connection_type_hook_ui_metadata_matches_field_behaviours(self):
+        """iter_connection_type_hook_ui_metadata should expose the same standard-field behaviour dict."""
+        pm = ProvidersManager()
+        pm.initialize_providers_hooks()
+        by_type = {m.connection_type: m for m in pm.iter_connection_type_hook_ui_metadata()}
+        assert "http" in by_type
+        assert by_type["http"].field_behaviour == pm._field_behaviours["http"]
+
     def test_ui_metadata_loading_without_hook_import(self):
         """Test that UI metadata loads from provider info without importing hook classes."""
         with patch("airflow.providers_manager.import_string") as mock_import:
@@ -474,3 +482,9 @@ class TestProvidersMetadataLoading:
             # Validate deprecated_provider_since is set correctly
             assert widgets_warning[0].message.deprecated_provider_since == "3.2.0"
             assert behaviour_warning[0].message.deprecated_provider_since == "3.2.0"
+
+    def test_already_initialized_provider_configs_emits_deprecation_warning(self):
+        """Test that already_initialized_provider_configs emits a DeprecationWarning."""
+        pm = ProvidersManager()
+        with pytest.warns(DeprecationWarning, match="already_initialized_provider_configs.*deprecated"):
+            pm.already_initialized_provider_configs

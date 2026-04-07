@@ -173,17 +173,18 @@ But you can run prek hooks manually as needed.
     prek
 
 -   Run only mypy check on your staged airflow and dev files by specifying the
-    ``mypy-airflow-core`` and ``mypy-dev`` prek hooks (more hooks can be specified):
+    ``mypy-airflow-core`` and ``mypy-dev`` prek hooks (more hooks can be specified).
+    For non-provider projects, mypy runs locally via ``uv`` (no breeze image needed):
 
 .. code-block:: bash
 
-    prek mypy-airflow-core mypy-dev  --stage pre-push
+    prek mypy-airflow-core mypy-dev
 
 -   Run only mypy airflow checks on all "airflow-core" files by using:
 
 .. code-block:: bash
 
-    prek mypy-airflow-core --all-files --stage pre-push
+    prek mypy-airflow-core --all-files
 
 -   Run all pre-commit stage hooks on all files by using:
 
@@ -276,60 +277,43 @@ Most of the checks we run are configured to run automatically when you commit th
 there are some checks that are not run automatically and you need to run them manually. You can run
 them manually by running ``prek --stage manual <hook-id>``.
 
-Special pin-versions prek
--------------------------
-
-There is a separate prek ``pin-versions`` prek hook which is used to pin versions of
-GitHub Actions in the CI workflows.
-
-This action requires ``GITHUB_TOKEN`` to be set, otherwise you might hit the rate limits with GitHub API, it
-It is not run automatically when you commit the code but in runs as a separate job in the CI.
-However, you can run it manually by running:
-
-.. code-block:: bash
-
-    export GITHUB_TOKEN=YOUR_GITHUB_TOKEN
-    prek --all-files --stage manual --verbose pin-versions
-
-
 Mypy checks
 -----------
 
-When we run mypy checks locally when pushing a change to PR, the ``mypy-*`` checks is run, ``mypy-airflow``,
-``mypy-dev``, ``mypy-providers``, ``mypy-airflow-ctl``, depending on the files you are changing. The mypy checks
-are run by passing those changed files to mypy. This is way faster than running checks for all files (even
-if mypy cache is used - especially when you change a file in Airflow core that is imported and used by many
-files). You also need to have ``breeze ci-image build --python 3.10`` built locally to run the mypy checks.
+When we run mypy checks locally, the ``mypy-*`` checks run depending on the files you are changing:
+``mypy-airflow-core``, ``mypy-dev``, ``mypy-providers``, ``mypy-task-sdk``, ``mypy-airflow-ctl``, etc.
 
-However, in some cases, it produces different results than when running checks for the whole set
-of files, because ``mypy`` does not even know that some types are defined in other files and it might not
-be able to follow imports properly if they are dynamic. Therefore in CI we run ``mypy`` check for whole
-directories (``airflow`` - excluding providers, ``providers``, ``dev`` and ``docs``) to make sure
-that we catch all ``mypy`` errors - so you can experience different results when running mypy locally and
-in CI. If you want to run mypy checks for all files locally, you can do it by running the following
-command (example for ``airflow`` files):
+For **non-provider projects** (airflow-core, task-sdk, airflow-ctl, dev, scripts, devel-common), mypy
+runs locally using the ``uv`` virtualenv — no breeze CI image is needed. These checks run as regular
+prek hooks in the ``pre-commit`` stage, checking whole directories at once. This means they run both
+as part of local commits and as part of regular static checks in CI (not as separate mypy CI jobs).
+You can also run mypy directly. Use ``--frozen`` to avoid updating ``uv.lock``:
 
 .. code-block:: bash
 
-  prek --stage manual mypy-<FOLDER> --all-files
+  uv run --frozen --project <PROJECT> --with "apache-airflow-devel-common[mypy]" mypy path/to/code
 
-For example:
+To run the prek hook for a specific project (example for ``airflow-core`` files):
 
 .. code-block:: bash
 
-  prek --stage manual mypy-airflow --all-files
+  prek mypy-airflow-core --all-files
 
 To show unused mypy ignores for any providers/airflow etc, eg: run below command:
 
 .. code-block:: bash
-  export SHOW_UNUSED_MYPY_WARNINGS=true
-  prek --stage manual mypy-airflow --all-files
 
-MyPy uses a separate docker-volume (called ``mypy-cache-volume``) that keeps the cache of last MyPy
-execution in order to speed MyPy checks up (sometimes by order of magnitude). While in most cases MyPy
-will handle refreshing the cache when and if needed, there are some cases when it won't (cache invalidation
-is the hard problem in computer science). This might happen for example when we upgrade MyPY. In such
-cases you might need to manually remove the cache volume by running ``breeze down --cleanup-mypy-cache``.
+  export SHOW_UNUSED_MYPY_WARNINGS=true
+  prek mypy-airflow-core --all-files
+
+For non-provider projects, the local mypy cache is stored in ``.mypy_cache`` at the repo root.
+
+For **providers**, mypy still runs via breeze (``breeze run mypy``) as a separate CI job and requires
+``breeze ci-image build --python 3.10`` to be built locally. Providers use a separate docker-volume
+(called ``mypy-cache-volume``) that keeps the cache of last MyPy execution.
+
+To clear all mypy caches (both local ``.mypy_cache`` and the Docker volume), run
+``breeze down --cleanup-mypy-cache``.
 
 -----------
 

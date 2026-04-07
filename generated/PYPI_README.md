@@ -33,7 +33,7 @@ PROJECT BY THE `generate-pypi-readme` PREK HOOK. YOUR CHANGES HERE WILL BE AUTOM
 | Version | Build Status                                                                                                                                                    |
 |---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Main    | [![GitHub Build main](https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml/badge.svg)](https://github.com/apache/airflow/actions)                 |
-| 3.x     | [![GitHub Build 3.1](https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml/badge.svg?branch=v3-1-test)](https://github.com/apache/airflow/actions) |
+| 3.x     | [![GitHub Build 3.2](https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml/badge.svg?branch=v3-2-test)](https://github.com/apache/airflow/actions) |
 | 2.x     | [![GitHub Build 2.11](https://github.com/apache/airflow/actions/workflows/ci.yml/badge.svg?branch=v2-11-test)](https://github.com/apache/airflow/actions)       |
 
 
@@ -55,9 +55,9 @@ Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow sched
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)                 | Stable version (3.1.8) | Stable version (2.11.1)      |
+|            | Main version (dev)                 | Stable version (3.1.8) | Stable version (2.11.2)      |
 |------------|------------------------------------|------------------------|------------------------------|
-| Python     | 3.10, 3.11, 3.12, 3.13             | 3.10, 3.11, 3.12, 3.13 | 3.10, 3.11, 3.12             |
+| Python     | 3.10, 3.11, 3.12, 3.13, 3.14       | 3.10, 3.11, 3.12, 3.13 | 3.10, 3.11, 3.12             |
 | Platform   | AMD64/ARM64                        | AMD64/ARM64            | AMD64/ARM64(\*)              |
 | Kubernetes | 1.30, 1.31, 1.32, 1.33, 1.34, 1.35 | 1.30, 1.31, 1.32, 1.33 | 1.26, 1.27, 1.28, 1.29, 1.30 |
 | PostgreSQL | 14, 15, 16, 17, 18                 | 13, 14, 15, 16, 17     | 12, 13, 14, 15, 16           |

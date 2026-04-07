@@ -31,10 +31,10 @@ from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import CTE, and_, delete, exists, func, inspect, or_, select, text, tuple_, update
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
@@ -71,7 +71,7 @@ from airflow.models.asset import (
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
-from airflow.models.backfill import Backfill
+from airflow.models.backfill import Backfill, BackfillDagRun
 from airflow.models.callback import Callback, CallbackType, ExecutorCallback
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
@@ -107,6 +107,7 @@ if TYPE_CHECKING:
     from types import FrameType
 
     from pendulum.datetime import DateTime
+    from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.interfaces import LoaderOption
     from sqlalchemy.sql.selectable import Subquery
@@ -270,6 +271,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.num_runs = num_runs
         self.only_idle = only_idle
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
+
+        # Note:
+        # We need to fetch all conf values before the `prohibit_commit` block; otherwise the Core conf may
+        # access the MetadataMetastoreBackend and trigger `UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS`.
+        # The easiest way to keep the scheduler loop side-effect free is to read those values in `__init__`.
+
         # How many seconds do we wait for tasks to heartbeat before timeout.
         self._task_instance_heartbeat_timeout_secs = conf.getint(
             "scheduler", "task_instance_heartbeat_timeout"
@@ -283,6 +290,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             key="num_stuck_in_queued_retries",
             fallback=2,
         )
+        self._scheduler_use_job_schedule = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
+        self._parallelism = conf.getint("core", "parallelism")
+        self._multi_team = conf.getboolean("core", "multi_team")
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
         self.executor: BaseExecutor = self.executors[0]
@@ -655,7 +665,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("%s tasks up for execution:\n%s", len(task_instances_to_examine), task_instance_str)
 
             dag_id_to_team_name: dict[str, str | None] = {}
-            if conf.getboolean("core", "multi_team"):
+            if self._multi_team:
                 # Batch query to resolve team names for all DAG IDs to optimize performance
                 # Instead of individual queries in _try_to_load_executor(), resolve all team names upfront
                 unique_dag_ids = {ti.dag_id for ti in task_instances_to_examine}
@@ -1004,11 +1014,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # we need to make sure in the scheduler now that we don't schedule more than core.parallelism totally
         # across all executors.
         num_occupied_slots = sum([executor.slots_occupied for executor in self.executors])
-        parallelism = conf.getint("core", "parallelism")
         if self.job.max_tis_per_query == 0:
-            max_tis = parallelism - num_occupied_slots
+            max_tis = self._parallelism - num_occupied_slots
         else:
-            max_tis = min(self.job.max_tis_per_query, parallelism - num_occupied_slots)
+            max_tis = min(self.job.max_tis_per_query, self._parallelism - num_occupied_slots)
         if max_tis <= 0:
             self.log.debug("max_tis query size is less than or equal to zero. No query will be performed!")
             return 0
@@ -1038,7 +1047,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param session: The database session
         """
         num_occupied_slots = sum(executor.slots_occupied for executor in self.executors)
-        max_callbacks = conf.getint("core", "parallelism") - num_occupied_slots
+        max_callbacks = self._parallelism - num_occupied_slots
 
         if max_callbacks <= 0:
             self.log.debug("No available slots for callbacks; all executors at capacity")
@@ -1615,13 +1624,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         self.log.exception("Something went wrong when trying to save task event logs.")
 
                 with create_session() as session:
-                    # Only retrieve expired deadlines that haven't been processed yet.
-                    # `missed` is False by default until the handler sets it.
-                    for deadline in session.scalars(
+                    # Lock expired, unhandled deadlines with FOR UPDATE SKIP LOCKED so
+                    # concurrent HA scheduler replicas don't both process the same row
+                    # and create duplicate callbacks.
+                    deadline_query = (
                         select(Deadline)
                         .where(Deadline.deadline_time < datetime.now(timezone.utc))
                         .where(~Deadline.missed)
                         .options(selectinload(Deadline.callback), selectinload(Deadline.dagrun))
+                    )
+                    for deadline in session.scalars(
+                        with_row_locks(
+                            deadline_query,
+                            of=Deadline,
+                            session=session,
+                            skip_locked=True,
+                            key_share=False,
+                        )
                     ):
                         deadline.handle_miss(session)
 
@@ -1693,7 +1712,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
-            if conf.getboolean("scheduler", "use_job_schedule", fallback=True):
+            if self._scheduler_use_job_schedule:
                 self._create_dagruns_for_dags(guard, session)
 
             self._start_queued_dagruns(session)
@@ -1852,8 +1871,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         unfinished_states = (DagRunState.RUNNING, DagRunState.QUEUED)
         now = timezone.utcnow()
         # todo: AIP-78 simplify this function to an update statement
+        initializing_cutoff = now - timedelta(minutes=2)
         query = select(Backfill).where(
             Backfill.completed_at.is_(None),
+            # Guard: backfill must have at least one association,
+            # otherwise it is still being set up (see #61375).
+            # Allow cleanup of orphaned backfills older than 2 minutes
+            # that failed during initialization and never got any associations.
+            or_(
+                exists(select(BackfillDagRun.id).where(BackfillDagRun.backfill_id == Backfill.id)),
+                Backfill.created_at < initializing_cutoff,
+            ),
             ~exists(
                 select(DagRun.id).where(
                     and_(DagRun.backfill_id == Backfill.id, DagRun.state.in_(unfinished_states))
@@ -1912,18 +1940,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     active_runs=active_runs_of_dags.get(dag_model.dag_id),
                 )
                 continue
-            if dag_model.next_dagrun is None and dag_model.timetable_partitioned is False:
-                self.log.error(
-                    "dag_model.next_dagrun is None; expected datetime",
-                    dag_id=dag_model.dag_id,
-                )
-                continue
-            if dag_model.next_dagrun_create_after is None:
-                self.log.error(
-                    "dag_model.next_dagrun_create_after is None; expected datetime",
-                    dag_id=dag_model.dag_id,
-                )
-                continue
+            if dag_model.timetable_partitioned is False:
+                # non partition-aware Dags
+                if dag_model.next_dagrun is None:
+                    self.log.error(
+                        "dag_model.next_dagrun is None; expected datetime",
+                        dag_id=dag_model.dag_id,
+                    )
+                    continue
+                if dag_model.next_dagrun_create_after is None:
+                    self.log.error(
+                        "dag_model.next_dagrun_create_after is None; expected datetime",
+                        dag_id=dag_model.dag_id,
+                    )
+                    continue
+            else:
+                # partition-aware Dags
+                if dag_model.next_dagrun_partition_key is None:
+                    self.log.error(
+                        "dag_model.next_dagrun_partition_key is None; expected str",
+                        dag_id=dag_model.dag_id,
+                    )
+                    continue
 
             serdag = self._get_current_dag(dag_id=dag_model.dag_id, session=session)
             if not serdag:
@@ -2042,6 +2080,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
 
             triggered_date: DateTime = timezone.coerce_datetime(queued_adrqs[0].created_at)
+            self.log.debug(
+                "Creating asset-triggered DagRun for '%s': %d queued assets, triggered_date=%s",
+                dag.dag_id,
+                len(queued_adrqs),
+                triggered_date,
+            )
             cte = (
                 select(func.max(DagRun.run_after).label("previous_dag_run_run_after"))
                 .where(
@@ -2090,14 +2134,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             Stats.incr("asset.triggered_dagruns")
             dag_run.consumed_asset_events.extend(asset_events)
+            self.log.info(
+                "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
+                dag.dag_id,
+                dag_run.run_id,
+                len(asset_events),
+            )
 
             # Delete only consumed ADRQ rows to avoid dropping newly queued events
             # (e.g. DagRun triggered by asset A while a new event for asset B arrives).
             adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
-            session.execute(
-                delete(AssetDagRunQueue).where(
-                    tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
-                )
+            result = cast(
+                "CursorResult",
+                session.execute(
+                    delete(AssetDagRunQueue).where(
+                        tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+                    )
+                ),
+            )
+            self.log.info(
+                "Deleted %d ADRQ rows for '%s'",
+                result.rowcount,
+                dag.dag_id,
             )
 
     def _lock_backfills(self, dag_runs: Collection[DagRun], session: Session) -> dict[int, Backfill]:
@@ -2218,7 +2276,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session: Session,
     ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
         """Make scheduling decisions for all `dag_runs`."""
-        callback_tuples = [(run, self._schedule_dag_run(run, session=session)) for run in dag_runs]
+        callback_tuples = []
+        for run in dag_runs:
+            try:
+                callback = self._schedule_dag_run(run, session=session)
+                callback_tuples.append((run, callback))
+            except DBAPIError:
+                raise  # let @retry_db_transaction handle DB errors
+            except Exception:
+                self.log.exception("Error scheduling DAG run %s of %s", run.run_id, run.dag_id)
         guard.commit()
         return callback_tuples
 
@@ -2835,7 +2901,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _purge_task_instances_without_heartbeats(
         self, task_instances_without_heartbeats: list[TI], *, session: Session
     ) -> None:
-        if conf.getboolean("core", "multi_team"):
+        if self._multi_team:
             unique_dag_ids = {ti.dag_id for ti in task_instances_without_heartbeats}
             dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
         else:
@@ -3083,7 +3149,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     ) -> dict[BaseExecutor, list[SchedulerWorkload]]:
         """Organize workloads into lists per their respective executor."""
         workloads_iter: Iterable[SchedulerWorkload]
-        if conf.getboolean("core", "multi_team"):
+        if self._multi_team:
             if dag_id_to_team_name is None:
                 if isinstance(workloads, list):
                     workloads_list = workloads
@@ -3131,7 +3197,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                          will query the database to resolve team name. None indicates global team.
         """
         executor = None
-        if conf.getboolean("core", "multi_team"):
+        if self._multi_team:
             # Use provided team_name if available, otherwise query the database
             if team_name is NOTSET:
                 team_name = self._get_workload_team_name(workload, session)

@@ -29,6 +29,7 @@
   - [Configure PyPI uploads](#configure-pypi-uploads)
   - [Setup and authorize GitHub client](#setup-and-authorize-github-client)
   - [Hardware used to prepare and verify the packages](#hardware-used-to-prepare-and-verify-the-packages)
+- [How to backport PR with `cherry-picker` CLI](#how-to-backport-pr-with-cherry-picker-cli)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -101,7 +102,7 @@ There are also convenience packages released as "apache-airflow-providers"separa
 And available in PyPI:
 [PyPI query for backport providers](https://pypi.org/search/?q=apache-airflow-backport-providers).
 
-Note that Backport Providers for Airflow 1.10.* series are not released any more. The last release
+Note that Backport Providers for Airflow 1.10.* series are not released anymore. The last release
 of Backport Providers was done  on March 17, 2021.
 
 Detailed instruction of releasing provider distributions can be found in the
@@ -204,3 +205,68 @@ by the committer acting as release manager. While strictly speaking, releases mu
 on hardware owned and controlled by the committer, for practical reasons it's best if the packages are
 prepared using such hardware. More information can be found in this
 [FAQ](http://www.apache.org/legal/release-policy.html#owned-controlled-hardware)
+
+# How to backport PR with `cherry-picker` CLI
+
+Backporting via CLI might be more convenient for some users. Also, it is necessary if you want to backport
+PR that has conflicts. It also allows to backport commit to multiple branches in the same command.
+
+To backport PRs to any branch (for example: `v2-11-test`, `v3-2-test` or `chart/v1-2x-test`), you can use the following command:
+
+It's easiest to install it (and keep cherry-picker up-to-date) using `uv tool`:
+
+```bash
+uv tool install cherry-picker
+````
+
+And upgrade it with:
+
+```bash
+uv tool upgrade cherry-picker
+```
+
+Then, in order to backport a commit to a branch, you can use the following command:
+
+```bash
+cherry_picker COMMIT_SHA BRANCH_NAME1 [BRANCH_NAME2 ...]
+```
+
+If you are using your fork repository while keeping Airflow repository as remote (i.e. `apache`), please use
+
+```bash
+cherry_picker COMMIT_SHA BRANCH_NAME1 [BRANCH_NAME2 ...]  --upstream-remote [REMOTE_REPOSITORY_NAME]
+```
+
+This will create a new branch with the cherry-picked commit and open a PR against the target branch in
+your browser.
+
+If the GH_AUTH environment variable is set in your command line, the cherry-picker automatically creates a new pull request when there are no conflicts. To set GH_AUTH, use the token from your GitHub repository.
+
+To set GH_AUTH run this:
+
+```bash
+export GH_AUTH={token}
+```
+
+Sometimes it might result with conflict. In such case, you should manually resolve the conflicts.
+Some IDEs like IntelliJ has a fantastic conflict resolution tool - just follow `Git -> Resolve conflicts`
+menu after you get the conflict. But you can also resolve the conflicts manually; see [How conflicts are
+are presented](https://git-scm.com/docs/git-merge#_how_conflicts_are_presented) and
+[How to resolve conflicts](https://git-scm.com/docs/git-merge#_how_to_resolve_conflicts) for more details.
+
+```bash
+cherry_picker --status  # Should show if all conflicts are resolved
+cherry_picker --continue  # Should continue cherry-picking process
+```
+
+> [!WARNING]
+> Sometimes, when you stop cherry-picking process in the middle, you might end up with your repo in a bad
+> state and cherry-picker might print this message:
+>
+> > 🐍 🍒 ⛏
+> >
+> > You're not inside a cpython repo right now! 🙅
+>
+> You should then run `cherry-picker --abort` to clean up the mess and start over. If that does not work
+> you might need to run `git config --local --remove-section cherry-picker` to clean up the configuration
+> stored in `.git/config`.

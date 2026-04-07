@@ -23,71 +23,28 @@
 # ///
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
+import tempfile
+from pathlib import Path
 
-from common_prek_utils import console
+from common_prek_utils import console, get_remote_for_main
 
 DATAMODELS_PREFIX = "airflow-core/src/airflow/api_fastapi/execution_api/datamodels/"
 VERSIONS_PREFIX = "airflow-core/src/airflow/api_fastapi/execution_api/versions/"
 
 
-def get_changed_files_ci() -> list[str]:
-    """Get changed files in a CI environment by comparing against the target branch."""
-    target_branch = os.environ.get("GITHUB_BASE_REF") or "main"
-    fetch_result = subprocess.run(
-        ["git", "fetch", "origin", target_branch],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if fetch_result.returncode != 0:
-        console.print(
-            f"[yellow]WARNING: Failed to fetch origin/{target_branch}: {fetch_result.stderr.strip()}[/]"
-        )
-
-    is_main = not os.environ.get("GITHUB_BASE_REF")
-    diff_target = "HEAD~1" if is_main else f"origin/{target_branch}...HEAD"
-
-    result = subprocess.run(
-        ["git", "diff", "--name-only", diff_target],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        # Shallow clone (fetch-depth: 1) may not have enough history to compute the
-        # merge base required by the three-dot diff.  Deepen the fetch and retry once.
-        console.print(
-            f"[yellow]WARNING: git diff against origin/{target_branch} failed (exit {result.returncode}), "
-            "retrying with deeper fetch...[/]"
-        )
-        subprocess.run(
-            ["git", "fetch", "--deepen=50", "origin", target_branch],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        try:
-            result = subprocess.run(
-                ["git", "diff", "--name-only", f"origin/{target_branch}...HEAD"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            console.print(f"[bold red]ERROR:[/] git diff failed (exit {e.returncode})")
-            if e.stdout:
-                console.print(f"[dim]stdout:[/]\n{e.stdout.strip()}")
-            if e.stderr:
-                console.print(f"[dim]stderr:[/]\n{e.stderr.strip()}")
-            raise
-    return [f for f in result.stdout.strip().splitlines() if f]
+def get_target_branch() -> str:
+    """Branch to compare against. GITHUB_BASE_REF for PRs, DEFAULT_BRANCH in CI, else main."""
+    return os.environ.get("GITHUB_BASE_REF") or os.environ.get("DEFAULT_BRANCH") or "main"
 
 
-def get_changed_files_local() -> list[str]:
-    """Get staged files in a local (non-CI) environment."""
+def get_changed_files(filenames: list[str]) -> list[str]:
+    """Get changed files. Uses filenames from prek when provided, else staged files for local runs."""
+    if filenames:
+        return filenames
     result = subprocess.run(
         ["git", "diff", "--cached", "--name-only"],
         capture_output=True,
@@ -97,12 +54,54 @@ def get_changed_files_local() -> list[str]:
     return [f for f in result.stdout.strip().splitlines() if f]
 
 
+def generate_schema(cwd: Path) -> dict:
+    """Generate OpenAPI schema from repo at cwd."""
+    script_path = Path(__file__).parent / "generate_execution_api_schema.py"
+    result = subprocess.run(
+        ["uv", "run", "-p", "3.12", "--no-progress", "--project", "airflow-core", "-s", str(script_path)],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Schema generation failed: {result.stderr}")
+    return json.loads(result.stdout)
+
+
+def generate_schema_from_main() -> dict:
+    """Generate schema from target branch using worktree."""
+    target_branch = get_target_branch()
+    remote = get_remote_for_main()
+    ref = f"{remote}/{target_branch}"
+    worktree_path = Path(tempfile.mkdtemp()) / "airflow-main"
+    subprocess.run(["git", "fetch", remote, target_branch], capture_output=True, check=False)
+    subprocess.run(["git", "worktree", "add", str(worktree_path), ref], capture_output=True, check=True)
+    try:
+        return generate_schema(worktree_path)
+    finally:
+        subprocess.run(
+            ["git", "worktree", "remove", "--force", str(worktree_path)], capture_output=True, check=False
+        )
+
+
+def normalize_schema(schema: dict) -> dict:
+    """Normalize schema for comparison by removing non-semantic differences."""
+    normalized = json.loads(json.dumps(schema, sort_keys=True))
+    if "info" in normalized:
+        normalized.pop("info", None)
+    if "servers" in normalized:
+        normalized.pop("servers", None)
+    return normalized
+
+
+def schemas_equal(schema1: dict, schema2: dict) -> bool:
+    """Compare two schemas for semantic equality."""
+    return normalize_schema(schema1) == normalize_schema(schema2)
+
+
 def main() -> int:
-    is_ci = os.environ.get("CI")
-    if is_ci:
-        changed_files = get_changed_files_ci()
-    else:
-        changed_files = get_changed_files_local()
+    changed_files = get_changed_files(sys.argv[1:])
 
     datamodel_files = [
         f for f in changed_files if f.startswith(DATAMODELS_PREFIX) and not f.endswith("__init__.py")
@@ -110,22 +109,54 @@ def main() -> int:
     version_files = [f for f in changed_files if f.startswith(VERSIONS_PREFIX)]
 
     if datamodel_files and not version_files:
-        console.print(
-            "[bold red]ERROR:[/] Changes to execution API datamodels require corresponding changes in versions."
-        )
-        console.print("")
-        console.print("The following datamodel files were changed:")
-        for f in datamodel_files:
-            console.print(f"  - [magenta]{f}[/]")
-        console.print("")
-        console.print(
-            "But no files were changed under:\n"
-            f"  [cyan]{VERSIONS_PREFIX}[/]\n"
-            "\n"
-            "Please add or update a version file to reflect the datamodel changes.\n"
-            "See [cyan]contributing-docs/19_execution_api_versioning.rst[/] for details."
-        )
-        return 1
+        try:
+            main_schema = generate_schema_from_main()
+        except Exception as e:
+            console.print(f"[yellow]WARNING: Could not generate schema from main: {e}[/]")
+            console.print(
+                "[bold red]ERROR:[/] Changes to execution API datamodels require corresponding changes in versions."
+            )
+            console.print("")
+            console.print("The following datamodel files were changed:")
+            for f in datamodel_files:
+                console.print(f"  - [magenta]{f}[/]")
+            console.print("")
+            console.print(
+                "But no files were changed under:\n"
+                f"  [cyan]{VERSIONS_PREFIX}[/]\n"
+                "\n"
+                "Please add or update a version file to reflect the datamodel changes.\n"
+                "See [cyan]contributing-docs/19_execution_api_versioning.rst[/] for details."
+            )
+            return 1
+
+        try:
+            current_schema = generate_schema(Path.cwd())
+        except Exception as e:
+            console.print(f"[bold red]ERROR:[/] Failed to generate current schema: {e}")
+            return 1
+
+        if not schemas_equal(current_schema, main_schema):
+            console.print(
+                "[bold red]ERROR:[/] Execution API schema has changed but no version file was updated."
+            )
+            console.print("")
+            console.print("The following datamodel files were changed:")
+            for f in datamodel_files:
+                console.print(f"  - [magenta]{f}[/]")
+            console.print("")
+            remote = get_remote_for_main()
+            target_branch = get_target_branch()
+            console.print(
+                f"Schema diff against [cyan]{remote}/{target_branch}[/] detected differences.\n"
+                "\n"
+                "Please add or update a version file under:\n"
+                f"  [cyan]{VERSIONS_PREFIX}[/]\n"
+                "\n"
+                "See [cyan]contributing-docs/19_execution_api_versioning.rst[/] for details."
+            )
+            return 1
+        console.print("[green]Schema unchanged:[/] Datamodel changes do not affect API contract.")
 
     return 0
 

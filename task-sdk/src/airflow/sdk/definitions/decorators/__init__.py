@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from airflow.sdk.bases.decorator import TaskDecorator
 from airflow.sdk.definitions.dag import dag
@@ -24,6 +24,9 @@ from airflow.sdk.definitions.decorators.condition import run_if, skip_if
 from airflow.sdk.definitions.decorators.setup_teardown import setup_task, teardown_task
 from airflow.sdk.definitions.decorators.task_group import task_group
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # Please keep this in sync with the .pyi's __all__.
 __all__ = [

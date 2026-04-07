@@ -25,10 +25,9 @@ import re
 import ssl
 from typing import Any
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 log = logging.getLogger(__name__)
 
@@ -142,7 +141,7 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
 
     try:
         if celery_ssl_active:
-            if broker_url and "amqp://" in broker_url:
+            if broker_url and re.search(r"amqps?://", broker_url):
                 broker_use_ssl = {
                     "keyfile": team_conf.get("celery", "SSL_KEY"),
                     "certfile": team_conf.get("celery", "SSL_CERT"),

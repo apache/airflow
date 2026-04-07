@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-databricks``
 
-Release: ``7.11.0``
+Release: ``7.12.0``
 
 
 `Databricks <https://databricks.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``databricks`` provider. All classes for this pro
 are in ``airflow.providers.databricks`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.11.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.12.0/>`_.
 
 Installation
 ------------
@@ -45,14 +45,14 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-databricks``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
 
-==========================================  ======================================
+==========================================  ==================================================================
 PIP package                                 Version required
-==========================================  ======================================
+==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
@@ -61,10 +61,12 @@ PIP package                                 Version required
 ``aiohttp``                                 ``>=3.9.2,<4``
 ``mergedeep``                               ``>=1.3.4``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
-``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
+``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ``pyarrow``                                 ``>=16.1.0; python_version < "3.13"``
-``pyarrow``                                 ``>=18.0.0; python_version >= "3.13"``
-==========================================  ======================================
+``pyarrow``                                 ``>=18.0.0; python_version >= "3.13" and python_version < "3.14"``
+``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
+==========================================  ==================================================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -91,10 +93,10 @@ Dependent package                                                               
 Optional dependencies
 ----------------------
 
-==================  ================================================================
+==================  ================================================================================================================================================================
 Extra               Dependencies
-==================  ================================================================
-``avro``            ``fastavro>=1.9.0``, ``fastavro>=1.10.0;python_version>="3.12"``
+==================  ================================================================================================================================================================
+``avro``            ``fastavro>=1.9.0; python_version<"3.14"``, ``fastavro>=1.10.0; python_version>="3.12" and python_version<"3.14"``, ``fastavro>=1.12.1; python_version>="3.14"``
 ``azure-identity``  ``azure-identity>=1.3.1``
 ``fab``             ``apache-airflow-providers-fab>=2.2.0``
 ``google``          ``apache-airflow-providers-google>=10.24.0``
@@ -102,7 +104,7 @@ Extra               Dependencies
 ``standard``        ``apache-airflow-providers-standard``
 ``openlineage``     ``apache-airflow-providers-openlineage>=2.3.0``
 ``sqlalchemy``      ``databricks-sqlalchemy>=1.0.2``
-==================  ================================================================
+==================  ================================================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.11.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.12.0/changelog.html>`_.

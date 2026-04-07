@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from requests.exceptions import RequestException
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.http.hooks.http import HttpHook
 
 if TYPE_CHECKING:

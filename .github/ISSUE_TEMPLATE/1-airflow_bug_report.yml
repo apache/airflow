@@ -1,7 +1,7 @@
 ---
-name: Airflow Bug report
-description: Problems and issues with code in Apache Airflow core
-labels: ["kind:bug", "area:core", "needs-triage"]
+name: Airflow Issue report
+description: Report bugs for airflow-core, task sdk, providers, helm chart etc
+labels: ["kind:bug", "needs-triage"]
 body:
   - type: markdown
     attributes:
@@ -25,40 +25,50 @@ body:
         [Security Reporting Guidelines](https://github.com/apache/airflow/blob/main/.github/SECURITY.md)
         instead.
         <br clear='left'/>"
-      # yamllint enable rule:line-length
   - type: dropdown
     attributes:
+      label: Under which category would you file this issue?
+      multiple: false
+      options:
+        - "Providers"
+        - "Airflow Core"
+        - "Helm chart"
+        - "Task SDK"
+    validations:
+      required: true
+  - type: input
+    attributes:
       label: Apache Airflow version
+      # yamllint disable rule:line-length
       description: >
-        Select your Airflow version.
+        Enter your Airflow version.
         **Please note:** Airflow 2.x is in limited support (critical and security fixes only), and reaches
         EOL on April 22, 2026 - see the
         [Airflow 2 EOL page]
         (https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html)
         for more information.
-      multiple: false
-      options:
-        - "3.1.8"
-        - "2.11.X"
-        - "main (development)"
-        - "Other Airflow 3 version (please specify below)"
+        Remember, you are encouraged to test with the latest release or on the `main` branch to verify your issue still exists, especially if
+        your version is at least a minor version older than the [current stable release](https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html#version-life-cycle).
+    # yamllint enable rule:line-length
+      placeholder: Run `airflow version` and paste the output here
     validations:
       required: true
-  - type: input
-    attributes:
-      label: If "Other Airflow 3 version" selected, which one?
-      # yamllint disable rule:line-length
-      description: >
-        On what 3.X version of Airflow are you currently experiencing the issue? Remember, you are encouraged to
-        test with the latest release or on the `main` branch to verify your issue still exists, especially if
-        your version is at least a minor version older than the [current stable release](https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html#version-life-cycle).
-      # yamllint enable rule:line-length
   - type: textarea
     attributes:
-      label: What happened?
-      description: Describe what happened.
+      label: What happened and how to reproduce it?
+      description: >
+        Describe what happened and please make sure you provide a
+        reproducible step-by-step case of how to reproduce the problem as
+        minimally and precisely as possible.
       placeholder: >
-        Please provide the context in which the problem occurred and explain what happened
+        Please provide the context in which the problem occurred and keep
+        in mind we do not have access to your cluster or DAGs. Remember that
+        non-reproducible issues will be closed! Opening a discussion is
+        recommended as a first step. Feel free to use the following template:
+        **Issue Description **
+        < describe your issue >
+        **Steps to reproduce:**
+        < detailed steps to reproduce >
     validations:
       required: true
   - type: textarea
@@ -70,31 +80,11 @@ body:
         the fragment of logs showing the exact error messages or wrong behaviour and screenshots for
         UI problems or YouTube link to a video of you demonstrating the problem. You can include files by
         dragging and dropping them here.
-  - type: textarea
-    attributes:
-      label: How to reproduce
-      description: >
-        What should we do to reproduce the problem? If you are not able to provide a reproducible case,
-        please open a [discussion](https://github.com/apache/airflow/discussions) instead.
-      placeholder: >
-        Please make sure you provide a reproducible step-by-step case of how to reproduce the problem
-        as minimally and precisely as possible. Keep in mind we do not have access to your cluster or DAGs.
-        Remember that non-reproducible issues will be closed! Opening a discussion is recommended as a
-        first step.
-    validations:
-      required: true
   - type: input
     attributes:
       label: Operating System
       description: What Operating System are you using?
       placeholder: "You can get it via `cat /etc/os-release` for example"
-    validations:
-      required: true
-  - type: textarea
-    attributes:
-      label: Versions of Apache Airflow Providers
-      description: What Apache Airflow Providers versions are you using?
-      placeholder: You can use `pip freeze | grep apache-airflow-providers` (you can leave only relevant ones)
   - type: dropdown
     attributes:
       label: Deployment
@@ -113,15 +103,176 @@ body:
         - "Amazon (AWS) MWAA"
         - "Microsoft ADF Managed Airflow"
         - "Other"
-    validations:
-      required: true
+  - type: dropdown
+    attributes:
+      label: Apache Airflow Provider(s)
+      description: >
+        Provider(s) that the issue report is about (you can choose more than one). If the issue
+        category isn't "Providers", you can leave this field empty.
+      multiple: true
+      options:
+        - airbyte
+        - alibaba
+        - amazon
+        - apache-beam
+        - apache-cassandra
+        - apache-drill
+        - apache-druid
+        - apache-flink
+        - apache-hdfs
+        - apache-hive
+        - apache-iceberg
+        - apache-impala
+        - apache-kafka
+        - apache-kylin
+        - apache-livy
+        - apache-pig
+        - apache-pinot
+        - apache-spark
+        - apache-tinkerpop
+        - apprise
+        - arangodb
+        - asana
+        - atlassian-jira
+        - celery
+        - cloudant
+        - cncf-kubernetes
+        - cohere
+        - common-ai
+        - common-compat
+        - common-io
+        - common-messaging
+        - common-sql
+        - databricks
+        - datadog
+        - dbt-cloud
+        - dingding
+        - discord
+        - docker
+        - edge3
+        - elasticsearch
+        - exasol
+        - fab
+        - facebook
+        - ftp
+        - git
+        - github
+        - google
+        - grpc
+        - hashicorp
+        - http
+        - imap
+        - influxdb
+        - informatica
+        - jdbc
+        - jenkins
+        - keycloak
+        - microsoft-azure
+        - microsoft-mssql
+        - microsoft-psrp
+        - microsoft-winrm
+        - mongo
+        - mysql
+        - neo4j
+        - odbc
+        - openai
+        - openfaas
+        - openlineage
+        - opensearch
+        - opsgenie
+        - oracle
+        - pagerduty
+        - papermill
+        - pgvector
+        - pinecone
+        - postgres
+        - presto
+        - qdrant
+        - redis
+        - salesforce
+        - samba
+        - segment
+        - sendgrid
+        - sftp
+        - singularity
+        - slack
+        - smtp
+        - snowflake
+        - sqlite
+        - ssh
+        - standard
+        - tableau
+        - telegram
+        - teradata
+        - trino
+        - vertica
+        - weaviate
+        - yandex
+        - ydb
+        - zendesk
   - type: textarea
     attributes:
-      label: Deployment details
-      description: Additional description of your deployment.
+      label: Versions of Apache Airflow Providers
+      description: What Apache Airflow Providers versions are you using?
+      placeholder: You can use `pip freeze | grep apache-airflow-providers` (you can leave only relevant ones)
+  - type: dropdown
+    attributes:
+      label: Official Helm Chart version
+      description: >
+        What Apache Airflow Helm Chart version are you using? If the issue category
+                isn't "Helm chart", select "Not Applicable".
+      multiple: false
+      options:
+        - "Not Applicable"
+        - "1.20.0 (latest released)"
+        - "1.19.0"
+        - "1.18.0"
+        - "1.17.0"
+        - "1.16.0"
+        - "1.15.0"
+        - "1.14.0"
+        - "1.13.1"
+        - "1.13.0"
+        - "1.12.0"
+        - "1.11.0"
+        - "1.10.0"
+        - "1.9.0"
+        - "1.8.0"
+        - "1.7.0"
+        - "1.6.0"
+        - "1.5.0"
+        - "1.4.0"
+        - "1.3.0"
+        - "1.2.0"
+        - "1.1.0"
+        - "1.0.0"
+        - "main (development)"
+      default: 0
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Kubernetes Version
+      description: Which Kubernetes Version do you use? Enter "Not Applicable" if the issue type isn't
+        "Helm chart".
+  - type: textarea
+    attributes:
+      label: Helm Chart configuration
+      description: Additional description of your Helm Chart configuration. Enter "Not Applicable" if the
+        issue type isn't "Helm chart".
       placeholder: >
-        Enter any relevant details of your deployment. Especially version of your tools,
-        software (docker-compose, helm, k8s, etc.), any customisation and configuration you added.
+        Enter any relevant details of your Helm Chart configuration. Maybe you can
+        paste your `values.yaml` or important parts of it here? Make sure to surround the code
+        you paste with ``` ```.
+  - type: textarea
+    attributes:
+      label: Docker Image customizations
+      description: What are the specific modification you've made in your image?
+      placeholder: >
+        If you have not customized your Docker image, you can enter "Not Applicable".
+        Did you extend or customise the official Airflow image? Did you add any packages? Maybe
+        you can share a link to your image, or copy the Dockerfile and `docker build` commands
+        you used to build the image? Make sure to surround the code you paste with ``` ```.
   - type: textarea
     attributes:
       label: Anything else?

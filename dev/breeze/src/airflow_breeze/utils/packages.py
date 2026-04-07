@@ -533,7 +533,7 @@ def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
     try:
         import tomllib
     except ImportError:
-        import tomli as tomllib
+        import tomli as tomllib  # type: ignore[no-redef]
     toml_content = pyproject_toml_file_path.read_text()
     syntax = Syntax(toml_content, "toml", theme="ansi_dark", line_numbers=True)
     try:
@@ -618,7 +618,7 @@ def get_python_requires(provider_id: str) -> str:
     python_requires = "~=3.10"
     provider_details = get_provider_details(provider_id=provider_id)
     for p in provider_details.excluded_python_versions:
-        python_requires += f", !={p}"
+        python_requires += f", !={p}.*"
     return python_requires
 
 

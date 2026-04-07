@@ -20,9 +20,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from azure.core.exceptions import ResourceNotFoundError
 from azure.mgmt.containerinstance.models import (
-    Container,
-    ContainerGroup,
     Logs,
     ResourceRequests,
     ResourceRequirements,
@@ -81,40 +80,47 @@ class TestAzureContainerInstanceHook:
         self.hook.get_state("resource_group", "aci-test")
         get_state_mock.assert_called_once_with("resource_group", "aci-test")
 
+    @pytest.mark.parametrize(
+        ("content", "expected"),
+        [
+            ("log line 1\nlog line 2\nlog line 3\n", ["log line 1\n", "log line 2\n", "log line 3\n"]),
+            (None, []),
+        ],
+    )
     @patch("azure.mgmt.containerinstance.operations.ContainersOperations.list_logs")
-    def test_get_logs(self, list_logs_mock):
-        expected_messages = ["log line 1\n", "log line 2\n", "log line 3\n"]
-        logs = Logs(content="".join(expected_messages))
+    def test_get_logs(self, list_logs_mock, content, expected):
+        logs = Logs(content=content)
         list_logs_mock.return_value = logs
 
-        logs = self.hook.get_logs("resource_group", "name", "name")
+        result = self.hook.get_logs("resource_group", "name", "name")
 
-        assert logs == expected_messages
+        assert result == expected
 
     @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.begin_delete")
     def test_delete(self, delete_mock):
         self.hook.delete("resource_group", "aci-test")
         delete_mock.assert_called_once_with("resource_group", "aci-test")
 
-    @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.list_by_resource_group")
-    def test_exists_with_existing(self, list_mock):
-        list_mock.return_value = [
-            ContainerGroup(
-                os_type="Linux",
-                containers=[Container(name="test1", image="hello-world", resources=self.resources)],
-            )
-        ]
-        assert not self.hook.exists("test", "test1")
+    @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.get")
+    def test_exists_with_existing(self, get_mock):
+        get_mock.return_value = MagicMock()
 
-    @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.list_by_resource_group")
-    def test_exists_with_not_existing(self, list_mock):
-        list_mock.return_value = [
-            ContainerGroup(
-                os_type="Linux",
-                containers=[Container(name="test1", image="hello-world", resources=self.resources)],
-            )
-        ]
+        assert self.hook.exists("test", "test1")
+        get_mock.assert_called_once_with("test", "test1")
+
+    @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.get")
+    def test_exists_with_not_existing(self, get_mock):
+        get_mock.side_effect = ResourceNotFoundError("not found")
+
         assert not self.hook.exists("test", "not found")
+        get_mock.assert_called_once_with("test", "not found")
+
+    @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.get")
+    def test_exists_unexpected_exception(self, get_mock):
+        get_mock.side_effect = RuntimeError("Unexpected Exception")
+
+        with pytest.raises(RuntimeError):
+            self.hook.exists("test", "test")
 
     @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.list")
     def test_connection_success(self, mock_container_groups_list):

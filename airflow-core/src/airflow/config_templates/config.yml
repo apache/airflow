@@ -439,6 +439,16 @@ core:
       example: ~
       default: "1024"
 
+    allow_double_dot_in_ids:
+      description: |
+        Allow ``..`` (consecutive dots) in DAG IDs and run IDs. By default, ``..`` is blocked to prevent
+        path traversal attacks. Set to ``True`` only if you have existing DAGs or runs whose IDs contain
+        ``..`` and cannot be renamed.
+      version_added: 3.3.0
+      type: boolean
+      example: ~
+      default: "False"
+
     daemon_umask:
       description: |
         The default umask to use for process when run in daemon mode (scheduler, worker,  etc.)
@@ -1690,6 +1700,14 @@ api:
       type: string
       example: path/to/logging_config.yaml
       default: ~
+    log_stream_buffer_size:
+      description: |
+        Number of log lines to buffer before flushing to the client when streaming task logs
+        in NDJSON format. Larger values reduce HTTP overhead but increase time-to-first-byte.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "500"
     ssl_cert:
       description: |
         Paths to the SSL certificate and key for the api server. When both are
