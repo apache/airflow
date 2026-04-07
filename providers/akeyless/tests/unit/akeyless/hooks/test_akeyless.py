@@ -13,7 +13,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -37,33 +37,25 @@ def _make_connection(**overrides):
     return Connection(**defaults)
 
 
+HOOK_MODULE = "airflow.providers.akeyless.hooks.akeyless"
+
+
 class TestAkeylessHook:
-    @patch(
-        "airflow.providers.akeyless.hooks.akeyless.AkeylessHook.get_connection",
-        return_value=_make_connection(),
-    )
-    @patch(
-        "airflow.providers.akeyless._internal_client.akeyless_client._AkeylessClient.authenticate",
-        return_value="mock-token",
-    )
-    def test_test_connection_success(self, mock_auth, mock_conn):
+    @patch(f"{HOOK_MODULE}.AkeylessHook.get_connection", return_value=_make_connection())
+    @patch(f"{HOOK_MODULE}.akeyless")
+    def test_test_connection_success(self, mock_sdk, mock_conn):
+        mock_sdk.V2Api.return_value.auth.return_value = MagicMock(token="mock-token")
         from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
 
         hook = AkeylessHook()
         ok, msg = hook.test_connection()
         assert ok is True
         assert "successfully" in msg.lower()
-        mock_auth.assert_called_once()
 
-    @patch(
-        "airflow.providers.akeyless.hooks.akeyless.AkeylessHook.get_connection",
-        return_value=_make_connection(),
-    )
-    @patch(
-        "airflow.providers.akeyless._internal_client.akeyless_client._AkeylessClient.authenticate",
-        side_effect=Exception("Auth failed"),
-    )
-    def test_test_connection_failure(self, mock_auth, mock_conn):
+    @patch(f"{HOOK_MODULE}.AkeylessHook.get_connection", return_value=_make_connection())
+    @patch(f"{HOOK_MODULE}.akeyless")
+    def test_test_connection_failure(self, mock_sdk, mock_conn):
+        mock_sdk.V2Api.return_value.auth.side_effect = Exception("Auth failed")
         from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
 
         hook = AkeylessHook()
@@ -71,122 +63,115 @@ class TestAkeylessHook:
         assert ok is False
         assert "Auth failed" in msg
 
-    @patch(
-        "airflow.providers.akeyless.hooks.akeyless.AkeylessHook.get_connection",
-        return_value=_make_connection(),
-    )
-    @patch(
-        "airflow.providers.akeyless._internal_client.akeyless_client._AkeylessClient.get_secret_value",
-        return_value="s3cr3t",
-    )
-    def test_get_secret_value(self, mock_get, mock_conn):
+    @patch(f"{HOOK_MODULE}.AkeylessHook.get_connection", return_value=_make_connection())
+    @patch(f"{HOOK_MODULE}.akeyless")
+    def test_get_secret_value(self, mock_sdk, mock_conn):
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {"/path/to/secret": "s3cr3t"}
         from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
 
         hook = AkeylessHook()
         val = hook.get_secret_value("/path/to/secret")
         assert val == "s3cr3t"
-        mock_get.assert_called_once_with("/path/to/secret")
 
-    @patch(
-        "airflow.providers.akeyless.hooks.akeyless.AkeylessHook.get_connection",
-        return_value=_make_connection(),
-    )
-    @patch(
-        "airflow.providers.akeyless._internal_client.akeyless_client._AkeylessClient.get_secret_value",
-        return_value=None,
-    )
-    def test_get_secret_value_not_found(self, mock_get, mock_conn):
+    @patch(f"{HOOK_MODULE}.AkeylessHook.get_connection", return_value=_make_connection())
+    @patch(f"{HOOK_MODULE}.akeyless")
+    def test_get_secret_value_not_found(self, mock_sdk, mock_conn):
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {}
         from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
 
         hook = AkeylessHook()
         val = hook.get_secret_value("/nonexistent")
         assert val is None
 
-    @patch(
-        "airflow.providers.akeyless.hooks.akeyless.AkeylessHook.get_connection",
-        return_value=_make_connection(),
-    )
-    @patch(
-        "airflow.providers.akeyless._internal_client.akeyless_client._AkeylessClient.create_secret",
-    )
-    def test_create_secret(self, mock_create, mock_conn):
+    @patch(f"{HOOK_MODULE}.AkeylessHook.get_connection", return_value=_make_connection())
+    @patch(f"{HOOK_MODULE}.akeyless")
+    def test_create_secret(self, mock_sdk, mock_conn):
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
         from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
 
         hook = AkeylessHook()
         hook.create_secret("/new/secret", "val", description="test desc")
-        mock_create.assert_called_once_with("/new/secret", "val", description="test desc")
+        api.create_secret.assert_called_once()
 
-    @patch(
-        "airflow.providers.akeyless.hooks.akeyless.AkeylessHook.get_connection",
-        return_value=_make_connection(),
-    )
-    @patch(
-        "airflow.providers.akeyless._internal_client.akeyless_client._AkeylessClient.list_items",
-        return_value=[{"item_name": "/a"}, {"item_name": "/b"}],
-    )
-    def test_list_items(self, mock_list, mock_conn):
+    @patch(f"{HOOK_MODULE}.AkeylessHook.get_connection", return_value=_make_connection())
+    @patch(f"{HOOK_MODULE}.akeyless")
+    def test_list_items(self, mock_sdk, mock_conn):
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        item_a = MagicMock()
+        item_a.to_dict.return_value = {"item_name": "/a"}
+        item_b = MagicMock()
+        item_b.to_dict.return_value = {"item_name": "/b"}
+        api.list_items.return_value = MagicMock(items=[item_a, item_b])
         from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
 
         hook = AkeylessHook()
         items = hook.list_items("/")
         assert len(items) == 2
-        mock_list.assert_called_once_with("/")
+        assert items[0]["item_name"] == "/a"
 
     @patch(
-        "airflow.providers.akeyless.hooks.akeyless.AkeylessHook.get_connection",
+        f"{HOOK_MODULE}.AkeylessHook.get_connection",
         return_value=_make_connection(
             extra='{"access_type": "uid", "uid_token": "uid-tok-123"}'
         ),
     )
-    @patch(
-        "airflow.providers.akeyless._internal_client.akeyless_client._AkeylessClient.authenticate",
-        return_value="uid-tok-123",
-    )
-    def test_uid_auth_type(self, mock_auth, mock_conn):
+    @patch(f"{HOOK_MODULE}.akeyless")
+    def test_uid_auth_type(self, mock_sdk, mock_conn):
         from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
 
         hook = AkeylessHook()
-        ok, _ = hook.test_connection()
-        assert ok is True
+        token = hook.authenticate()
+        assert token == "uid-tok-123"
+        mock_sdk.V2Api.return_value.auth.assert_not_called()
 
-    @patch(
-        "airflow.providers.akeyless.hooks.akeyless.AkeylessHook.get_connection",
-        return_value=_make_connection(),
-    )
-    @patch(
-        "airflow.providers.akeyless._internal_client.akeyless_client._AkeylessClient.get_dynamic_secret_value",
-        return_value={"username": "admin", "password": "pw"},
-    )
-    def test_get_dynamic_secret(self, mock_dyn, mock_conn):
+    @patch(f"{HOOK_MODULE}.AkeylessHook.get_connection", return_value=_make_connection())
+    @patch(f"{HOOK_MODULE}.akeyless")
+    def test_get_dynamic_secret(self, mock_sdk, mock_conn):
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_dynamic_secret_value.return_value = {"username": "admin", "password": "pw"}
         from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
 
         hook = AkeylessHook()
         result = hook.get_dynamic_secret_value("/dynamic/db-producer")
         assert result["username"] == "admin"
 
-    @patch(
-        "airflow.providers.akeyless.hooks.akeyless.AkeylessHook.get_connection",
-        return_value=_make_connection(),
-    )
-    @patch(
-        "airflow.providers.akeyless._internal_client.akeyless_client._AkeylessClient.get_rotated_secret_value",
-        return_value={"value": {"username": "rotated-user", "password": "rotated-pw"}},
-    )
-    def test_get_rotated_secret(self, mock_rot, mock_conn):
+    @patch(f"{HOOK_MODULE}.AkeylessHook.get_connection", return_value=_make_connection())
+    @patch(f"{HOOK_MODULE}.akeyless")
+    def test_get_rotated_secret(self, mock_sdk, mock_conn):
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        res = MagicMock()
+        res.to_dict.return_value = {"value": {"username": "rotated-user"}}
+        api.get_rotated_secret_value.return_value = res
         from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
 
         hook = AkeylessHook()
         result = hook.get_rotated_secret_value("/rotated/db-creds")
         assert "value" in result
 
-    @patch(
-        "airflow.providers.akeyless.hooks.akeyless.AkeylessHook.get_connection",
-        return_value=_make_connection(),
-    )
-    def test_get_conn_returns_client(self, mock_conn):
-        from airflow.providers.akeyless._internal_client.akeyless_client import _AkeylessClient
+    @patch(f"{HOOK_MODULE}.AkeylessHook.get_connection", return_value=_make_connection())
+    @patch(f"{HOOK_MODULE}.akeyless")
+    def test_get_conn_returns_v2api(self, mock_sdk, mock_conn):
         from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
 
         hook = AkeylessHook()
         client = hook.get_conn()
-        assert isinstance(client, _AkeylessClient)
+        assert client == mock_sdk.V2Api.return_value
+
+    @patch(f"{HOOK_MODULE}.AkeylessHook.get_connection", return_value=_make_connection())
+    @patch(f"{HOOK_MODULE}.akeyless")
+    def test_delete_item(self, mock_sdk, mock_conn):
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
+
+        hook = AkeylessHook()
+        hook.delete_item("/path/to/delete")
+        api.delete_item.assert_called_once()

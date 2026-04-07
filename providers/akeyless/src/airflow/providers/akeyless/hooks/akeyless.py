@@ -13,40 +13,33 @@
 
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Any
 
+import akeyless
+
 from airflow.hooks.base import BaseHook
-from airflow.providers.akeyless._internal_client.akeyless_client import (
-    VALID_AUTH_TYPES,
-    AkeylessClientError,
-    _AkeylessClient,
-)
+
+VALID_AUTH_TYPES = ("api_key", "aws_iam", "gcp", "azure_ad", "uid", "jwt", "k8s", "certificate")
 
 
 class AkeylessHook(BaseHook):
     """Hook to interact with the Akeyless Vault Platform.
 
-    Akeyless documentation:
-      https://docs.akeyless.io/
+    Thin wrapper around the ``akeyless`` Python SDK.
 
-    Connection parameters are read from an Airflow Connection whose
-    ``conn_type`` is ``akeyless``.  The mapping is:
+    .. seealso::
+        - https://docs.akeyless.io/
+        - https://github.com/akeylesslabs/akeyless-python
 
-    * **Host**  -> Akeyless API URL (default ``https://api.akeyless.io``)
-    * **Login** -> ``access_id``
-    * **Password** -> ``access_key`` (for ``api_key`` auth) or token/secret
-    * **Extra** fields (JSON):
-        - ``access_type`` (default ``api_key``)
-        - ``uid_token``
-        - ``gcp_audience``
-        - ``azure_object_id``
-        - ``jwt``
-        - ``k8s_auth_config_name``
-        - ``certificate_data``
-        - ``private_key_data``
+    Connection fields:
+
+    * **Host**     -> API URL (default ``https://api.akeyless.io``)
+    * **Login**    -> Access ID
+    * **Password** -> Access Key (for ``api_key`` auth)
+    * **Extra**    -> JSON with ``access_type`` and auth-method-specific fields
 
     :param akeyless_conn_id: Airflow connection ID.
-    :param access_type: Override the auth type stored in the connection.
     """
 
     conn_name_attr = "akeyless_conn_id"
@@ -54,127 +47,136 @@ class AkeylessHook(BaseHook):
     conn_type = "akeyless"
     hook_name = "Akeyless"
 
-    def __init__(
-        self,
-        akeyless_conn_id: str = default_conn_name,
-        access_type: str | None = None,
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, akeyless_conn_id: str = default_conn_name, **kwargs: Any) -> None:
         super().__init__()
         self.akeyless_conn_id = akeyless_conn_id
-        self.connection = self.get_connection(akeyless_conn_id)
+        self._conn = self.get_connection(akeyless_conn_id)
+        self._extra = self._conn.extra_dejson or {}
 
-        extra = self.connection.extra_dejson or {}
-
-        resolved_access_type = access_type or extra.get("access_type", "api_key")
-
-        api_url = self.connection.host or extra.get("api_url")
-        if api_url and not api_url.startswith("http"):
+    @cached_property
+    def client(self) -> akeyless.V2Api:
+        """Return an ``akeyless.V2Api`` client (cached)."""
+        api_url = self._conn.host or self._extra.get("api_url", "https://api.akeyless.io")
+        if not api_url.startswith("http"):
             api_url = f"https://{api_url}"
+        return akeyless.V2Api(akeyless.ApiClient(akeyless.Configuration(host=api_url)))
 
-        self._client = _AkeylessClient(
-            api_url=api_url,
-            access_id=self.connection.login,
-            access_key=self.connection.password,
-            access_type=resolved_access_type,
-            uid_token=extra.get("uid_token"),
-            gcp_audience=extra.get("gcp_audience"),
-            azure_object_id=extra.get("azure_object_id"),
-            jwt=extra.get("jwt"),
-            k8s_auth_config_name=extra.get("k8s_auth_config_name"),
-            certificate_data=extra.get("certificate_data"),
-            private_key_data=extra.get("private_key_data"),
-            **kwargs,
+    def get_conn(self) -> akeyless.V2Api:
+        """Return the underlying ``akeyless.V2Api`` client."""
+        return self.client
+
+    def authenticate(self) -> str:
+        """Authenticate and return an API token.
+
+        For ``uid`` auth the token is the UID token itself.
+        For all other methods, calls ``akeyless.Auth``.
+        """
+        access_type = self._extra.get("access_type", "api_key")
+
+        if access_type == "uid":
+            return self._extra["uid_token"]
+
+        body = akeyless.Auth(access_id=self._conn.login)
+
+        if access_type == "api_key":
+            body.access_key = self._conn.password
+        elif access_type in ("aws_iam", "gcp", "azure_ad"):
+            body.access_type = access_type
+            body.cloud_id = self._get_cloud_id(access_type)
+        elif access_type == "jwt":
+            body.access_type = "jwt"
+            body.jwt = self._extra.get("jwt")
+        elif access_type == "k8s":
+            body.access_type = "k8s"
+            body.k8s_auth_config_name = self._extra.get("k8s_auth_config_name")
+        elif access_type == "certificate":
+            body.access_type = "cert"
+            body.cert_data = self._extra.get("certificate_data")
+            body.key_data = self._extra.get("private_key_data")
+
+        return self.client.auth(body).token
+
+    def _get_cloud_id(self, access_type: str) -> str:
+        from akeyless_cloud_id import CloudId
+
+        cid = CloudId()
+        if access_type == "aws_iam":
+            return cid.generate()
+        if access_type == "gcp":
+            return cid.generateGcp(self._extra.get("gcp_audience"))
+        if access_type == "azure_ad":
+            return cid.generateAzure(self._extra.get("azure_object_id"))
+        raise ValueError(f"No cloud-id generator for {access_type!r}")
+
+    # ------------------------------------------------------------------
+    # Secret operations — thin delegates to the SDK
+    # ------------------------------------------------------------------
+
+    def get_secret_value(self, name: str) -> str | None:
+        """Get a static secret value by path."""
+        token = self.authenticate()
+        res = self.client.get_secret_value(akeyless.GetSecretValue(names=[name], token=token))
+        return res.get(name)
+
+    def get_secret_values(self, names: list[str]) -> dict[str, str]:
+        """Get multiple static secret values."""
+        token = self.authenticate()
+        return dict(self.client.get_secret_value(akeyless.GetSecretValue(names=names, token=token)))
+
+    def create_secret(self, name: str, value: str, description: str | None = None) -> None:
+        """Create a static secret."""
+        token = self.authenticate()
+        body = akeyless.CreateSecret(name=name, value=value, token=token)
+        if description:
+            body.description = description
+        self.client.create_secret(body)
+
+    def update_secret_value(self, name: str, value: str) -> None:
+        """Update a static secret's value."""
+        token = self.authenticate()
+        self.client.update_secret_val(akeyless.UpdateSecretVal(name=name, value=value, token=token))
+
+    def delete_item(self, name: str) -> None:
+        """Delete a secret/item."""
+        token = self.authenticate()
+        self.client.delete_item(akeyless.DeleteItem(name=name, token=token))
+
+    def describe_item(self, name: str) -> dict[str, Any] | None:
+        """Describe a secret/item (returns metadata)."""
+        token = self.authenticate()
+        return self.client.describe_item(akeyless.DescribeItem(name=name, token=token)).to_dict()
+
+    def list_items(self, path: str = "/") -> list[dict[str, Any]]:
+        """List items under a path."""
+        token = self.authenticate()
+        res = self.client.list_items(akeyless.ListItems(token=token, path=path))
+        return [item.to_dict() for item in (res.items or [])]
+
+    def get_dynamic_secret_value(self, name: str) -> dict[str, Any]:
+        """Generate a dynamic secret value (e.g. DB credentials)."""
+        token = self.authenticate()
+        res = self.client.get_dynamic_secret_value(akeyless.GetDynamicSecretValue(name=name, token=token))
+        return res if isinstance(res, dict) else res.to_dict()
+
+    def get_rotated_secret_value(self, name: str) -> dict[str, Any]:
+        """Retrieve a rotated secret value."""
+        token = self.authenticate()
+        res = self.client.get_rotated_secret_value(
+            akeyless.GetRotatedSecretValue(names=name, token=token)
         )
+        return res.to_dict() if hasattr(res, "to_dict") else dict(res)
 
-    def get_conn(self) -> _AkeylessClient:
-        """Return the authenticated internal client."""
-        return self._client
+    # ------------------------------------------------------------------
+    # Airflow UI
+    # ------------------------------------------------------------------
 
     def test_connection(self) -> tuple[bool, str]:
         """Validate connectivity from the Airflow UI."""
         try:
-            self._client.authenticate()
+            self.authenticate()
             return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)
-
-    def get_secret_value(self, secret_path: str) -> str | None:
-        """Get a single static-secret value.
-
-        :param secret_path: Full path to the secret in Akeyless.
-        :returns: The secret value or *None* if not found.
-        """
-        return self._client.get_secret_value(secret_path)
-
-    def get_secret_values(self, secret_paths: list[str]) -> dict[str, str]:
-        """Get multiple static-secret values at once.
-
-        :param secret_paths: List of full secret paths.
-        :returns: Mapping ``{path: value}``.
-        """
-        return self._client.get_secret_values(secret_paths)
-
-    def create_secret(
-        self,
-        secret_path: str,
-        value: str,
-        description: str | None = None,
-    ) -> None:
-        """Create a new static secret.
-
-        :param secret_path: Full path for the new secret.
-        :param value: The secret value.
-        :param description: Optional description.
-        """
-        self._client.create_secret(secret_path, value, description=description)
-
-    def update_secret_value(self, secret_path: str, value: str) -> None:
-        """Update the value of an existing static secret.
-
-        :param secret_path: Full path to the secret.
-        :param value: New value.
-        """
-        self._client.update_secret_value(secret_path, value)
-
-    def describe_item(self, name: str) -> dict[str, Any] | None:
-        """Describe/inspect a secret or item.
-
-        :param name: Full path to the item.
-        :returns: Item metadata dict, or *None* if not found.
-        """
-        return self._client.describe_item(name)
-
-    def list_items(self, path: str = "/") -> list[dict[str, Any]]:
-        """List items under a given path.
-
-        :param path: Path prefix (default ``/``).
-        :returns: List of item metadata dicts.
-        """
-        return self._client.list_items(path)
-
-    def delete_item(self, name: str) -> None:
-        """Delete a secret/item.
-
-        :param name: Full path to the item.
-        """
-        self._client.delete_item(name)
-
-    def get_rotated_secret_value(self, name: str) -> dict[str, Any] | None:
-        """Retrieve a rotated-secret value.
-
-        :param name: Full path to the rotated secret.
-        :returns: The secret payload or *None*.
-        """
-        return self._client.get_rotated_secret_value(name)
-
-    def get_dynamic_secret_value(self, name: str) -> dict[str, Any] | None:
-        """Generate a dynamic-secret value.
-
-        :param name: Full path to the dynamic secret producer.
-        :returns: The generated credentials or *None*.
-        """
-        return self._client.get_dynamic_secret_value(name)
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -209,9 +211,5 @@ class AkeylessHook(BaseHook):
         """Return custom field behaviour for the Airflow UI."""
         return {
             "hidden_fields": ["extra", "schema", "port"],
-            "relabeling": {
-                "login": "Access ID",
-                "password": "Access Key",
-                "host": "API URL",
-            },
+            "relabeling": {"login": "Access ID", "password": "Access Key", "host": "API URL"},
         }
