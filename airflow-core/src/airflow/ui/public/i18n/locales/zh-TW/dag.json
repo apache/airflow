@@ -122,12 +122,12 @@
       "label": "圖表方向"
     },
     "graphFilters": {
-      "clearFilters": "Clear Filters",
-      "durationGte": "Min duration (s)",
-      "mapIndex": "Map index",
-      "selectStatus": "Select status",
-      "selectTaskGroup": "Select task group",
-      "title": "Task Filters"
+      "clearFilters": "清除篩選條件",
+      "durationGte": "最短持續時間 (秒)",
+      "mapIndex": "映射索引",
+      "selectStatus": "選擇狀態",
+      "selectTaskGroup": "選擇任務群組",
+      "title": "任務篩選條件"
     },
     "showVersionIndicator": {
       "label": "版本指示器",

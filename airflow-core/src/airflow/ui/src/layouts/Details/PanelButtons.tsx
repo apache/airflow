@@ -47,6 +47,7 @@ import { DateRangeCalendar } from "src/components/FilterBar/filters/DateRangeCal
 import { DateRangeInputs } from "src/components/FilterBar/filters/DateRangeInputs";
 import type { DateRangeValue } from "src/components/FilterBar/types";
 import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
+import { GraphTaskFilters } from "src/components/GraphTaskFilters";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
@@ -60,7 +61,6 @@ import { useDateRangeFilter } from "src/hooks/useDateRangeFilter";
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
-import { GraphTaskFilters } from "./Graph/GraphTaskFilters";
 import { RunTypeLegend } from "./Grid/RunTypeLegend";
 import { TaskStreamFilter } from "./TaskStreamFilter";
 import { ToggleGroups } from "./ToggleGroups";

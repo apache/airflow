@@ -22,6 +22,7 @@ import { LinePath } from "@visx/shape";
 import type { Edge as EdgeType } from "@xyflow/react";
 import type { ElkPoint } from "elkjs";
 
+import { filteredOpacityTransition } from "./graphTypes";
 import type { EdgeData } from "./reactflowUtils";
 
 type Props = EdgeType<EdgeData>;
@@ -48,7 +49,7 @@ const CustomEdge = ({ data }: Props) => {
   };
 
   return (
-    <g opacity={rest.isFiltered ? 0.2 : 1} style={{ transition: "opacity 0.2s" }}>
+    <g opacity={rest.isFiltered ? 0.2 : 1} style={{ transition: filteredOpacityTransition }}>
       {rest.labels?.map(({ height, id, text, width, x, y }) => {
         if (y === undefined || x === undefined) {
           return undefined;

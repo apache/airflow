@@ -115,14 +115,6 @@
     "graphDirection": {
       "label": "Richting van de grafiek"
     },
-    "graphFilters": {
-      "clearFilters": "Clear Filters",
-      "durationGte": "Min duration (s)",
-      "mapIndex": "Map index",
-      "selectStatus": "Select status",
-      "selectTaskGroup": "Select task group",
-      "title": "Task Filters"
-    },
     "taskStreamFilter": {
       "activeFilter": "Actief filter",
       "clearFilter": "Filter wissen",

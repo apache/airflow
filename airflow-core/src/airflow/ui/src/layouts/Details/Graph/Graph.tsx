@@ -78,20 +78,18 @@ export const Graph = () => {
 
   const hasActiveFilter = includeUpstream || includeDownstream;
 
-  const graphFilters: GraphFilterValues = useMemo(() => {
-    const durationParam = searchParams.get(SearchParamsKeys.DURATION_GTE);
-    const mapIndexParam = searchParams.get(SearchParamsKeys.MAP_INDEX);
-    const durationVal = durationParam === null ? Number.NaN : Number(durationParam);
-    const mapIndexVal = mapIndexParam === null ? Number.NaN : Number(mapIndexParam);
+  const durationParam = searchParams.get(SearchParamsKeys.DURATION_GTE);
+  const mapIndexParam = searchParams.get(SearchParamsKeys.MAP_INDEX);
+  const durationVal = durationParam === null ? Number.NaN : Number(durationParam);
+  const mapIndexVal = mapIndexParam === null ? Number.NaN : Number(mapIndexParam);
 
-    return {
-      durationThreshold: Number.isNaN(durationVal) ? undefined : durationVal,
-      mapIndex: Number.isNaN(mapIndexVal) ? undefined : mapIndexVal,
-      selectedOperators: searchParams.getAll(SearchParamsKeys.OPERATOR),
-      selectedStates: searchParams.getAll(SearchParamsKeys.TASK_STATE),
-      selectedTaskGroups: searchParams.getAll(SearchParamsKeys.TASK_GROUP),
-    };
-  }, [searchParams]);
+  const graphFilters: GraphFilterValues = {
+    durationThreshold: Number.isNaN(durationVal) ? undefined : durationVal,
+    mapIndex: Number.isNaN(mapIndexVal) ? undefined : mapIndexVal,
+    selectedOperators: searchParams.getAll(SearchParamsKeys.OPERATOR),
+    selectedStates: searchParams.getAll(SearchParamsKeys.TASK_STATE),
+    selectedTaskGroups: searchParams.getAll(SearchParamsKeys.TASK_GROUP),
+  };
 
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [

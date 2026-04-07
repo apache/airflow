@@ -121,14 +121,6 @@
     "graphDirection": {
       "label": "ग्राफ़ दिशा"
     },
-    "graphFilters": {
-      "clearFilters": "Clear Filters",
-      "durationGte": "Min duration (s)",
-      "mapIndex": "Map index",
-      "selectStatus": "Select status",
-      "selectTaskGroup": "Select task group",
-      "title": "Task Filters"
-    },
     "taskStreamFilter": {
       "activeFilter": "सक्रिय फ़िल्टर",
       "clearFilter": "फ़िल्टर साफ करें",

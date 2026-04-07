@@ -25,6 +25,8 @@ import Edge from "./Edge";
 import { JoinNode } from "./JoinNode";
 import { TaskNode } from "./TaskNode";
 
+export const filteredOpacityTransition = "opacity 0.2s";
+
 export const nodeTypes = {
   asset: AssetNode,
   "asset-alias": AliasNode,

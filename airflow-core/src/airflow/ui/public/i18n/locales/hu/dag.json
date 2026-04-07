@@ -122,14 +122,6 @@
     "graphDirection": {
       "label": "Gráf iránya"
     },
-    "graphFilters": {
-      "clearFilters": "Clear Filters",
-      "durationGte": "Min duration (s)",
-      "mapIndex": "Map index",
-      "selectStatus": "Select status",
-      "selectTaskGroup": "Select task group",
-      "title": "Task Filters"
-    },
     "showVersionIndicator": {
       "label": "Verziójelző megjelenítése",
       "options": {

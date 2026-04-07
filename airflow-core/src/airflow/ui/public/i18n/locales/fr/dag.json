@@ -118,14 +118,6 @@
     },
     "graphDirection": {
       "label": "Orientation du graphe"
-    },
-    "graphFilters": {
-      "clearFilters": "Clear Filters",
-      "durationGte": "Min duration (s)",
-      "mapIndex": "Map index",
-      "selectStatus": "Select status",
-      "selectTaskGroup": "Select task group",
-      "title": "Task Filters"
     }
   },
   "paramsFailed": "Échec du chargement des paramètres",

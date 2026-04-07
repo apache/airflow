@@ -122,14 +122,6 @@
     },
     "graphDirection": {
       "label": "Direzione del Grafico"
-    },
-    "graphFilters": {
-      "clearFilters": "Clear Filters",
-      "durationGte": "Min duration (s)",
-      "mapIndex": "Map index",
-      "selectStatus": "Select status",
-      "selectTaskGroup": "Select task group",
-      "title": "Task Filters"
     }
   },
   "paramsFailed": "Impossibile caricare i parametri",

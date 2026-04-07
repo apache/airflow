@@ -122,14 +122,6 @@
     "graphDirection": {
       "label": "그래프 방향"
     },
-    "graphFilters": {
-      "clearFilters": "Clear Filters",
-      "durationGte": "Min duration (s)",
-      "mapIndex": "Map index",
-      "selectStatus": "Select status",
-      "selectTaskGroup": "Select task group",
-      "title": "Task Filters"
-    },
     "showVersionIndicator": {
       "label": "버전 인디케이터 표시",
       "options": {

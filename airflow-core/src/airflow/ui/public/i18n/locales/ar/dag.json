@@ -131,14 +131,6 @@
     "graphDirection": {
       "label": "اتجاه الرسم البياني"
     },
-    "graphFilters": {
-      "clearFilters": "Clear Filters",
-      "durationGte": "Min duration (s)",
-      "mapIndex": "Map index",
-      "selectStatus": "Select status",
-      "selectTaskGroup": "Select task group",
-      "title": "Task Filters"
-    },
     "taskStreamFilter": {
       "activeFilter": "التصفية النشطة",
       "clearFilter": "مسح التصفية",

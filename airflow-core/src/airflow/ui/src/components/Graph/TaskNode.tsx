@@ -28,6 +28,7 @@ import { useOpenGroups } from "src/context/openGroups";
 import { NodeWrapper } from "./NodeWrapper";
 import { SegmentedStateBar } from "./SegmentedStateBar";
 import { TaskLink } from "./TaskLink";
+import { filteredOpacityTransition } from "./graphTypes";
 import type { CustomNodeProps } from "./reactflowUtils";
 
 export const TaskNode = ({
@@ -89,7 +90,7 @@ export const TaskNode = ({
         cursor="default"
         flexDirection="column"
         opacity={isFiltered ? 0.2 : 1}
-        transition="opacity 0.2s"
+        transition={filteredOpacityTransition}
       >
         <TaskInstanceTooltip
           openDelay={500}
