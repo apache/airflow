@@ -867,6 +867,9 @@ class CloudComposerTriggerDAGRunOperator(GoogleCloudBaseOperator):
             self.log.info("The Composer environment %s does not exist.", self.environment_id)
             raise AirflowException(not_found_err)
         composer_airflow_uri = environment.config.airflow_uri
+        composer_airflow_version = int(
+            environment.config.software_config.image_version.split("airflow-")[1].split(".")[0]
+        )
 
         self.log.info(
             "Triggering the DAG %s on the %s environment...", self.composer_dag_id, self.environment_id
@@ -875,6 +878,7 @@ class CloudComposerTriggerDAGRunOperator(GoogleCloudBaseOperator):
             composer_airflow_uri=composer_airflow_uri,
             composer_dag_id=self.composer_dag_id,
             composer_dag_conf=self.composer_dag_conf,
+            composer_airflow_version=composer_airflow_version,
             timeout=self.timeout,
         )
         self.log.info("The DAG %s was triggered with Run ID: %s", self.composer_dag_id, dag_run["dag_run_id"])
