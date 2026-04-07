@@ -25,6 +25,17 @@
 Changelog
 ---------
 
+0.7.1
+.....
+
+Misc
+~~~~
+
+* ``Compat sdk conf follow-up for multiple providers (#64161)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.7.0
 .....
 
