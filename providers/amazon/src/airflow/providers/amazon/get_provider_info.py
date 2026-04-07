@@ -383,7 +383,7 @@ def get_provider_info():
                 "integration-name": "Amazon Neptune Analytics",
                 "external-doc-url": "https://docs.aws.amazon.com/neptune-analytics/latest/userguide/gettingStarted.html",
                 "logo": "/docs/integration-logos/Amazon-Neptune_64.png",
-                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/neptune-analytics.rst"],
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/neptune_analytics.rst"],
                 "tags": ["aws"],
             },
         ],
