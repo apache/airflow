@@ -20,6 +20,7 @@ import { Box, Icon, Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBookOpen, FiExternalLink } from "react-icons/fi";
 
+import supportedVersions from "../../../../../../docs/installation/supported-versions.rst?raw";
 import { Menu } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 import type { NavItemResponse } from "src/utils/types";
@@ -28,6 +29,9 @@ import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
 
 const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
+const airflowDocsBaseUrl = "https://airflow.apache.org/docs/apache-airflow";
+const currentStableAirflowVersion =
+  supportedVersions.match(/^\s*\d+(?:\.\d+)?\s+(\d+\.\d+\.\d+)\s+/mu)?.[1];
 
 const links = [
   {
@@ -44,6 +48,45 @@ const links = [
   },
 ];
 
+const getReleaseVersionParts = (version: string): [number, number, number] | undefined => {
+  if (!/^\d+\.\d+\.\d+$/u.test(version)) {
+    return undefined;
+  }
+
+  const [major, minor, patch] = version.split(".").map(Number);
+
+  return [major, minor, patch];
+};
+
+const compareReleaseVersions = (left: [number, number, number], right: [number, number, number]) => {
+  for (const [index, part] of left.entries()) {
+    const otherPart = right[index];
+
+    if (part !== otherPart) {
+      return part - otherPart;
+    }
+  }
+
+  return 0;
+};
+
+const isPublishedReleaseVersion = (version: string) => {
+  const releaseVersionParts = getReleaseVersionParts(version);
+  const stableVersionParts =
+    currentStableAirflowVersion === undefined ? undefined : getReleaseVersionParts(currentStableAirflowVersion);
+
+  if (releaseVersionParts === undefined || stableVersionParts === undefined) {
+    return false;
+  }
+
+  return compareReleaseVersions(releaseVersionParts, stableVersionParts) <= 0;
+};
+
+const getVersionLink = (version: string) =>
+  isPublishedReleaseVersion(version)
+    ? `${airflowDocsBaseUrl}/${version}/index.html`
+    : `${airflowDocsBaseUrl}/stable/index.html`;
+
 export const DocsButton = ({
   externalViews,
   showAPI,
@@ -56,7 +99,7 @@ export const DocsButton = ({
   const { t: translate } = useTranslation("common");
   const showAPIDocs = Boolean(useConfig("enable_swagger_ui")) && showAPI;
 
-  const versionLink = `https://airflow.apache.org/docs/apache-airflow/${version}/index.html`;
+  const versionLink = version === undefined ? undefined : getVersionLink(version);
 
   return (
     <Menu.Root positioning={{ placement: "right" }}>
