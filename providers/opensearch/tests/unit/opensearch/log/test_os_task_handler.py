@@ -17,13 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
 import json
 import logging
-import os
 import re
-import shutil
 from io import StringIO
-from unittest import mock
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pendulum
@@ -31,9 +30,14 @@ import pytest
 from opensearchpy.exceptions import NotFoundError
 
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.opensearch.log.os_json_formatter import OpensearchJSONFormatter
 from airflow.providers.opensearch.log.os_response import OpensearchResponse
 from airflow.providers.opensearch.log.os_task_handler import (
+    OpensearchRemoteLogIO,
     OpensearchTaskHandler,
+    _build_log_fields,
+    _format_error_detail,
+    _render_log_id,
     get_os_kwargs_from_config,
     getattr_nested,
 )
@@ -44,9 +48,17 @@ from airflow.utils.timezone import datetime
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-from unit.opensearch.conftest import MockClient
 
 opensearchpy = pytest.importorskip("opensearchpy")
+
+
+@dataclasses.dataclass
+class _MockTI:
+    dag_id: str = "dag_for_testing_os_log_handler"
+    task_id: str = "task_for_testing_os_log_handler"
+    run_id: str = "run_for_testing_os_log_handler"
+    try_number: int = 1
+    map_index: int = -1
 
 
 def get_ti(dag_id, task_id, logical_date, create_task_instance):
@@ -62,6 +74,75 @@ def get_ti(dag_id, task_id, logical_date, create_task_instance):
     return ti
 
 
+def _build_os_search_response(*sources: dict, index: str = "test_index", doc_type: str = "_doc") -> dict:
+    hits = [
+        {
+            "_id": str(i),
+            "_index": index,
+            "_score": 1.0,
+            "_source": source,
+            "_type": doc_type,
+        }
+        for i, source in enumerate(sources, start=1)
+    ]
+    return {
+        "_shards": {"failed": 0, "skipped": 0, "successful": 1, "total": 1},
+        "hits": {
+            "hits": hits,
+            "max_score": 1.0,
+            "total": {"relation": "eq", "value": len(hits)},
+        },
+        "timed_out": False,
+        "took": 1,
+    }
+
+
+def _make_os_response(search, *sources: dict) -> OpensearchResponse:
+    return OpensearchResponse(search, _build_os_search_response(*sources))
+
+
+def _metadata_from_result(metadatas):
+    return metadatas if AIRFLOW_V_3_0_PLUS else metadatas[0]
+
+
+def _assert_log_events(logs, metadatas, *, expected_events: list[str], expected_sources: list[str]):
+    metadata = _metadata_from_result(metadatas)
+    if AIRFLOW_V_3_0_PLUS:
+        logs = list(logs)
+        assert logs[0].event == "::group::Log message source details"
+        assert logs[0].sources == expected_sources
+        assert logs[1].event == "::endgroup::"
+        assert [log.event for log in logs[2:]] == expected_events
+    else:
+        assert len(logs) == 1
+        assert len(logs[0]) == 1
+        assert logs[0][0][0] == expected_sources[0]
+        assert logs[0][0][1] == "\n".join(expected_events)
+    return metadata
+
+
+def _assert_no_logs(logs, metadatas):
+    metadata = _metadata_from_result(metadatas)
+    if AIRFLOW_V_3_0_PLUS:
+        assert logs == []
+    else:
+        assert logs == [[]]
+    return metadata
+
+
+def _assert_missing_log_message(logs):
+    expected_pattern = r"^\*\*\* Log .* not found in Opensearch.*"
+    if AIRFLOW_V_3_0_PLUS:
+        logs = list(logs)
+        assert len(logs) == 1
+        assert logs[0].event is not None
+        assert re.match(expected_pattern, logs[0].event) is not None
+    else:
+        assert len(logs) == 1
+        assert len(logs[0]) == 1
+        assert re.match(expected_pattern, logs[0][0][1]) is not None
+
+
 class TestOpensearchTaskHandler:
     DAG_ID = "dag_for_testing_os_task_handler"
     TASK_ID = "task_for_testing_os_log_handler"
@@ -70,21 +151,51 @@ class TestOpensearchTaskHandler:
     JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{OpensearchTaskHandler._clean_date(LOGICAL_DATE)}-1"
     FILENAME_TEMPLATE = "{try_number}.log"
 
-    # TODO: Remove when we stop testing for 2.11 compatibility
     @pytest.fixture(autouse=True)
     def _use_historical_filename_templates(self):
         with conf_vars({("core", "use_historical_filename_templates"): "True"}):
             yield
 
+    @pytest.fixture(autouse=True)
+    def _setup_handler(self, tmp_path):
+        self.local_log_location = str(tmp_path / "logs")
+        self.end_of_log_mark = "end_of_log\n"
+        self.write_stdout = False
+        self.json_format = False
+        self.json_fields = "asctime,filename,lineno,levelname,message,exc_text"
+        self.host_field = "host"
+        self.offset_field = "offset"
+        self.test_message = "Some Message 1"
+        self.base_log_source = {
+            "message": self.test_message,
+            "event": self.test_message,
+            "log_id": self.LOG_ID,
+            "offset": 1,
+        }
+        self.os_task_handler = OpensearchTaskHandler(
+            base_log_folder=self.local_log_location,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=self.write_stdout,
+            host="localhost",
+            port=9200,
+            username="admin",
+            password="admin",
+            json_format=self.json_format,
+            json_fields=self.json_fields,
+            host_field=self.host_field,
+            offset_field=self.offset_field,
+        )
+
     @pytest.fixture
     def ti(self, create_task_instance, create_log_template):
-        if AIRFLOW_V_3_0_PLUS:
-            create_log_template(self.FILENAME_TEMPLATE, "{dag_id}-{task_id}-{logical_date}-{try_number}")
-        else:
-            create_log_template(
-                self.FILENAME_TEMPLATE,
-                "{dag_id}-{task_id}-{execution_date}-{try_number}",
-            )
+        create_log_template(
+            self.FILENAME_TEMPLATE,
+            (
+                "{dag_id}-{task_id}-{logical_date}-{try_number}"
+                if AIRFLOW_V_3_0_PLUS
+                else "{dag_id}-{task_id}-{execution_date}-{try_number}"
+            ),
+        )
         yield get_ti(
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
@@ -94,56 +205,29 @@ class TestOpensearchTaskHandler:
         clear_db_runs()
         clear_db_dags()
 
-    def setup_method(self):
-        self.local_log_location = "local/log/location"
-        self.end_of_log_mark = "end_of_log\n"
-        self.write_stdout = False
-        self.json_format = False
-        self.json_fields = "asctime,filename,lineno,levelname,message,exc_text"
-        self.host_field = "host"
-        self.offset_field = "offset"
-        self.username = "admin"
-        self.password = "admin"
-        self.host = "localhost"
-        self.port = 9200
-        self.os_task_handler = OpensearchTaskHandler(
-            base_log_folder=self.local_log_location,
-            end_of_log_mark=self.end_of_log_mark,
-            write_stdout=self.write_stdout,
-            host=self.host,
-            port=self.port,
-            username=self.username,
-            password=self.password,
-            json_format=self.json_format,
-            json_fields=self.json_fields,
-            host_field=self.host_field,
-            offset_field=self.offset_field,
-        )
-
-        self.os_task_handler.client = MockClient()
-
-    def teardown_method(self):
-        shutil.rmtree(self.local_log_location.split(os.path.sep)[0], ignore_errors=True)
-
-    def test_os_response(self):
-        sample_response = self.os_task_handler.client.sample_log_response()
-        response = OpensearchResponse(self.os_task_handler, sample_response)
-        logs_by_host = self.os_task_handler._group_logs_by_host(response)
-
-        def concat_logs(lines):
-            log_range = -1 if lines[-1].message == self.os_task_handler.end_of_log_mark else None
-            return "\n".join(self.os_task_handler._format_msg(line) for line in lines[:log_range])
-
-        for hosted_log in logs_by_host.values():
-            message = concat_logs(hosted_log)
-
-        assert message == "Some Message 1\nAnother Some Message 2"
+    @pytest.mark.parametrize(
+        ("host", "expected"),
+        [
+            ("http://localhost", "http://localhost"),
+            ("https://localhost", "https://localhost"),
+            ("localhost", "http://localhost"),
+            ("someurl", "http://someurl"),
+            ("https://", "ValueError"),
+        ],
+    )
+    def test_format_url(self, host, expected):
+        if expected == "ValueError":
+            with pytest.raises(ValueError, match="'https://' is not a valid URL."):
+                OpensearchTaskHandler.format_url(host)
+        else:
+            assert OpensearchTaskHandler.format_url(host) == expected
 
     def test_client(self):
+        assert isinstance(self.os_task_handler.client, opensearchpy.OpenSearch)
         assert self.os_task_handler.index_patterns == "_all"
 
     def test_client_with_config(self):
-        config = dict(conf.getsection("opensearch_configs"))
+        os_conf = dict(conf.getsection("opensearch_configs"))
         expected_dict = {
             "http_compress": False,
             "use_ssl": False,
@@ -152,34 +236,32 @@ class TestOpensearchTaskHandler:
             "ssl_show_warn": False,
             "ca_certs": "",
         }
-        assert config == expected_dict
-        # ensure creating with configs does not fail
+        assert os_conf == expected_dict
         OpensearchTaskHandler(
             base_log_folder=self.local_log_location,
             end_of_log_mark=self.end_of_log_mark,
             write_stdout=self.write_stdout,
-            host=self.host,
-            port=self.port,
-            username=self.username,
-            password=self.password,
+            host="localhost",
+            port=9200,
+            username="admin",
+            password="admin",
             json_format=self.json_format,
             json_fields=self.json_fields,
             host_field=self.host_field,
             offset_field=self.offset_field,
-            os_kwargs=config,
+            os_kwargs=os_conf,
         )
 
     def test_client_with_patterns(self):
-        # ensure creating with index patterns does not fail
         patterns = "test_*,other_*"
         handler = OpensearchTaskHandler(
             base_log_folder=self.local_log_location,
             end_of_log_mark=self.end_of_log_mark,
             write_stdout=self.write_stdout,
-            host=self.host,
-            port=self.port,
-            username=self.username,
-            password=self.password,
+            host="localhost",
+            port=9200,
+            username="admin",
+            password="admin",
             json_format=self.json_format,
             json_fields=self.json_fields,
             host_field=self.host_field,
@@ -189,197 +271,113 @@ class TestOpensearchTaskHandler:
         assert handler.index_patterns == patterns
 
     @pytest.mark.db_test
-    def test_read(self, ti):
-        ts = pendulum.now()
-        logs, metadatas = self.os_task_handler.read(
-            ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
-        )
+    @pytest.mark.parametrize("metadata_mode", ["provided", "none", "empty"])
+    def test_read(self, ti, metadata_mode):
+        start_time = pendulum.now()
+        response = _make_os_response(self.os_task_handler.io, self.base_log_source)
 
-        if AIRFLOW_V_3_0_PLUS:
-            logs = list(logs)
-            expected_msg = "Some Message 1"
-            assert logs[0].event == "::group::Log message source details"
-            assert logs[0].sources == ["http://localhost"]
-            assert logs[1].event == "::endgroup::"
-            assert logs[2].event == expected_msg
-            metadata = metadatas
-        else:
-            expected_msg = "Some Message 1\nAnother Some Message 2"
-            assert len(logs) == 1
-            assert len(logs) == len(metadatas)
-            assert len(logs[0]) == 1
-            assert logs[0][0][-1] == expected_msg
-
-            metadata = metadatas[0]
-
-        assert not metadata["end_of_log"]
-        assert timezone.parse(metadata["last_log_timestamp"]) > ts
-
-    @pytest.mark.db_test
-    def test_read_with_patterns(self, ti):
-        ts = pendulum.now()
-        with mock.patch.object(self.os_task_handler, "index_patterns", new="test_*,other_*"):
-            logs, metadatas = self.os_task_handler.read(
-                ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
-            )
-
-        if AIRFLOW_V_3_0_PLUS:
-            logs = list(logs)
-            expected_msg = "Some Message 1"
-            assert logs[0].event == "::group::Log message source details"
-            assert logs[0].sources == ["http://localhost"]
-            assert logs[1].event == "::endgroup::"
-            assert logs[2].event == expected_msg
-            metadata = metadatas
-        else:
-            expected_msg = "Some Message 1\nAnother Some Message 2"
-            assert len(logs) == 1
-            assert len(logs) == len(metadatas)
-            assert len(logs[0]) == 1
-            assert logs[0][0][-1] == expected_msg
-
-            metadata = metadatas[0]
-
-        assert not metadata["end_of_log"]
-        assert timezone.parse(metadata["last_log_timestamp"]) > ts
-
-    @pytest.mark.db_test
-    def test_read_with_patterns_no_match(self, ti):
-        ts = pendulum.now()
-        with mock.patch.object(self.os_task_handler, "index_patterns", new="test_other_*,test_another_*"):
-            with mock.patch.object(
-                self.os_task_handler.client,
-                "search",
-                return_value={
-                    "_shards": {"failed": 0, "skipped": 0, "successful": 7, "total": 7},
-                    "hits": {"hits": []},
-                    "timed_out": False,
-                    "took": 7,
-                },
-            ):
+        with patch.object(self.os_task_handler.io, "_os_read", return_value=response):
+            if metadata_mode == "provided":
                 logs, metadatas = self.os_task_handler.read(
                     ti,
                     1,
-                    {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False},
+                    {"offset": 0, "last_log_timestamp": str(start_time), "end_of_log": False},
                 )
-        if AIRFLOW_V_3_0_PLUS:
-            assert logs == []
+            elif metadata_mode == "empty":
+                logs, metadatas = self.os_task_handler.read(ti, 1, {})
+            else:
+                logs, metadatas = self.os_task_handler.read(ti, 1)
 
-            metadata = metadatas
-        else:
-            assert len(logs) == 1
-            assert len(logs) == len(metadatas)
-            assert logs == [[]]
-
-            metadata = metadatas[0]
-
-        assert not metadata["end_of_log"]
-        assert metadata["offset"] == "0"
-        # last_log_timestamp won't change if no log lines read.
-        assert timezone.parse(metadata["last_log_timestamp"]) == ts
-
-    @pytest.mark.db_test
-    def test_read_with_missing_index(self, ti):
-        ts = pendulum.now()
-        with mock.patch.object(self.os_task_handler, "index_patterns", new="nonexistent,test_*"):
-            with mock.patch.object(
-                self.os_task_handler.client,
-                "count",
-                side_effect=NotFoundError(404, "IndexNotFoundError"),
-            ):
-                with pytest.raises(NotFoundError, match=r"IndexNotFoundError"):
-                    self.os_task_handler.read(
-                        ti,
-                        1,
-                        {
-                            "offset": 0,
-                            "last_log_timestamp": str(ts),
-                            "end_of_log": False,
-                        },
-                    )
-
-    @pytest.mark.parametrize("seconds", [3, 6])
-    @pytest.mark.db_test
-    def test_read_missing_logs(self, seconds, create_task_instance):
-        """
-        When the log actually isn't there to be found, we only want to wait for 5 seconds.
-        In this case we expect to receive a message of the form 'Log {log_id} not found in Opensearch ...'
-        """
-        ti = get_ti(
-            self.DAG_ID,
-            self.TASK_ID,
-            pendulum.instance(self.LOGICAL_DATE).add(days=1),  # so logs are not found
-            create_task_instance=create_task_instance,
+        metadata = _assert_log_events(
+            logs,
+            metadatas,
+            expected_events=[self.test_message],
+            expected_sources=["http://localhost"],
         )
-        ts = pendulum.now().add(seconds=-seconds)
-        with mock.patch.object(
-            self.os_task_handler.client,
-            "search",
-            return_value={
-                "_shards": {"failed": 0, "skipped": 0, "successful": 7, "total": 7},
-                "hits": {"hits": []},
-                "timed_out": False,
-                "took": 7,
-            },
-        ):
-            logs, metadatas = self.os_task_handler.read(ti, 1, {"offset": 0, "last_log_timestamp": str(ts)})
-        if AIRFLOW_V_3_0_PLUS:
-            logs = list(logs)
-            if seconds > 5:
-                # we expect a log not found message when checking began more than 5 seconds ago
-                assert len(logs) == 1
-                actual_message = logs[0].event
-                expected_pattern = r"^\*\*\* Log .* not found in Opensearch.*"
-                assert re.match(expected_pattern, actual_message) is not None
-                assert metadatas["end_of_log"] is True
-            else:
-                # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
-                assert logs == []
-                assert metadatas["end_of_log"] is False
-            assert metadatas["offset"] == "0"
-            assert timezone.parse(metadatas["last_log_timestamp"]) == ts
-        else:
-            assert len(logs) == 1
-            if seconds > 5:
-                # we expect a log not found message when checking began more than 5 seconds ago
-                assert len(logs[0]) == 1
-                actual_message = logs[0][0][1]
-                expected_pattern = r"^\*\*\* Log .* not found in Opensearch.*"
-                assert re.match(expected_pattern, actual_message) is not None
-                assert metadatas[0]["end_of_log"] is True
-            else:
-                # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
-                assert len(logs[0]) == 0
-                assert logs == [[]]
-                assert metadatas[0]["end_of_log"] is False
-            assert len(logs) == len(metadatas)
-            assert metadatas[0]["offset"] == "0"
-            assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
-
-    @pytest.mark.db_test
-    def test_read_with_none_metadata(self, ti):
-        logs, metadatas = self.os_task_handler.read(ti, 1)
-
-        if AIRFLOW_V_3_0_PLUS:
-            logs = list(logs)
-            expected_message = "Some Message 1"
-            assert logs[0].event == "::group::Log message source details"
-            assert logs[0].sources == ["http://localhost"]
-            assert logs[1].event == "::endgroup::"
-            assert logs[2].event == expected_message
-
-            metadata = metadatas
-        else:
-            expected_message = "Some Message 1\nAnother Some Message 2"
-            assert len(logs) == 1
-            assert len(logs) == len(metadatas)
-            assert len(logs[0]) == 1
-            assert logs[0][0][-1] == expected_message
-
-            metadata = metadatas[0]
 
         assert not metadata["end_of_log"]
-        assert timezone.parse(metadata["last_log_timestamp"]) < pendulum.now()
+        assert metadata["offset"] == "1"
+        assert timezone.parse(metadata["last_log_timestamp"]) >= start_time
+
+    @pytest.mark.db_test
+    def test_read_defaults_offset_when_missing_from_metadata(self, ti):
+        start_time = pendulum.now()
+        with patch.object(self.os_task_handler.io, "_os_read", return_value=None):
+            logs, metadatas = self.os_task_handler.read(ti, 1, {"end_of_log": False})
+
+        metadata = _assert_no_logs(logs, metadatas)
+        assert metadata["end_of_log"]
+        assert metadata["offset"] == "0"
+        assert timezone.parse(metadata["last_log_timestamp"]) >= start_time
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize("seconds", [3, 6])
+    def test_read_missing_logs(self, ti, seconds):
+        start_time = pendulum.now().add(seconds=-seconds)
+        with patch.object(self.os_task_handler.io, "_os_read", return_value=None):
+            logs, metadatas = self.os_task_handler.read(
+                ti,
+                1,
+                {"offset": 0, "last_log_timestamp": str(start_time), "end_of_log": False},
+            )
+
+        metadata = _metadata_from_result(metadatas)
+        if seconds > 5:
+            _assert_missing_log_message(logs)
+        else:
+            _assert_no_logs(logs, metadatas)
+
+        assert metadata["end_of_log"]
+        assert metadata["offset"] == "0"
+        assert timezone.parse(metadata["last_log_timestamp"]) == start_time
+
+    @pytest.mark.db_test
+    def test_read_timeout(self, ti):
+        start_time = pendulum.now().subtract(minutes=5)
+        with patch.object(self.os_task_handler.io, "_os_read", return_value=None):
+            logs, metadatas = self.os_task_handler.read(
+                ti,
+                1,
+                {"offset": 1, "last_log_timestamp": str(start_time), "end_of_log": False},
+            )
+
+        metadata = _assert_no_logs(logs, metadatas)
+        assert metadata["end_of_log"]
+        assert metadata["offset"] == "1"
+        assert timezone.parse(metadata["last_log_timestamp"]) == start_time
+
+    @pytest.mark.db_test
+    def test_read_with_custom_offset_and_host_fields(self, ti):
+        self.os_task_handler.host_field = "host.name"
+        self.os_task_handler.offset_field = "log.offset"
+        self.os_task_handler.io.host_field = "host.name"
+        self.os_task_handler.io.offset_field = "log.offset"
+        response = _make_os_response(
+            self.os_task_handler.io,
+            {
+                "message": self.test_message,
+                "event": self.test_message,
+                "log_id": self.LOG_ID,
+                "log": {"offset": 1},
+                "host": {"name": "somehostname"},
+            },
+        )
+
+        with patch.object(self.os_task_handler.io, "_os_read", return_value=response):
+            logs, metadatas = self.os_task_handler.read(
+                ti,
+                1,
+                {"offset": 0, "last_log_timestamp": str(pendulum.now()), "end_of_log": False},
+            )
+
+        metadata = _assert_log_events(
+            logs,
+            metadatas,
+            expected_events=[self.test_message],
+            expected_sources=["somehostname"],
+        )
+        assert metadata["offset"] == "1"
+        assert not metadata["end_of_log"]
 
     @pytest.mark.db_test
     def test_set_context(self, ti):
@@ -388,27 +386,29 @@ class TestOpensearchTaskHandler:
 
     @pytest.mark.db_test
     def test_set_context_w_json_format_and_write_stdout(self, ti):
-        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        self.os_task_handler.formatter = formatter
+        self.os_task_handler.formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
         self.os_task_handler.write_stdout = True
         self.os_task_handler.json_format = True
+
         self.os_task_handler.set_context(ti)
+
+        assert isinstance(self.os_task_handler.formatter, OpensearchJSONFormatter)
+        assert isinstance(self.os_task_handler.handler, logging.StreamHandler)
+        assert self.os_task_handler.context_set
 
     @pytest.mark.db_test
     def test_close(self, ti):
-        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        self.os_task_handler.formatter = formatter
+        self.os_task_handler.formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
 
         self.os_task_handler.set_context(ti)
         self.os_task_handler.close()
-        with open(
-            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
-        ) as log_file:
-            # end_of_log_mark may contain characters like '\n' which is needed to
-            # have the log uploaded but will not be stored in elasticsearch.
-            # so apply the strip() to log_file.read()
-            log_line = log_file.read().strip()
-            assert log_line.endswith(self.end_of_log_mark.strip())
+
+        log_file = Path(self.local_log_location) / self.FILENAME_TEMPLATE.format(try_number=1)
+        assert log_file.read_text().strip().endswith(self.end_of_log_mark.strip())
         assert self.os_task_handler.closed
 
     @pytest.mark.db_test
@@ -416,51 +416,34 @@ class TestOpensearchTaskHandler:
         ti.raw = True
         self.os_task_handler.set_context(ti)
         self.os_task_handler.close()
-        with open(
-            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
-        ) as log_file:
-            assert self.end_of_log_mark not in log_file.read()
-        assert self.os_task_handler.closed
 
-    @pytest.mark.db_test
-    def test_close_closed(self, ti):
-        self.os_task_handler.closed = True
-        self.os_task_handler.set_context(ti)
-        self.os_task_handler.close()
-        with open(
-            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
-        ) as log_file:
-            assert len(log_file.read()) == 0
+        log_file = Path(self.local_log_location) / self.FILENAME_TEMPLATE.format(try_number=1)
+        assert self.end_of_log_mark not in log_file.read_text()
+        assert self.os_task_handler.closed
 
     @pytest.mark.db_test
     def test_close_with_no_handler(self, ti):
         self.os_task_handler.set_context(ti)
         self.os_task_handler.handler = None
         self.os_task_handler.close()
-        with open(
-            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
-        ) as log_file:
-            assert len(log_file.read()) == 0
+
+        log_file = Path(self.local_log_location) / self.FILENAME_TEMPLATE.format(try_number=1)
+        assert log_file.read_text() == ""
         assert self.os_task_handler.closed
 
     @pytest.mark.db_test
-    def test_close_with_no_stream(self, ti):
+    @pytest.mark.parametrize("stream_state", ["none", "closed"])
+    def test_close_reopens_stream(self, ti, stream_state):
         self.os_task_handler.set_context(ti)
-        self.os_task_handler.handler.stream = None
-        self.os_task_handler.close()
-        with open(
-            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
-        ) as log_file:
-            assert self.end_of_log_mark in log_file.read()
-        assert self.os_task_handler.closed
+        if stream_state == "none":
+            self.os_task_handler.handler.stream = None
+        else:
+            self.os_task_handler.handler.stream.close()
 
-        self.os_task_handler.set_context(ti)
-        self.os_task_handler.handler.stream.close()
         self.os_task_handler.close()
-        with open(
-            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
-        ) as log_file:
-            assert self.end_of_log_mark in log_file.read()
+
+        log_file = Path(self.local_log_location) / self.FILENAME_TEMPLATE.format(try_number=1)
+        assert self.end_of_log_mark in log_file.read_text()
         assert self.os_task_handler.closed
 
     @pytest.mark.db_test
@@ -471,21 +454,20 @@ class TestOpensearchTaskHandler:
         assert self.os_task_handler._render_log_id(ti, 1) == self.JSON_LOG_ID
 
     def test_clean_date(self):
-        clean_execution_date = self.os_task_handler._clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
-        assert clean_execution_date == "2016_07_08T09_10_11_000012"
+        clean_logical_date = OpensearchTaskHandler._clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
+        assert clean_logical_date == "2016_07_08T09_10_11_000012"
 
-    @mock.patch("sys.__stdout__", new_callable=StringIO)
     @pytest.mark.db_test
+    @patch("sys.__stdout__", new_callable=StringIO)
     def test_dynamic_offset(self, stdout_mock, ti, time_machine):
-        # arrange
         handler = OpensearchTaskHandler(
             base_log_folder=self.local_log_location,
             end_of_log_mark=self.end_of_log_mark,
             write_stdout=True,
-            host=self.host,
-            port=self.port,
-            username=self.username,
-            password=self.password,
+            host="localhost",
+            port=9200,
+            username="admin",
+            password="admin",
             json_format=True,
             json_fields=self.json_fields,
             host_field=self.host_field,
@@ -493,7 +475,7 @@ class TestOpensearchTaskHandler:
         )
         handler.formatter = logging.Formatter()
 
-        logger = logging.getLogger(__name__)
+        logger = logging.getLogger("tests.opensearch.dynamic_offset")
         logger.handlers = [handler]
         logger.propagate = False
 
@@ -501,17 +483,19 @@ class TestOpensearchTaskHandler:
         handler.set_context(ti)
 
         t1 = pendulum.local(year=2017, month=1, day=1, hour=1, minute=1, second=15)
-        t2, t3 = t1 + pendulum.duration(seconds=5), t1 + pendulum.duration(seconds=10)
+        t2 = t1 + pendulum.duration(seconds=5)
+        t3 = t1 + pendulum.duration(seconds=10)
 
-        # act
-        time_machine.move_to(t1, tick=False)
-        ti.log.info("Test")
-        time_machine.move_to(t2, tick=False)
-        ti.log.info("Test2")
-        time_machine.move_to(t3, tick=False)
-        ti.log.info("Test3")
+        try:
+            time_machine.move_to(t1, tick=False)
+            ti.log.info("Test")
+            time_machine.move_to(t2, tick=False)
+            ti.log.info("Test2")
+            time_machine.move_to(t3, tick=False)
+            ti.log.info("Test3")
+        finally:
+            logger.handlers = []
 
-        # assert
         first_log, second_log, third_log = map(json.loads, stdout_mock.getvalue().strip().splitlines())
         assert first_log["offset"] < second_log["offset"] < third_log["offset"]
         assert first_log["asctime"] == t1.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
@@ -523,81 +507,212 @@ class TestOpensearchTaskHandler:
             mock_callable = Mock(return_value="callable_index_pattern")
             mock_import_string.return_value = mock_callable
 
-            self.os_task_handler.index_patterns_callable = "path.to.index_pattern_callable"
-            result = self.os_task_handler._get_index_patterns({})
+            self.os_task_handler.io.index_patterns_callable = "path.to.index_pattern_callable"
+            result = self.os_task_handler.io._get_index_patterns({})
 
-            mock_import_string.assert_called_once_with("path.to.index_pattern_callable")
-            mock_callable.assert_called_once_with({})
-            assert result == "callable_index_pattern"
-
-
-def test_safe_attrgetter():
-    class A: ...
-
-    a = A()
-    a.b = "b"
-    a.c = None
-    a.x = a
-    a.x.d = "blah"
-    assert getattr_nested(a, "b", None) == "b"  # regular getattr
-    assert getattr_nested(a, "x.d", None) == "blah"  # nested val
-    assert getattr_nested(a, "aa", "heya") == "heya"  # respects non-none default
-    assert getattr_nested(a, "c", "heya") is None  # respects none value
-    assert getattr_nested(a, "aa", None) is None  # respects none default
+        mock_import_string.assert_called_once_with("path.to.index_pattern_callable")
+        mock_callable.assert_called_once_with({})
+        assert result == "callable_index_pattern"
 
 
-def test_retrieve_config_keys():
-    """
-    Tests that the OpensearchTaskHandler retrieves the correct configuration keys from the config file.
-    * old_parameters are removed
-    * parameters from config are automatically added
-    * constructor parameters missing from config are also added
-    :return:
-    """
-    with conf_vars(
-        {
-            ("opensearch_configs", "http_compress"): "False",
-            ("opensearch_configs", "timeout"): "10",
+class TestTaskHandlerHelpers:
+    def test_safe_attrgetter(self):
+        class A: ...
+
+        a = A()
+        a.b = "b"
+        a.c = None
+        a.x = a
+        a.x.d = "blah"
+        assert getattr_nested(a, "b", None) == "b"
+        assert getattr_nested(a, "x.d", None) == "blah"
+        assert getattr_nested(a, "aa", "heya") == "heya"
+        assert getattr_nested(a, "c", "heya") is None
+        assert getattr_nested(a, "aa", None) is None
+
+    def test_retrieve_config_keys(self):
+        with conf_vars(
+            {
+                ("opensearch_configs", "http_compress"): "False",
+                ("opensearch_configs", "timeout"): "10",
+            }
+        ):
+            args_from_config = get_os_kwargs_from_config().keys()
+            assert "verify_certs" in args_from_config
+            assert "timeout" in args_from_config
+            assert "http_compress" in args_from_config
+            assert "self" not in args_from_config
+
+
+class TestOpensearchRemoteLogIO:
+    @pytest.fixture(autouse=True)
+    def _setup_tests(self, tmp_path):
+        self.opensearch_io = OpensearchRemoteLogIO(
+            write_to_opensearch=True,
+            write_stdout=True,
+            delete_local_copy=True,
+            host="localhost",
+            port=9200,
+            username="admin",
+            password="admin",
+            base_log_folder=tmp_path,
+            log_id_template="{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+        )
+
+    @pytest.fixture
+    def ti(self):
+        return _MockTI()
+
+    @pytest.fixture
+    def tmp_json_file(self, tmp_path):
+        file_path = tmp_path / "1.log"
+        sample_logs = [
+            {"message": "start"},
+            {"message": "processing"},
+            {"message": "end"},
+        ]
+        file_path.write_text("\n".join(json.dumps(log) for log in sample_logs) + "\n")
+        return file_path
+
+    def test_write_to_stdout(self, tmp_json_file, ti, capsys):
+        self.opensearch_io.write_to_opensearch = False
+        self.opensearch_io.upload(tmp_json_file, ti)
+
+        captured = capsys.readouterr()
+        stdout_lines = captured.out.strip().splitlines()
+        log_entries = [json.loads(line) for line in stdout_lines]
+        assert [entry["message"] for entry in log_entries] == ["start", "processing", "end"]
+
+    def test_invalid_task_log_file_path(self, ti):
+        with (
+            patch.object(self.opensearch_io, "_parse_raw_log") as mock_parse,
+            patch.object(self.opensearch_io, "_write_to_opensearch") as mock_write,
+        ):
+            self.opensearch_io.upload(Path("/invalid/path"), ti)
+
+        mock_parse.assert_not_called()
+        mock_write.assert_not_called()
+
+    def test_write_to_opensearch(self, tmp_json_file, ti):
+        self.opensearch_io.write_stdout = False
+        log_id = _render_log_id(self.opensearch_io.log_id_template, ti, ti.try_number)
+        expected_log_lines = self.opensearch_io._parse_raw_log(tmp_json_file.read_text(), log_id)
+
+        with patch.object(self.opensearch_io, "_write_to_opensearch", return_value=True) as mock_write:
+            self.opensearch_io.upload(tmp_json_file, ti)
+
+        mock_write.assert_called_once_with(expected_log_lines)
+
+    def test_raw_log_contains_log_id_and_offset(self, tmp_json_file, ti):
+        raw_log = tmp_json_file.read_text()
+        log_id = _render_log_id(self.opensearch_io.log_id_template, ti, ti.try_number)
+        json_log_lines = self.opensearch_io._parse_raw_log(raw_log, log_id)
+
+        assert len(json_log_lines) == 3
+        assert [line["offset"] for line in json_log_lines] == [1, 2, 3]
+        assert all(line["log_id"] == log_id for line in json_log_lines)
+
+    def test_os_read_builds_expected_query(self, ti):
+        self.opensearch_io.client = Mock()
+        self.opensearch_io.client.count.return_value = {"count": 1}
+        self.opensearch_io.client.search.return_value = _build_os_search_response(
+            {
+                "event": "hello",
+                "log_id": _render_log_id(self.opensearch_io.log_id_template, ti, ti.try_number),
+                "offset": 3,
+            }
+        )
+        self.opensearch_io.index_patterns = "airflow-logs-*"
+        log_id = _render_log_id(self.opensearch_io.log_id_template, ti, ti.try_number)
+        query = {
+            "query": {
+                "bool": {
+                    "filter": [{"range": {self.opensearch_io.offset_field: {"gt": 2}}}],
+                    "must": [{"match_phrase": {"log_id": log_id}}],
+                }
+            }
         }
-    ):
-        args_from_config = get_os_kwargs_from_config().keys()
-        # verify_certs comes from default config value
-        assert "verify_certs" in args_from_config
-        # timeout comes from config provided value
-        assert "timeout" in args_from_config
-        # http_compress comes from config value
-        assert "http_compress" in args_from_config
-        assert "self" not in args_from_config
 
+        response = self.opensearch_io._os_read(log_id, 2, ti)
 
-# ---------------------------------------------------------------------------
-# Tests for the error_detail helpers (issue #63736)
-# ---------------------------------------------------------------------------
+        self.opensearch_io.client.count.assert_called_once_with(index="airflow-logs-*", body=query)
+        self.opensearch_io.client.search.assert_called_once_with(
+            index="airflow-logs-*",
+            body=query,
+            sort=[self.opensearch_io.offset_field],
+            size=self.opensearch_io.MAX_LINE_PER_PAGE,
+            from_=0,
+        )
+        assert response is not None
+        assert response.hits[0].event == "hello"
+
+    def test_os_read_returns_none_when_count_is_zero(self, ti):
+        self.opensearch_io.client = Mock()
+        self.opensearch_io.client.count.return_value = {"count": 0}
+
+        log_id = _render_log_id(self.opensearch_io.log_id_template, ti, ti.try_number)
+        response = self.opensearch_io._os_read(log_id, 0, ti)
+
+        assert response is None
+        self.opensearch_io.client.search.assert_not_called()
+
+    def test_os_read_propagates_missing_index(self, ti):
+        self.opensearch_io.client = Mock()
+        self.opensearch_io.client.count.side_effect = NotFoundError(
+            404,
+            "IndexMissingException[[missing] missing]",
+        )
+
+        log_id = _render_log_id(self.opensearch_io.log_id_template, ti, ti.try_number)
+        with pytest.raises(NotFoundError):
+            self.opensearch_io._os_read(log_id, 0, ti)
+
+    def test_os_read_logs_and_returns_none_on_search_error(self, ti):
+        self.opensearch_io.client = Mock()
+        self.opensearch_io.client.count.return_value = {"count": 1}
+        self.opensearch_io.client.search.side_effect = RuntimeError("boom")
+
+        log_id = _render_log_id(self.opensearch_io.log_id_template, ti, ti.try_number)
+        with patch.object(self.opensearch_io.log, "exception") as mock_exception:
+            response = self.opensearch_io._os_read(log_id, 0, ti)
+
+        assert response is None
+        mock_exception.assert_called_once()
+
+    def test_read_returns_missing_log_message_when_os_read_returns_none(self, ti):
+        with patch.object(self.opensearch_io, "_os_read", return_value=None):
+            log_source_info, log_messages = self.opensearch_io.read("", ti)
+
+        log_id = _render_log_id(self.opensearch_io.log_id_template, ti, ti.try_number)
+        assert log_source_info == []
+        assert f"*** Log {log_id} not found in Opensearch" in log_messages[0]
+
+    def test_get_index_patterns_with_callable(self):
+        with patch("airflow.providers.opensearch.log.os_task_handler.import_string") as mock_import_string:
+            mock_callable = Mock(return_value="callable_index_pattern")
+            mock_import_string.return_value = mock_callable
+
+            self.opensearch_io.index_patterns_callable = "path.to.index_pattern_callable"
+            result = self.opensearch_io._get_index_patterns({})
+
+        mock_import_string.assert_called_once_with("path.to.index_pattern_callable")
+        mock_callable.assert_called_once_with({})
+        assert result == "callable_index_pattern"
 
 
 class TestFormatErrorDetail:
-    """Unit tests for _format_error_detail."""
-
     def test_returns_none_for_empty(self):
-        from airflow.providers.opensearch.log.os_task_handler import _format_error_detail
-
         assert _format_error_detail(None) is None
         assert _format_error_detail([]) is None
 
     def test_returns_string_for_non_list(self):
-        from airflow.providers.opensearch.log.os_task_handler import _format_error_detail
-
         assert _format_error_detail("raw string") == "raw string"
 
     def test_formats_single_exception(self):
-        from airflow.providers.opensearch.log.os_task_handler import _format_error_detail
-
         error_detail = [
             {
                 "is_cause": False,
-                "frames": [
-                    {"filename": "/app/task.py", "lineno": 13, "name": "log_and_raise"},
-                ],
+                "frames": [{"filename": "/app/task.py", "lineno": 13, "name": "log_and_raise"}],
                 "exc_type": "RuntimeError",
                 "exc_value": "Something went wrong.",
                 "exceptions": [],
@@ -611,8 +726,6 @@ class TestFormatErrorDetail:
         assert "RuntimeError: Something went wrong." in result
 
     def test_formats_chained_exceptions(self):
-        from airflow.providers.opensearch.log.os_task_handler import _format_error_detail
-
         error_detail = [
             {
                 "is_cause": True,
@@ -636,8 +749,6 @@ class TestFormatErrorDetail:
         assert "RuntimeError: wrapped" in result
 
     def test_exc_type_without_value(self):
-        from airflow.providers.opensearch.log.os_task_handler import _format_error_detail
-
         error_detail = [
             {
                 "is_cause": False,
@@ -651,19 +762,13 @@ class TestFormatErrorDetail:
         assert result.endswith("StopIteration")
 
     def test_non_dict_items_are_stringified(self):
-        from airflow.providers.opensearch.log.os_task_handler import _format_error_detail
-
         result = _format_error_detail(["unexpected string item"])
         assert result is not None
         assert "unexpected string item" in result
 
 
-class TestBuildLogFields:
-    """Unit tests for _build_log_fields."""
-
+class TestBuildStructuredLogFields:
     def test_filters_to_allowed_fields(self):
-        from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
-
         hit = {"event": "hello", "level": "info", "unknown_field": "should be dropped"}
         result = _build_log_fields(hit)
         assert "event" in result
@@ -671,41 +776,30 @@ class TestBuildLogFields:
         assert "unknown_field" not in result
 
     def test_message_mapped_to_event(self):
-        from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
-
         hit = {"message": "plain message", "timestamp": "2024-01-01T00:00:00Z"}
         fields = _build_log_fields(hit)
         assert fields["event"] == "plain message"
-        assert "message" not in fields  # Ensure it is popped if used as event
+        assert "message" not in fields
 
     def test_message_preserved_if_event_exists(self):
-        from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
-
         hit = {"event": "structured event", "message": "plain message"}
         fields = _build_log_fields(hit)
         assert fields["event"] == "structured event"
-        # message is preserved if it's in TASK_LOG_FIELDS and doesn't collide with event
         assert fields["message"] == "plain message"
 
     def test_levelname_mapped_to_level(self):
-        from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
-
         hit = {"event": "msg", "levelname": "ERROR"}
         result = _build_log_fields(hit)
         assert result["level"] == "ERROR"
         assert "levelname" not in result
 
     def test_at_timestamp_mapped_to_timestamp(self):
-        from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
-
         hit = {"event": "msg", "@timestamp": "2024-01-01T00:00:00Z"}
         result = _build_log_fields(hit)
         assert result["timestamp"] == "2024-01-01T00:00:00Z"
         assert "@timestamp" not in result
 
     def test_error_detail_is_kept_as_list(self):
-        from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
-
         error_detail = [
             {
                 "is_cause": False,
@@ -714,74 +808,11 @@ class TestBuildLogFields:
                 "exc_value": "Woopsie.",
             }
         ]
-        hit = {
-            "event": "Task failed with exception",
-            "error_detail": error_detail,
-        }
+        hit = {"event": "Task failed with exception", "error_detail": error_detail}
         result = _build_log_fields(hit)
         assert result["error_detail"] == error_detail
 
     def test_error_detail_dropped_when_empty(self):
-        from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
-
         hit = {"event": "msg", "error_detail": []}
         result = _build_log_fields(hit)
         assert "error_detail" not in result
-
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="StructuredLogMessage only exists in Airflow 3+")
-    def test_read_includes_error_detail_in_structured_message(self):
-        """End-to-end: a hit with error_detail should surface it in the returned StructuredLogMessage."""
-        from airflow.providers.opensearch.log.os_task_handler import OpensearchTaskHandler
-
-        local_log_location = "local/log/location"
-        handler = OpensearchTaskHandler(
-            base_log_folder=local_log_location,
-            end_of_log_mark="end_of_log\n",
-            write_stdout=False,
-            json_format=False,
-            json_fields="asctime,filename,lineno,levelname,message,exc_text",
-            host="localhost",
-            port=9200,
-            username="admin",
-            password="password",
-        )
-
-        log_id = "test_dag-test_task-test_run--1-1"
-        body = {
-            "event": "Task failed with exception",
-            "log_id": log_id,
-            "offset": 1,
-            "error_detail": [
-                {
-                    "is_cause": False,
-                    "frames": [
-                        {"filename": "/opt/airflow/dags/fail.py", "lineno": 13, "name": "log_and_raise"}
-                    ],
-                    "exc_type": "RuntimeError",
-                    "exc_value": "Woopsie. Something went wrong.",
-                }
-            ],
-        }
-
-        # Instead of firing up an OpenSearch client, we patch the IO and response class
-        mock_hit_dict = body.copy()
-        from airflow.providers.opensearch.log.os_response import Hit, OpensearchResponse
-
-        mock_hit = Hit({"_source": mock_hit_dict})
-        mock_response = mock.MagicMock(spec=OpensearchResponse)
-        mock_response.hits = [mock_hit]
-        mock_response.__iter__ = mock.Mock(return_value=iter([mock_hit]))
-        mock_response.__bool__ = mock.Mock(return_value=True)
-        mock_response.__getitem__ = mock.Mock(return_value=mock_hit)
-
-        with mock.patch.object(handler, "_os_read", return_value=mock_response):
-            with mock.patch.object(handler, "_group_logs_by_host", return_value={"localhost": [mock_hit]}):
-                from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
-                from airflow.utils.log.file_task_handler import StructuredLogMessage
-
-                fields = _build_log_fields(mock_hit.to_dict())
-                msg = StructuredLogMessage(**fields)
-
-                assert msg.event == "Task failed with exception"
-                assert hasattr(msg, "error_detail")
-                assert msg.error_detail == body["error_detail"]

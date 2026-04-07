@@ -18,27 +18,32 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import logging
+import os
 import sys
 import time
 from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime
 from operator import attrgetter
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import urlparse
 
+import attrs
 import pendulum
-from opensearchpy import OpenSearch
+from opensearchpy import OpenSearch, helpers
 from opensearchpy.exceptions import NotFoundError
 from sqlalchemy import select
 
+import airflow.logging_config as alc
 from airflow.models import DagRun
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.opensearch.log.os_json_formatter import OpensearchJSONFormatter
 from airflow.providers.opensearch.log.os_response import Hit, OpensearchResponse
-from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
@@ -46,7 +51,8 @@ from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-    from airflow.utils.log.file_task_handler import LogMetadata
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
+    from airflow.utils.log.file_task_handler import LogMessages, LogMetadata, LogSourceInfo
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.log.file_task_handler import StructuredLogMessage
@@ -154,16 +160,88 @@ def get_os_kwargs_from_config() -> dict[str, Any]:
     return kwargs_dict
 
 
+def _format_url(host: str) -> str:
+    """
+    Format the given host string to ensure it starts with 'http' and check if it represents a valid URL.
+
+    :params host: The host string to format and check.
+    """
+    parsed_url = urlparse(host)
+
+    if parsed_url.scheme not in ("http", "https"):
+        host = "http://" + host
+        parsed_url = urlparse(host)
+
+    if not parsed_url.netloc:
+        raise ValueError(f"'{host}' is not a valid URL.")
+
+    return host
+
+
+def _create_opensearch_client(
+    host: str,
+    port: int | None,
+    username: str,
+    password: str,
+    os_kwargs: dict[str, Any],
+) -> OpenSearch:
+    parsed_url = urlparse(_format_url(host))
+    resolved_port = port if port is not None else (parsed_url.port or 9200)
+    return OpenSearch(
+        hosts=[{"host": parsed_url.hostname, "port": resolved_port, "scheme": parsed_url.scheme}],
+        http_auth=(username, password),
+        **os_kwargs,
+    )
+
+
+def _render_log_id(
+    log_id_template: str, ti: TaskInstance | TaskInstanceKey | RuntimeTI, try_number: int
+) -> str:
+    return log_id_template.format(
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        run_id=getattr(ti, "run_id", ""),
+        try_number=try_number,
+        map_index=getattr(ti, "map_index", ""),
+    )
+
+
+def _resolve_nested(hit: dict[Any, Any], parent_class=None) -> type[Hit]:
+    """
+    Resolve nested hits from OpenSearch by iteratively navigating the `_nested` field.
+
+    The result is used to fetch the appropriate document class to handle the hit.
+    """
+    doc_class = Hit
+    nested_field = None
+
+    nested_path: list[str] = []
+    nesting = hit["_nested"]
+    while nesting and "field" in nesting:
+        nested_path.append(nesting["field"])
+        nesting = nesting.get("_nested")
+    nested_path_str = ".".join(nested_path)
+
+    if hasattr(parent_class, "_index"):
+        nested_field = parent_class._index.resolve_field(nested_path_str)
+
+    if nested_field is not None:
+        return nested_field._doc_class
+
+    return doc_class
+
+
 class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
     """
-    OpensearchTaskHandler is a Python log handler that reads and writes logs to OpenSearch.
+    OpensearchTaskHandler is a Python log handler that reads logs from OpenSearch.
 
-    Like the ElasticsearchTaskHandler, Airflow itself does not handle the indexing of logs.
-    Instead, logs are flushed to local files, and additional software (e.g., Filebeat, Logstash)
-    may be required to ship logs to OpenSearch. This handler then enables fetching and displaying
-    logs from OpenSearch.
+    Airflow flushes task logs to local files. Additional software setup can then ship those
+    logs to OpenSearch. On Airflow 3, this task handler also registers a matching
+    ``OpensearchRemoteLogIO`` so the new remote logging path can read from OpenSearch too.
+    Airflow can also be configured to write task logs to OpenSearch directly. To enable this
+    feature, set ``json_format`` and ``write_to_opensearch`` to ``True``.
 
-    To efficiently query and sort Elasticsearch results, this handler assumes each
+    To efficiently query and sort OpenSearch results, this handler assumes each
     log message has a field `log_id` consists of ti primary keys:
     `log_id = {dag_id}-{task_id}-{logical_date}-{try_number}`
     Log messages with specific log_id are sorted based on `offset`,
@@ -180,6 +258,8 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
     :param port: OpenSearch port.
     :param username: Username for OpenSearch authentication.
     :param password: Password for OpenSearch authentication.
+    :param write_to_opensearch: Whether to write logs directly to OpenSearch.
+    :param target_index: Name of the index to write to when direct OpenSearch writes are enabled.
     :param host_field: The field name for the host in the logs (default is "host").
     :param offset_field: The field name for the log offset (default is "offset").
     :param index_patterns: Index pattern or template for storing logs.
@@ -202,17 +282,22 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         json_format: bool,
         json_fields: str,
         host: str,
-        port: int,
+        port: int | None,
         username: str,
         password: str,
+        write_to_opensearch: bool = False,
+        target_index: str = "airflow-logs",
         host_field: str = "host",
         offset_field: str = "offset",
         index_patterns: str = conf.get("opensearch", "index_patterns", fallback="_all"),
         index_patterns_callable: str = conf.get("opensearch", "index_patterns_callable", fallback=""),
+        log_id_template: str = conf.get("opensearch", "log_id_template", fallback="")
+        or "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
         os_kwargs: dict | None | Literal["default_os_kwargs"] = "default_os_kwargs",
         max_bytes: int = 0,
         backup_count: int = 0,
         delay: bool = False,
+        **kwargs,
     ) -> None:
         os_kwargs = os_kwargs or {}
         if os_kwargs == "default_os_kwargs":
@@ -225,23 +310,54 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark.strip()
         self.write_stdout = write_stdout
+        self.write_to_opensearch = write_to_opensearch
         self.json_format = json_format
         self.json_fields = [label.strip() for label in json_fields.split(",")]
         self.host = self.format_url(host)
         self.host_field = host_field
         self.offset_field = offset_field
+        self.target_index = target_index
         self.index_patterns = index_patterns
         self.index_patterns_callable = index_patterns_callable
         self.context_set = False
-        self.client = OpenSearch(
-            hosts=[{"host": host, "port": port}],
-            http_auth=(username, password),
-            **os_kwargs,
+        self.client = _create_opensearch_client(
+            self.host,
+            port,
+            username,
+            password,
+            cast("dict[str, Any]", os_kwargs),
         )
+        self.delete_local_copy = kwargs.get(
+            "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
+        )
+        self.log_id_template = log_id_template
         self.formatter: logging.Formatter
-        self.handler: logging.FileHandler | logging.StreamHandler
+        self.handler: logging.FileHandler | logging.StreamHandler | None = None
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
+        self.io = OpensearchRemoteLogIO(
+            host=self.host,
+            port=port,
+            username=username,
+            password=password,
+            write_to_opensearch=self.write_to_opensearch,
+            target_index=self.target_index,
+            write_stdout=self.write_stdout,
+            offset_field=self.offset_field,
+            host_field=self.host_field,
+            base_log_folder=base_log_folder,
+            delete_local_copy=self.delete_local_copy,
+            json_format=self.json_format,
+            log_id_template=self.log_id_template,
+        )
+        if AIRFLOW_V_3_0_PLUS:
+            if AIRFLOW_V_3_2_PLUS:
+                from airflow.logging_config import _ActiveLoggingConfig, get_remote_task_log
+
+                if get_remote_task_log() is None:
+                    _ActiveLoggingConfig.set(self.io, None)
+            elif alc.REMOTE_TASK_LOG is None:  # type: ignore[attr-defined]
+                alc.REMOTE_TASK_LOG = self.io  # type: ignore[attr-defined]
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
         """
@@ -342,6 +458,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
     def _render_log_id(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
         from airflow.models.taskinstance import TaskInstanceKey
 
+        log_id_template = self.log_id_template
         with create_session() as session:
             if isinstance(ti, TaskInstanceKey):
                 ti = _ensure_ti(ti, session)
@@ -393,9 +510,9 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
         offset = metadata["offset"]
         log_id = self._render_log_id(ti, try_number)
-        response = self._os_read(log_id, offset, ti)
+        response = self.io._os_read(log_id, offset, ti)
         if response is not None and response.hits:
-            logs_by_host = self._group_logs_by_host(response)
+            logs_by_host = self.io._group_logs_by_host(response)
             next_offset = attrgetter(self.offset_field)(response[-1])
         else:
             logs_by_host = None
@@ -410,7 +527,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         # have the log uploaded but will not be stored in elasticsearch.
         metadata["end_of_log"] = False
         if logs_by_host:
-            if any(x[-1].message == self.end_of_log_mark for x in logs_by_host.values()):
+            if any(self._get_log_message(x[-1]) == self.end_of_log_mark for x in logs_by_host.values()):
                 metadata["end_of_log"] = True
 
         cur_ts = pendulum.now()
@@ -446,10 +563,6 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
         # If we hit the end of the log, remove the actual end_of_log message
         # to prevent it from showing in the UI.
-        def concat_logs(hits: list[Hit]):
-            log_range = (len(hits) - 1) if hits[-1].message == self.end_of_log_mark else len(hits)
-            return "\n".join(self._format_msg(hits[i]) for i in range(log_range))
-
         if logs_by_host:
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.log.file_task_handler import StructuredLogMessage
@@ -469,9 +582,10 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                     for hit in hits
                 ]
             else:
-                message = [(host, concat_logs(hits)) for host, hits in logs_by_host.items()]  # type: ignore[misc]
+                message = [(host, self.concat_logs(hits)) for host, hits in logs_by_host.items()]  # type: ignore[misc]
         else:
             message = []
+            metadata["end_of_log"] = True
         return message, metadata
 
     def _os_read(self, log_id: str, offset: int | str, ti: TaskInstance) -> OpensearchResponse | None:
@@ -576,7 +690,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         dt = hit.get("_type")
 
         if "_nested" in hit:
-            doc_class = self._resolve_nested(hit, parent_class)
+            doc_class = _resolve_nested(hit, parent_class)
 
         elif dt in self._doc_type_map:
             doc_class = self._doc_type_map[dt]
@@ -593,32 +707,6 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         # callback should get the Hit class if "from_es" is not defined
         callback: type[Hit] | Callable[..., Any] = getattr(doc_class, "from_es", doc_class)
         return callback(hit)
-
-    def _resolve_nested(self, hit: dict[Any, Any], parent_class=None) -> type[Hit]:
-        """
-        Resolve nested hits from Elasticsearch by iteratively navigating the `_nested` field.
-
-        The result is used to fetch the appropriate document class to handle the hit.
-
-        This method can be used with nested Elasticsearch fields which are structured
-        as dictionaries with "field" and "_nested" keys.
-        """
-        doc_class = Hit
-
-        nested_path: list[str] = []
-        nesting = hit["_nested"]
-        while nesting and "field" in nesting:
-            nested_path.append(nesting["field"])
-            nesting = nesting.get("_nested")
-        nested_path_str = ".".join(nested_path)
-
-        if hasattr(parent_class, "_index"):
-            nested_field = parent_class._index.resolve_field(nested_path_str)
-
-        if nested_field is not None:
-            return nested_field._doc_class
-
-        return doc_class
 
     def _group_logs_by_host(self, response: OpensearchResponse) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
@@ -638,7 +726,18 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 )
 
         # Just a safe-guard to preserve backwards-compatibility
-        return hit.message
+        return self._get_log_message(hit)
+
+    def _get_log_message(self, hit: Hit) -> str:
+        if hasattr(hit, "event"):
+            return hit.event
+        if hasattr(hit, "message"):
+            return hit.message
+        return ""
+
+    def concat_logs(self, hits: list[Hit]) -> str:
+        log_range = (len(hits) - 1) if self._get_log_message(hits[-1]) == self.end_of_log_mark else len(hits)
+        return "\n".join(self._format_msg(hits[i]) for i in range(log_range))
 
     @property
     def supports_external_link(self) -> bool:
@@ -664,18 +763,198 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
     @staticmethod
     def format_url(host: str) -> str:
+        return _format_url(host)
+
+
+@attrs.define(kw_only=True)
+class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
+    json_format: bool = False
+    write_stdout: bool = False
+    write_to_opensearch: bool = False
+    delete_local_copy: bool = False
+    host: str = "localhost"
+    port: int | None = 9200
+    username: str = ""
+    password: str = ""
+    host_field: str = "host"
+    target_index: str = "airflow-logs"
+    offset_field: str = "offset"
+    base_log_folder: Path = attrs.field(converter=Path)
+    log_id_template: str = (
+        conf.get("opensearch", "log_id_template", fallback="")
+        or "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}"
+    )
+
+    processors = ()
+
+    def __attrs_post_init__(self):
+        self.host = _format_url(self.host)
+        self.port = self.port if self.port is not None else (urlparse(self.host).port or 9200)
+        self.client = _create_opensearch_client(
+            self.host,
+            self.port,
+            self.username,
+            self.password,
+            get_os_kwargs_from_config(),
+        )
+        self.index_patterns_callable = conf.get("opensearch", "index_patterns_callable", fallback="")
+        self.PAGE = 0
+        self.MAX_LINE_PER_PAGE = 1000
+        self.index_patterns = conf.get("opensearch", "index_patterns", fallback="_all")
+        self._doc_type_map: dict[Any, Any] = {}
+        self._doc_type: list[Any] = []
+
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
+        """Emit structured task logs to stdout and/or write them directly to OpenSearch."""
+        path = Path(path)
+        local_loc = path if path.is_absolute() else self.base_log_folder.joinpath(path)
+        if not local_loc.is_file():
+            return
+
+        log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
+        if self.write_stdout or self.write_to_opensearch:
+            log_lines = self._parse_raw_log(local_loc.read_text(), log_id)
+
+            if self.write_stdout:
+                for line in log_lines:
+                    sys.stdout.write(json.dumps(line) + "\n")
+                    sys.stdout.flush()
+
+            if self.write_to_opensearch:
+                success = self._write_to_opensearch(log_lines)
+                if success and self.delete_local_copy:
+                    local_loc.unlink(missing_ok=True)
+                    base_dir = self.base_log_folder
+                    parent = local_loc.parent
+                    while parent != base_dir and parent.is_dir():
+                        if any(parent.iterdir()):
+                            break
+                        with contextlib.suppress(OSError):
+                            parent.rmdir()
+                        parent = parent.parent
+
+    def _parse_raw_log(self, log: str, log_id: str) -> list[dict[str, Any]]:
+        parsed_logs = []
+        offset = 1
+        for line in log.split("\n"):
+            if not line.strip():
+                continue
+            try:
+                log_dict = json.loads(line)
+            except json.JSONDecodeError:
+                self.log.warning("Skipping non-JSON log line: %r", line)
+                log_dict = {"event": line}
+            log_dict.update({"log_id": log_id, self.offset_field: offset})
+            offset += 1
+            parsed_logs.append(log_dict)
+        return parsed_logs
+
+    def _write_to_opensearch(self, log_lines: list[dict[str, Any]]) -> bool:
         """
-        Format the given host string to ensure it starts with 'http' and check if it represents a valid URL.
+        Write logs to OpenSearch; return `True` on success and `False` on failure.
 
-        :params host: The host string to format and check.
+        :param log_lines: The parsed log lines to write to OpenSearch.
         """
-        parsed_url = urlparse(host)
+        bulk_actions = [{"_index": self.target_index, "_source": log} for log in log_lines]
+        try:
+            _ = helpers.bulk(self.client, bulk_actions)
+            return True
+        except helpers.BulkIndexError as bie:
+            self.log.exception("Bulk upload failed for %d log(s)", len(bie.errors))
+            for error in bie.errors:
+                self.log.exception(error)
+            return False
+        except Exception as e:
+            self.log.exception("Unable to insert logs into OpenSearch. Reason: %s", str(e))
+            return False
 
-        if parsed_url.scheme not in ("http", "https"):
-            host = "http://" + host
-            parsed_url = urlparse(host)
+    def read(self, _relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
+        log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
+        self.log.info("Reading log %s from Opensearch", log_id)
+        response = self._os_read(log_id, 0, ti)
+        if response is not None and response.hits:
+            logs_by_host = self._group_logs_by_host(response)
+        else:
+            logs_by_host = None
 
-        if not parsed_url.netloc:
-            raise ValueError(f"'{host}' is not a valid URL.")
+        if logs_by_host is None:
+            missing_log_message = (
+                f"*** Log {log_id} not found in Opensearch. "
+                "If your task started recently, please wait a moment and reload this page. "
+                "Otherwise, the logs for this task instance may have been removed."
+            )
+            return [], [missing_log_message]
 
-        return host
+        header = list(logs_by_host.keys())
+        message = []
+        for hits in logs_by_host.values():
+            for hit in hits:
+                message.append(json.dumps(_build_log_fields(hit.to_dict())))
+        return header, message
+
+    def _os_read(self, log_id: str, offset: int | str, ti: RuntimeTI) -> OpensearchResponse | None:
+        """Return the logs matching ``log_id`` in OpenSearch."""
+        query: dict[Any, Any] = {
+            "query": {
+                "bool": {
+                    "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
+                    "must": [{"match_phrase": {"log_id": log_id}}],
+                }
+            }
+        }
+        index_patterns = self._get_index_patterns(ti)
+        try:
+            max_log_line = self.client.count(index=index_patterns, body=query)["count"]
+        except NotFoundError as e:
+            self.log.exception("The target index pattern %s does not exist", index_patterns)
+            raise e
+
+        if max_log_line != 0:
+            try:
+                res = self.client.search(
+                    index=index_patterns,
+                    body=query,
+                    sort=[self.offset_field],
+                    size=self.MAX_LINE_PER_PAGE,
+                    from_=self.MAX_LINE_PER_PAGE * self.PAGE,
+                )
+                return OpensearchResponse(self, res)
+            except Exception as err:
+                self.log.exception("Could not read log with log_id: %s. Exception: %s", log_id, err)
+
+        return None
+
+    def _get_index_patterns(self, ti: RuntimeTI | None) -> str:
+        if self.index_patterns_callable:
+            self.log.debug("Using index_patterns_callable: %s", self.index_patterns_callable)
+            index_pattern_callable_obj = import_string(self.index_patterns_callable)
+            return index_pattern_callable_obj(ti)
+        self.log.debug("Using index_patterns: %s", self.index_patterns)
+        return self.index_patterns
+
+    def _group_logs_by_host(self, response: OpensearchResponse) -> dict[str, list[Hit]]:
+        grouped_logs = defaultdict(list)
+        for hit in response:
+            key = getattr_nested(hit, self.host_field, None) or self.host
+            grouped_logs[key].append(hit)
+        return grouped_logs
+
+    def _get_result(self, hit: dict[Any, Any], parent_class=None) -> Hit:
+        doc_class = Hit
+        dt = hit.get("_type")
+
+        if "_nested" in hit:
+            doc_class = _resolve_nested(hit, parent_class)
+        elif dt in self._doc_type_map:
+            doc_class = self._doc_type_map[dt]
+        else:
+            for doc_type in self._doc_type:
+                if hasattr(doc_type, "_matches") and doc_type._matches(hit):
+                    doc_class = doc_type
+                    break
+
+        for t in hit.get("inner_hits", ()):
+            hit["inner_hits"][t] = OpensearchResponse(self, hit["inner_hits"][t], doc_class=doc_class)
+
+        callback: type[Hit] | Callable[..., Any] = getattr(doc_class, "from_es", doc_class)
+        return callback(hit)

@@ -473,7 +473,7 @@ You can use the `breeze release-management check-release-files` command to verif
 present in SVN. This command may also help with verifying installation of the packages.
 
 ```shell script
-breeze release-management check-release-files python-client --version ${VERSION_RC}
+breeze release-management check-release-files python-client --version ${VERSION_RC}  --path-to-airflow-svn=${PATH_TO_AIRFLOW_SVN}
 ```
 
 You will see commands that you can execute to check installation of the distributions in containers.

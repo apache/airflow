@@ -143,7 +143,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
 
         :param sql: the sql string to be executed with possibly multiple statements
         :param statement_count: set the MULTI_STATEMENT_COUNT field to the number of SQL statements
-         in the request
+            in the request. Set to 0 to submit a variable number of SQL statements without specifying
+            the exact count.
         :param query_tag: (Optional) Query tag that you want to associate with the SQL statement.
             For details, see https://docs.snowflake.com/en/sql-reference/parameters.html#label-query-tag
             parameter.

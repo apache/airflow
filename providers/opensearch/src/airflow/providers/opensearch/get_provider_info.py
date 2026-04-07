@@ -116,6 +116,20 @@ def get_provider_info():
                         "example": None,
                         "default": "False",
                     },
+                    "write_to_os": {
+                        "description": "Write the task logs directly to OpenSearch\n",
+                        "version_added": "1.9.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "False",
+                    },
+                    "target_index": {
+                        "description": "Name of the index to write to when direct OpenSearch log writing is enabled\n",
+                        "version_added": "1.9.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "airflow-logs",
+                    },
                     "json_format": {
                         "description": "Instead of the default log formatter, write the log lines as JSON\n",
                         "version_added": "1.5.0",

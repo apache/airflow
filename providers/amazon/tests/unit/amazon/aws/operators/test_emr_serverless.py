@@ -1513,3 +1513,224 @@ class TestEmrServerlessStopOperator:
         )
 
         validate_template_fields(operator)
+
+
+class TestEmrServerlessStartJobOperatorOpenLineageInjection:
+    """Tests for OpenLineage parent job info and transport info injection in EmrServerlessStartJobOperator."""
+
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "conn")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.emr"
+        ".inject_parent_job_information_into_emr_serverless_properties"
+    )
+    def test_inject_parent_job_info_called_when_enabled(self, mock_inject_parent, mock_conn, mock_get_waiter):
+        mock_inject_parent.side_effect = lambda overrides, ctx: {
+            "applicationConfiguration": [
+                {
+                    "classification": "spark-defaults",
+                    "properties": {"spark.openlineage.parentJobNamespace": "ns"},
+                }
+            ]
+        }
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            wait_for_completion=False,
+            openlineage_inject_parent_job_info=True,
+        )
+        operator.execute(mock.MagicMock())
+
+        mock_inject_parent.assert_called_once()
+        call_kwargs = mock_conn.start_job_run.call_args.kwargs
+        config_overrides = call_kwargs["configurationOverrides"]
+        assert (
+            config_overrides["applicationConfiguration"][0]["properties"][
+                "spark.openlineage.parentJobNamespace"
+            ]
+            == "ns"
+        )
+
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "conn")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.emr"
+        ".inject_parent_job_information_into_emr_serverless_properties"
+    )
+    def test_inject_parent_job_info_not_called_when_disabled(
+        self, mock_inject_parent, mock_conn, mock_get_waiter
+    ):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            wait_for_completion=False,
+            openlineage_inject_parent_job_info=False,
+        )
+        operator.execute(mock.MagicMock())
+
+        mock_inject_parent.assert_not_called()
+
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "conn")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.emr"
+        ".inject_transport_information_into_emr_serverless_properties"
+    )
+    def test_inject_transport_info_called_when_enabled(
+        self, mock_inject_transport, mock_conn, mock_get_waiter
+    ):
+        mock_inject_transport.side_effect = lambda overrides, ctx: {
+            "applicationConfiguration": [
+                {
+                    "classification": "spark-defaults",
+                    "properties": {"spark.openlineage.transport.type": "http"},
+                }
+            ]
+        }
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            wait_for_completion=False,
+            openlineage_inject_transport_info=True,
+        )
+        operator.execute(mock.MagicMock())
+
+        mock_inject_transport.assert_called_once()
+        call_kwargs = mock_conn.start_job_run.call_args.kwargs
+        config_overrides = call_kwargs["configurationOverrides"]
+        assert (
+            config_overrides["applicationConfiguration"][0]["properties"]["spark.openlineage.transport.type"]
+            == "http"
+        )
+
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "conn")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.emr"
+        ".inject_parent_job_information_into_emr_serverless_properties"
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.emr"
+        ".inject_transport_information_into_emr_serverless_properties"
+    )
+    def test_inject_both_parent_and_transport_info(
+        self, mock_inject_transport, mock_inject_parent, mock_conn, mock_get_waiter
+    ):
+        mock_inject_parent.side_effect = lambda overrides, ctx: {
+            "applicationConfiguration": [
+                {
+                    "classification": "spark-defaults",
+                    "properties": {"spark.openlineage.parentJobNamespace": "ns"},
+                }
+            ]
+        }
+        mock_inject_transport.side_effect = lambda overrides, ctx: {
+            "applicationConfiguration": [
+                {
+                    "classification": "spark-defaults",
+                    "properties": {
+                        **overrides.get("applicationConfiguration", [{}])[0].get("properties", {}),
+                        "spark.openlineage.transport.type": "http",
+                    },
+                }
+            ]
+        }
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            wait_for_completion=False,
+            openlineage_inject_parent_job_info=True,
+            openlineage_inject_transport_info=True,
+        )
+        operator.execute(mock.MagicMock())
+
+        mock_inject_parent.assert_called_once()
+        mock_inject_transport.assert_called_once()
+
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "conn")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.emr"
+        ".inject_parent_job_information_into_emr_serverless_properties"
+    )
+    def test_inject_parent_job_info_preserves_existing_config(
+        self, mock_inject_parent, mock_conn, mock_get_waiter
+    ):
+        """Existing configuration_overrides (e.g. monitoringConfiguration) are preserved."""
+        existing_config = {
+            "monitoringConfiguration": {"s3MonitoringConfiguration": {"logUri": "s3://bucket/logs"}},
+            "applicationConfiguration": [
+                {"classification": "spark-defaults", "properties": {"spark.driver.memory": "8G"}}
+            ],
+        }
+        mock_inject_parent.side_effect = lambda overrides, ctx: {
+            **overrides,
+            "applicationConfiguration": [
+                {
+                    "classification": "spark-defaults",
+                    "properties": {
+                        **overrides["applicationConfiguration"][0]["properties"],
+                        "spark.openlineage.parentJobNamespace": "ns",
+                    },
+                }
+            ],
+        }
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=existing_config,
+            wait_for_completion=False,
+            openlineage_inject_parent_job_info=True,
+        )
+        operator.execute(mock.MagicMock())
+
+        call_kwargs = mock_conn.start_job_run.call_args.kwargs
+        config_overrides = call_kwargs["configurationOverrides"]
+        # Monitoring config preserved
+        assert config_overrides["monitoringConfiguration"]["s3MonitoringConfiguration"]["logUri"] == (
+            "s3://bucket/logs"
+        )
+        # OL parent info injected
+        props = config_overrides["applicationConfiguration"][0]["properties"]
+        assert props["spark.openlineage.parentJobNamespace"] == "ns"
+        assert props["spark.driver.memory"] == "8G"
