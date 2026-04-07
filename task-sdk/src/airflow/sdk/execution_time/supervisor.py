@@ -195,10 +195,18 @@ Note: Only Linux-based distros supported as "Production" execution environment f
 
 macOS
 -----
- 1. Due to limitations in Apple's libraries not every process might 'fork' safe.
-    One of the general error is unable to query the macOS system configuration for network proxies.
-    If your are not using a proxy you could disable it by set environment variable 'no_proxy' to '*'.
-    See: https://github.com/python/cpython/issues/58037 and https://bugs.python.org/issue30385#msg293958
+ Apple's Objective-C runtime and system frameworks (Security.framework,
+ CoreFoundation, libdispatch) are not safe to use after fork() without exec().
+ Airflow's task supervisor uses fork+exec on macOS to avoid this, but other
+ code paths (DAG processor, triggerer) still use bare fork.  If you see
+ crashes mentioning "+[NSNumber initialize]" or "_scproxy", the most likely
+ cause is a bare fork touching Apple frameworks.
+
+ Common triggers: socket.getaddrinfo (DNS resolver), urllib proxy lookup,
+ SSL context initialization via Security.framework.
+
+ See: https://github.com/python/cpython/issues/105912
+      https://github.com/python/cpython/issues/58037
 ********************************************************************************************************"""
 
 
@@ -441,6 +449,56 @@ def _fork_main(
             exit(125)
 
 
+_USE_FORK_EXEC = sys.platform == "darwin"
+"""On macOS, use fork + exec (``os.fork`` then ``os.execv``) instead of bare ``os.fork``.
+
+macOS system libraries (Security.framework, CoreFoundation, ``_scproxy``) use
+Objective-C, which is not fork-safe.  A bare ``os.fork()`` copies the parent's
+ObjC runtime state; if the child then triggers ObjC class initialization
+(e.g. via ``socket.getaddrinfo`` -> system DNS resolver -> proxy lookup), the
+runtime detects the corrupted state and crashes with SIGABRT.
+
+Calling ``os.execv`` immediately after ``os.fork`` replaces the child's address
+space, giving it clean ObjC state.  The socketpair FDs survive across exec
+because they are marked inheritable; the child reads FD numbers from an env var
+and reconstructs the communication channels.
+
+This applies to all executors (Local, Celery, etc.) but only on macOS and only
+for task execution (``target is _subprocess_main``).  DAG processor and triggerer
+use different targets and keep bare fork -- they don't make network calls that
+trigger the macOS crash.
+
+See: https://github.com/python/cpython/issues/105912
+     https://github.com/apache/airflow/discussions/24463
+"""
+
+# Env var key used to pass socket FDs to the child when using fork+exec.
+_CHILD_FDS_ENV_VAR = "_AIRFLOW_SUPERVISOR_CHILD_FDS"
+
+
+def _child_exec_main():
+    """
+    Entry point for the child process when using fork+exec (macOS).
+
+    Reads socket FD numbers from the environment, reconstructs the sockets,
+    and hands off to ``_fork_main`` -- the same code path as the bare-fork
+    child.
+    """
+    import json
+    import socket as _socket
+
+    fds = json.loads(os.environ.pop(_CHILD_FDS_ENV_VAR))
+    child_requests = _socket.socket(fileno=fds["requests"])
+    child_stdout = _socket.socket(fileno=fds["stdout"])
+    child_stderr = _socket.socket(fileno=fds["stderr"])
+    log_fd = fds["logs"]
+
+    # _fork_main always exits via os._exit(), so the socket objects above are
+    # never GC'd (which would close their underlying FDs). This is safe but
+    # depends on that invariant -- do not refactor _fork_main to return.
+    _fork_main(child_requests, child_stdout, child_stderr, log_fd, _subprocess_main)
+
+
 @attrs.define(kw_only=True)
 class WatchedSubprocess:
     """
@@ -511,16 +569,49 @@ class WatchedSubprocess:
             del constructor_kwargs
             del logger
 
-            try:
-                # Run the child entrypoint
-                _fork_main(child_requests, child_stdout, child_stderr, child_logs.fileno(), target)
-            except BaseException as e:
-                import traceback
+            if _USE_FORK_EXEC and target is _subprocess_main:
+                # macOS: immediately exec a fresh Python interpreter to replace the
+                # inherited ObjC/CoreFoundation state that is not fork-safe.  Only
+                # for task execution (_subprocess_main); DAG processor and triggerer
+                # use different targets and keep bare fork.  The socketpair FDs
+                # survive across exec because we mark them inheritable.
+                try:
+                    import json
 
-                with suppress(BaseException):
-                    # We can't use log here, as if we except out of _fork_main something _weird_ went on.
-                    print("Exception in _fork_main, exiting with code 124", file=sys.stderr)
-                    traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
+                    fds = {
+                        "requests": child_requests.fileno(),
+                        "stdout": child_stdout.fileno(),
+                        "stderr": child_stderr.fileno(),
+                        "logs": child_logs.fileno(),
+                    }
+                    for fd in fds.values():
+                        os.set_inheritable(fd, True)
+
+                    os.environ[_CHILD_FDS_ENV_VAR] = json.dumps(fds)
+                    os.execv(sys.executable, [
+                        sys.executable,
+                        "-c",
+                        "from airflow.sdk.execution_time.supervisor import _child_exec_main;"
+                        " _child_exec_main()",
+                    ])
+                    # execv replaces the process -- we never reach here
+                except BaseException as e:
+                    import traceback
+
+                    with suppress(BaseException):
+                        print(f"execv failed, exiting with code 124: {e}", file=sys.stderr)
+                        traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
+            else:
+                try:
+                    # Run the child entrypoint
+                    _fork_main(child_requests, child_stdout, child_stderr, child_logs.fileno(), target)
+                except BaseException as e:
+                    import traceback
+
+                    with suppress(BaseException):
+                        # We can't use log here, as if we except out of _fork_main something _weird_ went on.
+                        print("Exception in _fork_main, exiting with code 124", file=sys.stderr)
+                        traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
 
             # It's really super super important we never exit this block. We are in the forked child, and if we
             # do then _THINGS GET WEIRD_.. (Normally `_fork_main` itself will `_exit()` so we never get here)

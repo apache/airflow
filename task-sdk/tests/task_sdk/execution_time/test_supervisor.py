@@ -64,7 +64,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
-from airflow.sdk.execution_time import task_runner
+from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
@@ -3417,3 +3417,54 @@ def test_api_client_clears_dag_bag_override_when_dag_is_none():
         assert dag_bag_from_app not in api.app.dependency_overrides
     finally:
         in_process_api_server.cache_clear()
+
+
+class TestChildExecMain:
+    """Test the macOS fork+exec child entry point."""
+
+    def test_reconstructs_sockets_from_env_and_calls_fork_main(self, monkeypatch):
+        """_child_exec_main reads FD numbers from env, wraps them in sockets, calls _fork_main."""
+        # Create socketpairs. _child_exec_main will wrap the "child" ends in
+        # new socket objects via socket.socket(fileno=N), taking ownership of
+        # those FDs. We only need to clean up the "parent" ends (s2, s4, s6).
+        s1, s2 = socket.socketpair()
+        s3, s4 = socket.socketpair()
+        s5, s6 = socket.socketpair()
+        parent_sockets = [s2, s4, s6]
+
+        try:
+            fds = {
+                "requests": s1.fileno(),
+                "stdout": s3.fileno(),
+                "stderr": s5.fileno(),
+                "logs": s2.fileno(),
+            }
+            monkeypatch.setenv(supervisor._CHILD_FDS_ENV_VAR, json.dumps(fds))
+
+            captured = {}
+
+            def mock_fork_main(requests, stdout, stderr, log_fd, target):
+                captured["requests_fd"] = requests.fileno()
+                captured["stdout_fd"] = stdout.fileno()
+                captured["stderr_fd"] = stderr.fileno()
+                captured["log_fd"] = log_fd
+                captured["target"] = target
+                # Detach so the mock return doesn't double-close FDs that
+                # _child_exec_main's socket objects also own.
+                requests.detach()
+                stdout.detach()
+                stderr.detach()
+
+            monkeypatch.setattr(supervisor, "_fork_main", mock_fork_main)
+
+            supervisor._child_exec_main()
+
+            assert captured["requests_fd"] == fds["requests"]
+            assert captured["stdout_fd"] == fds["stdout"]
+            assert captured["stderr_fd"] == fds["stderr"]
+            assert captured["log_fd"] == fds["logs"]
+            assert captured["target"] is supervisor._subprocess_main
+            assert supervisor._CHILD_FDS_ENV_VAR not in os.environ
+        finally:
+            for s in parent_sockets:
+                s.close()
