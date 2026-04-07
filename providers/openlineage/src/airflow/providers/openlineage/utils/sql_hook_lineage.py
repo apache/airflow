@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+from functools import cache
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -111,10 +112,27 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
 
     events: list[RunEvent] = []
     query_count = 0
-    # Cache (connection, database_info, namespace) per conn_id.
-    # All extras from the same hook share the same connection details; fetching once and
-    # reusing eliminates the per-extra SecretsManager+API round-trips that dominate runtime.
-    _conn_cache: dict[str | None, tuple] = {}  # conn_id -> (connection, database_info, namespace)
+
+    # Build conn_id -> hook mapping before iterating. Hook instances are not hashable so
+    # conn_id (a plain string) is used as the @cache key throughout.
+    _hook_by_conn_id = {_get_hook_conn_id(e.context): e.context for e in sql_extras}
+
+    @cache
+    def _get_connection(conn_id: str):
+        return _hook_by_conn_id[conn_id].get_connection(conn_id)
+
+    @cache
+    def _get_database_info(conn_id: str):
+        try:
+            return _hook_by_conn_id[conn_id].get_openlineage_database_info(_get_connection(conn_id))
+        except Exception as e:
+            log.debug("Failed to get OpenLineage database info for %s: %s", conn_id, e)
+            return None
+
+    @cache
+    def _get_namespace(conn_id: str) -> str | None:
+        db_info = _get_database_info(conn_id)
+        return SQLParser.create_namespace(db_info) if db_info is not None else None
 
     for extra_info in sql_extras:
         value = extra_info.value
@@ -130,14 +148,9 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
         hook = extra_info.context
         conn_id = _get_hook_conn_id(hook)
 
-        if conn_id not in _conn_cache:
-            connection, database_info, namespace = _resolve_connection_info(hook, conn_id)
-            _conn_cache[conn_id] = (connection, database_info, namespace)
-        else:
-            connection, database_info, namespace = _conn_cache[conn_id]
-
         # Parse SQL to obtain lineage (inputs, outputs, facets)
         query_lineage: OperatorLineage | None = None
+        database_info = _get_database_info(conn_id) if conn_id else None
         if sql_text and conn_id and database_info is not None:
             try:
                 query_lineage = get_openlineage_facets_with_sql(
@@ -146,7 +159,7 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
                     conn_id=conn_id,
                     database=value.get(SqlJobHookLineageExtra.VALUE__DEFAULT_DB.value),
                     use_connection=False,  # Temporary solution before we figure out timeouts for queries
-                    connection=connection,  # Reuse cached connection; skips second get_connection() call
+                    connection=_get_connection(conn_id),
                     database_info=database_info,
                 )
             except Exception as e:
@@ -160,6 +173,7 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
             query_lineage = OperatorLineage(job_facets=job_facets)
 
         # Enrich run facets with external query info when available.
+        namespace = _get_namespace(conn_id) if conn_id else None
         if job_id and namespace:
             query_lineage.run_facets.setdefault(
                 "externalQuery",
@@ -194,33 +208,17 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
     return None
 
 
-def _resolve_connection_info(hook, conn_id: str | None) -> tuple:
-    """
-    Resolve ``(connection, database_info, namespace)`` from a hook in a single lookup.
-
-    Returns a 3-tuple where any element may be ``None`` on failure.  Callers processing
-    multiple SQL extras from the same hook should call this once and cache the result
-    keyed by ``conn_id`` — the ``hook.get_connection()`` call is the expensive part
-    (SecretsManager miss + Airflow API server hit per invocation).
-    """
-    if conn_id:
-        try:
-            connection = hook.get_connection(conn_id)
-            database_info = hook.get_openlineage_database_info(connection)
-        except Exception as e:
-            log.debug("Failed to get OpenLineage database info: %s", e)
-            return None, None, None
-
-        if database_info is not None:
-            return connection, database_info, SQLParser.create_namespace(database_info)
-
-    return None, None, None
-
-
 def _resolve_namespace(hook, conn_id: str | None) -> str | None:
-    """Resolve the OpenLineage namespace from a hook. Kept for backwards compatibility."""
-    _, _, namespace = _resolve_connection_info(hook, conn_id)
-    return namespace
+    """Resolve the OpenLineage namespace from a hook."""
+    if not conn_id:
+        return None
+    try:
+        connection = hook.get_connection(conn_id)
+        database_info = hook.get_openlineage_database_info(connection)
+    except Exception as e:
+        log.debug("Failed to get OpenLineage database info: %s", e)
+        return None
+    return SQLParser.create_namespace(database_info) if database_info is not None else None
 
 
 def _get_hook_conn_id(hook) -> str | None:
