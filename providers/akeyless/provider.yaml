@@ -27,7 +27,7 @@ versions:
 integrations:
   - integration-name: Akeyless
     external-doc-url: https://docs.akeyless.io/
-    tags: [security, secrets]
+    tags: [software]
 
 hooks:
   - integration-name: Akeyless

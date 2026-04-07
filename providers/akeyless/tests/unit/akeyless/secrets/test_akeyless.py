@@ -45,7 +45,8 @@ class TestAkeylessBackend:
         backend = _backend()
         conn = backend.get_connection("postgres_default")
         assert conn is not None
-        assert conn.conn_type == "postgresql"
+        assert conn.host == "host"
+        assert conn.login == "user"
 
     @patch(f"{BACKEND_MODULE}.akeyless")
     def test_get_connection_json_uri(self, mock_sdk):
@@ -57,7 +58,8 @@ class TestAkeylessBackend:
         backend = _backend()
         conn = backend.get_connection("pg")
         assert conn is not None
-        assert conn.conn_type == "postgresql"
+        assert conn.host == "h"
+        assert conn.login == "u"
 
     @patch(f"{BACKEND_MODULE}.akeyless")
     def test_get_connection_json_kwargs(self, mock_sdk):
