@@ -862,7 +862,7 @@ class TestTaskInstance:
         worker calls _check_and_change_state_before_execution. The previous code checked
         ``if ti.state == UP_FOR_RESCHEDULE``, which was always False by that point,
         causing start_date to be reset to utcnow() on every re-execution and inflating
-        the dagrun.first_task_start_delay metric.
+        the dagrun.first_task_scheduling_delay metric.
         """
         done = False
 

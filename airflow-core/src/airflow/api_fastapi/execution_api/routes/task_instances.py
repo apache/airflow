@@ -172,6 +172,20 @@ def ti_run(
     if ti.next_kwargs:
         data.pop("start_date")
         log.debug("Removed start_date from update as task is resuming from deferral")
+    elif "start_date" in data:
+        # Restore original start_date for rescheduled tasks. The supervisor always sends
+        # start_date=utcnow(), but for a sensor in reschedule mode the true start is when
+        # the first poke ran, recorded in TaskReschedule. Without this, every re-poke
+        # resets start_date and inflates dagrun.first_task_scheduling_delay.
+        first_reschedule_start_date = session.scalar(
+            select(TaskReschedule.start_date)
+            .where(TaskReschedule.ti_id == task_instance_id)
+            .order_by(TaskReschedule.id.asc())
+            .limit(1)
+        )
+        if first_reschedule_start_date:
+            data["start_date"] = first_reschedule_start_date
+            log.debug("Restored start_date from TaskReschedule for rescheduled task")
 
     query = update(TI).where(TI.id == task_instance_id).values(data)
 

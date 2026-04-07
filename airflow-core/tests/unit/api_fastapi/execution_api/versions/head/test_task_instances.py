@@ -651,6 +651,63 @@ class TestTIRunState:
         ti = session.get(TaskInstance, ti.id)
         assert ti.start_date == expected_start_date
 
+    def test_ti_run_restores_start_date_for_rescheduled_task(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """
+        Verify that ti_run preserves start_date from the first TaskReschedule record.
+
+        The supervisor always sends start_date=utcnow() when calling ti_run. For a
+        rescheduled sensor, the true start is when the first poke ran, recorded in
+        TaskReschedule. Without this guard, every re-poke resets start_date and inflates
+        the dagrun.first_task_scheduling_delay metric.
+        """
+        from datetime import timedelta
+
+        poke1_time = timezone.parse("2024-09-30T12:00:00Z")
+        poke2_time = poke1_time + timedelta(seconds=30)
+
+        time_machine.move_to(poke1_time, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_restores_start_date",
+            state=State.QUEUED,
+            session=session,
+        )
+        ti.start_date = poke1_time
+        session.flush()
+
+        # Simulate the TaskReschedule row written after poke 1 failed
+        tr = TaskReschedule(
+            ti_id=ti.id,
+            start_date=poke1_time,
+            end_date=poke1_time + timedelta(seconds=1),
+            reschedule_date=poke1_time + timedelta(seconds=10),
+        )
+        session.add(tr)
+        session.commit()
+
+        # Poke 2: supervisor calls ti_run with start_date=poke2_time
+        time_machine.move_to(poke2_time, tick=False)
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": poke2_time.isoformat(),
+            },
+        )
+        assert response.status_code == 200
+
+        session.expunge_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.start_date == poke1_time, (
+            "start_date should be restored from the first TaskReschedule record, "
+            "not reset to the time of the second poke"
+        )
+
     @pytest.mark.parametrize(
         "initial_ti_state",
         [s for s in TaskInstanceState if s not in (TaskInstanceState.QUEUED, TaskInstanceState.RESTARTING)],
