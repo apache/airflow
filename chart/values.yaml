@@ -1150,7 +1150,6 @@ workers:
 
     # Override the Airflow image for Celery workers.
     # If not set, falls back to the global `images.airflow` image.
-    # Can also be overridden per worker set in `workers.celery.sets[].image`.
     image:
       repository: ~
       tag: ~

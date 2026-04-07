@@ -349,16 +349,32 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
 {{- end }}
 
+{{/* Internal helper to format an image string (repo:tag or repo@digest) */}}
+{{- define "airflow.format_image" -}}
+  {{- if .digest -}}
+    {{- printf "%s@%s" .repository .digest -}}
+  {{- else -}}
+    {{- printf "%s:%s" .repository .tag -}}
+  {{- end -}}
+{{- end -}}
+
+{{/* Helper to resolve an image string with a 3-tier fallback:
+  1. Specific config (e.g., workers.image)
+  2. Global config (images.airflow)
+  3. Chart defaults (defaultAirflowRepository/Tag/Digest)
+*/}}
+{{- define "airflow.render_image" -}}
+  {{- $img := .image | default dict -}}
+  {{- $root := .root -}}
+  {{- $repo := $img.repository | default $root.Values.images.airflow.repository | default $root.Values.defaultAirflowRepository -}}
+  {{- $tag := $img.tag | default $root.Values.images.airflow.tag | default $root.Values.defaultAirflowTag -}}
+  {{- $digest := $img.digest | default $root.Values.images.airflow.digest | default $root.Values.defaultAirflowDigest -}}
+  {{- include "airflow.format_image" (dict "repository" $repo "tag" $tag "digest" $digest) -}}
+{{- end -}}
+
 {{/* This helper will change when customers deploy a new image */}}
 {{- define "airflow_image" -}}
-  {{- $repository := .Values.images.airflow.repository | default .Values.defaultAirflowRepository -}}
-  {{- $tag := .Values.images.airflow.tag | default .Values.defaultAirflowTag -}}
-  {{- $digest := .Values.images.airflow.digest | default .Values.defaultAirflowDigest -}}
-  {{- if $digest }}
-    {{- printf "%s@%s" $repository $digest -}}
-  {{- else }}
-    {{- printf "%s:%s" $repository $tag -}}
-  {{- end }}
+  {{- include "airflow.render_image" (dict "image" .Values.images.airflow "root" .) -}}
 {{- end }}
 
 {{- define "pod_template_image" -}}
@@ -367,14 +383,7 @@ If release name contains chart name it will be used as a full name.
 
 {{/* This helper is used for airflow containers that do not need the users code */}}
 {{ define "default_airflow_image" -}}
-  {{- $repository := .Values.defaultAirflowRepository -}}
-  {{- $tag := .Values.defaultAirflowTag -}}
-  {{- $digest := .Values.defaultAirflowDigest -}}
-  {{- if $digest }}
-    {{- printf "%s@%s" $repository $digest -}}
-  {{- else }}
-    {{- printf "%s:%s" $repository $tag -}}
-  {{- end }}
+  {{- include "airflow.format_image" (dict "repository" .Values.defaultAirflowRepository "tag" .Values.defaultAirflowTag "digest" .Values.defaultAirflowDigest) -}}
 {{- end }}
 
 {{ define "airflow_image_for_migrations" -}}
@@ -392,19 +401,7 @@ If release name contains chart name it will be used as a full name.
   effective image is at Values.workers.image (post-merge).
 */}}
 {{- define "airflow_worker_image" -}}
-  {{- if .Values.workers.image -}}
-    {{- $workerImage := .Values.workers.image -}}
-    {{- $repository := $workerImage.repository | default .Values.images.airflow.repository | default .Values.defaultAirflowRepository -}}
-    {{- $tag := $workerImage.tag | default .Values.images.airflow.tag | default .Values.defaultAirflowTag -}}
-    {{- $digest := $workerImage.digest | default .Values.images.airflow.digest | default .Values.defaultAirflowDigest -}}
-    {{- if $digest }}
-      {{- printf "%s@%s" $repository $digest -}}
-    {{- else }}
-      {{- printf "%s:%s" $repository $tag -}}
-    {{- end }}
-  {{- else -}}
-    {{- template "airflow_image" . -}}
-  {{- end -}}
+  {{- include "airflow.render_image" (dict "image" .Values.workers.image "root" .) -}}
 {{- end }}
 
 {{- define "airflow_worker_image_pull_policy" -}}

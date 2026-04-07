@@ -153,6 +153,243 @@ class TestWorker:
             "image": "test-registry/test-repo:test-tag",
         }
 
+    def test_celery_image_overrides_default(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "image": {
+                            "repository": "celery-custom/airflow",
+                            "tag": "celery-v1",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[0]) or []
+        container_images = jmespath.search("spec.template.spec.containers[*].image", docs[0]) or []
+        images = [image for image in init_images + container_images if "git-sync" not in image]
+        assert images
+        for image in images:
+            assert image == "celery-custom/airflow:celery-v1"
+
+    def test_celery_image_overrides_global_image(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "images": {
+                    "airflow": {
+                        "repository": "global/airflow",
+                        "tag": "global-v1",
+                    },
+                },
+                "workers": {
+                    "celery": {
+                        "image": {
+                            "repository": "celery-custom/airflow",
+                            "tag": "celery-v2",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[0]) or []
+        container_images = jmespath.search("spec.template.spec.containers[*].image", docs[0]) or []
+        images = [image for image in init_images + container_images if "git-sync" not in image]
+        for image in images:
+            assert image == "celery-custom/airflow:celery-v2"
+
+    def test_celery_image_partial_override_repository_only(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "defaultAirflowTag": "default-worker-tag",
+                "workers": {
+                    "celery": {
+                        "image": {
+                            "repository": "celery-custom/airflow",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[0]) or []
+        container_images = jmespath.search("spec.template.spec.containers[*].image", docs[0]) or []
+        images = [image for image in init_images + container_images if "git-sync" not in image]
+        for image in images:
+            assert image == "celery-custom/airflow:default-worker-tag"
+
+    def test_celery_image_partial_override_tag_only(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "defaultAirflowRepository": "default/airflow",
+                "workers": {
+                    "celery": {
+                        "image": {
+                            "tag": "custom-tag",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[0]) or []
+        container_images = jmespath.search("spec.template.spec.containers[*].image", docs[0]) or []
+        images = [image for image in init_images + container_images if "git-sync" not in image]
+        for image in images:
+            assert image == "default/airflow:custom-tag"
+
+    def test_celery_image_digest_takes_precedence_over_tag(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "image": {
+                            "repository": "celery-custom/airflow",
+                            "tag": "should-be-ignored",
+                            "digest": "sha256:abcdef1234567890",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[0]) or []
+        container_images = jmespath.search("spec.template.spec.containers[*].image", docs[0]) or []
+        images = [image for image in init_images + container_images if "git-sync" not in image]
+        for image in images:
+            assert image == "celery-custom/airflow@sha256:abcdef1234567890"
+
+    def test_celery_pull_policy_override(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "image": {
+                            "repository": "custom/airflow",
+                            "tag": "latest",
+                            "pullPolicy": "Always",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        init_policies = jmespath.search("spec.template.spec.initContainers[*].imagePullPolicy", docs[0]) or []
+        container_policies = jmespath.search("spec.template.spec.containers[*].imagePullPolicy", docs[0]) or []
+        policies = init_policies + container_policies
+        for policy in policies:
+            assert policy == "Always"
+
+    def test_default_pull_policy(self):
+        docs = render_chart(
+            values={"executor": "CeleryExecutor"},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        init_policies = jmespath.search("spec.template.spec.initContainers[*].imagePullPolicy", docs[0]) or []
+        container_policies = jmespath.search("spec.template.spec.containers[*].imagePullPolicy", docs[0]) or []
+        policies = init_policies + container_policies
+        for policy in policies:
+            assert policy == "IfNotPresent"
+
+    def test_kerberos_containers_use_worker_image(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                    },
+                    "kerberosSidecar": {
+                        "enabled": True,
+                    },
+                    "celery": {
+                        "image": {
+                            "repository": "custom/airflow",
+                            "tag": "worker-v1",
+                        },
+                    },
+                },
+                "kerberos": {
+                    "enabled": True,
+                    "keytabBase64Content": "dGVzdA==",
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        all_containers = (
+            (jmespath.search("spec.template.spec.initContainers", docs[0]) or [])
+            + (jmespath.search("spec.template.spec.containers", docs[0]) or [])
+        )
+        kerberos_containers = [
+            c
+            for c in all_containers
+            if c["name"] in ("kerberos-init", "worker-kerberos")
+        ]
+
+        assert kerberos_containers, "No kerberos containers found"
+        for container in kerberos_containers:
+            assert container["image"] == "custom/airflow:worker-v1"
+
+    def test_celery_image_with_celery_kubernetes_executor(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryKubernetesExecutor",
+                "workers": {
+                    "celery": {
+                        "image": {
+                            "repository": "celery-custom/airflow",
+                            "tag": "celery-v1",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[0]) or []
+        container_images = jmespath.search("spec.template.spec.containers[*].image", docs[0]) or []
+        images = [image for image in init_images + container_images if "git-sync" not in image]
+        assert images
+        for image in images:
+            assert image == "celery-custom/airflow:celery-v1"
+
+    def test_migrations_uses_worker_image_by_default(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "image": {
+                            "repository": "custom/airflow",
+                            "tag": "custom-v1",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        init_containers = jmespath.search("spec.template.spec.initContainers", docs[0]) or []
+        migration_containers = [c for c in init_containers if c["name"] == "wait-for-airflow-migrations"]
+        assert len(migration_containers) == 1
+        assert migration_containers[0]["image"] == "custom/airflow:custom-v1"
+
     @pytest.mark.parametrize(
         "workers_values",
         [

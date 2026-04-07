@@ -63,6 +63,343 @@ class TestWorkerSets:
 
         assert jmespath.search("[*].metadata.name", docs) == expected
 
+    def test_per_set_image_overrides_celery_image(self):
+        docs = render_chart(
+            name="test",
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "enableDefault": False,
+                        "image": {
+                            "repository": "celery-base/airflow",
+                            "tag": "base-v1",
+                        },
+                        "sets": [
+                            {
+                                "name": "gpu",
+                                "queue": "gpu",
+                                "image": {
+                                    "repository": "my-gpu/airflow",
+                                    "tag": "cuda-v1",
+                                },
+                            },
+                        ],
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert len(docs) == 1
+        init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[0]) or []
+        container_images = jmespath.search("spec.template.spec.containers[*].image", docs[0]) or []
+        images = [image for image in init_images + container_images if "git-sync" not in image]
+        for image in images:
+            assert image == "my-gpu/airflow:cuda-v1"
+
+    def test_default_set_uses_celery_image_others_override(self):
+        docs = render_chart(
+            name="test",
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "enableDefault": True,
+                        "image": {
+                            "repository": "celery-base/airflow",
+                            "tag": "base-v1",
+                        },
+                        "sets": [
+                            {
+                                "name": "gpu",
+                                "queue": "gpu",
+                                "image": {
+                                    "repository": "my-gpu/airflow",
+                                    "tag": "cuda-v1",
+                                },
+                            },
+                        ],
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert len(docs) == 2
+
+        default_init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[0]) or []
+        default_container_images = jmespath.search("spec.template.spec.containers[*].image", docs[0]) or []
+        default_images = [image for image in default_init_images + default_container_images if "git-sync" not in image]
+        for image in default_images:
+            assert image == "celery-base/airflow:base-v1"
+
+        gpu_init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[1]) or []
+        gpu_container_images = jmespath.search("spec.template.spec.containers[*].image", docs[1]) or []
+        gpu_images = [image for image in gpu_init_images + gpu_container_images if "git-sync" not in image]
+        for image in gpu_images:
+            assert image == "my-gpu/airflow:cuda-v1"
+
+    def test_per_set_partial_override_falls_back_to_global_default_tag(self):
+        docs = render_chart(
+            name="test",
+            values={
+                "executor": "CeleryExecutor",
+                "defaultAirflowTag": "default-set-tag",
+                "workers": {
+                    "celery": {
+                        "enableDefault": False,
+                        "image": {
+                            "repository": "celery-base/airflow",
+                            "tag": "base-v1",
+                        },
+                        "sets": [
+                            {
+                                "name": "gpu",
+                                "queue": "gpu",
+                                "image": {
+                                    "repository": "my-gpu/airflow",
+                                },
+                            },
+                        ],
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[0]) or []
+        container_images = jmespath.search("spec.template.spec.containers[*].image", docs[0]) or []
+        images = [image for image in init_images + container_images if "git-sync" not in image]
+        for image in images:
+            assert image == "my-gpu/airflow:default-set-tag"
+
+    def test_per_set_digest_override(self):
+        docs = render_chart(
+            name="test",
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "enableDefault": False,
+                        "sets": [
+                            {
+                                "name": "special",
+                                "queue": "special",
+                                "image": {
+                                    "repository": "special/airflow",
+                                    "digest": "sha256:deadbeef",
+                                },
+                            },
+                        ],
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[0]) or []
+        container_images = jmespath.search("spec.template.spec.containers[*].image", docs[0]) or []
+        images = [image for image in init_images + container_images if "git-sync" not in image]
+        for image in images:
+            assert image == "special/airflow@sha256:deadbeef"
+
+    def test_set_without_image_uses_celery_image(self):
+        docs = render_chart(
+            name="test",
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "enableDefault": False,
+                        "image": {
+                            "repository": "celery-base/airflow",
+                            "tag": "base-v1",
+                        },
+                        "sets": [
+                            {
+                                "name": "no-image-override",
+                                "queue": "default",
+                            },
+                        ],
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[0]) or []
+        container_images = jmespath.search("spec.template.spec.containers[*].image", docs[0]) or []
+        images = [image for image in init_images + container_images if "git-sync" not in image]
+        for image in images:
+            assert image == "celery-base/airflow:base-v1"
+
+    def test_set_without_image_no_celery_image_uses_default(self):
+        docs = render_chart(
+            name="test",
+            values={
+                "executor": "CeleryExecutor",
+                "defaultAirflowRepository": "default/airflow",
+                "defaultAirflowTag": "default-set-tag",
+                "workers": {
+                    "celery": {
+                        "enableDefault": False,
+                        "sets": [
+                            {
+                                "name": "plain",
+                                "queue": "plain",
+                            },
+                        ],
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[0]) or []
+        container_images = jmespath.search("spec.template.spec.containers[*].image", docs[0]) or []
+        images = [image for image in init_images + container_images if "git-sync" not in image]
+        for image in images:
+            assert image == "default/airflow:default-set-tag"
+
+    def test_multiple_sets_with_different_images(self):
+        docs = render_chart(
+            name="test",
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "enableDefault": False,
+                        "image": {
+                            "repository": "base/airflow",
+                            "tag": "base",
+                        },
+                        "sets": [
+                            {
+                                "name": "set1",
+                                "queue": "q1",
+                                "image": {
+                                    "repository": "set1/airflow",
+                                    "tag": "v1",
+                                },
+                            },
+                            {
+                                "name": "set2",
+                                "queue": "q2",
+                                "image": {
+                                    "repository": "set2/airflow",
+                                    "tag": "v2",
+                                },
+                            },
+                            {
+                                "name": "set3-no-override",
+                                "queue": "q3",
+                            },
+                        ],
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert len(docs) == 3
+
+        set1_init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[0]) or []
+        set1_container_images = jmespath.search("spec.template.spec.containers[*].image", docs[0]) or []
+        set1_images = [image for image in set1_init_images + set1_container_images if "git-sync" not in image]
+        for image in set1_images:
+            assert image == "set1/airflow:v1"
+
+        set2_init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[1]) or []
+        set2_container_images = jmespath.search("spec.template.spec.containers[*].image", docs[1]) or []
+        set2_images = [image for image in set2_init_images + set2_container_images if "git-sync" not in image]
+        for image in set2_images:
+            assert image == "set2/airflow:v2"
+
+        set3_init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[2]) or []
+        set3_container_images = jmespath.search("spec.template.spec.containers[*].image", docs[2]) or []
+        set3_images = [image for image in set3_init_images + set3_container_images if "git-sync" not in image]
+        for image in set3_images:
+            assert image == "base/airflow:base"
+
+    def test_per_set_pull_policy_override(self):
+        docs = render_chart(
+            name="test",
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "enableDefault": True,
+                        "image": {
+                            "repository": "base/airflow",
+                            "tag": "v1",
+                            "pullPolicy": "Always",
+                        },
+                        "sets": [
+                            {
+                                "name": "special",
+                                "queue": "special",
+                                "image": {
+                                    "repository": "special/airflow",
+                                    "tag": "v2",
+                                    "pullPolicy": "Never",
+                                },
+                            },
+                        ],
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert len(docs) == 2
+
+        default_init_policies = jmespath.search("spec.template.spec.initContainers[*].imagePullPolicy", docs[0]) or []
+        default_container_policies = jmespath.search("spec.template.spec.containers[*].imagePullPolicy", docs[0]) or []
+        default_policies = default_init_policies + default_container_policies
+        for policy in default_policies:
+            assert policy == "Always"
+
+        special_init_policies = jmespath.search("spec.template.spec.initContainers[*].imagePullPolicy", docs[1]) or []
+        special_container_policies = jmespath.search("spec.template.spec.containers[*].imagePullPolicy", docs[1]) or []
+        special_policies = special_init_policies + special_container_policies
+        for policy in special_policies:
+            assert policy == "Never"
+
+    def test_migrations_per_set_uses_set_image(self):
+        docs = render_chart(
+            name="test",
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "enableDefault": False,
+                        "image": {
+                            "repository": "celery-base/airflow",
+                            "tag": "base-v1",
+                        },
+                        "sets": [
+                            {
+                                "name": "gpu",
+                                "queue": "gpu",
+                                "image": {
+                                    "repository": "gpu/airflow",
+                                    "tag": "cuda-v1",
+                                },
+                            },
+                        ],
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        init_containers = jmespath.search("spec.template.spec.initContainers", docs[0]) or []
+        migration_containers = [c for c in init_containers if c["name"] == "wait-for-airflow-migrations"]
+
+        assert len(migration_containers) == 1
+        assert migration_containers[0]["image"] == "gpu/airflow:cuda-v1"
+
     @pytest.mark.parametrize(
         "values",
         [
