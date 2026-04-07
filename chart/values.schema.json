@@ -1848,21 +1848,21 @@
                     }
                 },
                 "serviceAccount": {
-                    "description": "Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file.",
+                    "description": "Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.serviceAccount`` and/or ``workers.kubernetes.serviceAccount`` instead).",
                     "type": "object",
                     "properties": {
                         "automountServiceAccountToken": {
-                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods (deprecated, use ``workers.celery.serviceAccount.automountServiceAccountToken`` and/or ``workers.kubernetes.serviceAccount.automountServiceAccountToken`` instead)",
                             "type": "boolean",
                             "default": true
                         },
                         "create": {
-                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "description": "Specifies whether a ServiceAccount should be created (deprecated, use ``workers.celery.serviceAccount.create`` and/or ``workers.kubernetes.serviceAccount.create`` instead).",
                             "type": "boolean",
                             "default": true
                         },
                         "name": {
-                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "description": "The name of the ServiceAccount to use (deprecated, use ``workers.celery.serviceAccount.name`` and/or ``workers.kubernetes.serviceAccount.name`` instead). If not set and create is true, a name is generated using the release name.",
                             "type": [
                                 "string",
                                 "null"
@@ -1870,7 +1870,7 @@
                             "default": null
                         },
                         "annotations": {
-                            "description": "Annotations to add to the worker Kubernetes ServiceAccount.",
+                            "description": "Annotations to add to the worker Kubernetes ServiceAccount (deprecated, use ``workers.celery.serviceAccount.annotations`` and/or ``workers.kubernetes.serviceAccount.annotations`` instead).",
                             "type": "object",
                             "default": {},
                             "additionalProperties": {
@@ -2921,6 +2921,44 @@
                                 }
                             }
                         },
+                        "serviceAccount": {
+                            "description": "Create ServiceAccount for Airflow Celery workers.",
+                            "type": "object",
+                            "properties": {
+                                "automountServiceAccountToken": {
+                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "create": {
+                                    "description": "Specifies whether a ServiceAccount should be created.",
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "name": {
+                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to the worker Kubernetes ServiceAccount.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
                         "keda": {
                             "description": "KEDA configuration of Airflow Celery workers.",
                             "type": "object",
@@ -3533,6 +3571,44 @@
                                     }
                                 }
                             ]
+                        },
+                        "serviceAccount": {
+                            "description": "Create ServiceAccount for pods created with pod-template-file. When this section is specified, the Service Account is created from ``templates/workers/worker-kubernetes-serviceaccount.yaml`` file.",
+                            "type": "object",
+                            "properties": {
+                                "automountServiceAccountToken": {
+                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods. If not specified, the ``workers.serviceAccount.automountServiceAccountToken`` value will be taken.",
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "create": {
+                                    "description": "Specifies whether a ServiceAccount should be created. If not specified, the ServiceAccount will be generated and used from ``templates/workers/worker-serviceaccount.yaml`` file if ``workers.serviceAccount.create`` will be 'true'.",
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "name": {
+                                    "description": "The name of the ServiceAccount to use. If not set and ``create`` is 'true', a name is generated using the release name with kubernetes dedicated name.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to the worker Kubernetes ServiceAccount. If not specified, the ``workers.serviceAccount.annotations`` value will be taken.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
                         },
                         "kerberosSidecar": {
                             "description": "Kerberos sidecar for pods created with pod-template-file.",
