@@ -20,7 +20,7 @@ from unittest import mock
 
 from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
+from airflow.providers.common.sql.triggers.sql import SQLGenericTransferTrigger
 from airflow.triggers.base import TriggerEvent
 
 try:
@@ -35,7 +35,7 @@ except ImportError:
 from tests_common.test_utils.operators.run_deferrable import run_trigger
 
 
-class TestSQLExecuteQueryTrigger:
+class TestSQLGenericTransferTrigger:
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_run(self, mock_get_connection):
         data = [(1, "Alice"), (2, "Bob")]
@@ -45,7 +45,7 @@ class TestSQLExecuteQueryTrigger:
         mock_get_connection.return_value = mock_connection
         mock_connection.get_hook.side_effect = lambda hook_params: mock_hook
 
-        trigger = SQLExecuteQueryTrigger(sql="SELECT * FROM users;", conn_id="test_conn_id")
+        trigger = SQLGenericTransferTrigger(sql="SELECT * FROM users;", conn_id="test_conn_id")
         actual = run_trigger(trigger)
 
         assert len(actual) == 1
