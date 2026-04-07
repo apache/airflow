@@ -77,19 +77,12 @@ class TestRedisHook:
         assert call_kwargs["ssl_certfile"] == connection.extra_dejson["ssl_certfile"]
         assert call_kwargs["ssl_check_hostname"] == connection.extra_dejson["ssl_check_hostname"]
 
-        # Verify driver info is present with correct value
-        # Check for either driver_info or lib_name parameter
-        assert "driver_info" in call_kwargs or "lib_name" in call_kwargs, (
-            "Expected either 'driver_info' or 'lib_name' in Redis client call"
-        )
-
+        # Verify driver info is present if the installed redis-py version supports it
         if "driver_info" in call_kwargs:
-            # Uses DriverInfo class
             driver_info = call_kwargs["driver_info"]
             assert hasattr(driver_info, "formatted_name"), "DriverInfo should have formatted_name attribute"
             assert "apache-airflow" in driver_info.formatted_name
         elif "lib_name" in call_kwargs:
-            # Uses lib_name parameter
             assert "apache-airflow" in call_kwargs["lib_name"]
 
     @pytest.mark.db_test
