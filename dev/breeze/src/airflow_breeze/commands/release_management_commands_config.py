@@ -515,6 +515,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--diff-mode",
                 "--package",
                 "--explain-why",
+                "--cooldown-days",
             ],
         },
         {
