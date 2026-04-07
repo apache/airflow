@@ -30,6 +30,7 @@
   - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
   - [Convert commits to changelog entries and bump provider versions](#convert-commits-to-changelog-entries-and-bump-provider-versions)
   - [Update versions of dependent providers to the next version](#update-versions-of-dependent-providers-to-the-next-version)
+  - [Create a PR with the changes](#create-a-pr-with-the-changes)
   - [Apply incremental changes and merge the PR](#apply-incremental-changes-and-merge-the-pr)
   - [(Optional) Apply template updates](#optional-apply-template-updates)
   - [Build Provider distributions for SVN apache upload](#build-provider-distributions-for-svn-apache-upload)
@@ -232,6 +233,22 @@ removed.
 
 ```shell script
 breeze release-management update-providers-next-version
+```
+
+## Create a PR with the changes
+
+Make sure to set labels: `allow provider dependency bump` and `skip common compat check` to the PR,
+so that the PR is not blocked by selective checks.
+
+You can do it for example this way:
+
+```shell script
+gh pr create \
+  --title "Prepare providers release ${RELEASE_DATE}" \
+  --label "allow provider dependency bump" \
+  --label "skip common compat check" \
+  --body "Prepare providers release ${RELEASE_DATE}" \
+  --web
 ```
 
 ## Apply incremental changes and merge the PR
