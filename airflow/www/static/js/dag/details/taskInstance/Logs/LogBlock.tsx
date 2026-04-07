@@ -39,14 +39,12 @@ const LogBlock = ({
   const [autoScroll, setAutoScroll] = useState(true);
 
   const logBoxRef = useRef<HTMLPreElement>(null);
-  const codeBlockBottomDiv = useRef<HTMLDivElement>(null);
   const offsetTop = useOffsetTop(logBoxRef);
 
   const scrollToBottom = () => {
-    codeBlockBottomDiv.current?.scrollIntoView({
-      block: "nearest",
-      inline: "nearest",
-    });
+    if (logBoxRef.current) {
+      logBoxRef.current.scrollTop = logBoxRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
@@ -122,7 +120,6 @@ const LogBlock = ({
     >
       {/* eslint-disable-next-line react/no-danger */}
       <div dangerouslySetInnerHTML={{ __html: parsedLogs }} />
-      <div ref={codeBlockBottomDiv} />
     </Code>
   );
 };
