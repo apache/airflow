@@ -1624,13 +1624,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         self.log.exception("Something went wrong when trying to save task event logs.")
 
                 with create_session() as session:
-                    # Only retrieve expired deadlines that haven't been processed yet.
-                    # `missed` is False by default until the handler sets it.
-                    for deadline in session.scalars(
+                    # Lock expired, unhandled deadlines with FOR UPDATE SKIP LOCKED so
+                    # concurrent HA scheduler replicas don't both process the same row
+                    # and create duplicate callbacks.
+                    deadline_query = (
                         select(Deadline)
                         .where(Deadline.deadline_time < datetime.now(timezone.utc))
                         .where(~Deadline.missed)
                         .options(selectinload(Deadline.callback), selectinload(Deadline.dagrun))
+                    )
+                    for deadline in session.scalars(
+                        with_row_locks(
+                            deadline_query,
+                            of=Deadline,
+                            session=session,
+                            skip_locked=True,
+                            key_share=False,
+                        )
                     ):
                         deadline.handle_miss(session)
 

@@ -4998,7 +4998,7 @@ requires-dist = [
     { name = "google-api-python-client", specifier = ">=2.0.2" },
     { name = "google-auth", specifier = ">=2.29.0" },
     { name = "google-auth-httplib2", specifier = ">=0.0.1" },
-    { name = "google-cloud-aiplatform", extras = ["evaluation"], specifier = ">=1.98.0" },
+    { name = "google-cloud-aiplatform", extras = ["evaluation"], specifier = ">=1.145.0" },
     { name = "google-cloud-alloydb", specifier = ">=0.4.0" },
     { name = "google-cloud-automl", specifier = ">=2.12.0" },
     { name = "google-cloud-batch", specifier = ">=0.13.0" },
@@ -19699,8 +19699,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography" },
-    { name = "jeepney" },
+    { name = "cryptography", marker = "(python_full_version < '3.14' and sys_platform == 'emscripten') or (python_full_version < '3.14' and sys_platform == 'win32') or (sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "jeepney", marker = "(python_full_version < '3.14' and sys_platform == 'emscripten') or (python_full_version < '3.14' and sys_platform == 'win32') or (sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [

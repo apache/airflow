@@ -80,7 +80,19 @@ class LambdaHook(AwsBaseHook):
             "Payload": payload,
             "Qualifier": qualifier,
         }
-        return self.conn.invoke(**trim_none_values(invoke_args))
+        self.log.debug(
+            "Invoking Lambda function %s with invocation type %s, qualifier %s",
+            function_name,
+            invocation_type,
+            qualifier,
+        )
+        response = self.conn.invoke(**trim_none_values(invoke_args))
+        self.log.debug(
+            "Lambda invoke response: StatusCode=%s, FunctionError=%s",
+            response.get("StatusCode"),
+            response.get("FunctionError"),
+        )
+        return response
 
     def create_lambda(
         self,
@@ -192,7 +204,20 @@ class LambdaHook(AwsBaseHook):
             "SnapStart": snap_start,
             "LoggingConfig": logging_config,
         }
-        return self.conn.create_function(**trim_none_values(create_function_args))
+        self.log.debug(
+            "Creating Lambda function %s with runtime %s, handler %s, package type %s",
+            function_name,
+            runtime,
+            handler,
+            package_type,
+        )
+        response = self.conn.create_function(**trim_none_values(create_function_args))
+        self.log.debug(
+            "Lambda function created: ARN=%s, State=%s",
+            response.get("FunctionArn"),
+            response.get("State"),
+        )
+        return response
 
     @staticmethod
     @return_on_error(None)
