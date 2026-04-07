@@ -159,6 +159,7 @@ balancers
 Bas
 BaseClient
 BaseHook
+basename
 BaseOperator
 baseOperator
 BaseOperatorLink
@@ -1135,6 +1136,7 @@ os
 OSS
 oss
 ot
+OTel
 otel
 PaaS
 Pagerduty
@@ -1220,6 +1222,7 @@ prefetches
 preflight
 prek
 Preload
+preload
 prepend
 prepended
 preprocess
