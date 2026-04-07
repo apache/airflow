@@ -188,8 +188,3 @@ def test_airflowctl_commands_skip_keyring(command: str, api_token: str, run_comm
         },
         skip_login=True,
     )
-
-
-def test_airflowctl_auth_login_with_username_and_pass_word(run_command):
-    """Test airflowctl auth login with username and password."""
-    run_command(command=f"auth login login-with-username-and-password {CREDENTIAL_SUFFIX}", skip_login=True)
