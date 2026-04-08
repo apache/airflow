@@ -212,10 +212,12 @@ def _cached_assess_pr(
     pr_body: str,
     check_status_summary: str,
     llm_model: str,
+    diff_text: str | None = None,
 ) -> PRAssessment:
     """Run assess_pr with caching keyed by PR number + commit hash.
 
     Returns cached PRAssessment when the commit hash matches, avoiding redundant LLM calls.
+    When *diff_text* is provided, generates directed review questions from it.
     """
     from airflow_breeze.utils.github import PRAssessment, Violation
     from airflow_breeze.utils.llm_utils import assess_pr
@@ -245,6 +247,13 @@ def _cached_assess_pr(
         result._from_cache = True  # type: ignore[attr-defined]
         return result
 
+    # Generate directed review questions from the diff if available
+    review_questions: list[str] | None = None
+    if diff_text:
+        from airflow_breeze.utils.pr_vault import generate_review_questions
+
+        review_questions = generate_review_questions(diff_text, pr_body) or None
+
     t_start = time.monotonic()
     last_err: Exception | None = None
     attempts_made = 0
@@ -257,6 +266,7 @@ def _cached_assess_pr(
                 pr_body=pr_body,
                 check_status_summary=check_status_summary,
                 llm_model=llm_model,
+                review_questions=review_questions,
             )
             if not result.error:
                 break
@@ -1018,7 +1028,14 @@ def _fetch_check_status_counts(token: str, github_repository: str, head_sha: str
     """Fetch counts of checks by status for a commit. Returns a dict like {"SUCCESS": 5, "FAILURE": 2, ...}.
 
     Also includes an "IN_PROGRESS" key for checks still running.
+    Tries the local vault first; falls back to the GitHub API.
     """
+    from airflow_breeze.utils.pr_vault import load_check_status, save_check_status
+
+    cached = load_check_status(github_repository, head_sha)
+    if cached is not None:
+        return cached
+
     owner, repo = github_repository.split("/", 1)
     counts: dict[str, int] = {}
     cursor: str | None = None
@@ -1054,6 +1071,10 @@ def _fetch_check_status_counts(token: str, github_repository: str, head_sha: str
         if not page_info.get("hasNextPage"):
             break
         cursor = page_info.get("endCursor")
+
+    # Persist to vault for reuse (same SHA = same results)
+    if counts:
+        save_check_status(github_repository, head_sha, counts)
 
     return counts
 
@@ -7902,7 +7923,14 @@ def _find_workflow_runs_by_status(
     """Find workflow runs with a given status for a commit SHA.
 
     Common statuses: ``action_required``, ``in_progress``, ``queued``.
+    Tries the local vault first (10-minute TTL); falls back to the GitHub REST API.
     """
+    from airflow_breeze.utils.pr_vault import load_workflow_runs, save_workflow_runs
+
+    cached = load_workflow_runs(github_repository, head_sha, status)
+    if cached is not None:
+        return cached
+
     import requests
 
     url = f"https://api.github.com/repos/{github_repository}/actions/runs"
@@ -7917,7 +7945,10 @@ def _find_workflow_runs_by_status(
         return []
     if response.status_code != 200:
         return []
-    return response.json().get("workflow_runs", [])
+    runs = response.json().get("workflow_runs", [])
+
+    save_workflow_runs(github_repository, head_sha, status, runs)
+    return runs
 
 
 def _find_pending_workflow_runs(token: str, github_repository: str, head_sha: str) -> list[dict]:

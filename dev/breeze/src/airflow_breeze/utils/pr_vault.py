@@ -14,19 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Vault storage for PR metadata — persist PR data across triage sessions."""
+"""Vault storage for PR triage data — persist across sessions to reduce API calls."""
 
 from __future__ import annotations
 
+import re
+
 from airflow_breeze.utils.pr_cache import CacheStore
 
+# ── PR metadata vault ────────────────────────────────────────────
 # 4-hour TTL: PR metadata can change (labels, checks, mergeable status)
 # but re-fetching every run is wasteful for PRs that haven't been updated.
 _pr_vault = CacheStore("pr_vault", ttl_seconds=4 * 3600)
 
 # Fields from PRData that are safe to serialize to JSON.
-# Excludes unresolved_threads (fetched separately) and has_collaborator_review
-# (computed per-session).
 _VAULT_FIELDS = (
     "number",
     "title",
@@ -56,14 +57,12 @@ def save_pr(github_repository: str, pr) -> None:
 
 
 def load_pr(github_repository: str, pr_number: int, *, head_sha: str | None = None) -> dict | None:
-    """Load a PR from the vault.
-
-    If *head_sha* is given, only returns data when the stored SHA matches
-    (ensures we don't serve stale metadata for a PR that received new commits).
-    Returns None when not cached, expired (4h TTL), or SHA mismatch.
-    """
+    """Load a PR from the vault. Returns None when not cached, expired, or SHA mismatch."""
     match = {"head_sha": head_sha} if head_sha else None
-    return _pr_vault.get(github_repository, f"pr_{pr_number}", match=match)
+    data = _pr_vault.get(github_repository, f"pr_{pr_number}", match=match)
+    if data is not None:
+        data.pop("cached_at", None)
+    return data
 
 
 def save_prs_batch(github_repository: str, prs) -> int:
@@ -71,3 +70,124 @@ def save_prs_batch(github_repository: str, prs) -> int:
     for pr in prs:
         save_pr(github_repository, pr)
     return len(prs)
+
+
+# ── Check status vault ───────────────────────────────────────────
+# Keyed by head_sha, so results are automatically invalidated when a PR
+# gets new commits. No TTL needed — same SHA always produces the same checks.
+_check_vault = CacheStore("check_vault")
+
+
+def save_check_status(github_repository: str, head_sha: str, counts: dict[str, int]) -> None:
+    """Persist check status counts for a commit."""
+    _check_vault.save(github_repository, f"checks_{head_sha}", {"head_sha": head_sha, "counts": counts})
+
+
+def load_check_status(github_repository: str, head_sha: str) -> dict[str, int] | None:
+    """Load cached check status counts for a commit. Returns None if not cached."""
+    data = _check_vault.get(github_repository, f"checks_{head_sha}", match={"head_sha": head_sha})
+    return data.get("counts") if data else None
+
+
+# ── Workflow runs vault ──────────────────────────────────────────
+# 10-minute TTL: workflow status changes frequently but not instantly.
+_workflow_vault = CacheStore("workflow_vault", ttl_seconds=600)
+
+
+def save_workflow_runs(github_repository: str, head_sha: str, status: str, runs: list[dict]) -> None:
+    """Persist workflow runs for a commit + status combination."""
+    _workflow_vault.save(
+        github_repository,
+        f"wf_{head_sha}_{status}",
+        {"head_sha": head_sha, "status": status, "runs": runs},
+    )
+
+
+def load_workflow_runs(github_repository: str, head_sha: str, status: str) -> list[dict] | None:
+    """Load cached workflow runs. Returns None if not cached or expired."""
+    data = _workflow_vault.get(
+        github_repository,
+        f"wf_{head_sha}_{status}",
+        match={"head_sha": head_sha, "status": status},
+    )
+    return data.get("runs") if data else None
+
+
+# ── Directed review questions ────────────────────────────────────
+
+
+def generate_review_questions(diff_text: str, pr_body: str) -> list[str]:
+    """Generate verification questions from a PR diff and body.
+
+    These are deterministic checks that don't require an LLM. They can be
+    appended to the LLM prompt to focus the assessment on concrete issues.
+    """
+    questions: list[str] = []
+
+    if not diff_text:
+        return questions
+
+    # Count changes
+    added = len(re.findall(r"^\+[^+]", diff_text, re.MULTILINE))
+    removed = len(re.findall(r"^-[^-]", diff_text, re.MULTILINE))
+    total = added + removed
+
+    # Large PR warning
+    if total > 500:
+        questions.append(
+            f"LARGE PR: {total} changed lines (+{added}/-{removed}). "
+            f"Should this be split into smaller, focused PRs?"
+        )
+
+    # Source files without test changes
+    src_files: set[str] = set()
+    test_files: set[str] = set()
+    for match in re.finditer(r"^diff --git a/(.+?) b/", diff_text, re.MULTILINE):
+        path = match.group(1)
+        if "test" in path.lower():
+            test_files.add(path)
+        elif path.endswith((".py", ".js", ".ts", ".java", ".go", ".rs")):
+            src_files.add(path)
+    if src_files and not test_files:
+        questions.append(
+            f"TEST COVERAGE: {len(src_files)} source file(s) modified but no test files changed. "
+            f"Is test coverage needed?"
+        )
+
+    # Version fields referencing already-released versions
+    version_matches = re.findall(r"version_added:\s*[\"']?(\d+\.\d+\.\d+)", diff_text)
+    if version_matches:
+        questions.append(
+            f"VERSION CHECK: version_added references {', '.join(set(version_matches))}. "
+            f"Verify these are unreleased versions."
+        )
+
+    # Breaking change indicators
+    breaking_signals = [
+        "breaking",
+        "backward",
+        "deprecat",
+        "behaviour change",
+        "behavior change",
+        "BREAKING CHANGE",
+        "incompatible",
+    ]
+    diff_lower = diff_text.lower()
+    found_signals = [s for s in breaking_signals if s in diff_lower]
+    if found_signals:
+        questions.append(
+            "BREAKING CHANGE: This diff contains breaking change indicators "
+            f"({', '.join(found_signals)}). Has this been discussed in an issue or "
+            "on the mailing list?"
+        )
+
+    # Multiple exception types
+    exceptions = re.findall(r"raise (\w+(?:Error|Exception))\(", diff_text)
+    unique_exceptions = set(exceptions)
+    if len(unique_exceptions) > 3:
+        questions.append(
+            f"CONSISTENCY: {len(unique_exceptions)} different exception types raised "
+            f"({', '.join(sorted(unique_exceptions)[:5])}). Should these be consolidated?"
+        )
+
+    return questions

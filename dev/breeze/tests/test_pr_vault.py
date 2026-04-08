@@ -23,7 +23,16 @@ from unittest import mock
 
 import pytest
 
-from airflow_breeze.utils.pr_vault import load_pr, save_pr, save_prs_batch
+from airflow_breeze.utils.pr_vault import (
+    generate_review_questions,
+    load_check_status,
+    load_pr,
+    load_workflow_runs,
+    save_check_status,
+    save_pr,
+    save_prs_batch,
+    save_workflow_runs,
+)
 
 
 @dataclass
@@ -121,3 +130,104 @@ class TestPRVault:
         save_pr("apache/airflow", pr)
         loaded = load_pr("apache/airflow", 12345)
         assert "unresolved_threads" not in loaded
+
+    def test_strips_cached_at(self, _fake_cache_dir):
+        pr = _FakePR()
+        save_pr("apache/airflow", pr)
+        loaded = load_pr("apache/airflow", 12345)
+        assert "cached_at" not in loaded
+
+
+class TestCheckStatusVault:
+    def test_save_and_load(self, _fake_cache_dir):
+        counts = {"SUCCESS": 5, "FAILURE": 2}
+        save_check_status("apache/airflow", "sha_abc", counts)
+        loaded = load_check_status("apache/airflow", "sha_abc")
+        assert loaded == {"SUCCESS": 5, "FAILURE": 2}
+
+    def test_load_missing(self, _fake_cache_dir):
+        assert load_check_status("apache/airflow", "nonexistent") is None
+
+    def test_different_sha_returns_none(self, _fake_cache_dir):
+        save_check_status("apache/airflow", "sha_abc", {"SUCCESS": 1})
+        assert load_check_status("apache/airflow", "sha_different") is None
+
+    def test_no_ttl_for_same_sha(self, _fake_cache_dir):
+        """Check vault has no TTL — same SHA always returns same results."""
+        save_check_status("apache/airflow", "sha_abc", {"SUCCESS": 1})
+        # Even with old timestamp, should still return (no TTL)
+        loaded = load_check_status("apache/airflow", "sha_abc")
+        assert loaded is not None
+
+
+class TestWorkflowRunsVault:
+    def test_save_and_load(self, _fake_cache_dir):
+        runs = [{"id": 1, "name": "Tests", "status": "action_required"}]
+        save_workflow_runs("apache/airflow", "sha_abc", "action_required", runs)
+        loaded = load_workflow_runs("apache/airflow", "sha_abc", "action_required")
+        assert loaded == runs
+
+    def test_load_missing(self, _fake_cache_dir):
+        assert load_workflow_runs("apache/airflow", "sha_abc", "action_required") is None
+
+    def test_different_status_returns_none(self, _fake_cache_dir):
+        runs = [{"id": 1}]
+        save_workflow_runs("apache/airflow", "sha_abc", "action_required", runs)
+        assert load_workflow_runs("apache/airflow", "sha_abc", "in_progress") is None
+
+    def test_ttl_expiration(self, _fake_cache_dir):
+        runs = [{"id": 1}]
+        save_workflow_runs("apache/airflow", "sha_abc", "action_required", runs)
+
+        cache_file = _fake_cache_dir / "wf_sha_abc_action_required.json"
+        data = json.loads(cache_file.read_text())
+        data["cached_at"] = time.time() - 700  # past 600s TTL
+        cache_file.write_text(json.dumps(data))
+
+        assert load_workflow_runs("apache/airflow", "sha_abc", "action_required") is None
+
+
+class TestGenerateReviewQuestions:
+    def test_large_pr(self):
+        diff = "\n".join([f"+line{i}" for i in range(600)])
+        questions = generate_review_questions(diff, "")
+        assert any("LARGE PR" in q for q in questions)
+
+    def test_no_tests(self):
+        diff = "diff --git a/src/foo.py b/src/foo.py\n+new code\n"
+        questions = generate_review_questions(diff, "")
+        assert any("TEST COVERAGE" in q for q in questions)
+
+    def test_with_tests(self):
+        diff = (
+            "diff --git a/src/foo.py b/src/foo.py\n+code\n"
+            "diff --git a/tests/test_foo.py b/tests/test_foo.py\n+test\n"
+        )
+        questions = generate_review_questions(diff, "")
+        assert not any("TEST COVERAGE" in q for q in questions)
+
+    def test_version_added(self):
+        diff = '+    version_added: "2.8.0"\n'
+        questions = generate_review_questions(diff, "")
+        assert any("VERSION CHECK" in q for q in questions)
+
+    def test_breaking_change(self):
+        diff = "+# BREAKING CHANGE: removed old API\n"
+        questions = generate_review_questions(diff, "")
+        assert any("BREAKING CHANGE" in q for q in questions)
+
+    def test_empty_diff(self):
+        assert generate_review_questions("", "") == []
+
+    def test_small_clean_pr(self):
+        diff = (
+            "diff --git a/src/foo.py b/src/foo.py\n+one line\n"
+            "diff --git a/tests/test_foo.py b/tests/test_foo.py\n+test\n"
+        )
+        questions = generate_review_questions(diff, "")
+        assert questions == []
+
+    def test_multiple_exceptions(self):
+        diff = "+raise ValueError(\n+raise TypeError(\n+raise KeyError(\n+raise RuntimeError(\n"
+        questions = generate_review_questions(diff, "")
+        assert any("CONSISTENCY" in q for q in questions)
