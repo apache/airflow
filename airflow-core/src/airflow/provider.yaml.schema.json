@@ -624,6 +624,20 @@
                 }
             }
         },
+        "task-coordinators": {
+            "type": "array",
+            "description": "Task Coordinator class names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "dag-file-processors": {
+            "type": "array",
+            "description": "Dag File Processor class names",
+            "items": {
+                "type": "string"
+            }
+        },
         "source-date-epoch": {
             "type": "integer",
             "description": "Source date epoch - seconds since epoch (gmtime) when the release documentation was prepared. Used to generate reproducible package builds with flint.",
