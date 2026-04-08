@@ -99,10 +99,7 @@ describe("useMonacoTheme", () => {
 
     expect(defineTheme).toHaveBeenCalledTimes(2);
     expect(defineTheme).toHaveBeenCalledWith("airflow-light", expect.objectContaining({ base: "vs" }));
-    expect(defineTheme).toHaveBeenCalledWith(
-      "airflow-dark",
-      expect.objectContaining({ base: "vs-dark" }),
-    );
+    expect(defineTheme).toHaveBeenCalledWith("airflow-dark", expect.objectContaining({ base: "vs-dark" }));
   });
 
   it("does not re-register themes on subsequent beforeMount calls", async () => {

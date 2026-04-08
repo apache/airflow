@@ -17,7 +17,6 @@
  * under the License.
  */
 import type { Monaco } from "@monaco-editor/react";
-import { useCallback } from "react";
 
 import { useColorMode } from "./useColorMode";
 
@@ -115,12 +114,8 @@ const defineAirflowMonacoThemes = (monaco: Monaco) => {
 export const useMonacoTheme = () => {
   const { colorMode } = useColorMode();
 
-  const beforeMount = useCallback((monaco: Monaco) => {
-    defineAirflowMonacoThemes(monaco);
-  }, []);
-
   return {
-    beforeMount,
+    beforeMount: defineAirflowMonacoThemes,
     theme: colorMode === "dark" ? DARK_THEME_NAME : LIGHT_THEME_NAME,
   };
 };
