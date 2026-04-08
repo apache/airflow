@@ -49,7 +49,6 @@
     "completionRule": "Run to complete within {{interval}} of {{reference}}",
     "count_one": "{{count}} deadline",
     "count_other": "{{count}} deadlines",
-    "completionRule": "Run to complete within {{interval}} of {{reference}}",
     "referenceType": {
       "AverageRuntimeDeadline": "average runtime",
       "DagRunLogicalDateDeadline": "logical date",
