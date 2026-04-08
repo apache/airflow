@@ -91,7 +91,7 @@ def get_gantt_data(
             else []
         ),
         *(
-            [TaskInstance.start_date <= end_date_range]
+            [or_(TaskInstance.start_date <= end_date_range, TaskInstance.start_date.is_(None))]
             if end_date_range is not None
             else []
         ),
@@ -114,7 +114,12 @@ def get_gantt_data(
             else []
         ),
         *(
-            [TaskInstanceHistory.start_date <= end_date_range]
+            [
+                or_(
+                    TaskInstanceHistory.start_date <= end_date_range,
+                    TaskInstanceHistory.start_date.is_(None),
+                )
+            ]
             if end_date_range is not None
             else []
         ),
