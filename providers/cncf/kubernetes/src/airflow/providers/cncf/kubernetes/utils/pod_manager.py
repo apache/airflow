@@ -472,12 +472,14 @@ class PodManager(LoggingMixin):
             level = _parse_log_level(message)
             if log_formatter:
                 formatted_message = log_formatter(container_name, message)
-                self.log.log(level, "%s", formatted_message)
             else:
-                log_message = (
+                formatted_message = (
                     f"[{container_name}] {message}" if container_name_log_prefix_enabled else message
                 )
-                self.log.log(level, "%s", log_message)
+            if level == logging.INFO:
+                self.log.info("%s", formatted_message)
+            else:
+                self.log.log(level, "%s", formatted_message)
 
     def fetch_container_logs(
         self,
