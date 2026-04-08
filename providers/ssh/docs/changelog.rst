@@ -47,7 +47,7 @@ errors when the properties are used.
 
 The SSHTunnel provides:
 
-* `Context manager (enter/exit) - the recommended interface
+* Context manager (enter/exit) - the recommended interface
 * .start()/.stop() - deprecated, emit AirflowProviderDeprecationWarning
 * .local_bind_port and .local_bind_address - preserved as properties
 * getattr - raises AttributeError with migration hint for
