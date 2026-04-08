@@ -1775,6 +1775,8 @@ class TestPluginsOperations:
         assert response == self.plugin_collection_response
 
     def test_list_import_errors(self):
+        """Test listing plugin import errors"""
+
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/plugins/importErrors"
             return httpx.Response(
