@@ -129,6 +129,7 @@ apache-airflow-providers-keycloak = false
 apache-airflow-providers-trino = false
 apache-airflow-providers-common-messaging = false
 apache-airflow-providers-standard = false
+apache-airflow-providers-languages-java = false
 apache-airflow-providers-singularity = false
 apache-airflow-providers-common-compat = false
 apache-airflow-ctl-tests = false
@@ -225,6 +226,7 @@ members = [
     "apache-airflow-providers-jdbc",
     "apache-airflow-providers-jenkins",
     "apache-airflow-providers-keycloak",
+    "apache-airflow-providers-languages-java",
     "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-microsoft-mssql",
     "apache-airflow-providers-microsoft-psrp",
@@ -1001,6 +1003,7 @@ all = [
     { name = "apache-airflow-providers-jdbc" },
     { name = "apache-airflow-providers-jenkins" },
     { name = "apache-airflow-providers-keycloak" },
+    { name = "apache-airflow-providers-languages-java" },
     { name = "apache-airflow-providers-microsoft-azure" },
     { name = "apache-airflow-providers-microsoft-mssql" },
     { name = "apache-airflow-providers-microsoft-psrp" },
@@ -1250,6 +1253,9 @@ kerberos = [
 ]
 keycloak = [
     { name = "apache-airflow-providers-keycloak" },
+]
+languages-java = [
+    { name = "apache-airflow-providers-languages-java" },
 ]
 ldap = [
     { name = "python-ldap" },
@@ -1587,6 +1593,8 @@ requires-dist = [
     { name = "apache-airflow-providers-jenkins", marker = "extra == 'jenkins'", editable = "providers/jenkins" },
     { name = "apache-airflow-providers-keycloak", marker = "extra == 'all'", editable = "providers/keycloak" },
     { name = "apache-airflow-providers-keycloak", marker = "extra == 'keycloak'", editable = "providers/keycloak" },
+    { name = "apache-airflow-providers-languages-java", marker = "extra == 'all'", editable = "providers/languages/java" },
+    { name = "apache-airflow-providers-languages-java", marker = "extra == 'languages-java'", editable = "providers/languages/java" },
     { name = "apache-airflow-providers-microsoft-azure", marker = "extra == 'all'", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-microsoft-azure", marker = "extra == 'microsoft-azure'", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-microsoft-mssql", marker = "extra == 'all'", editable = "providers/microsoft/mssql" },
@@ -5809,6 +5817,35 @@ dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-languages-java"
+version = "0.1.0"
+source = { editable = "providers/languages/java" }
+dependencies = [
+    { name = "apache-airflow" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [{ name = "apache-airflow", editable = "." }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
