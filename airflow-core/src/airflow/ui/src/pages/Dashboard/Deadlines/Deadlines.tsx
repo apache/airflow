@@ -60,6 +60,7 @@ export const Deadlines = () => {
   const { t: translate } = useTranslation("dashboard");
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
   const now = dayjs().toISOString();
+  const last24h = dayjs().subtract(24, "hour").toISOString();
 
   const {
     data: pendingData,
@@ -77,8 +78,6 @@ export const Deadlines = () => {
     undefined,
     { refetchInterval },
   );
-
-  const last24h = dayjs().subtract(24, "hour").toISOString();
 
   const {
     data: missedData,
