@@ -200,10 +200,11 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
                 )
             except ClientError as e:
                 if e.response["Error"]["Code"] == "ResourceNotFoundException":
+                    region = logs_client.meta.region_name
                     self.log.warning(
                         "No new Glue driver logs so far.\n"
                         "If this persists, check the CloudWatch dashboard at: %r.",
-                        f"https://{self.region_name}.console.aws.amazon.com/cloudwatch/home",
+                        f"https://{region}.console.aws.amazon.com/cloudwatch/home",
                     )
                     return None
                 raise

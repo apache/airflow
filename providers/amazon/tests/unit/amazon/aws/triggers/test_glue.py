@@ -271,7 +271,7 @@ class TestGlueJobTrigger:
 
     @pytest.mark.asyncio
     async def test_forward_logs_resource_not_found(self):
-        """_forward_logs handles ResourceNotFoundException gracefully."""
+        """_forward_logs handles ResourceNotFoundException gracefully and uses resolved region in URL."""
         logs_client = AsyncMock()
         logs_client.get_log_events = AsyncMock(
             side_effect=ClientError(
@@ -279,21 +279,26 @@ class TestGlueJobTrigger:
                 "GetLogEvents",
             )
         )
+        logs_client.meta.region_name = "eu-west-1"
 
         trigger = GlueJobCompleteTrigger(
             job_name="job_name",
             run_id="jr_123",
             verbose=True,
             aws_conn_id="aws_conn_id",
-            region_name="us-east-1",
+            region_name=None,
             waiter_delay=0,
             waiter_max_attempts=5,
         )
-        result = await trigger._forward_logs(logs_client, "/aws-glue/python-jobs/output", "jr_123", None)
+        with mock.patch.object(trigger.log, "warning") as mock_log_warning:
+            result = await trigger._forward_logs(logs_client, "/aws-glue/python-jobs/output", "jr_123", None)
         assert result is None
+        # Verify the URL uses the resolved region from the client, not self.region_name (which is None)
+        url_arg = mock_log_warning.call_args[0][1]
+        assert "eu-west-1" in url_arg
 
     @pytest.mark.asyncio
-    async def test_forward_logs_pagination(self, caplog):
+    async def test_forward_logs_pagination(self):
         """_forward_logs follows nextForwardToken and formats logs like the sync path."""
         logs_client = AsyncMock()
         logs_client.get_log_events = AsyncMock(
@@ -321,16 +326,18 @@ class TestGlueJobTrigger:
             waiter_delay=0,
             waiter_max_attempts=5,
         )
-        result = await trigger._forward_logs(logs_client, "/aws-glue/python-jobs/output", "jr_123", None)
+        with mock.patch.object(trigger.log, "info") as mock_log_info:
+            result = await trigger._forward_logs(logs_client, "/aws-glue/python-jobs/output", "jr_123", None)
         assert result == "token_3"
         assert logs_client.get_log_events.call_count == 3
         # Verify log format matches sync path: "Glue Job Run <log_group> Logs:" with tab-indented lines
-        assert "Glue Job Run /aws-glue/python-jobs/output Logs:" in caplog.text
-        assert "\tline 1" in caplog.text
-        assert "\tline 2" in caplog.text
+        log_output = mock_log_info.call_args[0][0]
+        assert "Glue Job Run /aws-glue/python-jobs/output Logs:" in log_output
+        assert "\tline 1" in log_output
+        assert "\tline 2" in log_output
 
     @pytest.mark.asyncio
-    async def test_forward_logs_no_new_events(self, caplog):
+    async def test_forward_logs_no_new_events(self):
         """_forward_logs logs 'No new log' when there are no events, matching sync path."""
         logs_client = AsyncMock()
         logs_client.get_log_events = AsyncMock(return_value={"events": [], "nextForwardToken": "token_1"})
@@ -343,9 +350,11 @@ class TestGlueJobTrigger:
             waiter_delay=0,
             waiter_max_attempts=5,
         )
-        result = await trigger._forward_logs(logs_client, "/aws-glue/python-jobs/output", "jr_123", None)
+        with mock.patch.object(trigger.log, "info") as mock_log_info:
+            result = await trigger._forward_logs(logs_client, "/aws-glue/python-jobs/output", "jr_123", None)
         assert result == "token_1"
-        assert "No new log from the Glue Job in /aws-glue/python-jobs/output" in caplog.text
+        log_output = mock_log_info.call_args[0][0]
+        assert "No new log from the Glue Job in /aws-glue/python-jobs/output" in log_output
 
 
 class TestGlueCatalogPartitionSensorTrigger:
