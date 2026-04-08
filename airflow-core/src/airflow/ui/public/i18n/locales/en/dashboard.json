@@ -1,4 +1,9 @@
 {
+  "deadlines": {
+    "deadlines": "Deadlines",
+    "pending": "Pending",
+    "recentlyMissed": "Recently Missed"
+  },
   "favorite": {
     "favoriteDags_one": "First {{count}} favorite Dag",
     "favoriteDags_other": "First {{count}} favorite Dags",

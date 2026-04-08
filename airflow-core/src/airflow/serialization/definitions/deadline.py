@@ -49,6 +49,8 @@ class DeadlineAlertFields:
     serializing DeadlineAlert instances to and from their dictionary representation.
     """
 
+    NAME = "name"
+    DESCRIPTION = "description"
     REFERENCE = "reference"
     INTERVAL = "interval"
     CALLBACK = "callback"
@@ -367,3 +369,5 @@ class SerializedDeadlineAlert:
     reference: SerializedReferenceModels.SerializedBaseDeadlineReference
     interval: timedelta
     callback: Any
+    name: str | None = None
+    description: str | None = None
