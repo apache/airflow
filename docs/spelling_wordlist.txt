@@ -1198,6 +1198,7 @@ pooler
 Popen
 positionally
 POSIX
+posix
 postfix
 Postgres
 postgres
