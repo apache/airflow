@@ -79,6 +79,32 @@ class TableSchema:
         )
 
 
+def _prefer_default_schema_for_duplicate_tables(
+    table_schemas: list[TableSchema],
+    default_schema: str,
+) -> list[TableSchema]:
+    """
+    When the same table appears in multiple schemas, keep only the default schema match.
+
+    This handles the case where a SQL query references a table by bare name (without
+    schema qualifier) and the information_schema query returns results from multiple
+    schemas. In that case, only the entry matching the connection's default schema
+    should be kept.
+    """
+    table_groups: dict[tuple, list[TableSchema]] = defaultdict(list)
+    for ts in table_schemas:
+        table_groups[(ts.database, ts.table)].append(ts)
+
+    result = []
+    for group in table_groups.values():
+        if len(group) == 1:
+            result.append(group[0])
+        else:
+            matching = [ts for ts in group if ts.schema == default_schema]
+            result.extend(matching if matching else group)
+    return result
+
+
 def get_table_schemas(
     hook: BaseHook,
     namespace: str,
@@ -101,12 +127,18 @@ def get_table_schemas(
     with closing(hook.get_conn()) as conn, closing(conn.cursor()) as cursor:
         if in_query:
             cursor.execute(in_query)
-            in_datasets = [x.to_dataset(namespace, database, schema) for x in parse_query_result(cursor)]
+            in_table_schemas = parse_query_result(cursor)
+            if schema:
+                in_table_schemas = _prefer_default_schema_for_duplicate_tables(in_table_schemas, schema)
+            in_datasets = [x.to_dataset(namespace, database, schema) for x in in_table_schemas]
         else:
             in_datasets = []
         if out_query:
             cursor.execute(out_query)
-            out_datasets = [x.to_dataset(namespace, database, schema) for x in parse_query_result(cursor)]
+            out_table_schemas = parse_query_result(cursor)
+            if schema:
+                out_table_schemas = _prefer_default_schema_for_duplicate_tables(out_table_schemas, schema)
+            out_datasets = [x.to_dataset(namespace, database, schema) for x in out_table_schemas]
         else:
             out_datasets = []
     log.debug("Got table schema query result from database.")

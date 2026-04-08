@@ -121,6 +121,7 @@ services:
       - ../../../empty:/opt/airflow/providers/teradata/src
       - ../../../empty:/opt/airflow/providers/trino/src
       - ../../../empty:/opt/airflow/providers/vertica/src
+      - ../../../empty:/opt/airflow/providers/vespa/src
       - ../../../empty:/opt/airflow/providers/weaviate/src
       - ../../../empty:/opt/airflow/providers/yandex/src
       - ../../../empty:/opt/airflow/providers/ydb/src
