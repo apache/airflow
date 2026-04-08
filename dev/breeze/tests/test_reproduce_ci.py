@@ -21,6 +21,7 @@ from unittest import mock
 import click
 import click.testing
 import pytest
+from rich.rule import Rule
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.utils.reproduce_ci import (
@@ -152,11 +153,20 @@ def test_print_local_reproduction_renders_copyable_commands(mock_get_console, mo
         ]
     )
 
-    assert mock_get_console.return_value.print.call_count == 2
-    rendered_output = mock_get_console.return_value.print.call_args_list[1].args[0]
+    assert mock_get_console.return_value.print.call_count == 5
+    top_rule = mock_get_console.return_value.print.call_args_list[1].args[0]
+    assert isinstance(top_rule, Rule)
+    assert str(top_rule.title) == "HOW TO REPRODUCE LOCALLY"
+    assert top_rule.characters == "-"
+    assert str(top_rule.style) == "warning"
+    rendered_output = mock_get_console.return_value.print.call_args_list[2].args[0]
     assert "# 1. Check out the same commit" in rendered_output
     assert "git checkout abc123" in rendered_output
     assert "breeze build-docs --docs-only" in rendered_output
+    bottom_rule = mock_get_console.return_value.print.call_args_list[3].args[0]
+    assert isinstance(bottom_rule, Rule)
+    assert bottom_rule.characters == "-"
+    assert str(bottom_rule.style) == "warning"
 
 
 # ---------------------------------------------------------------------------

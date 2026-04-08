@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 import click
 from click.core import ParameterSource
 from rich.markup import escape
+from rich.rule import Rule
 
 from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY
 from airflow_breeze.utils.console import get_console
@@ -218,5 +219,9 @@ def print_local_reproduction(commands: list[ReproductionCommand]) -> None:
             lines.append(f"# {step_number}. {command.comment}")
         lines.append(shlex.join(command.argv))
     rendered = "\n".join(lines)
-    get_console().print("\n[warning]HOW TO REPRODUCE LOCALLY[/]\n")
-    get_console().print(f"[info]{escape(rendered)}[/]\n", soft_wrap=True)
+    console = get_console()
+    console.print()
+    console.print(Rule("HOW TO REPRODUCE LOCALLY", characters="-", style="warning"))
+    console.print(f"\n[info]{escape(rendered)}[/]\n", soft_wrap=True)
+    console.print(Rule(characters="-", style="warning"))
+    console.print()
