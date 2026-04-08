@@ -2293,7 +2293,7 @@
                     "default": false
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into Airflow Celery workers and pods created with pod-template-file (templated). Note, if used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!",
+                    "description": "Launch additional containers into Airflow Celery workers and pods created with pod-template-file (templated) (deprecated, use ``workers.celery.extraContainers`` and/or ``workers.kubernetes.extraContainers`` instead). Note, if used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -3380,6 +3380,14 @@
                             ],
                             "default": null
                         },
+                        "extraContainers": {
+                            "description": "Launch additional containers into Airflow Celery worker (templated).",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                            }
+                        },
                         "extraPorts": {
                             "description": "Expose additional ports of Airflow Celery worker container.",
                             "type": "array",
@@ -3869,6 +3877,14 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "extraContainers": {
+                            "description": "Launch additional containers into pods created with pod-template-file (templated). Note, you are responsible for signaling sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                            }
                         },
                         "nodeSelector": {
                             "description": "Select certain nodes for pods created with pod-template-file.",
