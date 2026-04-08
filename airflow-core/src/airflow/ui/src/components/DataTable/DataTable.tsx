@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, HStack, Text } from "@chakra-ui/react";
+import { Box, Heading, HStack, IconButton, Text } from "@chakra-ui/react";
 import {
   getCoreRowModel,
   getExpandedRowModel,
@@ -31,6 +31,7 @@ import {
 } from "@tanstack/react-table";
 import React, { type ReactNode, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { HiChevronLeft, HiChevronRight } from "react-icons/hi2";
 import { useLocalStorage } from "usehooks-ts";
 
 import { CardList } from "src/components/DataTable/CardList";
@@ -40,10 +41,18 @@ import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
 import { ProgressBar, Pagination, Toaster } from "src/components/ui";
 
+export type CursorPaginationProps = {
+  readonly hasNext: boolean;
+  readonly hasPrevious: boolean;
+  readonly onNext: () => void;
+  readonly onPrevious: () => void;
+};
+
 type DataTableProps<TData> = {
   readonly allowFiltering?: boolean;
   readonly cardDef?: CardDef<TData>;
   readonly columns: Array<MetaColumn<TData>>;
+  readonly cursorPagination?: CursorPaginationProps;
   readonly data: Array<TData>;
   readonly displayMode?: "card" | "table";
   readonly errorMessage?: ReactNode | string;
@@ -68,6 +77,7 @@ export const DataTable = <TData,>({
   allowFiltering,
   cardDef,
   columns,
+  cursorPagination,
   data,
   displayMode = "table",
   errorMessage,
@@ -148,7 +158,10 @@ export const DataTable = <TData,>({
 
   const display = displayMode === "card" && Boolean(cardDef) ? "card" : "table";
   const hasRows = rows.length > 0;
-  const hasPagination = initialState?.pagination !== undefined && (pageIndex !== 0 || rows.length !== total);
+  const hasOffsetPagination =
+    !cursorPagination && initialState?.pagination !== undefined && (pageIndex !== 0 || rows.length !== total);
+  const hasCursorPagination =
+    cursorPagination !== undefined && (cursorPagination.hasNext || cursorPagination.hasPrevious);
 
   // Default to show columns filter only if there are actually many columns displayed
   const showColumnsFilter = allowFiltering ?? columns.length > 5;
@@ -158,7 +171,7 @@ export const DataTable = <TData,>({
     [modelName, translate],
   );
   const showRowCount = Boolean(
-    showRowCountHeading && !Boolean(isLoading) && !Boolean(isFetching) && total > 0,
+    showRowCountHeading && !cursorPagination && !Boolean(isLoading) && !Boolean(isFetching) && total > 0,
   );
   const noRowsModelName = translateModelName(0);
 
@@ -190,7 +203,7 @@ export const DataTable = <TData,>({
           </Text>
         )}
       </Box>
-      {hasPagination ? (
+      {hasOffsetPagination ? (
         <Pagination.Root
           count={rowCount}
           my={2}
@@ -205,6 +218,30 @@ export const DataTable = <TData,>({
             <Pagination.NextTrigger data-testid="next" />
           </HStack>
         </Pagination.Root>
+      ) : undefined}
+      {hasCursorPagination ? (
+        <HStack justifyContent="center" my={2}>
+          <IconButton
+            aria-label="Previous page"
+            data-testid="cursor-prev"
+            disabled={!cursorPagination.hasPrevious}
+            onClick={cursorPagination.onPrevious}
+            size="sm"
+            variant="outline"
+          >
+            <HiChevronLeft />
+          </IconButton>
+          <IconButton
+            aria-label="Next page"
+            data-testid="cursor-next"
+            disabled={!cursorPagination.hasNext}
+            onClick={cursorPagination.onNext}
+            size="sm"
+            variant="outline"
+          >
+            <HiChevronRight />
+          </IconButton>
+        </HStack>
       ) : undefined}
     </Box>
   );
