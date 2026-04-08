@@ -57,7 +57,8 @@
     "label": "Deadline",
     "met": "Met",
     "missed": "Missed",
-    "upcoming": "Upcoming"
+    "upcoming": "Upcoming",
+    "viewAll": "View all {{count}}"
   },
   "extraLinks": "Extra Links",
   "grid": {
