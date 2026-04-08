@@ -108,7 +108,7 @@ export const Deadlines = () => {
 
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["deadline_time"];
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-deadline_time"];
 
   const filteredDagId = searchParams.get(SearchParamsKeys.DAG_ID);
   const filteredMissed = searchParams.get(SearchParamsKeys.MISSED);
