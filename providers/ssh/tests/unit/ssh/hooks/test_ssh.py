@@ -574,6 +574,32 @@ class TestSSHHook:
                 hook.remote_host, "ssh-rsa", hook.host_key
             )
 
+    @mock.patch.object(SSHHook, "get_connection")
+    def test_dss_host_key_in_connection_extra_raises(self, mock_get_connection):
+        mock_get_connection.return_value = Connection(
+            conn_id="ssh_dss_host_key",
+            conn_type="ssh",
+            host="remote_host",
+            login="user",
+            extra=json.dumps({"host_key": "ssh-dss AAAAB3NzaC1kc3MAAA==", "no_host_key_check": False}),
+        )
+        with pytest.raises(ValueError, match="DSA/DSS host keys"):
+            SSHHook(ssh_conn_id="ssh_dss_host_key")
+
+    @mock.patch.object(SSHHook, "get_connection")
+    def test_unsupported_host_key_algorithm_raises(self, mock_get_connection):
+        mock_get_connection.return_value = Connection(
+            conn_id="ssh_fake_alg",
+            conn_type="ssh",
+            host="remote_host",
+            login="user",
+            extra=json.dumps(
+                {"host_key": "ssh-fake AAAAB3NzaC1yc2EAAAADAQABAA==", "no_host_key_check": False}
+            ),
+        )
+        with pytest.raises(ValueError, match=r"Unsupported SSH host key algorithm 'fake'"):
+            SSHHook(ssh_conn_id="ssh_fake_alg")
+
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
     def test_ssh_connection_with_no_host_key_where_no_host_key_check_is_false(self, ssh_client):
         hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE)

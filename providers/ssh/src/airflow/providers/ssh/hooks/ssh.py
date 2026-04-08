@@ -84,17 +84,16 @@ class SSHHook(BaseHook):
     :param auth_timeout: timeout (in seconds) for the attempt to authenticate with the remote_host
     """
 
-    # List of classes to try loading private keys as, ordered (roughly) by most common to least common
+    # List of classes to try loading private keys as, ordered (roughly) by most common to least common.
+    # DSA/DSS keys are not supported (removed in paramiko 4.0).
     _pkey_loaders: Sequence[type[paramiko.PKey]] = (
         paramiko.RSAKey,
         paramiko.ECDSAKey,
         paramiko.Ed25519Key,
-        paramiko.DSSKey,
     )
 
     _host_key_mappings = {
         "rsa": paramiko.RSAKey,
-        "dss": paramiko.DSSKey,
         "ecdsa": paramiko.ECDSAKey,
         "ed25519": paramiko.Ed25519Key,
     }
@@ -224,7 +223,18 @@ class SSHHook(BaseHook):
                 if host_key is not None:
                     if host_key.startswith("ssh-"):
                         key_type, host_key = host_key.split(None)[:2]
-                        key_constructor = self._host_key_mappings[key_type[4:]]
+                        key_alg = key_type[4:]
+                        if key_alg == "dss":
+                            raise ValueError(
+                                "DSA/DSS host keys are not supported. Paramiko 4.0 removed DSS support; "
+                                "use an RSA, ECDSA, or Ed25519 host key and update the connection `host_key`."
+                            )
+                        key_constructor = self._host_key_mappings.get(key_alg)
+                        if key_constructor is None:
+                            raise ValueError(
+                                f"Unsupported SSH host key algorithm {key_alg!r}. "
+                                "Supported types are: rsa, ecdsa, ed25519."
+                            )
                     else:
                         key_constructor = paramiko.RSAKey
                     decoded_host_key = decodebytes(host_key.encode("utf-8"))
@@ -418,9 +428,9 @@ class SSHHook(BaseHook):
             except (paramiko.ssh_exception.SSHException, ValueError):
                 continue
         raise AirflowException(
-            "Private key provided cannot be read by paramiko."
-            "Ensure key provided is valid for one of the following"
-            "key formats: RSA, DSS, ECDSA, or Ed25519"
+            "Private key provided cannot be read by paramiko. "
+            "Ensure key provided is valid for one of the following "
+            "key formats: RSA, ECDSA, or Ed25519."
         )
 
     def exec_ssh_client_command(
