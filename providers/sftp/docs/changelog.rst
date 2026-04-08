@@ -30,6 +30,13 @@ Changelog
 5.7.3
 .....
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Bump minimum paramiko to 4.0.0; DSA/DSS keys are no longer supported (#54079)``
+
+  Matches the SSH provider: paramiko 4.0 removed DSS support. Regenerate keys and update connections if you relied on DSA/DSS.
+
 Misc
 ~~~~
 

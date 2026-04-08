@@ -33,6 +33,10 @@ Changelog
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
+* ``Bump minimum paramiko to 4.0.0; DSA/DSS private keys and ssh-dss host keys are no longer supported (#54079)``
+
+  Paramiko 4.0 dropped DSS/DSA key support. If you still use DSA keys or a ``host_key`` extra in the ``ssh-dss`` format, generate replacement keys (RSA, ECDSA, or Ed25519) and update your Airflow SSH (and SFTP) connections and key files accordingly.
+
 * ``Replace 'sshtunnel' with native paramiko/asyncssh tunneling (#64299)``
 
 With this change we provide minimal backward compatibility shim,
