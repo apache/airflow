@@ -1311,6 +1311,23 @@ def _is_helm_timeout_error(result: RunCommandResult) -> bool:
     return "timed out waiting for the condition" in error_output
 
 
+def _otel_enabled_in_options(extra_options: tuple[str, ...] | None) -> bool:
+    """Return True if any otelCollector flag is being set to true via --set."""
+    if not extra_options:
+        return False
+    it = iter(extra_options)
+    for token in it:
+        if token == "--set":
+            value = next(it, "")
+            if value.startswith("otelCollector.") and value.endswith("=true"):
+                return True
+        elif token.startswith("--set="):
+            value = token[len("--set=") :]
+            if value.startswith("otelCollector.") and value.endswith("=true"):
+                return True
+    return False
+
+
 def _deploy_airflow(
     python: str,
     kubernetes_version: str,
@@ -1368,6 +1385,22 @@ def _deploy_airflow(
             check=False,
         )
     if result.returncode == 0:
+        if _otel_enabled_in_options(extra_options):
+            get_console(output=output).print("[info]OTel enabled — deploying observability backends.")
+            run_command_with_k8s_env(
+                [
+                    "kubectl",
+                    "apply",
+                    "-k",
+                    str(SCRIPTS_CI_KUBERNETES_PATH / "observability"),
+                    "--namespace",
+                    HELM_AIRFLOW_NAMESPACE,
+                ],
+                python=python,
+                kubernetes_version=kubernetes_version,
+                output=output,
+                check=False,
+            )
         if multi_namespace_mode:
             # duplicate Airflow configmaps, secrets and service accounts to test namespace
             run_command_with_k8s_env(

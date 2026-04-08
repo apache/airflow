@@ -426,17 +426,6 @@ If release name contains chart name it will be used as a full name.
   {{- printf "%s:%s" .Values.images.otelCollector.repository .Values.images.otelCollector.tag }}
 {{- end }}
 
-{{- define "prometheus_image" -}}
-  {{- printf "%s:%s" .Values.images.prometheus.repository .Values.images.prometheus.tag }}
-{{- end }}
-
-{{- define "grafana_image" -}}
-  {{- printf "%s:%s" .Values.images.grafana.repository .Values.images.grafana.tag }}
-{{- end }}
-
-{{- define "jaeger_image" -}}
-  {{- printf "%s:%s" .Values.images.jaeger.repository .Values.images.jaeger.tag }}
-{{- end }}
 
 {{- define "fernet_key_secret" -}}
   {{- default (printf "%s-fernet-key" (include "airflow.fullname" .)) .Values.fernetKeySecretName }}

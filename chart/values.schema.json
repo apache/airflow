@@ -1110,72 +1110,6 @@
                         }
                     },
                     "description": "Configuration of the OTel Collector image."
-                },
-                "prometheus": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "repository": {
-                            "type": "string"
-                        },
-                        "tag": {
-                            "type": "string"
-                        },
-                        "pullPolicy": {
-                            "type": "string",
-                            "enum": [
-                                "Always",
-                                "Never",
-                                "IfNotPresent"
-                            ],
-                            "default": "IfNotPresent"
-                        }
-                    },
-                    "description": "Configuration of the Prometheus image."
-                },
-                "grafana": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "repository": {
-                            "type": "string"
-                        },
-                        "tag": {
-                            "type": "string"
-                        },
-                        "pullPolicy": {
-                            "type": "string",
-                            "enum": [
-                                "Always",
-                                "Never",
-                                "IfNotPresent"
-                            ],
-                            "default": "IfNotPresent"
-                        }
-                    },
-                    "description": "Configuration of the Grafana image."
-                },
-                "jaeger": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "repository": {
-                            "type": "string"
-                        },
-                        "tag": {
-                            "type": "string"
-                        },
-                        "pullPolicy": {
-                            "type": "string",
-                            "enum": [
-                                "Always",
-                                "Never",
-                                "IfNotPresent"
-                            ],
-                            "default": "IfNotPresent"
-                        }
-                    },
-                    "description": "Configuration of the Jaeger image."
                 }
             }
         },
@@ -9957,30 +9891,10 @@
                     "type": "integer",
                     "default": 8889
                 },
-                "prometheusServer": {
-                    "description": "Prometheus server port.",
-                    "type": "integer",
-                    "default": 9090
-                },
-                "grafanaUI": {
-                    "description": "Grafana UI port.",
-                    "type": "integer",
-                    "default": 3000
-                },
-                "jaegerUI": {
-                    "description": "Jaeger UI port.",
-                    "type": "integer",
-                    "default": 16686
-                },
                 "jaegerOtlpGrpc": {
                     "description": "Jaeger OTLP gRPC port.",
                     "type": "integer",
                     "default": 4317
-                },
-                "jaegerOtlpHttp": {
-                    "description": "Jaeger OTLP HTTP port.",
-                    "type": "integer",
-                    "default": 4318
                 }
             }
         },
