@@ -146,14 +146,13 @@ class ExtractorManager(LoggingMixin):
         else:
             # No extractor found — fall back to hook lineage. This call must be wrapped in
             # try/except: it runs emit_lineage_from_sql_extras → _create_ol_event_pair which
-            # is not guarded internally. An uncaught exception here would propagate into
-            # on_success()'s @print_warning, silently suppressing the task-level COMPLETE event.
+            # is not guarded internally. An uncaught exception here would propagate up to the
+            # listener's @print_warning decorator, silently suppressing the task-level event.
             try:
                 hook_lineage = self.get_hook_lineage(task_instance, task_instance_state)
             except Exception as e:
                 self.log.warning(
-                    "Failed to extract hook lineage %s: %s. Task COMPLETE event will be emitted "
-                    "without lineage.",
+                    "Failed to extract hook lineage %s: %s. Task event will be emitted without lineage.",
                     task_info,
                     e,
                 )

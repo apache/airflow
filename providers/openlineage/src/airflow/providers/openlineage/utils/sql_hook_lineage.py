@@ -208,7 +208,6 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
     return None
 
 
-
 def _get_hook_conn_id(hook) -> str | None:
     """
     Try to extract the connection ID from a hook instance.
