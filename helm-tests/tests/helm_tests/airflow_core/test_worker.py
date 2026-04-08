@@ -203,13 +203,16 @@ class TestWorker:
             "name": "release-name-test-container"
         }
 
-    def test_disable_wait_for_migration(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"waitForMigrations": {"enabled": False}},
+            {"celery": {"waitForMigrations": {"enabled": False}}},
+        ],
+    )
+    def test_disable_wait_for_migration(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": {
-                    "waitForMigrations": {"enabled": False},
-                },
-            },
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         actual = jmespath.search(
@@ -362,13 +365,20 @@ class TestWorker:
             "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
         } in jmespath.search("spec.template.spec.containers[0].env", docs[0])
 
-    def test_should_add_extraEnvs_to_wait_for_migration_container(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "waitForMigrations": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]},
-                },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"waitForMigrations": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}},
+            {"celery": {"waitForMigrations": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}}},
+            {
+                "waitForMigrations": {"env": [{"name": "TEST", "value": "test"}]},
+                "celery": {"waitForMigrations": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}},
             },
+        ],
+    )
+    def test_should_add_extraEnvs_to_wait_for_migration_container(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -2181,29 +2191,26 @@ class TestWorkerHPAAutoScaler:
     """Tests worker HPA auto scaler."""
 
     @pytest.mark.parametrize(
-        "workers_keda_values",
+        "workers_values",
         [
-            {"keda": {"enabled": True}},
-            {"celery": {"keda": {"enabled": True}}},
+            {"keda": {"enabled": True}, "hpa": {"enabled": True}},
+            {"celery": {"keda": {"enabled": True}}, "hpa": {"enabled": True}},
+            {"celery": {"keda": {"enabled": True}, "hpa": {"enabled": True}}},
+            {"keda": {"enabled": True}, "celery": {"hpa": {"enabled": True}}},
         ],
     )
-    def test_should_be_disabled_on_keda_enabled(self, workers_keda_values):
+    def test_should_be_disabled_on_keda_enabled(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    **workers_keda_values,
-                    "hpa": {"enabled": True},
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "workers": workers_values,
             },
             show_only=[
                 "templates/workers/worker-kedaautoscaler.yaml",
                 "templates/workers/worker-hpa.yaml",
             ],
         )
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
         assert len(docs) == 1
 
     def test_should_add_component_specific_labels(self):
@@ -2211,7 +2218,7 @@ class TestWorkerHPAAutoScaler:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "hpa": {"enabled": True},
+                    "celery": {"hpa": {"enabled": True}},
                     "labels": {"test_label": "test_label_value"},
                 },
             },
@@ -2233,51 +2240,112 @@ class TestWorkerHPAAutoScaler:
         )
         assert "replicas" not in jmespath.search("spec", docs[0])
 
+    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryKubernetesExecutor"])
     @pytest.mark.parametrize(
-        ("metrics", "executor", "expected_metrics"),
+        "workers_values",
         [
-            # default metrics
-            (
-                None,
-                "CeleryExecutor",
-                {
-                    "type": "Resource",
-                    "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
-                },
-            ),
-            # custom metric
-            (
-                [
-                    {
-                        "type": "Pods",
-                        "pods": {
-                            "metric": {"name": "custom"},
-                            "target": {"type": "Utilization", "averageUtilization": 80},
-                        },
-                    }
-                ],
-                "CeleryKubernetesExecutor",
-                {
-                    "type": "Pods",
-                    "pods": {
-                        "metric": {"name": "custom"},
-                        "target": {"type": "Utilization", "averageUtilization": 80},
-                    },
-                },
-            ),
+            {"hpa": {"enabled": True}},
+            {"celery": {"hpa": {"enabled": True}}},
         ],
     )
-    def test_should_use_hpa_metrics(self, metrics, executor, expected_metrics):
+    def test_hpa_metrics_default(self, executor, workers_values):
         docs = render_chart(
             values={
                 "executor": executor,
-                "workers": {
-                    "hpa": {"enabled": True, **({"metrics": metrics} if metrics else {})},
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-hpa.yaml"],
         )
-        assert expected_metrics == jmespath.search("spec.metrics[0]", docs[0])
+
+        assert jmespath.search("spec.metrics", docs[0]) == [
+            {
+                "type": "Resource",
+                "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
+            }
+        ]
+
+    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryKubernetesExecutor"])
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "hpa": {
+                    "enabled": True,
+                    "metrics": [
+                        {
+                            "type": "Pods",
+                            "pods": {
+                                "metric": {"name": "custom"},
+                                "target": {"type": "Utilization", "averageUtilization": 80},
+                            },
+                        }
+                    ],
+                }
+            },
+            {
+                "celery": {
+                    "hpa": {
+                        "enabled": True,
+                        "metrics": [
+                            {
+                                "type": "Pods",
+                                "pods": {
+                                    "metric": {"name": "custom"},
+                                    "target": {"type": "Utilization", "averageUtilization": 80},
+                                },
+                            }
+                        ],
+                    }
+                }
+            },
+            {
+                "hpa": {
+                    "enabled": True,
+                    "metrics": [
+                        {
+                            "type": "Resource",
+                            "resource": {
+                                "name": "memory",
+                                "target": {"type": "Utilization", "averageUtilization": 1},
+                            },
+                        }
+                    ],
+                },
+                "celery": {
+                    "hpa": {
+                        "enabled": True,
+                        "metrics": [
+                            {
+                                "type": "Pods",
+                                "pods": {
+                                    "metric": {"name": "custom"},
+                                    "target": {"type": "Utilization", "averageUtilization": 80},
+                                },
+                            }
+                        ],
+                    }
+                },
+            },
+        ],
+    )
+    def test_hpa_metrics_override(self, executor, workers_values):
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-hpa.yaml"],
+        )
+
+        assert jmespath.search("spec.metrics", docs[0]) == [
+            {
+                "type": "Pods",
+                "pods": {
+                    "metric": {"name": "custom"},
+                    "target": {"type": "Utilization", "averageUtilization": 80},
+                },
+            }
+        ]
 
 
 class TestWorkerNetworkPolicy:
@@ -2317,15 +2385,141 @@ class TestWorkerService:
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
 
-class TestWorkerServiceAccount:
-    """Tests worker service account."""
+class TestWorkerCeleryServiceAccount:
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"create": False}},
+            {"celery": {"serviceAccount": {"create": False}}},
+            {"serviceAccount": {"create": True}, "celery": {"serviceAccount": {"create": False}}},
+        ],
+    )
+    def test_should_not_create_service_account_when_disabled(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 0
+
+    def test_should_create_service_account_by_default(self):
+        docs = render_chart(
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 1
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"create": True}},
+            {"celery": {"serviceAccount": {"create": True}}},
+            {"serviceAccount": {"create": False}, "celery": {"serviceAccount": {"create": True}}},
+        ],
+    )
+    def test_should_not_create_service_account_for_local_executor(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 0
+
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            "CeleryExecutor",
+            "CeleryKubernetesExecutor",
+            "CeleryExecutor,KubernetesExecutor",
+            "KubernetesExecutor",
+            "LocalKubernetesExecutor",
+        ],
+    )
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"create": True}},
+            {"celery": {"serviceAccount": {"create": True}}},
+            {"serviceAccount": {"create": False}, "celery": {"serviceAccount": {"create": True}}},
+        ],
+    )
+    def test_should_create_service_account_for_specific_executors(self, executor, workers_values):
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 1
+        assert jmespath.search("kind", docs[0]) == "ServiceAccount"
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"create": True}},
+            {"celery": {"serviceAccount": {"create": True}}},
+            {
+                "serviceAccount": {"automountServiceAccountToken": False},
+                "celery": {"serviceAccount": {"create": True, "automountServiceAccountToken": True}},
+            },
+        ],
+    )
+    def test_automount_service_account_token_true(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
+            {"celery": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}}},
+            {
+                "serviceAccount": {"automountServiceAccountToken": True},
+                "celery": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
+            },
+        ],
+    )
+    def test_automount_service_account_token_false(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"create": True, "name": "test"}},
+            {"celery": {"serviceAccount": {"create": True, "name": "test"}}},
+            {
+                "serviceAccount": {"name": "none"},
+                "celery": {"serviceAccount": {"create": True, "name": "test"}},
+            },
+        ],
+    )
+    def test_overwrite_name(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert jmespath.search("metadata.name", docs[0]) == "test"
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "serviceAccount": {"create": True},
+                    "celery": {"serviceAccount": {"create": True}},
                     "labels": {"test_label": "test_label_value"},
                 },
             },
@@ -2335,55 +2529,156 @@ class TestWorkerServiceAccount:
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
+
+class TestWorkerKubernetesServiceAccount:
+    def test_should_not_create_service_account_by_default(self):
+        docs = render_chart(
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 0
+
     @pytest.mark.parametrize(
-        ("executor", "creates_service_account"),
+        "workers_values",
         [
-            ("LocalExecutor", False),
-            ("CeleryExecutor", True),
-            ("CeleryKubernetesExecutor", True),
-            ("CeleryExecutor,KubernetesExecutor", True),
-            ("KubernetesExecutor", True),
-            ("LocalKubernetesExecutor", True),
+            {"serviceAccount": {"create": True}},  # Should not have effect
+            {"kubernetes": {"serviceAccount": {"create": False}}},
+            {"serviceAccount": {"create": True}, "kubernetes": {"serviceAccount": {"create": False}}},
         ],
     )
-    def test_should_create_worker_service_account_for_specific_executors(
-        self, executor, creates_service_account
-    ):
+    def test_should_not_create_service_account_when_disabled(self, workers_values):
         docs = render_chart(
-            values={
-                "executor": executor,
-                "workers": {
-                    "serviceAccount": {"create": True},
-                    "labels": {"test_label": "test_label_value"},
-                },
-            },
-            show_only=["templates/workers/worker-serviceaccount.yaml"],
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
         )
-        if creates_service_account:
-            assert jmespath.search("kind", docs[0]) == "ServiceAccount"
-            assert "test_label" in jmespath.search("metadata.labels", docs[0])
-            assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
-        else:
-            assert docs == []
 
-    def test_default_automount_service_account_token(self):
+        assert len(docs) == 0
+
+    def test_should_create_service_account_when_enabled(self):
         docs = render_chart(
             values={
-                "workers": {
-                    "serviceAccount": {"create": True},
-                },
+                "executor": "KubernetesExecutor",
+                "workers": {"kubernetes": {"serviceAccount": {"create": True}}},
             },
-            show_only=["templates/workers/worker-serviceaccount.yaml"],
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 1
+
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            "CeleryExecutor",
+            "LocalExecutor",
+            "LocalExecutor,CeleryExecutor",
+        ],
+    )
+    def test_should_not_create_service_account_non_k8s_executors(self, executor):
+        docs = render_chart(
+            values={"executor": executor, "workers": {"kubernetes": {"serviceAccount": {"create": True}}}},
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 0
+
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            "CeleryKubernetesExecutor",
+            "CeleryExecutor,KubernetesExecutor",
+            "KubernetesExecutor",
+            "LocalKubernetesExecutor",
+        ],
+    )
+    def test_should_create_service_account_when_k8s_executors(self, executor):
+        docs = render_chart(
+            values={"executor": executor, "workers": {"kubernetes": {"serviceAccount": {"create": True}}}},
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 1
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kubernetes": {"serviceAccount": {"create": True}}},
+            {"kubernetes": {"serviceAccount": {"create": True, "automountServiceAccountToken": True}}},
+            {
+                "serviceAccount": {"automountServiceAccountToken": False},
+                "kubernetes": {"serviceAccount": {"create": True, "automountServiceAccountToken": True}},
+            },
+        ],
+    )
+    def test_automount_service_account_token_true(self, workers_values):
+        docs = render_chart(
+            values={"executor": "KubernetesExecutor", "workers": workers_values},
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overridden_automount_service_account_token(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kubernetes": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}}},
+            {
+                "serviceAccount": {"automountServiceAccountToken": True},
+                "kubernetes": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
+            },
+        ],
+    )
+    def test_automount_service_account_token_false(self, workers_values):
+        docs = render_chart(
+            values={"executor": "KubernetesExecutor", "workers": workers_values},
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kubernetes": {"serviceAccount": {"create": True}}},
+            {"serviceAccount": {"name": "test"}, "kubernetes": {"serviceAccount": {"create": True}}},
+        ],
+    )
+    def test_default_name(self, workers_values):
+        docs = render_chart(
+            name="test",
+            values={"executor": "KubernetesExecutor", "workers": workers_values},
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
+        assert jmespath.search("metadata.name", docs[0]) == "test-airflow-worker-kubernetes"
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kubernetes": {"serviceAccount": {"create": True, "name": "test"}}},
+            {
+                "serviceAccount": {"name": "none"},
+                "kubernetes": {"serviceAccount": {"create": True, "name": "test"}},
+            },
+        ],
+    )
+    def test_overwrite_name(self, workers_values):
+        docs = render_chart(
+            values={"executor": "KubernetesExecutor", "workers": workers_values},
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
+        assert jmespath.search("metadata.name", docs[0]) == "test"
+
+    def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "workers": {
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                    "kubernetes": {"serviceAccount": {"create": True}},
+                    "labels": {"test_label": "test_label_value"},
                 },
             },
-            show_only=["templates/workers/worker-serviceaccount.yaml"],
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
         )
-        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"

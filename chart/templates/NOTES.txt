@@ -413,6 +413,38 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not .Values.workers.serviceAccount.automountServiceAccountToken }}
+
+ DEPRECATION WARNING:
+    `workers.serviceAccount.automountServiceAccountToken` has been renamed to `workers.celery.serviceAccount.automountServiceAccountToken`/`workers.kubernetes.serviceAccount.automountServiceAccountToken`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not .Values.workers.serviceAccount.create }}
+
+ DEPRECATION WARNING:
+    `workers.serviceAccount.create` has been renamed to `workers.celery.serviceAccount.create`/`workers.kubernetes.serviceAccount.create`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.serviceAccount.name) }}
+
+ DEPRECATION WARNING:
+    `workers.serviceAccount.name` has been renamed to `workers.celery.serviceAccount.name`/`workers.kubernetes.serviceAccount.name`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.serviceAccount.annotations) }}
+
+ DEPRECATION WARNING:
+    `workers.serviceAccount.annotations` has been renamed to `workers.celery.serviceAccount.annotations`/`workers.kubernetes.serviceAccount.annotations`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if .Values.workers.keda.enabled }}
 
  DEPRECATION WARNING:
@@ -481,6 +513,46 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `workers.keda.usePgbouncer` has been renamed to `workers.celery.keda.usePgbouncer`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.hpa.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.hpa.enabled` has been renamed to `workers.celery.hpa.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.hpa.minReplicaCount) 0 }}
+
+ DEPRECATION WARNING:
+    `workers.hpa.minReplicaCount` has been renamed to `workers.celery.hpa.minReplicaCount`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.hpa.maxReplicaCount) 5 }}
+
+ DEPRECATION WARNING:
+    `workers.hpa.maxReplicaCount` has been renamed to `workers.celery.hpa.maxReplicaCount`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (toJson .Values.workers.hpa.metrics | quote) (toJson "[{\"resource\":{\"name\":\"cpu\",\"target\":{\"averageUtilization\":80,\"type\":\"Utilization\"}},\"type\":\"Resource\"}]") }}
+
+ DEPRECATION WARNING:
+    `workers.hpa.metrics` has been renamed to `workers.celery.hpa.metrics`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.hpa.behavior) }}
+
+ DEPRECATION WARNING:
+    `workers.hpa.behavior` has been renamed to `workers.celery.hpa.behavior`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
@@ -681,6 +753,30 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `workers.schedulerName` has been renamed to `workers.celery.schedulerName`/`workers.kubernetes.schedulerName`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not .Values.workers.waitForMigrations.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.waitForMigrations.enabled` has been renamed to `workers.celery.waitForMigrations.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.waitForMigrations.env) }}
+
+ DEPRECATION WARNING:
+    `workers.waitForMigrations.env` has been renamed to `workers.celery.waitForMigrations.env`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.waitForMigrations.securityContexts.container) }}
+
+ DEPRECATION WARNING:
+    `workers.waitForMigrations.securityContexts.container` has been renamed to `workers.celery.waitForMigrations.securityContexts.container`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}

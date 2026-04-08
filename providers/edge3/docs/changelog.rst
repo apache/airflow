@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``AIP 67 - Multi-Team: Update Edge Executor to support multi team (#61646)``
+
+Misc
+~~~~
+
+* ``Remove dependabot alarms in edge provider plugin (#64788)``
+* ``Bump vite in /providers/edge3/src/airflow/providers/edge3/plugins/www (#64800)``
+* ``Add no-op _process_workloads to EdgeExecutor to improve readability (#64236)``
+* ``Add 4-day cooldown for pnpm dependency resolution (#64337)``
+* ``chore(deps-dev): bump happy-dom (#64421)``
+* ``Fix dependabot alarms in Edge provider (#64368)``
+* ``chore(deps-dev): bump happy-dom (#64272)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``CI: Upgrade important CI environment (#64744)``
+   * ``CI: Upgrade important CI environment (#64451)``
+   * ``Compat sdk conf follow-up: Celery, Common AI, FAB, Edge3 (#64292)``
+   * ``[main] Upgrade important CI environment (#64239)``
+   * ``Add 4-day cooldown for uv dependency resolution (#64249)``
+
 3.3.0
 .....
 

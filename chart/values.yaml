@@ -68,14 +68,14 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default Airflow tag to deploy
-defaultAirflowTag: "3.1.8"
+defaultAirflowTag: "3.2.0"
 
 # Default Airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
 # Version 2.11.0 and above is supported.
-airflowVersion: "3.1.8"
+airflowVersion: "3.2.0"
 
 images:
   airflow:
@@ -770,19 +770,36 @@ workers:
       # (deprecated, use `workers.celery.podDisruptionBudget.config.minAvailable` instead)
       # minAvailable: 1
 
-  # Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file
+  # Create Service Account for Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.serviceAccount` and/or `workers.kubernetes.serviceAccount` instead)
   serviceAccount:
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+    # (deprecated, use
+    #   `workers.celery.serviceAccount.automountServiceAccountToken` and/or
+    #   `workers.kubernetes.serviceAccount.automountServiceAccountToken`
+    # instead)
     automountServiceAccountToken: true
 
-    # Specifies whether a ServiceAccount should be created
+    # Specifies whether a Service Account should be created
+    # (deprecated, use
+    #   `workers.celery.serviceAccount.create` and/or
+    #   `workers.kubernetes.serviceAccount.create`
+    # instead)
     create: true
 
-    # The name of the ServiceAccount to use.
+    # The name of the Service Account to use.
     # If not set and `create` is 'true', a name is generated using the release name
+    # (deprecated, use
+    #   `workers.celery.serviceAccount.name` and/or
+    #   `workers.kubernetes.serviceAccount.name`
+    # instead)
     name: ~
 
     # Annotations to add to worker Kubernetes Service Account.
+    # (deprecated, use
+    #   `workers.celery.serviceAccount.annotations` and/or
+    #   `workers.kubernetes.serviceAccount.annotations`
+    # instead)
     annotations: {}
 
   # Allow KEDA autoscaling for Airflow Celery workers
@@ -848,16 +865,21 @@ workers:
     usePgbouncer: true
 
   # Allow HPA for Airflow Celery workers (KEDA must be disabled)
+  # (deprecated, use `workers.celery.hpa` instead)
   hpa:
+    # (deprecated, use `workers.celery.hpa.enabled` instead)
     enabled: false
 
     # Minimum number of Airflow Celery workers created by HPA
+    # (deprecated, use `workers.celery.hpa.minReplicaCount` instead)
     minReplicaCount: 0
 
     # Maximum number of Airflow Celery workers created by HPA
+    # (deprecated, use `workers.celery.hpa.maxReplicaCount` instead)
     maxReplicaCount: 5
 
     # Specifications for which to use to calculate the desired replica count
+    # (deprecated, use `workers.celery.hpa.metrics` instead)
     metrics:
       - type: Resource
         resource:
@@ -867,6 +889,7 @@ workers:
             averageUtilization: 80
 
     # Scaling behavior of the target in both Up and Down directions
+    # (deprecated, use `workers.celery.hpa.behavior` instead)
     behavior: {}
 
   # Persistence volume configuration for Airflow Celery workers
@@ -1136,14 +1159,19 @@ workers:
     env: []
 
   # Configuration of wait-for-airflow-migration init container for Airflow Celery workers
+  # (deprecated, use `workers.celery.waitForMigrations` instead)
   waitForMigrations:
     # Whether to create init container to wait for db migrations
+    # (deprecated, use `workers.celery.waitForMigrations.enabled` instead)
     enabled: true
 
+    # (deprecated, use `workers.celery.waitForMigrations.env` instead)
     env: []
 
     # Detailed default security context for wait-for-airflow-migrations container
+    # (deprecated, use `workers.celery.waitForMigrations.securityContexts` instead)
     securityContexts:
+      # (deprecated, use `workers.celery.waitForMigrations.securityContexts.container` instead)
       container: {}
 
   # Additional env variable configuration for Airflow Celery workers and pods created with pod-template-file
@@ -1260,6 +1288,21 @@ workers:
         maxUnavailable: ~
         # minAvailable: ~
 
+    # Create Service Account for Airflow Celery workers
+    serviceAccount:
+      # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+      automountServiceAccountToken: ~
+
+      # Specifies whether a Service Account should be created
+      create: ~
+
+      # The name of the Service Account to use.
+      # If not set and `create` is 'true', a name is generated using the release name
+      name: ~
+
+      # Annotations to add to worker Kubernetes Service Account.
+      annotations: {}
+
     # Allow KEDA autoscaling for Airflow Celery workers
     keda:
       enabled: ~
@@ -1296,6 +1339,22 @@ workers:
       # Weather to use PGBouncer to connect to the database or not when it is enabled
       # This configuration will be ignored if PGBouncer is not enabled
       usePgbouncer: ~
+
+    # Allow HPA for Airflow Celery workers (KEDA must be disabled)
+    hpa:
+      enabled: ~
+
+      # Minimum number of Airflow Celery workers created by HPA
+      minReplicaCount: ~
+
+      # Maximum number of Airflow Celery workers created by HPA
+      maxReplicaCount: ~
+
+      # Specifications for which to use to calculate the desired replica count
+      metrics: ~
+
+      # Scaling behavior of the target in both Up and Down directions
+      behavior: {}
 
     # Persistence volume configuration for Airflow Celery workers
     persistence:
@@ -1404,6 +1463,17 @@ workers:
     #   hostnames:
     #   - "test.hostname.two"
 
+    # Configuration of wait-for-airflow-migration init container for Airflow Celery workers
+    waitForMigrations:
+      # Whether to create init container to wait for db migrations
+      enabled: ~
+
+      env: []
+
+      # Detailed default security context for wait-for-airflow-migrations container
+      securityContexts:
+        container: {}
+
     # Additional volume claim templates for Airflow Celery workers.
     # Requires mounting of specified volumes under extraVolumeMounts.
     volumeClaimTemplates: []
@@ -1442,6 +1512,29 @@ workers:
 
     # Container level Lifecycle Hooks definition for pods created with pod-template-file
     containerLifecycleHooks: {}
+
+    # Create Service Account for pods created with pod-template-file
+    # When this section is specified, the Service Account is created from
+    # 'templates/workers/worker-kubernetes-serviceaccount.yaml' file
+    serviceAccount:
+      # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+      # If not specified, the `workers.serviceAccount.automountServiceAccountToken` value will be taken
+      automountServiceAccountToken: ~
+
+      # Specifies whether a Service Account should be created.
+      # If not specified, the Service Account will be generated and used from
+      # 'templates/workers/worker-serviceaccount.yaml' file if `workers.serviceAccount.create`
+      # will be 'true'
+      create: ~
+
+      # The name of the Service Account to use.
+      # If not set and `create` is 'true', a name is generated using the release name
+      # with Kubernetes dedicated name
+      name: ~
+
+      # Annotations to add to worker Kubernetes Service Account.
+      # If not specified, the `workers.serviceAccount.annotations` value will be taken
+      annotations: {}
 
     # Kerberos sidecar configuration for pods created with pod-template-file
     kerberosSidecar:
@@ -1585,16 +1678,16 @@ scheduler:
   # Grace period for tasks to finish after SIGTERM is sent from Kubernetes
   terminationGracePeriodSeconds: 10
 
-  # Create ServiceAccount
+  # Create Service Account
   serviceAccount:
     # Affects all executors that launch pods
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
-    # Specifies whether a ServiceAccount should be created
+    # Specifies whether a Service Account should be created
     create: true
 
-    # The name of the ServiceAccount to use.
+    # The name of the Service Account to use.
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
@@ -1814,15 +1907,15 @@ createUserJob:
   # Container level lifecycle hooks
   containerLifecycleHooks: {}
 
-  # Create ServiceAccount
+  # Create Service Account
   serviceAccount:
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
-    # Specifies whether a ServiceAccount should be created
+    # Specifies whether a Service Account should be created
     create: true
 
-    # The name of the ServiceAccount to use.
+    # The name of the Service Account to use.
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
@@ -1918,15 +2011,15 @@ migrateDatabaseJob:
   # Container level lifecycle hooks
   containerLifecycleHooks: {}
 
-  # Create ServiceAccount
+  # Create Service Account
   serviceAccount:
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
-    # Specifies whether a ServiceAccount should be created
+    # Specifies whether a Service Account should be created
     create: true
 
-    # The name of the ServiceAccount to use.
+    # The name of the Service Account to use.
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
@@ -2034,10 +2127,10 @@ apiServer:
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
-    # Specifies whether a ServiceAccount should be created
+    # Specifies whether a Service Account should be created
     create: true
 
-    # The name of the ServiceAccount to use.
+    # The name of the Service Account to use.
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
@@ -2264,15 +2357,15 @@ webserver:
     # Scaling behavior of the target in both Up and Down directions
     behavior: {}
 
-  # Create ServiceAccount
+  # Create Service Account
   serviceAccount:
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
-    # Specifies whether a ServiceAccount should be created
+    # Specifies whether a Service Account should be created
     create: true
 
-    # The name of the ServiceAccount to use.
+    # The name of the Service Account to use.
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
@@ -2478,15 +2571,15 @@ triggerer:
     periodSeconds: 60
     command: ~
 
-  # Create ServiceAccount
+  # Create Service Account
   serviceAccount:
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
-    # Specifies whether a ServiceAccount should be created
+    # Specifies whether a Service Account should be created
     create: true
 
-    # The name of the ServiceAccount to use.
+    # The name of the Service Account to use.
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
@@ -2764,15 +2857,15 @@ dagProcessor:
     periodSeconds: 60
     command: ~
 
-  # Create ServiceAccount
+  # Create Service Account
   serviceAccount:
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
-    # Specifies whether a ServiceAccount should be created
+    # Specifies whether a Service Account should be created
     create: true
 
-    # The name of the ServiceAccount to use.
+    # The name of the Service Account to use.
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
@@ -2996,15 +3089,15 @@ flower:
   # Container level lifecycle hooks
   containerLifecycleHooks: {}
 
-  # Create ServiceAccount
+  # Create Service Account
   serviceAccount:
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
-    # Specifies whether a ServiceAccount should be created
+    # Specifies whether a Service Account should be created
     create: true
 
-    # The name of the ServiceAccount to use.
+    # The name of the Service Account to use.
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
@@ -3136,15 +3229,15 @@ statsd:
   # Grace period for StatsD to finish after SIGTERM is sent from Kubernetes
   terminationGracePeriodSeconds: 30
 
-  # Create ServiceAccount
+  # Create Service Account
   serviceAccount:
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
-    # Specifies whether a ServiceAccount should be created
+    # Specifies whether a Service Account should be created
     create: true
 
-    # The name of the ServiceAccount to use.
+    # The name of the Service Account to use.
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
@@ -3241,15 +3334,15 @@ pgbouncer:
   # Add custom annotations to the PgBouncer certificates secret
   certificatesSecretAnnotations: {}
 
-  # Create ServiceAccount
+  # Create Service Account
   serviceAccount:
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
-    # Specifies whether a ServiceAccount should be created
+    # Specifies whether a Service Account should be created
     create: true
 
-    # The name of the ServiceAccount to use.
+    # The name of the Service Account to use.
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
@@ -3435,15 +3528,15 @@ redis:
   # Annotations for Redis Statefulset
   annotations: {}
 
-  # Create ServiceAccount
+  # Create Service Account
   serviceAccount:
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
-    # Specifies whether a ServiceAccount should be created
+    # Specifies whether a Service Account should be created
     create: true
 
-    # The name of the ServiceAccount to use.
+    # The name of the Service Account to use.
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
@@ -3655,15 +3748,15 @@ cleanup:
   #   cpu: 100m
   #   memory: 128Mi
 
-  # Create ServiceAccount
+  # Create Service Account
   serviceAccount:
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
-    # Specifies whether a ServiceAccount should be created
+    # Specifies whether a Service Account should be created
     create: true
 
-    # The name of the ServiceAccount to use.
+    # The name of the Service Account to use.
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
@@ -3755,15 +3848,15 @@ databaseCleanup:
   #  cpu: 100m
   #  memory: 128Mi
 
-  # Create ServiceAccount
+  # Create Service Account
   serviceAccount:
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
-    # Specifies whether a ServiceAccount should be created
+    # Specifies whether a Service Account should be created
     create: true
 
-    # The name of the ServiceAccount to use.
+    # The name of the Service Account to use.
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 

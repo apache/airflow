@@ -67,7 +67,18 @@ START_PROVIDER_WORKSPACE_MEMBERS = (
 )
 END_PROVIDER_WORKSPACE_MEMBERS = "    # End of automatically generated provider workspace members"
 
+START_EXCLUDE_NEWER_PACKAGE = (
+    "# Automatically generated exclude-newer-package entries (update_airflow_pyproject_toml.py)"
+)
+END_EXCLUDE_NEWER_PACKAGE = "# End of automatically generated exclude-newer-package entries"
+
+START_EXCLUDE_NEWER_PACKAGE_PIP = (
+    "# Automatically generated exclude-newer-package-pip entries (update_airflow_pyproject_toml.py)"
+)
+END_EXCLUDE_NEWER_PACKAGE_PIP = "# End of automatically generated exclude-newer-package-pip entries"
+
 CUT_OFF_TIMEDELTA = timedelta(days=6 * 30)
+
 
 # Temporary override for providers that are not yet included in constraints or when they need
 # minimum versions for compatibility with Airflow 3
@@ -114,6 +125,15 @@ def _read_toml(path: Path) -> dict[str, Any]:
     except ImportError:
         import tomli as tomllib  # type: ignore[no-redef]
     return tomllib.loads(path.read_text())
+
+
+def get_all_workspace_component_names() -> list[str]:
+    """Get all workspace component names from [tool.uv.sources] in pyproject.toml."""
+    toml_dict = _read_toml(AIRFLOW_PYPROJECT_TOML_FILE)
+    sources = toml_dict.get("tool", {}).get("uv", {}).get("sources", {})
+    return sorted(
+        name for name, value in sources.items() if isinstance(value, dict) and value.get("workspace")
+    )
 
 
 def get_local_provider_version(provider_id: str) -> Version | None:
@@ -299,4 +319,24 @@ if __name__ == "__main__":
         END_PROVIDER_WORKSPACE_MEMBERS,
         False,
         "provider workspace members",
+    )
+    all_workspace_components = get_all_workspace_component_names()
+    exclude_newer_entries = []
+    for component in all_workspace_components:
+        exclude_newer_entries.append(f"{component} = false\n")
+    insert_documentation(
+        AIRFLOW_PYPROJECT_TOML_FILE,
+        exclude_newer_entries,
+        START_EXCLUDE_NEWER_PACKAGE,
+        END_EXCLUDE_NEWER_PACKAGE,
+        False,
+        "exclude-newer-package entries",
+    )
+    insert_documentation(
+        AIRFLOW_PYPROJECT_TOML_FILE,
+        exclude_newer_entries,
+        START_EXCLUDE_NEWER_PACKAGE_PIP,
+        END_EXCLUDE_NEWER_PACKAGE_PIP,
+        False,
+        "exclude-newer-package-pip entries",
     )

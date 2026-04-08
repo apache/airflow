@@ -159,6 +159,7 @@ balancers
 Bas
 BaseClient
 BaseHook
+basename
 BaseOperator
 baseOperator
 BaseOperatorLink
@@ -512,6 +513,7 @@ dttm
 dtypes
 du
 duckdb
+dumpable
 dunder
 dup
 durable
@@ -1134,6 +1136,7 @@ os
 OSS
 oss
 ot
+OTel
 otel
 PaaS
 Pagerduty
@@ -1219,6 +1222,7 @@ prefetches
 preflight
 prek
 Preload
+preload
 prepend
 prepended
 preprocess
@@ -1385,6 +1389,7 @@ salesforce
 samesite
 saml
 sandboxed
+sandboxing
 sanitization
 sas
 Sasl
@@ -1728,6 +1733,7 @@ unpause
 unpaused
 unpausing
 unpredicted
+unsanitized
 untestable
 untransformed
 untrusted
@@ -1832,6 +1838,7 @@ Xiaodong
 xlarge
 xml
 xpath
+XSS
 xyz
 yaml
 Yandex
