@@ -144,8 +144,15 @@ def save_status_cache(github_repository: str, cache_key: str, payload: dict | li
 
 
 def get_cached_author_profile(github_repository: str, login: str) -> dict | None:
-    """Load a cached author profile. Returns None if missing or expired (7-day TTL)."""
-    return author_cache.get(github_repository, f"author_{login}")
+    """Load a cached author profile. Returns None if missing or expired (7-day TTL).
+
+    Strips the internal ``cached_at`` field so callers get the same shape
+    regardless of whether the profile came from disk or the API.
+    """
+    data = author_cache.get(github_repository, f"author_{login}")
+    if data is not None:
+        data.pop("cached_at", None)
+    return data
 
 
 def save_author_profile(github_repository: str, login: str, profile: dict) -> None:

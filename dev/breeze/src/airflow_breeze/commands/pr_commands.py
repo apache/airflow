@@ -58,11 +58,13 @@ from airflow_breeze.utils.custom_param_types import HiddenChoiceWithCompletion, 
 from airflow_breeze.utils.pr_cache import (
     classification_cache as _classification_cache,
     get_cached_assessment as _get_cached_assessment,
+    get_cached_author_profile as _get_cached_author_profile,
     get_cached_classification as _get_cached_classification,
     get_cached_review as _get_cached_review,
     get_cached_status as _get_cached_status,
     review_cache as _review_cache,
     save_assessment_cache as _save_assessment_cache,
+    save_author_profile as _save_author_profile,
     save_classification_cache as _save_classification_cache,
     save_review_cache as _save_review_cache,
     save_status_cache as _save_status_cache,
@@ -1915,9 +1917,7 @@ def _fetch_author_profile(token: str, login: str, github_repository: str) -> dic
         return _author_profile_cache[login]
 
     # Try disk cache before hitting the API
-    from airflow_breeze.utils.pr_cache import get_cached_author_profile
-
-    disk_profile = get_cached_author_profile(github_repository, login)
+    disk_profile = _get_cached_author_profile(github_repository, login)
     if disk_profile:
         _author_profile_cache[login] = disk_profile
         return disk_profile
@@ -2005,9 +2005,7 @@ def _fetch_author_profile(token: str, login: str, github_repository: str) -> dic
     _author_profile_cache[login] = profile
 
     # Persist to disk for reuse across sessions
-    from airflow_breeze.utils.pr_cache import save_author_profile
-
-    save_author_profile(github_repository, login, profile)
+    _save_author_profile(github_repository, login, profile)
 
     return profile
 
