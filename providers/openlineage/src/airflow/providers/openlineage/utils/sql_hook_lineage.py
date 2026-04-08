@@ -113,25 +113,32 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
     events: list[RunEvent] = []
     query_count = 0
 
-    # Build conn_id -> hook mapping before iterating. Hook instances are not hashable so
-    # conn_id (a plain string) is used as the @cache key throughout.
-    _hook_by_conn_id = {_get_hook_conn_id(e.context): e.context for e in sql_extras}
+    # Build hook identity -> (hook, conn_id) mapping before iterating.
+    # Using id(hook) as cache key instead of conn_id ensures distinct hook instances
+    # with the same conn_id but different params are cached separately.
+    _hook_info: dict[int, tuple[object, str | None]] = {}
+    for e in sql_extras:
+        hid = id(e.context)
+        if hid not in _hook_info:
+            _hook_info[hid] = (e.context, _get_hook_conn_id(e.context))
 
     @cache
-    def _get_connection(conn_id: str):
-        return _hook_by_conn_id[conn_id].get_connection(conn_id)
+    def _get_connection(hook_id: int):
+        hook, conn_id = _hook_info[hook_id]
+        return hook.get_connection(conn_id)
 
     @cache
-    def _get_database_info(conn_id: str):
+    def _get_database_info(hook_id: int):
+        hook, conn_id = _hook_info[hook_id]
         try:
-            return _hook_by_conn_id[conn_id].get_openlineage_database_info(_get_connection(conn_id))
+            return hook.get_openlineage_database_info(_get_connection(hook_id))
         except Exception as e:
             log.debug("Failed to get OpenLineage database info for %s: %s", conn_id, e)
             return None
 
     @cache
-    def _get_namespace(conn_id: str) -> str | None:
-        db_info = _get_database_info(conn_id)
+    def _get_namespace(hook_id: int) -> str | None:
+        db_info = _get_database_info(hook_id)
         return SQLParser.create_namespace(db_info) if db_info is not None else None
 
     for extra_info in sql_extras:
@@ -146,11 +153,12 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
         query_count += 1
 
         hook = extra_info.context
-        conn_id = _get_hook_conn_id(hook)
+        hook_id = id(hook)
+        conn_id = _hook_info[hook_id][1]
 
         # Parse SQL to obtain lineage (inputs, outputs, facets)
         query_lineage: OperatorLineage | None = None
-        database_info = _get_database_info(conn_id) if conn_id else None
+        database_info = _get_database_info(hook_id) if conn_id else None
         if sql_text and conn_id and database_info is not None:
             try:
                 query_lineage = get_openlineage_facets_with_sql(
@@ -159,7 +167,7 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
                     conn_id=conn_id,
                     database=value.get(SqlJobHookLineageExtra.VALUE__DEFAULT_DB.value),
                     use_connection=False,  # Temporary solution before we figure out timeouts for queries
-                    connection=_get_connection(conn_id),
+                    connection=_get_connection(hook_id),
                     database_info=database_info,
                 )
             except Exception as e:
@@ -173,7 +181,7 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
             query_lineage = OperatorLineage(job_facets=job_facets)
 
         # Enrich run facets with external query info when available.
-        namespace = _get_namespace(conn_id) if conn_id else None
+        namespace = _get_namespace(hook_id) if conn_id else None
         if job_id and namespace:
             query_lineage.run_facets.setdefault(
                 "externalQuery",

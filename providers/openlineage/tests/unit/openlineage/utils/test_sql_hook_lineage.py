@@ -275,3 +275,29 @@ class TestEmitLineageFromSqlExtras:
 
         call = self.mock_build.call_args
         assert call.kwargs["run_facets"]["externalQuery"] is parser_ext_query
+
+    def test_different_hooks_same_conn_id_get_separate_db_info(self):
+        """Two hooks sharing a conn_id but returning different database info are cached separately."""
+        mock_ti = mock.MagicMock(dag_id="dag_id", task_id="task_id")
+
+        hook_a = mock.MagicMock()
+        hook_b = mock.MagicMock()
+
+        db_info_a = mock.MagicMock()
+        db_info_b = mock.MagicMock()
+        hook_a.get_openlineage_database_info.return_value = db_info_a
+        hook_b.get_openlineage_database_info.return_value = db_info_b
+
+        self.mock_conn_id.return_value = "same_conn"
+        self.mock_ns.side_effect = lambda db_info: f"ns_{id(db_info)}"
+        self.mock_facets_fn.return_value = OperatorLineage()
+
+        extras = [
+            _make_extra(sql="SELECT 1", hook=hook_a),
+            _make_extra(sql="SELECT 2", hook=hook_b),
+        ]
+        emit_lineage_from_sql_extras(task_instance=mock_ti, sql_extras=extras)
+
+        # Both hooks should have had get_openlineage_database_info called
+        hook_a.get_openlineage_database_info.assert_called_once()
+        hook_b.get_openlineage_database_info.assert_called_once()
