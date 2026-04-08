@@ -20,6 +20,7 @@ import { Box } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 
 import { NodeWrapper } from "./NodeWrapper";
+import { opacityStyle } from "./graphTypes";
 import type { CustomNodeProps } from "./reactflowUtils";
 
 export const JoinNode = ({ data }: NodeProps<NodeType<CustomNodeProps, "join">>) => (
@@ -28,9 +29,8 @@ export const JoinNode = ({ data }: NodeProps<NodeType<CustomNodeProps, "join">>)
       bg="border.inverted"
       borderRadius={`${data.width}px`}
       height={`${data.height}px`}
-      opacity={data.isFiltered ? 0.2 : 1}
-      style={{ transition: "opacity 0.2s" }}
       width={`${data.width}px`}
+      {...opacityStyle(data.isFiltered)}
     />
   </NodeWrapper>
 );

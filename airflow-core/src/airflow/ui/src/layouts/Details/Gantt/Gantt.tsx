@@ -41,8 +41,8 @@ import { useParams, useNavigate, useLocation, useSearchParams } from "react-rout
 import { useGanttServiceGetGanttData } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { useColorMode } from "src/context/colorMode";
+import { useGroups } from "src/context/groups";
 import { useHover } from "src/context/hover";
-import { useOpenGroups } from "src/context/openGroups";
 import { useTimezone } from "src/context/timezone";
 import { GRID_BODY_OFFSET_PX } from "src/layouts/Details/Grid/constants";
 import { flattenNodes } from "src/layouts/Details/Grid/utils";
@@ -84,7 +84,7 @@ const MIN_BAR_WIDTH = 10;
 export const Gantt = ({ dagRunState, limit, runAfterGte, runAfterLte, runType, triggeringUser }: Props) => {
   const { dagId = "", groupId: selectedGroupId, runId = "", taskId: selectedTaskId } = useParams();
   const [searchParams] = useSearchParams();
-  const { openGroupIds } = useOpenGroups();
+  const { openGroupIds } = useGroups();
   const deferredOpenGroupIds = useDeferredValue(openGroupIds);
   const { t: translate } = useTranslation("common");
   const { selectedTimezone } = useTimezone();

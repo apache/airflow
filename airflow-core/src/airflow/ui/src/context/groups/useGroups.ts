@@ -16,14 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createContext } from "react";
+import { useContext } from "react";
 
-export type OpenGroupsContextType = {
-  allGroupIds: Array<string>;
-  openGroupIds: Array<string>;
-  setAllGroupIds: (groupIds: Array<string>) => void;
-  setOpenGroupIds: (groupIds: Array<string>) => void;
-  toggleGroupId: (groupId: string) => void;
+import { GroupsContext, type GroupsContextType } from "./Context";
+
+export const useGroups = (): GroupsContextType => {
+  const context = useContext(GroupsContext);
+
+  if (context === undefined) {
+    throw new Error("useGroups must be used within a GroupsProvider");
+  }
+
+  return context;
 };
-
-export const OpenGroupsContext = createContext<OpenGroupsContextType | undefined>(undefined);

@@ -25,71 +25,28 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiSearch } from "react-icons/fi";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import { useStructureServiceStructureData } from "openapi/queries";
-import type { NodeResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
+import { AttrSelectFilterMulti } from "src/components/AttrSelectFilterMulti";
+import { StateBadge } from "src/components/StateBadge";
+import { Select } from "src/components/ui";
 import { Menu } from "src/components/ui/Menu";
 import { NumberInputField, NumberInputRoot } from "src/components/ui/NumberInput";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { taskInstanceStateOptions } from "src/constants/stateOptions";
-import useSelectedVersion from "src/hooks/useSelectedVersion";
-import { AttrSelectFilterMulti } from "src/pages/Dag/Tasks/TaskFilters/AttrSelectFilterMulti";
-
-const collectOperators = (nodes: Array<NodeResponse>): Array<string> => {
-  const operators = new Set<string>();
-
-  const walk = (nodeList: Array<NodeResponse>) => {
-    for (const node of nodeList) {
-      if (node.operator !== undefined && node.operator !== null) {
-        operators.add(node.operator);
-      }
-      if (node.children) {
-        walk(node.children);
-      }
-    }
-  };
-
-  walk(nodes);
-
-  return [...operators].sort();
-};
-
-const collectTaskGroups = (nodes: Array<NodeResponse>): Array<string> => {
-  const groups: Array<string> = [];
-
-  const walk = (nodeList: Array<NodeResponse>) => {
-    for (const node of nodeList) {
-      if (node.children) {
-        groups.push(node.id);
-        walk(node.children);
-      }
-    }
-  };
-
-  walk(nodes);
-
-  return groups.sort();
-};
+import { useGroups } from "src/context/groups";
 
 export const GraphTaskFilters = () => {
   const { t: translate } = useTranslation(["dag", "tasks"]);
-  const { dagId = "", runId } = useParams();
+  const { runId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedVersion = useSelectedVersion();
 
-  const { data: graphData } = useStructureServiceStructureData(
-    { dagId, versionNumber: selectedVersion },
-    undefined,
-    { enabled: selectedVersion !== undefined },
-  );
-  const graphNodes = useMemo(() => graphData?.nodes ?? [], [graphData?.nodes]);
-  const allOperators = useMemo(() => collectOperators(graphNodes), [graphNodes]);
-  const allTaskGroups = useMemo(() => collectTaskGroups(graphNodes), [graphNodes]);
+  const { allGroupIds: allTaskGroups, allOperators } = useGroups();
 
   const selectedOperators = searchParams.getAll(SearchParamsKeys.OPERATOR);
   const selectedTaskGroups = searchParams.getAll(SearchParamsKeys.TASK_GROUP);
@@ -104,9 +61,8 @@ export const GraphTaskFilters = () => {
     mapIndexParam !== "" ||
     durationGteParam !== "";
 
-  const stateValues = useMemo(
-    () => taskInstanceStateOptions.items.filter((item) => item.value !== "all").map((item) => item.value),
-    [],
+  const stateItems = taskInstanceStateOptions.items.filter(
+    (item) => item.value !== "all" && item.value !== "none",
   );
 
   const handleMultiChange = (key: string) => (values: Array<string> | undefined) => {
@@ -198,13 +154,30 @@ export const GraphTaskFilters = () => {
               <>
                 <VStack alignItems="flex-start" width="100%">
                   <Text fontSize="xs">{translate("dag:panel.graphFilters.selectStatus")}</Text>
-                  <AttrSelectFilterMulti
-                    displayPrefix={undefined}
-                    handleSelect={handleMultiChange(SearchParamsKeys.TASK_STATE)}
-                    placeholderText={translate("dag:panel.graphFilters.selectStatus")}
-                    selectedValues={selectedStates}
-                    values={stateValues}
-                  />
+                  <Select.Root
+                    collection={taskInstanceStateOptions}
+                    multiple
+                    onValueChange={({ value }) => handleMultiChange(SearchParamsKeys.TASK_STATE)(value)}
+                    value={selectedStates}
+                  >
+                    <Select.Trigger colorPalette="brand" minW="max-content">
+                      <Select.ValueText
+                        placeholder={translate("dag:panel.graphFilters.selectStatus")}
+                        width="auto"
+                      >
+                        {() => selectedStates.join(", ") || undefined}
+                      </Select.ValueText>
+                    </Select.Trigger>
+                    <Select.Content>
+                      {stateItems.map((option) => (
+                        <Select.Item item={option} key={option.value}>
+                          <StateBadge state={option.value as TaskInstanceState}>
+                            {translate(option.label)}
+                          </StateBadge>
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Root>
                 </VStack>
                 <VStack alignItems="flex-start" width="100%">
                   <Text fontSize="xs">{translate("dag:panel.graphFilters.mapIndex")}</Text>
@@ -224,6 +197,7 @@ export const GraphTaskFilters = () => {
                     min={0}
                     onValueChange={handleNumberChange(SearchParamsKeys.DURATION_GTE, (num) => num > 0)}
                     size="sm"
+                    step={0.1}
                     value={durationGteParam}
                     w="100%"
                   >

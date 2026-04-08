@@ -27,7 +27,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
-import { useOpenGroups } from "src/context/openGroups";
+import { useGroups } from "src/context/groups";
 import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
@@ -76,7 +76,7 @@ export const Grid = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
-  const { openGroupIds, toggleGroupId } = useOpenGroups();
+  const { openGroupIds, toggleGroupId } = useGroups();
   const { dagId = "", runId = "" } = useParams();
   const [searchParams] = useSearchParams();
 

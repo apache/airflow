@@ -31,7 +31,7 @@ import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLay
 import { dependenciesKey, directionKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useColorMode } from "src/context/colorMode";
-import { useOpenGroups } from "src/context/openGroups";
+import { useGroups } from "src/context/groups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
@@ -101,7 +101,7 @@ export const Graph = () => {
     "bg.emphasized",
   ]);
 
-  const { allGroupIds, openGroupIds, setAllGroupIds } = useOpenGroups();
+  const { allGroupIds, openGroupIds, setAllGroupIds } = useGroups();
 
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(dependenciesKey(dagId), "tasks");
   const [direction] = useLocalStorage<Direction>(directionKey(dagId), "RIGHT");
