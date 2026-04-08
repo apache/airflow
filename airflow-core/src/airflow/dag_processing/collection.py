@@ -75,6 +75,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.dagwarning import DagWarning
+    from airflow.models.serialized_dag import DagWriteMetadata
     from airflow.typing_compat import Self, Unpack
 
     AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
@@ -256,7 +257,11 @@ def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, se
 
 
 def _serialize_dag_capturing_errors(
-    dag: LazyDeserializedDAG, bundle_name, session: Session, bundle_version: str | None
+    dag: LazyDeserializedDAG,
+    bundle_name,
+    session: Session,
+    bundle_version: str | None,
+    _prefetched: DagWriteMetadata | None = None,
 ):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
@@ -279,10 +284,11 @@ def _serialize_dag_capturing_errors(
             bundle_version=bundle_version,
             min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
+            _prefetched=_prefetched,
         )
         if not dag_was_updated:
             # Check and update DagCode
-            DagCode.update_source_code(dag.dag_id, dag.fileloc)
+            DagCode.update_source_code(dag.dag_id, dag.fileloc, session=session)
         if "FabAuthManager" in conf.get("core", "auth_manager"):
             _sync_dag_perms(dag, session=session)
 
@@ -460,6 +466,8 @@ def update_dag_parsing_results_in_db(
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors
     # In case of failures, provide_session handles rollback
+    from airflow.models.serialized_dag import SerializedDagModel
+
     for attempt in run_with_db_retries(logger=log):
         with attempt:
             serialize_errors = []
@@ -473,6 +481,11 @@ def update_dag_parsing_results_in_db(
                 SerializedDAG.bulk_write_to_db(
                     bundle_name, bundle_version, dags, parse_duration, session=session
                 )
+                # Bulk prefetch metadata for all DAGs to avoid per-DAG queries in write_dag.
+                # This replaces 3 SELECTs per DAG with 2 queries total.
+                prefetched_metadata = SerializedDagModel._prefetch_dag_write_metadata(
+                    [dag.dag_id for dag in dags], session=session
+                )
                 # Write Serialized DAGs to DB, capturing errors
                 for dag in dags:
                     serialize_errors.extend(
@@ -481,6 +494,7 @@ def update_dag_parsing_results_in_db(
                             bundle_name=bundle_name,
                             bundle_version=bundle_version,
                             session=session,
+                            _prefetched=prefetched_metadata.get(dag.dag_id),
                         )
                     )
             except OperationalError:
@@ -526,6 +540,7 @@ class DagModelOperation(NamedTuple):
                 .options(joinedload(DagModel.schedule_asset_references))
                 .options(joinedload(DagModel.schedule_asset_alias_references))
                 .options(joinedload(DagModel.task_outlet_asset_references))
+                .options(joinedload(DagModel.dag_owner_links))
             ),
             of=DagModel,
             session=session,
