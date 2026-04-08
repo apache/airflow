@@ -49,10 +49,9 @@ def _get_flask_app():
             ),
         )
     if not auth_manager.flask_app:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Flask app is not initialized. Check that FabAuthManager started up correctly.",
-        )
+        from airflow.providers.fab.www.app import create_app
+
+        auth_manager.flask_app = create_app(enable_plugins=False)
     return auth_manager.flask_app
 
 
