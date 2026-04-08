@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``21.0.0``
+Release: ``21.1.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/21.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/21.1.0/>`_.
 
 Installation
 ------------
@@ -76,7 +76,7 @@ PIP package                                 Version required
 ``google-api-python-client``                ``>=2.0.2``
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
-``google-cloud-aiplatform[evaluation]``     ``>=1.98.0``
+``google-cloud-aiplatform[evaluation]``     ``>=1.145.0``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
 ``ray[default]``                            ``>=2.49.0; python_version >= "3.13" and python_version < "3.14"``
 ``google-cloud-bigquery-storage``           ``>=2.31.0; python_version < "3.13"``
@@ -205,4 +205,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/21.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/21.1.0/changelog.html>`_.

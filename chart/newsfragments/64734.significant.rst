@@ -1,0 +1,1 @@
+``workers.hpa`` section is now deprecated in favor of ``workers.celery.hpa``. Please update your configuration accordingly.

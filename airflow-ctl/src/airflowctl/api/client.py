@@ -240,7 +240,9 @@ class Credentials:
                     try:
                         with open(debug_creds_path) as df:
                             debug_credentials = json.load(df)
-                            self.api_token = debug_credentials.get(self.token_key_for_environment(self.api_environment))
+                            self.api_token = debug_credentials.get(
+                                self.token_key_for_environment(self.api_environment)
+                            )
                     except FileNotFoundError as e:
                         if self.client_kind == ClientKind.CLI:
                             raise AirflowCtlCredentialNotFoundException(

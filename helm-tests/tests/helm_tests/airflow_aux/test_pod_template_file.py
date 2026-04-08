@@ -1810,3 +1810,22 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]) == {
             "postStart": {"exec": {"command": ["echo", "test-release"]}}
         }
+
+    def test_service_account_name_default(self):
+        docs = render_chart(
+            name="test-release",
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.serviceAccountName", docs[0]) == "test-release-airflow-worker"
+
+    def test_dedicated_service_account_name_default(self):
+        docs = render_chart(
+            name="test-release",
+            values={"workers": {"kubernetes": {"serviceAccount": {"create": True}}}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.serviceAccountName", docs[0]) == "test-release-airflow-worker-kubernetes"
