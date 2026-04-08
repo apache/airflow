@@ -36,7 +36,7 @@ Breaking changes
 * ``Replace 'sshtunnel' with native paramiko/asyncssh tunneling (#64299)``
 
 With this change we provide minimal backward compatibility shim,
-Rather than fully reimplementing SSHTunnelForwarder's API surface. While most
+Rather than fully re-implementing SSHTunnelForwarder's API surface. While most
 of the usages of the get_tunnel() method in the codebase should work without
 modifications - some of the more advanced use cases might require code changes,
 user need to inspect changes between the old SSHTunnelForwarder and SSHTunnel
@@ -47,7 +47,7 @@ errors when the properties are used.
 
 The SSHTunnel provides:
 
-* `Context manager (enter/exit) - the recommended interface
+* Context manager (enter/exit) - the recommended interface
 * .start()/.stop() - deprecated, emit AirflowProviderDeprecationWarning
 * .local_bind_port and .local_bind_address - preserved as properties
 * getattr - raises AttributeError with migration hint for
@@ -55,9 +55,9 @@ The SSHTunnel provides:
 
 AsyncSSHTunnel is a thin wrapper that:
 
-* Manages the lifecycle (listener + SSH connection cleanup in aexit)
+* Manages the lifecycle (listener + SSH connection cleanup in ``aexit``)
 * Exposes .local_bind_port via listener.get_port()
-* Handles cleanup on aenter failure (closes SSH connection if forward_local_port raises)
+* Handles cleanup on ``aenter`` failure (closes SSH connection if forward_local_port raises)
 * Follows the async with await hook.get_tunnel(...) pattern
 * Eager socket binding in constructor
 
