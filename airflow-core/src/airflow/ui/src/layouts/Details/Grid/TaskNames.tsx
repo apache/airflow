@@ -83,7 +83,6 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
     onRowClick?.();
   };
 
-
   const search = searchParams.toString();
 
   // If virtualItems is provided, use virtualization; otherwise render all items
