@@ -43,7 +43,7 @@ const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
   const { t: translate } = useTranslation("dag");
   const { hoveredTaskId, setHoveredTaskId } = useHover();
-  const { openGroupIds, setOpenGroupIds, toggleGroupId } = useOpenGroups();
+  const { toggleGroupId } = useOpenGroups();
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
