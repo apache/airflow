@@ -1733,6 +1733,16 @@ class InProcessSupervisorComms:
         with set_supervisor_comms(None):
             self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
 
+        # Some requests (e.g. SetXCom) are offloaded to the supervisor's thread pool to
+        # avoid blocking its event loop. In the in-process path there is no event loop
+        # calling _drain_pending_requests(), so we wait for any in-flight futures here
+        # and drain them so that the response is available before we try to pop it.
+        if self.supervisor._pending_requests:
+            from concurrent.futures import wait as futures_wait
+
+            futures_wait([f for f, _ in self.supervisor._pending_requests])
+            self.supervisor._drain_pending_requests()
+
         return self._get_response()
 
 
