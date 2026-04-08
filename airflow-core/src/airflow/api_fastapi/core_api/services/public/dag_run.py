@@ -200,14 +200,14 @@ class DagRunWaiter:
             return await session.scalar(select(DagRun).filter_by(dag_id=self.dag_id, run_id=self.run_id))
 
     async def _serialize_xcoms(self) -> dict[str, Any]:
-        if self.result_task_ids is None:
+        if self.result_task_ids is None:  # Return dag-author-specified results.
             xcom_query = XComModel.get_many(
                 run_id=self.run_id,
                 key=XCOM_RETURN_KEY,
                 dag_ids=self.dag_id,
             )
             xcom_query = xcom_query.where(XComModel.dag_result.is_(True))
-        else:
+        else:  # Explicitly API user-specified results.
             xcom_query = XComModel.get_many(
                 run_id=self.run_id,
                 key=XCOM_RETURN_KEY,
