@@ -247,7 +247,10 @@ def _cached_assess_pr(
         result._from_cache = True  # type: ignore[attr-defined]
         return result
 
-    # Generate directed review questions from the diff if available
+    # Generate directed review questions from the diff if available.
+    # Note: diff_text is not yet passed by the background thread-pool submissions
+    # (the diff may not be fetched at LLM submission time). Review questions are
+    # active when diff_text is provided explicitly (e.g. sequential review mode).
     review_questions: list[str] | None = None
     if diff_text:
         from airflow_breeze.utils.pr_vault import generate_review_questions
@@ -1856,7 +1859,9 @@ def _fetch_single_pr_graphql(token: str, github_repository: str, pr_number: int)
     )
 
 
+
 _author_profile_cache: dict[str, dict] = {}
+_author_profile_lock = threading.Lock()
 
 
 def _compute_author_scoring(
@@ -1933,15 +1938,17 @@ def _fetch_author_profile(token: str, login: str, github_repository: str) -> dic
     """Fetch author profile info via GraphQL: account age, PR counts, contributed repos.
 
     Results are cached in memory (per session) and on disk (across sessions, 7-day TTL).
+    Thread-safe: uses a lock to avoid redundant API calls from concurrent workers.
     """
-    if login in _author_profile_cache:
-        return _author_profile_cache[login]
+    with _author_profile_lock:
+        if login in _author_profile_cache:
+            return _author_profile_cache[login]
 
-    # Try disk cache before hitting the API
-    disk_profile = _get_cached_author_profile(github_repository, login)
-    if disk_profile:
-        _author_profile_cache[login] = disk_profile
-        return disk_profile
+        # Try disk cache before hitting the API
+        disk_profile = _get_cached_author_profile(github_repository, login)
+        if disk_profile:
+            _author_profile_cache[login] = disk_profile
+            return disk_profile
 
     repo_prefix = f"repo:{github_repository} type:pr author:{login}"
     global_prefix = f"type:pr author:{login}"
@@ -1973,7 +1980,8 @@ def _fetch_author_profile(token: str, login: str, github_repository: str) -> dic
             "contributed_repos": [],
             "contributed_repos_total": 0,
         }
-        _author_profile_cache[login] = profile
+        with _author_profile_lock:
+            _author_profile_cache[login] = profile
         return profile
     user_data = data.get("user") or {}
     created_at = user_data.get("createdAt", "unknown")
@@ -2023,7 +2031,8 @@ def _fetch_author_profile(token: str, login: str, github_repository: str) -> dic
             contrib_total,
         ),
     }
-    _author_profile_cache[login] = profile
+    with _author_profile_lock:
+        _author_profile_cache[login] = profile
 
     # Persist to disk for reuse across sessions
     _save_author_profile(github_repository, login, profile)

@@ -65,10 +65,31 @@ class CacheStore:
         return data
 
     def save(self, github_repository: str, key: str, data: dict) -> None:
-        """Save *data* as JSON. Automatically adds ``cached_at`` when TTL is configured."""
+        """Save *data* as JSON. Automatically adds ``cached_at`` when TTL is configured.
+
+        Uses atomic write (temp file + os.replace) to avoid corrupt reads when
+        multiple threads write the same key concurrently.
+        """
+        import os
+        import tempfile
+
         if self._ttl_seconds:
+            # time.time() is intentional here: monotonic clocks reset across process
+            # restarts, so wall-clock time is the only option for persistent TTLs.
             data = {**data, "cached_at": time.time()}
-        self._file(github_repository, key).write_text(json.dumps(data, indent=2))
+        target = self._file(github_repository, key)
+        fd, tmp_path = tempfile.mkstemp(dir=target.parent, suffix=".tmp")
+        closed = False
+        try:
+            os.write(fd, json.dumps(data, indent=2).encode())
+            os.close(fd)
+            closed = True
+            os.replace(tmp_path, target)
+        except BaseException:
+            if not closed:
+                os.close(fd)
+            Path(tmp_path).unlink(missing_ok=True)
+            raise
 
 
 # Concrete cache stores — one per domain

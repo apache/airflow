@@ -73,13 +73,22 @@ def save_prs_batch(github_repository: str, prs) -> int:
 
 
 # ── Check status vault ───────────────────────────────────────────
-# Keyed by head_sha, so results are automatically invalidated when a PR
-# gets new commits. No TTL needed — same SHA always produces the same checks.
+# Keyed by head_sha. Only caches fully-completed check results (no
+# IN_PROGRESS or QUEUED). Completed results never change for the same SHA.
 _check_vault = CacheStore("check_vault")
+
+# Statuses that indicate checks are still running
+_INCOMPLETE_STATUSES = {"IN_PROGRESS", "QUEUED", "PENDING"}
 
 
 def save_check_status(github_repository: str, head_sha: str, counts: dict[str, int]) -> None:
-    """Persist check status counts for a commit."""
+    """Persist check status counts for a commit.
+
+    Skips caching when any checks are still in progress — partial results
+    would cause future sessions to see an incomplete picture.
+    """
+    if _INCOMPLETE_STATUSES & set(counts.keys()):
+        return
     _check_vault.save(github_repository, f"checks_{head_sha}", {"head_sha": head_sha, "counts": counts})
 
 
@@ -127,6 +136,12 @@ def generate_review_questions(diff_text: str, pr_body: str) -> list[str]:
     if not diff_text:
         return questions
 
+    # Extract only added lines for content analysis (avoids false positives
+    # from removed lines that contain keywords like "deprecated").
+    added_lines = "\n".join(
+        line[1:] for line in diff_text.splitlines() if line.startswith("+") and not line.startswith("+++")
+    )
+
     # Count changes
     added = len(re.findall(r"^\+[^+]", diff_text, re.MULTILINE))
     removed = len(re.findall(r"^-[^-]", diff_text, re.MULTILINE))
@@ -154,15 +169,16 @@ def generate_review_questions(diff_text: str, pr_body: str) -> list[str]:
             f"Is test coverage needed?"
         )
 
-    # Version fields referencing already-released versions
-    version_matches = re.findall(r"version_added:\s*[\"']?(\d+\.\d+\.\d+)", diff_text)
+    # Version fields referencing already-released versions (only in added lines)
+    version_matches = re.findall(r"version_added:\s*[\"']?(\d+\.\d+\.\d+)", added_lines)
     if version_matches:
         questions.append(
             f"VERSION CHECK: version_added references {', '.join(set(version_matches))}. "
             f"Verify these are unreleased versions."
         )
 
-    # Breaking change indicators
+    # Breaking change indicators (only in added lines to avoid false positives
+    # from removed deprecation notices)
     breaking_signals = [
         "breaking",
         "backward",
@@ -172,8 +188,8 @@ def generate_review_questions(diff_text: str, pr_body: str) -> list[str]:
         "BREAKING CHANGE",
         "incompatible",
     ]
-    diff_lower = diff_text.lower()
-    found_signals = [s for s in breaking_signals if s in diff_lower]
+    added_lower = added_lines.lower()
+    found_signals = [s for s in breaking_signals if s in added_lower]
     if found_signals:
         questions.append(
             "BREAKING CHANGE: This diff contains breaking change indicators "
@@ -181,8 +197,8 @@ def generate_review_questions(diff_text: str, pr_body: str) -> list[str]:
             "on the mailing list?"
         )
 
-    # Multiple exception types
-    exceptions = re.findall(r"raise (\w+(?:Error|Exception))\(", diff_text)
+    # Multiple exception types (only in added lines)
+    exceptions = re.findall(r"raise (\w+(?:Error|Exception))\(", added_lines)
     unique_exceptions = set(exceptions)
     if len(unique_exceptions) > 3:
         questions.append(

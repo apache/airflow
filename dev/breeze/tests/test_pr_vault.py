@@ -231,3 +231,14 @@ class TestGenerateReviewQuestions:
         diff = "+raise ValueError(\n+raise TypeError(\n+raise KeyError(\n+raise RuntimeError(\n"
         questions = generate_review_questions(diff, "")
         assert any("CONSISTENCY" in q for q in questions)
+
+    def test_removed_deprecated_no_false_positive(self):
+        """Removing a deprecation notice should not trigger BREAKING CHANGE."""
+        diff = "-# This is deprecated and will be removed\n+# Updated comment\n"
+        questions = generate_review_questions(diff, "")
+        assert not any("BREAKING CHANGE" in q for q in questions)
+
+    def test_added_deprecated_triggers(self):
+        diff = "+# deprecated: use new_function instead\n"
+        questions = generate_review_questions(diff, "")
+        assert any("BREAKING CHANGE" in q for q in questions)
