@@ -38,8 +38,6 @@ import { buildTaskInstanceUrl } from "src/utils/links";
 export type GanttDataItem = {
   isGroup?: boolean | null;
   isMapped?: boolean | null;
-  isQueued?: boolean;
-  isScheduled?: boolean;
   state?: TaskInstanceState | null;
   taskId: string;
   tryNumber?: number;
@@ -139,7 +137,6 @@ export const transformGanttData = ({
                 items.push({
                   isGroup: false,
                   isMapped: tryInstance.is_mapped,
-                  isScheduled: true,
                   state: "scheduled" as TaskInstanceState,
                   taskId: tryInstance.task_id,
                   tryNumber: tryInstance.try_number,
@@ -153,7 +150,6 @@ export const transformGanttData = ({
                 items.push({
                   isGroup: false,
                   isMapped: tryInstance.is_mapped,
-                  isQueued: true,
                   state: "queued" as TaskInstanceState,
                   taskId: tryInstance.task_id,
                   tryNumber: tryInstance.try_number,
@@ -169,7 +165,6 @@ export const transformGanttData = ({
               items.push({
                 isGroup: false,
                 isMapped: tryInstance.is_mapped,
-                isQueued: false,
                 state: tryInstance.state,
                 taskId: tryInstance.task_id,
                 tryNumber: tryInstance.try_number,
@@ -299,6 +294,11 @@ export const createChartOptions = ({
       duration: 150,
       easing: "linear" as const,
     },
+    datasets: {
+      bar: {
+        minBarLength: 4,
+      },
+    },
     indexAxis: "y" as const,
     maintainAspectRatio: false,
     onClick: handleBarClick,
@@ -371,15 +371,7 @@ export const createChartOptions = ({
           label(tooltipItem: TooltipItem<"bar">) {
             const taskInstance = data[tooltipItem.dataIndex];
 
-            if (taskInstance?.isScheduled) {
-              return `${translate("state")}: ${translate("states.scheduled")}`;
-            }
-
-            if (taskInstance?.isQueued) {
-              return `${translate("state")}: ${translate("states.queued")}`;
-            }
-
-            return `${translate("state")}: ${translate(`states.${taskInstance?.state}`)}`;
+            return `${translate("state")}: ${translate(`common:states.${taskInstance?.state}`)}`;
           },
         },
       },
