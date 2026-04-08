@@ -150,6 +150,7 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
         self._hooks_lazy_dict: LazyDictWithCache[str, HookInfo | Callable] = LazyDictWithCache()
         self._plugins_set: set[PluginInfo] = set()
+        self._task_coordinators: list[str] = []
         self._provider_schema_validator = _create_provider_info_schema_validator()
         self._init_airflow_core_hooks()
         # Populated by initialize_provider_configs(); holds provider-contributed config sections.
@@ -219,6 +220,12 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         """Lazy initialization of providers taskflow decorators."""
         self.initialize_providers_list()
         self._discover_taskflow_decorators()
+
+    @provider_info_cache("task_coordinators")
+    def initialize_providers_task_coordinators(self):
+        """Lazy initialization of providers workload coordinators."""
+        self.initialize_providers_list()
+        self._discover_task_coordinators()
 
     @provider_info_cache("provider_configs")
     def initialize_provider_configs(self):
@@ -464,6 +471,14 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
             connection_testable=hasattr(hook_class, "test_connection"),
         )
 
+    def _discover_task_coordinators(self) -> None:
+        """Retrieve all workload coordinators defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            for coordinator_class_path in provider.data.get("task-coordinators", []):
+                if _correctness_check(provider_package, coordinator_class_path, provider):
+                    self._task_coordinators.append(coordinator_class_path)
+        self._task_coordinators = sorted(set(self._task_coordinators))
+
     def _discover_filesystems(self) -> None:
         """Retrieve all filesystems defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
@@ -612,6 +627,12 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         return sorted(self._plugins_set, key=lambda x: x.plugin_class)
 
     @property
+    def task_coordinators(self) -> list[str]:
+        """Returns workload coordinator class paths available in providers."""
+        self.initialize_providers_task_coordinators()
+        return self._task_coordinators
+
+    @property
     def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
         self.initialize_provider_configs()
         return sorted(self._provider_configs.items(), key=lambda x: x[0])
@@ -643,6 +664,7 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         self._asset_uri_handlers.clear()
         self._asset_factories.clear()
         self._asset_to_openlineage_converters.clear()
+        self._task_coordinators.clear()
         self._provider_configs.clear()
 
         # Imported lazily to preserve SDK conf lazy initialization and avoid a configuration/runtime cycle.

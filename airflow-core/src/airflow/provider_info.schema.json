@@ -446,6 +446,20 @@
                     "type": "string"
                 }
             }
+        },
+        "task-coordinators": {
+            "type": "array",
+            "description": "Task Coordinator class names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "dag-file-processors": {
+            "type": "array",
+            "description": "Dag File Processor class names",
+            "items": {
+                "type": "string"
+            }
         }
     },
     "definitions": {
