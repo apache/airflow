@@ -49,7 +49,12 @@
     "count_one": "{{count}} deadline",
     "count_other": "{{count}} deadlines",
     "interval": "Interval",
-    "referenceType": "Calculated from",
+    "referenceType": {
+      "AverageRuntimeDeadline": "Calculated from Average Runtime",
+      "DagRunLogicalDateDeadline": "Calculated from Logical Date",
+      "DagRunQueuedAtDeadline": "Calculated from Queued At",
+      "FixedDatetimeDeadline": "Fixed Datetime"
+    },
     "title": "Deadline Alerts",
     "unnamed": "Unnamed Alert"
   },
