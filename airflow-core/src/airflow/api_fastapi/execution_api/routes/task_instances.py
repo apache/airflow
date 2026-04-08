@@ -70,6 +70,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
+from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
@@ -679,6 +680,9 @@ def ti_skip_downstream(
         status.HTTP_409_CONFLICT: {
             "description": "The TI attempting to heartbeat should be terminated for the given reason"
         },
+        status.HTTP_410_GONE: {
+            "description": "Task Instance not found in the TI table but exists in the Task Instance History table"
+        },
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
 )
@@ -702,6 +706,24 @@ def ti_heartbeat(
             "Retrieved current task state", state=previous_state, current_hostname=hostname, current_pid=pid
         )
     except NoResultFound:
+        # Check if the TI exists in the Task Instance History table.
+        # If it does, it was likely cleared while running, so return 410 Gone
+        # instead of 404 Not Found to give the client a more specific signal.
+        tih_exists = session.scalar(
+            select(func.count(TIH.task_instance_id)).where(TIH.task_instance_id == task_instance_id)
+        )
+        if tih_exists:
+            log.error(
+                "TaskInstance was previously cleared and archived in history, heartbeat skipped",
+                ti_id=str(task_instance_id),
+            )
+            raise HTTPException(
+                status_code=status.HTTP_410_GONE,
+                detail={
+                    "reason": "not_found",
+                    "message": "Task Instance not found, it may have been moved to the Task Instance History table",
+                },
+            )
         log.error("Task Instance not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
