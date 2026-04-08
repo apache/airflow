@@ -744,6 +744,8 @@ class DagRunInfo(InfoJsonEncodable):
         "execution_date",  # Airflow 2
         "external_trigger",  # Removed in Airflow 3, use run_type instead
         "logical_date",  # Airflow 3
+        "partition_key",  # Airflow 3.2+
+        "partition_date",  # Airflow 3.2+
         "run_after",  # Airflow 3
         "run_id",
         "run_type",
