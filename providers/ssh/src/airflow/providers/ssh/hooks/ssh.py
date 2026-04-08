@@ -428,7 +428,7 @@ class SSHHook(BaseHook):
             except (paramiko.ssh_exception.SSHException, ValueError):
                 continue
         raise AirflowException(
-            "Private key provided cannot be read by paramiko."
+            "Private key provided cannot be read by paramiko. "
             "Ensure key provided is valid for one of the following "
             "key formats: RSA, ECDSA, or Ed25519."
         )
