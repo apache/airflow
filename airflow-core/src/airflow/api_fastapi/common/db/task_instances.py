@@ -55,5 +55,6 @@ def eager_load_TI_and_TIH_for_validation(
         query = query.options(
             joinedload(orm_model.task_instance_note),
             joinedload(orm_model.rendered_task_instance_fields),
+            joinedload(orm_model.trigger).joinedload(orm_model.trigger.triggerer_job),
         )
     return query

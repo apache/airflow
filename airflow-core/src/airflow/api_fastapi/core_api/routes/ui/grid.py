@@ -468,27 +468,33 @@ def get_grid_ti_summaries_stream(
     """
 
     def _generate() -> Generator[str, None, None]:
+        if not run_ids:
+            return
         serdag_cache: dict[Any, SerializedDagModel | None] = {}
-        for run_id in run_ids or []:
-            tis = session.execute(
-                select(
-                    TaskInstance.task_id,
-                    TaskInstance.state,
-                    TaskInstance.dag_version_id,
-                    TaskInstance.start_date,
-                    TaskInstance.end_date,
-                    DagVersion.version_number,
-                )
-                .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
-                .where(TaskInstance.dag_id == dag_id)
-                .where(TaskInstance.run_id == run_id)
-                .order_by(TaskInstance.task_id)
-                .execution_options(yield_per=1000)
+        tis_query = (
+            select(
+                TaskInstance.run_id,
+                TaskInstance.task_id,
+                TaskInstance.state,
+                TaskInstance.dag_version_id,
+                TaskInstance.start_date,
+                TaskInstance.end_date,
+                DagVersion.version_number,
             )
+            .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
+            .where(TaskInstance.dag_id == dag_id)
+            .where(TaskInstance.run_id.in_(run_ids))
+            .order_by(TaskInstance.run_id, TaskInstance.task_id)
+            .execution_options(yield_per=2000)
+        )
+
+        from itertools import groupby
+
+        for run_id, run_tis in groupby(session.execute(tis_query), key=lambda x: x.run_id):
             summary = _build_ti_summaries(
                 dag_id,
                 run_id,
-                tis,
+                run_tis,
                 session,
                 serdag_cache=serdag_cache,
             )

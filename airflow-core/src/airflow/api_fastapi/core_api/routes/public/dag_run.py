@@ -110,7 +110,13 @@ dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 )
 def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResponse:
     dag_run = session.scalar(
-        select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id).options(joinedload(DagRun.dag_model))
+        select(DagRun)
+        .filter_by(dag_id=dag_id, run_id=dag_run_id)
+        .options(
+            joinedload(DagRun.dag_model),
+            joinedload(DagRun.dag_run_note),
+            joinedload(DagRun.created_dag_version).joinedload(DagVersion.bundle),
+        )
     )
     if dag_run is None:
         raise HTTPException(
