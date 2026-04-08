@@ -258,6 +258,28 @@ class TestProviderManager:
         assert len(dialect_class_names) == 3
         assert dialect_class_names == ["default", "mssql", "postgresql"]
 
+    @patch("airflow.providers_manager.import_string")
+    def test_dag_file_processors(self, mock_import_string):
+        mock_import_string.return_value = object()
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["apache-airflow-providers-languages-java"] = ProviderInfo(
+            version="0.0.1",
+            data={
+                "dag-file-processors": [
+                    "airflow.providers.languages.java.dag_file_processors.ZProcessor",
+                    "airflow.providers.languages.java.dag_file_processors.AProcessor",
+                    "airflow.providers.languages.java.dag_file_processors.ZProcessor",
+                ]
+            },
+        )
+
+        with patch.object(providers_manager, "initialize_providers_list"):
+            assert providers_manager.dag_file_processors == [
+                "airflow.providers.languages.java.dag_file_processors.AProcessor",
+                "airflow.providers.languages.java.dag_file_processors.ZProcessor",
+            ]
+
 
 class TestWithoutCheckProviderManager:
     @pytest.fixture(autouse=True)
