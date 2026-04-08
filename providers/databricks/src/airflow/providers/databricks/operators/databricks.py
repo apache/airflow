@@ -271,6 +271,7 @@ class DatabricksJobRunLink(BaseOperatorLink):
     ) -> str:
         return XCom.get_value(key=XCOM_RUN_PAGE_URL_KEY, ti_key=ti_key)
 
+
 class DatabricksCreateJobsOperator(BaseOperator):
     """
     Creates (or resets) a Databricks job using the API endpoint.
@@ -408,6 +409,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         self._hook.reset_job(str(job_id), self.json)
         return job_id
 
+
 class DatabricksDeleteJobsOperator(BaseOperator):
     """
     Deletes a Databricks job.
@@ -447,11 +449,11 @@ class DatabricksDeleteJobsOperator(BaseOperator):
             caller="DatabricksDeleteJobsOperator",
         )
 
-
     def execute(self, context: Context) -> None:
         self._hook.delete_job(self.job_id)
 
         self.log.info("Successfully deleted Databricks job ID: %s", self.job_id)
+
 
 class DatabricksSubmitRunOperator(BaseOperator):
     """

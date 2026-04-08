@@ -603,6 +603,7 @@ class TestDatabricksCreateJobsOperator:
 
         db_mock.update_job_permission.assert_not_called()
 
+
 class TestDatabricksDeleteJobsOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute(self, mock_hook_class):
@@ -639,6 +640,7 @@ class TestDatabricksDeleteJobsOperator:
         )
 
         assert "job_id" in op.template_fields
+
 
 class TestDatabricksSubmitRunOperator:
     def test_init_with_notebook_task_named_parameters(self):
