@@ -300,9 +300,13 @@ class GitDagBundle(BaseDagBundle):
         reraise=True,
     )
     def _fetch_submodules(self) -> None:
-        self._log.info("Initializing and updating submodules", repo_path=self.repo_path)
-        self.repo.git.submodule("sync", "--recursive")
-        self.repo.git.submodule("update", "--init", "--recursive", "--jobs", "1")
+        cm = nullcontext()
+        if self.hook and (cmd := self.hook.env.get("GIT_SSH_COMMAND")):
+            cm = self.repo.git.custom_environment(GIT_SSH_COMMAND=cmd)
+        with cm:
+            self._log.info("Initializing and updating submodules", repo_path=self.repo_path)
+            self.repo.git.submodule("sync", "--recursive")
+            self.repo.git.submodule("update", "--init", "--recursive", "--jobs", "1")
 
     def refresh(self) -> None:
         if self.version:
