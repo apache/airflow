@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1774299666
+source-date-epoch: 1775592689
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 5.14.0
   - 5.13.0
   - 5.12.3
   - 5.12.2
@@ -96,6 +97,7 @@ hooks:
 
 connection-types:
   - hook-class-name: airflow.providers.salesforce.hooks.salesforce.SalesforceHook
+    hook-name: "Salesforce"
     connection-type: salesforce
     conn-fields:
       security_token:

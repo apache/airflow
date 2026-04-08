@@ -681,18 +681,26 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.nodeSelector", docs[0]) == {"diskType": "ssd"}
 
     @pytest.mark.parametrize(
-        ("base_scheduler_name", "worker_scheduler_name", "expected"),
+        ("base_scheduler_name", "worker_values", "expected"),
         [
-            ("default-scheduler", "most-allocated", "most-allocated"),
-            ("default-scheduler", None, "default-scheduler"),
-            (None, None, None),
+            ("default-scheduler", {"schedulerName": "most-allocated"}, "most-allocated"),
+            ("default-scheduler", {"kubernetes": {"schedulerName": "most-allocated"}}, "most-allocated"),
+            (
+                "default-scheduler",
+                {"schedulerName": "least-allocated", "kubernetes": {"schedulerName": "most-allocated"}},
+                "most-allocated",
+            ),
+            ("default-scheduler", {"schedulerName": None}, "default-scheduler"),
+            ("default-scheduler", {"kubernetes": {"schedulerName": None}}, "default-scheduler"),
+            (None, {"schedulerName": None}, None),
+            (None, {"kubernetes": {"schedulerName": None}}, None),
         ],
     )
-    def test_scheduler_name(self, base_scheduler_name, worker_scheduler_name, expected):
+    def test_scheduler_name(self, base_scheduler_name, worker_values, expected):
         docs = render_chart(
             values={
                 "schedulerName": base_scheduler_name,
-                "workers": {"schedulerName": worker_scheduler_name},
+                "workers": worker_values,
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
@@ -1802,3 +1810,22 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]) == {
             "postStart": {"exec": {"command": ["echo", "test-release"]}}
         }
+
+    def test_service_account_name_default(self):
+        docs = render_chart(
+            name="test-release",
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.serviceAccountName", docs[0]) == "test-release-airflow-worker"
+
+    def test_dedicated_service_account_name_default(self):
+        docs = render_chart(
+            name="test-release",
+            values={"workers": {"kubernetes": {"serviceAccount": {"create": True}}}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.serviceAccountName", docs[0]) == "test-release-airflow-worker-kubernetes"

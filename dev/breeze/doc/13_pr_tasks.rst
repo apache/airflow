@@ -55,9 +55,18 @@ When the command starts, it runs through several startup phases with a progress 
    mergeability.
 7. **Verify CI status** — Verifies that SUCCESS status is from real CI (not just bot/labeler
    checks).
-8. **Filter & classify** — Filters out collaborators, bots, drafts (optional), and applies
-   label/date/author filters.
+8. **Filter & classify** — Filters out collaborators, bots, and applies
+   label/date/author filters. Drafts are always included for staleness detection.
 9. **Check prior triage** — Checks if PRs already have triage comments from previous runs.
+10. **Detect stale PRs** — Identifies stale draft PRs and inactive open PRs for closing:
+
+    - **Triaged drafts** — Draft PRs with a triage comment older than 7 days and no author
+      response are marked for closing.
+    - **Non-triaged drafts** — Draft PRs with no activity (based on ``updated_at``) for
+      over 3 weeks are marked for closing.
+    - **Inactive open PRs** — Non-draft PRs with no activity for over 4 weeks are marked
+      for closing.
+    - Non-stale drafts are skipped from triage (they stay in draft until they become stale).
 
 TUI mode (full-screen interactive)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -353,8 +362,20 @@ in sequential mode, presenting PRs one at a time:
 
 6. **Already triaged** — Previously triaged PRs offered for re-evaluation.
 
-Each PR info panel shows the PR Classification, LLM Review status, labels, and
-author profile.
+7. **Stale drafts** — Draft PRs that have been inactive are automatically closed:
+
+   - Triaged drafts with no author response for 7+ days
+   - Non-triaged drafts with no activity for 3+ weeks
+
+8. **Inactive open PRs** — Non-draft PRs with no activity for 4+ weeks are
+   automatically converted to draft with a comment asking the author to mark
+   as ready when they resume work.
+
+9. **Stale workflow-approval PRs** — PRs awaiting workflow approval with no activity
+   for 4+ weeks are automatically converted to draft with a comment.
+
+Each PR info panel shows the PR Classification, LLM Review status, maintainer
+reviews (approvals/changes requested from collaborators), labels, and author profile.
 
 Session summary
 ^^^^^^^^^^^^^^^
@@ -402,6 +423,27 @@ The command uses the following GitHub labels to track triage state:
 These labels must exist in the GitHub repository before using the command. If a label is
 missing, the command will print a warning and skip the labeling step.
 
+Automatic staleness detection and closing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The command automatically detects and proposes closing PRs that have gone stale.
+Different thresholds apply depending on the PR state:
+
+============================  ==========  ==========  =============================================
+PR State                      Threshold   Action      Condition
+============================  ==========  ==========  =============================================
+Triaged draft                 7 days      Close       Triage comment posted, no author response
+Non-triaged draft             3 weeks     Close       No activity (``updated_at``) from author
+Open (non-draft)              4 weeks     Draft       No activity (``updated_at``) from author
+Awaiting workflow approval    4 weeks     Draft       No activity (``updated_at``) from author
+============================  ==========  ==========  =============================================
+
+For draft PRs that are stale, the PR is closed with a comment inviting the author to
+reopen. For non-draft PRs, the PR is converted to draft with a comment asking the
+author to mark as ready when they resume. All actions go through the normal triage
+action flow, so ``--dry-run`` will show what would happen without making changes.
+No labels are added when converting to draft — only a comment is posted.
+
 Example usage
 ^^^^^^^^^^^^^
 
@@ -439,6 +481,16 @@ Example usage
 
      # Verbose mode — show individual skip reasons during filtering
      breeze pr auto-triage --verbose
+
+PR statistics
+"""""""""""""
+
+The ``breeze pr stats`` command produces aggregate statistics of open PRs grouped by area label.
+
+.. image:: ./images/output_pr_stats.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_pr_stats.svg
+  :width: 100%
+  :alt: Breeze PR stats
 
 -----
 

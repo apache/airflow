@@ -1,0 +1,1 @@
+``workers.schedulerName`` field is now deprecated in favor of ``workers.celery.schedulerName`` and ``workers.kubernetes.schedulerName``. Please update your configuration accordingly.

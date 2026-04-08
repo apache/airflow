@@ -1,0 +1,1 @@
+``workers.serviceAccount`` section is now deprecated in favor of ``workers.celery.serviceAccount`` and ``workers.kubernetes.serviceAccount``. Please update your configuration accordingly.

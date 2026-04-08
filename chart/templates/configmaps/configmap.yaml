@@ -56,7 +56,7 @@ data:
     {{- range $key, $val := $settings }}
     {{ $key }} = {{ tpl ($val | toString) $Global }}
     {{- end }}
-    {{- end }}
+    {{ end }}
 
   {{- if .Values.airflowLocalSettings }}
   airflow_local_settings.py: |-

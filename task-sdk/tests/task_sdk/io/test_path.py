@@ -26,6 +26,7 @@ from unittest import mock
 import pytest
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
+from upath import UPath
 
 from airflow.sdk import Asset, ObjectStoragePath
 from airflow.sdk._shared.module_loading import qualname
@@ -226,6 +227,114 @@ class TestAttach:
             o = ObjectStoragePath(path, conn_id="fake")
             getattr(o, fn)(**args)
             method.assert_called_once_with(expected_args, **expected_kwargs)
+
+
+class TestConnIdCredentialResolution:
+    """
+    Regression tests for https://github.com/apache/airflow/issues/64632
+
+    When ObjectStoragePath was migrated from CloudPath to ProxyUPath (3.2.0),
+    methods like exists(), mkdir(), is_dir(), is_file() were delegated to
+    self.__wrapped__ which carries empty storage_options (conn_id is stored
+    separately). This caused NoCredentialsError / 401 errors for remote stores
+    even when a valid conn_id was provided.
+    """
+
+    @pytest.fixture(autouse=True)
+    def restore_cache(self):
+        cache = _STORE_CACHE.copy()
+        yield
+        _STORE_CACHE.clear()
+        _STORE_CACHE.update(cache)
+
+    @pytest.fixture
+    def fake_fs_with_conn(self):
+        fs = _FakeRemoteFileSystem(conn_id="my_conn")
+        attach(protocol="ffs2", conn_id="my_conn", fs=fs)
+        try:
+            yield fs
+        finally:
+            _FakeRemoteFileSystem.store.clear()
+            _FakeRemoteFileSystem.pseudo_dirs[:] = [""]
+
+    def test_exists_uses_authenticated_fs(self, fake_fs_with_conn):
+        """exists() must use self.fs (Airflow-attached) not __wrapped__.fs (unauthenticated)."""
+        p = ObjectStoragePath("ffs2://my_conn@bucket/some_file.txt", conn_id="my_conn")
+        # Verify the correct fs instance was injected, not merely any _FakeRemoteFileSystem
+        assert p.__wrapped__._fs_cached is fake_fs_with_conn
+        fake_fs_with_conn.touch("bucket/some_file.txt")
+
+        assert p.exists() is True
+        assert (
+            ObjectStoragePath("ffs2://my_conn@bucket/no_such_file.txt", conn_id="my_conn").exists() is False
+        )
+
+    def test_mkdir_uses_authenticated_fs(self, fake_fs_with_conn):
+        """mkdir() must use self.fs (Airflow-attached) not __wrapped__.fs (unauthenticated)."""
+        p = ObjectStoragePath("ffs2://my_conn@bucket/new_dir/", conn_id="my_conn")
+        p.mkdir(parents=True, exist_ok=True)
+        assert fake_fs_with_conn.isdir("bucket/new_dir")
+
+    def test_is_dir_uses_authenticated_fs(self, fake_fs_with_conn):
+        """is_dir() must use self.fs (Airflow-attached) not __wrapped__.fs (unauthenticated)."""
+        fake_fs_with_conn.mkdir("bucket/a_dir")
+        p = ObjectStoragePath("ffs2://my_conn@bucket/a_dir", conn_id="my_conn")
+        assert p.is_dir() is True
+
+    def test_is_file_uses_authenticated_fs(self, fake_fs_with_conn):
+        """is_file() must use self.fs (Airflow-attached) not __wrapped__.fs (unauthenticated)."""
+        fake_fs_with_conn.touch("bucket/a_file.txt")
+        p = ObjectStoragePath("ffs2://my_conn@bucket/a_file.txt", conn_id="my_conn")
+        assert p.is_file() is True
+
+    def test_touch_uses_authenticated_fs(self, fake_fs_with_conn):
+        """touch() must use self.fs (Airflow-attached) not __wrapped__.fs (unauthenticated)."""
+        p = ObjectStoragePath("ffs2://my_conn@bucket/touched_file.txt", conn_id="my_conn")
+        p.touch()
+        assert fake_fs_with_conn.exists("bucket/touched_file.txt")
+
+    def test_unlink_uses_authenticated_fs(self, fake_fs_with_conn):
+        """unlink() must use self.fs (Airflow-attached) not __wrapped__.fs (unauthenticated)."""
+        fake_fs_with_conn.touch("bucket/to_delete.txt")
+        p = ObjectStoragePath("ffs2://my_conn@bucket/to_delete.txt", conn_id="my_conn")
+        p.unlink()
+        assert not fake_fs_with_conn.exists("bucket/to_delete.txt")
+
+    def test_rmdir_uses_authenticated_fs(self, fake_fs_with_conn):
+        """rmdir() must use self.fs (Airflow-attached) not __wrapped__.fs (unauthenticated)."""
+        fake_fs_with_conn.mkdir("bucket/empty_dir")
+        p = ObjectStoragePath("ffs2://my_conn@bucket/empty_dir", conn_id="my_conn")
+        # upath's rmdir(recursive=False) calls next(self.iterdir()) without a default,
+        # which raises StopIteration on empty dirs — a upath bug. Use the default (recursive=True).
+        p.rmdir()
+        assert not fake_fs_with_conn.exists("bucket/empty_dir")
+
+    def test_conn_id_in_uri_works_for_exists(self, fake_fs_with_conn):
+        """conn_id embedded in URI (user@host) should also work for exists()."""
+        fake_fs_with_conn.touch("bucket/target.txt")
+        p = ObjectStoragePath("ffs2://my_conn@bucket/target.txt")
+        assert p.conn_id == "my_conn"
+        assert p.exists() is True
+
+    def test_from_upath_injects_fs_when_no_cache(self, fake_fs_with_conn):
+        """_from_upath must inject authenticated fs into a fresh UPath with no _fs_cached."""
+        # Simulate _from_upath called as an instance method with a fresh UPath that has
+        # no _fs_cached set (e.g. cwd() / home() or a cross-protocol _from_upath call).
+        p_instance = ObjectStoragePath("ffs2://my_conn@bucket/root", conn_id="my_conn")
+        fresh_upath = UPath("ffs2://bucket/other")
+        assert not hasattr(fresh_upath, "_fs_cached")
+        child = p_instance._from_upath(fresh_upath)
+        assert child.__wrapped__._fs_cached is fake_fs_with_conn
+
+    def test_iterdir_children_use_authenticated_fs(self, fake_fs_with_conn):
+        """Children yielded by iterdir() must also carry the authenticated filesystem."""
+        fake_fs_with_conn.touch("bucket/dir/file1.txt")
+        fake_fs_with_conn.touch("bucket/dir/file2.txt")
+        p = ObjectStoragePath("ffs2://my_conn@bucket/dir", conn_id="my_conn")
+        children = list(p.iterdir())
+        assert len(children) == 2
+        # Each child path must use the same authenticated fs, not a fresh unauthenticated one
+        assert all(c.__wrapped__._fs_cached is fake_fs_with_conn for c in children)
 
 
 class TestRemotePath:

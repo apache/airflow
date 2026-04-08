@@ -116,7 +116,10 @@ export const Logs = () => {
     );
   };
 
-  const getLogString = () => getParsedLogs().join("\n");
+  const getLogString = () =>
+    getParsedLogs()
+      .filter((line) => line !== "")
+      .join("\n");
 
   const downloadLogs = () => {
     const logContent = getLogString();

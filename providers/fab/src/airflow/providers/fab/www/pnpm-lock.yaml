@@ -13,6 +13,8 @@ overrides:
   picomatch@<4.0.4: '>=4.0.4'
   brace-expansion@>=4.0.0 <5.0.5: '>=5.0.5'
   serialize-javascript@<7.0.5: '>=7.0.5'
+  lodash@>=4.0.0 <=4.17.23: '>=4.18.0'
+  lodash@<=4.17.23: '>=4.18.0'
 
 importers:
 
@@ -1603,8 +1605,8 @@ packages:
   lodash.uniq@4.5.0:
     resolution: {integrity: sha512-xfBaXQd9ryd9dlSDvnvI0lvxfLJlYAZzXomUYzLKtUeOQvOP5piqAWuGtrhWeqaXK9hhoM/iyJc5AV+XfsX3HQ==}
 
-  lodash@4.17.23:
-    resolution: {integrity: sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==}
+  lodash@4.18.1:
+    resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
@@ -3992,7 +3994,7 @@ snapshots:
 
   lodash.uniq@4.5.0: {}
 
-  lodash@4.17.23: {}
+  lodash@4.18.1: {}
 
   lru-cache@5.1.1:
     dependencies:
@@ -4627,7 +4629,7 @@ snapshots:
   webpack-license-plugin@4.5.1(webpack@5.105.4):
     dependencies:
       chalk: 5.6.2
-      lodash: 4.17.23
+      lodash: 4.18.1
       needle: 3.3.1
       spdx-expression-validate: 2.0.0
       webpack: 5.105.4(webpack-cli@7.0.2)

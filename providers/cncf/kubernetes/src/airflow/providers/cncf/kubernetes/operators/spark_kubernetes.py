@@ -421,7 +421,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return self.find_spark_job(context, exclude_checked=exclude_checked)
 
     def on_kill(self) -> None:
-        self.log.debug("Deleting spark job for task %s", self.task_id)
+        self.log.info("Deleting spark job for task %s", self.task_id)
         job_name = self.name
         if self.pod and self.pod.metadata and self.pod.metadata.name:
             if self.pod.metadata.name.endswith("-driver"):

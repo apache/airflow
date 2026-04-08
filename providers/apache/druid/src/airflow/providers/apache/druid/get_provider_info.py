@@ -50,6 +50,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apache.druid.hooks.druid.DruidDbApiHook",
+                "hook-name": "Druid",
                 "connection-type": "druid",
             }
         ],

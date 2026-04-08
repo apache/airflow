@@ -97,4 +97,18 @@ def print_pr_header(pr: PRData, index: int | None = None, total: int | None = No
     console.print(f"  [bold]{pr.title}[/]")
     console.print(f"  [dim]{pr.url}[/]")
     console.print(f"  Author: [bold]{pr.author_login}[/] ({pr.author_association})")
+    if pr.review_decisions:
+        maintainer_assocs = {"COLLABORATOR", "MEMBER", "OWNER"}
+        maintainer_reviews = [r for r in pr.review_decisions if r.reviewer_association in maintainer_assocs]
+        if maintainer_reviews:
+            approved = [r for r in maintainer_reviews if r.state == "APPROVED"]
+            changes_requested = [r for r in maintainer_reviews if r.state == "CHANGES_REQUESTED"]
+            parts: list[str] = []
+            if approved:
+                names = ", ".join(r.reviewer_login for r in approved)
+                parts.append(f"[green]{len(approved)} approved[/] ({names})")
+            if changes_requested:
+                names = ", ".join(r.reviewer_login for r in changes_requested)
+                parts.append(f"[red]{len(changes_requested)} changes requested[/] ({names})")
+            console.print(f"  Maintainer reviews: {' | '.join(parts)}")
     console.print()

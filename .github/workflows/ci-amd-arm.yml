@@ -40,7 +40,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-  UV_VERSION: "0.11.2"  # Keep this comment to allow automatic replacement of uv version
+  UV_VERSION: "0.11.3"  # Keep this comment to allow automatic replacement of uv version
   VERBOSE: "true"
 
 concurrency:
@@ -91,7 +91,6 @@ jobs:
       kubernetes-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.kubernetes-versions-list-as-string }}
       latest-versions-only: ${{ steps.selective-checks.outputs.latest-versions-only }}
-      mypy-checks: ${{ steps.selective-checks.outputs.mypy-checks }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
       platform: ${{ steps.selective-checks.outputs.platform }}
@@ -115,7 +114,7 @@ jobs:
       run-go-sdk-tests: ${{ steps.selective-checks.outputs.run-go-sdk-tests }}
       run-helm-tests: ${{ steps.selective-checks.outputs.run-helm-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
-      run-mypy: ${{ steps.selective-checks.outputs.run-mypy }}
+      run-mypy-providers: ${{ steps.selective-checks.outputs.run-mypy-providers }}
       run-remote-logging-elasticsearch-e2e-tests: ${{ steps.selective-checks.outputs.run-remote-logging-elasticsearch-e2e-tests }}
       run-remote-logging-s3-e2e-tests: ${{ steps.selective-checks.outputs.run-remote-logging-s3-e2e-tests }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
@@ -307,8 +306,6 @@ jobs:
     with:
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
-      run-mypy: ${{ needs.build-info.outputs.run-mypy }}
-      mypy-checks: ${{ needs.build-info.outputs.mypy-checks }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
@@ -332,6 +329,48 @@ jobs:
       DOCS_AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
       DOCS_AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+  mypy-providers:
+    timeout-minutes: 45
+    name: "MyPy providers checks"
+    needs: [build-info, build-ci-images]
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    if: needs.build-info.outputs.run-mypy-providers == 'true'
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: "Prepare breeze & CI image: ${{ needs.build-info.outputs.default-python-version }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ needs.build-info.outputs.platform }}
+          python: "${{ needs.build-info.outputs.default-python-version }}"
+          use-uv: ${{ needs.build-info.outputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
+        id: breeze
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          python-version: ${{steps.breeze.outputs.host-python-version}}
+          platform: ${{ needs.build-info.outputs.platform }}
+          save-cache: false
+      - name: "MyPy checks for providers"
+        run: prek --color always --verbose --stage manual mypy-providers --all-files
+        env:
+          VERBOSE: "false"
+          COLUMNS: "202"
+          SKIP_GROUP_OUTPUT: "true"
+          DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+          RUFF_FORMAT: "github"
+          INCLUDE_MYPY_VOLUME: "false"
 
   providers:
     name: "provider distributions tests"
@@ -843,7 +882,7 @@ jobs:
           persist-credentials: false
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417  # v6.3.0
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
         with:
           go-version: 1.24
           cache-dependency-path: go-sdk/go.sum
@@ -895,6 +934,7 @@ jobs:
       - build-prod-images
       - ci-image-checks
       - generate-constraints
+      - mypy-providers
       - providers
       - tests-helm
       - tests-integration-system

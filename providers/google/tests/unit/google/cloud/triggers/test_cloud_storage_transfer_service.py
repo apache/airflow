@@ -91,6 +91,7 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
             "job_names": JOB_NAMES,
             "poll_interval": POLL_INTERVAL,
             "gcp_conn_id": GCP_CONN_ID,
+            "files": None,
         }
 
     def test_get_async_hook(self, trigger):
@@ -118,6 +119,31 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
         actual_event = await generator.asend(None)
 
         assert actual_event == expected_event
+
+    @pytest.mark.asyncio
+    @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_latest_operation")
+    @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_jobs")
+    async def test_run_includes_files_in_success_event(self, get_jobs, get_latest_operation):
+        """When trigger has files, success event includes them for operator to return via XCom."""
+        TRANSFERRED_FILES = ["path/file1.csv", "path/file2.csv"]
+        trigger_with_files = CloudStorageTransferServiceCreateJobsTrigger(
+            project_id=PROJECT_ID,
+            job_names=JOB_NAMES,
+            poll_interval=POLL_INTERVAL,
+            gcp_conn_id=GCP_CONN_ID,
+            files=TRANSFERRED_FILES,
+        )
+        get_jobs.return_value = mock_jobs(names=JOB_NAMES, latest_operation_names=LATEST_OPERATION_NAMES)
+        get_latest_operation.side_effect = [
+            create_mock_operation(status=TransferOperation.Status.SUCCESS, name="operation_" + job_name)
+            for job_name in JOB_NAMES
+        ]
+
+        generator = trigger_with_files.run()
+        actual_event = await generator.asend(None)
+
+        assert actual_event.payload["status"] == "success"
+        assert actual_event.payload["files"] == TRANSFERRED_FILES
 
     @pytest.mark.parametrize(
         "status",

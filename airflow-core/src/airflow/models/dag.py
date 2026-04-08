@@ -257,7 +257,7 @@ def get_asset_triggered_next_run_info(
     """
     Get next run info for a list of dag_ids.
 
-    Given a list of dag_ids, get string representing how close any that are asset triggered are
+    Given a list of dag_ids, get string representing how close any that are asset triggered are to
     their next run, e.g. "1 of 2 assets updated".
     """
     from airflow.models.asset import AssetDagRunQueue as ADRQ, DagScheduleAssetReference
@@ -631,6 +631,10 @@ class DagModel(Base):
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
 
+        For asset-triggered scheduling, Dags that have ``AssetDagRunQueue`` rows but no matching
+        ``SerializedDagModel`` row are omitted from ``triggered_date_by_dag`` until serialization exists;
+        ADRQs are **not** deleted here so the scheduler can re-evaluate on a later run.
+
         :meta private:
         """
         from airflow.models.serialized_dag import SerializedDagModel
@@ -677,6 +681,16 @@ class DagModel(Base):
             for dag_id, adrqs in adrq_by_dag.items()
         }
         ser_dags = SerializedDagModel.get_latest_serialized_dags(dag_ids=list(dag_statuses), session=session)
+        ser_dag_ids = {ser_dag.dag_id for ser_dag in ser_dags}
+        if missing_from_serialized := set(adrq_by_dag.keys()) - ser_dag_ids:
+            log.info(
+                "Dags have queued asset events (ADRQ), but are not found in the serialized_dag table."
+                " — skipping Dag run creation: %s",
+                sorted(missing_from_serialized),
+            )
+            for dag_id in missing_from_serialized:
+                del adrq_by_dag[dag_id]
+                del dag_statuses[dag_id]
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
