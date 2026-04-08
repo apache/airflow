@@ -189,6 +189,9 @@ labelPRBasedOnFilePath:
   provider:keycloak:
     - providers/keycloak/**
 
+  provider:languages-java:
+    - providers/languages/java/**
+
   provider:microsoft-azure:
     - providers/microsoft/azure/**
 
