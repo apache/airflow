@@ -1,0 +1,1 @@
+``workers.affinity`` field is now deprecated in favor of ``workers.celery.affinity`` and ``workers.kubernetes.affinity``. Please update your configuration accordingly.

@@ -1081,6 +1081,7 @@ workers:
   # (deprecated, use `workers.celery.priorityClassName` and/or `workers.kubernetes.priorityClassName` instead)
   priorityClassName: ~
 
+  # (deprecated, use `workers.celery.affinity` and/or `workers.kubernetes.affinity` instead)
   affinity: {}
   # Default Airflow Celery worker affinity is:
   #  podAntiAffinity:
@@ -1452,6 +1453,17 @@ workers:
 
     priorityClassName: ~
 
+    affinity: {}
+    # Default Airflow Celery worker affinity is:
+    #  podAntiAffinity:
+    #    preferredDuringSchedulingIgnoredDuringExecution:
+    #    - podAffinityTerm:
+    #        labelSelector:
+    #          matchLabels:
+    #            component: worker
+    #        topologyKey: kubernetes.io/hostname
+    #      weight: 100
+
     # hostAliases to use in Airflow Celery worker pods
     # See:
     # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
@@ -1599,6 +1611,8 @@ workers:
     runtimeClassName: ~
 
     priorityClassName: ~
+
+    affinity: {}
 
     # hostAliases to use in pods created with pod-template-file
     # See:

@@ -2791,6 +2791,43 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "affinity": {
+                        "podAffinity": {
+                            "preferredDuringSchedulingIgnoredDuringExecution": [
+                                {
+                                    "podAffinityTerm": {
+                                        "topologyKey": "foo",
+                                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                                    },
+                                    "weight": 1,
+                                }
+                            ]
+                        }
+                    },
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "affinity": {
+                                "nodeAffinity": {
+                                    "preferredDuringSchedulingIgnoredDuringExecution": [
+                                        {
+                                            "weight": 1,
+                                            "preference": {
+                                                "matchExpressions": [
+                                                    {"key": "not-me", "operator": "In", "values": ["true"]},
+                                                ]
+                                            },
+                                        }
+                                    ]
+                                }
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_affinity(self, workers_values):

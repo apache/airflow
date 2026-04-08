@@ -2357,7 +2357,7 @@
                     "default": null
                 },
                 "affinity": {
-                    "description": "Specify scheduling constraints for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify scheduling constraints for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.affinity`` and/or ``workers.kubernetes.affinity`` instead).",
                     "type": "object",
                     "default": "See values.yaml",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
@@ -3412,6 +3412,12 @@
                             ],
                             "default": null
                         },
+                        "affinity": {
+                            "description": "Specify scheduling constraints for Airflow Celery worker pods.",
+                            "type": "object",
+                            "default": {},
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
+                        },
                         "hostAliases": {
                             "description": "Specify HostAliases for Airflow Celery worker pods.",
                             "items": {
@@ -3887,6 +3893,12 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "affinity": {
+                            "description": "Specify scheduling constraints for pods created with pod-template-file.",
+                            "type": "object",
+                            "default": {},
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
                         },
                         "hostAliases": {
                             "description": "Specify HostAliases for pods created with pod-template-file.",

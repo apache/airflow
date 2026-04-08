@@ -380,6 +380,9 @@ apache-airflow = "airflow.__main__:main"
 "vertica" = [
     "apache-airflow-providers-vertica>=3.9.1"
 ]
+"vespa" = [
+    "apache-airflow-providers-vespa>=0.1.0" # Set from local provider pyproject.toml
+]
 "weaviate" = [
     "apache-airflow-providers-weaviate>=3.0.0"
 ]
@@ -489,6 +492,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-teradata>=2.6.1",
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
+    "apache-airflow-providers-vespa>=0.1.0", # Set from local provider pyproject.toml
     "apache-airflow-providers-weaviate>=3.0.0",
     "apache-airflow-providers-yandex>=4.0.0",
     "apache-airflow-providers-ydb>=1.4.0",
@@ -1238,6 +1242,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/trino/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/vertica/src",
     "$MYPY_CONFIG_FILE_DIR/providers/vertica/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/vespa/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/vespa/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/weaviate/src",
     "$MYPY_CONFIG_FILE_DIR/providers/weaviate/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/yandex/src",
@@ -1456,6 +1462,7 @@ apache-airflow-providers-telegram = false
 apache-airflow-providers-teradata = false
 apache-airflow-providers-trino = false
 apache-airflow-providers-vertica = false
+apache-airflow-providers-vespa = false
 apache-airflow-providers-weaviate = false
 apache-airflow-providers-yandex = false
 apache-airflow-providers-ydb = false
@@ -1591,6 +1598,7 @@ apache-airflow-providers-telegram = false
 apache-airflow-providers-teradata = false
 apache-airflow-providers-trino = false
 apache-airflow-providers-vertica = false
+apache-airflow-providers-vespa = false
 apache-airflow-providers-weaviate = false
 apache-airflow-providers-yandex = false
 apache-airflow-providers-ydb = false
@@ -1742,6 +1750,7 @@ apache-airflow-providers-telegram = { workspace = true }
 apache-airflow-providers-teradata = { workspace = true }
 apache-airflow-providers-trino = { workspace = true }
 apache-airflow-providers-vertica = { workspace = true }
+apache-airflow-providers-vespa = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
 apache-airflow-providers-yandex = { workspace = true }
 apache-airflow-providers-ydb = { workspace = true }
@@ -1875,6 +1884,7 @@ members = [
     "providers/teradata",
     "providers/trino",
     "providers/vertica",
+    "providers/vespa",
     "providers/weaviate",
     "providers/yandex",
     "providers/ydb",
