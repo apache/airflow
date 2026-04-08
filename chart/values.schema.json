@@ -5226,6 +5226,10 @@
                                         "null"
                                     ]
                                 }
+                            },
+                            "team_name": {
+                                "description": "Team name for the dag bundle.",
+                                "type": "string"
                             }
                         }
                     }
