@@ -9087,13 +9087,20 @@ export const $TeamResponse = {
 export const $Theme = {
     properties: {
         tokens: {
-            additionalProperties: {
-                '$ref': '#/components/schemas/ThemeColors'
-            },
-            propertyNames: {
-                const: 'colors'
-            },
-            type: 'object',
+            anyOf: [
+                {
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/ThemeColors'
+                    },
+                    propertyNames: {
+                        const: 'colors'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Tokens'
         },
         globalCss: {
@@ -9135,14 +9142,96 @@ export const $Theme = {
         }
     },
     type: 'object',
-    required: ['tokens'],
     title: 'Theme',
     description: "JSON to modify Chakra's theme."
 } as const;
 
 export const $ThemeColors = {
-    additionalProperties: true,
-    type: 'object'
+    properties: {
+        brand: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        additionalProperties: {
+                            '$ref': '#/components/schemas/OklchColor'
+                        },
+                        propertyNames: {
+                            const: 'value'
+                        },
+                        type: 'object'
+                    },
+                    propertyNames: {
+                        enum: ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Brand'
+        },
+        gray: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        additionalProperties: {
+                            '$ref': '#/components/schemas/OklchColor'
+                        },
+                        propertyNames: {
+                            const: 'value'
+                        },
+                        type: 'object'
+                    },
+                    propertyNames: {
+                        enum: ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Gray'
+        },
+        black: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/OklchColor'
+                    },
+                    propertyNames: {
+                        const: 'value'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Black'
+        },
+        white: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/OklchColor'
+                    },
+                    propertyNames: {
+                        const: 'value'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'White'
+        }
+    },
+    type: 'object',
+    title: 'ThemeColors',
+    description: 'Color tokens for the UI theme. All fields are optional; at least one must be provided.'
 } as const;
 
 export const $TokenType = {

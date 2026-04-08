@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+4.4.4
+.....
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+* ``Fix advertising some of the missing provider capabilities via provider info (#64127)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.4.3
 .....
 

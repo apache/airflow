@@ -1205,46 +1205,100 @@ class TestWorkerSets:
 
         assert jmespath.search("[*].metadata.name", docs) == expected
 
-    def test_overwrite_service_account_automount_service_account_token_disable(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "serviceAccount": {"automountServiceAccountToken": False}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "serviceAccount": {"create": False}}],
                 }
             },
-            show_only=["templates/workers/worker-serviceaccount.yaml"],
-        )
-
-        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
-
-    def test_overwrite_service_account_create_disable(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "serviceAccount": {"create": False}}],
-                    },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "serviceAccount": {"create": True},
+                    "sets": [{"name": "test", "serviceAccount": {"create": False}}],
                 }
             },
+            {
+                "serviceAccount": {"create": True},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "serviceAccount": {"create": False}}],
+                },
+            },
+        ],
+    )
+    def test_overwrite_service_account_create_disable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
 
         assert len(docs) == 0
 
-    def test_overwrite_service_account_name(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "serviceAccount": {"name": "test"}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "serviceAccount": {"automountServiceAccountToken": False}}],
                 }
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "serviceAccount": {"automountServiceAccountToken": True},
+                    "sets": [{"name": "test", "serviceAccount": {"automountServiceAccountToken": False}}],
+                }
+            },
+            {
+                "serviceAccount": {"automountServiceAccountToken": True},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "serviceAccount": {"automountServiceAccountToken": False}}],
+                },
+            },
+        ],
+    )
+    def test_overwrite_service_account_automount_service_account_token_disable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "serviceAccount": {"name": "test"}}],
+                }
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "serviceAccount": {"name": "nontest"},
+                    "sets": [{"name": "test", "serviceAccount": {"name": "test"}}],
+                }
+            },
+            {
+                "serviceAccount": {"name": "nontest"},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "serviceAccount": {"name": "test"}}],
+                },
+            },
+        ],
+    )
+    def test_overwrite_service_account_name(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
 
@@ -1261,6 +1315,13 @@ class TestWorkerSets:
                 "serviceAccount": {"annotations": {"echo": "test"}},
                 "celery": {
                     "enableDefault": False,
+                    "sets": [{"name": "test", "serviceAccount": {"annotations": {"test": "echo"}}}],
+                },
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "serviceAccount": {"annotations": {"echo": "test"}},
                     "sets": [{"name": "test", "serviceAccount": {"annotations": {"test": "echo"}}}],
                 },
             },
@@ -1673,8 +1734,8 @@ class TestWorkerSets:
             name="test",
             values={
                 "workers": {
-                    "hpa": {"enabled": True},
                     "celery": {
+                        "hpa": {"enabled": True},
                         "enableDefault": enable_default,
                         "sets": [
                             {"name": "set1"},
@@ -1688,56 +1749,116 @@ class TestWorkerSets:
 
         assert jmespath.search("[*].metadata.name", docs) == expected
 
-    def test_overwrite_hpa_enabled(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {"enableDefault": False, "sets": [{"name": "test", "hpa": {"enabled": True}}]},
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"celery": {"enableDefault": False, "sets": [{"name": "test", "hpa": {"enabled": True}}]}},
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "hpa": {"enabled": False},
+                    "sets": [{"name": "test", "hpa": {"enabled": True}}],
                 }
             },
+            {
+                "hpa": {"enabled": False},
+                "celery": {"enableDefault": False, "sets": [{"name": "test", "hpa": {"enabled": True}}]},
+            },
+        ],
+    )
+    def test_overwrite_hpa_enabled(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-hpa.yaml"],
         )
 
         assert len(docs) == 1
 
-    def test_overwrite_hpa_disable(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
                     "hpa": {"enabled": True},
-                    "celery": {"enableDefault": False, "sets": [{"name": "test", "hpa": {"enabled": False}}]},
+                    "sets": [{"name": "test", "hpa": {"enabled": False}}],
                 }
             },
+            {
+                "hpa": {"enabled": True},
+                "celery": {"enableDefault": False, "sets": [{"name": "test", "hpa": {"enabled": False}}]},
+            },
+        ],
+    )
+    def test_overwrite_hpa_disable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-hpa.yaml"],
         )
 
         assert len(docs) == 0
 
-    def test_overwrite_hpa_min_replica_count(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "hpa": {"enabled": True, "minReplicaCount": 10}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "hpa": {"enabled": True, "minReplicaCount": 10}}],
                 }
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "hpa": {"minReplicaCount": 7},
+                    "sets": [{"name": "test", "hpa": {"enabled": True, "minReplicaCount": 10}}],
+                }
+            },
+            {
+                "hpa": {"minReplicaCount": 7},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "hpa": {"enabled": True, "minReplicaCount": 10}}],
+                },
+            },
+        ],
+    )
+    def test_overwrite_hpa_min_replica_count(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-hpa.yaml"],
         )
 
         assert jmespath.search("spec.minReplicas", docs[0]) == 10
 
-    def test_overwrite_hpa_max_replica_count(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "hpa": {"enabled": True, "maxReplicaCount": 10}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "hpa": {"enabled": True, "maxReplicaCount": 10}}],
                 }
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "hpa": {"maxReplicaCount": 7},
+                    "sets": [{"name": "test", "hpa": {"enabled": True, "maxReplicaCount": 10}}],
+                }
+            },
+            {
+                "hpa": {"maxReplicaCount": 7},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "hpa": {"enabled": True, "maxReplicaCount": 10}}],
+                },
+            },
+        ],
+    )
+    def test_overwrite_hpa_max_replica_count(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-hpa.yaml"],
         )
 
@@ -1801,6 +1922,39 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "hpa": {
+                        "metrics": [
+                            {
+                                "type": "Resource",
+                                "resource": {
+                                    "name": "memory",
+                                    "target": {"type": "Utilization", "averageUtilization": 1},
+                                },
+                            }
+                        ],
+                    },
+                    "sets": [
+                        {
+                            "name": "test",
+                            "hpa": {
+                                "enabled": True,
+                                "metrics": [
+                                    {
+                                        "type": "Resource",
+                                        "resource": {
+                                            "name": "cpu",
+                                            "target": {"type": "Utilization", "averageUtilization": 80},
+                                        },
+                                    }
+                                ],
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_hpa_metrics(self, workers_values):
@@ -1834,6 +1988,18 @@ class TestWorkerSets:
                 "hpa": {"behavior": {"scaleUp": {"selectPolicy": "Min"}}},
                 "celery": {
                     "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "hpa": {"enabled": True, "behavior": {"scaleDown": {"selectPolicy": "Max"}}},
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "hpa": {"behavior": {"scaleUp": {"selectPolicy": "Min"}}},
                     "sets": [
                         {
                             "name": "test",
@@ -2866,16 +3032,27 @@ class TestWorkerSets:
         assert labels["test"] == "echo"
         assert labels.get("echo") is None
 
-    def test_overwrite_wait_for_migration_disable(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "set1", "waitForMigrations": {"enabled": False}}],
-                    },
-                },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "waitForMigrations": {"enabled": False}}],
+                }
             },
+            {
+                "celery": {
+                    "waitForMigrations": {"enabled": True},
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "waitForMigrations": {"enabled": False}}],
+                }
+            },
+        ],
+    )
+    def test_overwrite_wait_for_migration_disable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         assert (
@@ -2885,17 +3062,28 @@ class TestWorkerSets:
             is None
         )
 
-    def test_overwrite_wait_for_migration_enable(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "waitForMigrations": {"enabled": False},
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "set1", "waitForMigrations": {"enabled": True}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "waitForMigrations": {"enabled": False},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "waitForMigrations": {"enabled": True}}],
                 },
             },
+            {
+                "celery": {
+                    "waitForMigrations": {"enabled": False},
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "waitForMigrations": {"enabled": True}}],
+                }
+            },
+        ],
+    )
+    def test_overwrite_wait_for_migration_enable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         assert (
@@ -2915,6 +3103,18 @@ class TestWorkerSets:
             {
                 "waitForMigrations": {"env": [{"name": "TEST", "value": "test"}]},
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "waitForMigrations": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]},
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "waitForMigrations": {"env": [{"name": "TEST", "value": "test"}]},
                     "enableDefault": False,
                     "sets": [
                         {
@@ -2951,6 +3151,20 @@ class TestWorkerSets:
             {
                 "waitForMigrations": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "waitForMigrations": {"securityContexts": {"container": {"runAsUser": 10}}},
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "waitForMigrations": {
+                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}}
+                    },
                     "enableDefault": False,
                     "sets": [
                         {

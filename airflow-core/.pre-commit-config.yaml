@@ -263,6 +263,16 @@ repos:
         require_serial: true
         pass_filenames: false
         files: ^src/airflow/config_templates/config\.yml$
+      - id: check-security-doc-constants
+        name: Check security docs match config.yml constants
+        entry: ../scripts/ci/prek/check_security_doc_constants.py
+        language: python
+        pass_filenames: false
+        files: >
+          (?x)
+          ^src/airflow/config_templates/config\.yml$|
+          ^docs/security/jwt_token_authentication\.rst$|
+          ^docs/security/security_model\.rst$
       - id: check-airflow-version-checks-in-core
         language: pygrep
         name: No AIRFLOW_V_* imports in airflow-core
