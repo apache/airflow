@@ -911,13 +911,22 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
         return self._from_frame(frame)
 
     async def asend(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
-        frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
-        bytes = frame.as_bytes()
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, self._thread_lock.acquire)
+        try:
+            # Generate the frame ID and bytes INSIDE the lock to ensure the order of
+            # messages written to the socket matches the order of the IDs.
+            # This prevents "Response read out of order" errors.
+            frame_id = next(self.id_counter)
+            frame = _RequestFrame(id=frame_id, body=msg.model_dump())
+            bytes = frame.as_bytes()
 
-        async with self._async_lock:
             self._async_writer.write(bytes)
+            await self._async_writer.drain()
 
-            return await self._aget_response(frame.id)
+            return await self._aget_response(frame_id)
+        finally:
+            self._thread_lock.release()
 
 
 class TriggerRunner:
