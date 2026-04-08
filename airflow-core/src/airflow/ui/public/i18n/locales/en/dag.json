@@ -48,12 +48,12 @@
   "deadlineAlerts": {
     "count_one": "{{count}} deadline",
     "count_other": "{{count}} deadlines",
-    "interval": "Interval",
+    "completionRule": "Run to complete within {{interval}} of {{reference}}",
     "referenceType": {
-      "AverageRuntimeDeadline": "Calculated from Average Runtime",
-      "DagRunLogicalDateDeadline": "Calculated from Logical Date",
-      "DagRunQueuedAtDeadline": "Calculated from Queued At",
-      "FixedDatetimeDeadline": "Fixed Datetime"
+      "AverageRuntimeDeadline": "average runtime",
+      "DagRunLogicalDateDeadline": "logical date",
+      "DagRunQueuedAtDeadline": "queue time",
+      "FixedDatetimeDeadline": "fixed datetime"
     },
     "title": "Deadline Alerts",
     "unnamed": "Unnamed Alert"
