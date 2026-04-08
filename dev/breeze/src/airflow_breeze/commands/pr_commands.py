@@ -1788,6 +1788,11 @@ def _fetch_prs_graphql(
             )
         )
 
+    # Persist fetched PRs to vault for reuse across sessions
+    from airflow_breeze.utils.pr_vault import save_prs_batch
+
+    save_prs_batch(github_repository, prs)
+
     return prs, has_next_page, end_cursor, search_data["issueCount"]
 
 
