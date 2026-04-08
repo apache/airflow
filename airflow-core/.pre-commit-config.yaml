@@ -221,23 +221,15 @@ repos:
         additional_dependencies: ['pnpm@10.25.0']
         pass_filenames: true
         require_serial: true
-        ## ADD MOST PREK HOOK ABOVE THAT LINE
-        # The below prek hooks are those requiring CI image to be built
       - id: mypy-airflow-core
-        stages: ['pre-push']
         name: Run mypy for airflow-core
         language: python
-        entry: ../scripts/ci/prek/mypy.py
-        files: ^.*\.py$
-        require_serial: true
-      - id: mypy-airflow-core
-        stages: ['manual']
-        name: Run mypy for airflow-core (manual)
-        language: python
-        entry: ../scripts/ci/prek/mypy_folder.py airflow-core
+        entry: ../scripts/ci/prek/mypy_local_folder.py airflow-core
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
+      ## ADD MOST PREK HOOK ABOVE THAT LINE
+      # The below prek hooks are those requiring CI image to be built
       - id: generate-openapi-spec
         name: Generate the FastAPI API spec
         language: python
@@ -271,6 +263,16 @@ repos:
         require_serial: true
         pass_filenames: false
         files: ^src/airflow/config_templates/config\.yml$
+      - id: check-security-doc-constants
+        name: Check security docs match config.yml constants
+        entry: ../scripts/ci/prek/check_security_doc_constants.py
+        language: python
+        pass_filenames: false
+        files: >
+          (?x)
+          ^src/airflow/config_templates/config\.yml$|
+          ^docs/security/jwt_token_authentication\.rst$|
+          ^docs/security/security_model\.rst$
       - id: check-airflow-version-checks-in-core
         language: pygrep
         name: No AIRFLOW_V_* imports in airflow-core

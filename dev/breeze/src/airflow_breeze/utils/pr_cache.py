@@ -76,6 +76,7 @@ review_cache = CacheStore("review_cache")
 classification_cache = CacheStore("classification_cache")
 triage_cache = CacheStore("triage_cache")
 status_cache = CacheStore("status_cache", ttl_seconds=4 * 3600)
+stats_interaction_cache = CacheStore("stats_interaction_cache")
 
 
 # Convenience functions for common cache operations
@@ -113,13 +114,23 @@ def save_classification_cache(
     classification_cache.save(github_repository, f"pr_{pr_number}", entry)
 
 
-def get_cached_assessment(github_repository: str, pr_number: int, head_sha: str) -> dict | None:
-    data = triage_cache.get(github_repository, f"pr_{pr_number}", match={"head_sha": head_sha})
+def get_cached_assessment(
+    github_repository: str, pr_number: int, head_sha: str, checks_state: str = ""
+) -> dict | None:
+    match = {"head_sha": head_sha}
+    if checks_state:
+        match["checks_state"] = checks_state
+    data = triage_cache.get(github_repository, f"pr_{pr_number}", match=match)
     return data.get("assessment") if data else None
 
 
-def save_assessment_cache(github_repository: str, pr_number: int, head_sha: str, assessment: dict) -> None:
-    triage_cache.save(github_repository, f"pr_{pr_number}", {"head_sha": head_sha, "assessment": assessment})
+def save_assessment_cache(
+    github_repository: str, pr_number: int, head_sha: str, assessment: dict, checks_state: str = ""
+) -> None:
+    entry: dict[str, Any] = {"head_sha": head_sha, "assessment": assessment}
+    if checks_state:
+        entry["checks_state"] = checks_state
+    triage_cache.save(github_repository, f"pr_{pr_number}", entry)
 
 
 def get_cached_status(github_repository: str, cache_key: str) -> Any:

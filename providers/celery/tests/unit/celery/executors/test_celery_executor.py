@@ -25,7 +25,7 @@ import sys
 from datetime import timedelta
 from unittest import mock
 
-# leave this it is used by the test worker
+# Leave this it is used by the test worker.
 import celery.contrib.testing.tasks  # noqa: F401
 import pytest
 import time_machine
@@ -54,6 +54,8 @@ from tests_common.test_utils.version_compat import (
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.executors.base_executor import ExecutorConf
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseOperator, timezone
 else:
@@ -98,7 +100,7 @@ def _prepare_app(broker_url=None, execute=None):
     test_execute = test_app.task(execute)
     patch_app = mock.patch.object(celery_executor_utils, "app", test_app)
     patch_execute = mock.patch.object(celery_executor_utils, execute_name, test_execute)
-    # Patch factory function so CeleryExecutor instances get the test app
+    # Patch factory function so CeleryExecutor instances get the test app.
     patch_factory = mock.patch.object(celery_executor_utils, "create_celery_app", return_value=test_app)
 
     backend = test_app.backend
@@ -108,7 +110,7 @@ def _prepare_app(broker_url=None, execute=None):
         # race condition where it one of the subprocesses can die with "Table
         # already exists" error, because SQLA checks for which tables exist,
         # then issues a CREATE TABLE, rather than doing CREATE TABLE IF NOT
-        # EXISTS
+        # EXISTS.
         session = backend.ResultSession()
         session.close()
 
@@ -116,7 +118,7 @@ def _prepare_app(broker_url=None, execute=None):
         try:
             yield test_app
         finally:
-            # Clear event loop to tear down each celery instance
+            # Clear event loop to tear down each celery instance.
             set_event_loop(None)
 
 
@@ -146,7 +148,7 @@ class TestCeleryExecutor:
         team_name = "test_team"
 
         if AIRFLOW_V_3_2_PLUS:
-            # Multi-team support with ExecutorConf requires Airflow 3.2+
+            # Multi-team support with ExecutorConf requires Airflow 3.2+.
             executor = celery_executor.CeleryExecutor(parallelism=parallelism, team_name=team_name)
         else:
             executor = celery_executor.CeleryExecutor(parallelism)
@@ -154,7 +156,7 @@ class TestCeleryExecutor:
         assert executor.parallelism == parallelism
 
         if AIRFLOW_V_3_2_PLUS:
-            # Multi-team support with ExecutorConf requires Airflow 3.2+
+            # Multi-team support with ExecutorConf requires Airflow 3.2+.
             assert executor.team_name == team_name
             assert executor.conf.team_name == team_name
 
@@ -165,8 +167,8 @@ class TestCeleryExecutor:
         )
         with _prepare_app():
             executor = celery_executor.CeleryExecutor()
-            executor.tasks = {"key": FakeCeleryResult()}
-            executor.bulk_state_fetcher._get_many_using_multiprocessing(executor.tasks.values())
+            executor.workloads = {"key": FakeCeleryResult()}
+            executor.bulk_state_fetcher._get_many_using_multiprocessing(executor.workloads.values())
         assert celery_executor_utils.CELERY_FETCH_ERR_MSG_HEADER in caplog.text, caplog.record_tuples
         assert FAKE_EXCEPTION_MSG in caplog.text, caplog.record_tuples
 
@@ -272,7 +274,7 @@ class TestCeleryExecutor:
 
         executor = celery_executor.CeleryExecutor()
         assert executor.running == set()
-        assert executor.tasks == {}
+        assert executor.workloads == {}
 
         not_adopted_tis = executor.try_adopt_task_instances(tis)
 
@@ -280,7 +282,7 @@ class TestCeleryExecutor:
         key_2 = TaskInstanceKey(dag.dag_id, task_2.task_id, None, 0)
         assert executor.running == {key_1, key_2}
 
-        assert executor.tasks == {key_1: AsyncResult("231"), key_2: AsyncResult("232")}
+        assert executor.workloads == {key_1: AsyncResult("231"), key_2: AsyncResult("232")}
         assert not_adopted_tis == []
 
     @pytest.fixture
@@ -315,12 +317,12 @@ class TestCeleryExecutor:
             executor = celery_executor.CeleryExecutor()
             executor.job_id = 1
             executor.running = {ti.key}
-            executor.tasks = {ti.key: AsyncResult("231")}
+            executor.workloads = {ti.key: AsyncResult("231")}
             assert executor.has_task(ti)
             with pytest.warns(AirflowProviderDeprecationWarning, match="cleanup_stuck_queued_tasks"):
                 executor.cleanup_stuck_queued_tasks(tis=tis)
             executor.sync()
-        assert executor.tasks == {}
+        assert executor.workloads == {}
         app.control.revoke.assert_called_once_with("231")
         mock_fail.assert_called()
         assert not executor.has_task(ti)
@@ -349,13 +351,13 @@ class TestCeleryExecutor:
             executor = celery_executor.CeleryExecutor()
             executor.job_id = 1
             executor.running = {ti.key}
-            executor.tasks = {ti.key: AsyncResult("231")}
+            executor.workloads = {ti.key: AsyncResult("231")}
             assert executor.has_task(ti)
             for ti in tis:
                 executor.revoke_task(ti=ti)
             executor.sync()
         app.control.revoke.assert_called_once_with("231")
-        assert executor.tasks == {}
+        assert executor.workloads == {}
         assert not executor.has_task(ti)
         mock_fail.assert_not_called()
 
@@ -363,18 +365,18 @@ class TestCeleryExecutor:
     def test_result_backend_sqlalchemy_engine_options(self):
         import importlib
 
-        # Scope the mock using context manager so we can clean up afterward
+        # Scope the mock using context manager so we can clean up afterward.
         with mock.patch("celery.Celery") as mock_celery:
-            # reload celery conf to apply the new config
+            # Reload celery conf to apply the new config.
             importlib.reload(default_celery)
-            # reload celery_executor_utils to recreate the celery app with new config
+            # reload celery_executor_utils to recreate the celery app with new config.
             importlib.reload(celery_executor_utils)
 
             call_args = mock_celery.call_args.kwargs.get("config_source")
             assert "database_engine_options" in call_args
             assert call_args["database_engine_options"] == {"pool_recycle": 1800}
 
-        # Clean up: reload modules with real Celery to restore clean state for subsequent tests
+        # Clean up: reload modules with real Celery to restore clean state for subsequent tests.
         importlib.reload(default_celery)
         importlib.reload(celery_executor_utils)
 
@@ -383,9 +385,9 @@ def test_operation_timeout_config():
     assert celery_executor_utils.OPERATION_TIMEOUT == 1
 
 
-class MockTask:
+class MockWorkload:
     """
-    A picklable object used to mock tasks sent to Celery. Can't use the mock library
+    A picklable object used to mock workloads sent to Celery. Can't use the mock library
     here because it's not picklable.
     """
 
@@ -412,7 +414,7 @@ def register_signals():
 
     yield
 
-    # Restore original signal handlers after test
+    # Restore original signal handlers after test.
     signal.signal(signal.SIGINT, orig_sigint)
     signal.signal(signal.SIGTERM, orig_sigterm)
     signal.signal(signal.SIGUSR2, orig_sigusr2)
@@ -420,20 +422,20 @@ def register_signals():
 
 @pytest.mark.execution_timeout(200)
 @pytest.mark.quarantined
-def test_send_tasks_to_celery_hang(register_signals):
+def test_send_workloads_to_celery_hang(register_signals):
     """
     Test that celery_executor does not hang after many runs.
     """
     executor = celery_executor.CeleryExecutor()
 
-    task = MockTask()
-    task_tuples_to_send = [(None, None, None, task) for _ in range(26)]
+    workload = MockWorkload()
+    workload_tuples_to_send = [(None, None, None, workload) for _ in range(26)]
 
     for _ in range(250):
         # This loop can hang on Linux if celery_executor does something wrong with
         # multiprocessing.
-        results = executor._send_tasks_to_celery(task_tuples_to_send)
-        assert results == [(None, None, 1) for _ in task_tuples_to_send]
+        results = executor._send_workloads_to_celery(workload_tuples_to_send)
+        assert results == [(None, None, 1) for _ in workload_tuples_to_send]
 
 
 @conf_vars({("celery", "result_backend"): "rediss://test_user:test_password@localhost:6379/0"})
@@ -443,7 +445,7 @@ def test_celery_executor_with_no_recommended_result_backend(caplog):
     from airflow.providers.celery.executors.default_celery import log
 
     with caplog.at_level(logging.WARNING, logger=log.name):
-        # reload celery conf to apply the new config
+        # Reload celery conf to apply the new config.
         importlib.reload(default_celery)
         assert "test_password" not in caplog.text
         assert (
@@ -456,7 +458,7 @@ def test_celery_executor_with_no_recommended_result_backend(caplog):
 def test_sentinel_kwargs_loaded_from_string():
     import importlib
 
-    # reload celery conf to apply the new config
+    # Reload celery conf to apply the new config.
     importlib.reload(default_celery)
     assert default_celery.DEFAULT_CELERY_CONFIG["broker_transport_options"]["sentinel_kwargs"] == {
         "service_name": "mymaster"
@@ -467,7 +469,7 @@ def test_sentinel_kwargs_loaded_from_string():
 def test_celery_task_acks_late_loaded_from_string():
     import importlib
 
-    # reload celery conf to apply the new config
+    # Reload celery conf to apply the new config.
     importlib.reload(default_celery)
     assert default_celery.DEFAULT_CELERY_CONFIG["task_acks_late"] is False
 
@@ -527,7 +529,7 @@ def test_visibility_timeout_not_set_for_unsupported_broker(caplog):
 def test_celery_extra_celery_config_loaded_from_string():
     import importlib
 
-    # reload celery conf to apply the new config
+    # Reload celery conf to apply the new config.
     importlib.reload(default_celery)
     assert default_celery.DEFAULT_CELERY_CONFIG["worker_max_tasks_per_child"] == 10
 
@@ -537,7 +539,7 @@ def test_result_backend_sentinel_kwargs_loaded_from_string():
     """Test that sentinel_kwargs for result backend transport options is correctly parsed."""
     import importlib
 
-    # reload celery conf to apply the new config
+    # Reload celery conf to apply the new config.
     importlib.reload(default_celery)
     assert "result_backend_transport_options" in default_celery.DEFAULT_CELERY_CONFIG
     assert default_celery.DEFAULT_CELERY_CONFIG["result_backend_transport_options"]["sentinel_kwargs"] == {
@@ -550,7 +552,7 @@ def test_result_backend_master_name_loaded():
     """Test that master_name for result backend transport options is correctly loaded."""
     import importlib
 
-    # reload celery conf to apply the new config
+    # Reload celery conf to apply the new config.
     importlib.reload(default_celery)
     assert "result_backend_transport_options" in default_celery.DEFAULT_CELERY_CONFIG
     assert (
@@ -568,7 +570,7 @@ def test_result_backend_transport_options_with_multiple_options():
     """Test that multiple result backend transport options are correctly loaded."""
     import importlib
 
-    # reload celery conf to apply the new config
+    # Reload celery conf to apply the new config.
     importlib.reload(default_celery)
     result_backend_opts = default_celery.DEFAULT_CELERY_CONFIG["result_backend_transport_options"]
     assert result_backend_opts["sentinel_kwargs"] == {"password": "redis_password"}
@@ -612,7 +614,7 @@ def test_result_backend_sentinel_full_config():
     """Test full Redis Sentinel configuration for result backend."""
     import importlib
 
-    # reload celery conf to apply the new config
+    # Reload celery conf to apply the new config.
     importlib.reload(default_celery)
 
     assert default_celery.DEFAULT_CELERY_CONFIG["result_backend"] == (
@@ -641,13 +643,13 @@ class TestMultiTeamCeleryExecutor:
             ("operators", "default_queue"): "global_queue",
         }
     )
-    def test_multi_team_isolation_and_task_routing(self, monkeypatch):
+    def test_multi_team_isolation_and_workload_routing(self, monkeypatch):
         """
-        Test multi-team executor isolation and correct task routing.
+        Test multi-team executor isolation and correct workload routing.
 
         Verifies:
         - Each executor has isolated Celery app and config
-        - Tasks are routed through team-specific apps (_process_tasks/_process_workloads)
+        - Workloads are routed through team-specific apps (_process_tasks/_process_workloads)
         - Backward compatibility with global executor
         """
         # Set up team-specific config via environment variables
@@ -656,49 +658,49 @@ class TestMultiTeamCeleryExecutor:
         monkeypatch.setenv("AIRFLOW__TEAM_B___CELERY__BROKER_URL", "redis://team-b:6379/0")
         monkeypatch.setenv("AIRFLOW__TEAM_B___OPERATORS__DEFAULT_QUEUE", "team_b_queue")
 
-        # Reload config to pick up environment variables
+        # Reload config to pick up environment variables.
         from airflow import configuration
 
         configuration.conf.read_dict({}, source="test")
 
-        # Create executors with different team configs
+        # Create executors with different team configs.
         team_a_executor = CeleryExecutor(parallelism=2, team_name="team_a")
         team_b_executor = CeleryExecutor(parallelism=3, team_name="team_b")
         global_executor = CeleryExecutor(parallelism=4)
 
-        # Each executor has its own Celery app (critical for isolation)
+        # Each executor has its own Celery app (critical for isolation).
         assert team_a_executor.celery_app is not team_b_executor.celery_app
         assert team_a_executor.celery_app is not global_executor.celery_app
 
-        # Team-specific broker URLs are used
+        # Team-specific broker URLs are used.
         assert "team-a" in team_a_executor.celery_app.conf.broker_url
         assert "team-b" in team_b_executor.celery_app.conf.broker_url
         assert "global" in global_executor.celery_app.conf.broker_url
 
-        # Team-specific queues are used
+        # Team-specific queues are used.
         assert team_a_executor.celery_app.conf.task_default_queue == "team_a_queue"
         assert team_b_executor.celery_app.conf.task_default_queue == "team_b_queue"
         assert global_executor.celery_app.conf.task_default_queue == "global_queue"
 
-        # Each executor has its own BulkStateFetcher with correct app
+        # Each executor has its own BulkStateFetcher with correct app.
         assert team_a_executor.bulk_state_fetcher.celery_app is team_a_executor.celery_app
         assert team_b_executor.bulk_state_fetcher.celery_app is team_b_executor.celery_app
 
-        # Executors have isolated internal state
-        assert team_a_executor.tasks is not team_b_executor.tasks
+        # Executors have isolated internal state.
+        assert team_a_executor.workloads is not team_b_executor.workloads
         assert team_a_executor.running is not team_b_executor.running
         assert team_a_executor.queued_tasks is not team_b_executor.queued_tasks
 
     @conf_vars({("celery", "broker_url"): "redis://global:6379/0"})
-    @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor._send_tasks")
-    def test_task_routing_through_team_specific_app(self, mock_send_tasks, monkeypatch):
+    @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor._send_workloads")
+    def test_workload_routing_through_team_specific_app(self, mock_send_workloads, monkeypatch):
         """
-        Test that _process_tasks and _process_workloads pass the correct team_name for task routing.
+        Test that _process_tasks (v2) and _process_workloads (v3) pass the correct team_name for task routing.
 
         With the ProcessPoolExecutor approach, we pass team_name instead of task objects to avoid
         pickling issues. The subprocess reconstructs the team-specific Celery app from the team_name.
         """
-        # Set up team A config
+        # Set up team A config.
         monkeypatch.setenv("AIRFLOW__TEAM_A___CELERY__BROKER_URL", "redis://team-a:6379/0")
 
         team_a_executor = CeleryExecutor(parallelism=2, team_name="team_a")
@@ -707,40 +709,42 @@ class TestMultiTeamCeleryExecutor:
             from airflow.executors.workloads import ExecuteTask
             from airflow.models.taskinstancekey import TaskInstanceKey
 
-            # Create mock workload
+            # Create mock workload.
             mock_ti = mock.Mock()
             mock_ti.key = TaskInstanceKey("dag", "task", "run", 1)
             mock_ti.queue = "test_queue"
             mock_workload = mock.Mock(spec=ExecuteTask)
             mock_workload.ti = mock_ti
 
-            # Process workload through team A executor
+            # Process workload through team A executor.
             team_a_executor._process_workloads([mock_workload])
 
-            # Verify _send_tasks received the correct team_name
-            assert mock_send_tasks.called
-            task_tuples = mock_send_tasks.call_args[0][0]
-            team_name_from_call = task_tuples[0][3]  # 4th element is now team_name
+            # Verify _send_workloads received the correct team_name.
+            assert mock_send_workloads.called
+            workload_tuples = mock_send_workloads.call_args[0][0]
+            team_name_from_call = workload_tuples[0][
+                3
+            ]  # 4th element is team_name (used to reconstruct Celery app in subprocess).
 
-            # Critical: team_name is passed so subprocess can reconstruct the correct app
+            # Critical: team_name is passed so subprocess can reconstruct the correct app.
             assert team_name_from_call == "team_a"
         else:
             from airflow.models.taskinstancekey import TaskInstanceKey
 
-            # Test V2 path with execute_command
+            # Test V2 path with execute_command.
             mock_key = TaskInstanceKey("dag", "task", "run", 1)
             mock_command = ["airflow", "tasks", "run", "dag", "task"]
             mock_queue = "test_queue"
 
-            # Process task through team A executor
+            # Process task through team A executor.
             team_a_executor._process_tasks([(mock_key, mock_command, mock_queue, None)])
 
-            # Verify _send_tasks received team A's execute_command task
-            assert mock_send_tasks.called
-            task_tuples = mock_send_tasks.call_args[0][0]
-            task_from_call = task_tuples[0][3]  # 4th element is the task (V2 still uses task object)
+            # Verify _send_workloads received team A's execute_command workload (v2 compatibility path).
+            assert mock_send_workloads.called
+            task_tuples = mock_send_workloads.call_args[0][0]
+            task_from_call = task_tuples[0][3]  # 4th element is the task (V2 still uses task object).
 
-            # Critical: task belongs to team A's app, not module-level app
+            # Critical: Celery task belongs to team A's app, not module-level app.
             assert task_from_call.app is team_a_executor.celery_app
             assert task_from_call.name == "execute_command"
 
@@ -761,7 +765,7 @@ def test_celery_tasks_registered_on_import():
         "execute_workload must be registered with the Celery app at import time. "
         "Workers need this to receive tasks without KeyError."
     )
-    # TODO: remove this block when min supported Airflow version is >= 3.0
+    # TODO: remove this block when min supported Airflow version is >= 3.0.
     if not AIRFLOW_V_3_0_PLUS:
         assert "execute_command" in registered_tasks, (
             "execute_command must be registered for Airflow 2.x compatibility."
@@ -814,3 +818,148 @@ def test_execute_workload_ignores_already_running_task():
         """
         with pytest.raises(Ignore):
             execute_workload_unwrapped(workload_json)
+
+
+class TestAmqpsSslConfig:
+    """Tests for amqps:// broker URL SSL configuration (Fix for substring match bug)."""
+
+    @conf_vars(
+        {
+            ("celery", "BROKER_URL"): "amqps://guest:guest@rabbitmq:5671//",
+            ("celery", "SSL_ACTIVE"): "True",
+            ("celery", "SSL_KEY"): "/path/to/key.pem",
+            ("celery", "SSL_CERT"): "/path/to/cert.pem",
+            ("celery", "SSL_CACERT"): "/path/to/ca.pem",
+        }
+    )
+    def test_amqps_broker_url_builds_ssl_config(self):
+        """Test that amqps:// broker URLs correctly build broker_use_ssl with AMQP param names."""
+        import importlib
+        import ssl
+
+        importlib.reload(default_celery)
+
+        config = default_celery.DEFAULT_CELERY_CONFIG
+        assert "broker_use_ssl" in config, "broker_use_ssl should be set for amqps:// URLs"
+        broker_ssl = config["broker_use_ssl"]
+        assert broker_ssl["keyfile"] == "/path/to/key.pem"
+        assert broker_ssl["certfile"] == "/path/to/cert.pem"
+        assert broker_ssl["ca_certs"] == "/path/to/ca.pem"
+        assert broker_ssl["cert_reqs"] == ssl.CERT_REQUIRED
+        # Must NOT have ssl_ prefixed keys (those are for Redis)
+        assert "ssl_keyfile" not in broker_ssl
+        assert "ssl_certfile" not in broker_ssl
+
+    @conf_vars(
+        {
+            ("celery", "BROKER_URL"): "amqp://guest:guest@rabbitmq:5672//",
+            ("celery", "SSL_ACTIVE"): "True",
+            ("celery", "SSL_KEY"): "/path/to/key.pem",
+            ("celery", "SSL_CERT"): "/path/to/cert.pem",
+            ("celery", "SSL_CACERT"): "/path/to/ca.pem",
+        }
+    )
+    def test_amqp_broker_url_still_builds_ssl_config(self):
+        """Test that amqp:// (non-TLS) broker URLs still build SSL config correctly (no regression)."""
+        import importlib
+        import ssl
+
+        importlib.reload(default_celery)
+
+        config = default_celery.DEFAULT_CELERY_CONFIG
+        assert "broker_use_ssl" in config
+        broker_ssl = config["broker_use_ssl"]
+        assert broker_ssl["keyfile"] == "/path/to/key.pem"
+        assert broker_ssl["cert_reqs"] == ssl.CERT_REQUIRED
+
+    @conf_vars(
+        {
+            ("celery", "BROKER_URL"): "amqps://guest:guest@rabbitmq:5671//",
+            ("celery", "SSL_ACTIVE"): "False",
+        }
+    )
+    def test_amqps_broker_url_no_ssl_when_inactive(self):
+        """Test that amqps:// broker URLs don't get SSL config when SSL_ACTIVE is False."""
+        import importlib
+
+        importlib.reload(default_celery)
+
+        config = default_celery.DEFAULT_CELERY_CONFIG
+        assert "broker_use_ssl" not in config
+
+
+class TestCreateCeleryAppTeamIsolation:
+    """Tests for create_celery_app() multi-team config isolation."""
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecutorConf requires Airflow 3.2+")
+    def test_custom_celery_config_options_applied(self):
+        """User-provided celery_config_options (non-default) should be merged into team config."""
+        custom_config = {"worker_concurrency": 42, "broker_url": "redis://custom:6379/0"}
+        custom_path = "my_custom_module.CELERY_CONFIG"
+
+        team_conf = ExecutorConf(team_name="team_alpha")
+        original_get = team_conf.get
+
+        def mock_get(section, key, **kwargs):
+            if section == "celery" and key == "celery_config_options":
+                return custom_path
+            return original_get(section, key, **kwargs)
+
+        mock_module = mock.MagicMock()
+        mock_module.CELERY_CONFIG = custom_config
+
+        with (
+            mock.patch.object(team_conf, "get", side_effect=mock_get),
+            mock.patch.object(celery_executor_utils, "import_module", return_value=mock_module),
+        ):
+            celery_app = celery_executor_utils.create_celery_app(team_conf)
+            assert celery_app.conf.worker_concurrency == 42
+            assert celery_app.conf.broker_url == "redis://custom:6379/0"
+
+    def test_default_celery_config_options_skipped_via_identity_check(self):
+        """When celery_config_options resolves to DEFAULT_CELERY_CONFIG (same object),
+        it must be skipped — re-applying it would overwrite team-specific config
+        since DEFAULT_CELERY_CONFIG is built from global conf."""
+        original_get = conf.get
+        # Path just needs a dot for rpartition and attr name matching DEFAULT_CELERY_CONFIG.
+        # import_module is mocked to return default_celery module regardless of path.
+        celery_config_path = "any.module.DEFAULT_CELERY_CONFIG"
+
+        def mock_get(section, key, **kwargs):
+            if section == "celery" and key == "celery_config_options":
+                return celery_config_path
+            return original_get(section, key, **kwargs)
+
+        with (
+            mock.patch.object(conf, "get", side_effect=mock_get),
+            mock.patch.object(celery_executor_utils, "import_module") as mock_import,
+        ):
+            mock_import.return_value = default_celery
+            celery_app = celery_executor_utils.create_celery_app(conf)
+            # import_module called (path is non-None), but override skipped (same object)
+            mock_import.assert_called_once()
+            default_config = default_celery.get_default_celery_config(conf)
+            assert celery_app.conf.broker_url == default_config["broker_url"]
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecutorConf requires Airflow 3.2+")
+    def test_team_specific_broker_not_overwritten(self):
+        """Team-specific BROKER_URL set via ExecutorConf must survive create_celery_app()."""
+        team_conf = ExecutorConf(team_name="team_alpha")
+
+        original_get = team_conf.get
+
+        def mock_team_get(section, key, **kwargs):
+            if section == "celery" and key == "BROKER_URL":
+                return "amqps://team-alpha-rabbit:5671//"
+            return original_get(section, key, **kwargs)
+
+        with mock.patch.object(team_conf, "get", side_effect=mock_team_get):
+            celery_app = celery_executor_utils.create_celery_app(team_conf)
+            assert celery_app.conf.broker_url == "amqps://team-alpha-rabbit:5671//"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecutorConf requires Airflow 3.2+")
+    def test_team_app_name_includes_team_name(self):
+        """Each team gets a unique Celery app name for broker isolation."""
+        team_conf = ExecutorConf(team_name="team_beta")
+        celery_app = celery_executor_utils.create_celery_app(team_conf)
+        assert "team_beta" in celery_app.main

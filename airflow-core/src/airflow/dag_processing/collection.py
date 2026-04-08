@@ -1101,7 +1101,8 @@ class AssetModelOperation(NamedTuple):
                 asset_model.watchers = [
                     watcher
                     for watcher in asset_model.watchers
-                    if BaseEventTrigger.hash(watcher.trigger.classpath, watcher.trigger.kwargs)
+                    if watcher.trigger is not None
+                    and BaseEventTrigger.hash(watcher.trigger.classpath, watcher.trigger.kwargs)
                     not in trigger_hashes
                 ]
 

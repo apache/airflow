@@ -48,7 +48,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="3.1.8"
+ARG AIRFLOW_VERSION="3.2.0"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
 ARG AIRFLOW_PYTHON_VERSION="3.12.13"
@@ -73,7 +73,7 @@ ARG PYTHON_LTO="true"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.11.2
+ARG AIRFLOW_UV_VERSION=0.11.3
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -122,6 +122,8 @@ fi
 AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
 PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
+RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
+RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
 
 if [[ "${1}" == "runtime" ]]; then
@@ -493,6 +495,33 @@ function install_golang() {
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
 }
 
+function install_rustup() {
+    local arch
+    arch="$(dpkg --print-architecture)"
+    declare -A rustup_targets=(
+        [amd64]="x86_64-unknown-linux-gnu"
+        [arm64]="aarch64-unknown-linux-gnu"
+    )
+    declare -A rustup_sha256s=(
+        # https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/{target}/rustup-init.sha256
+        [amd64]="4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10"
+        [arm64]="9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792"
+    )
+    local target="${rustup_targets[${arch}]}"
+    local rustup_sha256="${rustup_sha256s[${arch}]}"
+    if [[ -z "${target}" ]]; then
+        echo "Unsupported architecture for rustup: ${arch}"
+        exit 1
+    fi
+    curl --proto '=https' --tlsv1.2 -sSf \
+        "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${target}/rustup-init" \
+        -o /tmp/rustup-init
+    echo "${rustup_sha256}  /tmp/rustup-init" | sha256sum --check
+    chmod +x /tmp/rustup-init
+    /tmp/rustup-init -y --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
+    rm -f /tmp/rustup-init
+}
+
 function apt_clean() {
     apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
     rm -rf /var/lib/apt/lists/* /var/log/*
@@ -508,6 +537,7 @@ else
     install_debian_dev_dependencies
     install_python
     install_additional_dev_dependencies
+    install_rustup
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
         install_golang
     fi
@@ -1417,6 +1447,14 @@ EOF
 COPY <<"EOF" /entrypoint_prod.sh
 #!/usr/bin/env bash
 AIRFLOW_COMMAND="${1:-}"
+AIRFLOW_COMMAND_TO_RUN="${AIRFLOW_COMMAND}"
+if [[ "${AIRFLOW_COMMAND}" == "airflow" ]]; then
+    AIRFLOW_COMMAND_TO_RUN="${2:-}"
+elif [[ "${AIRFLOW_COMMAND}" =~ ^(bash|sh)$ ]] \
+    && [[ "${2:-}" == "-c" ]] \
+    && [[ "${3:-}" =~ (^|[[:space:]])(exec[[:space:]]+)?airflow[[:space:]]+(scheduler|dag-processor|triggerer|api-server)([[:space:]]|$) ]]; then
+    AIRFLOW_COMMAND_TO_RUN="${BASH_REMATCH[3]}"
+fi
 
 set -euo pipefail
 
@@ -1668,7 +1706,8 @@ readonly CONNECTION_CHECK_SLEEP_TIME
 
 create_system_user_if_missing
 set_pythonpath_for_root_user
-if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
+if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]] \
+    && [[ ${AIRFLOW_COMMAND_TO_RUN} =~ ^(scheduler|dag-processor|triggerer|api-server)$ ]]; then
     wait_for_airflow_db
 fi
 
@@ -1833,6 +1872,10 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
 
 ARG PYTHON_LTO
+
+ENV RUSTUP_HOME="/usr/local/rustup"
+ENV CARGO_HOME="/home/airflow/.cargo"
+ENV PATH="${CARGO_HOME}/bin:${PATH}"
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN PYTHON_LTO=${PYTHON_LTO} bash /scripts/docker/install_os_dependencies.sh dev

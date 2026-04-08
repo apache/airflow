@@ -144,7 +144,7 @@ def list_envs(args) -> None:
         if filename.startswith("debug_creds_") or filename.endswith("_generated.json"):
             continue
 
-        env_name = filename.replace(".json", "")
+        env_name, _ = os.path.splitext(filename)
 
         # Try to read config file
         api_url = None
@@ -168,11 +168,11 @@ def list_envs(args) -> None:
                 if os.path.exists(debug_path):
                     with open(debug_path) as f:
                         debug_creds = json.load(f)
-                        if f"api_token_{env_name}" in debug_creds:
+                        if Credentials.token_key_for_environment(env_name) in debug_creds:
                             token_status = "authenticated"
             else:
                 # Check keyring
-                token = keyring.get_password("airflowctl", f"api_token_{env_name}")
+                token = keyring.get_password("airflowctl", Credentials.token_key_for_environment(env_name))
                 if token:
                     token_status = "authenticated"
         except NoKeyringError:

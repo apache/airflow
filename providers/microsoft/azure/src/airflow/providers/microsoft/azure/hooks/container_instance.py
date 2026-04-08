@@ -136,7 +136,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         """
         logs = self.connection.containers.list_logs(resource_group, name, name, tail=tail)
         if logs.content is None:
-            return [None]
+            return []
         return logs.content.splitlines(True)
 
     def delete(self, resource_group: str, name: str) -> None:

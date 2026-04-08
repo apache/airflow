@@ -70,6 +70,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
+from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
@@ -679,6 +680,9 @@ def ti_skip_downstream(
         status.HTTP_409_CONFLICT: {
             "description": "The TI attempting to heartbeat should be terminated for the given reason"
         },
+        status.HTTP_410_GONE: {
+            "description": "Task Instance not found in the TI table but exists in the Task Instance History table"
+        },
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
 )
@@ -702,6 +706,24 @@ def ti_heartbeat(
             "Retrieved current task state", state=previous_state, current_hostname=hostname, current_pid=pid
         )
     except NoResultFound:
+        # Check if the TI exists in the Task Instance History table.
+        # If it does, it was likely cleared while running, so return 410 Gone
+        # instead of 404 Not Found to give the client a more specific signal.
+        tih_exists = session.scalar(
+            select(func.count(TIH.task_instance_id)).where(TIH.task_instance_id == task_instance_id)
+        )
+        if tih_exists:
+            log.error(
+                "TaskInstance was previously cleared and archived in history, heartbeat skipped",
+                ti_id=str(task_instance_id),
+            )
+            raise HTTPException(
+                status_code=status.HTTP_410_GONE,
+                detail={
+                    "reason": "not_found",
+                    "message": "Task Instance not found, it may have been moved to the Task Instance History table",
+                },
+            )
         log.error("Task Instance not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -892,14 +914,12 @@ def get_task_instance_count(
         query = query.where(TI.run_id.in_(run_ids))
 
     if task_group_id:
-        group_tasks = _get_group_tasks(dag_id, task_group_id, session, dag_bag, logical_dates, run_ids)
+        group_tasks = _get_group_tasks(
+            dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
+        )
 
         # Get unique (task_id, map_index) pairs
-
         task_map_pairs = [(ti.task_id, ti.map_index) for ti in group_tasks]
-
-        if map_index is not None:
-            task_map_pairs = [(ti.task_id, ti.map_index) for ti in group_tasks if ti.map_index == map_index]
 
         if not task_map_pairs:
             # If no task group tasks found, default to checking the task group ID itself
@@ -1000,15 +1020,18 @@ def get_task_instance_states(
     if run_ids:
         query = query.where(TI.run_id.in_(run_ids))
 
+    if map_index is not None:
+        query = query.where(TI.map_index == map_index)
+
     results = session.scalars(query).all()
 
     if task_group_id:
-        group_tasks = _get_group_tasks(dag_id, task_group_id, session, dag_bag, logical_dates, run_ids)
+        group_tasks = _get_group_tasks(
+            dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
+        )
 
         results = results + group_tasks if task_ids else group_tasks
 
-    if map_index is not None:
-        results = [task for task in results if task.map_index == map_index]
     [
         run_id_task_state_map[task.run_id].update(
             {task.task_id: task.state}
@@ -1049,7 +1072,13 @@ def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
 
 
 def _get_group_tasks(
-    dag_id: str, task_group_id: str, session: SessionDep, dag_bag: DagBagDep, logical_dates=None, run_ids=None
+    dag_id: str,
+    task_group_id: str,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+    logical_dates=None,
+    run_ids=None,
+    map_index: int | None = None,
 ):
     # Get all tasks in the task group
     dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
@@ -1070,6 +1099,7 @@ def _get_group_tasks(
             TI.task_id.in_(task.task_id for task in task_group.iter_tasks()),
             *([TI.logical_date.in_(logical_dates)] if logical_dates else []),
             *([TI.run_id.in_(run_ids)] if run_ids else []),
+            *([TI.map_index == map_index] if map_index is not None else []),
         )
     ).all()
 

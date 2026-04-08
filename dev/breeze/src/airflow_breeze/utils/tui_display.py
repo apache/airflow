@@ -34,6 +34,7 @@ from airflow_breeze.utils.confirm import _has_tty
 from airflow_breeze.utils.console import get_theme
 
 if TYPE_CHECKING:
+    from airflow_breeze.utils.github import PRAssessment
     from airflow_breeze.utils.pr_models import PRData
 
 
@@ -408,7 +409,7 @@ class TriageTUI:
         self._detail_visible_lines: int = 20
         self._detail_pr_number: int | None = None  # track which PR's details are built
         # Assessment data for flagged PRs (PR number → assessment)
-        self._assessments: dict[int, object] = {}
+        self._assessments: dict[int, PRAssessment] = {}
         # Focus state — which panel receives keyboard navigation
         self._focus: _FocusPanel = _FocusPanel.PR_LIST
         # Track previous cursor to detect PR changes for diff auto-fetch
@@ -484,7 +485,7 @@ class TriageTUI:
                             self.scroll_offset = self.cursor - self._visible_rows + 1
                     break
 
-    def set_assessments(self, assessments: dict[int, object]) -> None:
+    def set_assessments(self, assessments: dict[int, PRAssessment]) -> None:
         """Set assessment data for flagged PRs (PR number → PRAssessment)."""
         self._assessments = assessments
 
@@ -824,6 +825,24 @@ class TriageTUI:
             if parts:
                 author_line += f"  {' | '.join(parts)}"
         lines.append(author_line)
+
+        # Maintainer review decisions
+        if pr.review_decisions:
+            maintainer_assocs = {"COLLABORATOR", "MEMBER", "OWNER"}
+            maintainer_reviews = [
+                r for r in pr.review_decisions if r.reviewer_association in maintainer_assocs
+            ]
+            if maintainer_reviews:
+                approved = [r for r in maintainer_reviews if r.state == "APPROVED"]
+                changes_requested = [r for r in maintainer_reviews if r.state == "CHANGES_REQUESTED"]
+                review_parts: list[str] = []
+                if approved:
+                    names = ", ".join(r.reviewer_login for r in approved)
+                    review_parts.append(f"[green]{len(approved)} approved[/] ({names})")
+                if changes_requested:
+                    names = ", ".join(r.reviewer_login for r in changes_requested)
+                    review_parts.append(f"[red]{len(changes_requested)} changes requested[/] ({names})")
+                lines.append(f"Maintainer reviews: {' | '.join(review_parts)}")
 
         # Timestamps
         lines.append(

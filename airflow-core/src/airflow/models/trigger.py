@@ -32,7 +32,6 @@ from sqlalchemy.sql.functions import coalesce
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import AssetManager
 from airflow.configuration import conf
-from airflow.models import Callback
 from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
@@ -210,6 +209,8 @@ class Trigger(Base):
     @provide_session
     def fetch_trigger_ids_with_non_task_associations(cls, session: Session = NEW_SESSION) -> set[str]:
         """Fetch all trigger IDs actively associated with non-task entities like assets and callbacks."""
+        from airflow.models.callback import Callback
+
         query = select(AssetWatcherModel.trigger_id).union_all(
             select(Callback.trigger_id).where(Callback.trigger_id.is_not(None))
         )
@@ -408,6 +409,8 @@ class Trigger(Base):
         :param queues: The optional set of trigger queues to filter triggers by.
         :param session: The database session.
         """
+        from airflow.models.callback import Callback
+
         result: list[Row[Any]] = []
 
         # Add triggers associated to callbacks first, then tasks, then assets
