@@ -123,7 +123,7 @@ export type BackfillPostBody = {
     run_backwards?: boolean;
     dag_run_conf?: {
         [key: string]: unknown;
-    };
+    } | null;
     reprocess_behavior?: ReprocessBehavior;
     max_active_runs?: number;
     run_on_latest_version?: boolean;
