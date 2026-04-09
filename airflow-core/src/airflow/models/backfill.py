@@ -256,6 +256,7 @@ def _validate_backfill_params(
     from_date: datetime,
     to_date: datetime,
     reprocess_behavior: ReprocessBehavior | None,
+    dag_run_conf: dict | None = None,
 ) -> None:
     depends_on_past = any(x.depends_on_past for x in dag.tasks)
     if depends_on_past:
@@ -271,6 +272,8 @@ def _validate_backfill_params(
     current_time = timezone.utcnow()
     if from_date >= current_time and to_date >= current_time:
         raise InvalidBackfillDate("Backfill cannot be executed for future dates.")
+    if dag_run_conf is not None:
+        dag.params.deep_merge(dag_run_conf).validate()
 
 
 def _do_dry_run(
@@ -367,6 +370,7 @@ def _create_backfill_dag_run_non_partitioned(
                     backfill_id=backfill_id,
                     sort_ordinal=backfill_sort_ordinal,
                     run_on_latest=run_on_latest_version,
+                    dag_run_conf=dag_run_conf,
                 )
             else:
                 session.add(
@@ -516,6 +520,7 @@ def _handle_clear_run(
     backfill_id: int,
     sort_ordinal: int,
     run_on_latest: bool = False,
+    dag_run_conf: dict | None = None,
 ) -> None:
     """Clear the existing Dag run and update backfill metadata."""
     from sqlalchemy.sql import update
@@ -532,15 +537,18 @@ def _handle_clear_run(
         run_on_latest_version=run_on_latest,
     )
 
-    # Update backfill_id and run_type in DagRun table
+    # Update backfill_id, run_type, and optionally conf in DagRun table
+    update_values: dict = dict(
+        backfill_id=backfill_id,
+        run_type=DagRunType.BACKFILL_JOB,
+        triggered_by=DagRunTriggeredByType.BACKFILL,
+    )
+    if dag_run_conf is not None:
+        update_values["conf"] = dag_run_conf
     session.execute(
         update(DagRun)
         .where(DagRun.logical_date == info.logical_date, DagRun.dag_id == dag.dag_id)
-        .values(
-            backfill_id=backfill_id,
-            run_type=DagRunType.BACKFILL_JOB,
-            triggered_by=DagRunTriggeredByType.BACKFILL,
-        )
+        .values(**update_values)
     )
     session.add(
         BackfillDagRun(
@@ -600,7 +608,7 @@ def _create_backfill(
                 f"There can be only one running backfill per Dag."
             )
 
-        _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior)
+        _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior, dag_run_conf)
 
         br = Backfill(
             dag_id=dag_id,
