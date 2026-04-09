@@ -39,11 +39,14 @@ const AlertRow = ({ alert }: { readonly alert: DeadlineAlertResponse }) => {
 
   return (
     <Box py={2} width="100%">
-      <Text color="white" fontSize="xs">
-        {alert.id} ({alert.name}):
-      </Text>
       <Text color="fg.muted" fontSize="xs">
         {translate("deadlineAlerts.completionRule", { interval, reference })}
+        {Boolean(alert.name) && (
+          <Text as="span" color="fg.subtle" fontSize="xs">
+            {" "}
+            ({alert.name})
+          </Text>
+        )}
       </Text>
     </Box>
   );
@@ -54,9 +57,9 @@ export const DeadlineAlertsBadge = ({ dagId }: { readonly dagId: string }) => {
 
   const { data } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId });
 
-  const alerts = (data?.total_entries ?? 0) > 0 ? data?.deadline_alerts : [];
+  const alerts = data?.deadline_alerts ?? [];
 
-  if (!alerts || alerts.length === 0) {
+  if (alerts.length === 0) {
     return undefined;
   }
 
