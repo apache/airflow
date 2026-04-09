@@ -338,14 +338,11 @@ class SortParam(BaseParam[list[str]]):
 
         primary_key_column = self.get_primary_key_column()
         pk_name = self.get_primary_key_string()
-        pk_desc = bool(order_by_values and order_by_values[0].startswith("-"))
-        if pk_desc:
-            columns.append(primary_key_column.desc())
-        else:
-            columns.append(primary_key_column.asc())
-
+        # Always use ascending PK as the final tie-breaker so keyset pagination is stable when
+        # sort columns contain duplicates.
         if not any(name == pk_name for name, _, _ in resolved):
-            resolved.append((pk_name, primary_key_column, pk_desc))
+            columns.append(primary_key_column.asc())
+            resolved.append((pk_name, primary_key_column, False))
 
         self._cached_resolution = (columns, resolved)
         return self._cached_resolution
