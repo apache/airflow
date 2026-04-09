@@ -706,8 +706,60 @@ class TestWorker:
             {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
         ]
 
-    def test_topology_spread_constraints(self):
-        expected_topology_spread_constraints = [
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "topologySpreadConstraints": [
+                    {
+                        "maxSkew": 1,
+                        "topologyKey": "foo",
+                        "whenUnsatisfiable": "ScheduleAnyway",
+                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                    }
+                ]
+            },
+            {
+                "celery": {
+                    "topologySpreadConstraints": [
+                        {
+                            "maxSkew": 1,
+                            "topologyKey": "foo",
+                            "whenUnsatisfiable": "ScheduleAnyway",
+                            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                        }
+                    ]
+                }
+            },
+            {
+                "topologySpreadConstraints": [
+                    {
+                        "maxSkew": 2,
+                        "topologyKey": "not-me",
+                        "whenUnsatisfiable": "ScheduleAnyway",
+                        "labelSelector": {"matchLabels": {"airflow": "test"}},
+                    }
+                ],
+                "celery": {
+                    "topologySpreadConstraints": [
+                        {
+                            "maxSkew": 1,
+                            "topologyKey": "foo",
+                            "whenUnsatisfiable": "ScheduleAnyway",
+                            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                        }
+                    ]
+                },
+            },
+        ],
+    )
+    def test_topology_spread_constraints(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.topologySpreadConstraints", docs[0]) == [
             {
                 "maxSkew": 1,
                 "topologyKey": "foo",
@@ -715,14 +767,6 @@ class TestWorker:
                 "labelSelector": {"matchLabels": {"tier": "airflow"}},
             }
         ]
-        docs = render_chart(
-            values={"workers": {"topologySpreadConstraints": expected_topology_spread_constraints}},
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert expected_topology_spread_constraints == jmespath.search(
-            "spec.template.spec.topologySpreadConstraints", docs[0]
-        )
 
     @pytest.mark.parametrize(
         "workers_values",

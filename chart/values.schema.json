@@ -2372,7 +2372,7 @@
                     }
                 },
                 "topologySpreadConstraints": {
-                    "description": "Specify topology spread constraints for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify topology spread constraints for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.topologySpreadConstraints`` and/or ``workers.kubernetes.topologySpreadConstraints`` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -3451,6 +3451,15 @@
                                 "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
                             }
                         },
+                        "topologySpreadConstraints": {
+                            "description": "Specify topology spread constraints for Airflow Celery worker pods.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                            }
+                        },
                         "hostAliases": {
                             "description": "Specify HostAliases for Airflow Celery worker pods.",
                             "items": {
@@ -3964,6 +3973,15 @@
                             "items": {
                                 "type": "object",
                                 "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                            }
+                        },
+                        "topologySpreadConstraints": {
+                            "description": "Specify topology spread constraints for pods created with pod-template-file.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                             }
                         },
                         "hostAliases": {
