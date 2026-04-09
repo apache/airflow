@@ -234,9 +234,26 @@ class TestDeadline:
         context = callback_kwargs.pop("context")
         assert callback_kwargs == TEST_CALLBACK_KWARGS
 
+        # Verify enriched context — dag_run and deadline info
+        assert context["dag_run"] == DAGRunResponse.model_validate(dagrun).model_dump(mode="json")
         assert context["deadline"]["id"] == deadline_orm.id
         assert context["deadline"]["deadline_time"].timestamp() == deadline_orm.deadline_time.timestamp()
-        assert context["dag_run"] == DAGRunResponse.model_validate(dagrun).model_dump(mode="json")
+        assert context["deadline"]["alert_name"] is None  # no deadline_alert in this test
+
+        # Verify top-level convenience keys
+        assert context["dag_id"] == dagrun.dag_id
+        assert context["run_id"] == dagrun.run_id
+        assert context["logical_date"] == dagrun.logical_date
+        assert context["data_interval_start"] == dagrun.data_interval_start
+        assert context["data_interval_end"] == dagrun.data_interval_end
+        assert context["run_type"] == dagrun.run_type
+        assert context["conf"] == (dagrun.conf or {})
+
+        # Verify derived template variables
+        assert context["ds"] == dagrun.logical_date.strftime("%Y-%m-%d")
+        assert context["ds_nodash"] == dagrun.logical_date.strftime("%Y%m%d")
+        assert context["ts"] == dagrun.logical_date.isoformat()
+        assert context["ts_nodash"] == dagrun.logical_date.strftime("%Y%m%dT%H%M%S")
 
 
 @pytest.mark.db_test

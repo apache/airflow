@@ -216,28 +216,50 @@ class Deadline(Base):
     def handle_miss(self, session: Session):
         """Handle a missed deadline by queueing the callback."""
 
-        def get_simple_context():
+        def _build_deadline_context():
             from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
             from airflow.models import DagRun
 
-            # TODO: Use the TaskAPI from within Triggerer to fetch full context instead of sending this context
-            #  from the scheduler
-
-            # Fetch the DagRun from the database again to avoid errors when self.dagrun's relationship fields
-            # are not in the current session.
+            # Fetch the DagRun from the database again to avoid errors when self.dagrun's
+            # relationship fields are not in the current session.
             dagrun = session.get(DagRun, self.dagrun_id)
+            logical_date = dagrun.logical_date
 
-            return {
+            context: dict[str, Any] = {
+                # Full DAGRunResponse as a JSON-serializable dict
                 "dag_run": DAGRunResponse.model_validate(dagrun).model_dump(mode="json"),
-                "deadline": {"id": self.id, "deadline_time": self.deadline_time},
+                # Top-level convenience keys for Jinja templates (match standard context naming)
+                "dag_id": dagrun.dag_id,
+                "run_id": dagrun.run_id,
+                "logical_date": logical_date,
+                "data_interval_start": dagrun.data_interval_start,
+                "data_interval_end": dagrun.data_interval_end,
+                "run_type": dagrun.run_type,
+                "conf": dagrun.conf or {},
+                # Deadline-specific information
+                "deadline": {
+                    "id": self.id,
+                    "deadline_time": self.deadline_time,
+                    "alert_name": self.deadline_alert.name if self.deadline_alert else None,
+                },
             }
+
+            # Derived date/time template variables
+            if logical_date is not None:
+                context["ds"] = logical_date.strftime("%Y-%m-%d")
+                context["ds_nodash"] = logical_date.strftime("%Y%m%d")
+                context["ts"] = logical_date.isoformat()
+                context["ts_nodash"] = logical_date.strftime("%Y%m%dT%H%M%S")
+                context["ts_nodash_with_tz"] = logical_date.isoformat().replace("-", "").replace(":", "")
+
+            return context
 
         if isinstance(self.callback, TriggererCallback):
             # Update the callback with context before queuing
             if "kwargs" not in self.callback.data:
                 self.callback.data["kwargs"] = {}
             self.callback.data["kwargs"] = (self.callback.data.get("kwargs") or {}) | {
-                "context": get_simple_context()
+                "context": _build_deadline_context()
             }
 
             self.callback.queue()
@@ -248,7 +270,7 @@ class Deadline(Base):
             if "kwargs" not in self.callback.data:
                 self.callback.data["kwargs"] = {}
             self.callback.data["kwargs"] = (self.callback.data.get("kwargs") or {}) | {
-                "context": get_simple_context()
+                "context": _build_deadline_context()
             }
             self.callback.data["deadline_id"] = str(self.id)
             self.callback.data["dag_run_id"] = str(self.dagrun.id)

@@ -32,6 +32,38 @@ PAYLOAD_STATUS_KEY = "state"
 PAYLOAD_BODY_KEY = "body"
 
 
+def _is_notifier_class(callback: Any) -> bool:
+    """Check if the callback is a BaseNotifier subclass (not an instance)."""
+    try:
+        from airflow.sdk.bases.notifier import BaseNotifier
+
+        return isinstance(callback, type) and issubclass(callback, BaseNotifier)
+    except ImportError:
+        return False
+
+
+def _render_callback_kwargs(kwargs: dict[str, Any], context: dict) -> dict[str, Any]:
+    """
+    Render Jinja2 templates in callback kwargs using the provided context.
+
+    Uses ``Templater.render_template`` to recursively render all string values
+    in the kwargs dict.  Non-string values (int, float, datetime, …) pass
+    through unchanged.
+    """
+    from typing import TYPE_CHECKING, cast
+
+    from airflow.sdk.definitions._internal.templater import SandboxedEnvironment, Templater
+
+    if TYPE_CHECKING:
+        from airflow.sdk.definitions.context import Context
+
+    templater = Templater()
+    templater.template_fields = ()
+    templater.template_ext = ()
+    jinja_env = SandboxedEnvironment(cache_size=0)
+    return templater.render_template(kwargs, cast("Context", context), jinja_env)
+
+
 class CallbackTrigger(BaseTrigger):
     """Trigger that executes a callback function asynchronously."""
 
@@ -52,8 +84,13 @@ class CallbackTrigger(BaseTrigger):
         try:
             yield TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.RUNNING})
             callback = import_string(self.callback_path)
-            # TODO: get full context and run template rendering. Right now, a simple context is included in `callback_kwargs`
             context = self.callback_kwargs.pop("context", None)
+
+            # Render Jinja templates in kwargs for plain function callbacks.
+            # Notifiers handle their own template rendering in __await__ via
+            # render_template_fields(), so we skip rendering here for them.
+            if context is not None and not _is_notifier_class(callback):
+                self.callback_kwargs = _render_callback_kwargs(self.callback_kwargs, context)
 
             if _accepts_context(callback) and context is not None:
                 result = await callback(**self.callback_kwargs, context=context)
