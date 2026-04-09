@@ -21,13 +21,17 @@ import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 
-import type { GetTaskInstancesResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 
 import { TaskLogPreview } from "./TaskLogPreview";
 
-const FailedLogs = ({ failedTasks }: { readonly failedTasks: GetTaskInstancesResponse | undefined }) => {
+const FailedLogs = ({
+  failedTasks,
+}: {
+  readonly failedTasks: TaskInstanceCollectionResponse | undefined;
+}) => {
   const { t: translate } = useTranslation(["dag", "common"]);
   const defaultWrap = Boolean(useConfig("default_wrap"));
   const [wrap, setWrap] = useState(defaultWrap);

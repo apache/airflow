@@ -54,10 +54,7 @@ export const Overview = () => {
       taskId: Boolean(groupId) ? undefined : taskId,
     });
 
-  const failedTaskCount =
-    failedTaskInstancesData && "total_entries" in failedTaskInstancesData
-      ? failedTaskInstancesData.total_entries
-      : 0;
+  const failedTaskCount = failedTaskInstancesData?.total_entries ?? 0;
 
   const { data: tiData, isLoading: isLoadingTaskInstances } = useTaskInstanceServiceGetTaskInstances(
     {

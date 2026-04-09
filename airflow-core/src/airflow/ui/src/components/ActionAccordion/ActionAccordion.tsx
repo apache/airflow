@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 
 import type {
   DAGRunResponse,
-  TaskInstanceOffsetCollectionResponse,
+  TaskInstanceCollectionResponse,
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
 import ReactMarkdown from "src/components/ReactMarkdown";
@@ -32,7 +32,7 @@ import { DataTable } from "../DataTable";
 import { getColumns } from "./columns";
 
 type Props = {
-  readonly affectedTasks?: TaskInstanceOffsetCollectionResponse;
+  readonly affectedTasks?: TaskInstanceCollectionResponse;
   readonly groupByRunId?: boolean;
   readonly note: DAGRunResponse["note"];
   readonly setNote: (value: string) => void;
@@ -99,7 +99,7 @@ const ActionAccordion = ({ affectedTasks, groupByRunId = false, note, setNote }:
           <Accordion.ItemTrigger>
             <Text fontWeight="bold">
               {translate("dags:runAndTaskActions.affectedTasks.title", {
-                count: affectedTasks.total_entries,
+                count: affectedTasks.total_entries ?? 0,
               })}
             </Text>
           </Accordion.ItemTrigger>

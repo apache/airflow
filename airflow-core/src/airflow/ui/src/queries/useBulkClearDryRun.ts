@@ -20,7 +20,7 @@ import { useQueries } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { TaskInstanceService } from "openapi/requests/services.gen";
-import type { TaskInstanceOffsetCollectionResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceCollectionResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 
 type Options = {
   includeDownstream: boolean;
@@ -30,7 +30,7 @@ type Options = {
   includeUpstream: boolean;
 };
 
-const EMPTY: TaskInstanceOffsetCollectionResponse = { task_instances: [], total_entries: 0 };
+const EMPTY: TaskInstanceCollectionResponse = { task_instances: [], total_entries: 0 };
 
 export const useBulkClearDryRunKey = "bulkClearDryRun";
 
@@ -91,7 +91,7 @@ export const useBulkClearDryRun = (
 
   const isFetching = results.some((result) => result.isFetching);
 
-  const data = useMemo<TaskInstanceOffsetCollectionResponse>(() => {
+  const data = useMemo<TaskInstanceCollectionResponse>(() => {
     const seen = new Set<string>();
     const merged: Array<TaskInstanceResponse> = [];
 
