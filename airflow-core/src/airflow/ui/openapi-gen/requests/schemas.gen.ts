@@ -5297,13 +5297,26 @@ export const $TaskInletAssetReference = {
     description: 'Task inlet reference serializer for assets.'
 } as const;
 
-export const $TaskInstanceCursorCollectionResponse = {
+export const $TaskInstanceCollectionResponse = {
     properties: {
-        pagination: {
-            type: 'string',
-            const: 'cursor',
-            title: 'Pagination',
-            default: 'cursor'
+        task_instances: {
+            items: {
+                '$ref': '#/components/schemas/TaskInstanceResponse'
+            },
+            type: 'array',
+            title: 'Task Instances'
+        },
+        total_entries: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Total Entries',
+            description: 'Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.'
         },
         next_cursor: {
             anyOf: [
@@ -5314,7 +5327,8 @@ export const $TaskInstanceCursorCollectionResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Next Cursor'
+            title: 'Next Cursor',
+            description: 'Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.'
         },
         previous_cursor: {
             anyOf: [
@@ -5325,20 +5339,21 @@ export const $TaskInstanceCursorCollectionResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Previous Cursor'
-        },
-        task_instances: {
-            items: {
-                '$ref': '#/components/schemas/TaskInstanceResponse'
-            },
-            type: 'array',
-            title: 'Task Instances'
+            title: 'Previous Cursor',
+            description: 'Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.'
         }
     },
     type: 'object',
-    required: ['next_cursor', 'previous_cursor', 'task_instances'],
-    title: 'TaskInstanceCursorCollectionResponse',
-    description: 'Cursor-paginated task instance collection response.'
+    required: ['task_instances'],
+    title: 'TaskInstanceCollectionResponse',
+    description: `Task instance collection response supporting both offset and cursor pagination.
+
+A single flat model is used instead of a discriminated union
+(\`\`Annotated[Offset | Cursor, Field(discriminator=...)]\`\`) because
+the OpenAPI \`\`oneOf\`\` + \`\`discriminator\`\` construct is not handled
+correctly by \`\`@hey-api/openapi-ts\`\` / \`\`@7nohe/openapi-react-query-codegen\`\`:
+return types degrade to \`\`unknown\`\` in JSDoc and can produce
+incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).`
 } as const;
 
 export const $TaskInstanceHistoryCollectionResponse = {
@@ -5579,32 +5594,6 @@ export const $TaskInstanceHistoryResponse = {
     required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
     title: 'TaskInstanceHistoryResponse',
     description: 'TaskInstanceHistory serializer for responses.'
-} as const;
-
-export const $TaskInstanceOffsetCollectionResponse = {
-    properties: {
-        pagination: {
-            type: 'string',
-            const: 'offset',
-            title: 'Pagination',
-            default: 'offset'
-        },
-        total_entries: {
-            type: 'integer',
-            title: 'Total Entries'
-        },
-        task_instances: {
-            items: {
-                '$ref': '#/components/schemas/TaskInstanceResponse'
-            },
-            type: 'array',
-            title: 'Task Instances'
-        }
-    },
-    type: 'object',
-    required: ['total_entries', 'task_instances'],
-    title: 'TaskInstanceOffsetCollectionResponse',
-    description: 'Offset-paginated task instance collection response.'
 } as const;
 
 export const $TaskInstanceResponse = {

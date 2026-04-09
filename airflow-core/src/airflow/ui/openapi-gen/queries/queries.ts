@@ -768,7 +768,7 @@ export const useTaskInstanceServiceGetTaskInstance = <TData = Common.TaskInstanc
 * @param data.limit
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, run_after, logical_date, data_interval_start, data_interval_end`
-* @returns TaskInstanceOffsetCollectionResponse Successful Response
+* @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
 export const useTaskInstanceServiceGetMappedTaskInstances = <TData = Common.TaskInstanceServiceGetMappedTaskInstancesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
@@ -958,7 +958,7 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <TData = Common.TaskI
 * @param data.limit
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, logical_date, run_after, data_interval_start, data_interval_end`
-* @returns unknown Successful Response
+* @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
 export const useTaskInstanceServiceGetTaskInstances = <TData = Common.TaskInstanceServiceGetTaskInstancesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ cursor, dagId, dagIdPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskGroupId, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
@@ -1969,7 +1969,7 @@ export const useDagServiceUnfavoriteDag = <TData = Common.DagServiceUnfavoriteDa
 * @param data.dagId
 * @param data.dagRunId
 * @param data.requestBody
-* @returns TaskInstanceOffsetCollectionResponse Successful Response
+* @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
 export const useTaskInstanceServiceGetTaskInstancesBatch = <TData = Common.TaskInstanceServiceGetTaskInstancesBatchMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
@@ -1987,7 +1987,7 @@ export const useTaskInstanceServiceGetTaskInstancesBatch = <TData = Common.TaskI
 * @param data The data for the request.
 * @param data.dagId
 * @param data.requestBody
-* @returns TaskInstanceOffsetCollectionResponse Successful Response
+* @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
 export const useTaskInstanceServicePostClearTaskInstances = <TData = Common.TaskInstanceServicePostClearTaskInstancesMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
@@ -2234,7 +2234,7 @@ export const useDagServicePatchDag = <TData = Common.DagServicePatchDagMutationR
 * @param data.requestBody
 * @param data.mapIndex
 * @param data.updateMask
-* @returns TaskInstanceOffsetCollectionResponse Successful Response
+* @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
 export const useTaskInstanceServicePatchTaskInstance = <TData = Common.TaskInstanceServicePatchTaskInstanceMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
@@ -2262,7 +2262,7 @@ export const useTaskInstanceServicePatchTaskInstance = <TData = Common.TaskInsta
 * @param data.mapIndex
 * @param data.requestBody
 * @param data.updateMask
-* @returns TaskInstanceOffsetCollectionResponse Successful Response
+* @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
 export const useTaskInstanceServicePatchTaskInstanceByMapIndex = <TData = Common.TaskInstanceServicePatchTaskInstanceByMapIndexMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
@@ -2309,7 +2309,7 @@ export const useTaskInstanceServiceBulkTaskInstances = <TData = Common.TaskInsta
 * @param data.mapIndex
 * @param data.requestBody
 * @param data.updateMask
-* @returns TaskInstanceOffsetCollectionResponse Successful Response
+* @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
 export const useTaskInstanceServicePatchTaskInstanceDryRunByMapIndex = <TData = Common.TaskInstanceServicePatchTaskInstanceDryRunByMapIndexMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
@@ -2337,7 +2337,7 @@ export const useTaskInstanceServicePatchTaskInstanceDryRunByMapIndex = <TData = 
 * @param data.requestBody
 * @param data.mapIndex
 * @param data.updateMask
-* @returns TaskInstanceOffsetCollectionResponse Successful Response
+* @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
 export const useTaskInstanceServicePatchTaskInstanceDryRun = <TData = Common.TaskInstanceServicePatchTaskInstanceDryRunMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {

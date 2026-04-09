@@ -1956,7 +1956,7 @@ export class TaskInstanceService {
      * @param data.requestBody
      * @param data.mapIndex
      * @param data.updateMask
-     * @returns TaskInstanceOffsetCollectionResponse Successful Response
+     * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
     public static patchTaskInstance(data: PatchTaskInstanceData): CancelablePromise<PatchTaskInstanceResponse> {
@@ -2062,7 +2062,7 @@ export class TaskInstanceService {
      * @param data.limit
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, run_after, logical_date, data_interval_start, data_interval_end`
-     * @returns TaskInstanceOffsetCollectionResponse Successful Response
+     * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
     public static getMappedTaskInstances(data: GetMappedTaskInstancesData): CancelablePromise<GetMappedTaskInstancesResponse> {
@@ -2286,7 +2286,7 @@ export class TaskInstanceService {
      * @param data.mapIndex
      * @param data.requestBody
      * @param data.updateMask
-     * @returns TaskInstanceOffsetCollectionResponse Successful Response
+     * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
     public static patchTaskInstanceByMapIndex(data: PatchTaskInstanceByMapIndexData): CancelablePromise<PatchTaskInstanceByMapIndexResponse> {
@@ -2375,7 +2375,7 @@ export class TaskInstanceService {
      * @param data.limit
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, logical_date, run_after, data_interval_start, data_interval_end`
-     * @returns unknown Successful Response
+     * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
     public static getTaskInstances(data: GetTaskInstancesData): CancelablePromise<GetTaskInstancesResponse> {
@@ -2477,7 +2477,7 @@ export class TaskInstanceService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.requestBody
-     * @returns TaskInstanceOffsetCollectionResponse Successful Response
+     * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
     public static getTaskInstancesBatch(data: GetTaskInstancesBatchData): CancelablePromise<GetTaskInstancesBatchResponse> {
@@ -2570,7 +2570,7 @@ export class TaskInstanceService {
      * @param data The data for the request.
      * @param data.dagId
      * @param data.requestBody
-     * @returns TaskInstanceOffsetCollectionResponse Successful Response
+     * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
     public static postClearTaskInstances(data: PostClearTaskInstancesData): CancelablePromise<PostClearTaskInstancesResponse> {
@@ -2602,7 +2602,7 @@ export class TaskInstanceService {
      * @param data.mapIndex
      * @param data.requestBody
      * @param data.updateMask
-     * @returns TaskInstanceOffsetCollectionResponse Successful Response
+     * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
     public static patchTaskInstanceDryRunByMapIndex(data: PatchTaskInstanceDryRunByMapIndexData): CancelablePromise<PatchTaskInstanceDryRunByMapIndexResponse> {
@@ -2640,7 +2640,7 @@ export class TaskInstanceService {
      * @param data.requestBody
      * @param data.mapIndex
      * @param data.updateMask
-     * @returns TaskInstanceOffsetCollectionResponse Successful Response
+     * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
     public static patchTaskInstanceDryRun(data: PatchTaskInstanceDryRunData): CancelablePromise<PatchTaskInstanceDryRunResponse> {

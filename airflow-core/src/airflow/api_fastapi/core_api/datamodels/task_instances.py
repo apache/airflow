@@ -34,7 +34,6 @@ from pydantic import (
 )
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.api_fastapi.core_api.datamodels.common import CursorPaginatedResponse, OffsetPaginatedResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.api_fastapi.core_api.datamodels.job import JobResponse
 from airflow.api_fastapi.core_api.datamodels.trigger import TriggerResponse
@@ -83,22 +82,34 @@ class TaskInstanceResponse(BaseModel):
     dag_version: DagVersionResponse | None
 
 
-class TaskInstanceOffsetCollectionResponse(OffsetPaginatedResponse):
-    """Offset-paginated task instance collection response."""
+class TaskInstanceCollectionResponse(BaseModel):
+    """
+    Task instance collection response supporting both offset and cursor pagination.
+
+    A single flat model is used instead of a discriminated union
+    (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because
+    the OpenAPI ``oneOf`` + ``discriminator`` construct is not handled
+    correctly by ``@hey-api/openapi-ts`` / ``@7nohe/openapi-react-query-codegen``:
+    return types degrade to ``unknown`` in JSDoc and can produce
+    incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).
+    """
 
     task_instances: Iterable[TaskInstanceResponse]
-
-
-class TaskInstanceCursorCollectionResponse(CursorPaginatedResponse):
-    """Cursor-paginated task instance collection response."""
-
-    task_instances: Iterable[TaskInstanceResponse]
-
-
-TaskInstanceCollectionResponse = Annotated[
-    TaskInstanceOffsetCollectionResponse | TaskInstanceCursorCollectionResponse,
-    Field(discriminator="pagination"),
-]
+    total_entries: int | None = Field(
+        default=None,
+        description="Total number of matching items. Populated for offset pagination, "
+        "``null`` when using cursor pagination.",
+    )
+    next_cursor: str | None = Field(
+        default=None,
+        description="Token pointing to the next page. Populated for cursor pagination, "
+        "``null`` when using offset pagination or when there is no next page.",
+    )
+    previous_cursor: str | None = Field(
+        default=None,
+        description="Token pointing to the previous page. Populated for cursor pagination, "
+        "``null`` when using offset pagination or when on the first page.",
+    )
 
 
 class TaskDependencyResponse(BaseModel):

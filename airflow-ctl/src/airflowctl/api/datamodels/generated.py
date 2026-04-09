@@ -2039,15 +2039,40 @@ class TaskCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class TaskInstanceCursorCollectionResponse(BaseModel):
+class TaskInstanceCollectionResponse(BaseModel):
     """
-    Cursor-paginated task instance collection response.
+    Task instance collection response supporting both offset and cursor pagination.
+
+    A single flat model is used instead of a discriminated union
+    (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because
+    the OpenAPI ``oneOf`` + ``discriminator`` construct is not handled
+    correctly by ``@hey-api/openapi-ts`` / ``@7nohe/openapi-react-query-codegen``:
+    return types degrade to ``unknown`` in JSDoc and can produce
+    incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).
     """
 
-    pagination: Annotated[Literal["cursor"], Field(title="Pagination")] = "cursor"
-    next_cursor: Annotated[str | None, Field(title="Next Cursor")] = None
-    previous_cursor: Annotated[str | None, Field(title="Previous Cursor")] = None
     task_instances: Annotated[list[TaskInstanceResponse], Field(title="Task Instances")]
+    total_entries: Annotated[
+        int | None,
+        Field(
+            description="Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.",
+            title="Total Entries",
+        ),
+    ] = None
+    next_cursor: Annotated[
+        str | None,
+        Field(
+            description="Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.",
+            title="Next Cursor",
+        ),
+    ] = None
+    previous_cursor: Annotated[
+        str | None,
+        Field(
+            description="Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.",
+            title="Previous Cursor",
+        ),
+    ] = None
 
 
 class TaskInstanceHistoryCollectionResponse(BaseModel):
@@ -2057,16 +2082,6 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
 
     task_instances: Annotated[list[TaskInstanceHistoryResponse], Field(title="Task Instances")]
     total_entries: Annotated[int, Field(title="Total Entries")]
-
-
-class TaskInstanceOffsetCollectionResponse(BaseModel):
-    """
-    Offset-paginated task instance collection response.
-    """
-
-    pagination: Annotated[Literal["offset"], Field(title="Pagination")] = "offset"
-    total_entries: Annotated[int, Field(title="Total Entries")]
-    task_instances: Annotated[list[TaskInstanceResponse], Field(title="Task Instances")]
 
 
 class BulkBodyBulkTaskInstanceBody(BaseModel):

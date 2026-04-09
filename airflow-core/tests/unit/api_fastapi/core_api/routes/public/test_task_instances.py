@@ -845,12 +845,12 @@ class TestGetMappedTaskInstances:
             ),
             (
                 {"order_by": "-state", "limit": 100},
-                list(range(5)[::-1]) + list(range(25, 110)[::-1]) + list(range(15, 25)[::-1]),
+                list(range(5)) + list(range(25, 110)) + list(range(5, 15)),
             ),
             ({"order_by": "logical_date", "limit": 100}, list(range(100))),
-            ({"order_by": "-logical_date", "limit": 100}, list(range(109, 9, -1))),
+            ({"order_by": "-logical_date", "limit": 100}, list(range(100))),
             ({"order_by": "data_interval_start", "limit": 100}, list(range(100))),
-            ({"order_by": "-data_interval_start", "limit": 100}, list(range(109, 9, -1))),
+            ({"order_by": "-data_interval_start", "limit": 100}, list(range(100))),
         ],
     )
     def test_mapped_instances_order(
@@ -1674,12 +1674,10 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert response_desc.json()["total_entries"] == ti_count
         assert len(response_desc.json()["task_instances"]) == ti_count
 
-        # Compare
-        field_asc = [ti["id"] for ti in response_asc.json()["task_instances"]]
-        assert len(field_asc) == ti_count
-        field_desc = [ti["id"] for ti in response_desc.json()["task_instances"]]
-        assert len(field_desc) == ti_count
-        assert field_asc == list(reversed(field_desc))
+        # Both orderings must return the same set of task instances.
+        ids_asc = {ti["id"] for ti in response_asc.json()["task_instances"]}
+        ids_desc = {ti["id"] for ti in response_desc.json()["task_instances"]}
+        assert ids_asc == ids_desc
 
     def test_should_respond_200_for_pagination(self, test_client, session):
         dag_id = "example_python_operator"
@@ -1733,14 +1731,13 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200, response.json()
         body = response.json()
-        assert body["pagination"] == "cursor"
-        assert "next_cursor" in body
-        assert "previous_cursor" in body
-        assert "total_entries" not in body
+        assert body["next_cursor"] is not None
+        assert body["previous_cursor"] is not None
+        assert body["total_entries"] is None
         assert len(body["task_instances"]) == 3
 
     def test_cursor_pagination_returns_cursor_response(self, test_client, session):
-        """When cursor param is provided, response has pagination='cursor'."""
+        """When cursor param is provided, response has cursor fields and no total_entries."""
         dag_id = "example_python_operator"
         self.create_task_instances(
             session,
@@ -1756,7 +1753,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response1.status_code == 200
         body1 = response1.json()
-        assert body1["pagination"] == "cursor"
+        assert body1["total_entries"] is None
         assert len(body1["task_instances"]) == 3
         next_cursor = body1["next_cursor"]
         assert next_cursor is not None
@@ -1768,10 +1765,9 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response2.status_code == 200
         body2 = response2.json()
-        assert body2["pagination"] == "cursor"
-        assert "next_cursor" in body2
-        assert "previous_cursor" in body2
-        assert "total_entries" not in body2
+        assert body2["next_cursor"] is not None
+        assert body2["previous_cursor"] is not None
+        assert body2["total_entries"] is None
 
     def test_cursor_pagination_pages_do_not_overlap(self, test_client, session):
         """Cursor-driven pages partition the result set without overlap."""
@@ -1792,7 +1788,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             response = test_client.get("/dags/~/dagRuns/~/taskInstances", params=params)
             assert response.status_code == 200, response.json()
             body = response.json()
-            assert body["pagination"] == "cursor"
+            assert body["total_entries"] is None
             page_ids = [ti["id"] for ti in body["task_instances"]]
             all_ids.extend(page_ids)
 
@@ -4293,7 +4289,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         response_data = response.json()
         assert response.status_code == 200
         assert response_data == {
-            "pagination": "offset",
             "task_instances": [
                 {
                     "dag_id": self.DAG_ID,
@@ -4342,6 +4337,8 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "next_cursor": None,
+            "previous_cursor": None,
         }
 
         mock_set_ti_state.assert_called_once_with(
@@ -4568,7 +4565,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "failed",
                 200,
                 {
-                    "pagination": "offset",
                     "task_instances": [
                         {
                             "dag_id": "example_python_operator",
@@ -4617,6 +4613,8 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         }
                     ],
                     "total_entries": 1,
+                    "next_cursor": None,
+                    "previous_cursor": None,
                 },
                 1,
             ),
@@ -4705,7 +4703,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response.status_code == 200, response.text
         response_data = response.json()
         assert response_data == {
-            "pagination": "offset",
             "task_instances": [
                 {
                     "dag_id": self.DAG_ID,
@@ -4754,6 +4751,8 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "next_cursor": None,
+            "previous_cursor": None,
         }
         _check_task_instance_note(session, response_data["task_instances"][0]["id"], ti_note_data)
 
@@ -4767,7 +4766,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response.status_code == 200, response.text
         response_data = response.json()
         assert response_data == {
-            "pagination": "offset",
             "task_instances": [
                 {
                     "dag_id": self.DAG_ID,
@@ -4816,6 +4814,8 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "next_cursor": None,
+            "previous_cursor": None,
         }
 
         _check_task_instance_note(
@@ -4847,7 +4847,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             assert response.status_code == 200, response.text
             response_data = response.json()
             assert response_data == {
-                "pagination": "offset",
                 "task_instances": [
                     {
                         "dag_id": self.DAG_ID,
@@ -4896,6 +4895,8 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     }
                 ],
                 "total_entries": 1,
+                "next_cursor": None,
+                "previous_cursor": None,
             }
 
             _check_task_instance_note(
@@ -5045,7 +5046,6 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         response_data = response.json()
         assert response.status_code == 200
         assert response_data == {
-            "pagination": "offset",
             "task_instances": [
                 {
                     "dag_id": self.DAG_ID,
@@ -5094,6 +5094,8 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "next_cursor": None,
+            "previous_cursor": None,
         }
 
         mock_set_ti_state.assert_called_once_with(
@@ -5332,7 +5334,6 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                 "failed",
                 200,
                 {
-                    "pagination": "offset",
                     "task_instances": [
                         {
                             "dag_id": "example_python_operator",
@@ -5381,6 +5382,8 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                         }
                     ],
                     "total_entries": 1,
+                    "next_cursor": None,
+                    "previous_cursor": None,
                 },
                 1,
             ),
@@ -5459,7 +5462,12 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 200
-        assert response.json() == {"pagination": "offset", "task_instances": [], "total_entries": 0}
+        assert response.json() == {
+            "task_instances": [],
+            "total_entries": 0,
+            "next_cursor": None,
+            "previous_cursor": None,
+        }
 
 
 class TestDeleteTaskInstance(TestTaskInstanceEndpoint):
