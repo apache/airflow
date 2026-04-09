@@ -2309,11 +2309,6 @@ components:
           - type: string
           - type: 'null'
           title: Name
-        description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Description
         reference_type:
           type: string
           title: Reference Type
@@ -2377,11 +2372,6 @@ components:
           - type: string
           - type: 'null'
           title: Alert Name
-        alert_description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Alert Description
       type: object
       required:
       - id

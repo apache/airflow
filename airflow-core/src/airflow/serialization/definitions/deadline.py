@@ -50,7 +50,6 @@ class DeadlineAlertFields:
     """
 
     NAME = "name"
-    DESCRIPTION = "description"
     REFERENCE = "reference"
     INTERVAL = "interval"
     CALLBACK = "callback"
@@ -370,4 +369,3 @@ class SerializedDeadlineAlert:
     interval: timedelta
     callback: Any
     name: str | None = None
-    description: str | None = None

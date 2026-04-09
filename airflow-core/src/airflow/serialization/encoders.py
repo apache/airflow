@@ -212,7 +212,6 @@ def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[st
 
     return {
         "name": getattr(d, "name", None),
-        "description": getattr(d, "description", None),
         "reference": encode_deadline_reference(d.reference),
         "interval": d.interval.total_seconds(),
         "callback": serialize(d.callback),

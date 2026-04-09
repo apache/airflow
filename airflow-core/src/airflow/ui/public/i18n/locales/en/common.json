@@ -22,7 +22,6 @@
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Audit Log",
-    "deadlines": "Deadlines",
     "jobs": "Jobs",
     "requiredActions": "Required Actions",
     "xcoms": "XComs"

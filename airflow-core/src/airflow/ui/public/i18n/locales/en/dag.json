@@ -7,11 +7,6 @@
   },
   "calendar": {
     "daily": "Daily",
-    "deadlines": {
-      "missed": "Missed",
-      "pending": "Pending",
-      "title": "Deadlines in Period"
-    },
     "hourly": "Hourly",
     "legend": {
       "less": "Less",
@@ -44,26 +39,6 @@
     "noCode": "No Code Found",
     "parseDuration": "Parse Duration:",
     "parsedAt": "Parsed at:"
-  },
-  "deadlineAlerts": {
-    "completionRule": "Run to complete within {{interval}} of {{reference}}",
-    "count_one": "{{count}} deadline",
-    "count_other": "{{count}} deadlines",
-    "referenceType": {
-      "AverageRuntimeDeadline": "average runtime",
-      "DagRunLogicalDateDeadline": "logical date",
-      "DagRunQueuedAtDeadline": "queue time",
-      "FixedDatetimeDeadline": "fixed datetime"
-    },
-    "title": "Deadline Alerts",
-    "unnamed": "Unnamed Alert"
-  },
-  "deadlineStatus": {
-    "label": "Deadline",
-    "met": "Met",
-    "missed": "Missed",
-    "upcoming": "Upcoming",
-    "viewAll": "View all {{count}}"
   },
   "extraLinks": "Extra Links",
   "grid": {
@@ -117,12 +92,6 @@
     "charts": {
       "assetEvent_one": "Created Asset Event",
       "assetEvent_other": "Created Asset Events"
-    },
-    "deadlines": {
-      "pending": "Pending Deadlines",
-      "recentlyMissed": "Recently Missed Deadlines",
-      "title": "Deadlines",
-      "viewAll": "View all {{count}}"
     },
     "failedLogs": {
       "hideLogs": "Hide Logs",
