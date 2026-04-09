@@ -20,7 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from tenacity import wait_incrementing
+from tenacity import stop_after_attempt, wait_incrementing
 
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.databricks.hooks.databricks import SQLStatementState
@@ -32,6 +32,11 @@ STATEMENT = "select * from test.test;"
 STATEMENT_ID = "statement_id"
 TASK_ID = "task_id"
 WAREHOUSE_ID = "warehouse_id"
+
+UNSUPPORTED_RETRY_ARGS = [
+    {"wait": wait_incrementing(start=1, increment=1, max=3)},
+    {"stop": stop_after_attempt(3)},
+]
 
 
 class TestDatabricksSQLStatementsSensor:
@@ -168,14 +173,15 @@ class TestDatabricksSQLStatementsSensor:
         assert isinstance(exc.value.trigger, DatabricksSQLStatementExecutionTrigger)
         assert exc.value.method_name == "execute_complete"
 
+    @pytest.mark.parametrize("retry_args", UNSUPPORTED_RETRY_ARGS)
     @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
-    def test_execute_task_deferred_rejects_non_serializable_retry_args(self, db_mock_class):
+    def test_execute_task_deferred_rejects_non_serializable_retry_args(self, db_mock_class, retry_args):
         op = DatabricksSQLStatementsSensor(
             task_id=TASK_ID,
             statement=STATEMENT,
             warehouse_id=WAREHOUSE_ID,
             deferrable=True,
-            databricks_retry_args={"wait": wait_incrementing(start=1, increment=1, max=3)},
+            databricks_retry_args=retry_args,
         )
         db_mock = db_mock_class.return_value
         db_mock.post_sql_statement.return_value = STATEMENT_ID

@@ -21,7 +21,7 @@ import time
 from unittest import mock
 
 import pytest
-from tenacity import wait_incrementing
+from tenacity import stop_after_attempt, wait_incrementing
 
 from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
@@ -62,6 +62,11 @@ LIFE_CYCLE_STATE_TERMINATED = "TERMINATED"
 LIFE_CYCLE_STATE_INTERNAL_ERROR = "INTERNAL_ERROR"
 
 STATE_MESSAGE = "Waiting for cluster"
+
+UNSUPPORTED_RETRY_ARGS = [
+    {"wait": wait_incrementing(start=1, increment=1, max=3)},
+    {"stop": stop_after_attempt(3)},
+]
 
 GET_RUN_RESPONSE_PENDING = {
     "job_id": JOB_ID,
@@ -168,14 +173,15 @@ class TestDatabricksExecutionTrigger:
         restored = DatabricksExecutionTrigger(**kwargs)
         assert restored.caller == CALLER
 
-    def test_init_rejects_non_serializable_retry_args(self):
+    @pytest.mark.parametrize("retry_args", UNSUPPORTED_RETRY_ARGS)
+    def test_init_rejects_non_serializable_retry_args(self, retry_args):
         with pytest.raises(
             ValueError, match="does not support non-serializable databricks_retry_args when deferrable=True"
         ):
             DatabricksExecutionTrigger(
                 run_id=RUN_ID,
                 databricks_conn_id=DEFAULT_CONN_ID,
-                retry_args={"wait": wait_incrementing(start=1, increment=1, max=3)},
+                retry_args=retry_args,
             )
 
     @pytest.mark.asyncio
@@ -337,7 +343,8 @@ class TestDatabricksSQLStatementExecutionTrigger:
         restored = DatabricksSQLStatementExecutionTrigger(**kwargs)
         assert restored.caller == CALLER
 
-    def test_init_rejects_non_serializable_retry_args(self):
+    @pytest.mark.parametrize("retry_args", UNSUPPORTED_RETRY_ARGS)
+    def test_init_rejects_non_serializable_retry_args(self, retry_args):
         with pytest.raises(
             ValueError, match="does not support non-serializable databricks_retry_args when deferrable=True"
         ):
@@ -345,7 +352,7 @@ class TestDatabricksSQLStatementExecutionTrigger:
                 statement_id=STATEMENT_ID,
                 databricks_conn_id=DEFAULT_CONN_ID,
                 end_time=self.end_time,
-                retry_args={"wait": wait_incrementing(start=1, increment=1, max=3)},
+                retry_args=retry_args,
             )
 
     @pytest.mark.asyncio

@@ -24,7 +24,7 @@ from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
-from tenacity import wait_incrementing
+from tenacity import stop_after_attempt, wait_incrementing
 
 # Do not run the tests when FAB / Flask is not installed
 pytest.importorskip("flask_session")
@@ -78,6 +78,11 @@ RUN_PAGE_URL = "run-page-url"
 STATEMENT_ID = "statement_id"
 WAREHOUSE_ID = "warehouse_id"
 JOB_ID = "42"
+
+UNSUPPORTED_RETRY_ARGS = [
+    {"wait": wait_incrementing(start=1, increment=1, max=3)},
+    {"stop": stop_after_attempt(3)},
+]
 JOB_NAME = "job-name"
 JOB_DESCRIPTION = "job-description"
 DBT_COMMANDS = ["dbt deps", "dbt seed", "dbt run"]
@@ -1028,13 +1033,14 @@ class TestDatabricksSubmitRunOperator:
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         assert op.run_id == RUN_ID
 
+    @pytest.mark.parametrize("retry_args", UNSUPPORTED_RETRY_ARGS)
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_execute_task_deferred_rejects_non_serializable_retry_args(self, db_mock_class):
+    def test_execute_task_deferred_rejects_non_serializable_retry_args(self, db_mock_class, retry_args):
         op = DatabricksSubmitRunOperator(
             deferrable=True,
             task_id=TASK_ID,
             json={"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK},
-            databricks_retry_args={"wait": wait_incrementing(start=1, increment=1, max=3)},
+            databricks_retry_args=retry_args,
         )
         db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = RUN_ID
