@@ -56,17 +56,9 @@ repos:
         pass_filenames: false
         files: ^src/airflow/sdk/definitions/dag\.py$|^src/airflow/sdk/definitions/decorators/task_group\.py$
       - id: mypy-task-sdk
-        stages: ['pre-push']
         name: Run mypy for task-sdk
         language: python
-        entry: ../scripts/ci/prek/mypy.py
-        files: ^.*\.py$
-        require_serial: true
-      - id: mypy-task-sdk
-        stages: ['manual']
-        name: Run mypy for task-sdk (manual)
-        language: python
-        entry: ../scripts/ci/prek/mypy_folder.py task-sdk
+        entry: ../scripts/ci/prek/mypy_local_folder.py task-sdk
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

@@ -50,6 +50,11 @@ export const SearchBar = ({
     setValue(event.target.value);
     handleSearchChange(event.target.value);
   };
+  const clearSearch = () => {
+    handleSearchChange.cancel();
+    setValue("");
+    onChange("");
+  };
 
   useHotkeys(
     "mod+k",
@@ -70,10 +75,7 @@ export const SearchBar = ({
               aria-label={translate("search.clear")}
               colorPalette="brand"
               data-testid="clear-search"
-              onClick={() => {
-                setValue("");
-                onChange("");
-              }}
+              onClick={clearSearch}
               size="xs"
             />
           ) : undefined}

@@ -160,7 +160,7 @@ def _read_provider_yaml_info(provider_id: str) -> tuple[str, list[str]]:
     try:
         import tomllib
     except ImportError:
-        import tomli as tomllib
+        import tomli as tomllib  # type: ignore[no-redef]
 
     provider_yaml_path = _find_provider_yaml(provider_id)
     with open(provider_yaml_path) as f:
