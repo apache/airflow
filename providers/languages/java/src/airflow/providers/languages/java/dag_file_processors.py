@@ -70,7 +70,7 @@ class JavaDagFileProcessor(BaseDagFileProcessor):
     def can_handle(self, bundle_name: str, path: str | os.PathLike[str]) -> bool:
         # The parent class will only validate against the bundle name
         # If the configured bundle name doesn't match, we can skip the more expensive .jar content validation
-        if not super().can_handle(bundle_name):
+        if not super().can_handle(bundle_name, path):
             return False
 
         # Then the dag_importer will validate based on the .jar content
@@ -120,12 +120,21 @@ def parse_jar_bundles_entrypoint(path: str, bundle_name: str, bundle_path: str) 
     comm_host, comm_port = comm_server.getsockname()
     logs_host, logs_port = logs_server.getsockname()
 
+    # Build the classpath from all JARs in the bundle directory.
+    # Java bundles are typically thin JARs: the main JAR (e.g. example.jar)
+    # only contains the bundle's own classes while its dependencies (the
+    # Airflow Java SDK, logging libraries, etc.) are separate JARs that live
+    # alongside it.  Using the ``<dir>/*`` wildcard lets the JVM load every
+    # JAR in the directory, matching the standard Gradle/Maven distribution
+    # layout produced by ``copyDependencies``-style tasks.
+    classpath = f"{bundle_path}/*"
+
     # Spawn the Java subprocess.
     proc = subprocess.Popen(
         [
             "java",
             "-classpath",
-            jar_path.as_posix(),
+            classpath,
             _find_main_class(jar_path),
             f"--comm={comm_host}:{comm_port}",
             f"--logs={logs_host}:{logs_port}",
