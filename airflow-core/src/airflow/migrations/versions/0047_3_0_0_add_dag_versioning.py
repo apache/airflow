@@ -47,8 +47,8 @@ def upgrade():
     """Apply add dag versioning."""
     dialect_name = op.get_bind().dialect.name
 
-    op.execute("delete from dag_code;")
-    op.execute("delete from serialized_dag;")
+    op.execute("delete from dag_code;")  # noqa: MIG003 -- dag versioning data migration
+    op.execute("delete from serialized_dag;")  # noqa: MIG003 -- dag versioning data migration
 
     op.create_table(
         "dag_version",
@@ -160,8 +160,8 @@ def downgrade():
         batch_op.drop_constraint("created_dag_version_id_fkey", type_="foreignkey")
         batch_op.drop_column("created_dag_version_id")
 
-    op.execute("delete from dag_code;")
-    op.execute("delete from serialized_dag;")
+    op.execute("delete from dag_code;")  # noqa: MIG003 -- dag versioning data migration
+    op.execute("delete from serialized_dag;")  # noqa: MIG003 -- dag versioning data migration
 
     with op.batch_alter_table("dag_code", schema=None) as batch_op:
         batch_op.drop_constraint("dag_code_pkey", type_="primary")

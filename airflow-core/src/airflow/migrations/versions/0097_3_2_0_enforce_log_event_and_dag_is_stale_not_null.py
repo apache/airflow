@@ -41,8 +41,8 @@ airflow_version = "3.2.0"
 def upgrade():
     """Bring existing deployments in line with 0010 and 0067."""
     with disable_sqlite_fkeys(op):
-        op.execute("UPDATE log SET event = '' WHERE event IS NULL")
-        op.execute("UPDATE dag SET is_stale = false WHERE is_stale IS NULL")
+        op.execute("UPDATE log SET event = '' WHERE event IS NULL")  # noqa: MIG003 -- backfill default for NOT NULL
+        op.execute("UPDATE dag SET is_stale = false WHERE is_stale IS NULL")  # noqa: MIG003 -- backfill default for NOT NULL
 
         with op.batch_alter_table("log") as batch_op:
             batch_op.alter_column("event", existing_type=sa.String(60), nullable=False)

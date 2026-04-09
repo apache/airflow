@@ -243,7 +243,7 @@ def downgrade():
         )
     elif dialect == "mysql":
         op.add_column("xcom", sa.Column("value_blob", LONGBLOB, nullable=True))
-        op.execute("UPDATE xcom SET value_blob = CAST(value AS BINARY);")
+        op.execute("UPDATE xcom SET value_blob = CAST(value AS BINARY);")  # noqa: MIG003 -- type conversion during downgrade
         op.drop_column("xcom", "value")
         op.alter_column("xcom", "value_blob", existing_type=LONGBLOB, new_column_name="value")
 

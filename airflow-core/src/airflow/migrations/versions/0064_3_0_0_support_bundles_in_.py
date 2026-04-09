@@ -40,7 +40,7 @@ airflow_version = "3.0.0"
 def upgrade():
     # It's just easier to delete all the rows from the table
     # No need to keep any records that may be in there during a major upgrade
-    op.execute("DELETE FROM dag_priority_parsing_request")
+    op.execute("DELETE FROM dag_priority_parsing_request")  # noqa: MIG003 -- truncate before schema change
 
     with op.batch_alter_table("dag_priority_parsing_request", schema=None) as batch_op:
         batch_op.add_column(sa.Column("bundle_name", sa.String(length=250), nullable=False))
@@ -51,7 +51,7 @@ def upgrade():
 def downgrade():
     # It's just easier to delete all the rows from the table
     # No need to keep any records that may be in there during a major upgrade
-    op.execute("DELETE FROM dag_priority_parsing_request")
+    op.execute("DELETE FROM dag_priority_parsing_request")  # noqa: MIG003 -- truncate before schema change
 
     with op.batch_alter_table("dag_priority_parsing_request", schema=None) as batch_op:
         batch_op.add_column(

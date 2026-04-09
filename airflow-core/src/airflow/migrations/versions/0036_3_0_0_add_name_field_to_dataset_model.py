@@ -89,7 +89,7 @@ def downgrade():
         # - Join to find if each row has a non-orphaned row with the same URI. If there is, select its id.
         # - Modifying the table currently used for selection is not allowed; the additional layer
         #   SELECT id FROM (...) AS d3 makes MySQL think the selecting table is different.
-        op.execute(
+        op.execute(  # noqa: MIG003 -- data cleanup during downgrade
             "delete from dataset where id in ("
             "    select id from ("
             "        select d1.id from dataset d1"
@@ -100,7 +100,7 @@ def downgrade():
             ")"
         )
     else:
-        op.execute(
+        op.execute(  # noqa: MIG003 -- data cleanup during downgrade
             "delete from dataset as d1 where d1.is_orphaned = true "
             "and exists (select 1 from dataset as d2 where d1.uri = d2.uri and d2.is_orphaned = false)"
         )

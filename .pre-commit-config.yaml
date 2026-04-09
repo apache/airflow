@@ -1074,6 +1074,14 @@ repos:
         pass_filenames: false
         files: ^shared/.*|^scripts/ci/prek/check_shared_mypy_hooks\.py$
         require_serial: true
+      - id: check-migration-patterns
+        name: Check migration files for anti-patterns (MIG001/MIG002/MIG003)
+        entry: ./scripts/ci/prek/check_migration_patterns.py
+        language: python
+        pass_filenames: true
+        files: ^airflow-core/src/airflow/migrations/versions/.*\.py$
+        additional_dependencies: [rich>=13.6.0]
+        require_serial: true
       ## ADD MOST PREK HOOK ABOVE THAT LINE
       # The below prek hooks are those requiring CI image to be built
       ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE

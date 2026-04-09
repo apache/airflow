@@ -41,7 +41,7 @@ def upgrade():
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.alter_column("is_active", new_column_name="is_stale", type_=sa.Boolean)
 
-    op.execute("UPDATE dag SET is_stale = NOT is_stale")
+    op.execute("UPDATE dag SET is_stale = NOT is_stale")  # noqa: MIG003 -- column value inversion during rename
 
 
 def downgrade():
@@ -49,4 +49,4 @@ def downgrade():
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.alter_column("is_stale", new_column_name="is_active", type_=sa.Boolean)
 
-    op.execute("UPDATE dag SET is_active = NOT is_active")
+    op.execute("UPDATE dag SET is_active = NOT is_active")  # noqa: MIG003 -- column value inversion during rename

@@ -58,4 +58,4 @@ def downgrade():
             type_=sa.Text,
             nullable=True,
         )
-    op.execute("UPDATE dag SET schedule_interval=NULL;")
+    op.execute("UPDATE dag SET schedule_interval=NULL;")  # noqa: MIG003 -- cleanup during downgrade

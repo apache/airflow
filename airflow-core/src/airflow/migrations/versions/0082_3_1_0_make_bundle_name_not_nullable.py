@@ -45,7 +45,7 @@ def upgrade():
     """Make bundle_name not nullable."""
     dialect_name = op.get_bind().dialect.name
     if dialect_name == "postgresql":
-        op.execute(
+        op.execute(  # noqa: MIG003 -- backfill default for NOT NULL
             text("""
                 INSERT INTO dag_bundle (name) VALUES
                     ('example_dags'),
@@ -54,7 +54,7 @@ def upgrade():
                 """)
         )
     if dialect_name == "mysql":
-        op.execute(
+        op.execute(  # noqa: MIG003 -- backfill default for NOT NULL
             text("""
                     INSERT IGNORE INTO dag_bundle (name) VALUES
                     ('example_dags'),
@@ -63,7 +63,7 @@ def upgrade():
         )
     if dialect_name == "sqlite":
         op.execute(text("PRAGMA foreign_keys=OFF"))
-        op.execute(
+        op.execute(  # noqa: MIG003 -- backfill default for NOT NULL
             text("""
                     INSERT OR IGNORE INTO dag_bundle (name) VALUES
                     ('example_dags'),

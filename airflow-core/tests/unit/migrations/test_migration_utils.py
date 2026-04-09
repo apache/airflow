@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -32,8 +33,17 @@ immediately identifiable in CI logs.
 from __future__ import annotations
 
 import pytest
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 from alembic.script import ScriptDirectory
+from sqlalchemy import text
 
+from airflow import settings
+from airflow.migrations.utils import (
+    disable_sqlite_fkeys,
+    ignore_sqlite_value_error,
+    mysql_drop_foreignkey_if_exists,
+)
 from airflow.utils.db import (
     _REVISION_HEADS_MAP,
     _get_alembic_config,
@@ -116,3 +126,145 @@ def test_migration_stairway(stairway_db) -> None:
             upgradedb(to_revision=revision_id)
         except Exception as e:
             raise AssertionError(f"Stairway test failed at revision {revision_id!r}") from e
+
+
+class TestDisableSqliteFkeys:
+    """Tests for :func:`disable_sqlite_fkeys`."""
+
+    def test_yields_op(self):
+        """The context manager yields the *op* object on every backend."""
+        with settings.engine.connect() as conn:
+            ctx = MigrationContext.configure(conn)
+            op = Operations(ctx)
+            with disable_sqlite_fkeys(op) as yielded:
+                assert yielded is op
+
+    @pytest.mark.backend("sqlite")
+    def test_sqlite_turns_off_fkeys(self):
+        """On SQLite, ``PRAGMA foreign_keys`` is OFF inside the context."""
+
+        with settings.engine.connect() as conn:
+            # Ensure foreign_keys is ON before entering the context manager.
+            conn.execute(text("PRAGMA foreign_keys=ON"))
+            conn.commit()
+
+            ctx = MigrationContext.configure(conn)
+            op = Operations(ctx)
+
+            with disable_sqlite_fkeys(op):
+                result = conn.execute(text("PRAGMA foreign_keys")).scalar()
+                assert result == 0, "foreign_keys should be OFF inside disable_sqlite_fkeys"
+
+            result = conn.execute(text("PRAGMA foreign_keys")).scalar()
+            assert result == 1, "foreign_keys should be restored to ON after disable_sqlite_fkeys"
+
+    @pytest.mark.backend("postgres", "mysql")
+    def test_non_sqlite_is_noop(self):
+        """On non-SQLite backends, the context manager simply yields."""
+
+        with settings.engine.connect() as conn:
+            ctx = MigrationContext.configure(conn)
+            op = Operations(ctx)
+            with disable_sqlite_fkeys(op) as yielded:
+                assert yielded is op
+
+
+class TestMysqlDropForeignkeyIfExists:
+    """Tests for :func:`mysql_drop_foreignkey_if_exists`."""
+
+    @pytest.mark.backend("mysql")
+    def test_drops_existing_fk(self):
+        """On MySQL, an existing foreign key is dropped."""
+
+        with settings.engine.connect() as conn:
+            conn.execute(text("CREATE TABLE IF NOT EXISTS _test_mig_parent (id INT PRIMARY KEY)"))
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS _test_mig_child (
+                      id INT PRIMARY KEY,
+                      parent_id INT,
+                      CONSTRAINT _test_mig_fk FOREIGN KEY (parent_id)
+                        REFERENCES _test_mig_parent(id)
+                    )
+                    """
+                )
+            )
+            conn.commit()
+
+            try:
+                ctx = MigrationContext.configure(conn)
+                op = Operations(ctx)
+                mysql_drop_foreignkey_if_exists("_test_mig_fk", "_test_mig_child", op)
+                conn.commit()
+
+                count = conn.execute(
+                    text(
+                        """
+                        SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+                        WHERE CONSTRAINT_SCHEMA = DATABASE()
+                          AND TABLE_NAME = '_test_mig_child'
+                          AND CONSTRAINT_NAME = '_test_mig_fk'
+                          AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+                        """
+                    )
+                ).scalar()
+                assert count == 0, "Foreign key should have been dropped"
+            finally:
+                conn.execute(text("DROP TABLE IF EXISTS _test_mig_child"))
+                conn.execute(text("DROP TABLE IF EXISTS _test_mig_parent"))
+                conn.commit()
+
+    @pytest.mark.backend("mysql")
+    def test_noop_for_nonexistent_fk(self):
+        """On MySQL, dropping a non-existent FK does not raise."""
+
+        with settings.engine.connect() as conn:
+            conn.execute(text("CREATE TABLE IF NOT EXISTS _test_mig_nofk (id INT PRIMARY KEY)"))
+            conn.commit()
+
+            try:
+                ctx = MigrationContext.configure(conn)
+                op = Operations(ctx)
+                mysql_drop_foreignkey_if_exists("nonexistent_fk", "_test_mig_nofk", op)
+                conn.commit()
+            finally:
+                conn.execute(text("DROP TABLE IF EXISTS _test_mig_nofk"))
+                conn.commit()
+
+
+class TestIgnoreSqliteValueError:
+    """Tests for :func:`ignore_sqlite_value_error`."""
+
+    @pytest.mark.backend("sqlite")
+    def test_sqlite_suppresses_value_error(self):
+        """On SQLite, ``ValueError`` is suppressed."""
+
+        with settings.engine.connect() as conn:
+            ctx = MigrationContext.configure(conn)
+            with Operations.context(ctx):
+                cm = ignore_sqlite_value_error()
+                with cm:
+                    raise ValueError("should be suppressed on SQLite")
+
+    @pytest.mark.backend("postgres", "mysql")
+    def test_non_sqlite_does_not_suppress(self):
+        """On non-SQLite backends, ``ValueError`` propagates."""
+
+        with settings.engine.connect() as conn:
+            ctx = MigrationContext.configure(conn)
+            with Operations.context(ctx):
+                cm = ignore_sqlite_value_error()
+                with pytest.raises(ValueError, match="should propagate"):
+                    with cm:
+                        raise ValueError("should propagate")
+
+    def test_does_not_suppress_other_exceptions(self):
+        """Even on SQLite, only ``ValueError`` is suppressed — other exceptions propagate."""
+        with settings.engine.connect() as conn:
+            ctx = MigrationContext.configure(conn)
+            with Operations.context(ctx):
+                cm = ignore_sqlite_value_error()
+                with pytest.raises(TypeError):
+                    with cm:
+                        raise TypeError("not a ValueError")

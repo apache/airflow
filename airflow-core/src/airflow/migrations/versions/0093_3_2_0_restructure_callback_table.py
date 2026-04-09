@@ -48,7 +48,7 @@ def upgrade():
     """
     # Drop all rows. this will only affect users who have Dag Processor callbacks in non-terminal states
     # during migration.
-    op.execute("DELETE FROM callback_request")
+    op.execute("DELETE FROM callback_request")  # noqa: MIG003 -- truncate before schema change
     # TODO: migrate existing rows for pending DagProcessor callbacks
 
     op.rename_table("callback_request", "callback")
@@ -76,7 +76,9 @@ def downgrade():
 
     Add/drop/modify columns, create foreign key for trigger and rename the table name.
     """
-    op.execute("DELETE FROM callback")  # Drop all rows. See comment in upgrade().
+    op.execute(  # noqa: MIG003 -- truncate before schema change
+        "DELETE FROM callback"
+    )  # Drop all rows. See comment in upgrade().
 
     with op.batch_alter_table("callback", schema=None) as batch_op:
         batch_op.add_column(sa.Column("callback_type", sa.String(length=20), nullable=False))

@@ -43,16 +43,17 @@ airflow_version = "3.2.0"
 
 def upgrade():
     """Apply Add partition_key to backfill_dag_run."""
-    op.add_column("dag_run", sa.Column("created_at", UtcDateTime(timezone=True), nullable=True))
-    with disable_sqlite_fkeys(op), op.batch_alter_table("backfill_dag_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("partition_key", StringID(), nullable=True))
-        batch_op.alter_column("logical_date", existing_type=sa.TIMESTAMP(), nullable=True)
+    with disable_sqlite_fkeys(op):
+        op.add_column("dag_run", sa.Column("created_at", UtcDateTime(timezone=True), nullable=True))
+        with op.batch_alter_table("backfill_dag_run", schema=None) as batch_op:
+            batch_op.add_column(sa.Column("partition_key", StringID(), nullable=True))
+            batch_op.alter_column("logical_date", existing_type=sa.TIMESTAMP(), nullable=True)
 
 
 def downgrade():
     """Unapply Add partition_key to backfill_dag_run."""
     with disable_sqlite_fkeys(op):
-        op.execute("DELETE FROM backfill_dag_run WHERE logical_date IS NULL;")
+        op.execute("DELETE FROM backfill_dag_run WHERE logical_date IS NULL;")  # noqa: MIG003 -- cleanup before NOT NULL constraint
         with op.batch_alter_table("backfill_dag_run", schema=None) as batch_op:
             batch_op.alter_column("logical_date", existing_type=sa.TIMESTAMP(), nullable=False)
             batch_op.drop_column("partition_key")

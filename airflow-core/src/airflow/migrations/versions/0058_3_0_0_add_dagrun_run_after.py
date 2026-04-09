@@ -48,7 +48,7 @@ def upgrade():
     # the logical date. This is wrong (one interval too early), but good enough
     # since those super old runs should have their data interval ended a long
     # time ago anyway, and setting
-    op.execute("update dag_run set run_after = coalesce(data_interval_end, logical_date)")
+    op.execute("update dag_run set run_after = coalesce(data_interval_end, logical_date)")  # noqa: MIG003 -- backfill default for NOT NULL
 
     with op.batch_alter_table("dag_run") as batch_op:
         batch_op.alter_column("run_after", existing_type=UtcDateTime, nullable=False)

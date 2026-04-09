@@ -590,6 +590,7 @@ extend-exclude = [
 
 [tool.ruff.lint]
 typing-modules = ["airflow.typing_compat"]
+external = ["MIG"]
 extend-select = [
     # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
