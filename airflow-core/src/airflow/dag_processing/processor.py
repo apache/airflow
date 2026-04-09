@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import contextlib
+import functools
 import importlib
 import logging
 import os
@@ -158,6 +159,51 @@ ToDagProcessor = Annotated[
     | XComSequenceSliceResult,
     Field(discriminator="type"),
 ]
+
+
+class BaseDagFileProcessor:
+    """
+    Base class for provider-contributed DAG file processors.
+
+    Providers register subclasses in their ``provider.yaml`` under ``dag-file-processors``.
+    When :class:`DagFileProcessorProcess` starts, it checks all registered processors
+    via :meth:`can_handle`; the first match's :meth:`entrypoint` is used as the subprocess
+    target instead of the default ``_parse_file_entrypoint``.
+
+    The ``entrypoint`` runs inside a forked child process.  After the fork,
+    fd 0 is a bidirectional socket connected to the supervisor (the same channel
+    that ``_parse_file_entrypoint`` uses via :class:`CommsDecoder`).  The entrypoint
+    can bridge this socket to an external process (e.g. a Java subprocess over TCP)
+    without needing ``CommsDecoder`` at all — just forward raw bytes between fd 0
+    and the external process's socket.
+
+    The supervisor will send a :class:`DagFileParseRequest` on fd 0 after the fork
+    and expects a :class:`DagFileParsingResult` back on the same channel.
+    """
+
+    def __init__(
+        self,
+        *,
+        target_bundle_name: str,
+    ):
+        # We will only store dag_bundle_name but not dag_bundle_path here because it's DagBundle's responsibility to manage the path
+        self.target_bundle_name = target_bundle_name
+
+    def can_handle(self, bundle_name: str) -> bool:
+        """Return ``True`` if this processor should handle the given file."""
+        # The Airflow Core DagFileProcessorProcess will pass the bundle_name to see
+        return self.target_bundle_name == bundle_name
+
+    @staticmethod
+    def entrypoint(path: str, bundle_name: str, bundle_path: str) -> None:
+        """
+        Entry point called in the forked child process.
+
+        :param path: Absolute path to the file to process.
+        :param bundle_name: Name of the DAG bundle.
+        :param bundle_path: Root path of the DAG bundle.
+        """
+        raise NotImplementedError
 
 
 def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> None:
@@ -552,7 +598,14 @@ class DagFileProcessorProcess(WatchedSubprocess):
     ) -> Self:
         logger = kwargs["logger"]
 
-        _pre_import_airflow_modules(os.fspath(path), logger)
+        # Check if a provider-registered dag file processor should handle this file
+        logger.debug("Checking for provider-registered DAG file processor entrypoint for file", path=path)
+        resolved_target = cls._resolve_processor_target(path, bundle_name, bundle_path, logger)
+        if resolved_target is not None:
+            target = resolved_target
+            logger.debug("Resolved provider-registered DAG file processor entrypoint for file", path=path)
+        else:
+            _pre_import_airflow_modules(os.fspath(path), logger)
 
         proc: Self = super().start(
             target=target,
@@ -564,6 +617,63 @@ class DagFileProcessorProcess(WatchedSubprocess):
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
         proc._on_child_started(callbacks, path, bundle_path, bundle_name)
         return proc
+
+    @staticmethod
+    def _resolve_processor_target(
+        path: str | os.PathLike[str],
+        bundle_name: str,
+        bundle_path: Path,
+        log: FilteringBoundLogger,
+    ) -> Callable[[], None] | None:
+        """
+        Return the entrypoint of the first provider dag file processor that can handle *path*.
+
+        The returned callable is a ``functools.partial`` that binds *path*, *bundle_name*
+        and *bundle_path* so the supervisor can pass it as a no-arg ``target`` to
+        ``WatchedSubprocess.start``.
+        """
+        from airflow._shared.module_loading import import_string
+        from airflow.providers_manager import ProvidersManager
+
+        for processor_class_path in ProvidersManager().dag_file_processors:
+            try:
+                log.debug(
+                    "Checking provider-registered DAG file processor %s for file %s",
+                    processor_class_path,
+                    path,
+                )
+                processor_cls = import_string(processor_class_path)
+                processor_instance: BaseDagFileProcessor = processor_cls(target_bundle_name=bundle_name)
+                log.debug(
+                    "Instantiated provider-registered DAG file processor %s for file %s",
+                    processor_class_path,
+                    path,
+                )
+                if processor_instance.can_handle(bundle_name):
+                    log.debug(
+                        "Using provider-registered DAG file processor %s for file %s",
+                        processor_class_path,
+                        path,
+                    )
+                    return functools.partial(
+                        processor_instance.entrypoint,
+                        path=os.fspath(path),
+                        bundle_name=bundle_name,
+                        bundle_path=os.fspath(bundle_path),
+                    )
+                log.debug(
+                    "Provider-registered DAG file processor %s cannot handle file %s with bundle name %s",
+                    processor_class_path,
+                    path,
+                    bundle_name,
+                )
+            except Exception:
+                log.warning("Failed to load dag file processor %s", processor_class_path, exc_info=True)
+
+        log.debug(
+            "No provider-registered DAG file processor found for file %s, using default processor", path
+        )
+        return None
 
     def _on_child_started(
         self,
