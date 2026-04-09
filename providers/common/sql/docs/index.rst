@@ -115,22 +115,17 @@ Cross provider package dependencies
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified provider distributions in order to use them.
 
-For S3 support with the AnalyticsOperator, install the Amazon provider with the datafusion extra:
+You can install such cross-provider dependencies when installing from PyPI. For example:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-amazon[datafusion]
-
-You can install other cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-common-sql[apache.iceberg]
+    pip install apache-airflow-providers-common-sql[amazon]
 
 
 ====================================================================================================================  ==================
 Dependent package                                                                                                     Extra
 ====================================================================================================================  ==================
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                  ``amazon``
 `apache-airflow-providers-apache-iceberg <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg>`_  ``apache.iceberg``
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_    ``common.compat``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_        ``openlineage``

@@ -49,9 +49,7 @@ class S3ObjectStorageProvider(ObjectStorageProvider):
                 "session_token": creds.token if creds.token else None,
             }
             credentials = {k: v for k, v in credentials.items() if v is not None}
-            extra_config = {
-                k: conn.extra_dejson[k] for k in ["region", "endpoint"] if k in conn.extra_dejson
-            }
+            extra_config = {k: conn.extra_dejson[k] for k in ["region", "endpoint"] if k in conn.extra_dejson}
 
             bucket = self.get_bucket(path)
             s3_store = AmazonS3(**credentials, **extra_config, bucket_name=bucket)
