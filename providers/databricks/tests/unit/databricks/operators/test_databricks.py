@@ -24,6 +24,7 @@ from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
+from tenacity import wait_incrementing
 
 # Do not run the tests when FAB / Flask is not installed
 pytest.importorskip("flask_session")
@@ -1026,6 +1027,23 @@ class TestDatabricksSubmitRunOperator:
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         assert op.run_id == RUN_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute_task_deferred_rejects_non_serializable_retry_args(self, db_mock_class):
+        op = DatabricksSubmitRunOperator(
+            deferrable=True,
+            task_id=TASK_ID,
+            json={"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK},
+            databricks_retry_args={"wait": wait_incrementing(start=1, increment=1, max=3)},
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("RUNNING", "RUNNING")
+
+        with pytest.raises(
+            ValueError, match="does not support non-serializable databricks_retry_args when deferrable=True"
+        ):
+            op.execute(None)
 
     def test_execute_complete_success(self):
         """

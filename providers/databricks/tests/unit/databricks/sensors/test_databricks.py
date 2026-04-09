@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from tenacity import wait_incrementing
 
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.databricks.hooks.databricks import SQLStatementState
@@ -166,6 +167,23 @@ class TestDatabricksSQLStatementsSensor:
 
         assert isinstance(exc.value.trigger, DatabricksSQLStatementExecutionTrigger)
         assert exc.value.method_name == "execute_complete"
+
+    @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
+    def test_execute_task_deferred_rejects_non_serializable_retry_args(self, db_mock_class):
+        op = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID,
+            statement=STATEMENT,
+            warehouse_id=WAREHOUSE_ID,
+            deferrable=True,
+            databricks_retry_args={"wait": wait_incrementing(start=1, increment=1, max=3)},
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+
+        with pytest.raises(
+            ValueError, match="does not support non-serializable databricks_retry_args when deferrable=True"
+        ):
+            op.execute(None)
 
     def test_execute_complete_success(self):
         """
