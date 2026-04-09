@@ -1453,6 +1453,30 @@ class TestDagFileProcessorManager:
         bundle.initialize.assert_called_once()
         assert len(manager._callback_to_execute) == 0
 
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
+    def test_add_callback_initializes_versioned_bundle_when_version_is_none(self, mock_bundle_manager):
+        """Ensure versioned bundles are initialized even when bundle_version is None."""
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = MagicMock(spec=BaseDagBundle)
+        bundle.supports_versioning = True
+        bundle.path = Path("/tmp/bundle")
+        mock_bundle_manager.return_value.get_bundle.return_value = bundle
+
+        request = DagCallbackRequest(
+            filepath="file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version=None,
+            msg=None,
+        )
+
+        manager._add_callback_to_queue(request)
+
+        bundle.initialize.assert_called_once()
+        assert len(manager._callback_to_execute) == 1
+
     def test_dag_with_assets(self, session, configure_testing_dag_bundle):
         """'Integration' test to ensure that the assets get parsed and stored correctly for parsed dags."""
         test_dag_path = str(TEST_DAG_FOLDER / "test_assets.py")
