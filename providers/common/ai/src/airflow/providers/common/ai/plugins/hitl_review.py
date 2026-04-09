@@ -29,8 +29,6 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XComModel
 from airflow.plugins_manager import AirflowPlugin
@@ -46,6 +44,7 @@ from airflow.providers.common.ai.utils.hitl_review import (
     SessionStatus,
 )
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
@@ -98,6 +97,44 @@ def _get_map_index(q: str = Query("-1", alias="map_index")) -> int:
 
 
 MapIndexDep = Annotated[int, Depends(_get_map_index)]
+
+
+def _get_access_dependencies(*, method: str, airflow_v_3_1_plus: bool) -> list[Any]:
+    """Return DAG access dependencies only for Airflow versions that support HITL auth entities."""
+    if not airflow_v_3_1_plus:
+        return []
+
+    from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+    from airflow.api_fastapi.core_api.security import requires_access_dag
+
+    return [Depends(requires_access_dag(method=method, access_entity=DagAccessEntity.HITL_DETAIL))]
+
+
+def _get_plugin_fastapi_apps(*, airflow_v_3_1_plus: bool, app: FastAPI) -> list[dict[str, Any]]:
+    """Register the FastAPI app only on Airflow versions that support HITL review permissions."""
+    if not airflow_v_3_1_plus:
+        return []
+    return [
+        {
+            "name": "hitl-review",
+            "app": app,
+            "url_prefix": _PLUGIN_PREFIX,
+        }
+    ]
+
+
+def _get_plugin_react_apps(*, airflow_v_3_1_plus: bool) -> list[dict[str, str]]:
+    """Register the React app only on Airflow versions that support HITL review permissions."""
+    if not airflow_v_3_1_plus:
+        return []
+    return [
+        {
+            "name": "HITL Review",
+            "bundle_url": _get_bundle_url(),
+            "destination": "task_instance",
+            "url_route": "hitl-review",
+        }
+    ]
 
 
 def _read_xcom(session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, key: str):
@@ -239,6 +276,10 @@ hitl_review_app = FastAPI(
     ),
 )
 
+_FIND_SESSION_DEPENDENCIES = _get_access_dependencies(method="GET", airflow_v_3_1_plus=AIRFLOW_V_3_1_PLUS)
+_UPDATE_SESSION_DEPENDENCIES = _get_access_dependencies(method="PUT", airflow_v_3_1_plus=AIRFLOW_V_3_1_PLUS)
+_FASTAPI_APPS = _get_plugin_fastapi_apps(airflow_v_3_1_plus=AIRFLOW_V_3_1_PLUS, app=hitl_review_app)
+
 
 @hitl_review_app.get("/health")
 async def health() -> dict[str, str]:
@@ -249,7 +290,7 @@ async def health() -> dict[str, str]:
 @hitl_review_app.get(
     "/sessions/find",
     response_model=HITLReviewResponse,
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
+    dependencies=_FIND_SESSION_DEPENDENCIES,
 )
 async def find_session(
     db: SessionDep,
@@ -284,7 +325,7 @@ async def find_session(
 @hitl_review_app.post(
     "/sessions/feedback",
     response_model=HITLReviewResponse,
-    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
+    dependencies=_UPDATE_SESSION_DEPENDENCIES,
 )
 async def submit_feedback(
     body: HumanFeedbackRequest,
@@ -365,7 +406,7 @@ async def submit_feedback(
 @hitl_review_app.post(
     "/sessions/approve",
     response_model=HITLReviewResponse,
-    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
+    dependencies=_UPDATE_SESSION_DEPENDENCIES,
 )
 async def approve_session(
     db: SessionDep,
@@ -430,7 +471,7 @@ async def approve_session(
 @hitl_review_app.post(
     "/sessions/reject",
     response_model=HITLReviewResponse,
-    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
+    dependencies=_UPDATE_SESSION_DEPENDENCIES,
 )
 async def reject_session(
     db: SessionDep,
@@ -508,18 +549,5 @@ class HITLReviewPlugin(AirflowPlugin):
     """Register the HITL Review REST API + chat UI on the Airflow API server."""
 
     name = "hitl_review"
-    fastapi_apps = [
-        {
-            "name": "hitl-review",
-            "app": hitl_review_app,
-            "url_prefix": _PLUGIN_PREFIX,
-        }
-    ]
-    react_apps = [
-        {
-            "name": "HITL Review",
-            "bundle_url": _get_bundle_url(),
-            "destination": "task_instance",
-            "url_route": "hitl-review",
-        }
-    ]
+    fastapi_apps = _FASTAPI_APPS
+    react_apps = _get_plugin_react_apps(airflow_v_3_1_plus=AIRFLOW_V_3_1_PLUS)
