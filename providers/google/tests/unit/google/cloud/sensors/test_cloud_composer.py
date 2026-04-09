@@ -23,6 +23,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.sensors.cloud_composer import (
     CloudComposerDAGRunSensor,
     CloudComposerExternalTaskSensor,
@@ -73,59 +74,56 @@ TEST_GET_TASK_INSTANCES_RESULT = lambda state, date_key, task_id: {
 class TestCloudComposerDAGRunSensor:
     @pytest.mark.parametrize("use_rest_api", [True, False])
     @pytest.mark.parametrize("composer_airflow_version", [2, 3])
-    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.ExecuteAirflowCommandResponse.to_dict")
     @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
-    def test_wait_ready(self, mock_hook, to_dict_mode, composer_airflow_version, use_rest_api):
+    def test_wait_ready(self, mock_hook, composer_airflow_version, use_rest_api):
         mock_hook.return_value.wait_command_execution_result.return_value = TEST_EXEC_RESULT(
             "success", "execution_date" if composer_airflow_version < 3 else "logical_date"
         )
         mock_hook.return_value.get_dag_runs.return_value = TEST_GET_RESULT(
             "success", "execution_date" if composer_airflow_version < 3 else "logical_date"
         )
-
-        task = CloudComposerDAGRunSensor(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            environment_id=TEST_ENVIRONMENT_ID,
-            composer_dag_id="test_dag_id",
-            allowed_states=["success"],
-            use_rest_api=use_rest_api,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            task = CloudComposerDAGRunSensor(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                environment_id=TEST_ENVIRONMENT_ID,
+                composer_dag_id="test_dag_id",
+                allowed_states=["success"],
+                use_rest_api=use_rest_api,
+            )
         task._composer_airflow_version = composer_airflow_version
 
         assert task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})
 
     @pytest.mark.parametrize("use_rest_api", [True, False])
     @pytest.mark.parametrize("composer_airflow_version", [2, 3])
-    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.ExecuteAirflowCommandResponse.to_dict")
     @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
-    def test_wait_not_ready(self, mock_hook, to_dict_mode, composer_airflow_version, use_rest_api):
+    def test_wait_not_ready(self, mock_hook, composer_airflow_version, use_rest_api):
         mock_hook.return_value.wait_command_execution_result.return_value = TEST_EXEC_RESULT(
             "running", "execution_date" if composer_airflow_version < 3 else "logical_date"
         )
         mock_hook.return_value.get_dag_runs.return_value = TEST_GET_RESULT(
             "running", "execution_date" if composer_airflow_version < 3 else "logical_date"
         )
-
-        task = CloudComposerDAGRunSensor(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            environment_id=TEST_ENVIRONMENT_ID,
-            composer_dag_id="test_dag_id",
-            allowed_states=["success"],
-            use_rest_api=use_rest_api,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            task = CloudComposerDAGRunSensor(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                environment_id=TEST_ENVIRONMENT_ID,
+                composer_dag_id="test_dag_id",
+                allowed_states=["success"],
+                use_rest_api=use_rest_api,
+            )
         task._composer_airflow_version = composer_airflow_version
 
         assert not task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})
 
     @pytest.mark.parametrize("use_rest_api", [True, False])
     @pytest.mark.parametrize("composer_airflow_version", [2, 3])
-    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.ExecuteAirflowCommandResponse.to_dict")
     @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
-    def test_dag_runs_empty(self, mock_hook, to_dict_mode, composer_airflow_version, use_rest_api):
+    def test_dag_runs_empty(self, mock_hook, composer_airflow_version, use_rest_api):
         mock_hook.return_value.wait_command_execution_result.return_value = {
             "output": [{"line_number": 1, "content": json.dumps([])}],
             "output_end": True,
@@ -135,27 +133,24 @@ class TestCloudComposerDAGRunSensor:
             "dag_runs": [],
             "total_entries": 0,
         }
-
-        task = CloudComposerDAGRunSensor(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            environment_id=TEST_ENVIRONMENT_ID,
-            composer_dag_id="test_dag_id",
-            allowed_states=["success"],
-            use_rest_api=use_rest_api,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            task = CloudComposerDAGRunSensor(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                environment_id=TEST_ENVIRONMENT_ID,
+                composer_dag_id="test_dag_id",
+                allowed_states=["success"],
+                use_rest_api=use_rest_api,
+            )
         task._composer_airflow_version = composer_airflow_version
 
         assert not task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})
 
     @pytest.mark.parametrize("use_rest_api", [True, False])
     @pytest.mark.parametrize("composer_airflow_version", [2, 3])
-    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.ExecuteAirflowCommandResponse.to_dict")
     @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
-    def test_composer_dag_run_id_wait_ready(
-        self, mock_hook, to_dict_mode, composer_airflow_version, use_rest_api
-    ):
+    def test_composer_dag_run_id_wait_ready(self, mock_hook, composer_airflow_version, use_rest_api):
         mock_hook.return_value.wait_command_execution_result.return_value = TEST_EXEC_RESULT(
             "success", "execution_date" if composer_airflow_version < 3 else "logical_date"
         )
@@ -163,27 +158,25 @@ class TestCloudComposerDAGRunSensor:
             "success", "execution_date" if composer_airflow_version < 3 else "logical_date"
         )
 
-        task = CloudComposerDAGRunSensor(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            environment_id=TEST_ENVIRONMENT_ID,
-            composer_dag_id="test_dag_id",
-            composer_dag_run_id=TEST_COMPOSER_DAG_RUN_ID,
-            allowed_states=["success"],
-            use_rest_api=use_rest_api,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            task = CloudComposerDAGRunSensor(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                environment_id=TEST_ENVIRONMENT_ID,
+                composer_dag_id="test_dag_id",
+                composer_dag_run_id=TEST_COMPOSER_DAG_RUN_ID,
+                allowed_states=["success"],
+                use_rest_api=use_rest_api,
+            )
         task._composer_airflow_version = composer_airflow_version
 
         assert task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})
 
     @pytest.mark.parametrize("use_rest_api", [True, False])
     @pytest.mark.parametrize("composer_airflow_version", [2, 3])
-    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.ExecuteAirflowCommandResponse.to_dict")
     @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
-    def test_composer_dag_run_id_wait_not_ready(
-        self, mock_hook, to_dict_mode, composer_airflow_version, use_rest_api
-    ):
+    def test_composer_dag_run_id_wait_not_ready(self, mock_hook, composer_airflow_version, use_rest_api):
         mock_hook.return_value.wait_command_execution_result.return_value = TEST_EXEC_RESULT(
             "running", "execution_date" if composer_airflow_version < 3 else "logical_date"
         )
@@ -191,16 +184,17 @@ class TestCloudComposerDAGRunSensor:
             "running", "execution_date" if composer_airflow_version < 3 else "logical_date"
         )
 
-        task = CloudComposerDAGRunSensor(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            environment_id=TEST_ENVIRONMENT_ID,
-            composer_dag_id="test_dag_id",
-            composer_dag_run_id=TEST_COMPOSER_DAG_RUN_ID,
-            allowed_states=["success"],
-            use_rest_api=use_rest_api,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            task = CloudComposerDAGRunSensor(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                environment_id=TEST_ENVIRONMENT_ID,
+                composer_dag_id="test_dag_id",
+                composer_dag_run_id=TEST_COMPOSER_DAG_RUN_ID,
+                allowed_states=["success"],
+                use_rest_api=use_rest_api,
+            )
         task._composer_airflow_version = composer_airflow_version
 
         assert not task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})

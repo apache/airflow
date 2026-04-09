@@ -217,7 +217,7 @@ class TestPythonPackages:
         "pyodbc": ["pyodbc"],
         "redis": ["redis"],
         "sendgrid": ["sendgrid"],
-        "sftp/ssh": ["paramiko", "sshtunnel"],
+        "sftp/ssh": ["paramiko"],
         "slack": ["slack_sdk"],
         "statsd": ["statsd"],
         "providers": [provider[len("apache-") :].replace("-", ".") for provider in REGULAR_IMAGE_PROVIDERS],

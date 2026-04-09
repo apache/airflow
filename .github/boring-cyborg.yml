@@ -303,6 +303,9 @@ labelPRBasedOnFilePath:
   provider:vertica:
     - providers/vertica/**
 
+  provider:vespa:
+    - providers/vespa/**
+
   provider:weaviate:
     - providers/weaviate/**
 

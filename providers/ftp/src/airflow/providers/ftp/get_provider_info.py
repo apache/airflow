@@ -53,6 +53,10 @@ def get_provider_info():
             }
         ],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.ftp.hooks.ftp.FTPHook", "connection-type": "ftp"}
+            {
+                "hook-class-name": "airflow.providers.ftp.hooks.ftp.FTPHook",
+                "hook-name": "FTP",
+                "connection-type": "ftp",
+            }
         ],
     }
