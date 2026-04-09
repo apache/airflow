@@ -36,13 +36,13 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import console, get_imports_from_file
 
 # Allowed modules that can be imported in CLI definition files
 ALLOWED_MODULES = {
     "airflow.configuration",
     "airflow.cli.cli_config",
+    "airflow.providers.common.compat.sdk.conf",
 }
 
 # Standard library and __future__ modules are also allowed
@@ -165,6 +165,7 @@ def main() -> int:
             f"[yellow]CLI definition files (*/cli/definition.py) should only import from:[/]\n"
             "  - airflow.configuration\n"
             "  - airflow.cli.cli_config\n"
+            "  - airflow.providers.common.compat.sdk.conf\n"
             "  - Their own provider's version_compat module\n"
             f"  - Standard library modules ({', '.join(STDLIB_PREFIXES)})\n"
         )

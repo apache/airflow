@@ -35,7 +35,6 @@ from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLForecastingTrainingJobOperator,
     CreateAutoMLImageTrainingJobOperator,
     CreateAutoMLTabularTrainingJobOperator,
-    CreateAutoMLVideoTrainingJobOperator,
     DeleteAutoMLTrainingJobOperator,
     ListAutoMLTrainingJobOperator,
 )
@@ -1855,94 +1854,6 @@ class TestVertexAICreateAutoMLTabularTrainingJobOperator:
             export_evaluated_data_items=False,
             export_evaluated_data_items_bigquery_destination_uri=None,
             export_evaluated_data_items_override_destination=False,
-            sync=True,
-            is_default_version=None,
-            model_version_aliases=None,
-            model_version_description=None,
-        )
-
-
-class TestVertexAICreateAutoMLVideoTrainingJobOperator:
-    @mock.patch("google.cloud.aiplatform.datasets.VideoDataset")
-    @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
-    def test_execute(self, mock_hook, mock_dataset):
-        mock_hook.return_value.create_auto_ml_video_training_job.return_value = (None, "training_id")
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            op = CreateAutoMLVideoTrainingJobOperator(
-                task_id=TASK_ID,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-                display_name=DISPLAY_NAME,
-                dataset_id=TEST_DATASET_ID,
-                prediction_type="classification",
-                model_type="CLOUD",
-                sync=True,
-                region=GCP_LOCATION,
-                project_id=GCP_PROJECT,
-                parent_model=TEST_PARENT_MODEL,
-            )
-        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_dataset.assert_called_once_with(dataset_name=TEST_DATASET_ID)
-        mock_hook.return_value.create_auto_ml_video_training_job.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            region=GCP_LOCATION,
-            display_name=DISPLAY_NAME,
-            dataset=mock_dataset.return_value,
-            parent_model=TEST_PARENT_MODEL,
-            prediction_type="classification",
-            model_type="CLOUD",
-            labels=None,
-            training_encryption_spec_key_name=None,
-            model_encryption_spec_key_name=None,
-            training_fraction_split=None,
-            test_fraction_split=None,
-            training_filter_split=None,
-            test_filter_split=None,
-            model_display_name=None,
-            model_labels=None,
-            sync=True,
-            is_default_version=None,
-            model_version_aliases=None,
-            model_version_description=None,
-        )
-
-    @mock.patch("google.cloud.aiplatform.datasets.VideoDataset")
-    @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
-    def test_execute__parent_model_version_index_is_removed(self, mock_hook, mock_dataset):
-        mock_hook.return_value.create_auto_ml_video_training_job.return_value = (None, "training_id")
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            op = CreateAutoMLVideoTrainingJobOperator(
-                task_id=TASK_ID,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-                display_name=DISPLAY_NAME,
-                dataset_id=TEST_DATASET_ID,
-                prediction_type="classification",
-                model_type="CLOUD",
-                sync=True,
-                region=GCP_LOCATION,
-                project_id=GCP_PROJECT,
-                parent_model=VERSIONED_TEST_PARENT_MODEL,
-            )
-        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
-        mock_hook.return_value.create_auto_ml_video_training_job.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            region=GCP_LOCATION,
-            display_name=DISPLAY_NAME,
-            dataset=mock_dataset.return_value,
-            parent_model=TEST_PARENT_MODEL,
-            prediction_type="classification",
-            model_type="CLOUD",
-            labels=None,
-            training_encryption_spec_key_name=None,
-            model_encryption_spec_key_name=None,
-            training_fraction_split=None,
-            test_fraction_split=None,
-            training_filter_split=None,
-            test_filter_split=None,
-            model_display_name=None,
-            model_labels=None,
             sync=True,
             is_default_version=None,
             model_version_aliases=None,

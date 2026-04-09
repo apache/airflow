@@ -33,8 +33,10 @@ import { DurationChart } from "src/components/DurationChart";
 import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
+import { dagRunsLimitKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 const FailedLogs = lazy(() => import("./FailedLogs"));
 
@@ -58,7 +60,7 @@ export const Overview = () => {
     state: ["failed"],
   });
 
-  const [limit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
+  const [limit] = useLocalStorage<number>(dagRunsLimitKey(dagId ?? ""), 10);
   const { data: failedRuns, isLoading: isLoadingFailedRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
     limit,
@@ -67,6 +69,9 @@ export const Overview = () => {
     state: ["failed"],
   });
   const { data: gridRuns, isLoading: isLoadingRuns } = useGridRuns({ limit });
+  const refetchInterval = useAutoRefresh({ dagId });
+  const isAutoRefreshing =
+    Boolean(refetchInterval) && (gridRuns ?? []).some((run) => isStatePending(run.state));
   const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents({
     limit,
     orderBy: [assetSortBy],
@@ -124,7 +129,11 @@ export const Overview = () => {
           {isLoadingRuns ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <DurationChart entries={gridRuns?.slice().reverse()} kind="Dag Run" />
+            <DurationChart
+              entries={gridRuns?.slice().reverse()}
+              isAutoRefreshing={isAutoRefreshing}
+              kind="Dag Run"
+            />
           )}
         </Box>
         {assetEventsData && assetEventsData.total_entries > 0 ? (

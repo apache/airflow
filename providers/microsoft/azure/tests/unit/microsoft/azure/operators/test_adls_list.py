@@ -22,7 +22,8 @@ from unittest import mock
 from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
 
 TASK_ID = "test-adls-list-operator"
-TEST_PATH = "test/*"
+TEST_FILE_SYSTEM_NAME = "test-container"
+TEST_PATH = "test/path"
 MOCK_FILES = [
     "test/TEST1.csv",
     "test/TEST2.csv",
@@ -33,12 +34,15 @@ MOCK_FILES = [
 
 
 class TestAzureDataLakeStorageListOperator:
-    @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeHook")
+    @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeStorageV2Hook")
     def test_execute(self, mock_hook):
-        mock_hook.return_value.list.return_value = MOCK_FILES
+        mock_hook.return_value.list_files_directory.return_value = MOCK_FILES
 
-        operator = ADLSListOperator(task_id=TASK_ID, path=TEST_PATH)
+        operator = ADLSListOperator(task_id=TASK_ID, file_system_name=TEST_FILE_SYSTEM_NAME, path=TEST_PATH)
 
         files = operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(path=TEST_PATH)
+        mock_hook.return_value.list_files_directory.assert_called_once_with(
+            file_system_name=TEST_FILE_SYSTEM_NAME,
+            directory_name=TEST_PATH,
+        )
         assert sorted(files) == sorted(MOCK_FILES)

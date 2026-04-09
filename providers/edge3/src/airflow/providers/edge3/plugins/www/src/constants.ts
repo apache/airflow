@@ -18,8 +18,8 @@
  */
 
 import { createListCollection } from "@chakra-ui/react";
-import type { EdgeWorkerState } from "../openapi-gen/requests/types.gen";
-import { $EdgeWorkerState } from "../openapi-gen/requests/schemas.gen";
+import type { EdgeWorkerState, TaskInstanceState } from "../openapi-gen/requests/types.gen";
+import { $EdgeWorkerState, $TaskInstanceState } from "../openapi-gen/requests/schemas.gen";
 
 // Helper function to convert snake_case or space-separated strings to Title Case
 const toTitleCase = (str: string): string => {
@@ -41,3 +41,32 @@ export const workerStateOptions = createListCollection<{
     })),
   ],
 });
+
+export const jobStateOptions = createListCollection<{
+  label: string;
+  value: TaskInstanceState | "all";
+}>({
+  items: [
+    { label: "All States", value: "all" },
+    ...$TaskInstanceState.enum.map((state) => ({
+      label: toTitleCase(state),
+      value: state as TaskInstanceState,
+    })),
+  ],
+});
+
+export const bulkWorkerShutdownEligibleStates = new Set<EdgeWorkerState>([
+  "idle",
+  "running",
+  "maintenance pending",
+  "maintenance mode",
+  "maintenance request",
+]);
+
+export const bulkWorkerDeleteEligibleStates = new Set<EdgeWorkerState>([
+  "offline",
+  "unknown",
+  "offline maintenance",
+]);
+
+export const bulkWorkerActionBatchSize = 10;

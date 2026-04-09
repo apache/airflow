@@ -41,10 +41,14 @@ DAG_ID_3 = "test_gantt_dag_3"
 TASK_ID = "task"
 TASK_ID_2 = "task2"
 TASK_ID_3 = "task3"
+TASK_DISPLAY_NAME = "task_display_name"
+TASK_DISPLAY_NAME_2 = "task2_display_name"
+TASK_DISPLAY_NAME_3 = "task3_display_name"
 MAPPED_TASK_ID = "mapped_task"
 
 GANTT_TASK_1 = {
     "task_id": "task",
+    "task_display_name": TASK_DISPLAY_NAME,
     "try_number": 1,
     "state": "success",
     "start_date": "2024-11-30T10:00:00Z",
@@ -55,6 +59,7 @@ GANTT_TASK_1 = {
 
 GANTT_TASK_2 = {
     "task_id": "task2",
+    "task_display_name": TASK_DISPLAY_NAME_2,
     "try_number": 1,
     "state": "failed",
     "start_date": "2024-11-30T10:05:00Z",
@@ -65,6 +70,7 @@ GANTT_TASK_2 = {
 
 GANTT_TASK_3 = {
     "task_id": "task3",
+    "task_display_name": TASK_DISPLAY_NAME_3,
     "try_number": 1,
     "state": "running",
     "start_date": "2024-11-30T10:10:00Z",
@@ -90,9 +96,9 @@ def setup(dag_maker, session=None):
 
     # DAG 1: Multiple tasks with different states (success, failed, running)
     with dag_maker(dag_id=DAG_ID, serialized=True, session=session) as dag:
-        EmptyOperator(task_id=TASK_ID)
-        EmptyOperator(task_id=TASK_ID_2)
-        EmptyOperator(task_id=TASK_ID_3)
+        EmptyOperator(task_id=TASK_ID, task_display_name=TASK_DISPLAY_NAME)
+        EmptyOperator(task_id=TASK_ID_2, task_display_name=TASK_DISPLAY_NAME_2)
+        EmptyOperator(task_id=TASK_ID_3, task_display_name=TASK_DISPLAY_NAME_3)
 
     logical_date = timezone.datetime(2024, 11, 30)
     data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
@@ -201,13 +207,14 @@ class TestGetGanttDataEndpoint:
         assert actual == [GANTT_TASK_1, GANTT_TASK_2, GANTT_TASK_3]
 
     @pytest.mark.parametrize(
-        ("dag_id", "run_id", "expected_task_ids", "expected_states"),
+        ("dag_id", "run_id", "expected_task_ids", "expected_states", "expected_task_display_names"),
         [
             pytest.param(
                 DAG_ID,
                 "run_1",
                 ["task", "task2", "task3"],
                 {"success", "failed", "running"},
+                {TASK_ID: TASK_DISPLAY_NAME, TASK_ID_2: TASK_DISPLAY_NAME_2, TASK_ID_3: TASK_DISPLAY_NAME_3},
                 id="dag1_multiple_states",
             ),
             pytest.param(
@@ -215,6 +222,7 @@ class TestGetGanttDataEndpoint:
                 "run_2",
                 ["task"],
                 {"success"},
+                {TASK_ID: TASK_ID},
                 id="dag2_filters_mapped_tasks",
             ),
             pytest.param(
@@ -222,11 +230,14 @@ class TestGetGanttDataEndpoint:
                 "run_3",
                 ["task"],
                 {"success"},
+                {TASK_ID: TASK_ID},
                 id="dag3_excludes_up_for_retry",
             ),
         ],
     )
-    def test_task_filtering_and_states(self, test_client, dag_id, run_id, expected_task_ids, expected_states):
+    def test_task_filtering_and_states(
+        self, test_client, dag_id, run_id, expected_task_ids, expected_states, expected_task_display_names
+    ):
         with assert_queries_count(3):
             response = test_client.get(f"/gantt/{dag_id}/{run_id}")
         assert response.status_code == 200
@@ -237,6 +248,9 @@ class TestGetGanttDataEndpoint:
 
         actual_states = {ti["state"] for ti in data["task_instances"]}
         assert actual_states == expected_states
+
+        for ti in data["task_instances"]:
+            assert ti["task_display_name"] == expected_task_display_names[ti["task_id"]]
 
     @pytest.mark.parametrize(
         ("dag_id", "run_id", "task_id", "expected_start", "expected_end", "expected_state"),

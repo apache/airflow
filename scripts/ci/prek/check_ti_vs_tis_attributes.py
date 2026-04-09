@@ -25,9 +25,7 @@ from __future__ import annotations
 
 import ast
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_CORE_SOURCES_PATH, console
 
 TI_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "models" / "taskinstance.py"

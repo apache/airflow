@@ -33,7 +33,7 @@ export type ParamSchema = {
   // TODO define the structure on API as generated code
   const: string | undefined;
   description_md: string | undefined;
-  enum: Array<string> | undefined;
+  enum: Array<boolean | number | string | null> | undefined;
   examples: Array<string> | undefined;
   format: string | undefined;
   items: Record<string, unknown> | undefined;

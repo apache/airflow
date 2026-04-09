@@ -1,0 +1,1 @@
+Allow individual secrets backend kwargs to be set via ``AIRFLOW__SECRETS__BACKEND_KWARG__<KEY>`` environment variables

@@ -43,6 +43,9 @@ import { useLocalStorage } from "usehooks-ts";
 
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { DagVersionSelect } from "src/components/DagVersionSelect";
+import { DateRangeCalendar } from "src/components/FilterBar/filters/DateRangeCalendar";
+import { DateRangeInputs } from "src/components/FilterBar/filters/DateRangeInputs";
+import type { DateRangeValue } from "src/components/FilterBar/types";
 import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { SearchBar } from "src/components/SearchBar";
@@ -50,26 +53,37 @@ import { StateBadge } from "src/components/StateBadge";
 import { Tooltip } from "src/components/ui";
 import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import { Checkbox } from "src/components/ui/Checkbox";
+import { dependenciesKey, directionKey } from "src/constants/localStorage";
+import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOptions";
+import { useDateRangeFilter } from "src/hooks/useDateRangeFilter";
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
+import { RunTypeLegend } from "./Grid/RunTypeLegend";
 import { TaskStreamFilter } from "./TaskStreamFilter";
 import { ToggleGroups } from "./ToggleGroups";
+import { VersionIndicatorSelect } from "./VersionIndicatorSelect";
 
 type Props = {
   readonly dagRunStateFilter: DagRunState | undefined;
   readonly dagView: "graph" | "grid";
   readonly limit: number;
   readonly panelGroupRef: React.RefObject<ImperativePanelGroupHandle | null>;
+  readonly runAfterGte: string | undefined;
+  readonly runAfterLte: string | undefined;
   readonly runTypeFilter: DagRunType | undefined;
   readonly setDagRunStateFilter: React.Dispatch<React.SetStateAction<DagRunState | undefined>>;
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
+  readonly setRunAfterGte: React.Dispatch<React.SetStateAction<string | undefined>>;
+  readonly setRunAfterLte: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<DagRunType | undefined>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
+  readonly setShowVersionIndicatorMode: React.Dispatch<React.SetStateAction<VersionIndicatorOptions>>;
   readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly showGantt: boolean;
+  readonly showVersionIndicatorMode: VersionIndicatorOptions;
   readonly triggeringUserFilter: string | undefined;
 };
 
@@ -111,25 +125,31 @@ export const PanelButtons = ({
   dagView,
   limit,
   panelGroupRef,
+  runAfterGte,
+  runAfterLte,
   runTypeFilter,
   setDagRunStateFilter,
   setDagView,
   setLimit,
+  setRunAfterGte,
+  setRunAfterLte,
   setRunTypeFilter,
   setShowGantt,
+  setShowVersionIndicatorMode,
   setTriggeringUserFilter,
   showGantt,
+  showVersionIndicatorMode,
   triggeringUserFilter,
 }: Props) => {
-  const { t: translate } = useTranslation(["components", "dag"]);
+  const { t: translate } = useTranslation(["common", "components", "dag"]);
   const { dagId = "", runId } = useParams();
   const { fitView } = useReactFlow();
   const shouldShowToggleButtons = Boolean(runId);
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
-    `dependencies-${dagId}`,
+    dependenciesKey(dagId),
     "tasks",
   );
-  const [direction, setDirection] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
+  const [direction, setDirection] = useLocalStorage<Direction>(directionKey(dagId), "RIGHT");
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);
   const handleLimitChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
@@ -192,6 +212,30 @@ export const PanelButtons = ({
 
     setTriggeringUserFilter(trimmedValue === "" ? undefined : trimmedValue);
   };
+
+  const runAfterRange: DateRangeValue = {
+    endDate: runAfterLte,
+    startDate: runAfterGte,
+  };
+
+  const handleRunAfterRangeChange = (next: DateRangeValue) => {
+    setRunAfterGte(next.startDate);
+    setRunAfterLte(next.endDate);
+  };
+
+  const {
+    editingState,
+    endDateValue,
+    getFieldError,
+    handleDateClick: handleRunAfterDateClick,
+    handleInputChange: handleRunAfterInputChange,
+    setEditingState,
+    startDateValue,
+  } = useDateRangeFilter({
+    onChange: handleRunAfterRangeChange,
+    translate,
+    value: runAfterRange,
+  });
 
   const handleFocus = (view: string) => {
     if (panelGroupRef.current) {
@@ -266,7 +310,14 @@ export const PanelButtons = ({
               <Popover.Positioner>
                 <Popover.Content>
                   <Popover.Arrow />
-                  <Popover.Body display="flex" flexDirection="column" gap={4} p={2}>
+                  <Popover.Body
+                    display="flex"
+                    flexDirection="column"
+                    gap={4}
+                    maxH="70vh"
+                    overflowY="auto"
+                    p={2}
+                  >
                     {dagView === "graph" ? (
                       <>
                         <DagVersionSelect />
@@ -462,6 +513,30 @@ export const PanelButtons = ({
                             placeholder={translate("common:dagRun.triggeringUser")}
                           />
                         </VStack>
+                        <VStack alignItems="flex-start">
+                          <Text fontSize="xs" mb={1}>
+                            {translate("common:dagRun.runAfter")}
+                          </Text>
+                          <DateRangeInputs
+                            editingState={editingState}
+                            endDateValue={endDateValue}
+                            getFieldError={getFieldError}
+                            handleInputChange={handleRunAfterInputChange}
+                            onChange={handleRunAfterRangeChange}
+                            setEditingState={setEditingState}
+                            startDateValue={startDateValue}
+                            translate={translate}
+                            value={runAfterRange}
+                          />
+                          <DateRangeCalendar
+                            currentMonth={editingState.currentMonth}
+                            onDateClick={handleRunAfterDateClick}
+                            onMonthChange={(month) =>
+                              setEditingState((prev) => ({ ...prev, currentMonth: month }))
+                            }
+                            value={runAfterRange}
+                          />
+                        </VStack>
                         {shouldShowToggleButtons ? (
                           <VStack alignItems="flex-start" px={1}>
                             <Checkbox checked={showGantt} onChange={() => setShowGantt(!showGantt)} size="sm">
@@ -469,6 +544,12 @@ export const PanelButtons = ({
                             </Checkbox>
                           </VStack>
                         ) : undefined}
+                        <VStack alignItems="flex-start" px={1}>
+                          <VersionIndicatorSelect
+                            onChange={setShowVersionIndicatorMode}
+                            value={showVersionIndicatorMode}
+                          />
+                        </VStack>
                       </>
                     )}
                   </Popover.Body>
@@ -480,7 +561,8 @@ export const PanelButtons = ({
       </Flex>
 
       {dagView === "grid" && (
-        <Flex color="fg.muted" justifyContent="flex-end" mt={1}>
+        <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>
+          <RunTypeLegend />
           <Tooltip
             content={
               <Box>
@@ -488,6 +570,7 @@ export const PanelButtons = ({
                 <Text>{translate("dag:navigation.toggleGroup")}</Text>
               </Box>
             }
+            portalled
           >
             <LuKeyboard />
           </Tooltip>

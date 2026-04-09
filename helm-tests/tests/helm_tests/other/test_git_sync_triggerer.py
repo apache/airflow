@@ -77,7 +77,7 @@ class TestGitSyncTriggerer:
             "secret": {"secretName": "release-name-ssh-secret", "defaultMode": 288},
         } in jmespath.search("spec.template.spec.volumes", docs[0])
 
-    def test_liveliness_and_readiness_probes_are_configurable(self):
+    def test_liveness_probe_configuration(self):
         livenessProbe = {
             "failureThreshold": 10,
             "exec": {"command": ["/bin/true"]},
@@ -86,6 +86,24 @@ class TestGitSyncTriggerer:
             "successThreshold": 1,
             "timeoutSeconds": 5,
         }
+
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "livenessProbe": livenessProbe,
+                    },
+                }
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert livenessProbe == jmespath.search(
+            "spec.template.spec.containers[?name=='git-sync'] | [0].livenessProbe", docs[0]
+        )
+
+    def test_readiness_probe_configuration(self):
         readinessProbe = {
             "failureThreshold": 10,
             "exec": {"command": ["/bin/true"]},
@@ -94,27 +112,140 @@ class TestGitSyncTriggerer:
             "successThreshold": 1,
             "timeoutSeconds": 5,
         }
+
         docs = render_chart(
             values={
                 "dags": {
                     "gitSync": {
                         "enabled": True,
-                        "livenessProbe": livenessProbe,
                         "readinessProbe": readinessProbe,
                     },
                 }
             },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
-        container_search_result = jmespath.search(
-            "spec.template.spec.containers[?name == 'git-sync']", docs[0]
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.initContainers[?name=='git-sync-init'] | [0].readinessProbe", docs[0]
+            )
+            is None
         )
-        init_container_search_result = jmespath.search(
-            "spec.template.spec.initContainers[?name == 'git-sync-init']", docs[0]
+
+        assert readinessProbe == jmespath.search(
+            "spec.template.spec.containers[?name=='git-sync'] | [0].readinessProbe", docs[0]
         )
-        assert "livenessProbe" in container_search_result[0]
-        assert "readinessProbe" in container_search_result[0]
-        assert "readinessProbe" not in init_container_search_result[0]
-        assert "readinessProbe" not in init_container_search_result[0]
-        assert livenessProbe == container_search_result[0]["livenessProbe"]
-        assert readinessProbe == container_search_result[0]["readinessProbe"]
+
+    def test_readiness_probe_configuration_recommended(self):
+        readinessProbe = {
+            "failureThreshold": 10,
+            "exec": {"command": ["/bin/true"]},
+            "initialDelaySeconds": 0,
+            "periodSeconds": 1,
+            "successThreshold": 1,
+            "timeoutSeconds": 5,
+        }
+
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "recommendedProbeSetting": True,
+                        "readinessProbe": readinessProbe,
+                    },
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.initContainers[?name=='git-sync-init'] | [0].readinessProbe", docs[0]
+            )
+            is None
+        )
+
+        assert (
+            jmespath.search("spec.template.spec.containers[?name=='git-sync'] | [0].readinessProbe", docs[0])
+            is None
+        )
+
+    def test_liveness_probe_configuration_recommended(self):
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "httpPort": 10,
+                        "recommendedProbeSetting": True,
+                        "livenessProbe": {
+                            "enabled": True,
+                            "timeoutSeconds": 11,
+                            "initialDelaySeconds": 12,
+                            "periodSeconds": 13,
+                            "failureThreshold": 14,
+                        },
+                    },
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.initContainers[?name=='git-sync-init'] | [0].livenessProbe", docs[0]
+            )
+            is None
+        )
+
+        assert jmespath.search(
+            "spec.template.spec.containers[?name=='git-sync'] | [0].livenessProbe", docs[0]
+        ) == {
+            "httpGet": {"path": "/", "port": 10},
+            "timeoutSeconds": 11,
+            "initialDelaySeconds": 12,
+            "periodSeconds": 13,
+            "failureThreshold": 14,
+        }
+
+    def test_startup_probe_configuration(self):
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "httpPort": 10,
+                        "recommendedProbeSetting": True,
+                        "startupProbe": {
+                            "enabled": True,
+                            "timeoutSeconds": 11,
+                            "initialDelaySeconds": 12,
+                            "periodSeconds": 13,
+                            "failureThreshold": 14,
+                        },
+                    },
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.initContainers[?name=='git-sync-init'] | [0].startupProbe", docs[0]
+            )
+            is None
+        )
+
+        assert jmespath.search(
+            "spec.template.spec.containers[?name=='git-sync'] | [0].startupProbe", docs[0]
+        ) == {
+            "httpGet": {"path": "/", "port": 10},
+            "timeoutSeconds": 11,
+            "initialDelaySeconds": 12,
+            "periodSeconds": 13,
+            "failureThreshold": 14,
+        }

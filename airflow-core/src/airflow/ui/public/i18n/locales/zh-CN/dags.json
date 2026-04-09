@@ -34,6 +34,10 @@
       "error": "清除 {{type}} 时发生错误",
       "title": "清除 {{type}}"
     },
+    "confirmationDialog": {
+      "description": "任务当前处于 {{state}} 状态，由用户 {{user}} 于 {{time}} 启动。\n在任务完成执行前，或用户在清除任务对话框中取消勾选「防止重复执行执行中的任务」选项前，无法清除此任务。",
+      "title": "无法清除任务实例"
+    },
     "delete": {
       "button": "删除 {{type}}",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "未来",
       "onlyFailed": "只清除失败任务",
       "past": "过去",
+      "preventRunningTasks": "防止重复执行执行中的任务",
       "queueNew": "加入新任务到队列",
       "runOnLatestVersion": "执行最新套件包版本",
       "upstream": "上游"

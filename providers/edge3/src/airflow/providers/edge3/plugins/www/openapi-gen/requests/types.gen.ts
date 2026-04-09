@@ -523,6 +523,20 @@ export type RemoveWorkerQueueData = {
 
 export type RemoveWorkerQueueResponse = unknown;
 
+export type ConcurrencyRequest = {
+    /**
+     * New concurrency limit for the worker.
+     */
+    concurrency: number;
+};
+
+export type SetWorkerConcurrencyLimitData = {
+    workerName: string;
+    requestBody: ConcurrencyRequest;
+};
+
+export type SetWorkerConcurrencyLimitResponse = unknown;
+
 export type $OpenApiTs = {
     '/edge_worker/v1/jobs/fetch/{worker_name}': {
         post: {
@@ -819,6 +833,21 @@ export type $OpenApiTs = {
         };
         delete: {
             req: RemoveWorkerQueueData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/edge_worker/ui/worker/{worker_name}/concurrency': {
+        patch: {
+            req: SetWorkerConcurrencyLimitData;
             res: {
                 /**
                  * Successful Response

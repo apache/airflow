@@ -7,6 +7,13 @@
     "Providers": "प्रोवाइडर",
     "Variables": "वेरिएबल्स"
   },
+  "allOperators": "सभी ऑपरेटर्स",
+  "appearance": {
+    "appearance": "दिखावट",
+    "darkMode": "डार्क मोड",
+    "lightMode": "लाइट मोड",
+    "systemMode": "सिस्टम सेटिंग का पालन करें"
+  },
   "asset_one": "एसेट",
   "asset_other": "एसेट्स",
   "assetEvent_one": "एसेट इवेंट",
@@ -15,6 +22,7 @@
   "backfill_other": "बैकफ़िल्स",
   "browse": {
     "auditLog": "ऑडिट लॉग",
+    "jobs": "जॉब्स",
     "requiredActions": "आवश्यक क्रियाएं",
     "xcoms": "XComs"
   },
@@ -33,6 +41,7 @@
     "fileLocation": "फ़ाइल स्थान",
     "hasTaskConcurrencyLimits": "टास्क समानांतरता सीमा है",
     "lastExpired": "अंतिम समाप्त",
+    "lastParseDuration": "अंतिम पार्स अवधि",
     "lastParsed": "अंतिम पार्स",
     "latestDagVersion": "नवीनतम डैग संस्करण",
     "latestRun": "नवीनतम रन",
@@ -52,6 +61,8 @@
     "dataIntervalEnd": "डेटा अंतराल अंत",
     "dataIntervalStart": "डेटा अंतराल प्रारंभ",
     "lastSchedulingDecision": "अंतिम शेड्यूलिंग निर्णय",
+    "mappedPartitionKey": "मैप्ड पार्टीशन कुंजी",
+    "partitionKey": "पार्टीशन कुंजी",
     "queuedAt": "कतार में",
     "runAfter": "के बाद चलाएं",
     "runType": "रन प्रकार",
@@ -65,18 +76,30 @@
   "dagWarnings": "डैग चेतावनियां/त्रुटियां",
   "defaultToGraphView": "ग्राफ़ व्यू को डिफ़ॉल्ट करें",
   "defaultToGridView": "ग्रिड व्यू को डिफ़ॉल्ट करें",
+  "delete": "हटाएं",
+  "diff": "अंतर",
+  "diffCompareWith": "तुलना करें",
+  "diffExit": "अंतर से बाहर निकलें",
+  "diffSelectVersionToCompare": "तुलना के लिए संस्करण चुनें",
   "direction": "दिशा",
   "docs": {
     "documentation": "प्रलेखन",
     "githubRepo": "GitHub रेपो",
     "restApiReference": "REST API संदर्भ"
   },
+  "download": {
+    "download": "डाउनलोड",
+    "hotkey": "d",
+    "tooltip": "लॉग्स डाउनलोड करने के लिए {{hotkey}} दबाएं"
+  },
   "duration": "अवधि",
+  "edit": "संपादित करें",
   "endDate": "समाप्ति तिथि",
   "error": {
     "back": "वापस",
     "defaultMessage": "एक अप्रत्याशित त्रुटि हुई",
     "home": "मुख्य पृष्ठ",
+    "invalidUrl": "पेज नहीं मिला। कृपया URL जांचें और पुनः प्रयास करें।",
     "notFound": "पेज नहीं मिला",
     "title": "त्रुटि"
   },
@@ -95,22 +118,29 @@
   },
   "filter": "फ़िल्टर",
   "filters": {
+    "durationFrom": "अवधि से",
+    "durationTo": "अवधि तक",
+    "endTime": "समाप्ति समय",
     "logicalDateFrom": "तार्किक तिथि से",
     "logicalDateTo": "तार्किक तिथि तक",
     "runAfterFrom": "रन आफ़्टर से",
-    "runAfterTo": "रन आफ़्टर तक"
+    "runAfterTo": "रन आफ़्टर तक",
+    "selectDateRange": "तिथि रेंज चुनें",
+    "startTime": "प्रारंभ समय"
   },
   "logicalDate": "तार्किक तिथि",
   "logout": "लॉग आउट",
   "logoutConfirmation": "आप एप्लिकेशन से लॉग आउट करने वाले हैं।",
   "mapIndex": "मैप इंडेक्स",
   "modal": {
+    "add": "जोड़ें",
     "cancel": "रद्द करें",
     "confirm": "पुष्टि करें",
     "delete": {
       "button": "हटाएं",
       "confirmation": "क्या आप वास्तव में {{resourceName}} को हटाना चाहते हैं? यह क्रिया को पूर्ववत नहीं किया जा सकता।"
-    }
+    },
+    "save": "सेव करें"
   },
   "nav": {
     "admin": "व्यवस्थापक",
@@ -130,15 +160,6 @@
     "label": "नोट",
     "placeholder": "नोट जोड़ें...",
     "taskInstance": "टास्क इंस्टेंस नोट"
-  },
-  "pools": {
-    "deferred": "स्थगित",
-    "open": "खुला",
-    "pools_one": "पूल",
-    "pools_other": "पूल्स",
-    "queued": "कतार में",
-    "running": "चल रहा",
-    "scheduled": "निर्धारित"
   },
   "reset": "रीसेट करें",
   "runId": "रन ID",
@@ -164,6 +185,7 @@
   },
   "selectLanguage": "भाषा चुनें",
   "showDetailsPanel": "विवरण पैनल दिखाएं",
+  "signedInAs": "के रूप में लॉग इन",
   "source": {
     "hide": "स्रोत छुपाएं",
     "hotkey": "s",
@@ -178,6 +200,8 @@
     "failed": "विफल",
     "no_status": "कोई स्थिति नहीं",
     "none": "कुछ नहीं",
+    "open": "खुला",
+    "planned": "नियोजित",
     "queued": "कतार में",
     "removed": "हटाया गया",
     "restarting": "पुनः आरंभ",

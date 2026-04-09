@@ -18,10 +18,9 @@
 from __future__ import annotations
 
 from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow.models.base import Base, StringID
-from airflow.utils.sqlalchemy import mapped_column
 
 
 class DagFavorite(Base):

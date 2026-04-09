@@ -136,7 +136,6 @@ These authorization methods are:
   Also, ``is_authorized_dag`` is called for any entity related to Dags (e.g. task instances, Dag runs, ...). This information is passed in ``access_entity``.
   Example: ``auth_manager.is_authorized_dag(method="GET", access_entity=DagAccessEntity.Run, details=DagDetails(id="dag-1"))`` asks
   whether the user has permission to read the Dag runs of the Dag "dag-1".
-* ``is_authorized_backfill``: Return whether the user is authorized to access Airflow backfills. Some details about the backfill can be provided (e.g. the backfill ID).
 * ``is_authorized_asset``: Return whether the user is authorized to access Airflow assets. Some details about the asset can be provided (e.g. the asset ID).
 * ``is_authorized_asset_alias``: Return whether the user is authorized to access Airflow asset aliases. Some details about the asset alias can be provided (e.g. the asset alias ID).
 * ``is_authorized_pool``: Return whether the user is authorized to access Airflow pools. Some details about the pool can be provided (e.g. the pool name).
@@ -161,12 +160,13 @@ cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI wil
 
 .. code-block:: python
 
+    from airflow.api_fastapi.app import get_cookie_path
     from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 
     response = RedirectResponse(url="/")
 
     secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
-    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure, httponly=True)
+    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, path=get_cookie_path(), secure=secure, httponly=True)
     return response
 
 .. note::

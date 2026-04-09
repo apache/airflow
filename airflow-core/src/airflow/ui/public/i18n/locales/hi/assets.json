@@ -1,5 +1,10 @@
 {
+  "additional_data": "अतिरिक्त डेटा",
+  "asset_many": "एसेट्स",
+  "asset_one": "एसेट",
+  "asset_other": "एसेट्स",
   "consumingDags": "उपभोग करने वाले डैग्स",
+  "consumingTasks": "उपभोग करने वाले टास्क्स",
   "createEvent": {
     "button": "इवेंट बनाएं",
     "manual": {
@@ -21,10 +26,13 @@
     },
     "title": "{{name}} के लिए एसेट इवेंट बनाएं"
   },
+  "extra": "अतिरिक्त",
   "group": "ग्रुप",
   "lastAssetEvent": "अंतिम एसेट इवेंट",
   "name": "नाम",
   "producingTasks": "उत्पादन करने वाले टास्क्स",
   "scheduledDags": "निर्धारित डैग्स",
-  "searchPlaceholder": "एसेट्स खोजें"
+  "scheduling": "शेड्यूलिंग",
+  "searchPlaceholder": "एसेट्स खोजें",
+  "taskDependencies": "टास्क निर्भरताएं"
 }

@@ -47,10 +47,19 @@ export const renderDuration = (
     : dayjs.duration(durationSeconds, "seconds").format("D[d]HH:mm:ss");
 };
 
-export const getDuration = (startDate?: string | null, endDate?: string | null) => {
-  const seconds = dayjs.duration(dayjs(endDate ?? undefined).diff(startDate ?? undefined)).asSeconds();
+export const getDuration = (
+  startDate?: string | null,
+  endDate?: string | null,
+  withMilliseconds: boolean = true,
+) => {
+  if (startDate === undefined || startDate === null) {
+    return undefined;
+  }
 
-  return renderDuration(seconds);
+  const end = endDate ?? dayjs().toISOString();
+  const seconds = dayjs.duration(dayjs(end).diff(startDate)).asSeconds();
+
+  return renderDuration(seconds, withMilliseconds);
 };
 
 export const formatDate = (

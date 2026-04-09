@@ -47,6 +47,7 @@ class TestAirbyteHook:
     health_endpoint = "http://test-airbyte:8001/api/v1/health"
     _mock_proxy = {"proxies": {"http": "http://proxy:8080", "https": "https://proxy:8080"}}
     _mock_sync_conn_success_response_body = {"job": {"id": 1}}
+    _mock_reset_conn_success_response_body = {"job": {"id": 2}}
     _mock_job_status_success_response_body = {"job": {"status": "succeeded"}}
     _mock_job_cancel_status = "cancelled"
 
@@ -91,6 +92,15 @@ class TestAirbyteHook:
 
         resp = self.hook.submit_sync_connection(connection_id=self.connection_id)
         assert resp == self._mock_sync_conn_success_response_body
+
+    @mock.patch("airbyte_api.jobs.Jobs.create_job")
+    def test_submit_reset_connection(self, create_job_mock):
+        mock_response = mock.Mock()
+        mock_response.job_response = self._mock_reset_conn_success_response_body
+        create_job_mock.return_value = mock_response
+
+        resp = self.hook.submit_reset_connection(connection_id=self.connection_id)
+        assert resp == self._mock_reset_conn_success_response_body
 
     @mock.patch("airbyte_api.jobs.Jobs.get_job")
     def test_get_job_status(self, get_job_mock):

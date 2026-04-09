@@ -30,3 +30,6 @@ DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
 DOCKER_COMPOSE_FILE_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
 )
+
+LOGIN_COMMAND = "auth login --username airflow --password airflow"
+LOGIN_OUTPUT = "Login successful! Welcome to airflowctl!"

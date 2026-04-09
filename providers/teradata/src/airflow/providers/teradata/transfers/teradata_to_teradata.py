@@ -38,7 +38,7 @@ class TeradataToTeradataOperator(BaseOperator):
 
     :param dest_teradata_conn_id: destination Teradata connection.
     :param destination_table: destination table to insert rows.
-    :param source_teradata_conn_id: :ref:`Source Teradata connection <howto/connection:Teradata>`.
+    :param source_teradata_conn_id: :ref:`Source Teradata connection <howto/connection:teradata>`.
     :param sql: SQL query to execute against the source Teradata database
     :param sql_params: Parameters to use in sql query.
     :param rows_chunk: number of rows per chunk to commit.

@@ -32,11 +32,16 @@ if TYPE_CHECKING:
 __all__ = ["DAGNode"]
 
 
-class DAGNode(GenericDAGNode["SerializedDAG", "Operator", "SerializedTaskGroup"], metaclass=abc.ABCMeta):
+class DAGNode(GenericDAGNode["SerializedDAG", "Operator", "SerializedTaskGroup"], metaclass=abc.ABCMeta):  # type: ignore[type-var]
     """
     Base class for a node in the graph of a workflow.
 
     A node may be an operator or task group, either mapped or unmapped.
+
+    Note: type: ignore is used because SerializedBaseOperator and SerializedTaskGroup
+    don't have explicit type annotations for all attributes required by TaskProtocol
+    and TaskGroupProtocol (they inherit them from GenericDAGNode). This is acceptable
+    because they are implemented correctly at runtime.
     """
 
     @property

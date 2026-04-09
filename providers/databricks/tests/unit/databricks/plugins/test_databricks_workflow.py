@@ -50,7 +50,6 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
 )
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DAG_ID = "test_dag"
 TASK_ID = "test_task"

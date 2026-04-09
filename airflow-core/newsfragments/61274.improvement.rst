@@ -1,0 +1,1 @@
+Improve Dag callback relevancy by passing a context-relevant task instance based on the Dag's final state (e.g., the last failed, timed out, or successful task) instead of an arbitrary lexicographical selection.

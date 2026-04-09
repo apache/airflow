@@ -32,6 +32,13 @@ class TestKeda:
         )
         assert docs == []
 
+    def test_keda_disabled_overwrite(self):
+        docs = render_chart(
+            values={"workers": {"keda": {"enabled": True}, "celery": {"keda": {"enabled": False}}}},
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        assert docs == []
+
     @pytest.mark.parametrize(
         "executor",
         [
@@ -40,11 +47,18 @@ class TestKeda:
             "CeleryExecutor,KubernetesExecutor",
         ],
     )
-    def test_keda_enabled(self, executor):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"keda": {"enabled": True}, "celery": {"persistence": {"enabled": False}}},
+            {"celery": {"keda": {"enabled": True}, "persistence": {"enabled": False}}},
+        ],
+    )
+    def test_keda_enabled(self, executor, workers_values):
         """ScaledObject should only be created when enabled and executor is Celery or CeleryKubernetes."""
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True}, "celery": {"persistence": {"enabled": False}}},
+                "workers": workers_values,
                 "executor": executor,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
@@ -58,7 +72,7 @@ class TestKeda:
     def test_include_event_source_container_name_in_scaled_object(self, executor):
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True}, "celery": {"persistence": {"enabled": False}}},
+                "workers": {"celery": {"keda": {"enabled": True}, "persistence": {"enabled": False}}},
                 "executor": executor,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
@@ -68,9 +82,77 @@ class TestKeda:
     @pytest.mark.parametrize(
         "executor", ["CeleryExecutor", "CeleryKubernetesExecutor", "CeleryExecutor,KubernetesExecutor"]
     )
-    def test_keda_advanced(self, executor):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {
+                    "enabled": True,
+                    "advanced": {
+                        "horizontalPodAutoscalerConfig": {
+                            "behavior": {
+                                "scaleDown": {
+                                    "stabilizationWindowSeconds": 300,
+                                    "policies": [{"type": "Percent", "value": 100, "periodSeconds": 15}],
+                                }
+                            }
+                        }
+                    },
+                }
+            },
+            {
+                "celery": {
+                    "keda": {
+                        "enabled": True,
+                        "advanced": {
+                            "horizontalPodAutoscalerConfig": {
+                                "behavior": {
+                                    "scaleDown": {
+                                        "stabilizationWindowSeconds": 300,
+                                        "policies": [{"type": "Percent", "value": 100, "periodSeconds": 15}],
+                                    }
+                                }
+                            }
+                        },
+                    }
+                }
+            },
+            {
+                "keda": {
+                    "advanced": {
+                        "horizontalPodAutoscalerConfig": {
+                            "behavior": {"scaleUp": {"stabilizationWindowSeconds": 5}}
+                        }
+                    }
+                },
+                "celery": {
+                    "keda": {
+                        "enabled": True,
+                        "advanced": {
+                            "horizontalPodAutoscalerConfig": {
+                                "behavior": {
+                                    "scaleDown": {
+                                        "stabilizationWindowSeconds": 300,
+                                        "policies": [{"type": "Percent", "value": 100, "periodSeconds": 15}],
+                                    }
+                                }
+                            }
+                        },
+                    }
+                },
+            },
+        ],
+    )
+    def test_keda_advanced(self, executor, workers_values):
         """Verify keda advanced config."""
-        expected_advanced = {
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+                "executor": executor,
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        assert jmespath.search("spec.advanced", docs[0]) == {
             "horizontalPodAutoscalerConfig": {
                 "behavior": {
                     "scaleDown": {
@@ -80,19 +162,6 @@ class TestKeda:
                 }
             }
         }
-        docs = render_chart(
-            values={
-                "workers": {
-                    "keda": {
-                        "enabled": True,
-                        "advanced": expected_advanced,
-                    },
-                },
-                "executor": executor,
-            },
-            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
-        )
-        assert jmespath.search("spec.advanced", docs[0]) == expected_advanced
 
     @staticmethod
     def build_query(executor, concurrency=16, kubernetes_queue=None, worker_queues="default"):
@@ -133,7 +202,7 @@ class TestKeda:
         """Verify keda sql query uses configured concurrency."""
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True}, "celery": {"persistence": {"enabled": False}}},
+                "workers": {"celery": {"keda": {"enabled": True}, "persistence": {"enabled": False}}},
                 "executor": executor,
                 "config": {"celery": {"worker_concurrency": concurrency}},
             },
@@ -161,7 +230,7 @@ class TestKeda:
         and we also verify here that we use the configured queue name in that case.
         """
         values = {
-            "workers": {"keda": {"enabled": True}, "celery": {"persistence": {"enabled": False}}},
+            "workers": {"celery": {"keda": {"enabled": True}, "persistence": {"enabled": False}}},
             "executor": executor,
         }
         if queue:
@@ -175,19 +244,19 @@ class TestKeda:
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
 
     @pytest.mark.parametrize(
-        ("workers_persistence_values", "kind"),
+        ("workers_values", "kind"),
         [
-            ({"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
-            ({"celery": {"persistence": {"enabled": False}}}, "Deployment"),
-            ({"persistence": {"enabled": True}}, "StatefulSet"),
-            ({"persistence": {"enabled": False}}, "Deployment"),
+            ({"celery": {"keda": {"enabled": True}, "persistence": {"enabled": True}}}, "StatefulSet"),
+            ({"celery": {"keda": {"enabled": True}, "persistence": {"enabled": False}}}, "Deployment"),
+            ({"persistence": {"enabled": True}, "celery": {"keda": {"enabled": True}}}, "StatefulSet"),
+            ({"persistence": {"enabled": False}, "celery": {"keda": {"enabled": True}}}, "Deployment"),
         ],
     )
-    def test_persistence(self, workers_persistence_values, kind):
+    def test_persistence(self, workers_values, kind):
         """If worker persistence is enabled, scaleTargetRef should be StatefulSet else Deployment."""
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True}, **workers_persistence_values},
+                "workers": workers_values,
                 "executor": "CeleryExecutor",
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
@@ -195,13 +264,20 @@ class TestKeda:
 
         assert jmespath.search("spec.scaleTargetRef.kind", docs[0]) == kind
 
-    def test_default_keda_db_connection(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"keda": {"enabled": True}},
+            {"celery": {"keda": {"enabled": True}}},
+        ],
+    )
+    def test_default_keda_db_connection(self, workers_values):
         """Verify default keda db connection."""
         import base64
 
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True}},
+                "workers": workers_values,
                 "executor": "CeleryExecutor",
             },
             show_only=[
@@ -230,13 +306,20 @@ class TestKeda:
         )
         assert autoscaler_connection_env_var == "AIRFLOW_CONN_AIRFLOW_DB"
 
-    def test_default_keda_db_connection_pgbouncer_enabled(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"keda": {"enabled": True}},
+            {"celery": {"keda": {"enabled": True}}},
+        ],
+    )
+    def test_default_keda_db_connection_pgbouncer_enabled(self, workers_values):
         """Verify keda db connection when pgbouncer is enabled."""
         import base64
 
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True}},
+                "workers": workers_values,
                 "executor": "CeleryExecutor",
                 "pgbouncer": {"enabled": True},
             },
@@ -266,13 +349,20 @@ class TestKeda:
         )
         assert autoscaler_connection_env_var == "AIRFLOW_CONN_AIRFLOW_DB"
 
-    def test_default_keda_db_connection_pgbouncer_enabled_usePgbouncer_false(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"keda": {"enabled": True, "usePgbouncer": False}},
+            {"celery": {"keda": {"enabled": True, "usePgbouncer": False}}},
+        ],
+    )
+    def test_default_keda_db_connection_pgbouncer_enabled_usePgbouncer_false(self, workers_values):
         """Verify keda db connection when pgbouncer is enabled and usePgbouncer is false."""
         import base64
 
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True, "usePgbouncer": False}},
+                "workers": workers_values,
                 "executor": "CeleryExecutor",
                 "pgbouncer": {"enabled": True},
             },
@@ -309,14 +399,21 @@ class TestKeda:
         )
         assert autoscaler_connection_env_var == "KEDA_DB_CONN"
 
-    def test_mysql_keda_db_connection(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"keda": {"enabled": True}},
+            {"celery": {"keda": {"enabled": True}}},
+        ],
+    )
+    def test_mysql_keda_db_connection(self, workers_values):
         """Verify keda db connection when pgbouncer is enabled."""
         import base64
 
         docs = render_chart(
             values={
                 "data": {"metadataConnection": {"protocol": "mysql", "port": 3306}},
-                "workers": {"keda": {"enabled": True}},
+                "workers": workers_values,
                 "executor": "CeleryExecutor",
             },
             show_only=[
@@ -367,8 +464,7 @@ class TestKeda:
         docs = render_chart(
             values={
                 "workers": {
-                    "keda": {"enabled": True},
-                    "celery": {"queue": queue},
+                    "celery": {"keda": {"enabled": True}, "queue": queue},
                 },
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
@@ -380,3 +476,67 @@ class TestKeda:
 
         expected_query = self.build_query(executor="CeleryExecutor", worker_queues=queue)
         assert query == expected_query
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"keda": {"pollingInterval": 10}, "celery": {"keda": {"enabled": True}}},
+            {"celery": {"keda": {"enabled": True, "pollingInterval": 10}}},
+            {"keda": {"pollingInterval": 1}, "celery": {"keda": {"enabled": True, "pollingInterval": 10}}},
+        ],
+    )
+    def test_overwrite_keda_pooling_interval(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+
+        assert jmespath.search("spec.pollingInterval", docs[0]) == 10
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"keda": {"cooldownPeriod": 10}, "celery": {"keda": {"enabled": True}}},
+            {"celery": {"keda": {"enabled": True, "cooldownPeriod": 10}}},
+            {"keda": {"cooldownPeriod": 1}, "celery": {"keda": {"enabled": True, "cooldownPeriod": 10}}},
+        ],
+    )
+    def test_overwrite_keda_cooldown_period(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+
+        assert jmespath.search("spec.cooldownPeriod", docs[0]) == 10
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"keda": {"minReplicaCount": 10}, "celery": {"keda": {"enabled": True}}},
+            {"celery": {"keda": {"enabled": True, "minReplicaCount": 10}}},
+            {"keda": {"minReplicaCount": 1}, "celery": {"keda": {"enabled": True, "minReplicaCount": 10}}},
+        ],
+    )
+    def test_overwrite_keda_min_replica_count(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+
+        assert jmespath.search("spec.minReplicaCount", docs[0]) == 10
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"keda": {"maxReplicaCount": 5}, "celery": {"keda": {"enabled": True}}},
+            {"celery": {"keda": {"enabled": True, "maxReplicaCount": 5}}},
+            {"keda": {"maxReplicaCount": 1}, "celery": {"keda": {"enabled": True, "maxReplicaCount": 5}}},
+        ],
+    )
+    def test_overwrite_keda_max_replica_count(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+
+        assert jmespath.search("spec.maxReplicaCount", docs[0]) == 5

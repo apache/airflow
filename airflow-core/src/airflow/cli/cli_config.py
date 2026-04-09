@@ -276,11 +276,30 @@ ARG_JOB_STATE = Arg(
 )
 
 # next_execution
+ARG_TABLE = Arg(
+    ("--table",),
+    action="store_true",
+    default=False,
+    help="Show a table expected of attributes of next executions",
+)
+ARG_FIELD = Arg(
+    ("--field",),
+    choices=(
+        "logical_date",
+        "data_interval.start",
+        "data_interval.end",
+        "partition_key",
+        "partition_date",
+        "run_after",
+    ),
+    default=None,
+    help="Show given attribute of next executions",
+)
 ARG_NUM_EXECUTIONS = Arg(
     ("-n", "--num-executions"),
     default=1,
     type=positive_int(allow_zero=False),
-    help="The number of next logical date times to show",
+    help="The number of next executions to show",
 )
 
 # misc
@@ -459,8 +478,10 @@ ARG_REPLACE_MICRO = Arg(
 ARG_DB_TABLES = Arg(
     ("-t", "--tables"),
     help=lazy_object_proxy.Proxy(
-        lambda: f"Table names to perform maintenance on (use comma-separated list).\n"
-        f"Options: {import_string('airflow.cli.commands.db_command.all_tables')}"
+        lambda: (
+            f"Table names to perform maintenance on (use comma-separated list).\n"
+            f"Options: {import_string('airflow.cli.commands.db_command.all_tables')}"
+        )
     ),
     type=string_list_type,
 )
@@ -584,6 +605,16 @@ ARG_VAR_ACTION_ON_EXISTING_KEY = Arg(
     default="overwrite",
     choices=("overwrite", "fail", "skip"),
 )
+ARG_VAR_LIST_SHOW_VALUES = Arg(
+    ("--show-values",),
+    action="store_true",
+    help="Show variable values. By default only variable keys are listed.",
+)
+ARG_VAR_LIST_HIDE_SENSITIVE = Arg(
+    ("--hide-sensitive",),
+    action="store_true",
+    help="When used with --show-values, mask variable values.",
+)
 
 # kerberos
 ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs="?")
@@ -639,6 +670,16 @@ ARG_DB_SQL_ONLY = Arg(
 ARG_DB_SKIP_INIT = Arg(
     ("-s", "--skip-init"),
     help="Only remove tables; do not perform db init.",
+    action="store_true",
+    default=False,
+)
+ARG_DB_USE_MIGRATION_FILES = Arg(
+    ("-m", "--use-migration-files"),
+    help=(
+        "Use migration files to create the database instead of the ORM. "
+        "This is useful for verifying that the migration files produce the "
+        "same schema as the ORM models."
+    ),
     action="store_true",
     default=False,
 )
@@ -706,6 +747,13 @@ ARG_NUM_RUNS = Arg(
     default=conf.getint("scheduler", "num_runs"),
     type=int,
     help="Set the number of runs to execute before exiting",
+)
+
+ARG_ONLY_IDLE = Arg(
+    ("-i", "--only-idle"),
+    default=conf.getboolean("scheduler", "only_idle", fallback=False),
+    help="Only count runs after the scheduler becomes idle.",
+    action="store_true",
 )
 
 ARG_WITHOUT_MINGLE = Arg(
@@ -783,6 +831,16 @@ ARG_CONN_OVERWRITE = Arg(
     help="Overwrite existing entries if a conflict occurs",
     required=False,
     action="store_true",
+)
+ARG_CONN_LIST_SHOW_VALUES = Arg(
+    ("--show-values",),
+    action="store_true",
+    help="Show connection values (host, login, URI, etc.). By default only connection IDs are listed.",
+)
+ARG_CONN_LIST_HIDE_SENSITIVE = Arg(
+    ("--hide-sensitive",),
+    action="store_true",
+    help="When used with --show-values, mask sensitive values (passwords, URI credentials, extra).",
 )
 
 # providers
@@ -1095,7 +1153,7 @@ DAGS_COMMANDS = (
             "num-executions option is given"
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_next_execution"),
-        args=(ARG_DAG_ID, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_TABLE, ARG_FIELD, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
     ),
     ActionCommand(
         name="pause",
@@ -1401,7 +1459,7 @@ VARIABLES_COMMANDS = (
         name="list",
         help="List variables",
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_OUTPUT, ARG_VAR_LIST_SHOW_VALUES, ARG_VAR_LIST_HIDE_SENSITIVE, ARG_VERBOSE),
     ),
     ActionCommand(
         name="get",
@@ -1442,6 +1500,9 @@ TEAMS_COMMANDS = (
     ActionCommand(
         name="create",
         help="Create a team",
+        description=(
+            "Create a team. Team names must be 3-50 characters long and contain only alphanumeric characters, hyphens, and underscores.\n"
+        ),
         func=lazy_load_command("airflow.cli.commands.team_command.team_create"),
         args=(ARG_TEAM_NAME, ARG_VERBOSE),
     ),
@@ -1470,7 +1531,7 @@ DB_COMMANDS = (
         name="reset",
         help="Burn down and rebuild the metadata database",
         func=lazy_load_command("airflow.cli.commands.db_command.resetdb"),
-        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_DB_USE_MIGRATION_FILES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="migrate",
@@ -1490,6 +1551,7 @@ DB_COMMANDS = (
             ARG_DB_SQL_ONLY,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
+            ARG_DB_USE_MIGRATION_FILES,
             ARG_VERBOSE,
         ),
     ),
@@ -1573,7 +1635,7 @@ CONNECTIONS_COMMANDS = (
         name="list",
         help="List connections",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_OUTPUT, ARG_CONN_LIST_SHOW_VALUES, ARG_CONN_LIST_HIDE_SENSITIVE, ARG_VERBOSE),
     ),
     ActionCommand(
         name="add",
@@ -1827,7 +1889,7 @@ DB_MANAGERS_COMMANDS = (
         name="reset",
         help="Burn down and rebuild the specified external database",
         func=lazy_load_command("airflow.cli.commands.db_manager_command.resetdb"),
-        args=(ARG_DB_MANAGER_PATH, ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+        args=(ARG_DB_MANAGER_PATH, ARG_YES, ARG_DB_SKIP_INIT, ARG_DB_USE_MIGRATION_FILES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="migrate",
@@ -1848,6 +1910,7 @@ DB_MANAGERS_COMMANDS = (
             ARG_DB_SQL_ONLY,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
+            ARG_DB_USE_MIGRATION_FILES,
             ARG_VERBOSE,
         ),
     ),
@@ -1965,6 +2028,7 @@ core_commands: list[CLICommand] = [
         func=lazy_load_command("airflow.cli.commands.scheduler_command.scheduler"),
         args=(
             ARG_NUM_RUNS,
+            ARG_ONLY_IDLE,
             ARG_PID,
             ARG_DAEMON,
             ARG_STDOUT,

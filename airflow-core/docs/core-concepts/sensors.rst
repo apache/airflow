@@ -95,3 +95,26 @@ Example
         timeout=60 * 60,
         mode="reschedule",
     )
+
+.. tip::
+
+    For waiting on files specifically, consider using
+    :class:`~airflow.providers.standard.sensors.filesystem.FileSensor` from the
+    standard provider. It is purpose-built for detecting files in your local
+    filesystem and supports deferrable mode for better resource efficiency.
+    See :doc:`apache-airflow-providers-standard:sensors/file` for details.
+
+Common sensors
+--------------
+
+Airflow provides many sensors out of the box. Here are some commonly used ones
+from the standard provider:
+
+* :class:`~airflow.providers.standard.sensors.filesystem.FileSensor` - Wait for a file to appear in a filesystem
+* :class:`~airflow.providers.standard.sensors.bash.BashSensor` - Wait for a bash command to return true
+* :class:`~airflow.providers.standard.sensors.python.PythonSensor` - Wait for a Python callable to return true
+* :class:`~airflow.providers.standard.sensors.time.TimeSensor` - Wait until a specified time of day
+* :class:`~airflow.providers.standard.sensors.time_delta.TimeDeltaSensor` - Wait for a specified time duration
+* :class:`~airflow.providers.standard.sensors.external_task.ExternalTaskSensor` - Wait for a task in another DAG to complete
+
+For a complete list of available sensors, see the :doc:`../operators-and-hooks-ref`.

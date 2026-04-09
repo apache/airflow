@@ -25,7 +25,7 @@ from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
 from airflow._shared.secrets_masker import redact, should_hide_value_for_key
-from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_partial_model
 
 
 # Response Models
@@ -60,8 +60,13 @@ class ConnectionResponse(BaseModel):
             redacted_dict = redact(extra_dict)
             return json.dumps(redacted_dict)
         except json.JSONDecodeError:
-            # we can't redact fields in an unstructured `extra`
-            return v
+            # Do not return un-redacted extra because this could cause sensitive information to be exposed.
+            # This code path should never been hit as ``Connection._validate_extra`` sure that ``extra`` is
+            # always a valid JSON string. We add this safeguard just in case and to make the coupling
+            # explicit.
+            raise ValueError(
+                "This code path should never happen as persisted Connections (DB layer) should always enforce `extra` as a JSON string."
+            )
 
 
 class ConnectionCollectionResponse(BaseModel):
@@ -193,3 +198,6 @@ class ConnectionBody(StrictBaseModel):
                 "but encountered non-JSON in `extra` field"
             )
         return v
+
+
+ConnectionBodyPartial = make_partial_model(ConnectionBody)

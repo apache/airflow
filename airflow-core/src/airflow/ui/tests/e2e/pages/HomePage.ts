@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
 /**
@@ -57,7 +57,7 @@ export class HomePage extends BasePage {
     this.failedDagsCard = page.locator('a[href*="last_dag_run_state=failed"]');
     this.runningDagsCard = page.locator('a[href*="last_dag_run_state=running"]');
     this.activeDagsCard = page.locator('a[href*="paused=false"]');
-    this.dagImportErrorsCard = page.locator('button:has-text("DAG Import Errors")');
+    this.dagImportErrorsCard = page.getByRole("button", { name: "DAG Import Errors" });
 
     // Stats section - using role-based selector
     this.statsSection = page.getByRole("heading", { name: "Stats" }).locator("..");
@@ -120,7 +120,7 @@ export class HomePage extends BasePage {
    * Wait for dashboard to fully load
    */
   public async waitForDashboardLoad(): Promise<void> {
-    await this.welcomeHeading.waitFor({ state: "visible", timeout: 30_000 });
+    await expect(this.welcomeHeading).toBeVisible({ timeout: 30_000 });
   }
 
   /**
@@ -128,7 +128,7 @@ export class HomePage extends BasePage {
    */
   // eslint-disable-next-line @typescript-eslint/class-methods-use-this
   private async getStatsCardCount(card: Locator): Promise<number> {
-    await card.waitFor({ state: "visible" }); // Fail fast if card doesn't exist
+    await expect(card).toBeVisible();
     const badgeText = await card.locator("span").first().textContent();
     const match = badgeText?.match(/\d+/);
 

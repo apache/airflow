@@ -89,11 +89,15 @@ def create_docker(txt: str, output_file: Path, release_type: str):
 
     console = get_console()
     console.print("\n[bold]To check installation run:[/bold]")
-    command = (
-        '--entrypoint "airflow" local/airflow info'
-        if release_type != "python-client"
-        else '--entrypoint "bash" local/airflow "-c" "python -c \'import airflow_client.client; print(airflow_client.client.__version__)\'"'
-    )
+    if release_type == "python-client":
+        command = (
+            '--entrypoint "bash" local/airflow "-c" "python -c '
+            "'import airflow_client.client; print(airflow_client.client.__version__)'\""
+        )
+    elif release_type == "airflow-ctl":
+        command = '--entrypoint "airflowctl" local/airflow --help'
+    else:
+        command = '--entrypoint "airflow" local/airflow info'
     console.print(
         f"""\
         docker build -f {output_file} --tag local/airflow .

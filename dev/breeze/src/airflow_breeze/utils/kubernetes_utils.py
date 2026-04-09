@@ -38,7 +38,7 @@ from airflow_breeze.global_constants import (
     KIND_VERSION,
     SKAFFOLD_VERSION,
 )
-from airflow_breeze.utils.console import Output, get_console
+from airflow_breeze.utils.console import Output, console_print, get_console
 from airflow_breeze.utils.host_info_utils import Architecture, get_host_architecture, get_host_os
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, BUILD_CACHE_PATH
 from airflow_breeze.utils.run_utils import RunCommandResult, run_command
@@ -108,9 +108,9 @@ def _download_with_retries(num_tries, path, tool, url):
         except OSError as e:
             num_tries = num_tries - 1
             if num_tries == 0:
-                get_console().print(f"[error]Failing on max retries. Error while downloading {tool}: {e}")
+                console_print(f"[error]Failing on max retries. Error while downloading {tool}: {e}")
                 sys.exit(1)
-            get_console().print(
+            console_print(
                 f"[warning]Retrying: {num_tries} retries  left on error while downloading {tool} tool: {e}"
             )
 
@@ -135,7 +135,7 @@ def _download_tool_if_needed(
         if result.returncode == 0 and not get_dry_run():
             match = re.search(version_pattern, result.stdout)
             if not match:
-                get_console().print(
+                console_print(
                     f"[info]No regexp match for version check in `{tool}` tool output "
                     f"{version_pattern} in:[/]\n{result.stdout}\n"
                     f"[info]Downloading {expected_version}."
@@ -143,32 +143,32 @@ def _download_tool_if_needed(
             else:
                 current_version = match.group(1)
                 if current_version == expected_version:
-                    get_console().print(
+                    console_print(
                         f"[success]Good version of {tool} installed: {expected_version} in "
                         f"{K8S_BIN_BASE_PATH}"
                     )
                     return
-                get_console().print(
+                console_print(
                     f"[info]Currently installed `{tool}` tool version: {current_version}. "
                     f"Downloading {expected_version}."
                 )
         else:
-            get_console().print(
+            console_print(
                 f"[warning]The version check of `{tool}` tool returned "
                 f"{result.returncode} error. Downloading {expected_version} version."
             )
-            get_console().print(result.stdout)
-            get_console().print(result.stderr)
+            console_print(result.stdout)
+            console_print(result.stderr)
     except FileNotFoundError:
-        get_console().print(
+        console_print(
             f"[info]The `{tool}` tool is not downloaded yet. Downloading {expected_version} version."
         )
     except OSError as e:
-        get_console().print(
+        console_print(
             f"[info]Error when running `{tool}`: {e}. Removing and downloading {expected_version} version."
         )
         path.unlink(missing_ok=True)
-    get_console().print(f"[info]Downloading from:[/] {url}")
+    console_print(f"[info]Downloading from:[/] {url}")
     if get_dry_run():
         return
     path.unlink(missing_ok=True)
@@ -180,11 +180,11 @@ def _download_tool_if_needed(
         with tempfile.NamedTemporaryFile(delete=True) as f:
             _download_with_retries(num_tries, Path(f.name), tool, url)
             tgz_file = tarfile.open(f.name)
-            get_console().print(f"[info]Extracting the {uncompress_file} to {path.parent}[/]")
+            console_print(f"[info]Extracting the {uncompress_file} to {path.parent}[/]")
             with tempfile.TemporaryDirectory() as d:
                 tgz_file.extract(uncompress_file, str(d))
                 target_file = Path(d) / uncompress_file
-                get_console().print(f"[info]Moving the {target_file.name} to {path}[/]")
+                console_print(f"[info]Moving the {target_file.name} to {path}[/]")
                 shutil.move(str(target_file), str(path))
 
 
@@ -245,7 +245,7 @@ def _download_skaffold_if_needed():
 def _check_architecture_supported():
     architecture, machine = get_host_architecture()
     if architecture not in ALLOWED_ARCHITECTURES:
-        get_console().print(
+        console_print(
             f"[error]The {architecture} is not one "
             f"of the supported: {ALLOWED_ARCHITECTURES}. The original machine: {machine}"
         )
@@ -280,9 +280,9 @@ def make_sure_kubernetes_tools_are_installed():
         text=True,
     )
     if get_dry_run() or result.returncode == 0 and "stable" in result.stdout:
-        get_console().print("[info]Stable repo is already added")
+        console_print("[info]Stable repo is already added")
     else:
-        get_console().print("[info]Adding stable repo")
+        console_print("[info]Adding stable repo")
         run_command(
             ["helm", "repo", "add", "stable", "https://charts.helm.sh/stable"],
             check=False,
@@ -371,7 +371,7 @@ def _get_free_port() -> int:
 def _get_kind_cluster_config_content(python: str, kubernetes_version: str) -> dict[str, Any] | None:
     config_path = get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)
     if not config_path.exists():
-        get_console().print(f"[warning]The kind cluster config file {config_path} does not exist!")
+        console_print(f"[warning]The kind cluster config file {config_path} does not exist!")
         return None
 
     import yaml

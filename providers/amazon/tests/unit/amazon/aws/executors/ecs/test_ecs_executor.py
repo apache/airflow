@@ -26,6 +26,7 @@ from collections.abc import Callable
 from functools import partial
 from unittest import mock
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 import pytest
 import yaml
@@ -1249,7 +1250,6 @@ class TestAwsEcsExecutor:
             "test failure" in caplog.messages[0]
         )
 
-    @pytest.mark.skip(reason="Adopting task instances hasn't been ported over to Airflow 3 yet")
     def test_try_adopt_task_instances(self, mock_executor):
         """Test that executor can adopt orphaned task instances from a SchedulerJob shutdown event."""
         mock_executor.ecs.describe_tasks.return_value = {
@@ -1278,8 +1278,41 @@ class TestAwsEcsExecutor:
         orphaned_tasks[0].external_executor_id = "001"  # Matches a running task_arn
         orphaned_tasks[1].external_executor_id = "002"  # Matches a running task_arn
         orphaned_tasks[2].external_executor_id = None  # One orphaned task has no external_executor_id
-        for task in orphaned_tasks:
+
+        for idx, task in enumerate(orphaned_tasks):
             task.try_number = 1
+            task.key = mock.Mock(spec=TaskInstanceKey)
+            task.queue = "default"
+            task.executor_config = {}
+            task.id = uuid4()
+            task.dag_version_id = uuid4()
+            task.task_id = f"task_{idx}"
+            task.dag_id = "test_dag"
+            task.run_id = "test_run"
+            task.map_index = -1
+            task.pool_slots = 1
+            task.priority_weight = 1
+            task.context_carrier = {}
+            task.queued_dttm = dt.datetime.now()
+            # Set up nested attributes for BundleInfo
+            task.dag_model = mock.Mock()
+            task.dag_model.bundle_name = "test_bundle"
+            task.dag_model.relative_fileloc = "test_dag.py"
+            task.dag_run = mock.Mock()
+            task.dag_run.bundle_version = "1.0.0"
+            task.dag_run.context_carrier = {}
+
+            # Mock command generation based on Airflow version
+            if not AIRFLOW_V_3_0_PLUS:
+                # For Airflow 2.x, command_as_list will be called
+                task.command_as_list.return_value = [
+                    "airflow",
+                    "tasks",
+                    "run",
+                    "dag",
+                    f"task_{idx}",
+                    "2024-01-01",
+                ]
 
         not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
 
@@ -1885,6 +1918,59 @@ class TestEcsExecutorConfig:
         final_run_task_kwargs = executor._run_task_kwargs(mock_ti_key, command, "queue", exec_config)
 
         assert final_run_task_kwargs == expected_result
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    def test_serialize_workload_to_command(self, mock_executor):
+        """Test that _serialize_workload_to_command properly serializes an ExecuteTask workload."""
+        from airflow.executors.workloads import ExecuteTask
+
+        workload = mock.Mock(spec=ExecuteTask)
+        ser_workload = json.dumps({"test_key": "test_value"})
+        workload.model_dump_json.return_value = ser_workload
+
+        command = mock_executor._serialize_workload_to_command(workload)
+
+        assert command == [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            ser_workload,
+        ]
+        workload.model_dump_json.assert_called_once()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    @mock.patch("airflow.executors.workloads.ExecuteTask")
+    def test_build_task_command_airflow3(self, mock_execute_task_class, mock_executor):
+        """Test _build_task_command for Airflow 3.x+ using Task SDK."""
+        mock_ti = mock.Mock(spec=TaskInstance)
+        mock_workload = mock.Mock()
+        ser_workload = json.dumps({"task": "data"})
+        mock_workload.model_dump_json.return_value = ser_workload
+        mock_execute_task_class.make.return_value = mock_workload
+
+        command = mock_executor._build_task_command(mock_ti)
+
+        mock_execute_task_class.make.assert_called_once_with(mock_ti)
+        assert command == [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            ser_workload,
+        ]
+
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 2.x")
+    def test_build_task_command_airflow2(self, mock_executor):
+        """Test _build_task_command for Airflow 2.x using command_as_list."""
+        mock_ti = mock.Mock(spec=TaskInstance)
+        expected_command = ["airflow", "tasks", "run", "dag_id", "task_id", "execution_date"]
+        mock_ti.command_as_list.return_value = expected_command
+
+        command = mock_executor._build_task_command(mock_ti)
+
+        mock_ti.command_as_list.assert_called_once()
+        assert command == expected_command
 
     def test_short_import_path(self):
         from airflow.providers.amazon.aws.executors.ecs import AwsEcsExecutor as AwsEcsExecutorShortPath

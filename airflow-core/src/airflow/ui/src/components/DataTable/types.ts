@@ -18,7 +18,7 @@
  */
 import type { SimpleGridProps } from "@chakra-ui/react";
 import type { ColumnDef, PaginationState, SortingState, VisibilityState } from "@tanstack/react-table";
-import type { ReactNode } from "react";
+import type { JSX, ReactNode } from "react";
 
 export type TableState = {
   columnVisibility?: VisibilityState;

@@ -17,7 +17,7 @@
 
 
 
-.. _howto/connection:dbt-cloud:
+.. _howto/connection:jenkins:
 
 Jenkins Connecting
 =======================

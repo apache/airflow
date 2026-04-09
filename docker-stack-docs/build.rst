@@ -181,7 +181,7 @@ Why customizing the image ?
 ---------------------------
 
 The Apache Airflow community, releases Docker Images which are ``reference images`` for Apache Airflow.
-However, Airflow has more than 60 community managed providers (installable via extras) and some of the
+However, Airflow has more than 90 community managed providers (installable via extras) and some of the
 default extras/providers installed are not used by everyone, sometimes others extras/providers
 are needed, sometimes (very often actually) you need to add your own custom dependencies,
 packages or even custom providers.
@@ -313,17 +313,17 @@ There are two types of images you can extend your image from:
 
 Naming conventions for the images:
 
-+----------------+---------------------+---------------------------------+--------------------------------------+
-| Image          | Python              | Standard image                  | Slim image                           |
-+================+=====================+=================================+======================================+
-| Latest default | 3.12                | apache/airflow:latest           | apache/airflow:slim-latest           |
-+----------------+---------------------+---------------------------------+--------------------------------------+
-| Default        | 3.12                | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
-+----------------+---------------------+---------------------------------+--------------------------------------+
-| Latest         | 3.10,3.11,3.12,3.13 | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
-+----------------+---------------------+---------------------------------+--------------------------------------+
-| Specific       | 3.10,3.11,3.12,3.13 | apache/airflow:X.Y.Z-pythonN.M  | apache/airflow:slim-X.Y.Z-pythonN.M  |
-+----------------+---------------------+---------------------------------+--------------------------------------+
++----------------+--------------------------+---------------------------------+--------------------------------------+
+| Image          | Python                   | Standard image                  | Slim image                           |
++================+==========================+=================================+======================================+
+| Latest default | 3.13                     | apache/airflow:latest           | apache/airflow:slim-latest           |
++----------------+--------------------------+---------------------------------+--------------------------------------+
+| Default        | 3.13                     | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
++----------------+--------------------------+---------------------------------+--------------------------------------+
+| Latest         | 3.10,3.11,3.12,3.13,3.14 | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
++----------------+--------------------------+---------------------------------+--------------------------------------+
+| Specific       | 3.10,3.11,3.12,3.13,3.14 | apache/airflow:X.Y.Z-pythonN.M  | apache/airflow:slim-X.Y.Z-pythonN.M  |
++----------------+--------------------------+---------------------------------+--------------------------------------+
 
 * The "latest" image is always the latest released stable version available.
 

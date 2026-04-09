@@ -35,13 +35,13 @@ export const Iframe = ({
   if (externalView.destination !== undefined && externalView.destination !== "nav") {
     // Check if the href contains placeholders that need to be replaced
     if (dagId !== undefined) {
-      src = src.replaceAll("{DAG_ID}", dagId);
+      src = src.replaceAll("{DAG_ID}", encodeURIComponent(dagId));
     }
     if (runId !== undefined) {
-      src = src.replaceAll("{RUN_ID}", runId);
+      src = src.replaceAll("{RUN_ID}", encodeURIComponent(runId));
     }
     if (taskId !== undefined) {
-      src = src.replaceAll("{TASK_ID}", taskId);
+      src = src.replaceAll("{TASK_ID}", encodeURIComponent(taskId));
     }
     if (mapIndex !== undefined) {
       src = src.replaceAll("{MAP_INDEX}", mapIndex);

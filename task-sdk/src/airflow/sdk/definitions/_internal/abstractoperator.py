@@ -26,7 +26,7 @@ from collections.abc import (
     Iterable,
     Iterator,
 )
-from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from airflow.sdk import TriggerRule, WeightRule
 from airflow.sdk.configuration import conf
@@ -113,29 +113,7 @@ class AbstractOperator(Templater, DAGNode):
     _on_failure_fail_dagrun = False
     is_setup: bool = False
     is_teardown: bool = False
-
-    HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
-        (
-            "log",
-            "dag",  # We show dag_id, don't need to show this too
-            "node_id",  # Duplicates task_id
-            "task_group",  # Doesn't have a useful repr, no point showing in UI
-            "inherits_from_empty_operator",  # impl detail
-            "inherits_from_skipmixin",  # impl detail
-            # Decide whether to start task execution from triggerer
-            "start_trigger_args",
-            "start_from_trigger",
-            # For compatibility with TG, for operators these are just the current task, no point showing
-            "roots",
-            "leaves",
-            # These lists are already shown via *_task_ids
-            "upstream_list",
-            "downstream_list",
-            # Not useful, implementation detail, already shown elsewhere
-            "global_operator_extra_link_dict",
-            "operator_extra_link_dict",
-        )
-    )
+    returns_dag_result: bool = False
 
     @property
     def is_async(self) -> bool:
@@ -284,59 +262,6 @@ class AbstractOperator(Templater, DAGNode):
         if dag is None:
             dag = self.get_dag()
         return super()._render(template, context, dag=dag)
-
-    def _do_render_template_fields(
-        self,
-        parent: Any,
-        template_fields: Iterable[str],
-        context: Context,
-        jinja_env: jinja2.Environment,
-        seen_oids: set[int],
-    ) -> None:
-        """Override the base to use custom error logging."""
-        for attr_name in template_fields:
-            try:
-                value = getattr(parent, attr_name)
-            except AttributeError:
-                raise AttributeError(
-                    f"{attr_name!r} is configured as a template field "
-                    f"but {parent.task_type} does not have this attribute."
-                )
-            try:
-                if not value:
-                    continue
-            except Exception:
-                # This may happen if the templated field points to a class which does not support `__bool__`,
-                # such as Pandas DataFrames:
-                # https://github.com/pandas-dev/pandas/blob/9135c3aaf12d26f857fcc787a5b64d521c51e379/pandas/core/generic.py#L1465
-                log.info(
-                    "Unable to check if the value of type '%s' is False for task '%s', field '%s'.",
-                    type(value).__name__,
-                    self.task_id,
-                    attr_name,
-                )
-                # We may still want to render custom classes which do not support __bool__
-                pass
-
-            try:
-                if callable(value):
-                    rendered_content = value(context=context, jinja_env=jinja_env)
-                else:
-                    rendered_content = self.render_template(value, context, jinja_env, seen_oids)
-            except Exception:
-                # Mask sensitive values in the template before logging
-                from airflow.sdk._shared.secrets_masker import redact
-
-                masked_value = redact(value)
-                log.exception(
-                    "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
-                    self.task_id,
-                    attr_name,
-                    masked_value,
-                )
-                raise
-            else:
-                setattr(parent, attr_name, rendered_content)
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """

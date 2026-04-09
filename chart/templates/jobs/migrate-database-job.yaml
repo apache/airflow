@@ -60,16 +60,16 @@ spec:
         tier: airflow
         component: run-airflow-migrations
         release: {{ .Release.Name }}
-        {{- if or (.Values.labels) (.Values.migrateDatabaseJob.labels) }}
+        {{- if or .Values.labels .Values.migrateDatabaseJob.labels }}
           {{- mustMerge .Values.migrateDatabaseJob.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       {{- if or .Values.airflowPodAnnotations .Values.migrateDatabaseJob.annotations }}
       annotations:
         {{- if .Values.airflowPodAnnotations }}
-          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.airflowPodAnnotations) . | nindent 8 }}
         {{- end }}
         {{- if .Values.migrateDatabaseJob.annotations }}
-          {{- toYaml .Values.migrateDatabaseJob.annotations | nindent 8 }}
+          {{- tpl (toYaml .Values.migrateDatabaseJob.annotations) . | nindent 8 }}
         {{- end }}
       {{- end }}
     spec:

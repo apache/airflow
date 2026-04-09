@@ -58,6 +58,14 @@ class ReadyToRescheduleDep(BaseTIDep):
         This dependency fails if the latest reschedule request's reschedule date is still
         in the future.
         """
+        # Fast-exit for non-reschedule tasks in NONE state.  When the task is explicitly
+        # UP_FOR_RESCHEDULE we *always* check TaskReschedule regardless of operator type
+        # (e.g. startup/DAG-load rescheduling).  For NONE-state tasks, only reschedule-mode
+        # sensors (and mapped tasks whose reschedule attr is unknown) need the DB query.
+        if ti.state is None and ti.map_index < 0 and not getattr(ti.task, "reschedule", False):
+            yield self._passing_status(reason="Task is not in reschedule mode.")
+            return
+
         if dep_context.ignore_in_reschedule_period:
             yield self._passing_status(
                 reason="The context specified that being in a reschedule period was permitted."

@@ -24,7 +24,7 @@ You can write listeners to enable Airflow to notify you when events happen.
 .. warning::
 
     Listeners are an advanced feature of Airflow. They are not isolated from the Airflow components they run in, and
-    can slow down or in come cases take down your Airflow instance. As such, extra care should be taken when writing listeners.
+    can slow down or in some cases take down your Airflow instance. As such, extra care should be taken when writing listeners.
 
 Airflow supports notifications for the following events:
 

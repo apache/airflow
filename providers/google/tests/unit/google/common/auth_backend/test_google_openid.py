@@ -52,10 +52,23 @@ def google_openid_app():
                 ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
             }
         ):
+            from flask import Response
+
             from airflow.providers.fab.www.app import create_app
+            from airflow.providers.google.common.auth_backend.google_openid import requires_authentication
 
             _app = create_app(enable_plugins=False)
             _app.config["AUTH_ROLE_PUBLIC"] = None
+
+            # Register a dummy route protected by the Google OpenID auth backend.
+            # The connexion-based /fab/v1/users endpoint was removed when FAB migrated
+            # to FastAPI, but these tests only need any route guarded by
+            # requires_authentication to verify the auth backend logic.
+            @_app.route("/fab/v1/users")
+            @requires_authentication
+            def _test_dummy_endpoint():
+                return Response("OK", status=200)
+
             return _app
 
     return factory()
@@ -149,7 +162,7 @@ class TestGoogleOpenID:
         with self.app.test_client() as test_client:
             response = test_client.get("/fab/v1/users", headers={"Authorization": "bearer JWT_TOKEN"})
 
-        assert response.status_code == 401
+        assert response.status_code == 403
 
     @conf_vars({("fab", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid"})
     def test_missing_id_token(self):

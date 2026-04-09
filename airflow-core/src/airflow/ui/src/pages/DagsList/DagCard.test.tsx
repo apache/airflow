@@ -56,6 +56,7 @@ const GMTWrapper = ({ children }: PropsWithChildren) => (
 );
 
 const mockDag = {
+  allowed_run_types: null,
   asset_expression: null,
   bundle_name: "dags-folder",
   bundle_version: "1",
@@ -108,6 +109,7 @@ const mockDag = {
   relative_fileloc: "nested_task_groups.py",
   tags: [],
   timetable_description: "Every minute",
+  timetable_partitioned: false,
   timetable_summary: "* * * * *",
 } satisfies DAGWithLatestDagRunsResponse;
 

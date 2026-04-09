@@ -21,13 +21,15 @@ Deadline Alerts
 
 .. warning::
   Deadline Alerts are new in Airflow 3.1 and should be considered experimental. The feature may be
-  subject to changes in 3.2 without warning based on user feedback.
+  subject to changes in future versions without warning based on user feedback.
 
 |experimental|
 
 Deadline Alerts allow you to set time thresholds for your Dag runs and automatically respond when those
-thresholds are exceeded. You can set up Deadline Alerts by choosing a built-in reference point, setting
-an interval, and defining a response using either Airflow's Notifiers or a custom callback function.
+thresholds are exceeded. You configure Deadline Alerts by choosing a reference point, setting an interval,
+and defining a callback to execute if the deadline is missed. A reference may be one of the built-in
+DeadlineReference options such as when the dagrun is queued or any custom method that returns a timestamp.
+The callback can either be one of Airflow's Notifiers or a custom callback function.
 
 Migrating from SLA
 ------------------
@@ -57,8 +59,7 @@ Below is an example Dag implementation. If the Dag has not finished 15 minutes a
 .. code-block:: python
 
     from datetime import datetime, timedelta
-    from airflow import DAG
-    from airflow.sdk import AsyncCallback, DeadlineAlert, DeadlineReference
+    from airflow.sdk import AsyncCallback, DAG, DeadlineAlert, DeadlineReference
     from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
     from airflow.providers.standard.operators.empty import EmptyOperator
 
@@ -196,22 +197,42 @@ Using Callbacks
 ---------------
 
 When a deadline is exceeded, the callback's callable is executed with the specified kwargs. You can use an
-existing :doc:`Notifier </howto/notifications>` or create a custom callable.  A callback must be an
-:class:`~airflow.sdk.AsyncCallback`, with support coming soon for :class:`~airflow.sdk.SyncCallback`.
+existing :doc:`Notifier </howto/notifications>` or create a custom callable.  A callback must be either an
+:class:`~airflow.sdk.AsyncCallback`, or a :class:`~airflow.sdk.SyncCallback` (SyncCallback support added in 3.2).
 
 Using Built-in Notifiers
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Here's an example using the Slack Notifier if the Dag run has not finished within 30 minutes of it being queued:
+Here's an example using the Slack Notifier with an **asynchronous callback** if the Dag run has not finished
+within 30 minutes of it being queued. The callback runs in the Triggerer:
 
 .. code-block:: python
 
     with DAG(
-        dag_id="slack_deadline_alert",
+        dag_id="slack_deadline_alert_async",
         deadline=DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=timedelta(minutes=30),
             callback=AsyncCallback(
+                SlackWebhookNotifier,
+                kwargs={
+                    "text": "🚨 Dag {{ dag_run.dag_id }} missed deadline at {{ deadline.deadline_time }}. DagRun: {{ dag_run }}"
+                },
+            ),
+        ),
+    ):
+        EmptyOperator(task_id="example_task")
+
+Here's the same example using a **synchronous callback**. The callback runs in the executor:
+
+.. code-block:: python
+
+    with DAG(
+        dag_id="slack_deadline_alert_sync",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(minutes=30),
+            callback=SyncCallback(
                 SlackWebhookNotifier,
                 kwargs={
                     "text": "🚨 Dag {{ dag_run.dag_id }} missed deadline at {{ deadline.deadline_time }}. DagRun: {{ dag_run }}"
@@ -227,7 +248,8 @@ Creating Custom Callbacks
 
 You can create custom callables for more complex handling. If ``kwargs`` are specified in the ``Callback``,
 they are passed to the callback function. **Asynchronous callbacks** must be defined somewhere in the
-Triggerer's system path.
+Triggerer's system path.  **Synchronous callbacks** must be importable on the worker where they will be executed.
+
 
 .. note::
     Regarding Async Custom Deadline callbacks:
@@ -237,10 +259,73 @@ Triggerer's system path.
       Nested callables are not currently supported.
     * The Triggerer will need to be restarted when a callback is added or changed in order to reload the file.
 
+.. note::
+    Regarding Synchronous callbacks:
+
+    * Sync callbacks are sent to the executor and treated just like a Dag task with top priority.
+
+.. note::
+    **Airflow ``context``:** When a deadline is missed, Airflow automatically provides a ``context``
+    kwarg into the callback containing information about the Dag run and the deadline. To receive it,
+    accept ``**kwargs`` in your callback and access ``kwargs["context"]``, or add a named ``context``
+    parameter. Callbacks that don't need the context can omit it — Airflow will only pass kwargs that
+    the callable accepts. The ``context`` keyword is reserved and cannot be used in the ``kwargs``
+    parameter of a ``Callback``; attempting to do so will raise a ``ValueError`` at DAG parse time.
+
+
+A **custom synchronous callback** might look like this:
+
+1. Place this method in your plugins folder (e.g. ``$AIRFLOW_HOME/plugins/deadline_callbacks.py``):
+
+.. code-block:: python
+
+    def custom_sync_callback(**kwargs):
+        """Handle deadline violation with custom logic."""
+        context = kwargs.get("context", {})
+        print(f"Deadline exceeded for Dag {context.get('dag_run', {}).get('dag_id')}!")
+        print(f"Context: {context}")
+        print(f"Alert type: {kwargs.get('alert_type')}")
+        # Additional custom handling here
+
+2. Place this in a Dag file:
+
+.. code-block:: python
+
+    from datetime import timedelta
+
+    from deadline_callbacks import custom_sync_callback
+
+    from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.sdk import DAG, DeadlineAlert, DeadlineReference, SyncCallback
+
+    with DAG(
+        dag_id="custom_sync_deadline_alert",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(minutes=15),
+            callback=SyncCallback(
+                custom_sync_callback,
+                kwargs={"alert_type": "time_exceeded"},
+            ),
+        ),
+    ):
+        EmptyOperator(task_id="example_task")
+
+.. tip::
+    ``SyncCallback`` accepts an optional ``executor`` parameter to target a specific executor.
+    If not specified, the default executor is used.
+
+    .. code-block:: python
+
+        SyncCallback(
+            my_callback,
+            kwargs={"msg": "deadline missed"},
+            executor="celery_executor",
+        )
 
 A **custom asynchronous callback** might look like this:
 
-1. Place this method in ``/files/plugins/deadline_callbacks.py``:
+1. Place this method in your plugins folder (e.g. ``$AIRFLOW_HOME/plugins/deadline_callbacks.py``):
 
 .. code-block:: python
 
@@ -261,9 +346,8 @@ A **custom asynchronous callback** might look like this:
 
     from deadline_callbacks import custom_async_callback
 
-    from airflow import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk import AsyncCallback, DeadlineAlert, DeadlineReference
+    from airflow.sdk import AsyncCallback, DAG, DeadlineAlert, DeadlineReference
 
     with DAG(
         dag_id="custom_deadline_alert",
@@ -295,7 +379,7 @@ A deadline's trigger time is calculated by adding the ``interval`` to the dateti
 the ``reference``. For ``FIXED_DATETIME`` references, negative intervals can be particularly
 useful to trigger the callback *before* the reference time.
 
-For example:
+In the following examples, ``notify_team`` is either a SyncCallback or AsyncCallback defined elsewhere:
 
 .. code-block:: python
 
@@ -341,17 +425,16 @@ implement an ``_evaluate_with()`` method.
 
 .. code-block:: python
 
-    from airflow.models.deadline import ReferenceModels
     from sqlalchemy.orm import Session
 
     from airflow.sdk import DeadlineReference
-    from airflow.sdk.definitions.deadline import deadline_reference
+    from airflow.sdk.definitions.deadline import BaseDeadlineReference, deadline_reference
     from airflow.sdk.timezone import datetime
 
 
     # By default, the evaluate_with method will be executed when the dagrun is created.
     @deadline_reference()
-    class MyCustomDecoratedReference(ReferenceModels.BaseDeadlineReference):
+    class MyCustomDecoratedReference(BaseDeadlineReference):
         """A custom reference evaluated when Dag runs are created."""
 
         def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
@@ -361,7 +444,7 @@ implement an ``_evaluate_with()`` method.
 
     # You can specify when evaluate_with will be called by providing a DeadlineReference.TYPES value.
     @deadline_reference(DeadlineReference.TYPES.DAGRUN_QUEUED)
-    class MyQueuedReference(ReferenceModels.BaseDeadlineReference):
+    class MyQueuedReference(BaseDeadlineReference):
         """A custom reference evaluated when Dag runs are queued."""
 
         required_kwargs = {"custom_param"}
@@ -379,8 +462,7 @@ Once registered [see notes below], use your custom references in Dag definitions
 .. code-block:: python
 
     from datetime import timedelta
-    from airflow import DAG
-    from airflow.sdk import AsyncCallback, DeadlineAlert, DeadlineReference
+    from airflow.sdk import AsyncCallback, DAG, DeadlineAlert, DeadlineReference
 
     with DAG(
         dag_id="custom_reference_example",
@@ -392,6 +474,48 @@ Once registered [see notes below], use your custom references in Dag definitions
     ):
         # Your tasks here
         ...
+
+Multiple Deadline Alerts
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+A Dag can have multiple Deadline Alerts. Pass a list to the ``deadline`` parameter instead of a single
+``DeadlineAlert``. Each alert in the list is evaluated independently, and each may use any combination
+of reference points and callback types (sync or async).
+
+.. code-block:: python
+
+    from datetime import timedelta
+    from airflow.sdk import AsyncCallback, DAG, DeadlineAlert, DeadlineReference, SyncCallback
+    from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
+    from airflow.providers.standard.operators.empty import EmptyOperator
+
+    with DAG(
+        dag_id="multiple_deadline_alerts",
+        deadline=[
+            # First alert: warn via Slack (async) if not done 30 min after queuing
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=30),
+                callback=AsyncCallback(
+                    SlackWebhookNotifier,
+                    kwargs={"text": "⚠️ Dag {{ dag_run.dag_id }} is approaching its deadline."},
+                ),
+            ),
+            # Second alert: escalate via custom sync callback if not done 60 min after queuing
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=60),
+                callback=SyncCallback(
+                    "my_plugins.escalation.escalate_to_oncall",
+                    kwargs={"severity": "high"},
+                ),
+            ),
+        ],
+    ):
+        EmptyOperator(task_id="example_task")
+
+This pattern is useful for creating tiered alerting strategies — for example, a warning notification
+followed by a more urgent escalation if the Dag is still running.
 
 **Important Notes:**
 

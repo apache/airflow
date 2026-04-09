@@ -51,12 +51,15 @@ class FakeDBManager(BaseDBManager):
         FakeDBManager.instances.append(self)
         FakeDBManager.last_instance = self
 
-    def resetdb(self, skip_init=False):
-        return self._resetdb_mock(skip_init=skip_init)
+    def resetdb(self, skip_init=False, use_migration_files=False):
+        return self._resetdb_mock(skip_init=skip_init, use_migration_files=use_migration_files)
 
-    def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False):
+    def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False, use_migration_files=False):
         return self._upgradedb_mock(
-            to_revision=to_revision, from_revision=from_revision, show_sql_only=show_sql_only
+            to_revision=to_revision,
+            from_revision=from_revision,
+            show_sql_only=show_sql_only,
+            use_migration_files=use_migration_files,
         )
 
     def downgrade(self, to_revision, from_revision=None, show_sql_only=False):
@@ -90,7 +93,9 @@ class TestCliDbManager:
 
         mock_get_db_manager.assert_called_once_with(manager_name)
         assert len(FakeDBManager.instances) == 1
-        FakeDBManager.last_instance._resetdb_mock.assert_called_once_with(skip_init=False)
+        FakeDBManager.last_instance._resetdb_mock.assert_called_once_with(
+            skip_init=False, use_migration_files=False
+        )
 
     @mock.patch("airflow.cli.commands.db_manager_command.settings.Session", autospec=True)
     @mock.patch("airflow.cli.commands.db_manager_command._get_db_manager")
@@ -102,7 +107,24 @@ class TestCliDbManager:
         db_manager_command.resetdb(args)
         mock_get_db_manager.assert_called_once_with(manager_name)
         assert len(FakeDBManager.instances) == 1
-        FakeDBManager.last_instance._resetdb_mock.assert_called_once_with(skip_init=True)
+        FakeDBManager.last_instance._resetdb_mock.assert_called_once_with(
+            skip_init=True, use_migration_files=False
+        )
+
+    @mock.patch("airflow.cli.commands.db_manager_command.settings.Session", autospec=True)
+    @mock.patch("airflow.cli.commands.db_manager_command._get_db_manager")
+    def test_cli_resetdb_use_migration_files(self, mock_get_db_manager, mock_session):
+        manager_name = "path.to.FakeDBManager"
+        mock_get_db_manager.return_value = FakeDBManager
+
+        args = self.parser.parse_args(["db-manager", "reset", manager_name, "--yes", "--use-migration-files"])
+        db_manager_command.resetdb(args)
+
+        mock_get_db_manager.assert_called_once_with(manager_name)
+        assert len(FakeDBManager.instances) == 1
+        FakeDBManager.last_instance._resetdb_mock.assert_called_once_with(
+            skip_init=False, use_migration_files=True
+        )
 
     @mock.patch("airflow.cli.commands.db_manager_command.input")
     @mock.patch("airflow.cli.commands.db_manager_command._get_db_manager")
@@ -113,7 +135,9 @@ class TestCliDbManager:
         args = self.parser.parse_args(["db-manager", "reset", manager_name])
         db_manager_command.resetdb(args)
         assert len(FakeDBManager.instances) == 1
-        FakeDBManager.last_instance._resetdb_mock.assert_called_once_with(skip_init=False)
+        FakeDBManager.last_instance._resetdb_mock.assert_called_once_with(
+            skip_init=False, use_migration_files=False
+        )
 
     @mock.patch("airflow.cli.commands.db_manager_command.input")
     @mock.patch("airflow.cli.commands.db_manager_command._get_db_manager")
@@ -164,13 +188,14 @@ class TestCliDbManager:
                 "--from-revision",
                 "def",
                 "--show-sql-only",
+                "--use-migration-files",
             ]
         )
         db_manager_command.migratedb(args)
 
         assert FakeDBManager.last_instance is not None
         FakeDBManager.last_instance._upgradedb_mock.assert_called_once_with(
-            to_revision="abc", from_revision="def", show_sql_only=True
+            to_revision="abc", from_revision="def", show_sql_only=True, use_migration_files=True
         )
 
     @mock.patch("airflow.cli.commands.db_manager_command.settings.Session", autospec=True)

@@ -101,6 +101,7 @@ export const BasicTooltip = ({ children, content }: Props): ReactElement => {
           borderRadius="md"
           boxShadow="md"
           color="fg.inverted"
+          data-testid="basic-tooltip"
           fontSize="sm"
           left={`${rect.left + scrollX + rect.width / 2}px`}
           paddingX="3"

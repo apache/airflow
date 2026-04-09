@@ -204,6 +204,65 @@ Provider Examples
    For Azure app registration and OAuth setup, see :doc:`apache-airflow-providers-microsoft-azure:connections/azure`
    and the `Azure OAuth2 documentation <https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow>`_.
 
+**Azure AD with Group-Based Authorization**
+
+.. code-block:: python
+
+   from flask_appbuilder.security.manager import AUTH_OAUTH
+
+   AUTH_TYPE = AUTH_OAUTH
+
+   AUTH_OAUTH_ROLE_KEYS = {
+       "azure": "groups",
+   }
+
+   OAUTH_PROVIDERS = [
+       {
+           "name": "azure",
+           "token_key": "access_token",
+           "icon": "fa-windows",
+           "remote_app": {
+               "client_id": "your-client-id",
+               "client_secret": "your-client-secret",
+               "api_base_url": "https://login.microsoftonline.com/<tenant-id>/v2.0",
+               "client_kwargs": {
+                   "scope": "openid email profile groups",
+                   "resource": "your-client-id",
+                   "verify_signature": True,
+               },
+               "request_token_url": None,
+               "access_token_url": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token",
+               "authorize_url": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/authorize",
+           },
+       }
+   ]
+
+   AUTH_ROLES_MAPPING = {
+       "airflow-admin-group": ["Admin"],
+       "airflow-op-group": ["Op"],
+       "airflow-user-group": ["User"],
+       "airflow-viewer-group": ["Viewer"],
+   }
+
+   AUTH_ROLES_SYNC_AT_LOGIN = True
+
+   AUTH_USER_REGISTRATION = True
+   AUTH_USER_REGISTRATION_ROLE = "Viewer"
+
+.. note::
+   When using Azure AD groups:
+
+   - Ensure the ``groups`` scope is included in ``client_kwargs``
+   - Configure group claims in your Azure app registration
+   - The ``AUTH_OAUTH_ROLE_KEYS`` setting allows you to specify which claim field
+     contains the authorization information (``roles`` or ``groups``)
+   - Group names from Azure AD will be matched against ``AUTH_ROLES_MAPPING``
+
+.. important::
+   The ``AUTH_OAUTH_ROLE_KEYS`` configuration is provider-specific. For Azure,
+   you can set it to ``"roles"`` (default) or ``"groups"`` depending on your
+   Azure AD setup. Other OAuth providers may use different field names.
+
 **Google OAuth2**
 
 .. code-block:: bash

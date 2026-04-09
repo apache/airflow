@@ -17,6 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import json
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from airflow.sdk import BaseHook
@@ -113,3 +116,47 @@ class TestBaseHook:
             assert retrieved_conn.conn_id == "CONN_A"
 
             mock_supervisor_comms.send.assert_not_called()
+
+    def test_get_connection_aws_auth_manager(self, mock_supervisor_comms):
+        """
+        Test that hooks can retrieve connections without conn_type from backends
+        like AWS Secrets Manager (AF2 compatibility).
+        """
+        secret_value = json.dumps(
+            {
+                "host": "mydb.us-east-1.rds.amazonaws.com",
+                "port": 5432,
+                "login": "admin",
+                "password": "secret123",
+                "schema": "production",
+            }
+        )
+
+        mock_client = MagicMock()
+        mock_client.get_secret_value.return_value = {"SecretString": secret_value}
+
+        with patch(
+            "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend.client",
+            new_callable=lambda: mock_client,
+        ):
+            with conf_vars(
+                {
+                    (
+                        "secrets",
+                        "backend",
+                    ): "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend",
+                    ("secrets", "backend_kwargs"): '{"connections_prefix": "airflow/connections"}',
+                }
+            ):
+                hook = BaseHook(logger_name="")
+                retrieved_conn = hook.get_connection(conn_id="my_db_conn")
+
+                assert retrieved_conn.conn_id == "my_db_conn"
+                assert retrieved_conn.conn_type is None
+                assert retrieved_conn.host == "mydb.us-east-1.rds.amazonaws.com"
+                assert retrieved_conn.port == 5432
+                assert retrieved_conn.login == "admin"
+                assert retrieved_conn.password == "secret123"
+                assert retrieved_conn.schema == "production"
+
+                mock_client.get_secret_value.assert_called_once()

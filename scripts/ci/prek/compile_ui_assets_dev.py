@@ -20,10 +20,7 @@ from __future__ import annotations
 import os
 import signal
 import subprocess
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_ROOT_PATH
 
 # NOTE!. This script is executed from a node environment created by a prek hook, and this environment

@@ -29,7 +29,6 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
-    BackfillDetails,
     ConnectionDetails,
     DagDetails,
     PoolDetails,
@@ -46,7 +45,9 @@ from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.configuration import conf
 from airflow.models import Connection, DagModel, Pool, Variable
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.revoked_token import RevokedToken
 from airflow.models.team import Team, dag_bundle_team_association_table
+from airflow.typing_compat import Unpack
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -54,6 +55,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from fastapi import FastAPI
+    from sqlalchemy import Row
     from sqlalchemy.orm import Session
 
     from airflow.api_fastapi.auth.managers.models.batch_apis import (
@@ -117,11 +119,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
     """
 
     def init(self) -> None:
-        """
-        Run operations when Airflow is initializing.
+        """Run operations when Airflow is initializing."""
+        if conf.getboolean("core", "multi_team"):
+            am_teams = self._get_teams()
+            db_teams = Team.get_all_team_names()
 
-        By default, do nothing.
-        """
+            if not db_teams.issuperset(am_teams):
+                raise ValueError(
+                    f"Teams defined in the auth manager ({am_teams}) are not present in the database ({db_teams})."
+                )
 
     @abstractmethod
     def deserialize_user(self, token: dict[str, Any]) -> T:
@@ -131,6 +137,10 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
     def serialize_user(self, user: T) -> dict[str, Any]:
         """Create a subject and extra claims dict from a user object."""
 
+    def revoke_token(self, token: str) -> None:
+        """Revoke a JWT token by persisting its JTI in the database."""
+        self._get_token_validator().revoke_token(token)
+
     async def get_user_from_token(self, token: str) -> BaseUser:
         """Verify the JWT token is valid and create a user object from it if valid."""
         try:
@@ -138,6 +148,9 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         except InvalidTokenError as e:
             log.error("JWT token is not valid: %s", e)
             raise e
+
+        if (jti := payload.get("jti")) and RevokedToken.is_revoked(jti):
+            raise InvalidTokenError("Token has been revoked")
 
         try:
             return self.deserialize_user(payload)
@@ -228,22 +241,6 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param access_entity: the kind of DAG information the authorization request is about.
             If not provided, the authorization request is about the DAG itself
         :param details: optional details about the DAG
-        """
-
-    @abstractmethod
-    def is_authorized_backfill(
-        self,
-        *,
-        method: ResourceMethod,
-        user: T,
-        details: BackfillDetails | None = None,
-    ) -> bool:
-        """
-        Return whether the user is authorized to perform a given action on a backfill.
-
-        :param method: the method to perform
-        :param user: the user to performing the action
-        :param details: optional details about the backfill
         """
 
     @abstractmethod
@@ -569,8 +566,9 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
                 isouter=True,
             )
         )
-        rows = session.execute(stmt).all()
-        dags_by_team: dict[str | None, set[str]] = defaultdict(set)
+        # The below type annotation is acceptable on SQLA2.1, but not on 2.0
+        rows: Sequence[Row[Unpack[tuple[str, str]]]] = session.execute(stmt).all()  # type: ignore[type-arg]
+        dags_by_team: dict[str, set[str]] = defaultdict(set)
         for dag_id, team_name in rows:
             dags_by_team[team_name].add(dag_id)
 
@@ -803,6 +801,14 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param user: the user
         """
         return []
+
+    def _get_teams(self) -> set[str]:
+        """
+        Return the set of teams defined in the auth manager.
+
+        This method is used only when the Airflow environment is configured in multi-team mode.
+        """
+        raise NotImplementedError()
 
     @staticmethod
     def get_db_manager() -> str | None:

@@ -53,6 +53,7 @@ REGION = "europe-west1"
 
 # Cluster definition
 CLUSTER_CONFIG = {
+    "cluster_type": "STANDARD",
     "cluster_tier": "CLUSTER_TIER_STANDARD",
     "master_config": {
         "num_instances": 1,

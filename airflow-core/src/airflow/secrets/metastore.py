@@ -57,7 +57,8 @@ class MetastoreBackend(BaseSecretsBackend):
             )
             .limit(1)
         )
-        session.expunge_all()
+        if conn:
+            session.expunge(conn)
         return conn
 
     @provide_session
@@ -79,7 +80,7 @@ class MetastoreBackend(BaseSecretsBackend):
             .where(Variable.key == key, or_(Variable.team_name == team_name, Variable.team_name.is_(None)))
             .limit(1)
         )
-        session.expunge_all()
         if var_value:
+            session.expunge(var_value)
             return var_value.val
         return None

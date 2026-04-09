@@ -132,6 +132,7 @@
     "intervalStart": "Inici",
     "loading": "Carregant informació del Dag...",
     "loadingFailed": "No s'ha pogut carregar la informació del Dag. Si us plau, torneu-ho a intentar.",
+    "manualRunDenied": "Aquest Dag no permet execucions manuals",
     "runIdHelp": "Opcional - es generarà si no es proporciona",
     "selectDescription": "Executar una única execució d'aquest Dag",
     "selectLabel": "Execució única",

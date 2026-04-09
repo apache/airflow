@@ -1,0 +1,10 @@
+{
+  "mapped": "Отображено",
+  "notMapped": "Не отображено",
+  "retries": "Повторные попытки",
+  "searchTasks": "Поиск задач",
+  "selectMapped": "Выбрать отображенные",
+  "selectOperator": "Выбрать операторы",
+  "selectRetryValues": "Выбрать значения повторов",
+  "selectTriggerRules": "Выбрать правила триггера"
+}

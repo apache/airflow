@@ -28,7 +28,6 @@ Create Date: 2024-08-23 14:26:08.250493
 from __future__ import annotations
 
 import sqlalchemy as sa
-import sqlalchemy_jsonfield
 from alembic import op
 
 import airflow
@@ -49,7 +48,7 @@ def upgrade():
         sa.Column("dag_id", sa.String(length=250), nullable=False),
         sa.Column("from_date", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),
         sa.Column("to_date", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),
-        sa.Column("dag_run_conf", sqlalchemy_jsonfield.jsonfield.JSONField(), nullable=False),
+        sa.Column("dag_run_conf", sa.JSON(), nullable=False),
         sa.Column("is_paused", sa.Boolean(), nullable=True),
         sa.Column("max_active_runs", sa.Integer(), nullable=False),
         sa.Column("created_at", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),

@@ -17,12 +17,21 @@
 
 from __future__ import annotations
 
+import argparse
 from argparse import BooleanOptionalAction
 from textwrap import dedent
 
 import pytest
 
-from airflowctl.ctl.cli_config import ActionCommand, CommandFactory, GroupCommand, merge_commands
+from airflowctl.ctl.cli_config import (
+    ARG_AUTH_TOKEN,
+    ActionCommand,
+    Arg,
+    CommandFactory,
+    GroupCommand,
+    add_auth_token_to_all_commands,
+    merge_commands,
+)
 
 
 @pytest.fixture
@@ -280,6 +289,22 @@ class TestCommandFactory:
 
 
 class TestCliConfigMethods:
+    def test_add_to_parser_drops_type_for_boolean_optional_action(self):
+        """Test add_to_parser removes type for BooleanOptionalAction."""
+        parser = argparse.ArgumentParser()
+        arg = Arg(
+            flags=("--run-backwards",),
+            action=BooleanOptionalAction,
+            default=False,
+            help="run_backwards for backfill operation",
+            type=bool,
+        )
+
+        arg.add_to_parser(parser)
+
+        assert parser.parse_args(["--run-backwards"]).run_backwards is True
+        assert parser.parse_args(["--no-run-backwards"]).run_backwards is False
+
     def test_merge_commands(self, no_op_method):
         """Test the merge_commands method."""
         # Create two Command objects with different names and help texts
@@ -355,6 +380,68 @@ class TestCliConfigMethods:
                 assert "subcommand2" in sub_command_names
                 assert "subcommand3" in sub_command_names
                 assert "subcommand4" in sub_command_names
+
+    def test_add_auth_token_to_all_commands(self, no_op_method):
+        """Test the add_auth_token_to_all_commands method."""
+        ARG_1 = Arg(
+            flags=("--arg1",),
+        )
+        ARG_2 = Arg(
+            flags=("--arg1",),
+        )
+        action_commands_1 = (
+            ActionCommand(
+                name="subcommand1",
+                help="This is subcommand 1",
+                func=no_op_method,
+                args=(),
+            ),
+            ActionCommand(
+                name="subcommand2",
+                help="This is subcommand 2",
+                func=no_op_method,
+                args=(ARG_1,),
+            ),
+        )
+        command_list = [
+            GroupCommand(
+                name="command1",
+                help="This is command 1 new help",
+                description="This is command 1 new description",
+                subcommands=action_commands_1,
+            ),
+            ActionCommand(
+                name="command2",
+                help="This is command 2",
+                func=no_op_method,
+                args=(ARG_1, ARG_2),
+            ),
+        ]
+
+        command_list = add_auth_token_to_all_commands(command_list)
+
+        merged_command_names = [command.name for command in command_list]
+        assert "command1" in merged_command_names
+        assert "command2" in merged_command_names
+        assert len(command_list) == 2
+
+        expected_subcommand_1_args = [ARG_AUTH_TOKEN]
+        expected_subcommand_2_args = [ARG_1, ARG_AUTH_TOKEN]
+        expected_command_2_args = [ARG_1, ARG_2, ARG_AUTH_TOKEN]
+
+        for command in command_list:
+            if command.name == "command1":
+                sub_command_names = [sc.name for sc in list(command.subcommands)]
+                assert "subcommand1" in sub_command_names
+                assert "subcommand2" in sub_command_names
+                assert len(sub_command_names) == 2
+                for sub_command in command.subcommands:
+                    if sub_command.name == "subcommand1":
+                        assert sub_command.args == expected_subcommand_1_args
+                    if sub_command.name == "subcommand2":
+                        assert sub_command.args == expected_subcommand_2_args
+            if command.name == "command2":
+                assert command.args == expected_command_2_args
 
     def test_trigger_dag_run_defaults_logical_date_to_now(self):
         """Test that trigger command defaults logical_date to now when not provided."""

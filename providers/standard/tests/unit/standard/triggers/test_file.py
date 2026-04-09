@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 
+import anyio
 import pytest
 
 from airflow.providers.standard.triggers.file import FileDeleteTrigger, FileTrigger
@@ -43,7 +44,7 @@ class TestFileTrigger:
     async def test_task_file_trigger(self, tmp_path):
         """Asserts that the trigger only goes off on or after file is found"""
         tmp_dir = tmp_path / "test_dir"
-        tmp_dir.mkdir()
+        await anyio.Path(tmp_dir).mkdir()
         p = tmp_dir / "hello.txt"
 
         trigger = FileTrigger(
@@ -84,7 +85,7 @@ class TestFileDeleteTrigger:
     async def test_file_delete_trigger(self, tmp_path):
         """Asserts that the trigger goes off on or after file is found and that the files gets deleted."""
         tmp_dir = tmp_path / "test_dir"
-        tmp_dir.mkdir()
+        await anyio.Path(tmp_dir).mkdir()
         p = tmp_dir / "hello.txt"
 
         trigger = FileDeleteTrigger(
@@ -101,7 +102,7 @@ class TestFileDeleteTrigger:
         p.touch()
 
         await asyncio.sleep(0.5)
-        assert p.exists() is False
+        assert await anyio.Path(p).exists() is False
 
         # Prevents error when task is destroyed while in "pending" state
         asyncio.get_event_loop().stop()

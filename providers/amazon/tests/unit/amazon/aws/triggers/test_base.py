@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 
 if TYPE_CHECKING:
@@ -124,4 +125,22 @@ class TestAwsBaseWaiterTrigger:
         wait_mock.assert_called_once()
         assert isinstance(res.payload, dict)
         assert res.payload["status"] == "success"
+        assert res.payload["hello"] == "world"
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.amazon.aws.triggers.base.async_wait",
+        side_effect=AirflowException("AWS Glue job failed.\nTerminal failure"),
+    )
+    async def test_run_error_yields_event(self, wait_mock: MagicMock):
+        self.trigger.return_key = "hello"
+        self.trigger.return_value = "world"
+
+        generator = self.trigger.run()
+        res: TriggerEvent = await generator.asend(None)
+
+        wait_mock.assert_called_once()
+        assert isinstance(res.payload, dict)
+        assert res.payload["status"] == "error"
+        assert "AWS Glue job failed." in res.payload["message"]
         assert res.payload["hello"] == "world"

@@ -43,6 +43,8 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     SCHEDULE_START_DATE,
     START_TIME_OF_DAY,
     STATUS,
+    TRANSFER_JOB,
+    TRANSFER_JOB_FIELD_MASK,
     TRANSFER_OPTIONS,
     TRANSFER_SPEC,
     GcpTransferJobsStatus,
@@ -56,6 +58,7 @@ from airflow.providers.google.cloud.operators.cloud_storage_transfer_service imp
     CloudDataTransferServiceListOperationsOperator,
     CloudDataTransferServicePauseOperationOperator,
     CloudDataTransferServiceResumeOperationOperator,
+    CloudDataTransferServiceUpdateJobOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service import (
@@ -106,6 +109,21 @@ aws_to_gcs_transfer_body = {
 
 aws_to_gcs_transfer_body_2 = deepcopy(aws_to_gcs_transfer_body)
 aws_to_gcs_transfer_body_2[JOB_NAME] = GCP_TRANSFER_JOB_2_NAME
+
+# [START howto_operator_gcp_transfer_update_job_body_aws]
+update_body = {
+    PROJECT_ID: GCP_PROJECT_ID,
+    TRANSFER_JOB: {
+        DESCRIPTION: "description_updated",
+        TRANSFER_SPEC: {
+            AWS_S3_DATA_SOURCE: {BUCKET_NAME: BUCKET_SOURCE_AWS},
+            GCS_DATA_SINK: {BUCKET_NAME: BUCKET_TARGET_GCS},
+            TRANSFER_OPTIONS: {ALREADY_EXISTING_IN_SINK: True},
+        },
+    },
+    TRANSFER_JOB_FIELD_MASK: "description,transferSpec",
+}
+# [END howto_operator_gcp_transfer_update_job_body_aws]
 
 with DAG(
     dag_id=DAG_ID,
@@ -187,6 +205,14 @@ with DAG(
     )
     # [END howto_operator_gcp_transfer_wait_operation]
 
+    # [START howto_operator_gcp_transfer_update_job]
+    update_transfer_job_s3_to_gcs = CloudDataTransferServiceUpdateJobOperator(
+        task_id="update_transfer_job_s3_to_gcs",
+        job_name="{{task_instance.xcom_pull('create_transfer_job_s3_to_gcs')['name']}}",
+        body=update_body,
+    )
+    # [END howto_operator_gcp_transfer_update_job]
+
     create_second_transfer_job_from_aws = CloudDataTransferServiceCreateJobOperator(
         task_id="create_transfer_job_s3_to_gcs_2", body=aws_to_gcs_transfer_body_2
     )
@@ -247,6 +273,9 @@ with DAG(
         >> get_operation
         >> resume_operation
         >> wait_for_operation_to_end
+        # [START howto_operator_gcp_transfer_update_job_aws]
+        >> update_transfer_job_s3_to_gcs
+        # [END howto_operator_gcp_transfer_update_job_aws]
         >> create_second_transfer_job_from_aws
         >> wait_for_operation_to_start_2
         >> cancel_operation

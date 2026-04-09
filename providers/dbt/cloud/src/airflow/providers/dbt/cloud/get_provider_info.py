@@ -50,7 +50,16 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook",
+                "hook-name": "dbt Cloud",
                 "connection-type": "dbt_cloud",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port"],
+                    "relabeling": {"login": "Account ID", "password": "API Token", "host": "Tenant"},
+                    "placeholders": {
+                        "host": "Defaults to 'cloud.getdbt.com'.",
+                        "extra": "Optional JSON-formatted extra.",
+                    },
+                },
             }
         ],
         "extra-links": ["airflow.providers.dbt.cloud.operators.dbt.DbtCloudRunJobOperatorLink"],

@@ -383,7 +383,7 @@ class SerializedBaseOperator(DAGNode):
 
     def iter_mapped_dependants(self) -> Iterator[SerializedMappedOperator | SerializedMappedTaskGroup]:
         """
-        Return mapped nodes that depend on the current task the expansion.
+        Return mapped nodes that depend on the current task for expansion.
 
         For now, this walks the entire DAG to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it

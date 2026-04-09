@@ -46,6 +46,7 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     SECRET_ACCESS_KEY,
     START_TIME_OF_DAY,
     STATUS,
+    TRANSFER_JOB,
     TRANSFER_SPEC,
 )
 from airflow.providers.google.cloud.openlineage.facets import (
@@ -432,6 +433,88 @@ class TestGcpStorageTransferJobUpdateOperator:
         )
         mock_hook.return_value.update_transfer_job.assert_called_once_with(job_name=JOB_NAME, body=body)
         assert result == VALID_TRANSFER_JOB_GCS
+
+    @pytest.mark.skipif(boto3 is None, reason="Skipping test because boto3 is not available")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsBaseHook")
+    def test_job_update_with_aws_s3_source_camel_case(self, aws_hook, mock_hook):
+        """Test that AWS credentials are injected for update body with camelCase 'transferJob' key."""
+        aws_hook.return_value.get_credentials.return_value = Credentials(
+            TEST_AWS_ACCESS_KEY_ID, TEST_AWS_ACCESS_SECRET, None
+        )
+        mock_hook.return_value.update_transfer_job.return_value = VALID_TRANSFER_JOB_AWS
+
+        body = {
+            "transferJob": {
+                TRANSFER_SPEC: deepcopy(SOURCE_AWS),
+            },
+            "updateTransferJobFieldMask": TRANSFER_SPEC,
+        }
+        op = CloudDataTransferServiceUpdateJobOperator(
+            job_name=JOB_NAME,
+            body=body,
+            task_id=TASK_ID,
+        )
+        op.execute(context=mock.MagicMock())
+
+        # Verify AWS credentials were injected into the inner transfer job body
+        assert body["transferJob"][TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ACCESS_KEY] == TEST_AWS_ACCESS_KEY
+        mock_hook.return_value.update_transfer_job.assert_called_once_with(job_name=JOB_NAME, body=body)
+
+    @pytest.mark.skipif(boto3 is None, reason="Skipping test because boto3 is not available")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsBaseHook")
+    def test_job_update_with_aws_s3_source_snake_case(self, aws_hook, mock_hook):
+        """Test that AWS credentials are injected for update body with snake_case 'transfer_job' key."""
+        aws_hook.return_value.get_credentials.return_value = Credentials(
+            TEST_AWS_ACCESS_KEY_ID, TEST_AWS_ACCESS_SECRET, None
+        )
+        mock_hook.return_value.update_transfer_job.return_value = VALID_TRANSFER_JOB_AWS
+
+        body = {
+            TRANSFER_JOB: {
+                TRANSFER_SPEC: deepcopy(SOURCE_AWS),
+            },
+            "update_transfer_job_field_mask": TRANSFER_SPEC,
+        }
+        op = CloudDataTransferServiceUpdateJobOperator(
+            job_name=JOB_NAME,
+            body=body,
+            task_id=TASK_ID,
+        )
+        op.execute(context=mock.MagicMock())
+
+        # Verify AWS credentials were injected into the inner transfer job body
+        assert body[TRANSFER_JOB][TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ACCESS_KEY] == TEST_AWS_ACCESS_KEY
+        mock_hook.return_value.update_transfer_job.assert_called_once_with(job_name=JOB_NAME, body=body)
+
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsBaseHook")
+    def test_job_update_with_aws_role_arn_does_not_inject_credentials(self, aws_hook, mock_hook):
+        """Test that AWS credentials are NOT injected when roleArn is present."""
+        mock_hook.return_value.update_transfer_job.return_value = VALID_TRANSFER_JOB_AWS_ROLE_ARN
+
+        body = {
+            "transferJob": {
+                TRANSFER_SPEC: deepcopy(SOURCE_AWS_ROLE_ARN),
+            },
+            "updateTransferJobFieldMask": TRANSFER_SPEC,
+        }
+        op = CloudDataTransferServiceUpdateJobOperator(
+            job_name=JOB_NAME,
+            body=body,
+            task_id=TASK_ID,
+        )
+        op.execute(context=mock.MagicMock())
+
+        # Verify AWS credentials were NOT injected
+        assert AWS_ACCESS_KEY not in body["transferJob"][TRANSFER_SPEC][AWS_S3_DATA_SOURCE]
 
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all

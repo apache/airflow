@@ -83,7 +83,7 @@ class GoogleDriveToGCSOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> list[str]:
         gdrive_hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -99,6 +99,11 @@ class GoogleDriveToGCSOperator(BaseOperator):
             bucket_name=self.bucket_name, object_name=self.object_name
         ) as file:
             gdrive_hook.download_file(file_id=file_metadata["id"], file_handle=file)
+
+        gcs_uri = f"gs://{self.bucket_name}/{self.object_name}"
+        result = [gcs_uri]
+
+        return result
 
     def dry_run(self):
         """Perform a dry run of the operator."""

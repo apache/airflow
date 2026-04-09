@@ -18,9 +18,13 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from airflow import DAG
 from airflow.providers.pinecone.operators.pinecone import PineconeIngestOperator
+
+if TYPE_CHECKING:
+    from pinecone.db_data.types import VectorTypedDict
 
 index_name = os.getenv("INDEX_NAME", "test")
 namespace = os.getenv("NAMESPACE", "example-pinecone-namespace")
@@ -33,13 +37,15 @@ with DAG(
     catchup=False,
 ) as dag:
     # [START howto_operator_pinecone_ingest]
+    input_vectors: list[VectorTypedDict] = [
+        {"id": "id1", "values": [1.0, 2.0, 3.0]},
+        {"id": "id2"},
+    ]
+
     PineconeIngestOperator(
         task_id="pinecone_vector_ingest",
         index_name=index_name,
-        input_vectors=[
-            ("id1", [1.0, 2.0, 3.0], {"key": "value"}),
-            ("id2", [1.0, 2.0, 3.0]),
-        ],
+        input_vectors=input_vectors,
         namespace=namespace,
         batch_size=1,
     )

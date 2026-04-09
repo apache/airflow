@@ -31,10 +31,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from rich import print
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_ROOT_PATH, check_list_sorted
+from rich import print
 
 errors: list[str] = []
 

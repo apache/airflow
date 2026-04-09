@@ -243,7 +243,7 @@ describe("buildTaskInstanceUrl", () => {
       }),
     ).toBe("/dags/new_dag/runs/new_run/tasks/group/new_group");
 
-    // Groups should never preserve tabs even for mapped groups
+    // Groups should never get /mapped appended — no such route exists for task groups
     expect(
       buildTaskInstanceUrl({
         currentPathname: "/dags/old/runs/old/tasks/group/old_group/events",
@@ -254,6 +254,21 @@ describe("buildTaskInstanceUrl", () => {
         runId: "new_run",
         taskId: "new_group",
       }),
-    ).toBe("/dags/new_dag/runs/new_run/tasks/group/new_group/mapped/3");
+    ).toBe("/dags/new_dag/runs/new_run/tasks/group/new_group");
+  });
+
+  it("should not append /mapped for dynamic task groups from grid view", () => {
+    // Regression test for https://github.com/apache/airflow/issues/63197
+    // Dynamic task groups have isMapped=true but no route exists for group/:groupId/mapped
+    expect(
+      buildTaskInstanceUrl({
+        currentPathname: "/dags/my_dag/runs/run_1/tasks/group/my_group",
+        dagId: "my_dag",
+        isGroup: true,
+        isMapped: true,
+        runId: "run_1",
+        taskId: "my_group",
+      }),
+    ).toBe("/dags/my_dag/runs/run_1/tasks/group/my_group");
   });
 });

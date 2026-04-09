@@ -20,11 +20,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKey, Index, String, Table, select
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow.models.base import Base, StringID
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -60,6 +59,12 @@ class Team(Base):
 
     def __repr__(self):
         return f"Team(name={self.name})"
+
+    @classmethod
+    @provide_session
+    def get_name_if_exists(cls, name: str, *, session: Session = NEW_SESSION) -> str | None:
+        """Return name if a Team row with that name exists, otherwise None."""
+        return session.scalar(select(cls.name).where(cls.name == name))
 
     @classmethod
     @provide_session

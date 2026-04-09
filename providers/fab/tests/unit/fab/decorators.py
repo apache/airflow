@@ -34,8 +34,6 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
             "init_api_auth",
             "init_plugins",
             "init_error_handlers",
-            "init_api_auth_provider",
-            "init_api_error_handlers",
             "init_jinja_globals",
             "init_airflow_session_interface",
             "init_appbuilder",

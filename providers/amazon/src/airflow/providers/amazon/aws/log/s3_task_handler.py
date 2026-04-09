@@ -68,7 +68,7 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
         """Returns S3Hook."""
         return S3Hook(
             aws_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"),
-            transfer_config_args={"use_threads": False},
+            transfer_config_args={"use_threads": False, "preferred_transfer_client": "classic"},
         )
 
     def s3_log_exists(self, remote_log_location: str) -> bool:

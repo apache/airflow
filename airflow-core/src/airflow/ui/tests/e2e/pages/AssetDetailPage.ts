@@ -41,19 +41,19 @@ export class AssetDetailPage extends BasePage {
     await expect(this.page.getByRole("heading", { name })).toBeVisible();
   }
 
-  public async verifyProducingTasks(minCount: number): Promise<void> {
-    await this.verifyStatSection("Producing Tasks", minCount);
+  public async verifyProducingTasks(): Promise<void> {
+    await this.verifyStatSection("Producing Tasks");
   }
 
-  public async verifyScheduledDags(minCount: number): Promise<void> {
-    await this.verifyStatSection("Scheduled Dags", minCount);
+  public async verifyScheduledDags(): Promise<void> {
+    await this.verifyStatSection("Scheduled Dags");
   }
 
   /**
    * Common helper to verify stat sections (Producing Tasks, Scheduled Dags)
    * Uses stable selectors based on text content and ARIA roles
    */
-  private async verifyStatSection(labelText: string, minCount: number): Promise<void> {
+  private async verifyStatSection(labelText: string): Promise<void> {
     const label = this.page.getByText(labelText, { exact: true });
 
     await expect(label).toBeVisible();
@@ -64,19 +64,17 @@ export class AssetDetailPage extends BasePage {
     const button = statContainer.getByRole("button").first();
 
     await expect(button).toBeVisible();
+    await expect(button).toHaveText(/^[1-9]/);
+
     const text = await button.textContent();
     const count = parseInt(text?.split(" ")[0] ?? "0", 10);
 
-    expect(count).toBeGreaterThanOrEqual(minCount);
+    await button.click();
+    await expect(button).toHaveAttribute("aria-expanded", "true", { timeout: 5000 });
+    const popoverLinks = this.page.getByRole("dialog").last().getByRole("link");
 
-    if (count > 0) {
-      await button.click();
-      await expect(button).toHaveAttribute("aria-expanded", "true", { timeout: 5000 });
-      const popoverLinks = this.page.getByRole("dialog").last().getByRole("link");
-
-      await expect(popoverLinks).toHaveCount(count);
-      await button.click();
-      await expect(button).toHaveAttribute("aria-expanded", "false", { timeout: 5000 });
-    }
+    await expect(popoverLinks).toHaveCount(count);
+    await button.click();
+    await expect(button).toHaveAttribute("aria-expanded", "false", { timeout: 5000 });
   }
 }

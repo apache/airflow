@@ -67,7 +67,7 @@ export const HourlyCalendarView = ({
   const hourlyData = generateHourlyCalendarData(data, selectedYear, selectedMonth);
 
   return (
-    <Box mb={4}>
+    <Box data-testid="calendar-hourly-view" mb={4}>
       <Box mb={4}>
         <Box display="flex" mb={2}>
           <Box width="40px" />
@@ -140,7 +140,7 @@ export const HourlyCalendarView = ({
         </Box>
       </Box>
 
-      <Box display="flex" gap={2}>
+      <Box data-testid="calendar-grid" display="flex" gap={2}>
         <Box display="flex" flexDirection="column" gap={0.5}>
           {Array.from({ length: 24 }, (_, hour) => (
             <Box

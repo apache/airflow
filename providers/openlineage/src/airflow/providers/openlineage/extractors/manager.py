@@ -19,9 +19,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.compat.openlineage.utils.utils import (
-    translate_airflow_asset,
-)
+from airflow.providers.common.compat.openlineage.utils.utils import translate_airflow_asset
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import BaseExtractor, OperatorLineage
 from airflow.providers.openlineage.extractors.base import (
@@ -93,7 +91,7 @@ class ExtractorManager(LoggingMixin):
         self.extractors[operator_class] = extractor
 
     def extract_metadata(
-        self, dagrun, task, task_instance_state: TaskInstanceState, task_instance=None
+        self, dagrun, task, task_instance_state: TaskInstanceState, task_instance
     ) -> OperatorLineage:
         extractor = self._get_extractor(task)
         task_info = (
@@ -126,16 +124,15 @@ class ExtractorManager(LoggingMixin):
                     task.task_id,
                     str(task_metadata),
                 )
-                task_metadata = self.validate_task_metadata(task_metadata)
-                if task_metadata:
-                    if (not task_metadata.inputs) and (not task_metadata.outputs):
-                        if (hook_lineage := self.get_hook_lineage()) is not None:
-                            inputs, outputs = hook_lineage
-                            task_metadata.inputs = inputs
-                            task_metadata.outputs = outputs
-                        else:
-                            self.extract_inlets_and_outlets(task_metadata, task)
-                    return task_metadata
+                task_metadata = self.validate_task_metadata(task_metadata) or OperatorLineage()
+                # If no inputs and outputs are present - check Hook Lineage
+                if (not task_metadata.inputs) and (not task_metadata.outputs):
+                    hook_lineage = self.get_hook_lineage(task_instance, task_instance_state)
+                    if hook_lineage is not None:
+                        task_metadata = task_metadata.merge(hook_lineage)
+                    else:  # Last resort - check manual annotations
+                        self.extract_inlets_and_outlets(task_metadata, task)
+                return task_metadata
 
             except Exception as e:
                 self.log.warning(
@@ -145,14 +142,12 @@ class ExtractorManager(LoggingMixin):
                     task_info,
                 )
                 self.log.debug("OpenLineage extraction failure details:", exc_info=True)
-        elif (hook_lineage := self.get_hook_lineage()) is not None:
-            inputs, outputs = hook_lineage
-            task_metadata = OperatorLineage(inputs=inputs, outputs=outputs)
-            return task_metadata
+        elif (hook_lineage := self.get_hook_lineage(task_instance, task_instance_state)) is not None:
+            return hook_lineage
         else:
             self.log.debug("Unable to find an extractor %s", task_info)
 
-            # Only include the unkonwnSourceAttribute facet if there is no extractor
+            # Only include the unknownSourceAttribute facet if there is no extractor
             task_metadata = OperatorLineage(
                 run_facets=get_unknown_source_attribute_run_facet(task=task),
             )
@@ -173,8 +168,6 @@ class ExtractorManager(LoggingMixin):
         return None
 
     def _get_extractor(self, task: BaseOperator) -> BaseExtractor | None:
-        # TODO: Re-enable in Extractor PR
-        # self.instantiate_abstract_extractors(task)
         extractor = self.get_extractor_class(task)
         self.log.debug("extractor for %s is %s", task.task_type, extractor)
         if extractor:
@@ -193,30 +186,76 @@ class ExtractorManager(LoggingMixin):
             if d:
                 task_metadata.outputs.append(d)
 
-    def get_hook_lineage(self) -> tuple[list[Dataset], list[Dataset]] | None:
+    def get_hook_lineage(
+        self,
+        task_instance=None,
+        task_instance_state: TaskInstanceState | None = None,
+    ) -> OperatorLineage | None:
+        """
+        Extract lineage from the Hook Lineage Collector.
+
+        Combines two sources into a single :class:`OperatorLineage`:
+
+        * **Asset-based** inputs/outputs reported via ``add_input_asset`` / ``add_output_asset``.
+        * **SQL-based** lineage from ``sql_job`` extras reported via
+          :func:`~airflow.providers.common.sql.hooks.lineage.send_sql_hook_lineage`.
+          When ``task_instance`` is provided, each extra is parsed and separate per-query
+          OpenLineage events are emitted.
+
+        Returns ``None`` when nothing was collected.
+        """
         try:
             from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+            from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
         except ImportError:
             return None
 
-        if not hasattr(get_hook_lineage_collector(), "has_collected"):
+        collector = get_hook_lineage_collector()
+        if not hasattr(collector, "has_collected"):
             return None
-        if not get_hook_lineage_collector().has_collected:
+        if not collector.has_collected:
             return None
 
         self.log.debug("OpenLineage will extract lineage from Hook Lineage Collector.")
-        return (
-            [
-                asset
-                for asset_info in get_hook_lineage_collector().collected_assets.inputs
-                if (asset := translate_airflow_asset(asset_info.asset, asset_info.context)) is not None
-            ],
-            [
-                asset
-                for asset_info in get_hook_lineage_collector().collected_assets.outputs
-                if (asset := translate_airflow_asset(asset_info.asset, asset_info.context)) is not None
-            ],
-        )
+        collected = collector.collected_assets
+
+        # Asset-based inputs/outputs - keep only assets that can be translated to OL datasets
+        inputs = [
+            asset
+            for asset_info in collected.inputs
+            if (asset := translate_airflow_asset(asset_info.asset, asset_info.context)) is not None
+        ]
+        outputs = [
+            asset
+            for asset_info in collected.outputs
+            if (asset := translate_airflow_asset(asset_info.asset, asset_info.context)) is not None
+        ]
+
+        # SQL-based lineage - keep only SQL extra with query_text or job_id.
+        sql_extras = [
+            info
+            for info in collected.extra
+            if info.key == SqlJobHookLineageExtra.KEY.value
+            and (
+                info.value.get(SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value)
+                or info.value.get(SqlJobHookLineageExtra.VALUE__JOB_ID.value)
+            )
+        ]
+
+        if sql_extras:
+            from airflow.providers.openlineage.utils.sql_hook_lineage import emit_lineage_from_sql_extras
+
+            self.log.debug("Found %s sql_job extra(s) in Hook Lineage Collector.", len(sql_extras))
+            emit_lineage_from_sql_extras(
+                task_instance=task_instance,
+                sql_extras=sql_extras,
+                is_successful=task_instance_state != TaskInstanceState.FAILED,
+            )
+
+        if not inputs and not outputs:
+            return None
+
+        return OperatorLineage(inputs=inputs, outputs=outputs)
 
     @staticmethod
     def convert_to_ol_dataset_from_object_storage_uri(uri: str) -> Dataset | None:

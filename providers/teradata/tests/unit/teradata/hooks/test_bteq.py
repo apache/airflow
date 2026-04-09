@@ -115,8 +115,8 @@ def test_execute_bteq_script_at_local_timeout(
         "sp": None,
     },
 )
-@patch("airflow.providers.teradata.hooks.bteq.verify_bteq_installed")  # <- patch here
-@patch("airflow.providers.teradata.hooks.bteq.prepare_bteq_command_for_local_execution")  # <- patch here too
+@patch("airflow.providers.teradata.hooks.bteq.verify_bteq_installed")
+@patch("airflow.providers.teradata.hooks.bteq.prepare_bteq_command_for_local_execution")
 def test_execute_bteq_script_at_local_success(
     mock_prepare_cmd,
     mock_verify_bteq,
@@ -149,7 +149,7 @@ def test_execute_bteq_script_at_local_success(
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        shell=True,
+        shell=False,
         start_new_session=True,
     )
     assert ret_code == 0

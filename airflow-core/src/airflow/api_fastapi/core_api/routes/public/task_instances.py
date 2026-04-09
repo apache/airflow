@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Annotated, Literal, cast
 
 import structlog
@@ -197,11 +198,10 @@ def get_mapped_task_instances(
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Get list of mapped task instances."""
-    query = (
-        select(TI)
-        .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0)
-        .join(TI.dag_run)
-        .options(*eager_load_TI_and_TIH_for_validation())
+    query = eager_load_TI_and_TIH_for_validation(
+        select(TI).where(
+            TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0
+        )
     )
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     unfiltered_total_count = get_query_count(query, session=session)
@@ -326,17 +326,15 @@ def get_task_instance_tries(
     """Get list of task instances history."""
 
     def _query(orm_object: Base) -> Select:
-        query = (
-            select(orm_object)
-            .where(
+        query = eager_load_TI_and_TIH_for_validation(
+            select(orm_object).where(
                 orm_object.dag_id == dag_id,
                 orm_object.run_id == dag_run_id,
                 orm_object.task_id == task_id,
                 orm_object.map_index == map_index,
-            )
-            .options(*eager_load_TI_and_TIH_for_validation(orm_object))
-            .options(joinedload(orm_object.hitl_detail))
-        )
+            ),
+            orm_model=orm_object,
+        ).options(joinedload(orm_object.hitl_detail))
         return query
 
     # Exclude TaskInstance with state UP_FOR_RETRY since they have been recorded in TaskInstanceHistory
@@ -410,7 +408,7 @@ def get_mapped_task_instance(
 
 @task_instances_router.get(
     task_instances_prefix,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def get_task_instances(
@@ -480,15 +478,18 @@ def get_task_instances(
     and DAG runs.
     """
     dag_run = None
-    query = (
-        select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(*eager_load_TI_and_TIH_for_validation())
-    )
+    query = eager_load_TI_and_TIH_for_validation(select(TI))
     if dag_run_id != "~":
-        dag_run = session.scalar(select(DagRun).filter_by(run_id=dag_run_id))
+        if dag_id == "~":
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "dag_id is required when dag_run_id is specified",
+            )
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
         if not dag_run:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
-                f"DagRun with run_id: `{dag_run_id}` was not found",
+                f"DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
             )
         query = query.where(TI.run_id == dag_run_id)
     if dag_id != "~":
@@ -614,9 +615,7 @@ def get_task_instances_batch(
         TI,
     ).set_value([body.order_by] if body.order_by else None)
 
-    query = (
-        select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(*eager_load_TI_and_TIH_for_validation())
-    )
+    query = eager_load_TI_and_TIH_for_validation(select(TI))
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=[
@@ -639,12 +638,6 @@ def get_task_instances_batch(
         limit=limit,
         session=session,
     )
-    task_instance_select = task_instance_select.options(
-        joinedload(TI.rendered_task_instance_fields),
-        joinedload(TI.task_instance_note),
-        joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)),
-    )
-
     task_instances = session.scalars(task_instance_select)
 
     return TaskInstanceCollectionResponse(
@@ -725,6 +718,7 @@ def post_clear_task_instances(
     dag_bag: DagBagDep,
     body: ClearTaskInstancesBody,
     session: SessionDep,
+    user: GetUserDep,
 ) -> TaskInstanceCollectionResponse:
     """Clear task instances."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
@@ -805,6 +799,7 @@ def post_clear_task_instances(
             *((t, m) for t, m in mapped_tasks_tuples if t not in normal_task_ids),
         ]
 
+    task_instances: Sequence[TI]
     if dag_run_id is not None and not (past or future):
         # Use run_id-based clearing when we have a specific dag_run_id and not using past/future
         task_instances = dag.clear(
@@ -841,6 +836,28 @@ def post_clear_task_instances(
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
 
+        if body.note is not None:
+            _patch_task_instance_note(
+                task_instance_body=body,
+                tis=task_instances,
+                user=user,
+            )
+
+    # Eagerly load rendered_task_instance_fields for serialization (lazy='raise' prevents lazy access).
+    # dag.clear() returns TIs without this relationship loaded; re-query with joinedload.
+    # populate_existing=True ensures the joinedload updates TIs already in the identity map.
+    if task_instances:
+        task_instances = (
+            session.scalars(
+                select(TI)
+                .options(joinedload(TI.rendered_task_instance_fields))
+                .where(TI.id.in_([ti.id for ti in task_instances]))
+                .execution_options(populate_existing=True)
+            )
+            .unique()
+            .all()
+        )
+
     return TaskInstanceCollectionResponse(
         task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],
         total_entries=len(task_instances),
@@ -874,6 +891,7 @@ def patch_task_instance_dry_run(
     update_mask: list[str] | None = Query(None),
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance dry_run mode."""
+    tis: Sequence[TI]
     dag, tis, data = _patch_ti_validate_request(
         dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask
     )
@@ -893,6 +911,21 @@ def patch_task_instance_dry_run(
                 session=session,
             )
             or []
+        )
+
+    # Eagerly load rendered_task_instance_fields for serialization (lazy='raise' prevents lazy access).
+    # dag.set_task_instance_state() may return TIs without this relationship loaded.
+    # populate_existing=True ensures the joinedload updates TIs already in the identity map.
+    if tis:
+        tis = (
+            session.scalars(
+                select(TI)
+                .options(joinedload(TI.rendered_task_instance_fields))
+                .where(TI.id.in_([ti.id for ti in tis]))
+                .execution_options(populate_existing=True)
+            )
+            .unique()
+            .all()
         )
 
     return TaskInstanceCollectionResponse(

@@ -47,7 +47,12 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.opsgenie.hooks.opsgenie.OpsgenieAlertHook",
+                "hook-name": "Opsgenie",
                 "connection-type": "opsgenie",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["port", "schema", "login", "extra"],
+                    "relabeling": {"password": "Opsgenie API Key"},
+                },
             }
         ],
         "notifications": ["airflow.providers.opsgenie.notifications.opsgenie.OpsgenieNotifier"],

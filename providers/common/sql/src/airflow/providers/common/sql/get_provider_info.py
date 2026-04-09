@@ -41,6 +41,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.common.sql.operators.sql",
                     "airflow.providers.common.sql.operators.generic_transfer",
+                    "airflow.providers.common.sql.operators.analytics",
                 ],
             }
         ],
@@ -55,6 +56,7 @@ def get_provider_info():
                 "integration-name": "Common SQL",
                 "python-modules": [
                     "airflow.providers.common.sql.hooks.handlers",
+                    "airflow.providers.common.sql.hooks.lineage",
                     "airflow.providers.common.sql.hooks.sql",
                 ],
             }
@@ -67,5 +69,12 @@ def get_provider_info():
         ],
         "sensors": [
             {"integration-name": "Common SQL", "python-modules": ["airflow.providers.common.sql.sensors.sql"]}
+        ],
+        "task-decorators": [
+            {"class-name": "airflow.providers.common.sql.decorators.sql.sql_task", "name": "sql"},
+            {
+                "class-name": "airflow.providers.common.sql.decorators.analytics.analytics_task",
+                "name": "analytics",
+            },
         ],
     }

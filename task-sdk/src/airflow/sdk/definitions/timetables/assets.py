@@ -23,12 +23,13 @@ import attrs
 
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
+from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
 
 if TYPE_CHECKING:
     from collections.abc import Collection
 
     from airflow.sdk import Asset
-    from airflow.sdk.definitions.partition_mapper.base import PartitionMapper
+    from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 
 
 @attrs.define
@@ -49,7 +50,8 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
     """Asset-driven timetable that listens for partitioned assets."""
 
     asset_condition: BaseAsset = attrs.field(alias="assets")
-    partition_mapper: PartitionMapper
+    partition_mapper_config: dict[BaseAsset, PartitionMapper] = attrs.field(factory=dict)
+    default_partition_mapper: PartitionMapper = IdentityMapper()
 
 
 def _coerce_assets(o: Collection[Asset] | BaseAsset) -> BaseAsset:

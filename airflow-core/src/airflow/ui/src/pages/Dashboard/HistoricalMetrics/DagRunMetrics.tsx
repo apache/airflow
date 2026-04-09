@@ -20,10 +20,6 @@ import { Box, Separator, Heading, HStack, Stack } from "@chakra-ui/react";
 import type { DAGRunStates } from "openapi-gen/requests/types.gen";
 import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
-import { Link as RouterLink } from "react-router-dom";
-
-import { StateBadge } from "src/components/StateBadge";
-import { SearchParamsKeys } from "src/constants/searchParams";
 
 import { MetricSection } from "./MetricSection";
 
@@ -31,31 +27,26 @@ type DagRunMetricsProps = {
   readonly dagRunStates: DAGRunStates;
   readonly endDate?: string;
   readonly startDate: string;
-  readonly total: number;
+  readonly stateCountLimit: number;
 };
 
 const DAGRUN_STATES: Array<keyof DAGRunStates> = ["queued", "running", "success", "failed"];
 
-export const DagRunMetrics = ({ dagRunStates, endDate, startDate, total }: DagRunMetricsProps) => {
+export const DagRunMetrics = ({ dagRunStates, endDate, startDate, stateCountLimit }: DagRunMetricsProps) => {
   const { t: translate } = useTranslation();
+  const total = Object.values(dagRunStates).reduce((sum, count) => sum + count, 0);
 
   return (
     <Box borderRadius={5} borderWidth={1} p={4}>
       <HStack>
-        <RouterLink
-          to={`/dag_runs?${SearchParamsKeys.START_DATE}=${startDate}${endDate === undefined ? "" : `&${SearchParamsKeys.END_DATE}=${endDate}`}`}
-        >
-          <StateBadge colorPalette="brand" fontSize="md" variant="solid">
-            <FiBarChart />
-            {total}
-          </StateBadge>
-        </RouterLink>
-        <Heading size="md">{translate("dagRun", { count: total })}</Heading>
+        <FiBarChart />
+        <Heading size="md">{translate("dagRun", { count: 2 })}</Heading>
       </HStack>
       <Separator my={3} />
       <Stack gap={4}>
         {DAGRUN_STATES.map((state) => (
           <MetricSection
+            capped={dagRunStates[state] >= stateCountLimit}
             endDate={endDate}
             key={state}
             kind="dag_runs"

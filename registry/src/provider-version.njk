@@ -1,0 +1,416 @@
+---
+pagination:
+  data: providerVersions
+  size: 1
+  alias: pv
+permalink: "/providers/{{ pv.provider.id }}/{{ pv.version }}/"
+layout: base.njk
+mainClass: provider-detail-page
+eleventyComputed:
+  title: "{{ pv.provider.name }} {{ pv.version }}"
+  description: "Apache Airflow Provider: {{ pv.provider.description }}"
+  noindex: "{% if not pv.isLatest %}true{% endif %}"
+---
+
+{# Choose data source: latest uses providers.json + modules.json, older uses versionData #}
+{% if pv.isLatest %}
+  {% set moduleCounts = moduleCountsByProvider[pv.provider.id] or {} %}
+  {% set deps = pv.provider.dependencies or [] %}
+  {% set extras = pv.provider.optional_extras or {} %}
+  {% set conns = pv.provider.connection_types or [] %}
+  {% set providerModules = pv.modules %}
+  {% set currentVersion = pv.provider.version %}
+  {% set pythonVersion = pv.provider.requires_python %}
+  {% set docsUrl = pv.provider.docs_url %}
+  {% set sourceUrl = pv.provider.source_url %}
+{% else %}
+  {% set moduleCounts = pv.versionData.module_counts or {} %}
+  {% set deps = pv.versionData.dependencies or [] %}
+  {% set extras = pv.versionData.optional_extras or {} %}
+  {% set conns = pv.versionData.connection_types or [] %}
+  {% set providerModules = pv.versionData.modules or [] %}
+  {% set currentVersion = pv.version %}
+  {% set pythonVersion = pv.versionData.requires_python %}
+  {% set docsUrl = pv.provider.docs_url %}
+  {% set sourceUrl = pv.provider.source_url %}
+{% endif %}
+
+{% set totalModules = 0 %}
+{% for t in types %}{% set totalModules = totalModules + (moduleCounts[t.id] or 0) %}{% endfor %}
+
+<div class="container">
+  {# Breadcrumb #}
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="{{ '/' | url }}">Home</a>
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+    </svg>
+    <a href="{{ '/providers/' | url }}">Providers</a>
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+    </svg>
+    <a href="{{ '/providers/' | url }}{{ pv.provider.id }}/">{{ pv.provider.name }}</a>
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+    </svg>
+    <span>{{ currentVersion }}</span>
+  </nav>
+
+  {% if not pv.isLatest %}
+  <div class="version-banner card">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <span>You are viewing version <strong>{{ currentVersion }}</strong>. <a id="latest-link" href="{{ '/providers/' | url }}{{ pv.provider.id }}/{{ pv.provider.version }}/">View latest (<span id="latest-version-label">{{ pv.provider.version }}</span>)</a></span>
+  </div>
+  {% endif %}
+
+  {# Provider Header #}
+  <header id="{{ pv.provider.id }}" class="card">
+    <div class="top">
+      <div class="logo">
+        {% if pv.provider.logo %}
+        <img src="{{ pv.provider.logo | url }}" alt="{{ pv.provider.name }}" loading="lazy">
+        {% else %}
+        <span class="initial">{{ pv.provider.name[0] }}</span>
+        {% endif %}
+      </div>
+      <div class="details">
+        <div class="title-row">
+          <h1>{{ pv.provider.name }}</h1>
+          {% set lc = pv.provider.lifecycle or "production" %}
+          {% set lcDisplay = "incubation" if lc == "incubation" else ("deprecated" if lc == "deprecated" else "stable") %}
+          {% if lcDisplay != "stable" %}
+          <span class="lifecycle-badge lifecycle-{{ lcDisplay }}">{{ lcDisplay }}</span>
+          {% endif %}
+        </div>
+        <p class="package-name">{{ pv.provider.package_name }}</p>
+        <p class="description">{{ pv.provider.description }}</p>
+
+        {% if pv.minAirflowVersion %}
+        <div class="version-badges">
+          <span class="version-badge">Works with Airflow {{ pv.minAirflowVersion }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Bottom row: Downloads, module count, and actions #}
+    <div class="footer">
+      <div class="downloads">
+        <div class="count">{{ pv.provider.pypi_downloads.monthly | formatDownloads }}</div>
+        <div class="label">Monthly Downloads</div>
+      </div>
+      <div class="downloads">
+        <div class="count">{{ totalModules }}</div>
+        <div class="label">Total Modules</div>
+      </div>
+      <div class="actions">
+        <a href="{{ docsUrl }}" target="_blank" rel="noopener" class="btn-primary">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+          View Docs
+        </a>
+        <a href="{{ sourceUrl }}" target="_blank" rel="noopener" class="btn-secondary">
+          <svg fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+          </svg>
+          Source
+        </a>
+      </div>
+    </div>
+  </header>
+
+  {# Install Command #}
+  <section class="install card">
+    <span class="install-label">Install:</span>
+    <div class="command" data-copy-target="install-pip">
+      <code id="install-pip" data-package="{{ pv.provider.package_name }}">pip install {{ pv.provider.package_name }}=={{ currentVersion }}</code>
+    </div>
+    <div class="install-options">
+      {% set extrasKeys = extras | keys %}
+      {% if extrasKeys.length > 0 %}
+      <div class="install-option">
+        <label for="extras-select">Extras:</label>
+        <select id="extras-select">
+          <option value="">None</option>
+          {% for key in extrasKeys %}
+          <option value="{{ key }}">[{{ key }}]</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      {# Always render the dropdown — static HTML has only the current version,
+         but provider-detail.js fetches versions.json to populate the full list. #}
+      <div class="install-option">
+        <label for="version-select">Version:</label>
+        <select id="version-select" data-provider-url="{{ '/providers/' | url }}{{ pv.provider.id }}/">
+          {% for v in pv.availableVersions %}
+          <option value="{{ v }}"{% if v == currentVersion %} selected{% endif %}>{{ v }}{% if v == pv.provider.version %} (latest){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </section>
+
+  {# Extra dependencies info #}
+  <div id="extra-deps-info" class="extra-deps-info card" hidden>
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <div>
+      <strong>Additional dependencies with this extra:</strong>
+      <p id="extra-deps-list"></p>
+    </div>
+  </div>
+
+  {# Extras data for JS #}
+  <script id="extras-data" type="application/json">{{ extras | dump | safe }}</script>
+
+  {# Connections data for JS connection builder #}
+  {% if pv.connections and pv.connections.connection_types %}
+  <script id="connections-data" type="application/json">{{ pv.connections.connection_types | dump | safe }}</script>
+  {% endif %}
+
+  {# Technical Details #}
+  <section class="technical card">
+    <div>
+      {# Airflow Compatibility #}
+      {% if pv.minAirflowVersion %}
+      <div class="airflow-compat">
+        <h3>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          Airflow
+        </h3>
+        <code>{{ pv.minAirflowVersion }}</code>
+      </div>
+      {% endif %}
+
+      {# Python Requirements #}
+      <div class="python-version">
+        <h3>
+          <svg fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14.25.18l.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05L0 11.97l.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05 1.07.13zm-6.3 1.98l-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09-.33.22zM21.1 6.11l.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01.21.03zm-6.47 14.25l-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08-.33.23z"/>
+          </svg>
+          Python
+        </h3>
+        {% if pythonVersion %}
+        <code>{{ pythonVersion }}</code>
+        {% else %}
+        <span>Not specified</span>
+        {% endif %}
+      </div>
+
+      {# Dependencies #}
+      <div class="dependencies">
+        <h3>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+          Dependencies ({{ deps.length }})
+        </h3>
+        {% if deps.length > 0 %}
+        <details>
+          <summary>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+            <span class="show-label">Show all</span>
+            <span class="hide-label">Hide</span>
+          </summary>
+          {% for dep in deps %}
+          <code>{{ dep }}</code>
+          {% endfor %}
+        </details>
+        {% else %}
+        <span>No dependencies</span>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  {# Connection Builder #}
+  <section class="connections-card card">
+    <h3>
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+      </svg>
+      Connections ({{ conns.length }})
+    </h3>
+    {% if conns.length > 0 %}
+      <div class="conn-chips" id="conn-chips">
+        {% for conn in conns %}
+        <button class="conn-chip" data-conn-type="{{ conn.conn_type or conn.connection_type }}" {% if conn.docs_url %}data-docs-url="{{ conn.docs_url }}"{% endif %} type="button">
+          {{ conn.conn_type or conn.connection_type }}
+        </button>
+        {% endfor %}
+      </div>
+      <div class="conn-builder-panel" id="conn-builder-panel" hidden>
+        <div class="conn-builder-header">
+          <span class="conn-builder-title" id="conn-builder-title"></span>
+          <button class="conn-builder-close" id="conn-builder-close" type="button" title="Close">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <a class="conn-builder-docs" id="conn-builder-docs" href="#" target="_blank" rel="noopener" hidden>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+          View connection docs
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" class="external-icon">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </a>
+        <div class="conn-form" id="conn-builder-form">
+          {# JS renders form fields + export panel here #}
+        </div>
+      </div>
+    {% else %}
+      <span class="no-connections">No connections</span>
+    {% endif %}
+  </section>
+
+  {% if totalModules > 0 %}
+  {# Module Type Tabs #}
+  <nav class="module-tabs">
+    <button class="module-tab active" data-type="all">All ({{ totalModules }})</button>
+    {% for t in types %}
+    {% if moduleCounts[t.id] > 0 %}
+    <button class="module-tab" data-type="{{ t.id }}">
+      <span class="tab-icon {{ t.id }}">{{ t.icon }}</span> {{ t.label }} ({{ moduleCounts[t.id] }})
+    </button>
+    {% endif %}
+    {% endfor %}
+  </nav>
+
+  {# Main content with sidebar #}
+  <div class="modules-layout">
+    {# Sidebar #}
+    <aside class="modules-sidebar">
+      {% if pv.provider.categories and pv.provider.categories.length > 0 %}
+      <div class="sidebar-section card">
+        <h3>Categories</h3>
+        <nav class="category-nav">
+          <button class="category-btn active" data-category="">
+            <span>All</span>
+            <span class="count">{{ totalModules }}</span>
+          </button>
+          {% for cat in pv.provider.categories %}
+          <button class="category-btn" data-category="{{ cat.id }}">
+            <span>{{ cat.name }}</span>
+          </button>
+          {% endfor %}
+        </nav>
+      </div>
+      {% else %}
+      <div class="sidebar-section card">
+        <h3>Module Types</h3>
+        <nav class="category-nav">
+          {% for t in types %}
+          {% if moduleCounts[t.id] > 0 %}
+          <button class="category-btn" data-type="{{ t.id }}"><span class="tab-icon {{ t.id }}">{{ t.icon }}</span> <span>{{ t.label }}</span> <span class="count">{{ moduleCounts[t.id] }}</span></button>
+          {% endif %}
+          {% endfor %}
+        </nav>
+      </div>
+      {% endif %}
+
+      {% if pv.provider.related_providers and pv.provider.related_providers.length > 0 %}
+      <div class="sidebar-section card">
+        <h3>Related Providers</h3>
+        <nav class="related-nav">
+          {% for relatedId in pv.provider.related_providers %}
+            {% for p in providers.providers %}
+              {% if p.id === relatedId %}
+              <a href="{{ '/providers/' | url }}{{ p.id }}/">{{ p.name }}</a>
+              {% endif %}
+            {% endfor %}
+          {% endfor %}
+        </nav>
+      </div>
+      {% endif %}
+    </aside>
+
+    {# Module list #}
+    <section class="modules">
+      <div class="modules-header">
+        <h2>Modules</h2>
+        <div class="search-wrapper module-search-wrapper">
+          <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input id="module-search" type="text" placeholder="Search modules..." aria-label="Search modules">
+        </div>
+      </div>
+
+      <div class="grid">
+        {% for module in providerModules %}
+        <div id="{{ module.id or module.name }}" class="module card" data-name="{{ module.name | lower }}" data-type="{{ module.type }}" data-category="{{ module.category }}">
+          <div class="icon {{ module.type }}">
+            <span>{{ module.type[0] | upper }}</span>
+          </div>
+          <div class="content">
+            <h3>{{ module.name }}</h3>
+            <p>{{ module.short_description }}</p>
+            <div class="import-row">
+              <code class="path">{{ module.import_path }}</code>
+              <button class="copy-import" data-copy="from {{ module.import_path }} import {{ module.name }}" title="Copy import statement">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+            </div>
+            <div class="module-actions">
+              {% if module.docs_url %}
+              <a href="{{ module.docs_url }}" target="_blank" rel="noopener" class="docs-link">
+                View Docs
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+              </a>
+              {% endif %}
+              {% if module.source_url %}
+              <a href="{{ module.source_url }}" target="_blank" rel="noopener" class="source-link">
+                Source
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+              </a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+
+  {% else %}
+  {# Zero-module provider: show info banner instead of empty grid #}
+  <div class="no-modules-banner card">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+    </svg>
+    <div>
+      <h3>Configuration-only provider</h3>
+      <p>This provider extends Airflow through configuration, authentication, or runtime services rather than operators, hooks, or sensors. Install it as a dependency to enable its functionality.</p>
+    </div>
+  </div>
+  {% endif %}
+
+{% set breadcrumbData = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://airflow.apache.org" + ('/' | url)},
+    {"@type": "ListItem", "position": 2, "name": "Providers", "item": "https://airflow.apache.org" + ('/providers/' | url)},
+    {"@type": "ListItem", "position": 3, "name": pv.provider.name, "item": "https://airflow.apache.org" + ('/providers/' | url) + pv.provider.id + "/"},
+    {"@type": "ListItem", "position": 4, "name": currentVersion}
+  ]
+} %}
+<script type="application/ld+json">{{ breadcrumbData | dump | safe }}</script>
+</div>
+
+<script src="{{ '/js/provider-detail.js' | url }}"></script>
+<script src="{{ '/js/connection-builder.js' | url }}"></script>

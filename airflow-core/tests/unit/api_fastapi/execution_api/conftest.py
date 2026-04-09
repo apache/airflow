@@ -16,51 +16,43 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
-
 import pytest
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import cached_app
-from airflow.api_fastapi.auth.tokens import JWTValidator
-from airflow.api_fastapi.execution_api.app import lifespan
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.security import _jwt_bearer
+
+
+def _get_execution_api_app(root_app: FastAPI) -> FastAPI:
+    """Find the mounted execution API sub-app."""
+    for route in root_app.routes:
+        if hasattr(route, "path") and route.path == "/execution":
+            return route.app
+    raise RuntimeError("Execution API sub-app not found")
+
+
+@pytest.fixture
+def exec_app(client):
+    """Return the execution API sub-app."""
+    return _get_execution_api_app(client.app)
 
 
 @pytest.fixture
 def client(request: pytest.FixtureRequest):
     app = cached_app(apps="execution")
+    exec_app = _get_execution_api_app(app)
+
+    async def mock_jwt_bearer(request: Request):
+        from uuid import UUID
+
+        ti_id = UUID(request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000"))
+        return TIToken(id=ti_id, claims={"sub": str(ti_id), "scope": "execution"})
+
+    exec_app.dependency_overrides[_jwt_bearer] = mock_jwt_bearer
 
     with TestClient(app, headers={"Authorization": "Bearer fake"}) as client:
-        auth = AsyncMock(spec=JWTValidator)
-
-        # Create a side_effect function that dynamically extracts the task instance ID from validators
-        def smart_validated_claims(cred, validators=None):
-            # Extract task instance ID from validators if present
-            # This handles the JWTBearerTIPathDep case where the validator contains the task ID from the path
-            if (
-                validators
-                and "sub" in validators
-                and isinstance(validators["sub"], dict)
-                and "value" in validators["sub"]
-            ):
-                return {
-                    "sub": validators["sub"]["value"],
-                    "exp": 9999999999,  # Far future expiration
-                    "iat": 1000000000,  # Past issuance time
-                    "aud": "test-audience",
-                }
-
-            # For other cases (like JWTBearerDep) where no specific validators are provided
-            # Return a default UUID with all required claims
-            return {
-                "sub": "00000000-0000-0000-0000-000000000000",
-                "exp": 9999999999,  # Far future expiration
-                "iat": 1000000000,  # Past issuance time
-                "aud": "test-audience",
-            }
-
-        # Set the side_effect for avalidated_claims
-        auth.avalidated_claims.side_effect = smart_validated_claims
-        lifespan.registry.register_value(JWTValidator, auth)
-
         yield client
+
+    exec_app.dependency_overrides.pop(_jwt_bearer, None)

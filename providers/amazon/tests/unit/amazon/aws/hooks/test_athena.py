@@ -124,6 +124,21 @@ class TestAthenaHook:
         )
         assert athena_hook_no_log_query.log.info.call_count == 1
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.athena.send_sql_hook_lineage")
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_run_query_hook_lineage(self, mock_conn, mock_send_lineage):
+        mock_conn.return_value.start_query_execution.return_value = MOCK_QUERY_EXECUTION
+        self.athena.run_query(
+            query=MOCK_DATA["query"],
+            query_context=mock_query_context,
+            result_configuration=mock_result_configuration,
+        )
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.athena
+        assert call_kw["sql"] == MOCK_DATA["query"]
+        assert call_kw["job_id"] == MOCK_DATA["query_execution_id"]
+
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_get_query_results_with_non_succeeded_query(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_RUNNING_QUERY_EXECUTION

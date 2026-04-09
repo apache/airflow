@@ -31,7 +31,6 @@ from airflow.api_fastapi.execution_api.datamodels.asset_event import (
 )
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
 
-# TODO: Add dependency on JWT token
 router = APIRouter(
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Asset not found"},

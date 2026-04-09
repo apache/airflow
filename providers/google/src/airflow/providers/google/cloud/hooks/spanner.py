@@ -28,6 +28,7 @@ from google.cloud.spanner_v1.client import Client
 from sqlalchemy import create_engine
 
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, get_field
@@ -421,6 +422,11 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
                 preview = sql if len(sql) <= 300 else sql[:300] + "…"
                 self.log.info("[DML %d/%d] affected rows=%d | %s", i, len(result), rc, preview)
                 result_rows_count_per_query.append(rc)
+            send_sql_hook_lineage(
+                context=self,
+                sql=sql,
+                row_count=rc,
+            )
         return result_rows_count_per_query
 
     @staticmethod

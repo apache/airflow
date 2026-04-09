@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, HStack, Text } from "@chakra-ui/react";
+import { Box, Heading, HStack, Text } from "@chakra-ui/react";
 import {
   getCoreRowModel,
   getExpandedRowModel,
@@ -29,8 +29,9 @@ import {
   type Table as TanStackTable,
   type Updater,
 } from "@tanstack/react-table";
-import React, { type ReactNode, useRef, useState, useCallback } from "react";
+import React, { type ReactNode, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocalStorage } from "usehooks-ts";
 
 import { CardList } from "src/components/DataTable/CardList";
 import { TableList } from "src/components/DataTable/TableList";
@@ -109,7 +110,8 @@ export const DataTable = <TData,>({
     [onStateChange],
   );
 
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
+  const [columnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(
+    `dataTable:${modelName}:columnVisibility`,
     initialState?.columnVisibility ?? {},
   );
 
@@ -167,7 +169,7 @@ export const DataTable = <TData,>({
   ) : undefined;
 
   return (
-    <>
+    <Box display="flex" flex={1} flexDirection="column" minH={0}>
       <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
       {showDisplayToggle && onDisplayToggleChange ? (
         <ToggleTableDisplay display={display} setDisplay={onDisplayToggleChange} />
@@ -175,17 +177,19 @@ export const DataTable = <TData,>({
       <Toaster />
       {errorMessage}
       {rowCountHeading}
-      {hasRows && display === "table" ? (
-        <TableList allowFiltering={showColumnsFilter} table={table} />
-      ) : undefined}
-      {hasRows && display === "card" && cardDef !== undefined ? (
-        <CardList cardDef={cardDef} isLoading={isLoading} rows={rows} />
-      ) : undefined}
-      {!hasRows && !Boolean(isLoading) && (
-        <Text as="div" pl={4} pt={1}>
-          {noRowsMessage ?? translate("noItemsFound", { modelName: noRowsModelName })}
-        </Text>
-      )}
+      <Box flex={1} minH={0} overflow="auto">
+        {hasRows && display === "table" ? (
+          <TableList allowFiltering={showColumnsFilter} table={table} />
+        ) : undefined}
+        {hasRows && display === "card" && cardDef !== undefined ? (
+          <CardList cardDef={cardDef} isLoading={isLoading} rows={rows} />
+        ) : undefined}
+        {!hasRows && !Boolean(isLoading) && (
+          <Text as="div" pl={4} pt={1}>
+            {noRowsMessage ?? translate("noItemsFound", { modelName: noRowsModelName })}
+          </Text>
+        )}
+      </Box>
       {hasPagination ? (
         <Pagination.Root
           count={rowCount}
@@ -202,6 +206,6 @@ export const DataTable = <TData,>({
           </HStack>
         </Pagination.Root>
       ) : undefined}
-    </>
+    </Box>
   );
 };

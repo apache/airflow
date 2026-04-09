@@ -17,26 +17,9 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { forwardRef } from "react";
 import type { PropsWithChildren } from "react";
-import { ResizableBox } from "react-resizable";
-import "react-resizable/css/styles.css";
-
-import { usePersistentResizableState } from "src/utils/usePersistentResizableState";
-
-const ResizeHandle = forwardRef<HTMLDivElement>((props, ref) => (
-  <Box
-    background="linear-gradient(-45deg, transparent 6px, #ccc 6px, #ccc 8px, transparent 8px, transparent 12px, #ccc 12px, #ccc 14px, transparent 14px)"
-    bottom={0}
-    cursor="se-resize"
-    height={5}
-    position="absolute"
-    ref={ref}
-    right={0}
-    width={5}
-    {...props}
-  />
-));
+import { useEffect, useRef } from "react";
+import { useLocalStorage } from "usehooks-ts";
 
 type ResizableWrapperProps = {
   readonly defaultSize?: { height: number; width: number };
@@ -55,28 +38,56 @@ export const ResizableWrapper = ({
   maxConstraints = MAX_SIZE,
   storageKey,
 }: ResizableWrapperProps) => {
-  const { handleResize, handleResizeStop, size } = usePersistentResizableState(storageKey, defaultSize);
+  const ref = useRef<HTMLDivElement>(null);
+  const [storedSize, setStoredSize] = useLocalStorage(storageKey, defaultSize);
+
+  useEffect(() => {
+    const el = ref.current;
+
+    if (!el) {
+      return undefined;
+    }
+
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { height, width } = entry.contentRect;
+
+        if (width > 0 && height > 0) {
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            setStoredSize({ height: Math.round(height), width: Math.round(width) });
+          }, 300);
+        }
+      }
+    });
+
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(timeoutId);
+    };
+  }, [setStoredSize]);
 
   return (
-    <ResizableBox
-      handle={<ResizeHandle />}
-      height={size.height}
-      maxConstraints={maxConstraints}
-      minConstraints={[DEFAULT_SIZE.width, DEFAULT_SIZE.height]}
-      onResize={handleResize}
-      onResizeStop={handleResizeStop}
-      resizeHandles={["se"]}
-      style={{
-        backgroundColor: "inherit",
-        borderRadius: "inherit",
+    <Box
+      css={{
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
-        position: "relative",
+        resize: "both",
       }}
-      width={size.width}
+      height={`${storedSize.height}px`}
+      maxHeight={`${maxConstraints[1]}px`}
+      maxWidth={`${maxConstraints[0]}px`}
+      minHeight={`${DEFAULT_SIZE.height}px`}
+      minWidth={`${DEFAULT_SIZE.width}px`}
+      ref={ref}
+      width={`${storedSize.width}px`}
     >
-      <div>{children}</div>
-    </ResizableBox>
+      {children}
+    </Box>
   );
 };

@@ -16,5 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-# Re export for compat
-from airflow.sdk._shared.secrets_backend.base import BaseSecretsBackend as BaseSecretsBackend
+from airflow.sdk._shared.secrets_backend.base import BaseSecretsBackend as _BaseSecretsBackend
+
+
+class BaseSecretsBackend(_BaseSecretsBackend):
+    """Base class for secrets backend with SDK Connection as default."""
+
+    def _get_connection_class(self) -> type:
+        conn_class = getattr(self, "_connection_class", None)
+        if conn_class is None:
+            from airflow.sdk.definitions.connection import Connection
+
+            self._connection_class = Connection
+            return Connection
+        return conn_class

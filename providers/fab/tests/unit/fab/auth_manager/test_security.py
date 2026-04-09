@@ -26,11 +26,25 @@ from unittest.mock import patch
 
 import pytest
 import time_machine
-from flask_appbuilder import Model, expose, has_access
+from flask_appbuilder import expose, has_access
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Date, Float, Integer, String, delete
-from sqlalchemy.orm import Mapped
+
+try:
+    from sqlalchemy.orm import DeclarativeBase, Mapped
+
+    class _TestBase(DeclarativeBase):
+        pass
+
+except ImportError:
+    # SQLAlchemy < 2.0 (e.g. 1.4): declarative_base() returns the base class directly.
+    from typing import Any
+
+    from sqlalchemy.orm import declarative_base
+
+    _TestBase = declarative_base()  # type: ignore[assignment,misc]
+    Mapped = Any  # type: ignore[assignment,misc]
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.models import DagModel
@@ -52,7 +66,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.permissions import _resource_name
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
-from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
+from unit.fab.auth_manager.test_utils import (
     create_user,
     create_user_scope,
     delete_role,
@@ -92,7 +106,7 @@ class MockSecurityManager(FabAirflowSecurityManagerOverride):
     }
 
 
-class SomeModel(Model):
+class SomeModel(_TestBase):
     __tablename__ = "some_model"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

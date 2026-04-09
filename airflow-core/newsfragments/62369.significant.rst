@@ -1,0 +1,30 @@
+Replace per-run TI summary requests with a single NDJSON stream
+
+The grid, graph, gantt, and task-detail views now fetch task-instance
+summaries through a single streaming HTTP request
+(``GET /ui/grid/ti_summaries/{dag_id}?run_ids=...``) instead of one request
+per run.  The server emits one JSON line per run as soon as that run's task
+instances are ready, so columns appear progressively rather than all at once.
+
+**What changed:**
+
+- ``GET /ui/grid/ti_summaries/{dag_id}?run_ids=...`` is now the sole endpoint
+  for TI summaries, returning an ``application/x-ndjson`` stream where each
+  line is a serialized ``GridTISummaries`` object for one run.
+- The old single-run endpoint ``GET /ui/grid/ti_summaries/{dag_id}/{run_id}``
+  has been removed.
+- The serialized Dag structure is loaded once and shared across all runs that
+  share the same ``dag_version_id``, avoiding redundant deserialization.
+- All UI views (grid, graph, gantt, task instance, mapped task instance, group
+  task instance) use the stream endpoint, passing one or more ``run_ids``.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

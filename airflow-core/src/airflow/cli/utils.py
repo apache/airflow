@@ -20,6 +20,9 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING
 
+# Placeholder for masking sensitive values in CLI output
+SENSITIVE_PLACEHOLDER = "***"
+
 if TYPE_CHECKING:
     import datetime
     from collections.abc import Collection

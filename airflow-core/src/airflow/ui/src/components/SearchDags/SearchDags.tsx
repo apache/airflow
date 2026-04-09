@@ -20,10 +20,10 @@ import { Field } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AsyncSelect } from "chakra-react-select";
 import type { OptionsOrGroups, GroupBase, SingleValue } from "chakra-react-select";
-import debounce from "debounce-promise";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { useDebouncedCallback } from "use-debounce";
 
 import { UseDagServiceGetDagsKeyFn } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
@@ -49,32 +49,31 @@ export const SearchDags = ({
     }
   };
 
-  const searchDag = (
-    inputValue: string,
-    callback: (options: OptionsOrGroups<Option, GroupBase<Option>>) => void,
-  ): Promise<OptionsOrGroups<Option, GroupBase<Option>>> =>
-    queryClient.fetchQuery({
-      queryFn: () =>
-        DagService.getDags({
+  const searchDagDebounced = useDebouncedCallback(
+    (inputValue: string, callback: (options: OptionsOrGroups<Option, GroupBase<Option>>) => void) => {
+      void queryClient.fetchQuery({
+        queryFn: () =>
+          DagService.getDags({
+            dagDisplayNamePattern: inputValue,
+            limit: SEARCH_LIMIT,
+          }).then((data: DAGCollectionResponse) => {
+            const options = data.dags.map((dag: DAGResponse) => ({
+              label: dag.dag_display_name || dag.dag_id,
+              value: dag.dag_id,
+            }));
+
+            callback(options);
+
+            return options;
+          }),
+        queryKey: UseDagServiceGetDagsKeyFn({
           dagDisplayNamePattern: inputValue,
-          limit: SEARCH_LIMIT,
-        }).then((data: DAGCollectionResponse) => {
-          const options = data.dags.map((dag: DAGResponse) => ({
-            label: dag.dag_display_name || dag.dag_id,
-            value: dag.dag_id,
-          }));
-
-          callback(options);
-
-          return options;
         }),
-      queryKey: UseDagServiceGetDagsKeyFn({
-        dagDisplayNamePattern: inputValue,
-      }),
-      staleTime: 0,
-    });
-
-  const searchDagDebounced = debounce(searchDag, 300);
+        staleTime: 0,
+      });
+    },
+    300,
+  );
 
   return (
     <Field.Root>

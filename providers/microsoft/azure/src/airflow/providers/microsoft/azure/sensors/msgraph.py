@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
@@ -27,7 +28,6 @@ from airflow.providers.microsoft.azure.operators.msgraph import execute_callable
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, ResponseSerializer
 
 if TYPE_CHECKING:
-    from datetime import timedelta
     from io import BytesIO
 
     from msgraph_core import APIVersion
@@ -183,9 +183,11 @@ class MSGraphSensor(BaseSensorOperator):
 
                     return result
 
+                # Re-defer with timeout so Airflow enforces the sensor timeout natively
                 self.defer(
                     trigger=TimeDeltaTrigger(self.retry_delay),
                     method_name=self.retry_execute.__name__,
+                    timeout=timedelta(seconds=self.timeout) if self.timeout is not None else None,
                 )
 
         return None

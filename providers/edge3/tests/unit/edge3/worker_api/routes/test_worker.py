@@ -26,7 +26,11 @@ from sqlalchemy import delete, select
 
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.cli.worker import EdgeWorker
-from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
+from airflow.providers.edge3.models.edge_worker import (
+    EdgeWorkerModel,
+    EdgeWorkerState,
+    set_worker_concurrency,
+)
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueueUpdateBody, WorkerStateBody
 from airflow.providers.edge3.worker_api.routes.worker import (
     _assert_version,
@@ -44,7 +48,7 @@ pytestmark = pytest.mark.db_test
 class TestWorkerApiRoutes:
     @pytest.fixture
     def cli_worker(self, tmp_path: Path) -> EdgeWorker:
-        test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8, 5, 5)
+        test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
         return test_worker
 
     @pytest.fixture(autouse=True)
@@ -92,10 +96,84 @@ class TestWorkerApiRoutes:
         worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
         assert len(worker) == 1
         assert worker[0].worker_name == "test_worker"
+        assert worker[0].team_name is None
         if input_queues:
             assert worker[0].queues == input_queues
         else:
             assert worker[0].queues is None
+
+    def test_register_with_team_name(self, session: Session, cli_worker: EdgeWorker):
+        body = WorkerStateBody(
+            state=EdgeWorkerState.STARTING,
+            jobs_active=0,
+            queues=["default"],
+            sysinfo=cli_worker._get_sysinfo(),
+            team_name="team_a",
+        )
+        register("test_worker", body, session)
+        session.commit()
+
+        worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
+        assert len(worker) == 1
+        assert worker[0].worker_name == "test_worker"
+        assert worker[0].team_name == "team_a"
+
+    def test_register_same_name_different_team_rejects_when_active(
+        self, session: Session, cli_worker: EdgeWorker
+    ):
+        """A physical worker (hostname) can only have one identity. Registering the same
+        worker_name with a different team_name while the existing one is active should be rejected."""
+        existing_worker = EdgeWorkerModel(
+            worker_name="test_worker",
+            state=EdgeWorkerState.RUNNING,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+            team_name="team_a",
+        )
+        session.add(existing_worker)
+        session.commit()
+
+        body = WorkerStateBody(
+            state=EdgeWorkerState.STARTING,
+            jobs_active=0,
+            queues=["default"],
+            sysinfo=cli_worker._get_sysinfo(),
+            team_name="team_b",
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            register("test_worker", body, session)
+        assert exc_info.value.status_code == 409
+
+    def test_register_same_name_different_team_reuses_when_offline(
+        self, session: Session, cli_worker: EdgeWorker
+    ):
+        """When an existing worker with the same name is offline, re-registering with a
+        different team_name should succeed and update the team_name."""
+        existing_worker = EdgeWorkerModel(
+            worker_name="test_worker",
+            state=EdgeWorkerState.OFFLINE,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+            team_name="team_a",
+        )
+        session.add(existing_worker)
+        session.commit()
+
+        body = WorkerStateBody(
+            state=EdgeWorkerState.STARTING,
+            jobs_active=0,
+            queues=["default"],
+            sysinfo=cli_worker._get_sysinfo(),
+            team_name="team_b",
+        )
+        register("test_worker", body, session)
+        session.commit()
+
+        worker = session.execute(
+            select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == "test_worker")
+        ).scalar_one_or_none()
+        assert worker is not None
+        assert worker.team_name == "team_b"
 
     @pytest.mark.parametrize(
         ("existing_state", "should_raise"),
@@ -247,6 +325,90 @@ class TestWorkerApiRoutes:
         assert worker[0].state == EdgeWorkerState.RUNNING
         assert worker[0].queues == queues
         assert return_queues == ["default", "default2"]
+
+    def test_set_state_returns_concurrency(self, session: Session, cli_worker: EdgeWorker):
+        """set_state includes the DB-stored concurrency override in its response."""
+        rwm = EdgeWorkerModel(
+            worker_name="test2_worker",
+            state=EdgeWorkerState.IDLE,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+        )
+        rwm.concurrency = 16
+        session.add(rwm)
+        session.commit()
+
+        body = WorkerStateBody(
+            state=EdgeWorkerState.RUNNING,
+            jobs_active=0,
+            queues=["default"],
+            sysinfo=cli_worker._get_sysinfo(),
+        )
+        result = set_state("test2_worker", body, session)
+        assert result.concurrency == 16
+
+    def test_set_state_returns_none_concurrency_when_not_overridden(
+        self, session: Session, cli_worker: EdgeWorker
+    ):
+        """set_state returns None for concurrency when no override is set."""
+        rwm = EdgeWorkerModel(
+            worker_name="test2_worker",
+            state=EdgeWorkerState.IDLE,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+        )
+        session.add(rwm)
+        session.commit()
+
+        body = WorkerStateBody(
+            state=EdgeWorkerState.RUNNING,
+            jobs_active=0,
+            queues=["default"],
+            sysinfo=cli_worker._get_sysinfo(),
+        )
+        result = set_state("test2_worker", body, session)
+        assert result.concurrency is None
+
+    def test_set_worker_concurrency(self, session: Session):
+        rwm = EdgeWorkerModel(
+            worker_name="test2_worker",
+            state=EdgeWorkerState.IDLE,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+        )
+        session.add(rwm)
+        session.commit()
+
+        set_worker_concurrency("test2_worker", 16, session=session)
+        session.commit()
+
+        worker = session.scalars(select(EdgeWorkerModel)).one()
+        assert worker.concurrency == 16
+
+    @pytest.mark.parametrize(
+        "offline_state",
+        [
+            pytest.param(EdgeWorkerState.OFFLINE, id="offline"),
+            pytest.param(EdgeWorkerState.OFFLINE_MAINTENANCE, id="offline-maintenance"),
+            pytest.param(EdgeWorkerState.UNKNOWN, id="unknown"),
+        ],
+    )
+    def test_set_worker_concurrency_rejects_offline(self, session: Session, offline_state: EdgeWorkerState):
+        rwm = EdgeWorkerModel(
+            worker_name="test2_worker",
+            state=offline_state,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+        )
+        session.add(rwm)
+        session.commit()
+
+        with pytest.raises(TypeError, match="Cannot set concurrency"):
+            set_worker_concurrency("test2_worker", 8, session=session)
+
+    def test_set_worker_concurrency_raises_for_unknown_worker(self, session: Session):
+        with pytest.raises(ValueError, match="not found"):
+            set_worker_concurrency("nonexistent", 8, session=session)
 
     @pytest.mark.parametrize(
         ("add_queues", "remove_queues", "expected_queues"),

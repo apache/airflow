@@ -298,6 +298,10 @@
                     "hook-class-name": {
                         "description": "Hook class name that implements the connection type",
                         "type": "string"
+                    },
+                    "hook-name": {
+                        "description": "Display name for the connection type in the UI",
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -351,6 +355,13 @@
         "executors": {
             "type": "array",
             "description": "Executor class names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "db-managers": {
+            "type": "array",
+            "description": "DB manager class names",
             "items": {
                 "type": "string"
             }

@@ -63,6 +63,7 @@ TEST_TASK_DISPLAY_NAME_2 = "test-task-id-2"
 logical_date_parsed = timezone.parse(TEST_EXECUTION_DATE)
 logical_date_formatted = logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
 run_after_parsed = timezone.parse(TEST_EXECUTION_DATE)
+run_after_formatted = run_after_parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
 run_id = DagRun.generate_run_id(
     run_type=DagRunType.MANUAL, logical_date=logical_date_parsed, run_after=run_after_parsed
 )
@@ -135,6 +136,7 @@ class TestGetXComEntry(TestXComEndpoint):
             "dag_display_name": TEST_DAG_DISPLAY_NAME,
             "logical_date": logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "run_id": run_id,
+            "run_after": run_after_formatted,
             "key": TEST_XCOM_KEY,
             "task_id": TEST_TASK_ID,
             "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -248,6 +250,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -259,6 +262,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -288,6 +292,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -299,6 +304,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -310,6 +316,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME_2,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID_2,
                     "task_display_name": TEST_TASK_DISPLAY_NAME_2,
@@ -321,6 +328,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME_2,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID_2,
                     "task_display_name": TEST_TASK_DISPLAY_NAME_2,
@@ -351,6 +359,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": TEST_XCOM_KEY,
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -366,6 +375,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": TEST_XCOM_KEY,
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -391,6 +401,7 @@ class TestGetXComEntries(TestXComEndpoint):
                         "dag_display_name": TEST_DAG_DISPLAY_NAME,
                         "logical_date": logical_date_formatted,
                         "run_id": run_id,
+                        "run_after": run_after_formatted,
                         "key": TEST_XCOM_KEY,
                         "task_id": TEST_TASK_ID,
                         "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -402,6 +413,7 @@ class TestGetXComEntries(TestXComEndpoint):
                         "dag_display_name": TEST_DAG_DISPLAY_NAME,
                         "logical_date": logical_date_formatted,
                         "run_id": run_id,
+                        "run_after": run_after_formatted,
                         "key": TEST_XCOM_KEY,
                         "task_id": TEST_TASK_ID,
                         "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -668,7 +680,7 @@ class TestCreateXComEntry(TestXComEndpoint):
             # Validate the created XCom response
             current_data = response.json()
             assert current_data["key"] == request_body.key
-            assert current_data["value"] == XComModel.serialize_value(request_body.value)
+            assert current_data["value"] == request_body.value
             assert current_data["dag_id"] == dag_id
             assert current_data["task_id"] == task_id
             assert current_data["run_id"] == dag_run_id
@@ -704,7 +716,26 @@ class TestCreateXComEntry(TestXComEndpoint):
         )
         assert get_resp.status_code == 200
         assert get_resp.json()["key"] == slash_key
-        assert get_resp.json()["value"] == json.dumps(TEST_XCOM_VALUE)
+        assert get_resp.json()["value"] == TEST_XCOM_VALUE
+
+    @pytest.mark.parametrize(
+        ("key", "value"),
+        [
+            ("__classname__", {"__classname__": "airflow.sdk.definitions.connection.Connection"}),
+            ("__type", {"__type": "airflow.sdk.definitions.connection.Connection", "__var": {}}),
+            ("__data__", {"nested": {"__data__": "malicious"}}),
+        ],
+    )
+    def test_create_xcom_entry_blocks_forbidden_keys(self, test_client, key, value):
+        """Test that XCom creation blocks deserialization metadata keys."""
+        response = test_client.post(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+            json={"key": "test_key", "value": value, "map_index": -1},
+        )
+        assert response.status_code == 422
+        detail = str(response.json()["detail"])
+        assert "reserved serialization keys" in detail
+        assert key in detail
 
 
 class TestDeleteXComEntry(TestXComEndpoint):
@@ -802,7 +833,7 @@ class TestPatchXComEntry(TestXComEndpoint):
         assert response.status_code == expected_status
 
         if expected_status == 200:
-            assert response.json()["value"] == json.dumps(patch_body["value"])
+            assert response.json()["value"] == patch_body["value"]
         else:
             assert response.json()["detail"] == expected_detail
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
@@ -831,5 +862,23 @@ class TestPatchXComEntry(TestXComEndpoint):
         )
         assert response.status_code == 200
         assert response.json()["key"] == slash_key
-        assert response.json()["value"] == json.dumps(new_value)
+        assert response.json()["value"] == new_value
+        check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
+
+    def test_patch_xcom_preserves_int_type(self, test_client, session):
+        """Test scenario described in #59032: if existing XCom value type is int,
+        after patching with different value, it should still be int in the API response.
+        """
+        key = "int_type_xcom"
+        # Create with int value
+        self._create_xcom(key, 42)
+        patch_value = 100
+        response = test_client.patch(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{key}",
+            json={"value": patch_value},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["value"] == patch_value
+        assert isinstance(data["value"], int), f"Expected int type but got {type(data['value'])}"
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)

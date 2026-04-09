@@ -88,10 +88,10 @@ export const TaskLogHeader = ({
   const logLevels = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
   const hasLogLevels = logLevels.length > 0;
 
-  // Have select zIndex greater than modal zIndex in fullscreen so that
-  // select options are displayed.
+  // Have select zIndex greater than dialog zIndex in fullscreen so that
+  // select options are displayed. Dialog uses zIndex.popover since Chakra 3.34.0.
   const zIndex = isFullscreen
-    ? Number(defaultSystem.tokens.categoryMap.get("zIndex")?.get("modal")?.value ?? 1400) + 1
+    ? Number(defaultSystem.tokens.categoryMap.get("zIndex")?.get("popover")?.value ?? 1500) + 1
     : undefined;
 
   const sourceOptionList = createListCollection<{
@@ -192,7 +192,7 @@ export const TaskLogHeader = ({
             <Select.Trigger clearable>
               <Select.ValueText placeholder={translate("dag:logs.allSources")} />
             </Select.Trigger>
-            <Select.Content>
+            <Select.Content zIndex={zIndex}>
               {sourceOptionList.items.map((option) => (
                 <Select.Item item={option} key={option.label}>
                   {option.label}
@@ -206,6 +206,7 @@ export const TaskLogHeader = ({
             <Menu.Trigger asChild>
               <IconButton
                 aria-label={translate("dag:logs.settings")}
+                data-testid="log-settings-button"
                 size="md"
                 title={translate("dag:logs.settings")}
                 variant="ghost"
@@ -214,15 +215,15 @@ export const TaskLogHeader = ({
               </IconButton>
             </Menu.Trigger>
             <Menu.Content zIndex={zIndex}>
-              <Menu.Item onClick={toggleWrap} value="wrap">
+              <Menu.Item data-testid="log-settings-wrap" onClick={toggleWrap} value="wrap">
                 <MdWrapText /> {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
                 <Menu.ItemCommand>{translate("wrap.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
-              <Menu.Item onClick={toggleTimestamp} value="timestamp">
+              <Menu.Item data-testid="log-settings-timestamp" onClick={toggleTimestamp} value="timestamp">
                 <MdAccessTime /> {showTimestamp ? translate("timestamp.hide") : translate("timestamp.show")}
                 <Menu.ItemCommand>{translate("timestamp.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
-              <Menu.Item onClick={toggleExpanded} value="expand">
+              <Menu.Item data-testid="log-settings-expand" onClick={toggleExpanded} value="expand">
                 {expanded ? (
                   <>
                     <MdCompress /> {translate("expand.collapse")}
@@ -234,7 +235,7 @@ export const TaskLogHeader = ({
                 )}
                 <Menu.ItemCommand>{translate("expand.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
-              <Menu.Item onClick={toggleSource} value="source">
+              <Menu.Item data-testid="log-settings-source" onClick={toggleSource} value="source">
                 <MdCode /> {showSource ? translate("source.hide") : translate("source.show")}
                 <Menu.ItemCommand>{translate("source.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
@@ -262,6 +263,7 @@ export const TaskLogHeader = ({
 
           <IconButton
             aria-label={translate("download.download")}
+            data-testid="download-logs-button"
             onClick={downloadLogs}
             size="md"
             title={translate("download.tooltip", { hotkey: "d" })}

@@ -249,6 +249,7 @@ with DAG(
         task_id="delete_cluster",
         cluster_identifier=redshift_cluster_identifier,
         trigger_rule=TriggerRule.ALL_DONE,
+        max_attempts=50,
     )
 
     chain(

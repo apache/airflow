@@ -249,13 +249,18 @@ class BaseSensorOperator(BaseOperator):
         return xcom_value
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+        # Use nested try/except to convert TaskDeferralTimeout to AirflowSensorTimeout
+        # while still allowing soft_fail/never_fail to handle both exception types.
         try:
-            return super().resume_execution(next_method, next_kwargs, context)
-        except TaskDeferralTimeout as e:
-            raise AirflowSensorTimeout(*e.args) from e
+            try:
+                return super().resume_execution(next_method, next_kwargs, context)
+            except TaskDeferralTimeout as e:
+                raise AirflowSensorTimeout(*e.args) from e
         except (AirflowException, TaskDeferralError) as e:
             if self.soft_fail:
-                raise AirflowSkipException(str(e)) from e
+                raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
+            if self.never_fail:
+                raise AirflowSkipException("Skipping due to never_fail is set to True.") from e
             raise
 
     def _get_next_poke_interval(

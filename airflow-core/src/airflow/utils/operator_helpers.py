@@ -17,82 +17,27 @@
 # under the License.
 from __future__ import annotations
 
-import inspect
-from collections.abc import Callable, Collection, Mapping
-from typing import Any, TypeVar
+from collections.abc import Callable
+from typing import TYPE_CHECKING, TypeVar
+
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+if TYPE_CHECKING:
+    from airflow.sdk.bases.decorator import KeywordParameters, determine_kwargs  # noqa: F401
+
+__all__ = ["make_kwargs_callable"]
 
 R = TypeVar("R")
 
-
-class KeywordParameters:
-    """
-    Wrapper representing ``**kwargs`` to a callable.
-
-    The actual ``kwargs`` can be obtained by calling either ``unpacking()`` or
-    ``serializing()``. They behave almost the same and are only different if
-    the containing ``kwargs`` is an Airflow Context object, and the calling
-    function uses ``**kwargs`` in the argument list.
-
-    In this particular case, ``unpacking()`` uses ``lazy-object-proxy`` to
-    prevent the Context from emitting deprecation warnings too eagerly when it's
-    unpacked by ``**``. ``serializing()`` does not do this, and will allow the
-    warnings to be emitted eagerly, which is useful when you want to dump the
-    content and use it somewhere else without needing ``lazy-object-proxy``.
-    """
-
-    def __init__(self, kwargs: Mapping[str, Any]) -> None:
-        self._kwargs = kwargs
-
-    @classmethod
-    def determine(
-        cls,
-        func: Callable[..., Any],
-        args: Collection[Any],
-        kwargs: Mapping[str, Any],
-    ) -> KeywordParameters:
-        import itertools
-
-        signature = inspect.signature(func)
-        has_wildcard_kwargs = any(p.kind == p.VAR_KEYWORD for p in signature.parameters.values())
-
-        for name, param in itertools.islice(signature.parameters.items(), len(args)):
-            # Keyword-only arguments can't be passed positionally and are not checked.
-            if param.kind == inspect.Parameter.KEYWORD_ONLY:
-                continue
-            if param.kind == inspect.Parameter.VAR_KEYWORD:
-                continue
-
-            # Check if args conflict with names in kwargs.
-            if name in kwargs:
-                raise ValueError(f"The key {name!r} in args is a part of kwargs and therefore reserved.")
-
-        if has_wildcard_kwargs:
-            # If the callable has a **kwargs argument, it's ready to accept all the kwargs.
-            return cls(kwargs)
-
-        # If the callable has no **kwargs argument, it only wants the arguments it requested.
-        filtered_kwargs = {key: kwargs[key] for key in signature.parameters if key in kwargs}
-        return cls(filtered_kwargs)
-
-    def unpacking(self) -> Mapping[str, Any]:
-        """Dump the kwargs mapping to unpack with ``**`` in a function call."""
-        return self._kwargs
-
-
-def determine_kwargs(
-    func: Callable[..., Any],
-    args: Collection[Any],
-    kwargs: Mapping[str, Any],
-) -> Mapping[str, Any]:
-    """
-    Inspect the signature of a callable to determine which kwargs need to be passed to the callable.
-
-    :param func: The callable that you want to invoke
-    :param args: The positional arguments that need to be passed to the callable, so we know how many to skip.
-    :param kwargs: The keyword arguments that need to be filtered before passing to the callable.
-    :return: A dictionary which contains the keyword arguments that are compatible with the callable.
-    """
-    return KeywordParameters.determine(func, args, kwargs).unpacking()
+add_deprecated_classes(
+    {
+        __name__: {
+            "KeywordParameters": "airflow.sdk.bases.decorator.KeywordParameters",
+            "determine_kwargs": "airflow.sdk.bases.decorator.determine_kwargs",
+        },
+    },
+    package=__name__,
+)
 
 
 def make_kwargs_callable(func: Callable[..., R]) -> Callable[..., R]:
@@ -103,6 +48,8 @@ def make_kwargs_callable(func: Callable[..., R]) -> Callable[..., R]:
     but only forwards those required by the given callable func.
     """
     import functools
+
+    from airflow.sdk.bases.decorator import determine_kwargs
 
     @functools.wraps(func)
     def kwargs_func(*args, **kwargs):

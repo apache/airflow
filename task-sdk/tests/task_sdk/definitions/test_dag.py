@@ -29,6 +29,7 @@ from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
@@ -534,6 +535,98 @@ def test__tags_length(tags: list[str], should_pass: bool):
 def test__tags_duplicates(input_tags: list[str], expected_result: set[str]):
     result = DAG("test-dag", tags=input_tags)
     assert result.tags == expected_result
+
+
+@pytest.mark.parametrize(
+    ("schedule", "input_val", "expected"),
+    [
+        pytest.param("@daily", None, None, id="none"),
+        pytest.param(
+            "@daily",
+            [DagRunType.SCHEDULED],
+            frozenset([DagRunType.SCHEDULED]),
+            id="list_single",
+        ),
+        pytest.param(
+            "@daily",
+            [DagRunType.SCHEDULED, DagRunType.MANUAL],
+            frozenset([DagRunType.SCHEDULED, DagRunType.MANUAL]),
+            id="list_multiple",
+        ),
+        pytest.param(
+            "@daily",
+            {DagRunType.SCHEDULED},
+            frozenset([DagRunType.SCHEDULED]),
+            id="set",
+        ),
+        pytest.param(
+            "@daily",
+            DagRunType.SCHEDULED,
+            frozenset([DagRunType.SCHEDULED]),
+            id="single_enum",
+        ),
+        pytest.param(
+            None,
+            DagRunType.MANUAL,
+            frozenset([DagRunType.MANUAL]),
+            id="no_schedule_single_enum",
+        ),
+        pytest.param(
+            None,
+            [DagRunType.MANUAL, DagRunType.BACKFILL_JOB],
+            frozenset([DagRunType.MANUAL, DagRunType.BACKFILL_JOB]),
+            id="no_schedule_allow_manual_and_backfill",
+        ),
+    ],
+)
+def test_allowed_run_types_converter(schedule, input_val, expected):
+    dag = DAG("test-allowed-types", schedule=schedule, allowed_run_types=input_val)
+    assert dag.allowed_run_types == expected
+
+
+@pytest.mark.parametrize(
+    ("schedule", "allowed_run_types", "match"),
+    [
+        pytest.param(
+            "@daily",
+            [DagRunType.MANUAL],
+            "allowed_run_types must include SCHEDULED",
+            id="scheduled_dag_missing_scheduled",
+        ),
+        pytest.param(
+            "@hourly",
+            [DagRunType.BACKFILL_JOB],
+            "allowed_run_types must include SCHEDULED",
+            id="hourly_dag_missing_scheduled",
+        ),
+        pytest.param(
+            None,
+            [DagRunType.SCHEDULED],
+            "allowed_run_types must include MANUAL",
+            id="no_schedule_missing_manual",
+        ),
+        pytest.param(
+            None,
+            DagRunType.BACKFILL_JOB,
+            "allowed_run_types must include MANUAL",
+            id="no_schedule_single_missing_manual",
+        ),
+    ],
+)
+def test_allowed_run_types_conflicting_schedule(schedule, allowed_run_types, match):
+    with pytest.raises(ValueError, match=match):
+        DAG("test-allowed-conflict", schedule=schedule, allowed_run_types=allowed_run_types)
+
+
+def test_allowed_run_types_asset_triggered_missing_with_asset_schedule():
+    from airflow.sdk.definitions.asset import Asset
+
+    with pytest.raises(ValueError, match="allowed_run_types must include ASSET_TRIGGERED"):
+        DAG(
+            "test-allowed-asset",
+            schedule=[Asset("test")],
+            allowed_run_types=[DagRunType.MANUAL],
+        )
 
 
 def test__tags_mutable():

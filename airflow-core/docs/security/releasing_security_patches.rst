@@ -32,18 +32,20 @@ release a ``MINOR`` version, the development continues in the ``main`` branch wh
 bugfixes) cherry-picked to the latest released ``MINOR`` line of Apache Airflow. At the moment, when we
 release a new ``MINOR`` version, we stop releasing ``PATCHLEVEL`` releases for the previous ``MINOR`` version.
 
-For example, once we released ``2.6.0`` version on April 30, 2023 all the security patches will be cherry-picked and released in ``2.6.*`` versions until we release ``2.7.0`` version. There will be no
-``2.5.*`` versions released after ``2.6.0`` has been released.
+For example, once we released ``3.1.0`` version on 25 September 2025 and until we do not have ``3.2.0`` release,
+the security patches will be cherry-picked and released in ``3.1.*`` versions until we release ``3.2.0``
+version. There will be no ``3.0.*`` versions released after ``3.1.0`` has been released.
 
 This means that in order to apply security fixes in Apache Airflow, you
-MUST upgrade to the latest ``MINOR`` and ``PATCHLEVEL`` version of Airflow.
+MUST upgrade to the latest released ``MINOR.PATCHLEVEL`` version of Airflow.
 
 Releasing Airflow providers with security patches
 -------------------------------------------------
 
-Similarly to Airflow, providers uses a strict `SemVer <https://semver.org>`_ versioning policy, and the same
+Similarly to Airflow, providers use `SemVer <https://semver.org>`_ versioning policy, and the same
 policies apply for providers as for Airflow itself. This means that you need to upgrade to the latest
-``MINOR`` and ``PATCHLEVEL`` version of the provider to get the latest security fixes.
+``MINOR.PATCHLEVEL`` version of the provider to get the latest security fixes.
+
 Airflow providers are released independently from Airflow itself and the information about vulnerabilities
 is published separately. You can upgrade providers independently from Airflow itself, following the
 instructions found in :ref:`installing-from-pypi-managing-providers-separately-from-airflow-core`.

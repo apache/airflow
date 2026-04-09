@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
+import { Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useState } from "react";
@@ -201,20 +201,18 @@ export const Connections = () => {
         </HStack>
       </VStack>
 
-      <Box overflow="auto">
-        <DataTable
-          columns={columns}
-          data={data?.connections ?? []}
-          errorMessage={<ErrorAlert error={error} />}
-          initialState={tableURLState}
-          isFetching={isFetching}
-          isLoading={isLoading}
-          modelName="admin:connections.connection"
-          noRowsMessage={<NothingFoundInfo />}
-          onStateChange={setTableURLState}
-          total={data?.total_entries ?? 0}
-        />
-      </Box>
+      <DataTable
+        columns={columns}
+        data={data?.connections ?? []}
+        errorMessage={<ErrorAlert error={error} />}
+        initialState={tableURLState}
+        isFetching={isFetching}
+        isLoading={isLoading}
+        modelName="admin:connections.connection"
+        noRowsMessage={<NothingFoundInfo />}
+        onStateChange={setTableURLState}
+        total={data?.total_entries ?? 0}
+      />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>

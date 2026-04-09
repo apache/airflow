@@ -181,7 +181,7 @@ with DAG(
     # [START howto_operator_vision_product_get]
     product_get = CloudVisionGetProductOperator(
         location=LOCATION,
-        product_id="{{ task_instance.xcom_pull('product_create') }}",
+        product_id=product_create.output,
         task_id="product_get",
     )
     # [END howto_operator_vision_product_get]
@@ -189,7 +189,7 @@ with DAG(
     # [START howto_operator_vision_product_update]
     product_update = CloudVisionUpdateProductOperator(
         location=LOCATION,
-        product_id="{{ task_instance.xcom_pull('product_create') }}",
+        product_id=product_create.output,
         product=Product(display_name="My Product 2", description="My updated description"),
         task_id="product_update",
     )
@@ -198,7 +198,7 @@ with DAG(
     # [START howto_operator_vision_product_delete]
     product_delete = CloudVisionDeleteProductOperator(
         location=LOCATION,
-        product_id="{{ task_instance.xcom_pull('product_create') }}",
+        product_id=product_create.output,
         task_id="product_delete",
     )
     # [END howto_operator_vision_product_delete]
@@ -207,7 +207,7 @@ with DAG(
     reference_image_create = CloudVisionCreateReferenceImageOperator(
         location=LOCATION,
         reference_image=reference_image,
-        product_id="{{ task_instance.xcom_pull('product_create') }}",
+        product_id=product_create.output,
         reference_image_id=GCP_VISION_REFERENCE_IMAGE_ID,
         retry=Retry(maximum=10.0),
         timeout=5,
@@ -218,7 +218,7 @@ with DAG(
     # [START howto_operator_vision_reference_image_delete]
     reference_image_delete = CloudVisionDeleteReferenceImageOperator(
         location=LOCATION,
-        product_id="{{ task_instance.xcom_pull('product_create') }}",
+        product_id=product_create.output,
         reference_image_id=GCP_VISION_REFERENCE_IMAGE_ID,
         retry=Retry(maximum=10.0),
         timeout=5,
@@ -230,7 +230,7 @@ with DAG(
     add_product_to_product_set = CloudVisionAddProductToProductSetOperator(
         location=LOCATION,
         product_set_id=product_set_create_output,
-        product_id="{{ task_instance.xcom_pull('product_create') }}",
+        product_id=product_create.output,
         retry=Retry(maximum=10.0),
         timeout=5,
         task_id="add_product_to_product_set",
@@ -241,7 +241,7 @@ with DAG(
     remove_product_from_product_set = CloudVisionRemoveProductFromProductSetOperator(
         location=LOCATION,
         product_set_id=product_set_create_output,
-        product_id="{{ task_instance.xcom_pull('product_create') }}",
+        product_id=product_create.output,
         retry=Retry(maximum=10.0),
         timeout=5,
         task_id="remove_product_from_product_set",

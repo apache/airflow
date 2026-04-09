@@ -96,6 +96,10 @@ export const transformGanttData = ({
       // Handle groups and mapped tasks using grid summary (aggregated min/max times)
       // Use ISO so time scale and bar positions render consistently across browsers
       if ((node.isGroup ?? node.is_mapped) && gridSummary) {
+        if (gridSummary.min_start_date === null || gridSummary.max_end_date === null) {
+          return undefined;
+        }
+
         return [
           {
             isGroup: node.isGroup,
@@ -116,20 +120,25 @@ export const transformGanttData = ({
         const tries = triesByTask.get(node.id);
 
         if (tries && tries.length > 0) {
-          return tries.map((tryInstance) => {
-            const hasTaskRunning = isStatePending(tryInstance.state);
-            const endTime = hasTaskRunning ? dayjs().toISOString() : tryInstance.end_date;
+          return tries
+            .filter((tryInstance) => tryInstance.start_date !== null)
+            .map((tryInstance) => {
+              const hasTaskRunning = isStatePending(tryInstance.state);
+              const endTime =
+                hasTaskRunning || tryInstance.end_date === null
+                  ? dayjs().toISOString()
+                  : tryInstance.end_date;
 
-            return {
-              isGroup: false,
-              isMapped: tryInstance.is_mapped,
-              state: tryInstance.state,
-              taskId: tryInstance.task_id,
-              tryNumber: tryInstance.try_number,
-              x: [dayjs(tryInstance.start_date).toISOString(), dayjs(endTime).toISOString()],
-              y: tryInstance.task_id,
-            };
-          });
+              return {
+                isGroup: false,
+                isMapped: tryInstance.is_mapped,
+                state: tryInstance.state,
+                taskId: tryInstance.task_id,
+                tryNumber: tryInstance.try_number,
+                x: [dayjs(tryInstance.start_date).toISOString(), dayjs(endTime).toISOString()],
+                y: tryInstance.task_display_name,
+              };
+            });
         }
       }
 
@@ -338,8 +347,8 @@ export const createChartOptions = ({
         max:
           data.length > 0
             ? (() => {
-                const maxTime = Math.max(...data.map((item) => new Date(item.x[1] ?? "").getTime()));
-                const minTime = Math.min(...data.map((item) => new Date(item.x[0] ?? "").getTime()));
+                const maxTime = Math.max(...data.map((item) => dayjs(item.x[1]).valueOf()));
+                const minTime = Math.min(...data.map((item) => dayjs(item.x[0]).valueOf()));
                 const totalDuration = maxTime - minTime;
 
                 // add 5% to the max time to avoid the last tick being cut off
@@ -349,8 +358,8 @@ export const createChartOptions = ({
         min:
           data.length > 0
             ? (() => {
-                const maxTime = Math.max(...data.map((item) => new Date(item.x[1] ?? "").getTime()));
-                const minTime = Math.min(...data.map((item) => new Date(item.x[0] ?? "").getTime()));
+                const maxTime = Math.max(...data.map((item) => dayjs(item.x[1]).valueOf()));
+                const minTime = Math.min(...data.map((item) => dayjs(item.x[0]).valueOf()));
                 const totalDuration = maxTime - minTime;
 
                 // subtract 2% from min time so background color shows before data

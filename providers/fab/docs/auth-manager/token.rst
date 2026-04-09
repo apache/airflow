@@ -26,7 +26,7 @@ authentication.
 Once you have the token, include it in the ``Authorization`` header when making requests to the public API.
 
 You can generate a JWT token using the ``Create Token`` API endpoint,
-documented in :doc:`/api-ref/fab-token-api-ref`.
+documented in :doc:`/api-ref/fab-api-ref`.
 
 Example
 '''''''

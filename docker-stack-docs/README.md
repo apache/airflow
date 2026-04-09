@@ -56,7 +56,7 @@ you want to either extend or customize the image. You can see all possible extra
 The set of extras used in Airflow Production image are available in the
 [Dockerfile](https://github.com/apache/airflow/blob/2c6c7fdb2308de98e142618836bdf414df9768c8/Dockerfile#L37).
 
-However, Airflow has more than 60 community-managed providers (installable via extras) and some of the
+However, Airflow has more than 90 community-managed providers (installable via extras) and some of the
 default extras/providers installed are not used by everyone, sometimes others extras/providers
 are needed, sometimes (very often actually) you need to add your own custom dependencies,
 packages or even custom providers. You can learn how to do it in [Building the image](https://airflow.apache.org/docs/docker-stack/build.html#build-build-image).

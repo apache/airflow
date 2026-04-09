@@ -3,6 +3,7 @@
     "description": "描述",
     "key": "键",
     "name": "名称",
+    "team": "团队",
     "value": "值"
   },
   "config": {
@@ -49,6 +50,12 @@
     "searchPlaceholder": "搜索连接",
     "test": "测试连接",
     "testDisabled": "测试连接功能已停用。请联系管理员以启用。",
+    "testError": {
+      "title": "测试连接失败"
+    },
+    "testSuccess": {
+      "title": "测试连接成功"
+    },
     "typeMeta": {
       "error": "获取连接类型元数据失败",
       "standardFields": {
@@ -73,6 +80,23 @@
   },
   "formActions": {
     "save": "保存"
+  },
+  "jobs": {
+    "columns": {
+      "executorClass": "执行器类别",
+      "hostname": "主机名称",
+      "id": "ID",
+      "jobType": "作业类型",
+      "latestHeartbeat": "最新心跳",
+      "unixname": "Unix 名称"
+    },
+    "filters": {
+      "allStates": "全部状态",
+      "allTypes": "全部类型",
+      "dagProcessorJob": "Dag 处理器作业",
+      "schedulerJob": "调度器作业",
+      "triggererJob": "触发器作业"
+    }
   },
   "plugins": {
     "columns": {

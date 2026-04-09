@@ -139,7 +139,7 @@ def create_cluster(
     if operation_result.response is None:
         return None
 
-    return operation_result.response.id
+    return operation_result.response.id  # type: ignore[attr-defined]
 
 
 @task

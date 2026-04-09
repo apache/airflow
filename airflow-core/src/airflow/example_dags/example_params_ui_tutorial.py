@@ -137,10 +137,10 @@ with DAG(
         # You can also label the selected values via values_display attribute
         "pick_with_label": Param(
             3,
-            type="number",
+            type=["number", "null"],
             title="Select one Number",
             description="With drop down selections you can also have nice display labels for the values.",
-            enum=[*range(1, 10)],
+            enum=[*range(1, 10), None],
             values_display={
                 1: "One",
                 2: "Two",
@@ -151,6 +151,7 @@ with DAG(
                 7: "Seven",
                 8: "Eight",
                 9: "Nine",
+                None: "None (clear selection)",
             },
             section="Drop-Downs and selection lists",
         ),

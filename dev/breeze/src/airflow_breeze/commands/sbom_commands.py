@@ -67,7 +67,7 @@ from airflow_breeze.utils.cdxgen import (
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
-from airflow_breeze.utils.console import get_console, get_theme
+from airflow_breeze.utils.console import console_print, get_theme
 from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import perform_environment_checks
 from airflow_breeze.utils.parallel import (
@@ -150,6 +150,14 @@ SBOM_INDEX_TEMPLATE = """
     envvar="AIRFLOW_VERSION",
     help="Version of airflow to update sbom from. (defaulted to all active airflow versions)",
 )
+@click.option(
+    "--airflow-constraints-reference",
+    type=str,
+    required=False,
+    envvar="AIRFLOW_CONSTRAINTS_REFERENCE",
+    help="Constraint reference to use when downloading Airflow constraints for SBOM generation. "
+    "Defaults to constraints derived from --airflow-version.",
+)
 @option_historical_python_versions
 @click.option(
     "--include-provider-dependencies",
@@ -222,6 +230,7 @@ def update_sbom_information(
     airflow_root_path: Path | None,
     airflow_site_archive_path: Path | None,
     airflow_version: str | None,
+    airflow_constraints_reference: str | None,
     all_combinations: bool,
     debug_resources: bool,
     force: bool,
@@ -252,7 +261,10 @@ def update_sbom_information(
         all_airflow_versions = airflow_versions.copy()
     else:
         airflow_versions = [airflow_version]
-        all_airflow_versions = get_active_airflow_versions(confirm=False, remote_name=remote_name)
+        if airflow_site_archive_path and add_stable:
+            all_airflow_versions, _ = get_active_airflow_versions(confirm=False, remote_name=remote_name)
+        else:
+            all_airflow_versions = airflow_versions.copy()
     if python_versions:
         python_versions_list = python_versions.split(",")
     else:
@@ -263,14 +275,14 @@ def update_sbom_information(
     jobs_to_run: list[SbomApplicationJob] = []
 
     if airflow_root_path and airflow_site_archive_path:
-        get_console().print(
+        console_print(
             "[error]You cannot specify both --airflow-site-archive-path and --airflow-root-path. "
             "Please specify only one of them."
         )
         sys.exit(1)
 
     if not airflow_root_path and not airflow_site_archive_path:
-        get_console().print(
+        console_print(
             "[error]You must specify either --airflow-site-archive-path or --airflow-root-path. "
             "Please specify one of them."
         )
@@ -279,9 +291,9 @@ def update_sbom_information(
     def _dir_exists_warn_and_should_skip(dir: Path, force: bool) -> bool:
         if dir.exists():
             if not force:
-                get_console().print(f"[warning]The {dir} already exists. Skipping")
+                console_print(f"[warning]The {dir} already exists. Skipping")
                 return True
-            get_console().print(f"[warning]The {dir} already exists. Forcing update")
+            console_print(f"[warning]The {dir} already exists. Forcing update")
             return False
         return False
 
@@ -308,6 +320,7 @@ def update_sbom_information(
                     include_provider_dependencies,
                     include_python,
                     jobs_to_run,
+                    airflow_constraints_reference=airflow_constraints_reference,
                     python_versions=use_python_versions,
                 )
         else:
@@ -325,6 +338,7 @@ def update_sbom_information(
                 include_provider_dependencies,
                 include_python,
                 jobs_to_run,
+                airflow_constraints_reference=airflow_constraints_reference,
                 python_versions=use_python_versions,
             )
         if add_stable and airflow_site_archive_path and all_airflow_versions[-1] in airflow_versions:
@@ -338,7 +352,7 @@ def update_sbom_information(
             stable_dir = airflow_site_archive_path / "docs-archive" / "apache-airflow" / "stable" / "sbom"
             stable_dir.parent.mkdir(parents=True, exist_ok=True)
             shutil.copytree(latest_dir, stable_dir, dirs_exist_ok=True)
-            get_console().print(
+            console_print(
                 f"[info]Copied latest SBOMs to stable version directory: from {latest_dir} to {stable_dir}."
             )
 
@@ -360,9 +374,7 @@ def update_sbom_information(
 
             destination_dir.mkdir(parents=True, exist_ok=True)
 
-            get_console().print(
-                f"[info]Attempting to update sbom for {provider_id} version {provider_version}."
-            )
+            console_print(f"[info]Attempting to update sbom for {provider_id} version {provider_version}.")
 
             python_versions_list = sorted(
                 set(
@@ -390,12 +402,12 @@ def update_sbom_information(
                 )
 
     if len(jobs_to_run) == 0:
-        get_console().print("[info]Nothing to do, there is no job to process")
+        console_print("[info]Nothing to do, there is no job to process")
         return
 
     if run_in_parallel:
         parallelism = min(parallelism, len(jobs_to_run))
-        get_console().print(f"[info]Running {len(jobs_to_run)} jobs in parallel")
+        console_print(f"[info]Running {len(jobs_to_run)} jobs in parallel")
         with ci_group(f"Generating SBOMs for {jobs_to_run}"):
             all_params = [f"Generate SBOMs for {job.get_job_name()} " for job in jobs_to_run]
             with run_with_pool(
@@ -432,7 +444,7 @@ def update_sbom_information(
 
     def _generate_index(destination_dir: Path, provider_id: str | None, version: str) -> None:
         destination_index_path = destination_dir / "index.html"
-        get_console().print(f"[info]Generating index for {destination_dir}")
+        console_print(f"[info]Generating index for {destination_dir}")
         sbom_files = sorted(destination_dir.glob("apache-airflow-sbom-*"))
         if not get_dry_run():
             index_content = jinja2.Template(html_template, autoescape=True, undefined=StrictUndefined).render(
@@ -444,10 +456,10 @@ def update_sbom_information(
             if get_verbose():
                 from rich.syntax import Syntax
 
-                get_console().print(
+                console_print(
                     f"[info]Generated index file {destination_index_path} with {len(sbom_files)} SBOM files"
                 )
-                get_console().print(Syntax(index_content, "html", theme="ansi_dark", line_numbers=True))
+                console_print(Syntax(index_content, "html", theme="ansi_dark", line_numbers=True))
 
     if package_filter == "apache-airflow":
         for airflow_v in airflow_versions:
@@ -460,7 +472,7 @@ def update_sbom_information(
                     airflow_root_path / "generated" / "_build" / "docs" / "apache-airflow" / "stable"
                 )
             else:
-                get_console().print(
+                console_print(
                     "[error]You must specify either --airflow-site-archive-path or --airflow-root-path. "
                     "Please specify one of them."
                 )
@@ -491,6 +503,7 @@ def core_jobs(
     include_provider_dependencies: bool,
     include_python: bool,
     jobs_to_run: list[SbomApplicationJob],
+    airflow_constraints_reference: str | None,
     python_versions: list[str],
 ):
     for airflow_v in airflow_versions:
@@ -507,23 +520,23 @@ def core_jobs(
                 airflow_root_path / "generated" / "_build" / "docs" / "apache-airflow" / "stable"
             )
         else:
-            get_console().print(
+            console_print(
                 "[error]You must specify either --airflow-site-archive-path or --airflow-root-path. "
                 "Please specify one of them."
             )
             sys.exit(1)
         if not airflow_version_dir.exists():
-            get_console().print(f"[warning]The {airflow_version_dir} does not exist. Skipping")
+            console_print(f"[warning]The {airflow_version_dir} does not exist. Skipping")
             continue
         destination_dir = airflow_version_dir / "sbom"
         if _dir_exists_warn_and_should_skip(destination_dir, force):
-            get_console().print(
+            console_print(
                 f"[warning]The {destination_dir} already exists and generation is not forced. "
                 f"Skipping for airflow version {airflow_v}"
             )
             continue
         destination_dir.mkdir(parents=True, exist_ok=True)
-        get_console().print(f"[info]Attempting to update sbom for {airflow_v}.")
+        console_print(f"[info]Attempting to update sbom for {airflow_v}.")
         for python_version in python_versions:
             if include_python and include_npm:
                 suffix = f"-python{python_version}"
@@ -532,7 +545,7 @@ def core_jobs(
             elif include_npm:
                 suffix = "-npm-only"
             else:
-                get_console().print("[warning]Neither python nor npm provided. Skipping")
+                console_print("[warning]Neither python nor npm provided. Skipping")
                 continue
             if include_provider_dependencies:
                 suffix += "-full"
@@ -550,6 +563,7 @@ def core_jobs(
                     target_path=target_sbom_path,
                     include_python=include_python,
                     include_npm=include_npm,
+                    constraints_reference=airflow_constraints_reference,
                 )
             )
 
@@ -581,7 +595,7 @@ def build_all_airflow_images(
 
     if run_in_parallel:
         parallelism = min(parallelism, len(python_versions_list))
-        get_console().print(f"[info]Running {len(python_versions_list)} jobs in parallel")
+        console_print(f"[info]Running {len(python_versions_list)} jobs in parallel")
         with ci_group(f"Building all airflow base images for python: {python_versions_list}"):
             all_params = [
                 f"Building all airflow base image for python versions: {python_versions_list}"
@@ -671,7 +685,7 @@ def generate_providers_requirements(
 
     if provider_id is None:
         if provider_version is not None and provider_version != "latest":
-            get_console().print(
+            console_print(
                 "[error] You cannot pin the version of the providers if you generate the requirements for "
                 "all historical or latest versions. --provider-version needs to be unset when you pass None "
                 "or latest to --provider-id"
@@ -724,7 +738,7 @@ def generate_providers_requirements(
 
     if run_in_parallel:
         parallelism = min(parallelism, len(providers_info))
-        get_console().print(f"[info]Running {len(providers_info)} jobs in parallel")
+        console_print(f"[info]Running {len(providers_info)} jobs in parallel")
         with ci_group(f"Generating provider requirements for {providers_info}"):
             all_params = [
                 f"Generate provider requirements for {provider_id} version {provider_version} python "
@@ -843,7 +857,7 @@ def export_dependency_information(
     project_name: str | None,
 ):
     if google_spreadsheet_id and not json_credentials_file.exists():
-        get_console().print(
+        console_print(
             f"[error]The JSON credentials file {json_credentials_file} does not exist. "
             "Please specify a valid path to the JSON credentials file.[/]\n"
             "You can download credentials file from your google developer console:"
@@ -851,9 +865,7 @@ def export_dependency_information(
         )
         sys.exit(1)
     if include_actions and not include_open_psf_scorecard:
-        get_console().print(
-            "[error]You cannot specify --include-actions without --include-open-psf-scorecard"
-        )
+        console_print("[error]You cannot specify --include-actions without --include-open-psf-scorecard")
         sys.exit(1)
 
     read_metadata_from_google_spreadsheet(get_sheets(json_credentials_file))
@@ -890,9 +902,7 @@ def export_dependency_information(
         include_github_stats=include_github_stats,
         include_actions=include_actions,
     )
-    get_console().print(
-        f"[info]Writing {len(all_dependency_value_dicts)} dependencies to Google Spreadsheet."
-    )
+    console_print(f"[info]Writing {len(all_dependency_value_dicts)} dependencies to Google Spreadsheet.")
 
     write_sbom_information_to_google_spreadsheet(
         sheets=get_sheets(json_credentials_file),
@@ -961,7 +971,7 @@ def convert_all_sbom_to_value_dictionaries(
             num_deps += 1
             progress.advance(task_id=core_dependencies_progress, advance=1)
             if limit_output and num_deps >= limit_output:
-                get_console().print(f"[info]Processed limited {num_deps} dependencies and stopping.")
+                console_print(f"[info]Processed limited {num_deps} dependencies and stopping.")
                 return all_dependency_value_dicts
         for dependency in full_sbom["components"]:
             normalized_name = normalize_package_name(dependency["name"])
@@ -985,9 +995,9 @@ def convert_all_sbom_to_value_dictionaries(
                 num_deps += 1
                 progress.advance(task_id=other_dependencies_progress, advance=1)
             if limit_output and num_deps >= limit_output:
-                get_console().print(f"[info]Processed limited {num_deps} dependencies and stopping.")
+                console_print(f"[info]Processed limited {num_deps} dependencies and stopping.")
                 return all_dependency_value_dicts
-    get_console().print(f"[info]Processed {num_deps} dependencies")
+    console_print(f"[info]Processed {num_deps} dependencies")
     return all_dependency_value_dicts
 
 

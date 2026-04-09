@@ -220,6 +220,7 @@ with DAG(
     )
     # [END howto_operator_redshift_delete_cluster]
     delete_cluster.trigger_rule = TriggerRule.ALL_DONE
+    delete_cluster.max_attempts = 50
 
     # [START howto_operator_redshift_delete_cluster_snapshot]
     delete_cluster_snapshot = RedshiftDeleteClusterSnapshotOperator(

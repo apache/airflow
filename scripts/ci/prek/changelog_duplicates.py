@@ -38,25 +38,30 @@ known_exceptions = [
 
 pr_number_re = re.compile(r".*\(#([0-9]{1,6})\)`?`?$")
 
-files = sys.argv[1:]
 
-failed = False
-for filename in files:
-    seen = []
-    dups = []
-    with open(filename) as f:
-        for line in f:
-            match = pr_number_re.search(line)
-            if match:
-                pr_number = match.group(1)
-                if pr_number not in seen:
-                    seen.append(pr_number)
-                elif pr_number not in known_exceptions:
-                    dups.append(pr_number)
+def find_duplicates(lines: list[str]) -> list[str]:
+    """Find duplicate PR numbers in changelog lines, excluding known exceptions."""
+    seen: list[str] = []
+    dups: list[str] = []
+    for line in lines:
+        if (match := pr_number_re.search(line)) and (pr := match.group(1)):
+            if pr not in seen:
+                seen.append(pr)
+            elif pr not in known_exceptions:
+                dups.append(pr)
+    return dups
 
-    if dups:
-        print(f"Duplicate changelog entries found for {filename}: {dups}")
-        failed = True
 
-if failed:
-    sys.exit(1)
+def main(filenames: list[str]) -> int:
+    failed = False
+    for filename in filenames:
+        with open(filename) as f:
+            dups = find_duplicates(f.readlines())
+        if dups:
+            print(f"Duplicate changelog entries found for {filename}: {dups}")
+            failed = True
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

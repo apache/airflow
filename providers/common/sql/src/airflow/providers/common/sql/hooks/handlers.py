@@ -51,6 +51,15 @@ def return_single_query_results(
     return isinstance(sql, str) and return_last
 
 
+def get_row_count(cursor) -> int | None:
+    # According to PEP 249, this is -1 or None when query result is not applicable.
+    # We standardize so it's either None (when not applicable) or positive integer / 0 (when applicable)
+    row_count = getattr(cursor, "rowcount", None)
+    if isinstance(row_count, int) and row_count >= 0:
+        return row_count
+    return None
+
+
 def fetch_all_handler(cursor) -> list[tuple] | None:
     """Return results for DbApiHook.run()."""
     if not hasattr(cursor, "description"):

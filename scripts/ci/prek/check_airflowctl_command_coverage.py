@@ -31,9 +31,7 @@ from __future__ import annotations
 import ast
 import re
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_prek_utils import AIRFLOW_ROOT_PATH, console
 
 OPERATIONS_FILE = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / "api" / "operations.py"

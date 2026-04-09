@@ -16,7 +16,7 @@
 # under the License.
 
 """
-Example DAG to demonstrate annotating an asset event with extra information.
+Example Dag to demonstrate annotating an asset event with extra information.
 
 Also see examples in ``example_inlet_event_extra.py``.
 """
@@ -33,7 +33,7 @@ asset = Asset(uri="s3://output/1.txt", name="test-asset")
 with DAG(
     dag_id="asset_with_extra_by_yield",
     catchup=False,
-    start_date=datetime.datetime.min,
+    start_date=datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc),
     schedule="@daily",
     tags=["produces"],
 ):
@@ -47,7 +47,7 @@ with DAG(
 with DAG(
     dag_id="asset_with_extra_by_context",
     catchup=False,
-    start_date=datetime.datetime.min,
+    start_date=datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc),
     schedule="@daily",
     tags=["produces"],
 ):
@@ -61,19 +61,13 @@ with DAG(
 with DAG(
     dag_id="asset_with_extra_from_classic_operator",
     catchup=False,
-    start_date=datetime.datetime.min,
+    start_date=datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc),
     schedule="@daily",
     tags=["produces"],
 ):
 
     def _asset_with_extra_from_classic_operator_post_execute(context, result):
         context["outlet_events"][asset].extra = {"hi": "bye"}
-        # TODO: AIP-76 probably we want to make it so this could be
-        #  AssetEvent, list[AssetEvent], [], or None. And if [] or None,
-        #  then no events would be emitted. The use case is, instead of unconditionally
-        #  emitting an event, we could optionally emit no events, or multiple events,
-        #  i.e. for different partitions.
-        #  https://github.com/apache/airflow/issues/58474
 
     BashOperator(
         task_id="asset_with_extra_from_classic_operator",

@@ -276,7 +276,9 @@ class DagBundlesManager(LoggingMixin):
                         name,
                         team.name,
                     )
-            elif not team and name in bundle_to_team:
+            elif not team and bundle_to_team.get(name) is not None:
+                # Only remove ownership if a team was previously associated; stored bundles with
+                # no team already map to None in bundle_to_team.
                 # Remove team association
                 self.log.warning(
                     "Removing ownership of team '%s' from Dag bundle '%s'", bundle_to_team[name], name

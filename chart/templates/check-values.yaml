@@ -23,6 +23,14 @@ The sole purpose of this YAML file is it to check the values file is consistent 
 
 {{- /*
 ##############################
+   Version checks
+#############################
+*/ -}}
+  {{- if semverCompare "<2.11.0" .Values.airflowVersion }}
+    {{ required "This chart only supports Apache Airflow version 2.11.0 and above." nil }}
+  {{- end }}
+{{- /*
+##############################
    Redis related checks
 #############################
 */ -}}

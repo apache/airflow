@@ -60,3 +60,21 @@ Environment Variables
     It disables some features such as keyring integration and save credentials to file.
     It is only meant to use if either you are developing airflowctl or running API integration tests.
     Please do not use this variable unless you know what you are doing.
+
+.. envvar:: AIRFLOW_CLI_API_RETRIES
+
+    The number of times to retry an API call if it fails. This is
+    only used if you are using the Airflow API and have not set up
+    authentication using a different method. The default value is 3.
+
+.. envvar:: AIRFLOW_CLI_API_RETRY_WAIT_MIN
+
+    The minimum amount of time to wait between API retries in seconds.
+    This is only used if you are using the Airflow API and have not set up
+    authentication using a different method. The default value is 1 second.
+
+.. envvar:: AIRFLOW_CLI_API_RETRY_WAIT_MAX
+
+    The maximum amount of time to wait between API retries in seconds.
+    This is only used if you are using the Airflow API and have not set up
+    authentication using a different method. The default value is 10 seconds.

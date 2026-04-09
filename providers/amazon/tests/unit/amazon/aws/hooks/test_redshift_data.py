@@ -276,6 +276,30 @@ class TestRedshiftDataHook:
             Id=STATEMENT_ID,
         )
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_execute_query_hook_lineage(self, mock_conn, mock_send_lineage):
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        hook = RedshiftDataHook()
+        hook.execute_query(
+            database=DATABASE,
+            cluster_identifier="cluster_identifier",
+            sql=SQL,
+            wait_for_completion=False,
+        )
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == SQL
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["job_id"] == STATEMENT_ID
+        assert call_kw["default_db"] == DATABASE
+        assert call_kw["extra"] == {
+            "cluster_identifier": "cluster_identifier",
+            "workgroup_name": None,
+            "session_id": None,
+        }
+
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_batch_execute(self, mock_conn):
         mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}

@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
+from structlog.testing import capture_logs
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
@@ -138,7 +139,7 @@ class TestConnection:
                 {"param": "value"},
                 None,
             ),
-            (
+            (  # Test password sanitisation
                 "type://user:pass@protocol://host:port?param=value",
                 None,
                 None,
@@ -147,7 +148,29 @@ class TestConnection:
                 None,
                 None,
                 None,
-                r"Invalid connection string: type://user:pass@protocol://host:port?param=value.",
+                r"Invalid connection string.",
+            ),
+            (
+                "foo:pwd@host://://",
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                r"Invalid connection string.",
+            ),
+            (
+                "type://:foo@host/://://",
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                r"Invalid connection string.",
             ),
             (
                 "type://host?int_param=123&bool_param=true&float_param=1.5&str_param=some_str",
@@ -247,6 +270,55 @@ class TestConnection:
     )
     def test_get_uri(self, connection, expected_uri):
         assert connection.get_uri() == expected_uri
+
+    @pytest.mark.parametrize(
+        ("connection", "expected_warned"),
+        [
+            (Connection(conn_id="test-uri-1", uri="google-cloud-platform://testlogin:testpassword@"), False),
+            (Connection(conn_id="test-uri-2", uri="amazon://test:test@"), False),
+            (
+                Connection(
+                    conn_id="test-non-uri-1",
+                    conn_type="google-cloud-platform",
+                    login="testlogin",
+                    password="testpassword",
+                ),
+                False,
+            ),
+            (
+                Connection(
+                    conn_id="test-non-uri-2",
+                    conn_type="google_cloud_platform",
+                    login="testlogin",
+                    password="testpassword",
+                ),
+                True,
+            ),
+            (
+                Connection(
+                    conn_id="test-non-uri-3", conn_type="amazon", login="testlogin", password="testpassword"
+                ),
+                False,
+            ),
+        ],
+    )
+    def test_get_uri_conn_type_warning(self, connection: Connection, expected_warned: bool):
+        with capture_logs() as captured_logs:
+            connection.get_uri()
+        conn_type_warnings = list(
+            filter(
+                lambda captured_log: (
+                    captured_log["log_level"] == "warning" and "RFC3986" in captured_log["event"]
+                ),
+                captured_logs,
+            )
+        )
+        if expected_warned:
+            assert conn_type_warnings, f"RFC3986 warning expected for connection '{connection.conn_id}'."
+        else:
+            assert not conn_type_warnings, (
+                f"RFC3986 warning not expected for connection '{connection.conn_id}'."
+            )
 
     @pytest.mark.parametrize(
         ("connection", "expected_conn_id"),

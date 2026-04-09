@@ -19,9 +19,9 @@
 import type { PropsWithChildren } from "react";
 import { useLocalStorage } from "usehooks-ts";
 
-import { TimezoneContext, type TimezoneContextType } from "./Context";
+import { TIMEZONE_KEY } from "src/constants/localStorage";
 
-const TIMEZONE_KEY = "timezone";
+import { TimezoneContext, type TimezoneContextType } from "./Context";
 
 export const TimezoneProvider = ({ children }: PropsWithChildren) => {
   const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;

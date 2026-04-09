@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Apache Beam",
                 "external-doc-url": "https://beam.apache.org/",
+                "logo": "/docs/integration-logos/Apache-Beam.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-apache-beam/operators.rst"],
                 "tags": ["apache"],
             }

@@ -30,6 +30,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.operators.sql import (
     BaseSQLOperator,
     BranchSQLOperator,
@@ -1608,25 +1609,70 @@ class TestBaseSQLOperatorSubClass:
 
 class TestSQLInsertRowsOperator:
     @mock.patch.object(SQLInsertRowsOperator, "get_db_hook")
-    def test_rows_processor(self, mock_get_db_hook):
+    def test_insert_rows_operator_with_preoperator(self, mock_get_db_hook):
+        mock_hook = MagicMock(spec=DbApiHook)
+        mock_get_db_hook.return_value = mock_hook
+
         operator = SQLInsertRowsOperator(
             task_id="test_task",
             conn_id="default_conn",
             schema="hollywood",
             table_name="actors",
+            preoperator="TRUNCATE TABLE hollywood.actors",
             rows=[
-                {"index": 1, "name": "Stallone", "firstname": "Sylvester", "age": 78},
-                {"index": 2, "name": "Statham", "firstname": "Jason", "age": 57},
-                {"index": 3, "name": "Li", "firstname": "Jet", "age": 61},
-                {"index": 4, "name": "Lundgren", "firstname": "Dolph", "age": 66},
-                {"index": 5, "name": "Norris", "firstname": "Chuck", "age": 84},
+                (1, "Stallone", "Sylvester", 78),
+                (2, "Statham", "Jason", 57),
+                (3, "Li", "Jet", 61),
+                (4, "Lundgren", "Dolph", 66),
+                (5, "Norris", "Chuck", 84),
             ],
-            rows_processor=lambda rows, **context: map(lambda row: tuple(row.values()), rows),
         )
 
-        processed_rows = list(operator._process_rows({}))
+        operator.execute({})
 
-        assert processed_rows == [
+        mock_hook.run.assert_called_once()
+        args, _ = mock_hook.run.call_args
+        assert args[0] == "TRUNCATE TABLE hollywood.actors"
+
+        mock_hook.insert_rows.assert_called_once()
+        _, kwargs = mock_hook.insert_rows.call_args
+
+        assert kwargs["rows"] == [
+            (1, "Stallone", "Sylvester", 78),
+            (2, "Statham", "Jason", 57),
+            (3, "Li", "Jet", 61),
+            (4, "Lundgren", "Dolph", 66),
+            (5, "Norris", "Chuck", 84),
+        ]
+
+    @mock.patch.object(SQLInsertRowsOperator, "get_db_hook")
+    def test_insert_rows_operator_with_rows_processor(self, mock_get_db_hook):
+        mock_hook = MagicMock(spec=DbApiHook)
+        mock_get_db_hook.return_value = mock_hook
+
+        operator = SQLInsertRowsOperator(
+            task_id="test_task",
+            conn_id="default_conn",
+            schema="hollywood",
+            table_name="actors",
+            rows=iter(
+                [
+                    {"index": 1, "name": "Stallone", "firstname": "Sylvester", "age": 78},
+                    {"index": 2, "name": "Statham", "firstname": "Jason", "age": 57},
+                    {"index": 3, "name": "Li", "firstname": "Jet", "age": 61},
+                    {"index": 4, "name": "Lundgren", "firstname": "Dolph", "age": 66},
+                    {"index": 5, "name": "Norris", "firstname": "Chuck", "age": 84},
+                ]
+            ),
+            rows_processor=lambda rows, **context: [tuple(row.values()) for row in rows],
+        )
+
+        operator.execute({})
+
+        mock_hook.insert_rows.assert_called_once()
+        _, kwargs = mock_hook.insert_rows.call_args
+
+        assert kwargs["rows"] == [
             (1, "Stallone", "Sylvester", 78),
             (2, "Statham", "Jason", 57),
             (3, "Li", "Jet", 61),

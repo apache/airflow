@@ -17,7 +17,7 @@
 
 
 
-.. _howto/connection:spark-sql:
+.. _howto/connection:spark_sql:
 
 Apache Spark SQL Connection
 ===========================

@@ -22,6 +22,7 @@
   "backfill_other": "Geriye Dönük Çalıştırmalar",
   "browse": {
     "auditLog": "Denetim Günlüğü",
+    "jobs": "İşler",
     "requiredActions": "Gerekli Eylemler",
     "xcoms": "XCom'lar"
   },
@@ -60,6 +61,7 @@
     "dataIntervalEnd": "Veri Aralığı Sonu",
     "dataIntervalStart": "Veri Aralığı Başlangıcı",
     "lastSchedulingDecision": "Son Zamanlama Kararı",
+    "mappedPartitionKey": "Haritalanmış Bölüm Anahtarı",
     "partitionKey": "Bölüm Anahtarı",
     "queuedAt": "Kuyruğa Alınma Zamanı",
     "runAfter": "Sonra Çalıştır",
@@ -159,15 +161,13 @@
     "placeholder": "Not ekle...",
     "taskInstance": "Görev Örneği Notu"
   },
-  "pools": {
-    "deferred": "Ertelenmiş",
-    "open": "Açık",
-    "pools_one": "Havuz",
-    "pools_other": "Havuzlar",
-    "queued": "Kuyrukta",
-    "running": "Çalışıyor",
-    "scheduled": "Planlanmış"
+  "partitionedDagRun_one": "Haritalanmış Dag Çalıştırması",
+  "partitionedDagRun_other": "Haritalanmış Dag Çalıştırmaları",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Varlık Etkinlikleri Alındı"
   },
+  "pendingDagRun_one": "{{count}} Bekleyen Dag Çalıştırması",
+  "pendingDagRun_other": "{{count}} Bekleyen Dag Çalıştırması",
   "reset": "Sıfırla",
   "runId": "Çalıştırma Kimliği",
   "runTypes": {
@@ -207,6 +207,7 @@
     "failed": "Başarısız",
     "no_status": "Durum Yok",
     "none": "Durum Yok",
+    "open": "Açık",
     "planned": "Planlanmış",
     "queued": "Kuyrukta",
     "removed": "Kaldırılmış",

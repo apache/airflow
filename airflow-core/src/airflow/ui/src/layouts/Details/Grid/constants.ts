@@ -20,7 +20,7 @@
 // Grid layout constants - shared between Grid and Gantt for alignment
 export const ROW_HEIGHT = 20;
 export const GRID_OUTER_PADDING_PX = 64; // pt={16} = 16 * 4 = 64px
-export const GRID_HEADER_PADDING_PX = 8; // pt={2} = 2 * 4 = 8px
+export const GRID_HEADER_PADDING_PX = 16; // pt={4} = 4 * 4 = 16px
 export const GRID_HEADER_HEIGHT_PX = 100; // height="100px" for duration bars
 
 // Gantt chart's x-axis height (time labels at top of chart)
@@ -30,3 +30,11 @@ export const GANTT_AXIS_HEIGHT_PX = 36;
 // minus the Gantt axis height since the chart includes its own top axis
 export const GRID_BODY_OFFSET_PX =
   GRID_OUTER_PADDING_PX + GRID_HEADER_PADDING_PX + GRID_HEADER_HEIGHT_PX - GANTT_AXIS_HEIGHT_PX;
+
+// Version indicator constants
+export const BAR_HEIGHT = GRID_HEADER_HEIGHT_PX; // Duration bar height matches grid header
+export const BUNDLE_VERSION_INDICATOR_TOP = 93; // Position from top for bundle version icon
+export const BUNDLE_VERSION_INDICATOR_LEFT = -2; // Position from left for bundle version icon
+export const BUNDLE_VERSION_ICON_SIZE = 15; // Size of the git commit icon
+export const DAG_VERSION_INDICATOR_HEIGHT = 104; // Height of the vertical line indicator
+export const VERSION_INDICATOR_Z_INDEX = 1; // Z-index for version indicators

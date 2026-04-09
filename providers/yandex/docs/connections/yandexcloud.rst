@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _yandex_cloud_connection:
+.. _howto/connection:yandexcloud:
 
 Yandex.Cloud Connection
 =======================

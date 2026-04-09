@@ -140,9 +140,6 @@ def test_execute(mock_databricks_hook, context, mock_task_group):
     """Test that _CreateDatabricksWorkflowOperator.execute runs the task group."""
     operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")
     operator.task_group = mock_task_group
-    mock_task_group.jar_params = {}
-    mock_task_group.python_params = {}
-    mock_task_group.spark_submit_params = {}
 
     mock_hook_instance = mock_databricks_hook.return_value
     mock_hook_instance.run_now.return_value = 789
@@ -219,9 +216,12 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
         databricks_conn_id="databricks_conn",
         existing_clusters=[],
         extra_job_params={},
+        jar_params=[],
         job_clusters=[],
         max_concurrent_runs=1,
         notebook_params={},
+        python_params=[],
+        spark_submit_params=[],
     )
 
 

@@ -26,11 +26,9 @@ from __future__ import annotations
 
 import ast
 import itertools
-import pathlib
 import sys
 import typing
 
-sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_TASK_SDK_SOURCES_PATH, console
 
 SDK_BASEOPERATOR_PY = AIRFLOW_TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "bases" / "operator.py"
@@ -51,8 +49,6 @@ IGNORED = {
     "default_args",
     # Deprecated and is aliased to max_active_tis_per_dag.
     "task_concurrency",
-    # attrs internals.
-    "HIDE_ATTRS_FROM_UI",
     # Only on BaseOperator.
     "_dag",
     "output",

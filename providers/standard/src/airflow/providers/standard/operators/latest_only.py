@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 
 import pendulum
 
-from airflow.providers.standard.operators.branch import BaseBranchOperator
+from airflow.providers.common.compat.sdk import BaseBranchOperator
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils.types import DagRunType
 

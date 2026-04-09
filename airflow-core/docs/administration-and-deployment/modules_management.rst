@@ -141,6 +141,20 @@ Airflow, when running dynamically adds three directories to the ``sys.path``:
 - The ``config`` folder: It is configured by setting ``AIRFLOW_HOME`` variable (``{AIRFLOW_HOME}/config``) by default.
 - The ``plugins`` Folder: It is configured with option ``plugins_folder`` in section ``[core]``.
 
+.. _plugins-auto-import:
+
+.. warning::
+   Unlike ``dags`` and ``config`` — which are only added to ``sys.path`` — the ``plugins``
+   folder's ``.py`` files are **actively imported at startup** and registered as top-level
+   modules using just the bare filename, regardless of subdirectory structure. This applies
+   to **all** ``.py`` files in the plugins tree, not only those defining an
+   ``AirflowPlugin`` subclass.
+
+   For example, a file at ``plugins/my_company/utils/logging.py`` is registered as the
+   module ``logging``, shadowing the standard library module globally and preventing Airflow
+   from starting. Collisions with third-party package names produce subtler failures that
+   are harder to trace. See :doc:`Plugins <plugins>` for an overview of the plugin system.
+
 .. note::
    The Dags folder in Airflow 2 and 3 should not be shared with the webserver. While you can do it, unlike in Airflow 1.10,
    Airflow has no expectations that the Dags folder is present in the webserver. In fact it's a bit of
@@ -185,6 +199,16 @@ deployment (``my_company`` in the example below). It is far too easy to use gene
 folders that will clash with other packages already present in the system. For example if you
 create ``airflow/operators`` subfolder it will not be accessible because Airflow already has a package
 named ``airflow.operators`` and it will look there when importing ``from airflow.operators``.
+
+.. warning::
+   For the ``plugins`` folder, this advice extends beyond top-level names to ``.py`` files
+   at **any depth** — see the :ref:`warning above <plugins-auto-import>`. Placing files in
+   subdirectories does **not** prevent collisions. Every ``.py`` filename in the
+   ``plugins`` tree must be unique and must not match any standard library or installed
+   third-party module name.
+
+   If a conflicting file is added while Airflow is already running, the collision will not
+   occur until the next restart, making the root cause difficult to diagnose.
 
 Don't use relative imports
 ..........................

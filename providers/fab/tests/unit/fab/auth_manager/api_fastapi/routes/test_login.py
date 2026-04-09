@@ -24,15 +24,19 @@ import pytest
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
 
+SUBPATH = "/team-a/"
+
 
 @pytest.mark.db_test
 class TestLogin:
     dummy_login_body = {"username": "dummy", "password": "dummy"}
     dummy_token = LoginResponse(access_token="DUMMY_TOKEN")
 
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login._get_flask_app")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.FABAuthManagerLogin")
-    def test_create_token(self, mock_fab_auth_manager_login, test_client):
+    def test_create_token(self, mock_fab_auth_manager_login, mock_get_flask_app, test_client):
         mock_fab_auth_manager_login.create_token.return_value = self.dummy_token
+        mock_get_flask_app.return_value.app_context.return_value.__enter__.return_value = None
 
         response = test_client.post(
             "/token",
@@ -41,9 +45,11 @@ class TestLogin:
         assert response.status_code == 201
         assert response.json()["access_token"] == self.dummy_token.access_token
 
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login._get_flask_app")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.FABAuthManagerLogin")
-    def test_create_token_cli(self, mock_fab_auth_manager_login, test_client):
+    def test_create_token_cli(self, mock_fab_auth_manager_login, mock_get_flask_app, test_client):
         mock_fab_auth_manager_login.create_token.return_value = LoginResponse(access_token="DUMMY_TOKEN")
+        mock_get_flask_app.return_value.app_context.return_value.__enter__.return_value = None
 
         response = test_client.post(
             "/token/cli",
@@ -52,10 +58,27 @@ class TestLogin:
         assert response.status_code == 201
         assert response.json()["access_token"] == self.dummy_token.access_token
 
-    def test_logout(self, test_client):
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login._get_flask_app")
+    def test_logout(self, mock_get_flask_app, test_client):
+        mock_get_flask_app.return_value.app_context.return_value.__enter__.return_value = None
         response = test_client.get("/logout", follow_redirects=False)
         assert response.status_code == 307
         assert response.headers["location"] == "/auth/login"
         cookies = response.headers.get_list("set-cookie")
         assert any("session=" in c for c in cookies)
         assert any(f"{COOKIE_NAME_JWT_TOKEN}=" in c for c in cookies)
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login._get_flask_app")
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.login.get_cookie_path", return_value=SUBPATH
+    )
+    def test_logout_cookie_uses_subpath(self, mock_cookie_path, mock_get_flask_app, test_client):
+        """Cookies on logout must be scoped to the configured subpath."""
+        mock_get_flask_app.return_value.app_context.return_value.__enter__.return_value = None
+        response = test_client.get("/logout", follow_redirects=False)
+        assert response.status_code == 307
+        cookies = response.headers.get_list("set-cookie")
+        session_cookie = next(c for c in cookies if "session=" in c)
+        token_cookie = next(c for c in cookies if f"{COOKIE_NAME_JWT_TOKEN}=" in c)
+        assert f"Path={SUBPATH}" in session_cookie
+        assert f"Path={SUBPATH}" in token_cookie

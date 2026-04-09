@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from airflow_breeze import global_constants
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
 
 
@@ -65,9 +65,9 @@ def write_to_cache_file(param_name: str, param_value: str, check_allowed_values:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(param_value)
     else:
-        get_console().print(f"[cyan]You have sent the {param_value} for {param_name}")
-        get_console().print(f"[cyan]Allowed value for the {param_name} are {allowed_values}")
-        get_console().print("[cyan]Provide one of the supported params. Write to cache dir failed")
+        console_print(f"[cyan]You have sent the {param_value} for {param_name}")
+        console_print(f"[cyan]Allowed value for the {param_name} are {allowed_values}")
+        console_print("[cyan]Provide one of the supported params. Write to cache dir failed")
         sys.exit(1)
 
 

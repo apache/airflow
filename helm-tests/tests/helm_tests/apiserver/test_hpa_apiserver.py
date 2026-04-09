@@ -32,10 +32,32 @@ class TestAPIServerHPA:
         )
         assert docs == []
 
+    def test_replicas_omitted_when_null(self):
+        """When apiServer.replicas is null the Deployment must not contain spec.replicas."""
+        docs = render_chart(
+            values={
+                "apiServer": {
+                    "replicas": None,
+                    "hpa": {"enabled": True},
+                },
+            },
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+        assert jmespath.search("spec.replicas", docs[0]) is None
+
+    def test_replicas_present_when_set(self):
+        """When apiServer.replicas is a number the Deployment must contain spec.replicas."""
+        docs = render_chart(
+            values={
+                "apiServer": {"replicas": 3},
+            },
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+        assert jmespath.search("spec.replicas", docs[0]) == 3
+
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
-                "airflowVersion": "3.0.2",
                 "apiServer": {
                     "hpa": {"enabled": True},
                     "labels": {"test_label": "test_label_value"},
@@ -58,7 +80,6 @@ class TestAPIServerHPA:
         """Verify minimum and maximum replicas."""
         docs = render_chart(
             values={
-                "airflowVersion": "3.0.2",
                 "apiServer": {
                     "hpa": {
                         "enabled": True,
@@ -82,7 +103,6 @@ class TestAPIServerHPA:
         }
         docs = render_chart(
             values={
-                "airflowVersion": "3.0.2",
                 "apiServer": {
                     "hpa": {
                         "enabled": True,
@@ -129,7 +149,6 @@ class TestAPIServerHPA:
     def test_should_use_hpa_metrics(self, metrics, expected_metrics):
         docs = render_chart(
             values={
-                "airflowVersion": "3.0.2",
                 "apiServer": {
                     "hpa": {"enabled": True, **({"metrics": metrics} if metrics else {})},
                 },

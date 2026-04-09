@@ -16,7 +16,7 @@
     under the License.
 
 
-.. _howto/connection:slack-incoming-webhook:
+.. _howto/connection:slackwebhook:
 
 Slack Incoming Webhook Connection
 =================================

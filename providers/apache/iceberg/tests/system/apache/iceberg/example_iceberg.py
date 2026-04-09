@@ -22,8 +22,10 @@ from airflow import DAG
 from airflow.providers.apache.iceberg.hooks.iceberg import IcebergHook
 from airflow.providers.standard.operators.bash import BashOperator
 
+iceberg_hook = IcebergHook()
+
 bash_command = f"""
-echo "Our token: {IcebergHook().get_token_macro()}"
+echo "Our token: {iceberg_hook.get_token_macro()}"
 echo "Also as an environment variable:"
 env | grep TOKEN
 """
@@ -42,7 +44,7 @@ with DAG(
     BashOperator(
         task_id="with_iceberg_environment_variable",
         bash_command=bash_command,
-        env={"TOKEN": IcebergHook().get_token_macro()},
+        env={"TOKEN": iceberg_hook.get_token_macro()},
     )
 
 

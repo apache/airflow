@@ -31,7 +31,7 @@ Extra parameters that are specific to BigQuery will be covered in this document.
 Configuring the Connection
 --------------------------
 .. note::
-  Please refer to :ref:`Google Cloud Connection docs<howto/connection:gcp:configuring_the_connection>`
+  Please refer to :ref:`Google Cloud Connection docs<howto/connection:google_cloud_platform:configuring_the_connection>`
   for information regarding the basic authentication parameters.
 
 Impersonation Scopes

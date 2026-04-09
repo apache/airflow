@@ -41,7 +41,6 @@ from typing import Any
 import yaml
 
 # make sure common_prek_utils is imported
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_prek_utils import (
     AIRFLOW_ROOT_PATH,
     console,

@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.models import DAG, Connection
-from airflow.providers.common.compat.sdk import TaskDeferred, timezone
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, timezone
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
@@ -214,6 +214,42 @@ class TestDbtCloudRunJobOperator:
             dbt_op.execute(MagicMock())
         assert isinstance(exc.value.trigger, DbtCloudRunJobTrigger), "Trigger is not a DbtCloudRunJobTrigger"
 
+    def test_execute_complete_timeout_cancels_job(self):
+        """
+        Verify that when a deferrable dbt job emits a timeout event,
+        the operator cancels the job and fails.
+        """
+        operator = DbtCloudRunJobOperator(
+            task_id=TASK_ID,
+            dbt_cloud_conn_id=ACCOUNT_ID_CONN,
+            job_id=JOB_ID,
+            dag=self.dag,
+            deferrable=True,
+        )
+
+        # Pretend the job was already triggered.
+        operator.run_id = RUN_ID
+
+        # Mock the hook so we can assert cancellation.
+        operator.hook = MagicMock()
+
+        timeout_event = {
+            "status": "timeout",
+            "run_id": RUN_ID,
+            "message": "Job run timed out.",
+        }
+
+        with pytest.raises(AirflowException, match="has timed out"):
+            operator.execute_complete(
+                context=self.mock_context,
+                event=timeout_event,
+            )
+
+        operator.hook.cancel_job_run.assert_called_once_with(
+            account_id=operator.account_id,
+            run_id=RUN_ID,
+        )
+
     @patch(
         "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_by_name",
         return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RESPONSE),
@@ -376,7 +412,7 @@ class TestDbtCloudRunJobOperator:
                 assert mock_run_job.return_value.data["id"] == RUN_ID
             elif expected_output == "exception":
                 # The operator should fail if the job run fails or is cancelled.
-                error_message = r"has failed or has been cancelled\.$"
+                error_message = r"reached terminal status (ERROR|CANCELLED)"
                 with pytest.raises(DbtCloudJobRunException, match=error_message):
                     operator.execute(context=self.mock_context)
             else:

@@ -30,6 +30,8 @@ class DocBuildParams:
     short_doc_packages: tuple[str, ...]
     one_pass_only: bool = False
     include_commits: bool = False
+    fail_on_missing_third_party_inventories: bool = False
+    clean_inventory_cache: bool = False
     github_actions = os.environ.get("GITHUB_ACTIONS", "false")
 
     @property
@@ -43,6 +45,10 @@ class DocBuildParams:
             doc_args.append("--one-pass-only")
         if self.include_commits:
             doc_args.append("--include-commits")
+        if self.fail_on_missing_third_party_inventories:
+            doc_args.append("--fail-on-missing-third-party-inventories")
+        if self.clean_inventory_cache:
+            doc_args.append("--clean-inventory-cache")
         if self.package_filter:
             for filter in self.package_filter:
                 doc_args.extend(["--package-filter", filter])

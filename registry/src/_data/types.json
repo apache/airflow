@@ -1,0 +1,57 @@
+[
+  {
+    "id": "operator",
+    "label": "Operators",
+    "icon": "O"
+  },
+  {
+    "id": "hook",
+    "label": "Hooks",
+    "icon": "H"
+  },
+  {
+    "id": "sensor",
+    "label": "Sensors",
+    "icon": "S"
+  },
+  {
+    "id": "trigger",
+    "label": "Triggers",
+    "icon": "T"
+  },
+  {
+    "id": "transfer",
+    "label": "Transfers",
+    "icon": "X"
+  },
+  {
+    "id": "bundle",
+    "label": "Bundles",
+    "icon": "B"
+  },
+  {
+    "id": "notifier",
+    "label": "Notifiers",
+    "icon": "N"
+  },
+  {
+    "id": "secret",
+    "label": "Secrets Backend",
+    "icon": "K"
+  },
+  {
+    "id": "logging",
+    "label": "Log Handler",
+    "icon": "L"
+  },
+  {
+    "id": "executor",
+    "label": "Executors",
+    "icon": "E"
+  },
+  {
+    "id": "decorator",
+    "label": "Decorators",
+    "icon": "@"
+  }
+]

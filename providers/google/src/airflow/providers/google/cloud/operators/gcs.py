@@ -24,6 +24,7 @@ import subprocess
 import sys
 import warnings
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING
@@ -230,7 +231,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         self.prefix = prefix
         if delimiter:
             warnings.warn(
-                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead",
+                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
@@ -279,6 +280,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         of objects in the bucket, not including gs://bucket/
     :param prefix: String or list of strings, which filter objects whose name begin with
            it/them. (templated)
+    :param ignore_error: (Optional) whether to ignore NotFound exceptions. Default: False
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -304,6 +306,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         bucket_name: str,
         objects: list[str] | None = None,
         prefix: str | list[str] | None = None,
+        ignore_error: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -311,6 +314,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         self.bucket_name = bucket_name
         self.objects = objects
         self.prefix = prefix
+        self.ignore_error = ignore_error
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
@@ -337,7 +341,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
         self.log.info("Deleting %s objects from %s", len(objects), self.bucket_name)
         for object_name in objects:
-            hook.delete(bucket_name=self.bucket_name, object_name=object_name)
+            hook.delete(bucket_name=self.bucket_name, object_name=object_name, ignore_error=self.ignore_error)
 
     def get_openlineage_facets_on_start(self):
         from airflow.providers.common.compat.openlineage.facet import (
@@ -681,6 +685,10 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
     data from source, transform it and write the output to the local
     destination file.
 
+    Downloads and uploads can be executed in parallel by configuring
+    ``max_download_workers`` and ``max_upload_workers``. By default,
+    execution is sequential.
+
     :param source_bucket: The bucket to fetch data from. (templated)
     :param source_prefix: Prefix string which filters objects whose name begin with
            this prefix. Can interpolate logical date and time components. (templated)
@@ -722,6 +730,10 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
     :param upload_continue_on_fail: With this set to true, if an upload fails the task does not error out
         but will still continue.
     :param upload_num_attempts: Number of attempts to try to upload a single file.
+    :param max_download_workers: Maximum number of worker threads to use for parallel downloads.
+        Must be greater than or equal to 1. Defaults to 1 (sequential execution).
+    :param max_upload_workers: Maximum number of worker threads to use for parallel uploads.
+        Must be greater than or equal to 1. Defaults to 1 (sequential execution).
     """
 
     template_fields: Sequence[str] = (
@@ -765,6 +777,8 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         download_num_attempts: int = 1,
         upload_continue_on_fail: bool | None = False,
         upload_num_attempts: int = 1,
+        max_download_workers: int = 1,
+        max_upload_workers: int = 1,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -786,6 +800,15 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         self.download_num_attempts = download_num_attempts
         self.upload_continue_on_fail = upload_continue_on_fail
         self.upload_num_attempts = upload_num_attempts
+
+        if max_download_workers < 1:
+            raise ValueError("max_download_workers must be >= 1")
+
+        if max_upload_workers < 1:
+            raise ValueError("max_upload_workers must be >= 1")
+
+        self.max_download_workers = max_download_workers
+        self.max_upload_workers = max_upload_workers
 
         self._source_prefix_interp: str | None = None
         self._destination_prefix_interp: str | None = None
@@ -838,41 +861,74 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         )
 
         # Fetch list of files.
-        blobs_to_transform = source_hook.list_by_timespan(
-            bucket_name=self.source_bucket,
-            prefix=self._source_prefix_interp,
-            timespan_start=timespan_start,
-            timespan_end=timespan_end,
-        )
+
+        blobs_to_transform = [
+            blob
+            for blob in source_hook.list_by_timespan(
+                bucket_name=self.source_bucket,
+                prefix=self._source_prefix_interp,
+                timespan_start=timespan_start,
+                timespan_end=timespan_end,
+            )
+            # Filter out "directory" placeholders (GCS objects ending with '/')
+            # to avoid attempting to download non-file blobs.
+            if not blob.endswith("/")
+        ]
 
         with TemporaryDirectory() as temp_input_dir, TemporaryDirectory() as temp_output_dir:
             temp_input_dir_path = Path(temp_input_dir)
             temp_output_dir_path = Path(temp_output_dir)
 
-            # TODO: download in parallel.
-            for blob_to_transform in blobs_to_transform:
-                destination_file = temp_input_dir_path / blob_to_transform
+            num_downloads = len(blobs_to_transform)
+            download_workers = min(self.max_download_workers, num_downloads) if num_downloads > 0 else 1
+
+            self.log.info(
+                "Downloading %d files using %d workers",
+                num_downloads,
+                download_workers,
+            )
+
+            # Get storage client once (storage.Client is thread-safe for concurrent requests).
+            client = source_hook.get_conn()
+
+            def _download(blob_name: str):
+
+                bucket = client.bucket(bucket_name=self.source_bucket)
+                blob = bucket.blob(blob_name=blob_name, chunk_size=self.chunk_size)
+
+                destination_file = temp_input_dir_path / blob_name
                 destination_file.parent.mkdir(parents=True, exist_ok=True)
-                try:
-                    source_hook.download(
-                        bucket_name=self.source_bucket,
-                        object_name=blob_to_transform,
-                        filename=str(destination_file),
-                        chunk_size=self.chunk_size,
-                        num_max_attempts=self.download_num_attempts,
-                    )
-                except GoogleCloudError:
-                    if not self.download_continue_on_fail:
-                        raise
+
+                blob.download_to_filename(filename=str(destination_file))
+
+                return blob_name
+
+            with ThreadPoolExecutor(max_workers=download_workers) as executor:
+                futures = {executor.submit(_download, blob): blob for blob in blobs_to_transform}
+
+                for future in as_completed(futures):
+                    blob = futures[future]
+                    try:
+                        future.result()
+                    except GoogleCloudError as e:
+                        if not self.download_continue_on_fail:
+                            # Attempt to cancel pending futures to reduce unnecessary work.
+                            # Note: futures already running cannot be cancelled.
+                            for f in futures:
+                                f.cancel()
+                            raise
+                        self.log.warning("Download failed for %s: %s", blob, e)
 
             self.log.info("Starting the transformation")
             cmd = [self.transform_script] if isinstance(self.transform_script, str) else self.transform_script
+
             cmd += [
                 str(temp_input_dir_path),
                 str(temp_output_dir_path),
                 timespan_start.replace(microsecond=0).isoformat(),
                 timespan_end.replace(microsecond=0).isoformat(),
             ]
+
             with subprocess.Popen(
                 args=cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
             ) as process:
@@ -887,32 +943,64 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
             self.log.info("Transformation succeeded. Output temporarily located at %s", temp_output_dir_path)
 
-            files_uploaded = []
+            upload_candidates = [f for f in temp_output_dir_path.glob("**/*") if f.is_file()]
 
-            # TODO: upload in parallel.
-            for upload_file in temp_output_dir_path.glob("**/*"):
-                if upload_file.is_dir():
-                    continue
+            num_uploads = len(upload_candidates)
+            upload_workers = min(self.max_upload_workers, num_uploads) if num_uploads > 0 else 1
 
+            self.log.info(
+                "Uploading %d files using %d workers",
+                num_uploads,
+                upload_workers,
+            )
+
+            destination_hook = GCSHook(
+                gcp_conn_id=self.destination_gcp_conn_id,
+                impersonation_chain=self.destination_impersonation_chain,
+            )
+
+            # Get storage client once (storage.Client is thread-safe for concurrent requests).
+            client = destination_hook.get_conn()
+
+            def _upload(upload_file: Path):
+
+                bucket = client.bucket(bucket_name=self.destination_bucket)
+
+                # Preserve directory structure relative to the output temp directory.
                 upload_file_name = str(upload_file.relative_to(temp_output_dir_path))
 
                 if self._destination_prefix_interp is not None:
                     upload_file_name = f"{self._destination_prefix_interp.rstrip('/')}/{upload_file_name}"
 
-                self.log.info("Uploading file %s to %s", upload_file, upload_file_name)
+                blob = bucket.blob(blob_name=upload_file_name, chunk_size=self.chunk_size)
 
-                try:
-                    destination_hook.upload(
-                        bucket_name=self.destination_bucket,
-                        object_name=upload_file_name,
-                        filename=str(upload_file),
-                        chunk_size=self.chunk_size,
-                        num_max_attempts=self.upload_num_attempts,
-                    )
-                    files_uploaded.append(str(upload_file_name))
-                except GoogleCloudError:
-                    if not self.upload_continue_on_fail:
-                        raise
+                blob.upload_from_filename(
+                    filename=str(upload_file),
+                )
+
+                return upload_file_name
+
+            files_uploaded: list[str] = []
+
+            with ThreadPoolExecutor(max_workers=upload_workers) as executor:
+                futures = {
+                    executor.submit(_upload, upload_file): str(upload_file)
+                    for upload_file in upload_candidates
+                }
+
+                for future in as_completed(futures):
+                    upload_file = futures[future]
+                    try:
+                        uploaded_name = future.result()
+                        files_uploaded.append(uploaded_name)
+                    except GoogleCloudError as e:
+                        if not self.upload_continue_on_fail:
+                            # Attempt to cancel pending futures to reduce unnecessary work.
+                            # Note: futures already running cannot be cancelled.
+                            for f in futures:
+                                f.cancel()
+                            raise
+                        self.log.warning("Upload failed for %s: %s", upload_file, e)
 
             return files_uploaded
 

@@ -270,6 +270,8 @@ class TestS3TaskHandler:
         assert not self.s3_task_handler.upload_on_close
         mock_open.assert_not_called()
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     def test_set_context_not_raw(self):
         mock_open = mock.mock_open()
         with mock.patch("airflow.providers.amazon.aws.log.s3_task_handler.open", mock_open):
@@ -279,6 +281,8 @@ class TestS3TaskHandler:
         mock_open.assert_called_once_with(os.path.join(self.local_log_location, "1.log"), "w")
         mock_open().write.assert_not_called()
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     def test_read(self):
         # Test what happens when we have two log files to read
         self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\nLine 2\n")
@@ -324,6 +328,8 @@ class TestS3TaskHandler:
             assert expected in actual
             assert metadata[0] == {"end_of_log": True, "log_pos": 0}
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     def test_close(self):
         self.s3_task_handler.set_context(self.ti)
         assert self.s3_task_handler.upload_on_close

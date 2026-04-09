@@ -400,6 +400,85 @@ class TestBatchClient:
         # all combinations listed above should have been seen
         assert all(combinations.values())
 
+    def test_job_awslogs_multinode_job_task_properties(self):
+        """Test multi-node jobs using taskProperties schema (issue #54254)."""
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobId": JOB_ID,
+                    "attempts": [
+                        {
+                            "taskProperties": [
+                                {
+                                    "containers": [
+                                        {"exitCode": 0, "logStreamName": "test/stream/node0"},
+                                        {"exitCode": 0, "logStreamName": "test/stream/node1"},
+                                    ]
+                                }
+                            ]
+                        },
+                    ],
+                    "nodeProperties": {
+                        "mainNode": 0,
+                        "nodeRangeProperties": [
+                            {
+                                "targetNodes": "0:",
+                                "container": {
+                                    "logConfiguration": {
+                                        "logDriver": "awslogs",
+                                        "options": {
+                                            "awslogs-group": "/test/batch/job-a",
+                                            "awslogs-region": AWS_REGION,
+                                        },
+                                    }
+                                },
+                            },
+                        ],
+                    },
+                }
+            ]
+        }
+        awslogs = self.batch_client.get_job_all_awslogs_info(JOB_ID)
+        assert len(awslogs) == 2
+        assert all(log["awslogs_region"] == AWS_REGION for log in awslogs)
+        stream_names = [log["awslogs_stream_name"] for log in awslogs]
+        assert "test/stream/node0" in stream_names
+        assert "test/stream/node1" in stream_names
+
+    def test_job_awslogs_multinode_no_container_log_stream(self, caplog):
+        """Test multi-node job where attempts[].container has no logStreamName (issue #54254)."""
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobId": JOB_ID,
+                    "attempts": [
+                        {"container": {"exitCode": 0}},
+                    ],
+                    "nodeProperties": {
+                        "mainNode": 0,
+                        "nodeRangeProperties": [
+                            {
+                                "targetNodes": "0:",
+                                "container": {
+                                    "logConfiguration": {
+                                        "logDriver": "awslogs",
+                                        "options": {
+                                            "awslogs-group": "/test/batch/job-a",
+                                            "awslogs-region": AWS_REGION,
+                                        },
+                                    }
+                                },
+                            },
+                        ],
+                    },
+                }
+            ]
+        }
+        with caplog.at_level(level=logging.WARNING):
+            awslogs = self.batch_client.get_job_all_awslogs_info(JOB_ID)
+            assert awslogs == []
+            assert "doesn't have any AWS CloudWatch Stream" in caplog.messages[0]
+
 
 class TestBatchClientDelays:
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)

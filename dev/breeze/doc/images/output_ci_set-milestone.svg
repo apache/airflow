@@ -1,0 +1,146 @@
+<svg class="rich-terminal" viewBox="0 0 1482 562.4" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Regular"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
+        font-style: normal;
+        font-weight: 400;
+    }
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Bold"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
+        font-style: bold;
+        font-weight: 700;
+    }
+
+    .breeze-ci-set-milestone-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .breeze-ci-set-milestone-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .breeze-ci-set-milestone-r1 { fill: #c5c8c6 }
+.breeze-ci-set-milestone-r2 { fill: #d0b344 }
+.breeze-ci-set-milestone-r3 { fill: #c5c8c6;font-weight: bold }
+.breeze-ci-set-milestone-r4 { fill: #68a0b3;font-weight: bold }
+.breeze-ci-set-milestone-r5 { fill: #868887 }
+.breeze-ci-set-milestone-r6 { fill: #cc555a }
+.breeze-ci-set-milestone-r7 { fill: #8a4346 }
+.breeze-ci-set-milestone-r8 { fill: #8d7b39 }
+.breeze-ci-set-milestone-r9 { fill: #98a84b;font-weight: bold }
+    </style>
+
+    <defs>
+    <clipPath id="breeze-ci-set-milestone-clip-terminal">
+      <rect x="0" y="0" width="1463.0" height="511.4" />
+    </clipPath>
+    <clipPath id="breeze-ci-set-milestone-line-0">
+    <rect x="0" y="1.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-1">
+    <rect x="0" y="25.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-2">
+    <rect x="0" y="50.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-3">
+    <rect x="0" y="74.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-4">
+    <rect x="0" y="99.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-5">
+    <rect x="0" y="123.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-6">
+    <rect x="0" y="147.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-7">
+    <rect x="0" y="172.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-8">
+    <rect x="0" y="196.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-9">
+    <rect x="0" y="221.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-10">
+    <rect x="0" y="245.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-11">
+    <rect x="0" y="269.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-12">
+    <rect x="0" y="294.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-13">
+    <rect x="0" y="318.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-14">
+    <rect x="0" y="343.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-15">
+    <rect x="0" y="367.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-16">
+    <rect x="0" y="391.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-17">
+    <rect x="0" y="416.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-18">
+    <rect x="0" y="440.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-ci-set-milestone-line-19">
+    <rect x="0" y="465.1" width="1464" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="560.4" rx="8"/><text class="breeze-ci-set-milestone-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;ci&#160;set-milestone</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#breeze-ci-set-milestone-clip-terminal)">
+    
+    <g class="breeze-ci-set-milestone-matrix">
+    <text class="breeze-ci-set-milestone-r1" x="1464" y="20" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-0)">
+</text><text class="breeze-ci-set-milestone-r2" x="12.2" y="44.4" textLength="73.2" clip-path="url(#breeze-ci-set-milestone-line-1)">Usage:</text><text class="breeze-ci-set-milestone-r3" x="97.6" y="44.4" textLength="280.6" clip-path="url(#breeze-ci-set-milestone-line-1)">breeze&#160;ci&#160;set-milestone</text><text class="breeze-ci-set-milestone-r1" x="390.4" y="44.4" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-1)">[</text><text class="breeze-ci-set-milestone-r4" x="402.6" y="44.4" textLength="85.4" clip-path="url(#breeze-ci-set-milestone-line-1)">OPTIONS</text><text class="breeze-ci-set-milestone-r1" x="488" y="44.4" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-1)">]</text><text class="breeze-ci-set-milestone-r1" x="1464" y="44.4" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-1)">
+</text><text class="breeze-ci-set-milestone-r1" x="1464" y="68.8" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-2)">
+</text><text class="breeze-ci-set-milestone-r1" x="12.2" y="93.2" textLength="1195.6" clip-path="url(#breeze-ci-set-milestone-line-3)">Set&#160;milestone&#160;on&#160;a&#160;merged&#160;PR&#160;if&#160;it&#160;doesn&#x27;t&#160;have&#160;one.&#160;Used&#160;by&#160;the&#160;milestone-tag-assistant&#160;workflow.</text><text class="breeze-ci-set-milestone-r1" x="1464" y="93.2" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-3)">
+</text><text class="breeze-ci-set-milestone-r1" x="1464" y="117.6" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-4)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="142" textLength="24.4" clip-path="url(#breeze-ci-set-milestone-line-5)">╭─</text><text class="breeze-ci-set-milestone-r5" x="24.4" y="142" textLength="195.2" clip-path="url(#breeze-ci-set-milestone-line-5)">&#160;PR&#160;information&#160;</text><text class="breeze-ci-set-milestone-r5" x="219.6" y="142" textLength="1220" clip-path="url(#breeze-ci-set-milestone-line-5)">────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-ci-set-milestone-r5" x="1439.6" y="142" textLength="24.4" clip-path="url(#breeze-ci-set-milestone-line-5)">─╮</text><text class="breeze-ci-set-milestone-r1" x="1464" y="142" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-5)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="166.4" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-6)">│</text><text class="breeze-ci-set-milestone-r6" x="24.4" y="166.4" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-6)">*</text><text class="breeze-ci-set-milestone-r4" x="61" y="166.4" textLength="158.6" clip-path="url(#breeze-ci-set-milestone-line-6)">--pr-number&#160;&#160;</text><text class="breeze-ci-set-milestone-r1" x="244" y="166.4" textLength="414.8" clip-path="url(#breeze-ci-set-milestone-line-6)">The&#160;PR&#160;number&#160;to&#160;set&#160;milestone&#160;on&#160;</text><text class="breeze-ci-set-milestone-r7" x="658.8" y="166.4" textLength="122" clip-path="url(#breeze-ci-set-milestone-line-6)">[required]</text><text class="breeze-ci-set-milestone-r8" x="793" y="166.4" textLength="109.8" clip-path="url(#breeze-ci-set-milestone-line-6)">(INTEGER)</text><text class="breeze-ci-set-milestone-r5" x="1451.8" y="166.4" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-6)">│</text><text class="breeze-ci-set-milestone-r1" x="1464" y="166.4" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-6)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="190.8" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-7)">│</text><text class="breeze-ci-set-milestone-r4" x="61" y="190.8" textLength="158.6" clip-path="url(#breeze-ci-set-milestone-line-7)">--pr-title&#160;&#160;&#160;</text><text class="breeze-ci-set-milestone-r1" x="244" y="190.8" textLength="158.6" clip-path="url(#breeze-ci-set-milestone-line-7)">The&#160;PR&#160;title&#160;</text><text class="breeze-ci-set-milestone-r8" x="402.6" y="190.8" textLength="73.2" clip-path="url(#breeze-ci-set-milestone-line-7)">(TEXT)</text><text class="breeze-ci-set-milestone-r5" x="1451.8" y="190.8" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-7)">│</text><text class="breeze-ci-set-milestone-r1" x="1464" y="190.8" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-7)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="215.2" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-8)">│</text><text class="breeze-ci-set-milestone-r4" x="61" y="215.2" textLength="158.6" clip-path="url(#breeze-ci-set-milestone-line-8)">--pr-labels&#160;&#160;</text><text class="breeze-ci-set-milestone-r1" x="244" y="215.2" textLength="353.8" clip-path="url(#breeze-ci-set-milestone-line-8)">JSON&#160;array&#160;of&#160;PR&#160;label&#160;names&#160;</text><text class="breeze-ci-set-milestone-r8" x="597.8" y="215.2" textLength="73.2" clip-path="url(#breeze-ci-set-milestone-line-8)">(TEXT)</text><text class="breeze-ci-set-milestone-r5" x="1451.8" y="215.2" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-8)">│</text><text class="breeze-ci-set-milestone-r1" x="1464" y="215.2" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-8)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="239.6" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-9)">│</text><text class="breeze-ci-set-milestone-r4" x="61" y="239.6" textLength="158.6" clip-path="url(#breeze-ci-set-milestone-line-9)">--base-branch</text><text class="breeze-ci-set-milestone-r1" x="244" y="239.6" textLength="451.4" clip-path="url(#breeze-ci-set-milestone-line-9)">The&#160;base&#160;branch&#160;the&#160;PR&#160;was&#160;merged&#160;to&#160;</text><text class="breeze-ci-set-milestone-r8" x="695.4" y="239.6" textLength="73.2" clip-path="url(#breeze-ci-set-milestone-line-9)">(TEXT)</text><text class="breeze-ci-set-milestone-r5" x="1451.8" y="239.6" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-9)">│</text><text class="breeze-ci-set-milestone-r1" x="1464" y="239.6" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-9)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="264" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-10)">│</text><text class="breeze-ci-set-milestone-r4" x="61" y="264" textLength="158.6" clip-path="url(#breeze-ci-set-milestone-line-10)">--merged-by&#160;&#160;</text><text class="breeze-ci-set-milestone-r1" x="244" y="264" textLength="585.6" clip-path="url(#breeze-ci-set-milestone-line-10)">GitHub&#160;username&#160;of&#160;the&#160;person&#160;who&#160;merged&#160;the&#160;PR&#160;</text><text class="breeze-ci-set-milestone-r8" x="829.6" y="264" textLength="73.2" clip-path="url(#breeze-ci-set-milestone-line-10)">(TEXT)</text><text class="breeze-ci-set-milestone-r5" x="1451.8" y="264" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-10)">│</text><text class="breeze-ci-set-milestone-r1" x="1464" y="264" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-10)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="288.4" textLength="1464" clip-path="url(#breeze-ci-set-milestone-line-11)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-ci-set-milestone-r1" x="1464" y="288.4" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-11)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="312.8" textLength="24.4" clip-path="url(#breeze-ci-set-milestone-line-12)">╭─</text><text class="breeze-ci-set-milestone-r5" x="24.4" y="312.8" textLength="231.8" clip-path="url(#breeze-ci-set-milestone-line-12)">&#160;GitHub&#160;parameters&#160;</text><text class="breeze-ci-set-milestone-r5" x="256.2" y="312.8" textLength="1183.4" clip-path="url(#breeze-ci-set-milestone-line-12)">─────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-ci-set-milestone-r5" x="1439.6" y="312.8" textLength="24.4" clip-path="url(#breeze-ci-set-milestone-line-12)">─╮</text><text class="breeze-ci-set-milestone-r1" x="1464" y="312.8" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-12)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="337.2" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-13)">│</text><text class="breeze-ci-set-milestone-r6" x="24.4" y="337.2" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-13)">*</text><text class="breeze-ci-set-milestone-r4" x="61" y="337.2" textLength="231.8" clip-path="url(#breeze-ci-set-milestone-line-13)">--github-token&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-ci-set-milestone-r1" x="366" y="337.2" textLength="341.6" clip-path="url(#breeze-ci-set-milestone-line-13)">GitHub&#160;token&#160;for&#160;API&#160;access&#160;</text><text class="breeze-ci-set-milestone-r7" x="707.6" y="337.2" textLength="122" clip-path="url(#breeze-ci-set-milestone-line-13)">[required]</text><text class="breeze-ci-set-milestone-r8" x="841.8" y="337.2" textLength="73.2" clip-path="url(#breeze-ci-set-milestone-line-13)">(TEXT)</text><text class="breeze-ci-set-milestone-r5" x="1451.8" y="337.2" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-13)">│</text><text class="breeze-ci-set-milestone-r1" x="1464" y="337.2" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-13)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="361.6" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-14)">│</text><text class="breeze-ci-set-milestone-r4" x="61" y="361.6" textLength="231.8" clip-path="url(#breeze-ci-set-milestone-line-14)">--github-repository</text><text class="breeze-ci-set-milestone-r9" x="317.2" y="361.6" textLength="24.4" clip-path="url(#breeze-ci-set-milestone-line-14)">-g</text><text class="breeze-ci-set-milestone-r1" x="366" y="361.6" textLength="597.8" clip-path="url(#breeze-ci-set-milestone-line-14)">GitHub&#160;repository&#160;used&#160;to&#160;pull,&#160;push&#160;run&#160;images.&#160;</text><text class="breeze-ci-set-milestone-r5" x="963.8" y="361.6" textLength="305" clip-path="url(#breeze-ci-set-milestone-line-14)">[default:&#160;apache/airflow]</text><text class="breeze-ci-set-milestone-r8" x="1281" y="361.6" textLength="73.2" clip-path="url(#breeze-ci-set-milestone-line-14)">(TEXT)</text><text class="breeze-ci-set-milestone-r5" x="1451.8" y="361.6" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-14)">│</text><text class="breeze-ci-set-milestone-r1" x="1464" y="361.6" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-14)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="386" textLength="1464" clip-path="url(#breeze-ci-set-milestone-line-15)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-ci-set-milestone-r1" x="1464" y="386" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-15)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="410.4" textLength="24.4" clip-path="url(#breeze-ci-set-milestone-line-16)">╭─</text><text class="breeze-ci-set-milestone-r5" x="24.4" y="410.4" textLength="195.2" clip-path="url(#breeze-ci-set-milestone-line-16)">&#160;Common&#160;options&#160;</text><text class="breeze-ci-set-milestone-r5" x="219.6" y="410.4" textLength="1220" clip-path="url(#breeze-ci-set-milestone-line-16)">────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-ci-set-milestone-r5" x="1439.6" y="410.4" textLength="24.4" clip-path="url(#breeze-ci-set-milestone-line-16)">─╮</text><text class="breeze-ci-set-milestone-r1" x="1464" y="410.4" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-16)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="434.8" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-17)">│</text><text class="breeze-ci-set-milestone-r4" x="24.4" y="434.8" textLength="109.8" clip-path="url(#breeze-ci-set-milestone-line-17)">--verbose</text><text class="breeze-ci-set-milestone-r9" x="158.6" y="434.8" textLength="24.4" clip-path="url(#breeze-ci-set-milestone-line-17)">-v</text><text class="breeze-ci-set-milestone-r1" x="207.4" y="434.8" textLength="585.6" clip-path="url(#breeze-ci-set-milestone-line-17)">Print&#160;verbose&#160;information&#160;about&#160;performed&#160;steps.</text><text class="breeze-ci-set-milestone-r5" x="1451.8" y="434.8" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-17)">│</text><text class="breeze-ci-set-milestone-r1" x="1464" y="434.8" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-17)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="459.2" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-18)">│</text><text class="breeze-ci-set-milestone-r4" x="24.4" y="459.2" textLength="109.8" clip-path="url(#breeze-ci-set-milestone-line-18)">--dry-run</text><text class="breeze-ci-set-milestone-r9" x="158.6" y="459.2" textLength="24.4" clip-path="url(#breeze-ci-set-milestone-line-18)">-D</text><text class="breeze-ci-set-milestone-r1" x="207.4" y="459.2" textLength="719.8" clip-path="url(#breeze-ci-set-milestone-line-18)">If&#160;dry-run&#160;is&#160;set,&#160;commands&#160;are&#160;only&#160;printed,&#160;not&#160;executed.</text><text class="breeze-ci-set-milestone-r5" x="1451.8" y="459.2" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-18)">│</text><text class="breeze-ci-set-milestone-r1" x="1464" y="459.2" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-18)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="483.6" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-19)">│</text><text class="breeze-ci-set-milestone-r4" x="24.4" y="483.6" textLength="109.8" clip-path="url(#breeze-ci-set-milestone-line-19)">--help&#160;&#160;&#160;</text><text class="breeze-ci-set-milestone-r9" x="158.6" y="483.6" textLength="24.4" clip-path="url(#breeze-ci-set-milestone-line-19)">-h</text><text class="breeze-ci-set-milestone-r1" x="207.4" y="483.6" textLength="329.4" clip-path="url(#breeze-ci-set-milestone-line-19)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="breeze-ci-set-milestone-r5" x="1451.8" y="483.6" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-19)">│</text><text class="breeze-ci-set-milestone-r1" x="1464" y="483.6" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-19)">
+</text><text class="breeze-ci-set-milestone-r5" x="0" y="508" textLength="1464" clip-path="url(#breeze-ci-set-milestone-line-20)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-ci-set-milestone-r1" x="1464" y="508" textLength="12.2" clip-path="url(#breeze-ci-set-milestone-line-20)">
+</text>
+    </g>
+    </g>
+</svg>

@@ -1,0 +1,46 @@
+---
+layout: base.njk
+title: API Explorer
+description: Interactive explorer for the Airflow Registry JSON API.
+permalink: "/api-explorer/"
+mainClass: "api-explorer-page"
+---
+<link rel="stylesheet" href="{{ '/vendor/swagger-ui/swagger-ui.css' | url }}">
+<div id="swagger-ui"></div>
+<script src="{{ '/vendor/swagger-ui/swagger-ui-bundle.js' | url }}"></script>
+<script>
+  (function () {
+    const openApiUrl = new URL("../api/openapi.json", window.location.href).toString();
+    const serverPath = new URL("../", window.location.href).pathname.replace(/\/$/, "") || "/";
+
+    async function renderSwaggerUi() {
+      try {
+        const response = await fetch(openApiUrl, { credentials: "same-origin" });
+        if (!response.ok) {
+          throw new Error(`OpenAPI load failed: ${response.status}`);
+        }
+        const spec = await response.json();
+        spec.servers = [{ url: serverPath, description: "Registry base path" }];
+        SwaggerUIBundle({
+          spec,
+          dom_id: "#swagger-ui",
+          deepLinking: true,
+          displayRequestDuration: true,
+          docExpansion: "list",
+          defaultModelsExpandDepth: -1,
+          tryItOutEnabled: true,
+          supportedSubmitMethods: ["get"],
+          presets: [SwaggerUIBundle.presets.apis],
+        });
+      } catch (error) {
+        document.getElementById("swagger-ui").innerHTML =
+          "<p style=\"padding: 1rem; font-family: sans-serif; color: #444;\">" +
+          "Could not load interactive console. " +
+          "<a href=\"" + openApiUrl + "\" target=\"_blank\" rel=\"noopener\">Open raw OpenAPI document</a>." +
+          "</p>";
+      }
+    }
+
+    renderSwaggerUi();
+  })();
+</script>

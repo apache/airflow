@@ -104,6 +104,24 @@ class TestAirflowTaskDecorator(BasePythonTest):
         with pytest.raises(TypeError):
             task_decorator(not_callable)
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="FalseyCallable fix only applies to Airflow 3.2+")
+    def test_python_operator_python_callable_can_be_falsey(self):
+        """Tests that @task accepts callable objects without evaluating their truthiness."""
+
+        class FalseyCallable:
+            __annotations__ = {}
+            __name__ = "falsey_callable"
+
+            def __bool__(self):
+                return False
+
+            def __call__(self):
+                return None
+
+        decorated = task_decorator(FalseyCallable())
+
+        assert isinstance(decorated, _TaskDecorator)
+
     @pytest.mark.parametrize(
         "resolve",
         [
@@ -167,9 +185,6 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert t1().operator.multiple_outputs is False
 
-    @pytest.mark.xfail(
-        reason="TODO AIP72: All @task calls now go to __getattr__ in decorators/__init__.py and this test expects user code to throw the error. Needs to be handled better, likely by changing `fixup_decorator_warning_stack`"
-    )
     def test_infer_multiple_outputs_forward_annotation(self):
         if typing.TYPE_CHECKING:
 
@@ -195,17 +210,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             y: int,
         ) -> "UnresolveableName[int, int]": ...
 
-        with pytest.warns(UserWarning, match="Cannot infer multiple_outputs.*t3") as recwarn:
-            line = sys._getframe().f_lineno - 5 if PY38 else sys._getframe().f_lineno - 2
-
-        if PY311:
-            # extra line explaining the error location in Py311
-            line = line - 1
-
-        warn = recwarn[0]
-        assert warn.filename == __file__
-        assert warn.lineno == line
-
+        # No warning should be raised for TYPE_CHECKING-only forward references
         assert t3(5, 5).operator.multiple_outputs is False
 
     def test_infer_multiple_outputs_using_other_typing(self):

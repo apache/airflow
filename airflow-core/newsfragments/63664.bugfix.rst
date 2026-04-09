@@ -1,0 +1,1 @@
+Fix ``timeout_with_traceback`` crashes on Windows and non-main threads

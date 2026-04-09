@@ -106,10 +106,15 @@ def is_airflow_package(pkg_name: str) -> bool:
     return pkg_name.startswith("apache-airflow") or pkg_name in ["helm-chart", "docker-stack", "task-sdk"]
 
 
-def fetch_inventories(clean_build: bool, refresh_airflow_inventories: bool = False) -> list[str]:
+def fetch_inventories(
+    clean_build: bool,
+    refresh_airflow_inventories: bool = False,
+    fail_on_missing_third_party: bool = False,
+    clean_inventory_cache: bool = False,
+) -> list[str]:
     """Fetch all inventories for Airflow documentation packages and store in cache."""
-    if clean_build:
-        shutil.rmtree(CACHE_PATH)
+    if clean_inventory_cache:
+        shutil.rmtree(CACHE_PATH, ignore_errors=True)
         print()
         print("[yellow]Inventory Cache cleaned!")
         print()
@@ -172,24 +177,40 @@ def fetch_inventories(clean_build: bool, refresh_airflow_inventories: bool = Fal
     failed, success = list(failed), list(success)
     print(f"Result: {len(success)} success, {len(failed)} failed")
     if failed:
-        terminate = False
+        missing_third_party: list[str] = []
         missing_airflow_packages = False
         print("Failed packages:")
         for pkg_no, (pkg_name, _) in enumerate(failed, start=1):
             print(f"{pkg_no}. {pkg_name}")
             if not is_airflow_package(pkg_name):
-                print(
-                    f"[yellow]Missing {pkg_name} inventory is not for an Airflow package: "
-                    f"it will terminate the execution."
-                )
-                terminate = True
+                cached_path = CACHE_PATH / pkg_name / "objects.inv"
+                if fail_on_missing_third_party:
+                    print(
+                        f"[yellow]Missing {pkg_name} inventory is not for an Airflow package: "
+                        f"it will terminate the execution."
+                    )
+                    missing_third_party.append(pkg_name)
+                elif cached_path.exists():
+                    print(
+                        f"[yellow]Using cached inventory for {pkg_name} "
+                        f"(download failed but cached version exists)."
+                    )
+                else:
+                    print(f"[yellow]No inventory available for {pkg_name}, cross-references will be broken.")
+                    missing_third_party.append(pkg_name)
             else:
                 print(
                     f"[yellow]Missing {pkg_name} inventory is for an Airflow package, "
                     f"it will be built from sources."
                 )
                 missing_airflow_packages = True
-        if terminate:
+        # Write marker file for CI to detect missing third-party inventories
+        marker_file = CACHE_PATH / ".missing_third_party_inventories"
+        if missing_third_party:
+            marker_file.write_text("\n".join(missing_third_party) + "\n")
+        elif marker_file.exists():
+            marker_file.unlink()
+        if fail_on_missing_third_party and missing_third_party:
             print(
                 "[red]Terminate execution[/]\n\n"
                 "[yellow]Some non-airflow inventories are missing. If missing inventory is really "
@@ -204,8 +225,8 @@ def fetch_inventories(clean_build: bool, refresh_airflow_inventories: bool = Fal
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "clean":
         print("[bright_blue]Cleaning inventory cache before fetching inventories")
-        clean_build = True
+        clean_inventory_cache = True
     else:
         print("[bright_blue]Just fetching inventories without cleaning cache")
-        clean_build = False
-    fetch_inventories(clean_build=clean_build)
+        clean_inventory_cache = False
+    fetch_inventories(clean_build=False, clean_inventory_cache=clean_inventory_cache)

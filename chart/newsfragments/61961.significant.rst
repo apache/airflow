@@ -1,0 +1,1 @@
+``workers.priorityClassName`` field is now deprecated in favor of ``workers.celery.priorityClassName`` and ``workers.kubernetes.priorityClassName``. Please update your configuration accordingly.

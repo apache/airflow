@@ -31,7 +31,6 @@ from kubernetes.client import BatchV1Api, models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
@@ -44,7 +43,7 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, merge_
 from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import EMPTY_XCOM_RESULT, PodNotFoundException
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils import yaml
 
 if AIRFLOW_V_3_1_PLUS:
@@ -81,7 +80,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
     :param completions: Specifies the desired number of successfully finished pods the job should be run with.
     :param manual_selector: manualSelector controls generation of pod labels and pod selectors.
     :param parallelism: Specifies the maximum desired number of pods the job should run at any given time.
-        The value here must be >=1. Default value is 1
+        The value here must be >=1 if wait_until_job_complete=True. Default value is 1
     :param selector: The selector of this V1JobSpec.
     :param suspend: Suspend specifies whether the Job controller should create Pods or not.
     :param ttl_seconds_after_finished: ttlSecondsAfterFinished limits the lifetime of a Job that has finished execution (either Complete or Failed).
@@ -286,7 +285,17 @@ class KubernetesJobOperator(KubernetesPodOperator):
         if self.get_logs:
             for pod_name in event["pod_names"]:
                 pod_namespace = event["pod_namespace"]
-                pod = self.hook.get_pod(pod_name, pod_namespace)
+                try:
+                    pod = self.hook.get_pod(pod_name, pod_namespace)
+                except ApiException as e:
+                    if e.status == 404:
+                        self.log.warning(
+                            "Pod %s in namespace %s not found (possibly deleted). Skipping log retrieval.",
+                            pod_name,
+                            pod_namespace,
+                        )
+                        continue
+                    raise
                 if not pod:
                     raise PodNotFoundException("Could not find pod after resuming from deferral")
                 self._write_logs(pod)

@@ -26,6 +26,7 @@ import { MaintenanceEditCommentButton } from "./MaintenanceEditCommentButton";
 import { MaintenanceEnterButton } from "./MaintenanceEnterButton";
 import { MaintenanceExitButton } from "./MaintenanceExitButton";
 import { RemoveQueueButton } from "./RemoveQueueButton";
+import { WorkerConcurrencyButton } from "./WorkerConcurrencyButton";
 import { WorkerDeleteButton } from "./WorkerDeleteButton";
 import { WorkerShutdownButton } from "./WorkerShutdownButton";
 
@@ -48,6 +49,7 @@ export const WorkerOperations = ({ onOperations, worker }: WorkerOperationsProps
       <Flex justifyContent="end" gap={2}>
         <AddQueueButton onQueueUpdate={onWorkerChange} workerName={workerName} />
         <RemoveQueueButton onQueueUpdate={onWorkerChange} worker={worker} />
+        <WorkerConcurrencyButton onConcurrencyUpdate={onWorkerChange} worker={worker} />
         <MaintenanceEnterButton onEnterMaintenance={onWorkerChange} workerName={workerName} />
         <WorkerShutdownButton onShutdown={onWorkerChange} workerName={workerName} />
       </Flex>

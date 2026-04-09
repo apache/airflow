@@ -46,10 +46,13 @@ from airflow.configuration import conf
 from airflow.models import Base
 from airflow.models.asset import (
     AssetAliasModel,
+    AssetEvent,
     AssetModel,
+    AssetPartitionDagRun,
     DagScheduleAssetReference,
     TaskInletAssetReference,
     TaskOutletAssetReference,
+    association_table,
 )
 from airflow.models.connection import Connection
 from airflow.models.dag import DagModel, DagTag
@@ -784,6 +787,46 @@ QueryHasAssetScheduleFilter = Annotated[_HasAssetScheduleFilter, Depends(_HasAss
 QueryAssetDependencyFilter = Annotated[_AssetDependencyFilter, Depends(_AssetDependencyFilter.depends)]
 
 
+class _ConsumingAssetFilter(BaseParam[str | None]):
+    """Filter DAG runs by consuming asset (name or URI)."""
+
+    def to_orm(self, select: Select) -> Select:
+        if not self.value and self.skip_none:
+            return select
+
+        event_subquery = (
+            sql_select(AssetEvent.id)
+            .join(AssetModel, AssetEvent.asset_id == AssetModel.id)
+            .where(
+                or_(
+                    AssetModel.name.ilike(f"%{self.value}%"),
+                    AssetModel.uri.ilike(f"%{self.value}%"),
+                )
+            )
+            .distinct()
+        )
+
+        dagrun_subquery = (
+            sql_select(association_table.c.dag_run_id)
+            .where(association_table.c.event_id.in_(event_subquery))
+            .distinct()
+        )
+
+        return select.where(DagRun.id.in_(dagrun_subquery))
+
+    @classmethod
+    def depends(
+        cls,
+        consuming_asset_pattern: str | None = Query(
+            None, description="Filter by consuming asset name or URI using pattern matching"
+        ),
+    ) -> _ConsumingAssetFilter:
+        return cls().set_value(consuming_asset_pattern)
+
+
+QueryConsumingAssetPatternSearch = Annotated[_ConsumingAssetFilter, Depends(_ConsumingAssetFilter.depends)]
+
+
 class _PendingActionsFilter(BaseParam[bool]):
     """Filter Dags by having pending HITL actions (more than 1)."""
 
@@ -882,6 +925,9 @@ QueryDagRunRunTypesFilter = Annotated[
 
 QueryDagRunTriggeringUserSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagRun.triggering_user_name, "triggering_user"))
+]
+QueryDagRunPartitionKeySearch = Annotated[
+    _SearchParam, Depends(search_param_factory(DagRun.partition_key, "partition_key_pattern"))
 ]
 
 # DagTags
@@ -1036,6 +1082,28 @@ QueryAssetAliasNamePatternSearch = Annotated[
 ]
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter.depends)
+]
+QueryPartitionedDagRunHasCreatedDagRunIdFilter = Annotated[
+    FilterParam[bool | None],
+    Depends(
+        filter_param_factory(
+            AssetPartitionDagRun.created_dag_run_id,
+            bool | None,
+            FilterOptionEnum.IS_NONE,
+            filter_name="has_created_dag_run_id",
+            transform_callable=lambda v: not v if v is not None else None,
+        )
+    ),
+]
+QueryPartitionedDagRunDagIdFilter = Annotated[
+    FilterParam[str | None],
+    Depends(
+        filter_param_factory(
+            AssetPartitionDagRun.target_dag_id,
+            str | None,
+            filter_name="dag_id",
+        )
+    ),
 ]
 
 # Variables

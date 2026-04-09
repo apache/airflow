@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from googleapiclient.discovery import Resource
 
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 
 INTERESTING_OPSF_FIELDS = [
     "Score",
@@ -67,7 +67,7 @@ METADATA_RANGE_NAME = "SpreadsheetMetadata"
 
 
 def read_metadata_from_google_spreadsheet(sheets: Resource):
-    get_console().print(
+    console_print(
         "[info]Reading metadata from Google Spreadsheet: "
         f"https://docs.google.com/spreadsheets/d/{METADATA_SPREADSHEET_ID}"
     )
@@ -81,7 +81,7 @@ def read_metadata_from_google_spreadsheet(sheets: Resource):
             value = value_raw.strip()
             if value:
                 metadata_from_spreadsheet[metadata_types[index]].append(value)
-    get_console().print("[success]Metadata read from Google Spreadsheet.")
+    console_print("[success]Metadata read from Google Spreadsheet.")
 
 
 def authorize_google_spreadsheets(json_credentials_file: Path, token_path: Path) -> Resource:
@@ -130,7 +130,7 @@ def write_sbom_information_to_google_spreadsheet(
 
     num_rows = update_field_values(all_dependencies, cell_field_names, google_spreadsheet_id, sheets)
     if include_opsf_scorecard:
-        get_console().print("[info]Updating OPSF detailed comments.")
+        console_print("[info]Updating OPSF detailed comments.")
         update_opsf_detailed_comments(
             all_dependencies, fieldnames, num_rows, google_spreadsheet_id, docs, sheets
         )
@@ -158,7 +158,7 @@ def update_opsf_detailed_comments(
             ]
         }
     )
-    get_console().print("[info]Adding notes to all cells.")
+    console_print("[info]Adding notes to all cells.")
     for dependency in all_dependencies:
         note_row = convert_sbom_dict_to_spreadsheet_data(opsf_details_field_names, dependency)
         opsf_details.append({"values": [{"note": note} for note in note_row]})
@@ -175,7 +175,7 @@ def update_opsf_detailed_comments(
         },
     }
     update_note_body = {"requests": [notes]}
-    get_console().print("[info]Updating notes in google spreadsheet.")
+    console_print("[info]Updating notes in google spreadsheet.")
     sheets.batchUpdate(spreadsheetId=google_spreadsheet_id, body=update_note_body).execute()
 
 
@@ -200,7 +200,7 @@ def update_field_values(
     google_spreadsheet_id: str,
     sheets: Resource,
 ) -> int:
-    get_console().print(f"[info]Updating {len(all_dependencies)} dependencies in the Google spreadsheet.")
+    console_print(f"[info]Updating {len(all_dependencies)} dependencies in the Google spreadsheet.")
     num_fields = len(cell_field_names)
     data = []
     top_header = []
@@ -218,22 +218,20 @@ def update_field_values(
             top_header.append("")
 
     simplified_cell_field_names = [simplify_field_names(field) for field in cell_field_names]
-    get_console().print("[info]Adding top header.")
+    console_print("[info]Adding top header.")
     data.append({"range": calculate_range(num_fields, 1), "values": [top_header]})
-    get_console().print("[info]Adding second header.")
+    console_print("[info]Adding second header.")
     data.append({"range": calculate_range(num_fields, 2), "values": [simplified_cell_field_names]})
     row = 3
-    get_console().print("[info]Adding all rows.")
+    console_print("[info]Adding all rows.")
     for dependency in all_dependencies:
         spreadsheet_row = convert_sbom_dict_to_spreadsheet_data(cell_field_names, dependency)
         data.append({"range": calculate_range(num_fields, row), "values": [spreadsheet_row]})
         row += 1
-    get_console().print("[info]Writing data.")
+    console_print("[info]Writing data.")
     body = {"valueInputOption": "RAW", "data": data}
     result = sheets.values().batchUpdate(spreadsheetId=google_spreadsheet_id, body=body).execute()
-    get_console().print(
-        f"[info]Updated {result.get('totalUpdatedCells')} cells values in the Google spreadsheet."
-    )
+    console_print(f"[info]Updated {result.get('totalUpdatedCells')} cells values in the Google spreadsheet.")
     return row
 
 

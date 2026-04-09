@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import Depends
@@ -67,5 +68,5 @@ def get_dag_tags(
         limit=limit,
         session=session,
     )
-    dag_tags = session.execute(dag_tags_select).scalars().all()
+    dag_tags: Sequence = session.execute(dag_tags_select).scalars().all()
     return DAGTagCollectionResponse(tags=[x for x in dag_tags], total_entries=total_entries)

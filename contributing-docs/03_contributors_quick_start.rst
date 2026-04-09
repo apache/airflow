@@ -19,7 +19,9 @@
 Contributor's Quick Start
 *************************
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Note to Starters
 ################
@@ -238,6 +240,9 @@ Forking and cloning Project
 Configuring prek
 ----------------
 
+.. note::
+   Run the commands in this section in your **local terminal** (on your host machine), not inside a Breeze shell. Prek hooks run on your host to check and format code before you commit.
+
 Before committing changes to github or raising a pull request, the code needs to be checked for certain quality standards
 such as spell check, code syntax, code formatting, compatibility with Apache License requirements etc. This set of
 tests are applied when you commit your code.
@@ -260,6 +265,14 @@ To avoid burden on our CI infrastructure and to save time, prek hooks can be run
     started to use Python 3.10+ features in Airflow and accompanying scripts.
 
 Installing prek is best done with ``uv`` (recommended) or ``pipx``.
+
+You can also update the tools installed with UV, including ``prek``.
+
+   Run the following command to upgrade all UV-managed tools:
+
+   .. code-block:: bash
+
+     uv tool upgrade --all
 
 1.  Installing required packages
 
@@ -284,6 +297,7 @@ on macOS, install via
 .. code-block:: bash
 
   uv tool install prek
+
 
 or with pipx:
 
@@ -360,6 +374,7 @@ It will run prek hooks automatically before committing and stops the commit on f
 
   cd ~/Projects/airflow
   prek uninstall
+
 
 - For more information on this visit |08_static_code_checks.rst|
 
@@ -870,7 +885,7 @@ If you are familiar with Python development and use your favourite editors, Airf
 similarly to other projects of yours. However, if you need specific instructions for your IDE you
 will find more detailed instructions here:
 
-* `Pycharm/IntelliJ <quick-start-ide/contributors_quick_start_pycharm.rst>`_
+* `Pycharm/IntelliJ <quick-start-ide/contributors_quick_start_pycharm_intellij.rst>`_
 * `Visual Studio Code <quick-start-ide/contributors_quick_start_vscode.rst>`_
 
 

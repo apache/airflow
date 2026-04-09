@@ -51,7 +51,7 @@ def get_fs(conn_id: str | None, storage_options: dict[str, str] | None = None) -
     options = {
         "project": g.project_id,
         "access": g.extras.get(GCS_ACCESS, "full_control"),
-        "token": g._get_access_token(),
+        "token": g.get_credentials(),
         "consistency": g.extras.get(GCS_CONSISTENCY, "none"),
         "cache_timeout": g.extras.get(GCS_CACHE_TIMEOUT),
         "requester_pays": g.extras.get(GCS_REQUESTER_PAYS, False),

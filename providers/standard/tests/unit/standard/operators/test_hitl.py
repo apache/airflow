@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -27,12 +27,12 @@ if not AIRFLOW_V_3_1_PLUS:
 
 import datetime
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlparse
 
-import pytest
 from sqlalchemy import select
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import TaskInstance, Trigger
 from airflow.models.hitl import HITLDetail
 from airflow.providers.common.compat.sdk import AirflowException, DownstreamTasksSkipped, ParamValidationError
@@ -139,27 +139,9 @@ class TestHITLOperator:
                 params=ParamsDict({"input_1": 1}),
             )
 
-    @pytest.mark.parametrize(
-        ("params", "exc", "error_msg"),
-        (
-            (ParamsDict({"_options": 1}), ValueError, '"_options" is not allowed in params'),
-            (
-                ParamsDict({"param": Param("", type="integer")}),
-                ParamValidationError,
-                (
-                    "Invalid input for param param: '' is not of type 'integer'\n\n"
-                    "Failed validating 'type' in schema:\n"
-                    "    {'type': 'integer'}\n\n"
-                    "On instance:\n    ''"
-                ),
-            ),
-        ),
-    )
-    def test_validate_params(
-        self, params: ParamsDict, exc: type[ValueError | ParamValidationError], error_msg: str
-    ) -> None:
-        # validate_params is called during initialization
-        with pytest.raises(exc, match=error_msg):
+    def test_validate_params_rejects_options_key(self) -> None:
+        """_options is a reserved key and must not be allowed in params."""
+        with pytest.raises(ValueError, match='"_options" is not allowed in params'):
             HITLOperator(
                 task_id="hitl_test",
                 subject="This is subject",
@@ -167,8 +149,46 @@ class TestHITLOperator:
                 body="This is body",
                 defaults=["1"],
                 multiple=False,
-                params=params,
+                params=ParamsDict({"_options": 1}),
             )
+
+    @pytest.mark.parametrize(
+        ("params", "expected_key"),
+        [
+            pytest.param(
+                {"my_param": Param(type="string")},
+                "my_param",
+                id="no_default",
+            ),
+            pytest.param(
+                {"my_param": Param("hello", type="string")},
+                "my_param",
+                id="with_default",
+            ),
+            pytest.param(
+                {"param": Param("", type="integer")},
+                "param",
+                id="wrong_value_type",
+            ),
+        ],
+    )
+    def test_param_value_validation_deferred_to_runtime(self, params: dict, expected_key: str) -> None:
+        """Regression test for #59551.
+
+        HITLOperator params are form fields filled by a human at runtime.
+        Value validation (required, schema) must NOT happen in __init__ — it is
+        deferred to ``validate_params_input`` after the human submits the form.
+        """
+        op = HITLOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            options=["1", "2"],
+            body="This is body",
+            defaults=["1"],
+            multiple=False,
+            params=params,
+        )
+        assert expected_key in op.params
 
     def test_validate_defaults(self) -> None:
         hitl_op = HITLOperator(
@@ -260,7 +280,7 @@ class TestHITLOperator:
         if AIRFLOW_V_3_2_PLUS:
             expected_params_in_trigger_kwargs = expected_params
             # trigger_kwargs are encoded via serde from task sdk in versions >= 3.2
-            expected_ti_id = UUID(ti.id)
+            expected_ti_id = ti.id
         else:
             expected_params_in_trigger_kwargs = {"input_1": {"value": 1, "description": None, "schema": {}}}
 
@@ -871,3 +891,486 @@ class TestHITLBranchOperator:
                 options=["Approve", "Reject"],
                 options_mapping={"NotAnOption": "publish"},
             )
+
+
+class TestHITLSummaryForListeners:
+    """Verify hitl_summary dict at all lifecycle stages: __init__, execute, execute_complete."""
+
+    def test_hitl_operator_init_all_fields(self) -> None:
+        """hitl_summary is exactly the expected dict after __init__ with all fields set."""
+        op = HITLOperator(
+            task_id="test",
+            subject="Please review",
+            body="Details here",
+            options=["Yes", "No"],
+            defaults=["Yes"],
+            multiple=False,
+            assigned_users=HITLUser(id="u1", name="Alice"),
+            params={"env": Param("prod", type="string", description="Target env")},
+        )
+
+        assert op.hitl_summary == {
+            "subject": "Please review",
+            "body": "Details here",
+            "options": ["Yes", "No"],
+            "defaults": ["Yes"],
+            "multiple": False,
+            "assigned_users": [{"id": "u1", "name": "Alice"}],
+            "serialized_params": op.serialized_params,
+        }
+
+    def test_hitl_operator_init_minimal(self) -> None:
+        """hitl_summary with only required fields; optional ones default to None."""
+        op = HITLOperator(
+            task_id="test",
+            subject="Review",
+            options=["A", "B"],
+        )
+
+        assert op.hitl_summary == {
+            "subject": "Review",
+            "body": None,
+            "options": ["A", "B"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": None,
+        }
+
+    def test_approval_operator_init_summary(self) -> None:
+        """ApprovalOperator hitl_summary includes base + approval-specific fields."""
+        op = ApprovalOperator(
+            task_id="test",
+            subject="Deploy?",
+            ignore_downstream_trigger_rules=True,
+            fail_on_reject=True,
+        )
+
+        assert op.hitl_summary == {
+            "subject": "Deploy?",
+            "body": None,
+            "options": ["Approve", "Reject"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": None,
+            "ignore_downstream_trigger_rules": True,
+            "fail_on_reject": True,
+        }
+
+    def test_approval_operator_init_defaults(self) -> None:
+        """ApprovalOperator with default settings."""
+        op = ApprovalOperator(task_id="test", subject="Deploy?")
+
+        assert op.hitl_summary == {
+            "subject": "Deploy?",
+            "body": None,
+            "options": ["Approve", "Reject"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": None,
+            "ignore_downstream_trigger_rules": False,
+            "fail_on_reject": False,
+        }
+
+    def test_hitl_branch_operator_init_with_mapping(self) -> None:
+        """HITLBranchOperator hitl_summary includes base + options_mapping."""
+        op = HITLBranchOperator(
+            task_id="test",
+            subject="Choose",
+            options=["A", "B"],
+            options_mapping={"A": "task_a", "B": "task_b"},
+        )
+
+        assert op.hitl_summary == {
+            "subject": "Choose",
+            "body": None,
+            "options": ["A", "B"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": None,
+            "options_mapping": {"A": "task_a", "B": "task_b"},
+        }
+
+    def test_hitl_branch_operator_init_without_mapping(self) -> None:
+        """HITLBranchOperator stores empty dict for options_mapping when not provided."""
+        op = HITLBranchOperator(
+            task_id="test",
+            subject="Choose",
+            options=["A", "B"],
+        )
+
+        assert op.hitl_summary == {
+            "subject": "Choose",
+            "body": None,
+            "options": ["A", "B"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": None,
+            "options_mapping": {},
+        }
+
+    def test_hitl_entry_operator_init_summary(self) -> None:
+        """HITLEntryOperator hitl_summary includes base fields with OK defaults."""
+        op = HITLEntryOperator(
+            task_id="test",
+            subject="Enter data",
+            params={"name": Param("", type="string")},
+        )
+
+        assert op.hitl_summary == {
+            "subject": "Enter data",
+            "body": None,
+            "options": ["OK"],
+            "defaults": ["OK"],
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": op.serialized_params,
+        }
+
+    def test_hitl_entry_operator_init_custom_options(self) -> None:
+        """HITLEntryOperator with explicit options and no defaults."""
+        op = HITLEntryOperator(
+            task_id="test",
+            subject="Confirm",
+            options=["OK", "Cancel"],
+        )
+
+        assert op.hitl_summary == {
+            "subject": "Confirm",
+            "body": None,
+            "options": ["OK", "Cancel"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": None,
+        }
+
+    def test_execute_enriches_summary_with_response_timeout(self) -> None:
+        """execute() adds timeout_datetime using response_timeout; all other init keys remain."""
+        op = HITLOperator(
+            task_id="test",
+            subject="Review",
+            options=["OK"],
+            response_timeout=datetime.timedelta(minutes=10),
+        )
+
+        with (
+            patch("airflow.providers.standard.operators.hitl.upsert_hitl_detail"),
+            patch.object(op, "defer"),
+        ):
+            op.execute({"task_instance": MagicMock(id=uuid4())})  # type: ignore[arg-type]
+
+        s = op.hitl_summary
+        # Validate the timeout value is a parseable ISO string
+        timeout_dt = datetime.datetime.fromisoformat(s["timeout_datetime"])
+        assert timeout_dt is not None
+
+        assert s == {
+            "subject": "Review",
+            "body": None,
+            "options": ["OK"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": None,
+            "timeout_datetime": s["timeout_datetime"],
+        }
+
+    def test_execute_without_timeout(self) -> None:
+        """execute() sets timeout_datetime to None when no execution_timeout."""
+        op = HITLOperator(
+            task_id="test",
+            subject="Review",
+            options=["OK"],
+        )
+
+        with (
+            patch("airflow.providers.standard.operators.hitl.upsert_hitl_detail"),
+            patch.object(op, "defer"),
+        ):
+            op.execute({"task_instance": MagicMock(id=uuid4())})  # type: ignore[arg-type]
+
+        assert op.hitl_summary == {
+            "subject": "Review",
+            "body": None,
+            "options": ["OK"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": None,
+            "timeout_datetime": None,
+        }
+
+    def test_execution_timeout_deprecated_and_migrated(self) -> None:
+        """execution_timeout is migrated to response_timeout with a deprecation warning."""
+        with pytest.warns(AirflowProviderDeprecationWarning, match="Use `response_timeout` instead"):
+            op = HITLOperator(
+                task_id="test",
+                subject="Review",
+                options=["OK"],
+                execution_timeout=datetime.timedelta(minutes=10),
+            )
+
+        assert op.response_timeout == datetime.timedelta(minutes=10)
+        assert op.execution_timeout is None
+
+    def test_response_timeout_does_not_clear_execution_timeout(self) -> None:
+        """When response_timeout is set, execution_timeout is left untouched."""
+        op = HITLOperator(
+            task_id="test",
+            subject="Review",
+            options=["OK"],
+            response_timeout=datetime.timedelta(minutes=5),
+            execution_timeout=datetime.timedelta(minutes=30),
+        )
+
+        assert op.response_timeout == datetime.timedelta(minutes=5)
+        assert op.execution_timeout == datetime.timedelta(minutes=30)
+
+    def test_hitl_operator_execute_complete_enriches_summary(self) -> None:
+        """execute_complete() adds response fields directly into hitl_summary."""
+        op = HITLOperator(
+            task_id="test",
+            subject="Review",
+            options=["1", "2"],
+            params={"input": 1},
+        )
+
+        responded_at = timezone.utcnow()
+        op.execute_complete(
+            context={},
+            event={
+                "chosen_options": ["1"],
+                "params_input": {"input": 1},
+                "responded_at": responded_at,
+                "responded_by_user": {"id": "u1", "name": "Alice"},
+            },
+        )
+
+        assert op.hitl_summary == {
+            "subject": "Review",
+            "body": None,
+            "options": ["1", "2"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": op.serialized_params,
+            "chosen_options": ["1"],
+            "params_input": {"input": 1},
+            "responded_at": responded_at.isoformat(),
+            "responded_by_user": {"id": "u1", "name": "Alice"},
+        }
+
+    def test_hitl_operator_execute_complete_error_stores_error_type(self) -> None:
+        """execute_complete() stores error_type in hitl_summary on error events."""
+        op = HITLOperator(
+            task_id="test",
+            subject="Review",
+            options=["OK"],
+        )
+
+        with pytest.raises(HITLTimeoutError):
+            op.execute_complete(
+                context={},
+                event={"error": "timed out", "error_type": "timeout"},
+            )
+
+        assert op.hitl_summary == {
+            "subject": "Review",
+            "body": None,
+            "options": ["OK"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": None,
+            "error_type": "timeout",
+        }
+
+    def test_approval_operator_execute_complete_approved(self) -> None:
+        """Approving sets approved=True in hitl_summary."""
+        op = ApprovalOperator(task_id="test", subject="Deploy?")
+
+        responded_at = timezone.utcnow()
+        op.execute_complete(
+            context={},
+            event={
+                "chosen_options": ["Approve"],
+                "params_input": {},
+                "responded_at": responded_at,
+                "responded_by_user": {"id": "u1", "name": "Alice"},
+            },
+        )
+
+        assert op.hitl_summary == {
+            "subject": "Deploy?",
+            "body": None,
+            "options": ["Approve", "Reject"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": None,
+            "ignore_downstream_trigger_rules": False,
+            "fail_on_reject": False,
+            "chosen_options": ["Approve"],
+            "params_input": {},
+            "responded_at": responded_at.isoformat(),
+            "responded_by_user": {"id": "u1", "name": "Alice"},
+            "approved": True,
+        }
+
+    def test_approval_operator_execute_complete_rejected(self) -> None:
+        """Rejecting sets approved=False in hitl_summary."""
+        op = ApprovalOperator(task_id="test", subject="Deploy?")
+
+        responded_at = timezone.utcnow()
+        op.execute_complete(
+            context={},
+            event={
+                "chosen_options": ["Reject"],
+                "params_input": {},
+                "responded_at": responded_at,
+                "responded_by_user": {"id": "u1", "name": "Alice"},
+            },
+        )
+
+        assert op.hitl_summary == {
+            "subject": "Deploy?",
+            "body": None,
+            "options": ["Approve", "Reject"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": None,
+            "ignore_downstream_trigger_rules": False,
+            "fail_on_reject": False,
+            "chosen_options": ["Reject"],
+            "params_input": {},
+            "responded_at": responded_at.isoformat(),
+            "responded_by_user": {"id": "u1", "name": "Alice"},
+            "approved": False,
+        }
+
+    def test_hitl_branch_operator_execute_complete_records_branches(
+        self, dag_maker: DagMaker, get_context_from_model_ti: Any
+    ) -> None:
+        """HITLBranchOperator stores branches_to_execute in hitl_summary."""
+        with dag_maker("hitl_summary_dag", serialized=True):
+            op = HITLBranchOperator(
+                task_id="choose",
+                subject="Choose",
+                options=["A", "B"],
+                options_mapping={"A": "task_a", "B": "task_b"},
+            )
+            op >> [EmptyOperator(task_id="task_a"), EmptyOperator(task_id="task_b")]
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("choose")
+
+        responded_at = timezone.utcnow()
+        with pytest.raises(DownstreamTasksSkipped):
+            op.execute_complete(
+                context=get_context_from_model_ti(ti, op),
+                event={
+                    "chosen_options": ["A"],
+                    "params_input": {},
+                    "responded_at": responded_at,
+                    "responded_by_user": {"id": "u1", "name": "Alice"},
+                },
+            )
+
+        assert op.hitl_summary == {
+            "subject": "Choose",
+            "body": None,
+            "options": ["A", "B"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": None,
+            "options_mapping": {"A": "task_a", "B": "task_b"},
+            "chosen_options": ["A"],
+            "params_input": {},
+            "responded_at": responded_at.isoformat(),
+            "responded_by_user": {"id": "u1", "name": "Alice"},
+            "branches_to_execute": ["task_a"],
+        }
+
+    def test_full_lifecycle_approval(self) -> None:
+        """Verify exact hitl_summary at each stage: __init__ -> execute -> execute_complete."""
+        op = ApprovalOperator(
+            task_id="test",
+            subject="Release v2.0?",
+            body="Please approve the production deployment.",
+            response_timeout=datetime.timedelta(minutes=30),
+        )
+
+        # -- After __init__: only base + approval keys --
+        assert op.hitl_summary == {
+            "subject": "Release v2.0?",
+            "body": "Please approve the production deployment.",
+            "options": ["Approve", "Reject"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": None,
+            "ignore_downstream_trigger_rules": False,
+            "fail_on_reject": False,
+        }
+
+        # -- After execute (mocked defer): timeout_datetime added --
+        with (
+            patch("airflow.providers.standard.operators.hitl.upsert_hitl_detail"),
+            patch.object(op, "defer"),
+        ):
+            op.execute({"task_instance": MagicMock(id=uuid4())})  # type: ignore[arg-type]
+
+        s = op.hitl_summary
+        timeout_dt_str = s["timeout_datetime"]
+        assert timeout_dt_str is not None
+        datetime.datetime.fromisoformat(timeout_dt_str)
+
+        assert s == {
+            "subject": "Release v2.0?",
+            "body": "Please approve the production deployment.",
+            "options": ["Approve", "Reject"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": None,
+            "ignore_downstream_trigger_rules": False,
+            "fail_on_reject": False,
+            "timeout_datetime": timeout_dt_str,
+        }
+
+        # -- After execute_complete: response + approved fields added --
+        responded_at = timezone.utcnow()
+        op.execute_complete(
+            context={},
+            event={
+                "chosen_options": ["Approve"],
+                "params_input": {},
+                "responded_at": responded_at,
+                "responded_by_user": {"id": "admin", "name": "Admin"},
+            },
+        )
+
+        assert s == {
+            "subject": "Release v2.0?",
+            "body": "Please approve the production deployment.",
+            "options": ["Approve", "Reject"],
+            "defaults": None,
+            "multiple": False,
+            "assigned_users": None,
+            "serialized_params": None,
+            "ignore_downstream_trigger_rules": False,
+            "fail_on_reject": False,
+            "timeout_datetime": timeout_dt_str,
+            "chosen_options": ["Approve"],
+            "params_input": {},
+            "responded_at": responded_at.isoformat(),
+            "responded_by_user": {"id": "admin", "name": "Admin"},
+            "approved": True,
+        }

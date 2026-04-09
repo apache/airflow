@@ -68,7 +68,7 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
     ) -> None:
         if mssql_table is not None:
             warnings.warn(
-                "The `mssql_table` parameter has been deprecated. Use `target_table_name` instead.",
+                "The `mssql_table` parameter has been deprecated. Use `target_table_name` instead. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )

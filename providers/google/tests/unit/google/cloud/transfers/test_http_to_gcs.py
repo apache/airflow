@@ -68,7 +68,7 @@ class TestHttpToGCSOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        task.execute(None)
+        result = task.execute(None)
 
         # GCS
         gcs_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -100,3 +100,28 @@ class TestHttpToGCSOperator:
         task.http_hook.run.assert_called_once_with(
             endpoint=ENDPOINT, headers=HEADERS, data=DATA, extra_options=EXTRA_OPTIONS
         )
+
+        # Return value: list of destination GCS URIs (per issue #11323 / PR #61306)
+        expected_uri = f"gs://{TEST_BUCKET}/{DESTINATION_PATH_FILE}"
+        assert result == [expected_uri]
+
+    @mock.patch("airflow.providers.google.cloud.transfers.http_to_gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.http_to_gcs.HttpHook")
+    def test_execute_returns_destination_uris(self, http_hook, gcs_hook):
+        """Test that execute() returns a list of destination GCS URIs (gs://bucket/object)."""
+        task = HttpToGCSOperator(
+            task_id="http_to_gcs_operator",
+            http_conn_id=HTTP_CONN_ID,
+            endpoint=ENDPOINT,
+            headers=HEADERS,
+            data=DATA,
+            extra_options=EXTRA_OPTIONS,
+            object_name=DESTINATION_PATH_FILE,
+            bucket_name=TEST_BUCKET,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        result = task.execute(None)
+
+        expected_uris = f"gs://{TEST_BUCKET}/{DESTINATION_PATH_FILE}"
+        assert result == [expected_uris]

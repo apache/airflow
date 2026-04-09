@@ -27,7 +27,7 @@ from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    import google
+    from google.auth.credentials import Credentials
 
 SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
 
@@ -45,7 +45,7 @@ class _SecretManagerClient(LoggingMixin):
 
     def __init__(
         self,
-        credentials: google.auth.credentials.Credentials,
+        credentials: Credentials,
     ) -> None:
         super().__init__()
         self.credentials = credentials

@@ -75,6 +75,42 @@ Here is the list of roles defined in simple auth manager. These roles can be ass
 * **op**. **user** permissions plus all permissions on pools, assets, config, connections and variables
 * **admin**. All permissions
 
+Multi-team
+----------
+
+When multi-team mode is enabled, users can be associated with one or more teams. Teams provide resource isolation,
+allowing users to only access resources (DAGs, connections, variables, pools) that belong to their teams.
+
+To enable multi-team mode:
+
+.. code-block:: ini
+
+  [core]
+  multi_team = True
+
+Once enabled, you can assign teams to users by adding a third parameter separated by a colon.
+Multiple teams are separated by a pipe (``|``) character:
+
+.. code-block:: ini
+
+  [core]
+  multi_team = True
+  simple_auth_manager_users = "bob:admin:team1|team2,peter:viewer:team1,alice:op:team2"
+
+In this example:
+
+* **bob** is an **admin** with access to both **team1** and **team2** resources
+* **peter** is a **viewer** with access to **team1** resources only
+* **alice** is an **op** with access to **team2** resources only
+
+.. note::
+    When a user is associated with teams, they can only access resources (DAGs, connections, variables, pools)
+    that are explicitly assigned to one of their teams. Resources without a team assignment (global resources) are
+    accessible to everyone, including users with team restrictions.
+
+.. note::
+    Admin role grants the user access to all resources across all teams. You can still associate an admin user to teams but it will have no effect.
+
 Optional features
 -----------------
 

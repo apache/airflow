@@ -30,7 +30,6 @@ from pathlib import Path
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_prek_utils import console, initialize_breeze_prek
 
 initialize_breeze_prek(__name__, __file__)

@@ -256,5 +256,60 @@ class TestS3ToSFTPOperator:
         conn.delete_bucket(Bucket=self.s3_bucket)
         assert not s3_hook.check_for_bucket(self.s3_bucket)
 
+    @mock_aws
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
+    def test_s3_to_sftp_operator_sftp_remote_host(self):
+        """Test that sftp_remote_host overrides the connection host when provided."""
+        s3_hook = S3Hook(aws_conn_id=None)
+        test_remote_file_content = (
+            "This is remote file content for sftp_remote_host test \n which is also multiline "
+            "another line here \n this is last line. EOF"
+        )
+
+        # Test for creation of s3 bucket
+        conn = boto3.client("s3")
+        conn.create_bucket(Bucket=self.s3_bucket)
+        assert s3_hook.check_for_bucket(self.s3_bucket)
+
+        with open(LOCAL_FILE_PATH, "w") as file:
+            file.write(test_remote_file_content)
+        s3_hook.load_file(LOCAL_FILE_PATH, self.s3_key, bucket_name=BUCKET)
+
+        # Check if object was created in s3
+        objects_in_dest_bucket = conn.list_objects(Bucket=self.s3_bucket, Prefix=self.s3_key)
+        assert len(objects_in_dest_bucket["Contents"]) == 1
+        assert objects_in_dest_bucket["Contents"][0]["Key"] == self.s3_key
+
+        # Execute with sftp_remote_host overriding the connection host to the same localhost
+        run_task = S3ToSFTPOperator(
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY,
+            sftp_path=SFTP_PATH,
+            sftp_conn_id=SFTP_CONN_ID,
+            sftp_remote_host="localhost",
+            task_id=TASK_ID + "_remote_host",
+            dag=self.dag,
+        )
+        assert run_task is not None
+
+        run_task.execute(None)
+
+        # Check that the file is created remotely with correct content
+        check_file_task = SSHOperator(
+            task_id="test_check_file_remote_host",
+            ssh_hook=self.hook,
+            command=f"cat {self.sftp_path}",
+            do_xcom_push=True,
+            dag=self.dag,
+        )
+        assert check_file_task is not None
+        result = check_file_task.execute(None)
+        assert result.strip() == test_remote_file_content.encode("utf-8")
+
+        # Clean up after finishing with test
+        conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
+        conn.delete_bucket(Bucket=self.s3_bucket)
+        assert not s3_hook.check_for_bucket(self.s3_bucket)
+
     def teardown_method(self):
         self.delete_remote_resource()

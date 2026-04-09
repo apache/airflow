@@ -35,6 +35,10 @@ from airflow.providers.amazon.aws.triggers.glue import (
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.openlineage.utils.spark import (
+    inject_parent_job_information_into_glue_arguments,
+    inject_transport_information_into_glue_arguments,
+)
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
 if TYPE_CHECKING:
@@ -78,6 +82,12 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         It is recommended to set this parameter to 10 when you are using concurrency=1.
         For more information see:
         https://repost.aws/questions/QUaKgpLBMPSGWO0iq2Fob_bw/glue-run-concurrent-jobs#ANFpCL2fRnQRqgDFuIU_rpvA
+    :param openlineage_inject_parent_job_info: If True, injects OpenLineage parent job information into the
+        Glue job's ``--conf`` argument so the Glue Spark job emits a ``parentRunFacet`` linking back to the
+        Airflow task. Defaults to the ``openlineage.spark_inject_parent_job_info`` config value.
+    :param openlineage_inject_transport_info: If True, injects OpenLineage transport configuration into the
+        Glue job's ``--conf`` argument so the Glue Spark job sends OL events to the same backend as Airflow.
+        Defaults to the ``openlineage.spark_inject_transport_info`` config value.
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -112,6 +122,7 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
     ui_color = "#ededed"
 
     operator_extra_links = (GlueJobRunDetailsLink(),)
+    TASK_UUID_ARG = "--airflow_task_uuid"
 
     def __init__(
         self,
@@ -138,6 +149,13 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         job_poll_interval: int | float = 6,
         waiter_delay: int = 60,
         waiter_max_attempts: int = 75,
+        resume_glue_job_on_retry: bool = False,
+        openlineage_inject_parent_job_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_parent_job_info", fallback=False
+        ),
+        openlineage_inject_transport_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_transport_info", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -167,6 +185,9 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         self.s3_script_location: str | None = None
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
+        self.resume_glue_job_on_retry = resume_glue_job_on_retry
+        self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
+        self.openlineage_inject_transport_info = openlineage_inject_transport_info
 
     @property
     def _hook_parameters(self):
@@ -210,19 +231,98 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         )
         self.s3_script_location = f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
 
+    def _get_task_uuid(self, context: Context) -> str:
+        ti = context["ti"]
+        map_index = getattr(ti, "map_index", -1)
+        if map_index is None:
+            map_index = -1
+        return f"{ti.dag_id}:{ti.task_id}:{ti.run_id}:{map_index}"
+
+    def _prepare_script_args_with_task_uuid(
+        self, context: Context, base_args: dict | None = None
+    ) -> tuple[dict, str]:
+        script_args = dict(base_args if base_args is not None else (self.script_args or {}))
+        if self.TASK_UUID_ARG in script_args:
+            task_uuid = str(script_args[self.TASK_UUID_ARG])
+        else:
+            task_uuid = self._get_task_uuid(context)
+            script_args[self.TASK_UUID_ARG] = task_uuid
+        return script_args, task_uuid
+
+    def _find_job_run_id_by_task_uuid(self, task_uuid: str) -> tuple[str, str] | None:
+        next_token: str | None = None
+        while True:
+            request = {"JobName": self.job_name, "MaxResults": 50}
+            if next_token:
+                request["NextToken"] = next_token
+            response = self.hook.conn.get_job_runs(**request)
+            for job_run in response.get("JobRuns", []):
+                args = job_run.get("Arguments", {}) or {}
+                if args.get(self.TASK_UUID_ARG) == task_uuid:
+                    job_run_id = job_run.get("Id")
+                    job_run_state = job_run.get("JobRunState")
+                    if job_run_id and job_run_state:
+                        return job_run_id, job_run_state
+            next_token = response.get("NextToken")
+            if not next_token:
+                return None
+
     def execute(self, context: Context):
         """
         Execute AWS Glue Job from Airflow.
 
         :return: the current Glue job ID.
         """
-        self.log.info(
-            "Initializing AWS Glue Job: %s. Wait for completion: %s",
-            self.job_name,
-            self.wait_for_completion,
-        )
-        glue_job_run = self.hook.initialize_job(self.script_args, self.run_job_kwargs)
-        self._job_run_id = glue_job_run["JobRunId"]
+        previous_job_run_id = None
+        script_args = dict(self.script_args)
+        task_uuid = None
+
+        if self.openlineage_inject_parent_job_info:
+            self.log.info("Injecting OpenLineage parent job information into Glue job arguments.")
+            script_args = inject_parent_job_information_into_glue_arguments(script_args, context)
+        if self.openlineage_inject_transport_info:
+            self.log.info("Injecting OpenLineage transport information into Glue job arguments.")
+            script_args = inject_transport_information_into_glue_arguments(script_args, context)
+
+        if self.resume_glue_job_on_retry:
+            ti = context["ti"]
+            script_args, task_uuid = self._prepare_script_args_with_task_uuid(context, base_args=script_args)
+            previous_job_run_id = ti.xcom_pull(key="glue_job_run_id", task_ids=ti.task_id)
+            if previous_job_run_id:
+                try:
+                    job_run = self.hook.conn.get_job_run(JobName=self.job_name, RunId=previous_job_run_id)
+                    state = job_run.get("JobRun", {}).get("JobRunState")
+                    self.log.info("Previous Glue job_run_id: %s, state: %s", previous_job_run_id, state)
+                    if state in ("RUNNING", "STARTING"):
+                        self._job_run_id = previous_job_run_id
+                except Exception:
+                    self.log.warning("Failed to get previous Glue job run state", exc_info=True)
+            elif task_uuid:
+                try:
+                    existing = self._find_job_run_id_by_task_uuid(task_uuid)
+                    if existing:
+                        existing_job_run_id, existing_job_run_state = existing
+                        self.log.info(
+                            "Found Glue job_run_id by task UUID: %s, state: %s",
+                            existing_job_run_id,
+                            existing_job_run_state,
+                        )
+                        if existing_job_run_state in ("RUNNING", "STARTING"):
+                            self._job_run_id = existing_job_run_id
+                            ti.xcom_push(key="glue_job_run_id", value=self._job_run_id)
+                except Exception:
+                    self.log.warning("Failed to find previous Glue job run by task UUID", exc_info=True)
+
+        if not self._job_run_id:
+            self.log.info(
+                "Initializing AWS Glue Job: %s. Wait for completion: %s",
+                self.job_name,
+                self.wait_for_completion,
+            )
+            glue_job_run = self.hook.initialize_job(script_args, self.run_job_kwargs)
+            self._job_run_id = glue_job_run["JobRunId"]
+            context["ti"].xcom_push(key="glue_job_run_id", value=self._job_run_id)
+
         glue_job_run_url = GlueJobRunDetailsLink.format_str.format(
             aws_domain=GlueJobRunDetailsLink.get_aws_domain(self.hook.conn_partition),
             region_name=self.hook.conn_region_name,

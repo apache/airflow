@@ -38,6 +38,8 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import scoped_session, sessionmaker
 
+from airflow._shared.observability.traces import configure_otel
+
 try:
     from sqlalchemy.ext.asyncio import async_sessionmaker
 except ImportError:
@@ -56,15 +58,13 @@ from airflow.configuration import AIRFLOW_HOME, conf
 from airflow.exceptions import AirflowInternalRuntimeError
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
-from airflow.utils.sqlalchemy import is_sqlalchemy_v1
 
 _USE_PSYCOPG3: bool
 try:
     from importlib.util import find_spec
 
-    is_psycopg3 = find_spec("psycopg") is not None
+    _USE_PSYCOPG3 = find_spec("psycopg") is not None
 
-    _USE_PSYCOPG3 = is_psycopg3 and not is_sqlalchemy_v1()
 except (ImportError, ModuleNotFoundError):
     _USE_PSYCOPG3 = False
 
@@ -349,6 +349,44 @@ def _get_connect_args(mode: Literal["sync", "async"]) -> Any:
     return {}
 
 
+def create_metadata_engine(
+    sql_alchemy_conn: str,
+    *,
+    engine_args: dict[str, Any],
+    connect_args: dict[str, Any],
+) -> Engine:
+    """
+    Create the SQLAlchemy Engine for the Airflow metadata database.
+
+    Override in ``airflow_local_settings.py`` to customize engine creation,
+    e.g. to register ``do_connect`` event handlers for token-based authentication.
+    """
+    return create_engine(
+        sql_alchemy_conn,
+        connect_args=connect_args,
+        **engine_args,
+        future=True,
+    )
+
+
+def create_async_metadata_engine(
+    sql_alchemy_conn_async: str,
+    *,
+    connect_args: dict[str, Any],
+) -> AsyncEngine:
+    """
+    Create the async SQLAlchemy Engine for the Airflow metadata database.
+
+    Override in ``airflow_local_settings.py`` to customize async engine creation.
+    For ``do_connect`` handlers, register on ``engine.sync_engine``.
+    """
+    return create_async_engine(
+        sql_alchemy_conn_async,
+        connect_args=connect_args,
+        future=True,
+    )
+
+
 def _configure_async_session() -> None:
     """
     Configure async SQLAlchemy session.
@@ -364,10 +402,9 @@ def _configure_async_session() -> None:
         AsyncSession = None
         return
 
-    async_engine = create_async_engine(
+    async_engine = create_async_metadata_engine(
         SQL_ALCHEMY_CONN_ASYNC,
         connect_args=_get_connect_args("async"),
-        future=True,
     )
     AsyncSession = async_sessionmaker(
         bind=async_engine,
@@ -408,11 +445,10 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         # to so the `test` thread and the tested endpoints can use common objects.
         connect_args["check_same_thread"] = False
 
-    engine = create_engine(
+    engine = create_metadata_engine(
         SQL_ALCHEMY_CONN,
+        engine_args=engine_args,
         connect_args=connect_args,
-        **engine_args,
-        future=True,
     )
     _configure_async_session()
     mask_secret(engine.url.password)
@@ -450,7 +486,7 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     DEFAULT_ENGINE_ARGS: dict[str, dict[str, Any]] = {
         "postgresql": (
             {
-                "executemany_values_page_size" if is_sqlalchemy_v1() else "insertmanyvalues_page_size": 10000,
+                "insertmanyvalues_page_size": 10000,
             }
             | (
                 {}
@@ -525,12 +561,6 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     # https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html
     if SQL_ALCHEMY_CONN.startswith("mysql"):
         engine_args["isolation_level"] = "READ COMMITTED"
-
-    if is_sqlalchemy_v1():
-        # Allow the user to specify an encoding for their DB otherwise default
-        # to utf-8 so jobs & users with non-latin1 characters can still use us.
-        # This parameter was removed in SQLAlchemy 2.x.
-        engine_args["encoding"] = conf.get("database", "SQL_ENGINE_ENCODING", fallback="utf-8")
 
     return engine_args
 
@@ -730,7 +760,7 @@ def initialize():
     load_policy_plugins(policy_mgr)
     import_local_settings()
     configure_logging()
-
+    configure_otel(conf)
     configure_adapters()
     # The webservers import this file from models.py with the default settings.
 
@@ -762,3 +792,7 @@ LAZY_LOAD_PLUGINS: bool = conf.getboolean("core", "lazy_load_plugins", fallback=
 LAZY_LOAD_PROVIDERS: bool = conf.getboolean("core", "lazy_discover_providers", fallback=True)
 
 DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
+
+# Prefix used by gunicorn workers to indicate they are ready to serve requests
+# Used by GunicornMonitor to track worker readiness via process titles
+GUNICORN_WORKER_READY_PREFIX: str = "[ready] "

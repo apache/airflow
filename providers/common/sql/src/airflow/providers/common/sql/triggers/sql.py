@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -78,15 +79,23 @@ class SQLExecuteQueryTrigger(BaseTrigger):
             )
         return hook
 
+    async def _get_records(self) -> Any:
+        from asgiref.sync import sync_to_async
+
+        hook = self.get_hook()
+
+        if AIRFLOW_V_3_2_PLUS:
+            # This is only supported from Airflow 3.2 or higher due to added async support in CommsDecoder
+            return await sync_to_async(hook.get_records)(self.sql)
+        return hook.get_records(self.sql)
+
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
-            hook = self.get_hook()
-
             self.log.info("Extracting data from %s", self.conn_id)
             self.log.info("Executing: \n %s", self.sql)
             self.log.info("Reading records from %s", self.conn_id)
 
-            results = hook.get_records(self.sql)
+            results = await self._get_records()
 
             self.log.info("Reading records from %s done!", self.conn_id)
             self.log.debug("results: %s", results)

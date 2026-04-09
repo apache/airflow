@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/connection: kafka
+.. _howto/connection:kafka:
 
 Apache Kafka Connection
 ========================

@@ -85,7 +85,7 @@ class TestExtraEnvEnvFrom:
     def setup_class(cls) -> None:
         values_str = textwrap.dedent(
             """
-            airflowVersion: "2.6.0"
+            airflowVersion: "2.11.0"
             databaseCleanup:
               enabled: true
               applyCustomEnv: true

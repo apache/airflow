@@ -17,7 +17,7 @@
 
 
 
-.. _howto/connection:tinkerpop:
+.. _howto/connection:gremlin:
 
 Gremlin Connection
 ====================

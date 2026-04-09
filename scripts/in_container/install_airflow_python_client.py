@@ -19,9 +19,7 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from in_container_utils import AIRFLOW_DIST_PATH, click, console, run_command
 
 ALLOWED_DISTRIBUTION_FORMAT = ["wheel", "sdist", "both"]

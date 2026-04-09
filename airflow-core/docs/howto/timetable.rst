@@ -76,7 +76,6 @@ file:
     from airflow.sdk import DAG
     from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 
-
     with DAG(
         dag_id="example_after_workday_timetable_dag",
         start_date=pendulum.datetime(2021, 3, 10, tz="UTC"),
@@ -197,7 +196,6 @@ For reference, here's our plugin and Dag files in their entirety:
     from airflow.sdk import DAG
     from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
     from airflow.providers.standard.operators.empty import EmptyOperator
-
 
     with DAG(
         dag_id="example_workday_timetable",

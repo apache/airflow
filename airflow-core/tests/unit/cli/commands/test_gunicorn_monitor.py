@@ -1,0 +1,481 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""Tests for AirflowArbiter and AirflowGunicornApp."""
+
+from __future__ import annotations
+
+from unittest import mock
+
+import pytest
+from gunicorn.config import Config
+
+
+class TestAirflowArbiter:
+    """Tests for the AirflowArbiter class."""
+
+    @pytest.fixture
+    def mock_app(self):
+        """Create a mock gunicorn application."""
+        app = mock.MagicMock()
+        app.cfg = mock.MagicMock()
+        app.cfg.workers = 4
+        app.cfg.settings = {}
+        return app
+
+    def test_init_with_refresh_enabled(self, mock_app):
+        """Test AirflowArbiter initialization with worker refresh enabled."""
+
+        def mock_arbiter_init(self, app):
+            # Set up minimal state that Arbiter.__init__ would set
+            self._num_workers = 4
+            self.cfg = app.cfg
+            self.WORKERS = {}
+
+        with mock.patch(
+            "airflow.api_fastapi.gunicorn_app.conf.getint",
+            side_effect=lambda section, key, fallback=None: {
+                ("api", "worker_refresh_interval"): 1800,
+                ("api", "worker_refresh_batch_size"): 2,
+            }.get((section, key), fallback),
+        ):
+            with mock.patch("gunicorn.arbiter.Arbiter.__init__", mock_arbiter_init):
+                from airflow.api_fastapi.gunicorn_app import AirflowArbiter
+
+                arbiter = AirflowArbiter(mock_app)
+
+                assert arbiter.worker_refresh_interval == 1800
+                assert arbiter.worker_refresh_batch_size == 2
+                assert arbiter._refresh_in_progress is False
+                assert arbiter._workers_to_replace == set()
+
+    def test_init_batch_size_capped_to_workers(self, mock_app, caplog):
+        """Test that batch size is reduced when greater than worker count."""
+
+        def mock_arbiter_init(self, app):
+            self._num_workers = 4
+            self.cfg = app.cfg
+            self.WORKERS = {}
+
+        with mock.patch(
+            "airflow.api_fastapi.gunicorn_app.conf.getint",
+            side_effect=lambda section, key, fallback=None: {
+                ("api", "worker_refresh_interval"): 1800,
+                ("api", "worker_refresh_batch_size"): 10,  # Greater than workers
+            }.get((section, key), fallback),
+        ):
+            with mock.patch("gunicorn.arbiter.Arbiter.__init__", mock_arbiter_init):
+                from airflow.api_fastapi.gunicorn_app import AirflowArbiter
+
+                arbiter = AirflowArbiter(mock_app)
+
+                assert arbiter.worker_refresh_batch_size == 4  # Capped to num_workers
+                assert "reducing batch size" in caplog.text
+
+    def test_init_with_refresh_disabled(self, mock_app):
+        """Test AirflowArbiter initialization with worker refresh disabled."""
+
+        def mock_arbiter_init(self, app):
+            self._num_workers = 4
+            self.cfg = app.cfg
+            self.WORKERS = {}
+
+        with mock.patch(
+            "airflow.api_fastapi.gunicorn_app.conf.getint",
+            side_effect=lambda section, key, fallback=None: {
+                ("api", "worker_refresh_interval"): 0,  # Disabled
+                ("api", "worker_refresh_batch_size"): 1,
+            }.get((section, key), fallback),
+        ):
+            with mock.patch("gunicorn.arbiter.Arbiter.__init__", mock_arbiter_init):
+                from airflow.api_fastapi.gunicorn_app import AirflowArbiter
+
+                arbiter = AirflowArbiter(mock_app)
+
+                assert arbiter.worker_refresh_interval == 0
+
+    def test_manage_workers_calls_parent(self, mock_app):
+        """Test that manage_workers calls parent implementation."""
+
+        def mock_arbiter_init(self, app):
+            self._num_workers = 4
+            self.cfg = app.cfg
+            self.WORKERS = {}
+
+        with mock.patch(
+            "airflow.api_fastapi.gunicorn_app.conf.getint",
+            side_effect=lambda section, key, fallback=None: {
+                ("api", "worker_refresh_interval"): 0,
+                ("api", "worker_refresh_batch_size"): 1,
+            }.get((section, key), fallback),
+        ):
+            with mock.patch("gunicorn.arbiter.Arbiter.__init__", mock_arbiter_init):
+                with mock.patch("gunicorn.arbiter.Arbiter.manage_workers") as mock_parent:
+                    from airflow.api_fastapi.gunicorn_app import AirflowArbiter
+
+                    arbiter = AirflowArbiter(mock_app)
+                    arbiter.manage_workers()
+
+                    mock_parent.assert_called_once()
+
+    def test_manage_workers_triggers_refresh_when_due(self, mock_app):
+        """Test that manage_workers starts refresh when interval elapsed."""
+
+        def mock_arbiter_init(self, app):
+            self._num_workers = 4
+            self.cfg = app.cfg
+            self.WORKERS = {}
+
+        with mock.patch(
+            "airflow.api_fastapi.gunicorn_app.conf.getint",
+            side_effect=lambda section, key, fallback=None: {
+                ("api", "worker_refresh_interval"): 1800,
+                ("api", "worker_refresh_batch_size"): 1,
+            }.get((section, key), fallback),
+        ):
+            with mock.patch("gunicorn.arbiter.Arbiter.__init__", mock_arbiter_init):
+                with mock.patch("gunicorn.arbiter.Arbiter.manage_workers"):
+                    from airflow.api_fastapi.gunicorn_app import AirflowArbiter
+
+                    arbiter = AirflowArbiter(mock_app)
+                    arbiter.WORKERS = {100: mock.MagicMock(), 101: mock.MagicMock()}
+                    arbiter.spawn_worker = mock.MagicMock()  # Prevent deep call
+
+                    # Simulate time elapsed past refresh interval
+                    with mock.patch("time.monotonic", return_value=arbiter._last_refresh_time + 2000):
+                        arbiter.manage_workers()
+
+                    # Should have started a refresh cycle
+                    assert arbiter._refresh_in_progress is True
+                    assert arbiter._workers_to_replace == {100, 101}
+
+    def test_start_refresh_cycle(self, mock_app):
+        """Test starting a refresh cycle marks workers for replacement."""
+
+        def mock_arbiter_init(self, app):
+            self._num_workers = 4
+            self.cfg = app.cfg
+            self.WORKERS = {}
+
+        with mock.patch(
+            "airflow.api_fastapi.gunicorn_app.conf.getint",
+            side_effect=lambda section, key, fallback=None: {
+                ("api", "worker_refresh_interval"): 1800,
+                ("api", "worker_refresh_batch_size"): 1,
+            }.get((section, key), fallback),
+        ):
+            with mock.patch("gunicorn.arbiter.Arbiter.__init__", mock_arbiter_init):
+                from airflow.api_fastapi.gunicorn_app import AirflowArbiter
+
+                arbiter = AirflowArbiter(mock_app)
+                arbiter.WORKERS = {
+                    100: mock.MagicMock(age=0),
+                    101: mock.MagicMock(age=1),
+                    102: mock.MagicMock(age=2),
+                }
+                arbiter.spawn_worker = mock.MagicMock()  # Prevent deep call
+
+                arbiter._start_refresh_cycle()
+
+                assert arbiter._refresh_in_progress is True
+                assert arbiter._workers_to_replace == {100, 101, 102}
+
+    def test_continue_refresh_cycle_spawns_workers(self, mock_app):
+        """Test that continue_refresh_cycle spawns new workers."""
+
+        def mock_arbiter_init(self, app):
+            self._num_workers = 2
+            self.cfg = app.cfg
+            self.WORKERS = {}
+
+        with mock.patch(
+            "airflow.api_fastapi.gunicorn_app.conf.getint",
+            side_effect=lambda section, key, fallback=None: {
+                ("api", "worker_refresh_interval"): 1800,
+                ("api", "worker_refresh_batch_size"): 1,
+            }.get((section, key), fallback),
+        ):
+            with mock.patch("gunicorn.arbiter.Arbiter.__init__", mock_arbiter_init):
+                from airflow.api_fastapi.gunicorn_app import AirflowArbiter
+
+                arbiter = AirflowArbiter(mock_app)
+                arbiter.WORKERS = {100: mock.MagicMock(age=0), 101: mock.MagicMock(age=1)}
+                arbiter._refresh_in_progress = True
+                arbiter._workers_to_replace = {100, 101}
+                arbiter.spawn_worker = mock.MagicMock()
+                arbiter.kill_worker = mock.MagicMock()
+
+                arbiter._continue_refresh_cycle()
+
+                # Should spawn 1 worker (batch_size)
+                arbiter.spawn_worker.assert_called_once()
+
+    def test_continue_refresh_cycle_kills_old_workers(self, mock_app):
+        """Test that continue_refresh_cycle kills old workers when over capacity."""
+
+        def mock_arbiter_init(self, app):
+            self._num_workers = 2
+            self.cfg = app.cfg
+            self.WORKERS = {}
+
+        with mock.patch(
+            "airflow.api_fastapi.gunicorn_app.conf.getint",
+            side_effect=lambda section, key, fallback=None: {
+                ("api", "worker_refresh_interval"): 1800,
+                ("api", "worker_refresh_batch_size"): 1,
+            }.get((section, key), fallback),
+        ):
+            with mock.patch("gunicorn.arbiter.Arbiter.__init__", mock_arbiter_init):
+                from airflow.api_fastapi.gunicorn_app import AirflowArbiter
+
+                arbiter = AirflowArbiter(mock_app)
+                # 3 workers (1 over capacity)
+                arbiter.WORKERS = {
+                    100: mock.MagicMock(age=0),
+                    101: mock.MagicMock(age=1),
+                    102: mock.MagicMock(age=2),  # New worker
+                }
+                arbiter._refresh_in_progress = True
+                arbiter._workers_to_replace = {100, 101}  # Old workers to replace
+                arbiter.spawn_worker = mock.MagicMock()
+                arbiter.kill_worker = mock.MagicMock()
+
+                arbiter._continue_refresh_cycle()
+
+                # Should kill oldest worker (age=0, pid=100)
+                import signal
+
+                arbiter.kill_worker.assert_called_once_with(100, signal.SIGTERM)
+                # Worker 100 should be removed from tracking
+                assert 100 not in arbiter._workers_to_replace
+
+    def test_refresh_cycle_completes(self, mock_app):
+        """Test that refresh cycle completes when all workers replaced."""
+
+        def mock_arbiter_init(self, app):
+            self._num_workers = 2
+            self.cfg = app.cfg
+            self.WORKERS = {}
+
+        with mock.patch(
+            "airflow.api_fastapi.gunicorn_app.conf.getint",
+            side_effect=lambda section, key, fallback=None: {
+                ("api", "worker_refresh_interval"): 1800,
+                ("api", "worker_refresh_batch_size"): 1,
+            }.get((section, key), fallback),
+        ):
+            with mock.patch("gunicorn.arbiter.Arbiter.__init__", mock_arbiter_init):
+                from airflow.api_fastapi.gunicorn_app import AirflowArbiter
+
+                arbiter = AirflowArbiter(mock_app)
+                # All new workers (none to replace)
+                arbiter.WORKERS = {102: mock.MagicMock(age=0), 103: mock.MagicMock(age=1)}
+                arbiter._refresh_in_progress = True
+                arbiter._workers_to_replace = {100, 101}  # These are gone now
+                arbiter.spawn_worker = mock.MagicMock()
+                arbiter.kill_worker = mock.MagicMock()
+
+                with mock.patch("time.monotonic", return_value=12345):
+                    arbiter._continue_refresh_cycle()
+
+                # Refresh should be complete
+                assert arbiter._refresh_in_progress is False
+                assert arbiter._workers_to_replace == set()
+                assert arbiter._last_refresh_time == 12345
+
+
+class TestAirflowGunicornApp:
+    """Tests for the AirflowGunicornApp class."""
+
+    def test_load_config(self, monkeypatch):
+        """Test that options are loaded into gunicorn config."""
+        from airflow.api_fastapi.gunicorn_app import AirflowGunicornApp
+
+        monkeypatch.delenv("GUNICORN_CMD_ARGS", raising=False)
+
+        def mock_init(self, options):
+            pass  # Do nothing, we'll set up state manually
+
+        with mock.patch.object(AirflowGunicornApp, "__init__", mock_init):
+            app = AirflowGunicornApp.__new__(AirflowGunicornApp)
+            app.options = {"workers": 4, "bind": "0.0.0.0:8080"}
+            app.cfg = Config()
+
+            app.load_config()
+
+            assert app.cfg.workers == 4
+            assert app.cfg.bind == ["0.0.0.0:8080"]
+
+    def test_load_config_respects_gunicorn_cmd_args(self, monkeypatch):
+        """Test that GUNICORN_CMD_ARGS env var values are applied to config."""
+        from airflow.api_fastapi.gunicorn_app import AirflowGunicornApp
+
+        monkeypatch.setenv("GUNICORN_CMD_ARGS", "--worker-tmp-dir /dev/shm --max-requests 1000")
+
+        def mock_init(self, options):
+            pass
+
+        with mock.patch.object(AirflowGunicornApp, "__init__", mock_init):
+            app = AirflowGunicornApp.__new__(AirflowGunicornApp)
+            app.options = {"workers": 4}
+            app.cfg = Config()
+
+            app.load_config()
+
+            assert app.cfg.worker_tmp_dir == "/dev/shm"
+            assert app.cfg.max_requests == 1000
+            assert app.cfg.workers == 4
+
+    def test_load_config_gunicorn_cmd_args_overrides_options(self, monkeypatch):
+        """Test that GUNICORN_CMD_ARGS takes precedence over programmatic options."""
+        monkeypatch.setenv("GUNICORN_CMD_ARGS", "--workers 8")
+        from airflow.api_fastapi.gunicorn_app import AirflowGunicornApp
+
+        def mock_init(self, options):
+            pass
+
+        with mock.patch.object(AirflowGunicornApp, "__init__", mock_init):
+            app = AirflowGunicornApp.__new__(AirflowGunicornApp)
+            app.options = {"workers": 4}
+            app.cfg = Config()
+
+            app.load_config()
+
+            assert app.cfg.workers == 8
+
+    def test_load_returns_airflow_app(self):
+        """Test that load() returns the Airflow FastAPI app."""
+        from airflow.api_fastapi.gunicorn_app import AirflowGunicornApp
+
+        def mock_init(self, options):
+            pass  # Do nothing, we'll set up state manually
+
+        with mock.patch.object(AirflowGunicornApp, "__init__", mock_init):
+            app = AirflowGunicornApp.__new__(AirflowGunicornApp)
+            app.application = None
+
+            with mock.patch("airflow.api_fastapi.main.app", "mock_fastapi_app"):
+                result = app.load()
+
+            assert result == "mock_fastapi_app"
+            assert app.application == "mock_fastapi_app"
+
+    def test_run_uses_airflow_arbiter(self):
+        """Test that run() uses AirflowArbiter."""
+        from airflow.api_fastapi.gunicorn_app import AirflowGunicornApp
+
+        def mock_init(self, options):
+            pass  # Do nothing, we'll set up state manually
+
+        with mock.patch.object(AirflowGunicornApp, "__init__", mock_init):
+            app = AirflowGunicornApp.__new__(AirflowGunicornApp)
+
+            with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowArbiter") as mock_arbiter:
+                mock_arbiter_instance = mock.MagicMock()
+                mock_arbiter.return_value = mock_arbiter_instance
+
+                app.run()
+
+                mock_arbiter.assert_called_once_with(app)
+                mock_arbiter_instance.run.assert_called_once()
+
+
+class TestCreateGunicornApp:
+    """Tests for the create_gunicorn_app factory function."""
+
+    def test_create_basic_app(self):
+        """Test creating an app with basic settings."""
+        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
+
+        with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
+            create_gunicorn_app(
+                host="0.0.0.0",
+                port=8080,
+                num_workers=4,
+                worker_timeout=120,
+            )
+
+            mock_app_class.assert_called_once()
+            options = mock_app_class.call_args[0][0]
+
+            assert options["bind"] == "0.0.0.0:8080"
+            assert options["workers"] == 4
+            assert options["timeout"] == 120
+            assert options["worker_class"] == "airflow.api_fastapi.gunicorn_app.AirflowUvicornWorker"
+            assert options["preload_app"] is True
+            assert "accesslog" not in options
+
+    def test_create_app_with_ssl(self):
+        """Test creating an app with SSL settings."""
+        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
+
+        with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
+            create_gunicorn_app(
+                host="0.0.0.0",
+                port=8443,
+                num_workers=4,
+                worker_timeout=120,
+                ssl_cert="/path/to/cert.pem",
+                ssl_key="/path/to/key.pem",
+            )
+
+            options = mock_app_class.call_args[0][0]
+
+            assert options["certfile"] == "/path/to/cert.pem"
+            assert options["keyfile"] == "/path/to/key.pem"
+
+    def test_create_app_with_proxy_headers(self):
+        """Test creating an app with proxy headers enabled."""
+        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
+
+        with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
+            create_gunicorn_app(
+                host="0.0.0.0",
+                port=8080,
+                num_workers=4,
+                worker_timeout=120,
+                proxy_headers=True,
+            )
+
+            options = mock_app_class.call_args[0][0]
+
+            assert options["forwarded_allow_ips"] == "*"
+
+    def test_create_app_never_sets_accesslog(self):
+        """accesslog is never set; HttpAccessLogMiddleware handles HTTP access logging."""
+        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
+
+        with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
+            create_gunicorn_app(
+                host="0.0.0.0",
+                port=8080,
+                num_workers=4,
+                worker_timeout=120,
+            )
+
+            options = mock_app_class.call_args[0][0]
+
+            assert "accesslog" not in options
+
+    def test_airflow_uvicorn_worker_config(self):
+        """AirflowUvicornWorker disables uvicorn's access log and log_config override."""
+        from uvicorn.workers import UvicornWorker
+
+        from airflow.api_fastapi.gunicorn_app import AirflowUvicornWorker
+
+        assert AirflowUvicornWorker.CONFIG_KWARGS["log_config"] is None
+        assert AirflowUvicornWorker.CONFIG_KWARGS["access_log"] is False
+        assert issubclass(AirflowUvicornWorker, UvicornWorker)

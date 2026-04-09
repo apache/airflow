@@ -3,6 +3,7 @@
     "description": "विवरण",
     "key": "कुंजी",
     "name": "नाम",
+    "team": "टीम",
     "value": "मान"
   },
   "config": {
@@ -43,12 +44,18 @@
     "nothingFound": {
       "description": "एनवायरनमेंट वेरिएबल या सीक्रेट मैनेजर के माध्यम से परिभाषित कनेक्शन यहां सूचीबद्ध नहीं हैं।",
       "documentationLink": "Airflow प्रलेखन में और जानें।",
-      "learnMore": "ये तभी लोड किए जाते हैं जब कोई टास्क्स, जो इन्हें उपयोग करता है, चलाया जाता है और इसलिए ये इस दृश्य में दिखाई नहीं देते।",
+      "learnMore": "ये रनटाइम पर रिज़ॉल्व होते हैं और UI में दिखाई नहीं देते।",
       "title": "कोई कनेक्शन नहीं मिला!"
     },
     "searchPlaceholder": "कनेक्शन खोजें",
     "test": "कनेक्शन टेस्ट करें",
     "testDisabled": "टेस्ट कनेक्शन सुविधा अक्षम है। कृपया इसे सक्षम करने के लिए एडमिनिस्ट्रेटर से संपर्क करें।",
+    "testError": {
+      "title": "कनेक्शन टेस्ट विफल"
+    },
+    "testSuccess": {
+      "title": "कनेक्शन टेस्ट सफल"
+    },
     "typeMeta": {
       "error": "कनेक्शन प्रकार मेटा प्राप्त करने में विफल",
       "standardFields": {
@@ -73,6 +80,23 @@
   },
   "formActions": {
     "save": "सेव करें"
+  },
+  "jobs": {
+    "columns": {
+      "executorClass": "एक्जीक्यूटर क्लास",
+      "hostname": "होस्टनेम",
+      "id": "ID",
+      "jobType": "जॉब प्रकार",
+      "latestHeartbeat": "नवीनतम हार्टबीट",
+      "unixname": "यूनिक्स नाम"
+    },
+    "filters": {
+      "allStates": "सभी स्थितियां",
+      "allTypes": "सभी प्रकार",
+      "dagProcessorJob": "DagProcessorJob",
+      "schedulerJob": "SchedulerJob",
+      "triggererJob": "TriggererJob"
+    }
   },
   "plugins": {
     "columns": {

@@ -77,3 +77,9 @@ class QueueUpdateRequest(BaseModel):
     """Request body for queue operations."""
 
     queue_name: Annotated[str, Field(description="Name of the queue to add or remove.")]
+
+
+class ConcurrencyRequest(BaseModel):
+    """Request body for worker concurrency update."""
+
+    concurrency: Annotated[int, Field(description="New concurrency limit for the worker.", gt=0)]

@@ -31,10 +31,7 @@ import ast
 import sys
 from pathlib import Path
 
-from common_prek_utils import AIRFLOW_ROOT_PATH
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
-from common_prek_utils import console
+from common_prek_utils import AIRFLOW_ROOT_PATH, console
 
 
 def check_airflow_v_imports_and_fix(test_file: Path) -> list[str]:

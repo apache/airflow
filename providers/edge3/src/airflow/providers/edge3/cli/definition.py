@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg, GroupCommand, lazy_load_command
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
     import argparse
@@ -34,6 +34,13 @@ ARG_CONCURRENCY = Arg(
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to serve, serve all queues if not provided.",
+)
+ARG_TEAM_NAME = Arg(
+    (
+        "-t",
+        "--team-name",
+    ),
+    help="Team name for multi-team setups. If not provided, worker operates without team isolation.",
 )
 ARG_EDGE_HOSTNAME = Arg(
     ("-H", "--edge-hostname"),
@@ -57,6 +64,12 @@ ARG_REQUIRED_MAINTENANCE_COMMENT = Arg(
 ARG_QUEUES_MANAGE = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to add or remove.",
+    required=True,
+)
+ARG_CONCURRENCY_REQUIRED = Arg(
+    ("-c", "--concurrency"),
+    type=int,
+    help="The number of worker processes. Must be a positive integer.",
     required=True,
 )
 ARG_WAIT_MAINT = Arg(
@@ -115,6 +128,7 @@ EDGE_COMMANDS: list[ActionCommand] = [
         args=(
             ARG_CONCURRENCY,
             ARG_QUEUES,
+            ARG_TEAM_NAME,
             ARG_EDGE_HOSTNAME,
             ARG_PID,
             ARG_VERBOSE,
@@ -228,6 +242,15 @@ EDGE_COMMANDS: list[ActionCommand] = [
         help="Request graceful shutdown of all edge workers.",
         func=lazy_load_command("airflow.providers.edge3.cli.edge_command.shutdown_all_workers"),
         args=(ARG_YES,),
+    ),
+    ActionCommand(
+        name="set-worker-concurrency",
+        help="Set the concurrency of a remote edge worker.",
+        func=lazy_load_command("airflow.providers.edge3.cli.edge_command.set_remote_worker_concurrency"),
+        args=(
+            ARG_REQUIRED_EDGE_HOSTNAME,
+            ARG_CONCURRENCY_REQUIRED,
+        ),
     ),
 ]
 
