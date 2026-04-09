@@ -21,9 +21,9 @@ from typing import TYPE_CHECKING
 try:
     from rich_click import RichCommand as _BaseCommand, RichGroup as _BaseGroup
 except ImportError:
-    from click import (
-        Command as _BaseCommand,  # type: ignore[assignment]
-        Group as _BaseGroup,  # type: ignore[assignment]
+    from click import (  # type: ignore[assignment]
+        Command as _BaseCommand,
+        Group as _BaseGroup,
     )
 
 if TYPE_CHECKING:
