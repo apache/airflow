@@ -24,10 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, SQLStatementState
-from airflow.providers.databricks.operators.databricks import (
-    DEFER_METHOD_NAME,
-    validate_deferrable_databricks_retry_args,
-)
+from airflow.providers.databricks.operators.databricks import DEFER_METHOD_NAME
 from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
 
 if TYPE_CHECKING:
@@ -135,9 +132,6 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
             return
 
         if self.deferrable:
-            validate_deferrable_databricks_retry_args(
-                self.databricks_retry_args, owner=self.__class__.__name__
-            )
             self._handle_deferrable_execution(defer_method_name=DEFER_METHOD_NAME)  # type: ignore[misc]
 
     def poke(self, context: Context):

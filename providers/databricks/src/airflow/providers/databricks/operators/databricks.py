@@ -51,7 +51,6 @@ from airflow.providers.databricks.utils.databricks import (
 )
 from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sdk.serde import serialize as serde_serialize
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import TaskInstanceKey
@@ -80,22 +79,6 @@ _TRIGGER_RULE_TO_DATABRICKS_RUN_IF: dict[str, str] = {
     "none_failed_min_one_success": "NONE_FAILED",
     "always": "ALL_DONE",
 }
-
-
-def validate_deferrable_databricks_retry_args(
-    retry_args: dict[Any, Any] | None, *, owner: str = "Databricks deferrable task"
-) -> None:
-    """Validate retry args that need to cross the trigger serialization boundary."""
-    if retry_args is None:
-        return
-
-    try:
-        serde_serialize(retry_args)
-    except (AttributeError, RecursionError, TypeError) as err:
-        raise ValueError(
-            f"{owner} does not support non-serializable databricks_retry_args when deferrable=True. "
-            "Use JSON-serializable values, remove callable retry strategies, or disable deferrable mode."
-        ) from err
 
 
 def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
@@ -228,9 +211,6 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
         run_info = hook.get_run(operator.run_id)
         run_state = RunState(**run_info["state"])
         if not run_state.is_terminal:
-            validate_deferrable_databricks_retry_args(
-                operator.databricks_retry_args, owner=operator.__class__.__name__
-            )
             operator.defer(
                 trigger=DatabricksExecutionTrigger(
                     run_id=operator.run_id,

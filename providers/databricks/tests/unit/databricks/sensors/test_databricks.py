@@ -179,6 +179,7 @@ class TestDatabricksSQLStatementsSensor:
         )
         db_mock = db_mock_class.return_value
         db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.return_value = SQLStatementState("RUNNING")
 
         with pytest.raises(
             ValueError, match="does not support non-serializable databricks_retry_args when deferrable=True"
