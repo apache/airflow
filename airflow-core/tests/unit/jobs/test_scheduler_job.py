@@ -3720,12 +3720,14 @@ class TestSchedulerJob:
         with dag_maker(
             dag_id="test_scheduler_fail_dagrun_timeout_stats",
             dagrun_timeout=datetime.timedelta(seconds=60),
-            schedule="@daily",
             session=session,
         ):
             EmptyOperator(task_id="dummy")
 
-        dr = dag_maker.create_dagrun(start_date=timezone.utcnow() - datetime.timedelta(days=1))
+        dr = dag_maker.create_dagrun(
+            start_date=timezone.utcnow() - datetime.timedelta(days=1),
+            run_type=DagRunType.SCHEDULED,
+        )
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
@@ -3737,7 +3739,7 @@ class TestSchedulerJob:
         timing_calls = {call.args[0]: call.kwargs for call in mock_timing.call_args_list}
         assert "dagrun.duration.failed" in timing_calls
         tags = timing_calls["dagrun.duration.failed"].get("tags", {})
-        assert "run_type" in tags, f"run_type missing from dagrun.duration.failed tags: {tags}"
+        assert tags.get("run_type") == "scheduled", f"Expected run_type=scheduled in dagrun.duration.failed tags: {tags}"
 
         session.rollback()
         session.close()
