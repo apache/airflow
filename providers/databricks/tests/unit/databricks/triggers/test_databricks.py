@@ -25,8 +25,8 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
 from airflow.providers.databricks.tests.unit.databricks._retry_test_utils import (
+    UNSUPPORTED_RETRY_ARGS,
     assert_invalid_retry_args_raises,
-    unsupported_retry_args,
 )
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
@@ -144,7 +144,7 @@ TRIGGER_INIT_CASES = [
 ]
 
 
-@pytest.mark.parametrize("retry_args", unsupported_retry_args())
+@pytest.mark.parametrize("retry_args", UNSUPPORTED_RETRY_ARGS)
 @pytest.mark.parametrize(("trigger_cls", "trigger_kwargs"), TRIGGER_INIT_CASES)
 def test_trigger_init_rejects_non_serializable_retry_args(trigger_cls, trigger_kwargs, retry_args):
     assert_invalid_retry_args_raises(lambda: trigger_cls(**trigger_kwargs, retry_args=retry_args))

@@ -46,8 +46,8 @@ from airflow.providers.databricks.operators.databricks import (
     DatabricksTaskOperator,
 )
 from airflow.providers.databricks.tests.unit.databricks._retry_test_utils import (
+    UNSUPPORTED_RETRY_ARGS,
     assert_invalid_retry_args_raises,
-    unsupported_retry_args,
 )
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
@@ -1036,7 +1036,7 @@ class TestDatabricksSubmitRunOperator:
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         assert op.run_id == RUN_ID
 
-    @pytest.mark.parametrize("retry_args", unsupported_retry_args())
+    @pytest.mark.parametrize("retry_args", UNSUPPORTED_RETRY_ARGS)
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_task_deferred_rejects_non_serializable_retry_args(self, db_mock_class, retry_args):
         op = DatabricksSubmitRunOperator(

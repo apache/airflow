@@ -23,13 +23,10 @@ import pytest
 from tenacity import stop_after_attempt, wait_incrementing
 
 INVALID_RETRY_ARGS_PATTERN = "does not support non-serializable databricks_retry_args when deferrable=True"
-
-
-def unsupported_retry_args():
-    return [
-        pytest.param({"wait": wait_incrementing(start=1, increment=1, max=3)}, id="wait_incrementing"),
-        pytest.param({"stop": stop_after_attempt(3)}, id="stop_after_attempt"),
-    ]
+UNSUPPORTED_RETRY_ARGS = [
+    pytest.param({"wait": wait_incrementing(start=1, increment=1, max=3)}, id="wait_incrementing"),
+    pytest.param({"stop": stop_after_attempt(3)}, id="stop_after_attempt"),
+]
 
 
 def assert_invalid_retry_args_raises(invoke: Callable[[], Any]) -> None:

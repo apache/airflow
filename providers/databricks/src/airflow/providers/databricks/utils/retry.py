@@ -21,9 +21,7 @@ from typing import Any
 from airflow.sdk.serde import serialize as serde_serialize
 
 
-def validate_deferrable_databricks_retry_args(
-    retry_args: dict[Any, Any] | None, *, owner: str = "Databricks deferrable task"
-) -> None:
+def validate_deferrable_databricks_retry_args(retry_args: dict[Any, Any] | None, *, owner: str) -> None:
     """Validate retry args that need to cross the trigger serialization boundary."""
     if retry_args is None:
         return

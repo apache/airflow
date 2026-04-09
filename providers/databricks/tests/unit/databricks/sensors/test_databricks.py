@@ -25,8 +25,8 @@ from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.databricks.hooks.databricks import SQLStatementState
 from airflow.providers.databricks.sensors.databricks import DatabricksSQLStatementsSensor
 from airflow.providers.databricks.tests.unit.databricks._retry_test_utils import (
+    UNSUPPORTED_RETRY_ARGS,
     assert_invalid_retry_args_raises,
-    unsupported_retry_args,
 )
 from airflow.providers.databricks.triggers.databricks import DatabricksSQLStatementExecutionTrigger
 
@@ -176,7 +176,7 @@ class TestDatabricksSQLStatementsSensor:
         assert isinstance(exc.value.trigger, DatabricksSQLStatementExecutionTrigger)
         assert exc.value.method_name == "execute_complete"
 
-    @pytest.mark.parametrize("retry_args", unsupported_retry_args())
+    @pytest.mark.parametrize("retry_args", UNSUPPORTED_RETRY_ARGS)
     @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
     def test_execute_task_deferred_rejects_non_serializable_retry_args(self, db_mock_class, retry_args):
         op = DatabricksSQLStatementsSensor(
