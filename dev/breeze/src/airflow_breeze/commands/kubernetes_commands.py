@@ -1311,21 +1311,23 @@ def _is_helm_timeout_error(result: RunCommandResult) -> bool:
     return "timed out waiting for the condition" in error_output
 
 
-def _otel_enabled_in_options(extra_options: tuple[str, ...] | None) -> bool:
-    """Return True if any otelCollector flag is being set to true via --set."""
+def _otel_flags_from_options(extra_options: tuple[str, ...] | None = None) -> set[str]:
+    """Return the set of otelCollector sub-keys set to true via --set (e.g. 'tracesEnabled').
+
+    Parses pairs like: --set otelCollector.tracesEnabled=true
+    """
+    enabled: set[str] = set()
     if not extra_options:
-        return False
+        return enabled
     it = iter(extra_options)
-    for token in it:
-        if token == "--set":
-            value = next(it, "")
-            if value.startswith("otelCollector.") and value.endswith("=true"):
-                return True
-        elif token.startswith("--set="):
-            value = token[len("--set=") :]
-            if value.startswith("otelCollector.") and value.endswith("=true"):
-                return True
-    return False
+    for option in it:
+        if option != "--set":
+            continue
+        value = next(it, "")
+        if value.startswith("otelCollector.") and value.endswith("=true"):
+            key = value[len("otelCollector.") : -len("=true")]
+            enabled.add(key)
+    return enabled
 
 
 def _deploy_airflow(
@@ -1385,17 +1387,18 @@ def _deploy_airflow(
             check=False,
         )
     if result.returncode == 0:
-        if _otel_enabled_in_options(extra_options):
-            get_console(output=output).print("[info]OTel enabled — deploying observability backends.")
+        otel_flags = _otel_flags_from_options(extra_options)
+        observability_files: list[str] = []
+        if "tracesEnabled" in otel_flags:
+            observability_files.append(str(SCRIPTS_CI_KUBERNETES_PATH / "observability" / "jaeger.yaml"))
+        if "metricsEnabled" in otel_flags:
+            observability_files.append(str(SCRIPTS_CI_KUBERNETES_PATH / "observability" / "prometheus.yaml"))
+            observability_files.append(str(SCRIPTS_CI_KUBERNETES_PATH / "observability" / "grafana.yaml"))
+        if observability_files:
+            get_console(output=output).print("[info]Deploying observability backends for enabled OTel flags.")
             run_command_with_k8s_env(
-                [
-                    "kubectl",
-                    "apply",
-                    "-k",
-                    str(SCRIPTS_CI_KUBERNETES_PATH / "observability"),
-                    "--namespace",
-                    HELM_AIRFLOW_NAMESPACE,
-                ],
+                ["kubectl", "apply", "--namespace", HELM_AIRFLOW_NAMESPACE]
+                + [arg for f in observability_files for arg in ("-f", f)],
                 python=python,
                 kubernetes_version=kubernetes_version,
                 output=output,
