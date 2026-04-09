@@ -152,12 +152,21 @@ class TestCheckStatusVault:
         save_check_status("apache/airflow", "sha_abc", {"SUCCESS": 1})
         assert load_check_status("apache/airflow", "sha_different") is None
 
-    def test_no_ttl_for_same_sha(self, _fake_cache_dir):
-        """Check vault has no TTL — same SHA always returns same results."""
+    def test_ttl_expires_stale_results(self, _fake_cache_dir):
+        """Check vault uses 4h TTL so re-run results are picked up."""
         save_check_status("apache/airflow", "sha_abc", {"SUCCESS": 1})
-        # Even with old timestamp, should still return (no TTL)
         loaded = load_check_status("apache/airflow", "sha_abc")
         assert loaded is not None
+
+        # Simulate expiry by backdating cached_at
+        import json
+
+        cache_file = _fake_cache_dir / "checks_sha_abc.json"
+        data = json.loads(cache_file.read_text())
+        data["cached_at"] = data["cached_at"] - 5 * 3600  # 5 hours ago
+        cache_file.write_text(json.dumps(data))
+
+        assert load_check_status("apache/airflow", "sha_abc") is None
 
 
 class TestWorkflowRunsVault:
