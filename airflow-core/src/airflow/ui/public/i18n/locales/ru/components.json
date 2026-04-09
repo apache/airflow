@@ -98,8 +98,7 @@
     "taskCount_few": "{{count}} задачи",
     "taskCount_one": "{{count}} задача",
     "taskCount_other": "{{count}} задач",
-    "taskGroup": "Группа задач",
-    "triggerDagRun": "TriggerDagRunOperator"
+    "taskGroup": "Группа задач"
   },
   "limitedList": "Ещё +{{count}}",
   "limitedList.allItems": "Все {{count}} элемента(ов):",

@@ -93,8 +93,7 @@
     "otherDagRuns": "+Altres execucions de Dag",
     "taskCount_one": "{{count}} Tasca",
     "taskCount_other": "{{count}} Tasques",
-    "taskGroup": "Grup de tasques",
-    "triggerDagRun": "TriggerDagRunOperator"
+    "taskGroup": "Grup de tasques"
   },
   "limitedList": "+{{count}} més",
   "limitedList.allItems": "Tots els {{count}} elements:",

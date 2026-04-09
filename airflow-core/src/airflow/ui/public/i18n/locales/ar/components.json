@@ -121,8 +121,7 @@
     "taskCount_other": "{{count}} مهمة",
     "taskCount_two": "مهمتان",
     "taskCount_zero": "لا يوجد أي مهمة",
-    "taskGroup": "مجموعة المهام",
-    "triggerDagRun": "TriggerDagRunOperator"
+    "taskGroup": "مجموعة المهام"
   },
   "limitedList": "+{{count}} المزيد",
   "limitedList.allItems": "جميع العناصر {{count}}:",

@@ -92,8 +92,7 @@
     "taskCount_many": "{{count}} Tareas",
     "taskCount_one": "{{count}} Tarea",
     "taskCount_other": "{{count}} Tareas",
-    "taskGroup": "Grupo de Tareas",
-    "triggerDagRun": "TriggerDagRunOperator"
+    "taskGroup": "Grupo de Tareas"
   },
   "limitedList": "+{{count}} más",
   "limitedList.allItems": "Todos los {{count}} elementos:",

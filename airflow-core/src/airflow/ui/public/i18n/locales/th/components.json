@@ -83,8 +83,7 @@
     "otherDagRuns": "+Dag Runs อื่น ๆ",
     "taskCount_one": "{{count}} งาน",
     "taskCount_other": "{{count}} งาน",
-    "taskGroup": "กลุ่มงาน",
-    "triggerDagRun": "TriggerDagRunOperator"
+    "taskGroup": "กลุ่มงาน"
   },
   "limitedList": "+{{count}} เพิ่มเติม",
   "logs": {

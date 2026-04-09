@@ -93,8 +93,7 @@
     "otherDagRuns": "+További Dag futások",
     "taskCount_one": "{{count}} feladat",
     "taskCount_other": "{{count}} feladat",
-    "taskGroup": "Feladatcsoport",
-    "triggerDagRun": "TriggerDagRunOperator"
+    "taskGroup": "Feladatcsoport"
   },
   "limitedList": "+{{count}} további",
   "limitedList.allItems": "Összes {{count}} elem:",
