@@ -1,1 +1,0 @@
-Fix ``TaskInstance.start_date`` being reset on every reschedule poke. The execution API ``ti_run`` endpoint unconditionally accepted the supervisor's ``start_date=utcnow()`` for rescheduled tasks, causing ``dagrun.first_task_scheduling_delay`` to be inflated by reschedule wait time.
