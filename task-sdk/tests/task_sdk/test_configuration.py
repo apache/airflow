@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.sdk._shared.configuration.exceptions import AirflowConfigException
-from airflow.sdk.configuration import conf
+from airflow.sdk.configuration import conf, get_airflow_config
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 from tests_common.test_utils.config import (
@@ -156,3 +156,19 @@ class TestSDKProviderConfigPriority:
         custom_value = "my_custom.celery_executor"
         with conf_vars({("celery", "celery_app_name"): custom_value}):
             assert conf.get("celery", "celery_app_name") == custom_value
+
+
+class TestGetAirflowConfig:
+    """Tests for get_airflow_config respecting AIRFLOW_CONFIG env var."""
+
+    def test_returns_airflow_config_env_var(self):
+        """get_airflow_config returns AIRFLOW_CONFIG when set."""
+        with mock.patch.dict("os.environ", {"AIRFLOW_CONFIG": "/custom/path/airflow.cfg"}):
+            assert get_airflow_config() == "/custom/path/airflow.cfg"
+
+    def test_expands_env_var_in_airflow_config(self):
+        """get_airflow_config expands env vars in AIRFLOW_CONFIG."""
+        with mock.patch.dict(
+            "os.environ", {"AIRFLOW_CONFIG": "$CUSTOM_DIR/airflow.cfg", "CUSTOM_DIR": "/resolved"}
+        ):
+            assert get_airflow_config() == "/resolved/airflow.cfg"
