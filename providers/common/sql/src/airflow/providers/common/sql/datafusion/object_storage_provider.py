@@ -25,6 +25,8 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.config import ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.base import ObjectStorageProvider
 
+from airflow.providers.common.compat.module_loading import import_string
+
 
 class LocalObjectStorageProvider(ObjectStorageProvider):
     """Local Object Storage Provider using DataFusion's LocalFileSystem."""
@@ -53,7 +55,6 @@ def get_object_storage_provider(storage_type: StorageType) -> ObjectStorageProvi
     if storage_type == StorageType.LOCAL:
         return LocalObjectStorageProvider()
 
-    from airflow._shared.module_loading import import_string
     from airflow.providers_manager import ProvidersManager
 
     registry = ProvidersManager().object_storage_providers
