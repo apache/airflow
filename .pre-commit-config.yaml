@@ -976,6 +976,12 @@ repos:
         language: python
         pass_filenames: true
         files: \.py$
+      - id: check-no-new-airflow-exceptions
+        name: Check that no new raise AirflowException usages are added
+        entry: ./scripts/ci/prek/check_new_airflow_exception_usage.py
+        language: python
+        pass_filenames: true
+        files: ^(airflow-core|airflow-ctl|task-sdk|providers|shared)/.*\.py$
       - id: bandit
         name: bandit
         description: "Bandit is a tool for finding common security issues in Python code"
