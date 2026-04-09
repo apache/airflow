@@ -868,12 +868,7 @@ def test_run_immediately_true_with_start_date():
 
 
 def test_run_immediately_false_after_unpause():
-    """After a pause/resume with prior runs, the most recent past boundary is always scheduled.
-
-    run_immediately only affects the very first run (when no prior runs exist).
-    After a pause, both CronTriggerTimetable and CronDataIntervalTimetable skip
-    all missed runs except the most recent one, which is triggered immediately.
-    """
+    """After a pause/resume, run_immediately=False skips the past boundary and waits for the next."""
     timetable = CronTriggerTimetable(
         "0 0 * * *",  # @daily
         timezone=utc,
@@ -891,8 +886,8 @@ def test_run_immediately_false_after_unpause():
                 catchup=False,
             ),
         )
-    # Feb 1 is skipped; Feb 2 midnight (most recent past boundary) is triggered immediately
-    assert next_info == DagRunInfo.exact(pendulum.datetime(2024, 2, 2, tz=utc))
+    # run_immediately=False: skip Feb 2 (most recent past boundary) and wait for Feb 3
+    assert next_info == DagRunInfo.exact(pendulum.datetime(2024, 2, 3, tz=utc))
 
 
 def test_generate_run_id_without_partition_key() -> None:
