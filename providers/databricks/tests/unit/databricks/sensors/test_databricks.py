@@ -20,11 +20,14 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from tenacity import stop_after_attempt, wait_incrementing
 
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.databricks.hooks.databricks import SQLStatementState
 from airflow.providers.databricks.sensors.databricks import DatabricksSQLStatementsSensor
+from airflow.providers.databricks.tests.unit.databricks._retry_test_utils import (
+    assert_invalid_retry_args_raises,
+    unsupported_retry_args,
+)
 from airflow.providers.databricks.triggers.databricks import DatabricksSQLStatementExecutionTrigger
 
 DEFAULT_CONN_ID = "databricks_default"
@@ -33,17 +36,17 @@ STATEMENT_ID = "statement_id"
 TASK_ID = "task_id"
 WAREHOUSE_ID = "warehouse_id"
 
-UNSUPPORTED_RETRY_ARGS = [
-    {"wait": wait_incrementing(start=1, increment=1, max=3)},
-    {"stop": stop_after_attempt(3)},
-]
-
 
 class TestDatabricksSQLStatementsSensor:
     """
     Validate and test the functionality of the DatabricksSQLStatementsSensor. This Sensor borrows heavily
     from the DatabricksSQLStatementOperator, meaning that much of the testing logic is also reused.
     """
+
+    @staticmethod
+    def _configure_running_deferrable_hook(db_mock):
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.return_value = SQLStatementState("RUNNING")
 
     def test_init_statement(self):
         """Test initialization for traditional use-case (statement)."""
@@ -173,7 +176,7 @@ class TestDatabricksSQLStatementsSensor:
         assert isinstance(exc.value.trigger, DatabricksSQLStatementExecutionTrigger)
         assert exc.value.method_name == "execute_complete"
 
-    @pytest.mark.parametrize("retry_args", UNSUPPORTED_RETRY_ARGS)
+    @pytest.mark.parametrize("retry_args", unsupported_retry_args())
     @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
     def test_execute_task_deferred_rejects_non_serializable_retry_args(self, db_mock_class, retry_args):
         op = DatabricksSQLStatementsSensor(
@@ -184,13 +187,9 @@ class TestDatabricksSQLStatementsSensor:
             databricks_retry_args=retry_args,
         )
         db_mock = db_mock_class.return_value
-        db_mock.post_sql_statement.return_value = STATEMENT_ID
-        db_mock.get_sql_statement_state.return_value = SQLStatementState("RUNNING")
+        self._configure_running_deferrable_hook(db_mock)
 
-        with pytest.raises(
-            ValueError, match="does not support non-serializable databricks_retry_args when deferrable=True"
-        ):
-            op.execute(None)
+        assert_invalid_retry_args_raises(lambda: op.execute(None))
 
     def test_execute_complete_success(self):
         """

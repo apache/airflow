@@ -24,7 +24,6 @@ from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
-from tenacity import stop_after_attempt, wait_incrementing
 
 # Do not run the tests when FAB / Flask is not installed
 pytest.importorskip("flask_session")
@@ -45,6 +44,10 @@ from airflow.providers.databricks.operators.databricks import (
     DatabricksSubmitRunOperator,
     DatabricksTaskBaseOperator,
     DatabricksTaskOperator,
+)
+from airflow.providers.databricks.tests.unit.databricks._retry_test_utils import (
+    assert_invalid_retry_args_raises,
+    unsupported_retry_args,
 )
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
@@ -78,11 +81,6 @@ RUN_PAGE_URL = "run-page-url"
 STATEMENT_ID = "statement_id"
 WAREHOUSE_ID = "warehouse_id"
 JOB_ID = "42"
-
-UNSUPPORTED_RETRY_ARGS = [
-    {"wait": wait_incrementing(start=1, increment=1, max=3)},
-    {"stop": stop_after_attempt(3)},
-]
 JOB_NAME = "job-name"
 JOB_DESCRIPTION = "job-description"
 DBT_COMMANDS = ["dbt deps", "dbt seed", "dbt run"]
@@ -610,6 +608,11 @@ class TestDatabricksCreateJobsOperator:
 
 
 class TestDatabricksSubmitRunOperator:
+    @staticmethod
+    def _configure_running_deferrable_hook(db_mock):
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("RUNNING", "RUNNING")
+
     def test_init_with_notebook_task_named_parameters(self):
         """
         Test the initializer with the named parameters.
@@ -1033,7 +1036,7 @@ class TestDatabricksSubmitRunOperator:
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         assert op.run_id == RUN_ID
 
-    @pytest.mark.parametrize("retry_args", UNSUPPORTED_RETRY_ARGS)
+    @pytest.mark.parametrize("retry_args", unsupported_retry_args())
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_task_deferred_rejects_non_serializable_retry_args(self, db_mock_class, retry_args):
         op = DatabricksSubmitRunOperator(
@@ -1043,13 +1046,9 @@ class TestDatabricksSubmitRunOperator:
             databricks_retry_args=retry_args,
         )
         db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = RUN_ID
-        db_mock.get_run = make_run_with_state_mock("RUNNING", "RUNNING")
+        self._configure_running_deferrable_hook(db_mock)
 
-        with pytest.raises(
-            ValueError, match="does not support non-serializable databricks_retry_args when deferrable=True"
-        ):
-            op.execute(None)
+        assert_invalid_retry_args_raises(lambda: op.execute(None))
 
     def test_execute_complete_success(self):
         """
