@@ -502,8 +502,6 @@ class SerializedDagModel(Base):
         for uuid_str, deadline_data in uuid_mapping.items():
             alert = DeadlineAlertModel(
                 id=UUID(uuid_str),
-                name=deadline_data.get(DeadlineAlertFields.NAME),
-                description=deadline_data.get(DeadlineAlertFields.DESCRIPTION),
                 reference=deadline_data[DeadlineAlertFields.REFERENCE],
                 interval=deadline_data[DeadlineAlertFields.INTERVAL],
                 callback_def=deadline_data[DeadlineAlertFields.CALLBACK],
@@ -579,18 +577,8 @@ class SerializedDagModel(Base):
 
                 if deadline_uuid_mapping is not None:
                     # All deadlines matched — reuse the UUIDs to preserve hash.
-                    # Update name/description in case they changed (they don't affect
-                    # the definition match or the hash, so existing rows won't be
-                    # recreated, but they must stay current in the DB).
-                    for uuid_str, deadline_data in deadline_uuid_mapping.items():
-                        session.execute(
-                            update(DeadlineAlertModel)
-                            .where(DeadlineAlertModel.id == UUID(uuid_str))
-                            .values(
-                                name=deadline_data.get(DeadlineAlertFields.NAME),
-                                description=deadline_data.get(DeadlineAlertFields.DESCRIPTION),
-                            )
-                        )
+                    # Clear the mapping since the alert rows already exist in the DB;
+                    # no need to delete and recreate identical records.
                     dag.data["dag"]["deadline"] = existing_deadline_uuids
                     deadline_uuid_mapping = {}
                 else:
