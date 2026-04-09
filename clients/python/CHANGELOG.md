@@ -17,6 +17,53 @@
  under the License.
  -->
 
+# v3.2.0
+
+## New Features:
+
+- Add Asset Partitioning support: backfill for partitioned DAGs ([#61464](https://github.com/apache/airflow/pull/61464))
+- Add `partition_key` to `DagRunAssetReference` ([#61725](https://github.com/apache/airflow/pull/61725))
+- Add partition key column and filter to DAG Runs list ([#61939](https://github.com/apache/airflow/pull/61939))
+- Add `DagRunType` for asset materializations ([#62276](https://github.com/apache/airflow/pull/62276))
+- Add `allowed_run_types` to allowlist specific DAG run types ([#61833](https://github.com/apache/airflow/pull/61833))
+- Add DAG runs filters by `bundleVersion` ([#62810](https://github.com/apache/airflow/pull/62810))
+- Expose `timetable_partitioned` in UI API ([#62777](https://github.com/apache/airflow/pull/62777))
+- Add base React plugin destination ([#62530](https://github.com/apache/airflow/pull/62530))
+- Add `team_name` to Pool APIs ([#60952](https://github.com/apache/airflow/pull/60952))
+- Add `team_name` to connection public APIs ([#59336](https://github.com/apache/airflow/pull/59336))
+- Add `team_id` to variable APIs ([#57102](https://github.com/apache/airflow/pull/57102))
+- Add team selector to list variables and list connections pages ([#60995](https://github.com/apache/airflow/pull/60995))
+- Support OR operator in search parameters ([#60008](https://github.com/apache/airflow/pull/60008))
+- Add wildcard support for `dag_id` and `dag_run_id` in bulk task instance endpoint ([#57441](https://github.com/apache/airflow/pull/57441))
+- Add `operator_name_pattern`, `pool_pattern`, `queue_pattern` as search filters for task instances ([#57571](https://github.com/apache/airflow/pull/57571))
+- Add filters to Task Instances tab ([#56920](https://github.com/apache/airflow/pull/56920))
+- Add API support for filtering DAGs by timetable type ([#58852](https://github.com/apache/airflow/pull/58852))
+- Enable triggerer queues ([#59239](https://github.com/apache/airflow/pull/59239))
+- Add ability to add, edit, and delete XComs directly from UI ([#58921](https://github.com/apache/airflow/pull/58921))
+- Add HITL detail history ([#55952](https://github.com/apache/airflow/pull/55952), [#56760](https://github.com/apache/airflow/pull/56760))
+- Add update_mask support for bulk PATCH APIs ([#54597](https://github.com/apache/airflow/pull/54597))
+- Introduce named asset watchers ([#55643](https://github.com/apache/airflow/pull/55643))
+- Add DAG ID pattern search functionality to DAG Runs and Task Instances ([#55691](https://github.com/apache/airflow/pull/55691))
+- Add UI to allow creation of DAG Runs with partition key ([#58004](https://github.com/apache/airflow/pull/58004))
+- Support retry multiplier parameter ([#56866](https://github.com/apache/airflow/pull/56866))
+- Display active DAG runs count in header with auto-refresh ([#58332](https://github.com/apache/airflow/pull/58332))
+- Add checkbox before clear task confirmation to prevent rerun of tasks in Running state ([#56351](https://github.com/apache/airflow/pull/56351))
+
+## Improvements:
+
+- Upgrade FastAPI and conform OpenAPI schema changes ([#61476](https://github.com/apache/airflow/pull/61476))
+- Use SQLAlchemy native `Uuid`/`JSON` types instead of `sqlalchemy-utils` ([#61532](https://github.com/apache/airflow/pull/61532))
+- Remove team ID and use team name as primary key ([#59109](https://github.com/apache/airflow/pull/59109))
+- Update `BulkDeleteAction` to use generic type ([#59207](https://github.com/apache/airflow/pull/59207))
+- Add link to API docs ([#53346](https://github.com/apache/airflow/pull/53346))
+
+## Bug Fixes:
+
+- Fix null `dag_run_conf` in `BackfillResponse` serialization ([#63259](https://github.com/apache/airflow/pull/63259))
+- Fix missing `dag_id` filter on DAG Run query ([#62750](https://github.com/apache/airflow/pull/62750))
+- Fix `HITLResponse` data model name ([#57795](https://github.com/apache/airflow/pull/57795))
+- Remove unused parameter in logout ([#58045](https://github.com/apache/airflow/pull/58045))
+
 # v3.1.8
 
 ## Bug Fixes:

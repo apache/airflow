@@ -28,6 +28,39 @@ Changelog
 ---------
 
 
+21.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``GCSHook: Log NotFound error instead of raise on Blob deletion (#62424)``
+* ``Attempt best-effort cancellation of pending futures on 'GoogleCloudError' and cap worker count to number of files in 'GCSTimeSpanFileTransformOperator'. This avoids scheduling unnecessary work during failures and prevents over-provisioning threads for small batches. Existing failure semantics are preserved ('*_continue_on_fail' unchanged). Updated tests to validate cancellation behaviour and worker cap. (#64511)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix S3ToGCSOperator deferrable mode to return list of copied files (#63533)``
+* ``Fix 'RayJobBaseOperator' polling to recognize STOPPED as terminal status (#64206)``
+
+Misc
+~~~~
+
+* ``Bump 'google-cloud-aiplatform[evaluation]>=1.145.0' (#64786)``
+* ``Deprecate use_rest_api parameter in CloudComposerDAGRunSensor and CloudComposerDAGRunTrigger (#64672)``
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+* ``Update default api version of campaign manager sensor (#64265)``
+* ``Fix advertising some of the missing provider capabilities via provider info (#64127)``
+* ``misc: specify remove date for deprecations warnings (#63505)``
+* ``Use compat sdk conf import in Google Gen AI operators (#64157)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``CI: Upgrade important CI environment (#64744)``
+   * ``Update the SDF version to fix the system test for DisplayVideo (#64302)``
+   * ``Update the kueue version to fix the system test for kubernetes engine (#64293)``
+   * ``fix(mypy): Pass parameters to Kubernetes methods conditionally (#64242)``
+
 21.0.0
 ......
 

@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+13.1.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Return empty list when AzureContainerInstanceHook.get_logs receives Logs(content=None) instead of returning [None]. (#63394)``
+* ``Ensure presence of conn.login in microsoft azure hook before usage (#64241)``
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+* ``Compat sdk conf follow-up for multiple providers (#64161)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 13.1.0
 ......
 

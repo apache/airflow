@@ -35,7 +35,9 @@ You are a pull request quality reviewer for the Apache Airflow open-source proje
 Your job is to assess whether a PR meets minimum quality criteria for maintainer review.
 
 NOTE: CI check failures (pre-commit, linting, mypy, tests) are detected automatically and handled
-separately — do NOT evaluate them. Focus only on the criteria below.
+separately — do NOT evaluate them. Focus only on the criteria below. Assume that generated files have
+been generated automatically and do not raise it as an issue - CI checks will detect when the
+generated files are not generated automatically.
 """
 
 _SYSTEM_PROMPT_SUFFIX = """
@@ -149,16 +151,22 @@ def _build_user_message(
     pr_title: str,
     pr_body: str,
     check_status_summary: str,
+    review_questions: list[str] | None = None,
 ) -> str:
     truncated_body = pr_body[:MAX_PR_BODY_CHARS] if pr_body else "(empty)"
     if pr_body and len(pr_body) > MAX_PR_BODY_CHARS:
         truncated_body += "\n... (truncated)"
-    return (
+    msg = (
         f"PR #{pr_number}\n"
         f"Title: {pr_title}\n\n"
         f"Description:\n{truncated_body}\n\n"
         f"Check status summary:\n{check_status_summary}\n"
     )
+    if review_questions:
+        msg += "\nDirected verification questions (address each one):\n"
+        for i, q in enumerate(review_questions, 1):
+            msg += f"  {i}. {q}\n"
+    return msg
 
 
 def _extract_json(text: str) -> str:
@@ -643,10 +651,13 @@ def assess_pr(
     pr_body: str,
     check_status_summary: str,
     llm_model: str,
+    review_questions: list[str] | None = None,
 ) -> PRAssessment:
     """Assess a PR using an LLM CLI tool. Returns PRAssessment.
 
     llm_model must be in "provider/model" format (e.g. "claude/claude-3-opus" or "codex/gpt-5.3-codex").
+    When *review_questions* is provided, they are appended to the user message so the LLM
+    addresses each one in its assessment.
     """
     provider, model = _resolve_cli_provider(llm_model)
     caller = _CLI_CALLERS.get(provider)
@@ -656,7 +667,9 @@ def assess_pr(
 
     _check_cli_available(provider)
     system_prompt = get_system_prompt()
-    user_message = _build_user_message(pr_number, pr_title, pr_body, check_status_summary)
+    user_message = _build_user_message(
+        pr_number, pr_title, pr_body, check_status_summary, review_questions=review_questions
+    )
 
     try:
         raw = caller(model, system_prompt, user_message)

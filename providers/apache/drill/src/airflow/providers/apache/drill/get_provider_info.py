@@ -44,6 +44,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apache.drill.hooks.drill.DrillHook",
+                "hook-name": "Drill",
                 "connection-type": "drill",
             }
         ],

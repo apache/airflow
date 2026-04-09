@@ -28,6 +28,7 @@
   },
   "collapseAllExtra": "모든 추가 JSON 접기",
   "collapseDetailsPanel": "세부 정보 패널 접기",
+  "consumingAsset": "소비 에셋",
   "createdAssetEvent_one": "생성된 에셋 이벤트",
   "createdAssetEvent_other": "생성된 에셋 이벤트들",
   "dag_one": "Dag",
@@ -103,6 +104,12 @@
     "notFound": "페이지를 찾을 수 없습니다.",
     "title": "오류"
   },
+  "errors": {
+    "forbidden": {
+      "description": "이 작업을 수행할 권한이 없습니다.",
+      "title": "접근 거부"
+    }
+  },
   "expand": {
     "collapse": "접기",
     "expand": "펼치기",
@@ -125,9 +132,11 @@
     "logicalDateTo": "논리적 날짜 (종료)",
     "runAfterFrom": "실행 이후 (시작)",
     "runAfterTo": "실행 이후 (종료)",
+    "searchAsset": "에셋 검색",
     "selectDateRange": "날짜 범위 선택",
     "startTime": "시작 시간"
   },
+  "generateToken": "토큰 생성",
   "logicalDate": "논리적 날짜",
   "logout": "로그아웃",
   "logoutConfirmation": "애플리케이션에서 로그아웃하시겠습니까?",
@@ -153,7 +162,7 @@
     "plugins": "플러그인",
     "security": "보안"
   },
-  "noItemsFound": "{{modelName}} 을(를) 찾을 수 없음",
+  "noItemsFound": "{{modelName}}을(를) 찾을 수 없음",
   "note": {
     "add": "메모 추가",
     "dagRun": "Dag 실행 메모",
@@ -161,9 +170,17 @@
     "placeholder": "메모 추가...",
     "taskInstance": "작업 인스턴스 메모"
   },
+  "partitionedDagRun_one": "파티션된 Dag 실행",
+  "partitionedDagRun_other": "파티션된 Dag 실행",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "수신된 에셋 이벤트"
+  },
+  "pendingDagRun_one": "대기 중인 Dag 실행 {{count}}개",
+  "pendingDagRun_other": "대기 중인 Dag 실행 {{count}}개",
   "reset": "초기화",
   "runId": "실행 ID",
   "runTypes": {
+    "asset_materialization": "에셋 구체화",
     "asset_triggered": "에셋 트리거",
     "backfill": "백필",
     "manual": "수동",
@@ -184,6 +201,7 @@
     "users": "사용자"
   },
   "selectLanguage": "언어 선택",
+  "selected": "선택됨",
   "showDetailsPanel": "세부 정보 패널 펼치기",
   "signedInAs": "로그인한 사용자",
   "source": {
@@ -225,7 +243,7 @@
     "noTagsFound": "태그를 찾을 수 없습니다.",
     "tagMode": {
       "all": "모두",
-      "any": "모든"
+      "any": "하나 이상"
     },
     "tagPlaceholder": "태그로 필터링",
     "to": "종료"
@@ -284,46 +302,76 @@
     "utc": "UTC (협정 세계시)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "{{resourceName}} 일괄 초기화 요청 실패",
+      "success": {
+        "description": "{{count}}개 {{resourceName}}이(가) 성공적으로 초기화되었습니다. 키: {{keys}}",
+        "title": "{{resourceName}} 일괄 초기화 요청 제출됨"
+      }
+    },
     "bulkDelete": {
-      "error": "대량 삭제 {{resourceName}} 요청 실패",
+      "error": "{{resourceName}} 일괄 삭제 요청 실패",
       "success": {
         "description": "{{count}}개 {{resourceName}}이(가) 성공적으로 삭제되었습니다. 키: {{keys}}",
-        "title": "대량 삭제 {{resourceName}} 요청 제출됨"
+        "title": "{{resourceName}} 일괄 삭제 요청 제출됨"
+      }
+    },
+    "bulkUpdate": {
+      "error": "{{resourceName}} 일괄 업데이트 요청 실패",
+      "success": {
+        "description": "{{count}}개 {{resourceName}}이(가) 성공적으로 업데이트되었습니다. 키: {{keys}}",
+        "title": "{{resourceName}} 일괄 업데이트 요청 제출됨"
       }
     },
     "create": {
-      "error": "생성 {{resourceName}} 요청 실패",
+      "error": "{{resourceName}} 생성 요청 실패",
       "success": {
         "description": "{{resourceName}}이(가) 성공적으로 생성되었습니다.",
-        "title": "생성 {{resourceName}} 요청 제출됨"
+        "title": "{{resourceName}} 생성 요청 제출됨"
       }
     },
     "delete": {
-      "error": "삭제 {{resourceName}} 요청 실패",
+      "error": "{{resourceName}} 삭제 요청 실패",
       "success": {
         "description": "{{resourceName}}이(가) 성공적으로 삭제되었습니다.",
-        "title": "삭제 {{resourceName}} 요청 제출됨"
+        "title": "{{resourceName}} 삭제 요청 제출됨"
       }
     },
     "import": {
-      "error": "가져오기 {{resourceName}} 요청 실패",
+      "error": "{{resourceName}} 가져오기 요청 실패",
       "success": {
         "description": "{{count}}개 {{resourceName}}이(가) 성공적으로 가져와졌습니다.",
-        "title": "가져오기 {{resourceName}} 요청 제출됨"
+        "title": "{{resourceName}} 가져오기 요청 제출됨"
       }
     },
     "update": {
-      "error": "업데이트 {{resourceName}} 요청 실패",
+      "error": "{{resourceName}} 업데이트 요청 실패",
       "success": {
         "description": "{{resourceName}}이(가) 성공적으로 업데이트되었습니다.",
-        "title": "업데이트 {{resourceName}} 요청 제출됨"
+        "title": "{{resourceName}} 업데이트 요청 제출됨"
       }
     }
+  },
+  "tokenGeneration": {
+    "apiToken": "API 토큰",
+    "cliToken": "CLI 토큰",
+    "errorDescription": "토큰 생성 중 오류가 발생했습니다. 다시 시도해 주세요.",
+    "errorTitle": "토큰 생성 실패",
+    "generate": "생성",
+    "selectType": "생성할 토큰 유형을 선택하세요.",
+    "title": "토큰 생성",
+    "tokenExpiresIn": "이 토큰은 {{duration}} 후에 만료됩니다.",
+    "tokenGenerated": "토큰이 생성되었습니다.",
+    "tokenShownOnce": "이 토큰은 한 번만 표시됩니다. 지금 복사하세요."
   },
   "total": "총 {{state}} 수",
   "triggered": "트리거됨",
   "tryNumber": "시도 횟수",
   "user": "사용자",
+  "validation": {
+    "mustBeAtLeast": "최소 {{min}} 이상이어야 합니다.",
+    "mustBeValidNumber": "유효한 숫자여야 합니다."
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "{{hotkey}}를 눌러 텍스트 줄바꿈 토글",

@@ -136,6 +136,19 @@ def mock_config_data_all_colors():
         yield
 
 
+THEME_CSS_ONLY = {
+    "globalCss": {
+        "button": {"text-transform": "uppercase"},
+    }
+}
+
+
+@pytest.fixture
+def mock_config_data_css_only():
+    with conf_vars(_theme_conf_vars(THEME_CSS_ONLY)):
+        yield
+
+
 class TestGetConfig:
     def test_should_response_200(self, mock_config_data, test_client):
         """
@@ -170,3 +183,14 @@ class TestGetConfig:
         assert "white" in colors
         assert colors["black"] == {"value": "oklch(0.22 0.025 288.6)"}
         assert colors["white"] == {"value": "oklch(0.985 0.002 264.0)"}
+
+    def test_should_response_200_with_css_only_theme(self, mock_config_data_css_only, test_client):
+        """Theme with only globalCss (no tokens) is valid and round-trips correctly."""
+        response = test_client.get("/config")
+
+        assert response.status_code == 200
+        theme = response.json()["theme"]
+        assert "tokens" not in theme
+        assert theme["globalCss"] == {"button": {"text-transform": "uppercase"}}
+        assert "icon" not in theme
+        assert "icon_dark_mode" not in theme

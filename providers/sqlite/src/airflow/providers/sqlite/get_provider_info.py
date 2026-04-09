@@ -41,6 +41,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.sqlite.hooks.sqlite.SqliteHook",
+                "hook-name": "Sqlite",
                 "connection-type": "sqlite",
             }
         ],
