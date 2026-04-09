@@ -109,8 +109,26 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         if self.task_instance:
             self.task_id = self.task_instance.task_id
         if self.task:
-            self.template_fields = self.task.template_fields
             self.template_ext = self.task.template_ext
+            # Only keep operator template_fields that are also keys in
+            # start_trigger_args.trigger_kwargs *and* exist on the trigger.
+            # Using the full operator template_fields would cause
+            # AttributeError when the trigger does not have attributes with
+            # the same names as the operator (e.g. "bash_command").
+            #
+            # When start_trigger_args is None (normal defer path), the triggerer
+            # does not build a template context, so render_template_fields is
+            # never called and empty template_fields is safe.
+            start_trigger_args = getattr(self.task, "start_trigger_args", None)
+            trigger_kwarg_keys = (
+                set((start_trigger_args.trigger_kwargs or {}).keys()) if start_trigger_args else set()
+            )
+            if trigger_kwarg_keys:
+                self.template_fields = tuple(
+                    f for f in self.task.template_fields if f in trigger_kwarg_keys and hasattr(self, f)
+                )
+            else:
+                self.template_fields = ()
 
     def render_template_fields(
         self,
@@ -127,7 +145,8 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         """
         if not jinja_env:
             jinja_env = self.get_template_env()
-        # We only need to render templated fields if templated fields are part of the start_trigger_args
+        # self.template_fields is already filtered (in the task_instance setter) to only
+        # include fields present in start_trigger_args.trigger_kwargs and on this trigger.
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
     @abc.abstractmethod

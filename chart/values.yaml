@@ -1042,12 +1042,20 @@ workers:
 
   # Launch additional containers into Airflow Celery worker
   # and pods created with pod-template-file (templated).
+  # (deprecated, use
+  #   `workers.celery.extraContainers` and/or
+  #   `workers.kubernetes.extraContainers`
+  # instead)
   # Note: If used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main
   # container finishes so Airflow can continue the worker shutdown process!
   extraContainers: []
 
   # Add additional init containers into Airflow Celery workers
   # and pods created with pod-template-file (templated).
+  # (deprecated, use
+  #   `workers.celery.extraInitContainers` and/or
+  #   `workers.kubernetes.extraInitContainers`
+  # instead)
   extraInitContainers: []
 
   # Additional volumes and volume mounts attached to the
@@ -1443,6 +1451,12 @@ workers:
     # This setting tells Kubernetes that its ok to evict when it wants to scale a node down
     safeToEvict: ~
 
+    # Launch additional containers into Airflow Celery worker (templated)
+    extraContainers: []
+
+    # Add additional init containers into Airflow Celery workers (templated)
+    extraInitContainers: []
+
     # Expose additional ports of Airflow Celery workers. These can be used for additional metric collection.
     extraPorts: []
 
@@ -1604,6 +1618,14 @@ workers:
 
     # This setting tells Kubernetes that its ok to evict when it wants to scale a node down
     safeToEvict: ~
+
+    # Launch additional containers into pods created with pod-template-file (templated).
+    # Note: You are responsible for signaling sidecars to exit when the main
+    # container finishes so Airflow can continue the worker shutdown process!
+    extraContainers: []
+
+    # Add additional init containers into pods created with pod-template-file (templated)
+    extraInitContainers: []
 
     # Select certain nodes for pods created with pod-template-file
     nodeSelector: {}
