@@ -298,13 +298,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Dag Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -312,13 +312,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Dag Display Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: exclude_stale
         in: query
         required: false
@@ -1111,13 +1111,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Triggering User
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       responses:
         '200':
           description: Successful Response
@@ -1254,13 +1254,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Triggering User
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       responses:
         '200':
           description: Successful Response
@@ -2440,8 +2440,6 @@ components:
       - text
       - href
       title: ExtraMenuItem
-      description: Define a menu item that can be added to the menu by auth managers
-        or plugins.
     GanttResponse:
       properties:
         dag_id:

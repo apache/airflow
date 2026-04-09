@@ -28,11 +28,14 @@ from sqlalchemy import select
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
     SortParam,
+    _PrefixPatternParam,
     _SearchParam,
+    _TaskDisplayNamePatternParam,
     filter_param_factory,
 )
 from airflow.models import DagModel, DagRun, Log
 from airflow.models.errors import ParseImportError
+from airflow.models.taskinstance import TaskInstance
 
 
 class TestFilterParam:
@@ -144,14 +147,29 @@ class TestSortParam:
 
 class TestSearchParam:
     def test_to_orm_single_value(self):
-        """Test search with a single term."""
+        """Test search with a single term uses range comparison."""
         param = _SearchParam(DagModel.dag_id).set_value("example_bash")
         statement = select(DagModel)
         statement = param.to_orm(statement)
 
-        sql = str(statement.compile(compile_kwargs={"literal_binds": True})).lower()
-        assert "dag_id" in sql
-        assert "like" in sql
+        sql = str(statement.compile(compile_kwargs={"literal_binds": True}))
+        assert "dag_id >= 'example_bash'" in sql
+        assert "dag_id < 'example_basi'" in sql
+
+    def test_to_orm_prefix_range_boundary(self):
+        """Test that prefix range correctly increments the last character."""
+        assert _PrefixPatternParam._prefix_range_upper("xy") == "xz"
+        assert _PrefixPatternParam._prefix_range_upper("test_dag") == "test_dah"
+        assert _PrefixPatternParam._prefix_range_upper("") is None
+
+    def test_to_orm_empty_value_matches_all(self):
+        """Test that an empty value matches all non-null rows."""
+        param = _SearchParam(DagModel.dag_id).set_value("")
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = str(statement.compile(compile_kwargs={"literal_binds": True}))
+        assert "IS NOT NULL" in sql
 
     def test_to_orm_multiple_values_or(self):
         """Test search with multiple terms using the pipe | operator."""
@@ -183,3 +201,26 @@ class TestSearchParam:
         sql = str(statement.compile(compile_kwargs={"literal_binds": True}))
         assert "example_bash" in sql
         assert "|" not in sql
+
+
+class TestTaskDisplayNamePatternParam:
+    """Prefix filter splits on NULL override so ``task_id`` can use indexes."""
+
+    def test_to_orm_uses_task_id_when_override_null(self):
+        param = _TaskDisplayNamePatternParam().set_value("test_task_hello")
+        statement = select(TaskInstance)
+        statement = param.to_orm(statement)
+
+        sql = str(statement.compile(compile_kwargs={"literal_binds": True}))
+        assert "task_display_name IS NULL" in sql
+        assert "task_id >=" in sql
+        assert "task_id <" in sql
+        assert "task_display_name IS NOT NULL" in sql
+
+    def test_to_orm_empty_matches_all(self):
+        param = _TaskDisplayNamePatternParam().set_value("")
+        statement = select(TaskInstance)
+        statement = param.to_orm(statement)
+
+        sql = str(statement.compile(compile_kwargs={"literal_binds": True}))
+        assert "true" in sql.lower() or "1 = 1" in sql.lower() or "true" in sql

@@ -2063,9 +2063,6 @@ export type EdgeResponse = {
     is_source_asset?: boolean | null;
 };
 
-/**
- * Define a menu item that can be added to the menu by auth managers or plugins.
- */
 export type ExtraMenuItem = {
     text: string;
     href: string;
@@ -2369,7 +2366,7 @@ export type GetAssetsData = {
     dagIds?: Array<(string)>;
     limit?: number;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     namePattern?: string | null;
     offset?: number;
@@ -2379,7 +2376,7 @@ export type GetAssetsData = {
      */
     orderBy?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     uriPattern?: string | null;
 };
@@ -2389,7 +2386,7 @@ export type GetAssetsResponse = AssetCollectionResponse;
 export type GetAssetAliasesData = {
     limit?: number;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     namePattern?: string | null;
     offset?: number;
@@ -2411,7 +2408,7 @@ export type GetAssetEventsData = {
     assetId?: number | null;
     limit?: number;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     namePattern?: string | null;
     offset?: number;
@@ -2585,7 +2582,7 @@ export type PatchConnectionResponse = ConnectionResponse;
 
 export type GetConnectionsData = {
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     connectionIdPattern?: string | null;
     limit?: number;
@@ -2671,7 +2668,7 @@ export type GetDagRunsData = {
     cursor?: string | null;
     dagId: string;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     dagIdPattern?: string | null;
     dagVersion?: Array<(number)>;
@@ -2694,7 +2691,7 @@ export type GetDagRunsData = {
      */
     orderBy?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     partitionKeyPattern?: string | null;
     runAfterGt?: string | null;
@@ -2702,7 +2699,7 @@ export type GetDagRunsData = {
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     runIdPattern?: string | null;
     runType?: Array<(string)>;
@@ -2712,7 +2709,7 @@ export type GetDagRunsData = {
     startDateLte?: string | null;
     state?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     triggeringUserNamePattern?: string | null;
     updatedAtGt?: string | null;
@@ -2804,11 +2801,11 @@ export type GetDagsData = {
     bundleName?: string | null;
     bundleVersion?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     dagDisplayNamePattern?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     dagIdPattern?: string | null;
     dagRunEndDateGt?: string | null;
@@ -2848,7 +2845,7 @@ export type GetDagsResponse = DAGCollectionResponse;
 
 export type PatchDagsData = {
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     dagIdPattern?: string | null;
     excludeStale?: boolean;
@@ -2910,7 +2907,7 @@ export type GetDagTagsData = {
      */
     orderBy?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     tagNamePattern?: string | null;
 };
@@ -2925,11 +2922,11 @@ export type GetDagsUiData = {
     bundleName?: string | null;
     bundleVersion?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     dagDisplayNamePattern?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     dagIdPattern?: string | null;
     dagIds?: Array<(string)> | null;
@@ -2977,12 +2974,12 @@ export type GetEventLogsData = {
     before?: string | null;
     dagId?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     dagIdPattern?: string | null;
     event?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     eventPattern?: string | null;
     excludedEvents?: Array<(string)> | null;
@@ -2996,17 +2993,17 @@ export type GetEventLogsData = {
     orderBy?: Array<(string)>;
     owner?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     ownerPattern?: string | null;
     runId?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     runIdPattern?: string | null;
     taskId?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     taskIdPattern?: string | null;
     tryNumber?: number | null;
@@ -3072,7 +3069,7 @@ export type GetMappedTaskInstancesData = {
     offset?: number;
     operator?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     operatorNamePattern?: string | null;
     /**
@@ -3081,12 +3078,12 @@ export type GetMappedTaskInstancesData = {
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     poolNamePattern?: string | null;
     queue?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     queueNamePattern?: string | null;
     runAfterGt?: string | null;
@@ -3172,7 +3169,7 @@ export type GetTaskInstancesData = {
     cursor?: string | null;
     dagId: string;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     dagIdPattern?: string | null;
     dagRunId: string;
@@ -3194,7 +3191,7 @@ export type GetTaskInstancesData = {
     offset?: number;
     operator?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     operatorNamePattern?: string | null;
     /**
@@ -3203,12 +3200,12 @@ export type GetTaskInstancesData = {
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     poolNamePattern?: string | null;
     queue?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     queueNamePattern?: string | null;
     runAfterGt?: string | null;
@@ -3216,7 +3213,7 @@ export type GetTaskInstancesData = {
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     runIdPattern?: string | null;
     startDateGt?: string | null;
@@ -3225,7 +3222,7 @@ export type GetTaskInstancesData = {
     startDateLte?: string | null;
     state?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match on task display name: optional ``_task_display_property_value`` else ``task_id`` (same as ``coalesce``). Case-sensitive. On large databases, combine with ``dag_id_pattern`` (or a specific DAG in the path) so ``(dag_id, task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all.
      */
     taskDisplayNamePattern?: string | null;
     /**
@@ -3362,7 +3359,7 @@ export type GetHitlDetailTryDetailResponse = HITLDetailHistory;
 
 export type GetHitlDetailsData = {
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     bodySearch?: string | null;
     createdAtGt?: string | null;
@@ -3371,7 +3368,7 @@ export type GetHitlDetailsData = {
     createdAtLte?: string | null;
     dagId: string;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     dagIdPattern?: string | null;
     dagRunId: string;
@@ -3387,12 +3384,12 @@ export type GetHitlDetailsData = {
     responseReceived?: boolean | null;
     state?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     subjectSearch?: string | null;
     taskId?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     taskIdPattern?: string | null;
 };
@@ -3407,7 +3404,7 @@ export type GetImportErrorResponse = ImportErrorResponse;
 
 export type GetImportErrorsData = {
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     filenamePattern?: string | null;
     limit?: number;
@@ -3481,7 +3478,7 @@ export type GetPoolsData = {
      */
     orderBy?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     poolNamePattern?: string | null;
 };
@@ -3541,7 +3538,7 @@ export type DeleteXcomEntryResponse = void;
 
 export type GetXcomEntriesData = {
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     dagDisplayNamePattern?: string | null;
     dagId: string;
@@ -3563,17 +3560,17 @@ export type GetXcomEntriesData = {
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     runIdPattern?: string | null;
     taskId: string;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     taskIdPattern?: string | null;
     xcomKey?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     xcomKeyPattern?: string | null;
 };
@@ -3631,7 +3628,7 @@ export type GetVariablesData = {
      */
     orderBy?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     variableKeyPattern?: string | null;
 };
@@ -3795,7 +3792,7 @@ export type GetDagStructureData = {
     runType?: Array<(string)>;
     state?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     triggeringUser?: string | null;
 };
@@ -3817,7 +3814,7 @@ export type GetGridRunsData = {
     runType?: Array<(string)>;
     state?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all.
      */
     triggeringUser?: string | null;
 };

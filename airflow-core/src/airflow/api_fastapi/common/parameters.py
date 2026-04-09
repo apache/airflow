@@ -35,7 +35,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, and_, func, not_, or_, select as sql_select
+from sqlalchemy import Column, and_, func, not_, or_, select as sql_select, true as sql_true
 from sqlalchemy.inspection import inspect
 
 from airflow._shared.timezones import timezone
@@ -171,12 +171,22 @@ class _ExcludeStaleFilter(BaseParam[bool]):
         return cls().set_value(exclude_stale)
 
 
-class _SearchParam(BaseParam[str]):
-    """Search on attribute."""
+class _PrefixPatternParam(BaseParam[str], ABC):
+    """Shared prefix pattern: pipe ``|`` for OR, ``~`` → empty (match all), Unicode prefix range."""
 
-    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
-        super().__init__(skip_none=skip_none)
-        self.attribute: ColumnElement = attribute
+    @staticmethod
+    def _prefix_range_upper(term: str) -> str | None:
+        """Exclusive upper bound for a prefix range scan, or ``None`` if unbounded."""
+        if not term:
+            return None
+        last = ord(term[-1])
+        if last < 0x10FFFF:
+            return term[:-1] + chr(last + 1)
+        return _PrefixPatternParam._prefix_range_upper(term[:-1])
+
+    @abstractmethod
+    def _prefix_clause(self, term: str):
+        """Return the SQL boolean for one prefix term (including empty string after ``~`` alias)."""
 
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
@@ -185,19 +195,88 @@ class _SearchParam(BaseParam[str]):
         val_str = str(self.value)
         if "|" in val_str:
             search_terms = [term.strip() for term in val_str.split("|") if term.strip()]
-            if search_terms:
-                return select.where(or_(*(self.attribute.ilike(f"%{term}%") for term in search_terms)))
+            if len(search_terms) > 1:
+                return select.where(or_(*(self._prefix_clause(term) for term in search_terms)))
 
-        return select.where(self.attribute.ilike(f"%{self.value}%"))
+        return select.where(self._prefix_clause(val_str))
 
     def transform_aliases(self, value: str | None) -> str | None:
         if value == "~":
-            value = "%"
+            value = ""
         return value
+
+
+class _SearchParam(_PrefixPatternParam):
+    """Prefix search on a column using range comparison (case-sensitive, index-friendly)."""
+
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+        self.attribute: ColumnElement = attribute
+
+    def _prefix_clause(self, term: str):
+        if not term:
+            return self.attribute.is_not(None)
+        upper = self._prefix_range_upper(term)
+        if upper is None:
+            return self.attribute >= term
+        return and_(self.attribute >= term, self.attribute < upper)
 
     @classmethod
     def depends(cls, *args: Any, **kwargs: Any) -> Self:
         raise NotImplementedError("Use search_param_factory instead , depends is not implemented.")
+
+
+class _TaskDisplayNamePatternParam(_PrefixPatternParam):
+    """
+    Prefix filter equivalent to :attr:`TaskInstance.task_display_name`, rewritten for composite-index use.
+
+    The hybrid expression ``coalesce(_task_display_property_value, task_id)`` cannot use those indexes;
+    this implementation applies an equivalent ``OR`` of simpler range predicates instead.
+    """
+
+    def _prefix_clause(self, term: str):
+        if not term:
+            return sql_true()
+        upper = self._prefix_range_upper(term)
+        if upper is None:
+            return or_(
+                and_(
+                    TaskInstance._task_display_property_value.is_(None),
+                    TaskInstance.task_id >= term,
+                ),
+                and_(
+                    TaskInstance._task_display_property_value.is_not(None),
+                    TaskInstance._task_display_property_value >= term,
+                ),
+            )
+        return or_(
+            and_(
+                TaskInstance._task_display_property_value.is_(None),
+                TaskInstance.task_id >= term,
+                TaskInstance.task_id < upper,
+            ),
+            and_(
+                TaskInstance._task_display_property_value.is_not(None),
+                TaskInstance._task_display_property_value >= term,
+                TaskInstance._task_display_property_value < upper,
+            ),
+        )
+
+    @classmethod
+    def depends(
+        cls,
+        task_display_name_pattern: str | None = Query(
+            default=None,
+            description=(
+                "Prefix match on task display name: optional ``_task_display_property_value`` else "
+                "``task_id`` (same as ``coalesce``). Case-sensitive. On large databases, combine with "
+                "``dag_id_pattern`` (or a specific DAG in the path) so ``(dag_id, task_id, ...)`` indexes "
+                "apply. Use ``|`` for OR. Use ``~`` to match all."
+            ),
+        ),
+    ) -> Self:
+        param = cls()
+        return param.set_value(param.transform_aliases(task_display_name_pattern))
 
 
 class QueryTaskInstanceTaskGroupFilter(BaseParam[str]):
@@ -257,9 +336,9 @@ def search_param_factory(
     skip_none: bool = True,
 ) -> Callable[[str | None], _SearchParam]:
     DESCRIPTION = (
-        "SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). "
-        "or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). "
-        "Regular expressions are **not** supported."
+        "Prefix match — returns items whose value starts with the given string "
+        "(case-sensitive, index-friendly). Use the pipe `|` operator for OR logic "
+        "(e.g. `dag1|dag2`). Use `~` to match all."
     )
 
     def depends_search(
@@ -1048,7 +1127,7 @@ QueryTIExecutorFilter = Annotated[
     ),
 ]
 QueryTITaskDisplayNamePatternSearch = Annotated[
-    _SearchParam, Depends(search_param_factory(TaskInstance.task_display_name, "task_display_name_pattern"))
+    _TaskDisplayNamePatternParam, Depends(_TaskDisplayNamePatternParam.depends)
 ]
 QueryTITaskGroupFilter = Annotated[
     QueryTaskInstanceTaskGroupFilter, Depends(QueryTaskInstanceTaskGroupFilter.depends)

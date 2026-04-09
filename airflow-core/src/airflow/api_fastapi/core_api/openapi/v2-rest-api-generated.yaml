@@ -41,13 +41,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: uri_pattern
         in: query
         required: false
@@ -55,13 +55,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Uri Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: dag_ids
         in: query
         required: false
@@ -158,13 +158,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: order_by
         in: query
         required: false
@@ -347,13 +347,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: timestamp_gte
         in: query
         required: false
@@ -1515,13 +1515,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Connection Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       responses:
         '200':
           description: Successful Response
@@ -2358,13 +2358,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Run Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: triggering_user_name_pattern
         in: query
         required: false
@@ -2372,13 +2372,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Triggering User Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: dag_id_pattern
         in: query
         required: false
@@ -2386,13 +2386,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Dag Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: partition_key_pattern
         in: query
         required: false
@@ -2400,13 +2400,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Partition Key Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: consuming_asset_pattern
         in: query
         required: false
@@ -3100,13 +3100,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Dag Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -3114,13 +3114,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Dag Display Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: exclude_stale
         in: query
         required: false
@@ -3406,13 +3406,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Dag Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: exclude_stale
         in: query
         required: false
@@ -3985,13 +3985,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Dag Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: task_id_pattern
         in: query
         required: false
@@ -3999,13 +3999,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Task Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: run_id_pattern
         in: query
         required: false
@@ -4013,13 +4013,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Run Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: owner_pattern
         in: query
         required: false
@@ -4027,13 +4027,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Owner Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: event_pattern
         in: query
         required: false
@@ -4041,13 +4041,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Event Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       responses:
         '200':
           description: Successful Response
@@ -4239,13 +4239,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Filename Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       responses:
         '200':
           description: Successful Response
@@ -4753,13 +4753,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Pool Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       responses:
         '200':
           description: Successful Response
@@ -5251,13 +5251,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Xcom Key Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -5265,13 +5265,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Dag Display Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: run_id_pattern
         in: query
         required: false
@@ -5279,13 +5279,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Run Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: task_id_pattern
         in: query
         required: false
@@ -5293,13 +5293,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Task Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: map_index_filter
         in: query
         required: false
@@ -5992,13 +5992,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Pool Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: queue
         in: query
         required: false
@@ -6014,13 +6014,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Queue Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: executor
         in: query
         required: false
@@ -6060,13 +6060,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Operator Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: map_index
         in: query
         required: false
@@ -6855,13 +6855,15 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: 'Prefix match on task display name: optional ``_task_display_property_value``
+            else ``task_id`` (same as ``coalesce``). Case-sensitive. On large databases,
+            combine with ``dag_id_pattern`` (or a specific DAG in the path) so ``(dag_id,
+            task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all.'
           title: Task Display Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: 'Prefix match on task display name: optional ``_task_display_property_value``
+          else ``task_id`` (same as ``coalesce``). Case-sensitive. On large databases,
+          combine with ``dag_id_pattern`` (or a specific DAG in the path) so ``(dag_id,
+          task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all.'
       - name: task_group_id
         in: query
         required: false
@@ -6881,13 +6883,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Dag Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: run_id_pattern
         in: query
         required: false
@@ -6895,13 +6897,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Run Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: state
         in: query
         required: false
@@ -6925,13 +6927,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Pool Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: queue
         in: query
         required: false
@@ -6947,13 +6949,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Queue Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: executor
         in: query
         required: false
@@ -6993,13 +6995,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Operator Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: map_index
         in: query
         required: false
@@ -7910,13 +7912,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Variable Key Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       responses:
         '200':
           description: Successful Response
@@ -8311,13 +8313,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Tag Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       responses:
         '200':
           description: Successful Response
@@ -8784,13 +8786,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Dag Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: task_id
         in: query
         required: false
@@ -8806,13 +8808,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Task Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: map_index
         in: query
         required: false
@@ -8860,13 +8862,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Subject Search
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: body_search
         in: query
         required: false
@@ -8874,13 +8876,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
           title: Body Search
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all."
       - name: created_at_gte
         in: query
         required: false

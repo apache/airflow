@@ -1,0 +1,15 @@
+API pattern search parameters now use prefix matching instead of substring matching.
+
+This affects all ``*_pattern`` query parameters across every endpoint (e.g.
+``dag_id_pattern``, ``run_id_pattern``, ``task_id_pattern``).
+
+Previously, ``dag_id_pattern=foo`` would match any DAG whose id *contained* ``foo``
+anywhere (case-insensitive ``ILIKE '%foo%'``). Now it matches only DAGs whose id
+*starts with* ``foo`` (case-sensitive range comparison on the B-tree index).
+
+Wildcard characters ``%`` and ``_`` are no longer interpreted — all characters are
+treated as literals. This makes the search index-friendly and significantly faster
+on large tables.
+
+The ``~`` alias still matches all values, and the pipe ``|`` operator still supports
+OR logic (e.g. ``dag1|dag2``).
