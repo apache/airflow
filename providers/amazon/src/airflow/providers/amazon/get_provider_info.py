@@ -694,6 +694,12 @@ def get_provider_info():
             },
         ],
         "filesystems": ["airflow.providers.amazon.aws.fs.s3"],
+        "object-storage-providers": [
+            {
+                "storage-type": "s3",
+                "provider-class-name": "airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider",
+            }
+        ],
         "hooks": [
             {
                 "integration-name": "Amazon Athena",
@@ -1524,10 +1530,4 @@ def get_provider_info():
         "auth-managers": ["airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager"],
         "cli": ["airflow.providers.amazon.aws.cli.definition.get_aws_cli_commands"],
         "queues": ["airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider"],
-        "object-storage-providers": [
-            {
-                "storage-type": "s3",
-                "provider-class-name": "airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider",
-            }
-        ],
     }

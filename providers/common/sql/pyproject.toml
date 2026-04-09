@@ -97,12 +97,16 @@ dependencies = [
 "apache.iceberg" = [
     "apache-airflow-providers-apache-iceberg"
 ]
+"amazon" = [
+    "apache-airflow-providers-amazon"
+]
 
 [dependency-groups]
 dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-amazon",
     "apache-airflow-providers-apache-iceberg",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-openlineage",

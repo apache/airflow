@@ -21,6 +21,7 @@ from typing import Any
 
 from datafusion.object_store import LocalFileSystem
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.config import ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.base import ObjectStorageProvider
 
@@ -64,8 +65,7 @@ def get_object_storage_provider(storage_type: StorageType) -> ObjectStorageProvi
 
     hint = _STORAGE_TYPE_PROVIDER_HINTS.get(type_key, "the appropriate provider package")
     raise ValueError(
-        f"No ObjectStorageProvider registered for storage type '{type_key}'. "
-        f"Install or upgrade {hint}."
+        f"No ObjectStorageProvider registered for storage type '{type_key}'. Install or upgrade {hint}."
     )
 
 
@@ -75,7 +75,7 @@ def __getattr__(name: str) -> Any:
             "Importing S3ObjectStorageProvider from "
             "airflow.providers.common.sql.datafusion.object_storage_provider is deprecated. "
             "Import it from airflow.providers.amazon.aws.datafusion.object_storage instead.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         from airflow.providers.amazon.aws.datafusion.object_storage import S3ObjectStorageProvider

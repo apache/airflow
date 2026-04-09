@@ -25,7 +25,6 @@ from airflow.providers.common.sql.datafusion.object_storage_provider import (
     LocalObjectStorageProvider,
     get_object_storage_provider,
 )
-from airflow.providers_manager import ObjectStorageProviderInfo
 
 
 class TestLocalObjectStorageProvider:
@@ -53,10 +52,8 @@ class TestGetObjectStorageProvider:
         mock_import_string.return_value = mock_provider_cls
 
         mock_pm_cls.return_value.object_storage_providers = {
-            "s3": ObjectStorageProviderInfo(
-                name="s3",
+            "s3": MagicMock(
                 provider_class_name="airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider",
-                provider_name="apache-airflow-providers-amazon",
             ),
         }
 
@@ -98,18 +95,24 @@ class TestGetObjectStorageProvider:
 class TestS3DeprecationShim:
     def test_old_import_path_emits_deprecation_warning(self):
         """Importing S3ObjectStorageProvider from the old path still works but warns."""
+        pytest.importorskip("airflow.providers.amazon")
         import airflow.providers.common.sql.datafusion.object_storage_provider as mod
 
-        with pytest.warns(DeprecationWarning, match="Import it from airflow.providers.amazon"):
+        with pytest.warns(
+            match="Import it from airflow.providers.amazon",
+        ):
             cls = mod.S3ObjectStorageProvider
 
         assert cls.__name__ == "S3ObjectStorageProvider"
 
     def test_old_import_path_returns_same_class(self):
         """The shim re-exports the exact same class from the new location."""
+        pytest.importorskip("airflow.providers.amazon")
         import airflow.providers.common.sql.datafusion.object_storage_provider as mod
 
-        with pytest.warns(DeprecationWarning):
+        with pytest.warns(
+            match="Import it from airflow.providers.amazon",
+        ):
             old_cls = mod.S3ObjectStorageProvider
 
         from airflow.providers.amazon.aws.datafusion.object_storage import S3ObjectStorageProvider
