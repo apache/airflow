@@ -48,22 +48,13 @@ def _start_server() -> socket.socket:
     return server
 
 
-def _calculate_classpath(app_home: pathlib.Path) -> str:
-    """Build a classpath string from all JARs in *app_home*."""
-    jars = (p.as_posix() for p in app_home.iterdir() if p.suffix == ".jar")
-    return os.pathsep.join(jars)
-
-
-def _find_main_class(app_home: pathlib.Path) -> str:
-    """Read the Main-Class attribute from the first JAR manifest found in *app_home*."""
-    for p in app_home.iterdir():
-        if p.suffix != ".jar":
-            continue
-        with zipfile.ZipFile(p) as zf:
-            with zf.open("META-INF/MANIFEST.MF") as f:
-                if main_class := email.message_from_binary_file(f).get("Main-Class"):
-                    return main_class
-    raise FileNotFoundError(f"Cannot find main class in {app_home.resolve()}")
+def _find_main_class(jar_path: pathlib.Path) -> str:
+    """Read the Main-Class attribute from the JAR manifest."""
+    with zipfile.ZipFile(jar_path) as zf:
+        with zf.open("META-INF/MANIFEST.MF") as f:
+            if main_class := email.message_from_binary_file(f).get("Main-Class"):
+                return main_class
+    raise FileNotFoundError(f"No Main-Class in manifest of {jar_path}")
 
 
 class JavaDagFileProcessor(BaseDagFileProcessor):
@@ -75,6 +66,21 @@ class JavaDagFileProcessor(BaseDagFileProcessor):
     this processor's :meth:`entrypoint` is used as the subprocess target instead
     of the default Python ``_parse_file_entrypoint``.
     """
+
+    def can_handle(self, bundle_name: str, path: str | os.PathLike[str]) -> bool:
+        # The parent class will only validate against the bundle name
+        # If the configured bundle name doesn't match, we can skip the more expensive .jar content validation
+        if not super().can_handle(bundle_name):
+            return False
+
+        # Then the dag_importer will validate based on the .jar content
+
+        # TODO: If we decided to leverage AIP-85 `DagImporterRegistry`
+        # We should reuse `dag_importer.can_handle`
+
+        with contextlib.suppress(FileNotFoundError):
+            return _find_main_class(pathlib.Path(path)) is not None
+        return False
 
     @staticmethod
     def entrypoint(path: str, bundle_name: str, bundle_path: str) -> None:
@@ -119,7 +125,7 @@ def parse_jar_bundles_entrypoint(path: str, bundle_name: str, bundle_path: str) 
         [
             "java",
             "-classpath",
-            _calculate_classpath(jar_path),
+            jar_path.as_posix(),
             _find_main_class(jar_path),
             f"--comm={comm_host}:{comm_port}",
             f"--logs={logs_host}:{logs_port}",
