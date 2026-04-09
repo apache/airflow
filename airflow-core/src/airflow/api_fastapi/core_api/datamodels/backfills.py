@@ -55,7 +55,7 @@ class BackfillResponse(BaseModel):
     updated_at: datetime
     dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
     num_runs: int = 0
-    dag_run_state_counts: dict[str, int] = {}
+    dag_run_state_counts: dict[str, int] = Field(default_factory=dict)
 
 
 class BackfillCollectionResponse(BaseModel):

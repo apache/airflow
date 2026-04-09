@@ -22,6 +22,7 @@ from fastapi import Depends, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
+from airflow.api_fastapi.common.db.backfills import enrich_backfill_responses
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -36,7 +37,6 @@ from airflow.api_fastapi.core_api.datamodels.backfills import BackfillCollection
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
-from airflow.api_fastapi.core_api.routes.public.backfills import _enrich_backfill_responses
 from airflow.api_fastapi.core_api.security import ReadableBackfillsFilterDep, requires_access_backfill
 from airflow.models.backfill import Backfill
 
@@ -79,7 +79,7 @@ def list_backfills_ui(
         else BackfillResponse.model_validate(row)
         for row in session.scalars(select_stmt)
     ]
-    _enrich_backfill_responses(backfills, session=session)
+    enrich_backfill_responses(backfills, session=session)
     return BackfillCollectionResponse(
         backfills=backfills,
         total_entries=total_entries,

@@ -16,16 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from collections import defaultdict
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import NonNegativeInt
-from sqlalchemy import func, select, update
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import select, update
+from sqlalchemy.orm import joinedload
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.common.db.backfills import enrich_backfill_responses
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
@@ -62,40 +62,6 @@ from airflow.utils.state import DagRunState
 backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
 
 
-def _enrich_backfill_responses(
-    backfills: list[BackfillResponse],
-    *,
-    session: Session,
-) -> list[BackfillResponse]:
-    """Populate num_runs and dag_run_state_counts on each backfill response."""
-    ids = [b.id for b in backfills]
-    if not ids:
-        return backfills
-    # Single query: get state counts per backfill, derive num_runs by summing counts.
-    rows = session.execute(
-        select(
-            BackfillDagRun.backfill_id,
-            DagRun.state,
-            func.count().label("count"),
-        )
-        .join(DagRun, BackfillDagRun.dag_run_id == DagRun.id)
-        .where(
-            BackfillDagRun.backfill_id.in_(ids),
-            DagRun.backfill_id == BackfillDagRun.backfill_id,
-        )
-        .group_by(BackfillDagRun.backfill_id, DagRun.state)
-    ).all()
-    counts: dict[int, dict[str, int]] = defaultdict(dict)
-    num_runs: dict[int, int] = defaultdict(int)
-    for backfill_id, state, count in rows:
-        counts[backfill_id][state] = count
-        num_runs[backfill_id] += count
-    for backfill in backfills:
-        backfill.num_runs = num_runs.get(backfill.id, 0)
-        backfill.dag_run_state_counts = counts.get(backfill.id, {})
-    return backfills
-
-
 @backfills_router.get(
     path="",
     dependencies=[
@@ -120,7 +86,7 @@ def list_backfills(
         session=session,
     )
     backfills = [BackfillResponse.model_validate(b) for b in session.scalars(select_stmt)]
-    _enrich_backfill_responses(backfills, session=session)
+    enrich_backfill_responses(backfills, session=session)
     return BackfillCollectionResponse(
         backfills=backfills,
         total_entries=total_entries,
@@ -144,7 +110,7 @@ def get_backfill(
     if not backfill:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Backfill not found")
     response = BackfillResponse.model_validate(backfill)
-    _enrich_backfill_responses([response], session=session)
+    enrich_backfill_responses([response], session=session)
     return response
 
 
@@ -173,7 +139,7 @@ def pause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfill
         b.is_paused = True
     session.commit()
     response = BackfillResponse.model_validate(b)
-    _enrich_backfill_responses([response], session=session)
+    enrich_backfill_responses([response], session=session)
     return response
 
 
@@ -201,7 +167,7 @@ def unpause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfi
     if b.is_paused:
         b.is_paused = False
     response = BackfillResponse.model_validate(b)
-    _enrich_backfill_responses([response], session=session)
+    enrich_backfill_responses([response], session=session)
     return response
 
 
@@ -254,7 +220,7 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
     session.refresh(b)
     b.completed_at = timezone.utcnow()
     response = BackfillResponse.model_validate(b)
-    _enrich_backfill_responses([response], session=session)
+    enrich_backfill_responses([response], session=session)
     return response
 
 
