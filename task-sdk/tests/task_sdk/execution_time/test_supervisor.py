@@ -3422,15 +3422,14 @@ def test_api_client_clears_dag_bag_override_when_dag_is_none():
 class TestChildExecMain:
     """Test the macOS fork+exec child entry point."""
 
-    def test_reconstructs_sockets_from_env_and_calls_fork_main(self, monkeypatch):
-        """_child_exec_main reads log FD from env, uses FDs 0/1/2 for sockets, calls _fork_main."""
+    def test_uses_fds_012_and_requests_log_channel(self, monkeypatch):
+        """_child_exec_main wraps FDs 0/1/2 as sockets, passes log_fd=0, sets _AIRFLOW_FORK_EXEC."""
         # _child_exec_main expects FDs 0/1/2 to be sockets (dup2'd by the
-        # parent before exec).  We dup2 real sockets onto 0/1/2 for the test,
-        # then restore the originals afterward.
+        # parent before exec).  It passes log_fd=0 to _fork_main (structured
+        # logging is requested later via ResendLoggingFD).
         req_a, req_b = socket.socketpair()
         out_a, out_b = socket.socketpair()
         err_a, err_b = socket.socketpair()
-        log_child, log_parent = socket.socketpair()
 
         # Save originals so we can restore after the test.
         saved_0 = os.dup(0)
@@ -3441,8 +3440,6 @@ class TestChildExecMain:
             os.dup2(req_a.fileno(), 0)
             os.dup2(out_a.fileno(), 1)
             os.dup2(err_a.fileno(), 2)
-
-            monkeypatch.setenv(supervisor._LOG_FD_ENV_VAR, str(log_child.fileno()))
 
             captured = {}
 
@@ -3465,9 +3462,11 @@ class TestChildExecMain:
             assert captured["requests_fd"] == 0
             assert captured["stdout_fd"] == 1
             assert captured["stderr_fd"] == 2
-            assert captured["log_fd"] == log_child.fileno()
+            assert captured["log_fd"] == 0
             assert captured["target"] is supervisor._subprocess_main
-            assert supervisor._LOG_FD_ENV_VAR not in os.environ
+            # _child_exec_main sets this so the task runner knows to request
+            # the log channel via ResendLoggingFD.
+            assert os.environ.pop("_AIRFLOW_FORK_EXEC") == "1"
         finally:
             # Restore original FDs.
             os.dup2(saved_0, 0)
@@ -3476,5 +3475,5 @@ class TestChildExecMain:
             os.close(saved_0)
             os.close(saved_1)
             os.close(saved_2)
-            for s in [req_a, req_b, out_a, out_b, err_a, err_b, log_child, log_parent]:
+            for s in [req_a, req_b, out_a, out_b, err_a, err_b]:
                 s.close()

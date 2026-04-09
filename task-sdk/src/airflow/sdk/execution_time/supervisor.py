@@ -461,8 +461,8 @@ runtime detects the corrupted state and crashes with SIGABRT.
 Calling ``os.execv`` immediately after ``os.fork`` replaces the child's address
 space, giving it clean ObjC state.  Before exec, the supervisor dup2s the
 socketpairs onto FDs 0 (requests/stdin), 1 (stdout), 2 (stderr) -- these are
-inheritable by default and survive across exec.  Only the log channel FD has no
-well-known number and is passed via ``_AIRFLOW_SUPERVISOR_LOG_FD``.
+inheritable by default and survive across exec.  The log channel is obtained
+after startup via the existing ``ResendLoggingFD`` mechanism.
 
 This applies to all executors (Local, Celery, etc.) but only on macOS and only
 for task execution (``target is _subprocess_main``).  DAG processor and triggerer
@@ -473,22 +473,16 @@ See: https://github.com/python/cpython/issues/105912
      https://github.com/apache/airflow/discussions/24463
 """
 
-# Env var used to pass the log channel FD to the exec'd child (macOS fork+exec).
-_LOG_FD_ENV_VAR = "_AIRFLOW_SUPERVISOR_LOG_FD"
-
-
 def _child_exec_main():
     """
     Entry point for the child process when using fork+exec (macOS).
 
     After exec, FDs 0/1/2 are already the requests/stdout/stderr sockets
-    (dup2'd by the parent before exec).  Only the log FD is read from the
-    environment.  Hands off to ``_fork_main`` -- the same code path as the
-    bare-fork child.
+    (dup2'd by the parent before exec).  The log channel is NOT inherited;
+    instead, the task runner requests it from the supervisor via the existing
+    ``ResendLoggingFD`` mechanism after startup.
     """
     import socket as _socket
-
-    log_fd = int(os.environ.pop(_LOG_FD_ENV_VAR))
 
     # FDs 0, 1, 2 were dup2'd onto the socketpairs before exec.
     child_requests = _socket.socket(fileno=0)
@@ -498,7 +492,11 @@ def _child_exec_main():
     # _fork_main always exits via os._exit(), so the socket objects above are
     # never GC'd (which would close their underlying FDs). This is safe but
     # depends on that invariant -- do not refactor _fork_main to return.
-    _fork_main(child_requests, child_stdout, child_stderr, log_fd, _subprocess_main)
+    #
+    # log_fd=0 tells _fork_main to skip structured log channel setup.
+    # Signal to the task runner to request it via ResendLoggingFD after startup.
+    os.environ["_AIRFLOW_FORK_EXEC"] = "1"
+    _fork_main(child_requests, child_stdout, child_stderr, 0, _subprocess_main)
 
 
 @attrs.define(kw_only=True)
@@ -585,10 +583,8 @@ class WatchedSubprocess:
                     os.dup2(child_stdout.fileno(), 1)
                     os.dup2(child_stderr.fileno(), 2)
 
-                    log_fd = child_logs.fileno()
-                    os.set_inheritable(log_fd, True)
-                    os.environ[_LOG_FD_ENV_VAR] = str(log_fd)
-
+                    # Log channel FD is NOT passed to the child. The task
+                    # runner will request it via ResendLoggingFD after startup.
                     os.execv(sys.executable, [
                         sys.executable,
                         "-c",
