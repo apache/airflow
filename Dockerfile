@@ -1874,7 +1874,7 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
 ARG PYTHON_LTO
 
 ENV RUSTUP_HOME="/usr/local/rustup"
-ENV CARGO_HOME="/usr/local/cargo"
+ENV CARGO_HOME="/home/airflow/.cargo"
 ENV PATH="${CARGO_HOME}/bin:${PATH}"
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/

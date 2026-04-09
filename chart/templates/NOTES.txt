@@ -701,6 +701,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (empty .Values.workers.extraContainers) }}
+
+ DEPRECATION WARNING:
+    `workers.extraContainers` has been renamed to `workers.celery.extraContainers`/`workers.kubernetes.extraContainers`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (empty .Values.workers.runtimeClassName) }}
 
  DEPRECATION WARNING:
@@ -713,6 +721,14 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `workers.priorityClassName` has been renamed to `workers.celery.priorityClassName`/`workers.kubernetes.priorityClassName`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.affinity) }}
+
+ DEPRECATION WARNING:
+    `workers.affinity` has been renamed to `workers.celery.affinity`/`workers.kubernetes.affinity`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}

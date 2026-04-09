@@ -1042,6 +1042,10 @@ workers:
 
   # Launch additional containers into Airflow Celery worker
   # and pods created with pod-template-file (templated).
+  # (deprecated, use
+  #   `workers.celery.extraContainers` and/or
+  #   `workers.kubernetes.extraContainers`
+  # instead)
   # Note: If used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main
   # container finishes so Airflow can continue the worker shutdown process!
   extraContainers: []
@@ -1081,6 +1085,7 @@ workers:
   # (deprecated, use `workers.celery.priorityClassName` and/or `workers.kubernetes.priorityClassName` instead)
   priorityClassName: ~
 
+  # (deprecated, use `workers.celery.affinity` and/or `workers.kubernetes.affinity` instead)
   affinity: {}
   # Default Airflow Celery worker affinity is:
   #  podAntiAffinity:
@@ -1442,6 +1447,9 @@ workers:
     # This setting tells Kubernetes that its ok to evict when it wants to scale a node down
     safeToEvict: ~
 
+    # Launch additional containers into Airflow Celery worker (templated)
+    extraContainers: []
+
     # Expose additional ports of Airflow Celery workers. These can be used for additional metric collection.
     extraPorts: []
 
@@ -1451,6 +1459,17 @@ workers:
     runtimeClassName: ~
 
     priorityClassName: ~
+
+    affinity: {}
+    # Default Airflow Celery worker affinity is:
+    #  podAntiAffinity:
+    #    preferredDuringSchedulingIgnoredDuringExecution:
+    #    - podAffinityTerm:
+    #        labelSelector:
+    #          matchLabels:
+    #            component: worker
+    #        topologyKey: kubernetes.io/hostname
+    #      weight: 100
 
     # hostAliases to use in Airflow Celery worker pods
     # See:
@@ -1593,12 +1612,19 @@ workers:
     # This setting tells Kubernetes that its ok to evict when it wants to scale a node down
     safeToEvict: ~
 
+    # Launch additional containers into pods created with pod-template-file (templated).
+    # Note: You are responsible for signaling sidecars to exit when the main
+    # container finishes so Airflow can continue the worker shutdown process!
+    extraContainers: []
+
     # Select certain nodes for pods created with pod-template-file
     nodeSelector: {}
 
     runtimeClassName: ~
 
     priorityClassName: ~
+
+    affinity: {}
 
     # hostAliases to use in pods created with pod-template-file
     # See:
