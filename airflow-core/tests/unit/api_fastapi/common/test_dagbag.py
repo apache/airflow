@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import threading
 from unittest import mock
 from uuid import uuid4
 
@@ -28,6 +29,13 @@ from airflow.sdk import BaseOperator
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
+
+
+def _make_serialized_dag_model(version_id):
+    m = mock.MagicMock()
+    m.dag_version_id = version_id
+    m.dag = mock.MagicMock()  # truthy — deserialization succeeds
+    return m
 
 
 class TestDagBagSingleton:
@@ -92,18 +100,12 @@ class TestDBDagBagLRUCache:
     def _make_bag(self, max_size: int) -> DBDagBag:
         return DBDagBag(max_cache_size=max_size)
 
-    def _make_model(self, version_id):
-        m = mock.MagicMock()
-        m.dag_version_id = version_id
-        m.dag = mock.MagicMock()  # truthy — deserialization succeeds
-        return m
-
     def test_cache_bounded_by_max_size(self):
         """Inserting beyond max_size evicts the least-recently-used entry."""
         bag = self._make_bag(max_size=3)
         ids = [uuid4() for _ in range(4)]
         for uid in ids:
-            bag._read_dag(self._make_model(uid))
+            bag._read_dag(_make_serialized_dag_model(uid))
 
         assert len(bag._dags) == 3
         assert ids[0] not in bag._dags  # first inserted → LRU → evicted
@@ -113,7 +115,7 @@ class TestDBDagBagLRUCache:
         """A cache hit via get_serialized_dag_model promotes the entry to MRU."""
         bag = self._make_bag(max_size=3)
         ids = [uuid4() for _ in range(3)]
-        models = {uid: self._make_model(uid) for uid in ids}
+        models = {uid: _make_serialized_dag_model(uid) for uid in ids}
         for uid in ids:
             bag._read_dag(models[uid])
 
@@ -123,7 +125,7 @@ class TestDBDagBagLRUCache:
         session.get.assert_not_called()  # should be a pure cache hit
 
         # Insert a 4th entry — ids[1] (now LRU) should be evicted, not ids[0]
-        bag._read_dag(self._make_model(uuid4()))
+        bag._read_dag(_make_serialized_dag_model(uuid4()))
 
         assert ids[0] in bag._dags  # promoted to MRU, survives
         assert ids[1] not in bag._dags  # was LRU after ids[0] promoted, evicted
@@ -143,7 +145,7 @@ class TestDBDagBagLRUCache:
         """A cache hit emits dag_bag.cache.hits via Stats.incr."""
         bag = self._make_bag(max_size=10)
         uid = uuid4()
-        bag._dags[uid] = self._make_model(uid)
+        bag._dags[uid] = _make_serialized_dag_model(uid)
 
         with mock.patch("airflow.models.dagbag.Stats") as mock_stats:
             bag.get_serialized_dag_model(uid, session=mock.MagicMock())
@@ -154,6 +156,37 @@ class TestDBDagBagLRUCache:
         bag = DBDagBag(max_cache_size=None)
         ids = [uuid4() for _ in range(100)]
         for uid in ids:
-            bag._read_dag(self._make_model(uid))
+            bag._read_dag(_make_serialized_dag_model(uid))
 
         assert len(bag._dags) == 100
+
+
+class TestDBDagBagThreadSafety:
+    """Tests that DBDagBag is safe under concurrent access from multiple threads."""
+
+    def test_concurrent_reads_and_writes_do_not_corrupt_cache(self):
+        """
+        Verify no data corruption or exceptions under concurrent _read_dag calls.
+
+        Simulates the API server scenario: a bounded DBDagBag shared across many
+        threads, each inserting and reading entries simultaneously.
+        """
+        bag = DBDagBag(max_cache_size=10)
+        errors: list[Exception] = []
+
+        def worker():
+            try:
+                for _ in range(50):
+                    bag._read_dag(_make_serialized_dag_model(uuid4()))
+                    assert len(bag._dags) <= 10
+            except Exception as exc:
+                errors.append(exc)
+
+        threads = [threading.Thread(target=worker) for _ in range(20)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert not errors, f"Errors in threads: {errors}"
+        assert len(bag._dags) <= 10

@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import threading
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -47,23 +49,30 @@ class DBDagBag:
     """
 
     def __init__(self, load_op_links: bool = True, max_cache_size: int | None = None) -> None:
-        self._max_dag_version_cache_size = max_cache_size  # None = unbounded
+        self._max_dag_version_cache_size = max_cache_size
         self._dags: OrderedDict[UUID, SerializedDagModel] = OrderedDict()
         self.load_op_links = load_op_links
+        # Use a real lock only when bounded caching is enabled (API server mode).
+        # The scheduler uses max_cache_size=None (unbounded, single-threaded) and
+        # gets a no-op context manager to avoid any locking overhead.
+        self._lock: contextlib.AbstractContextManager[None] = (
+            threading.Lock() if max_cache_size is not None else contextlib.nullcontext()
+        )
 
     def _read_dag(self, serialized_dag_model: SerializedDagModel) -> SerializedDAG | None:
         serialized_dag_model.load_op_links = self.load_op_links
         if dag := serialized_dag_model.dag:
             version_id = serialized_dag_model.dag_version_id
-            self._dags[version_id] = serialized_dag_model
-            self._dags.move_to_end(version_id)
-            if (
-                self._max_dag_version_cache_size is not None
-                and len(self._dags) > self._max_dag_version_cache_size
-            ):
-                self._dags.popitem(last=False)
-                Stats.incr("dag_bag.cache.evictions")
-            Stats.gauge("dag_bag.cache.size", len(self._dags), rate=0.1)
+            with self._lock:
+                self._dags[version_id] = serialized_dag_model
+                self._dags.move_to_end(version_id)
+                if (
+                    self._max_dag_version_cache_size is not None
+                    and len(self._dags) > self._max_dag_version_cache_size
+                ):
+                    self._dags.popitem(last=False)
+                    Stats.incr("dag_bag.cache.evictions")
+                Stats.gauge("dag_bag.cache.size", len(self._dags), rate=0.1)
         return dag
 
     def get_serialized_dag_model(self, version_id: UUID, session: Session) -> SerializedDagModel | None:
@@ -84,15 +93,21 @@ class DBDagBag:
         Note: If a serialized dag model is found in the database it will be stored in the
         internal cache (``self._dags``) before being returned.
         """
-        if not (serialized_dag_model := self._dags.get(version_id)):
-            Stats.incr("dag_bag.cache.misses")
-            dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
-            if not dag_version or not (serialized_dag_model := dag_version.serialized_dag):
-                return None
-            self._read_dag(serialized_dag_model)
-        else:
+        with self._lock:
+            if serialized_dag_model := self._dags.get(version_id):
+                self._dags.move_to_end(version_id)  # promote to MRU on cache hit
+
+        if serialized_dag_model is not None:
             Stats.incr("dag_bag.cache.hits")
-            self._dags.move_to_end(version_id)  # promote to MRU on cache hit
+            return serialized_dag_model
+
+        # Cache miss — query the DB outside the lock to avoid blocking other threads
+        # during slow I/O. _read_dag re-acquires the lock for the insert.
+        Stats.incr("dag_bag.cache.misses")
+        dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
+        if not dag_version or not (serialized_dag_model := dag_version.serialized_dag):
+            return None
+        self._read_dag(serialized_dag_model)
         return serialized_dag_model
 
     def get_dag(self, version_id: UUID, session: Session) -> SerializedDAG | None:
