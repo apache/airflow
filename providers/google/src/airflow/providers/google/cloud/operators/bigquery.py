@@ -27,11 +27,6 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, SupportsAbs
 
-from google.api_core.exceptions import Conflict
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row
-from google.cloud.bigquery.table import RowIterator, Table, TableListItem, TableReference
-
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, conf
 from airflow.providers.common.sql.operators.sql import (  # for _parse_boolean
@@ -42,8 +37,6 @@ from airflow.providers.common.sql.operators.sql import (  # for _parse_boolean
     SQLValueCheckOperator,
     _parse_boolean,
 )
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
-from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.google.cloud.links.bigquery import (
     BigQueryDatasetLink,
     BigQueryJobDetailLink,
@@ -51,23 +44,20 @@ from airflow.providers.google.cloud.links.bigquery import (
 )
 from airflow.providers.google.cloud.openlineage.mixins import _BigQueryInsertJobOperatorOpenLineageMixin
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.bigquery import (
-    BigQueryCheckTrigger,
-    BigQueryGetDataTrigger,
-    BigQueryInsertJobTrigger,
-    BigQueryIntervalCheckTrigger,
-    BigQueryValueCheckTrigger,
-)
-from airflow.providers.google.cloud.utils.bigquery import convert_job_id
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
-    from google.cloud.bigquery import UnknownJob
+    from google.cloud.bigquery import Row, UnknownJob
+    from google.cloud.bigquery.table import RowIterator, Table, TableListItem, TableReference
 
     from airflow.providers.common.compat.sdk import Context
+    from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
+
+_UNSET: Any = object()
 
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
@@ -93,22 +83,23 @@ class IfExistAction(enum.Enum):
     SKIP = "skip"
 
 
-class _BigQueryHookWithFlexibleProjectId(BigQueryHook):
-    @property
-    def project_id(self) -> str:
-        _, project_id = self.get_credentials_and_project_id()
-        return project_id or PROVIDE_PROJECT_ID
-
-    @project_id.setter
-    def project_id(self, value: str) -> None:
-        cached_creds, _ = self.get_credentials_and_project_id()
-        self._cached_project_id = value or PROVIDE_PROJECT_ID
-        self._cached_credntials = cached_creds
-
-
 class _BigQueryDbHookMixin:
-    def get_db_hook(self: BigQueryCheckOperator) -> _BigQueryHookWithFlexibleProjectId:  # type:ignore[misc]
+    def get_db_hook(self: BigQueryCheckOperator) -> BigQueryHook:  # type:ignore[misc]
         """Get BigQuery DB Hook."""
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
+        class _BigQueryHookWithFlexibleProjectId(BigQueryHook):
+            @property
+            def project_id(self) -> str:
+                _, project_id = self.get_credentials_and_project_id()
+                return project_id or PROVIDE_PROJECT_ID
+
+            @project_id.setter
+            def project_id(self, value: str) -> None:
+                cached_creds, _ = self.get_credentials_and_project_id()
+                self._cached_project_id = value or PROVIDE_PROJECT_ID
+                self._cached_credntials = cached_creds
+
         hook = _BigQueryHookWithFlexibleProjectId(
             gcp_conn_id=self.gcp_conn_id,
             use_legacy_sql=self.use_legacy_sql,
@@ -271,6 +262,9 @@ class BigQueryCheckOperator(
         )
 
     def execute(self, context: Context):
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+        from airflow.providers.google.cloud.triggers.bigquery import BigQueryCheckTrigger
+
         if not self.deferrable:
             super().execute(context=context)
         else:
@@ -429,6 +423,9 @@ class BigQueryValueCheckOperator(
         )
 
     def execute(self, context: Context) -> None:
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+        from airflow.providers.google.cloud.triggers.bigquery import BigQueryValueCheckTrigger
+
         if not self.deferrable:
             super().execute(context=context)
         else:
@@ -594,6 +591,9 @@ class BigQueryIntervalCheckOperator(
         )
 
     def execute(self, context: Context):
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+        from airflow.providers.google.cloud.triggers.bigquery import BigQueryIntervalCheckTrigger
+
         if not self.deferrable:
             super().execute(context)
         else:
@@ -1100,6 +1100,12 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         return project_id
 
     def execute(self, context: Context):
+        from google.cloud.bigquery import Row
+        from google.cloud.bigquery.table import RowIterator
+
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+        from airflow.providers.google.cloud.triggers.bigquery import BigQueryGetDataTrigger
+
         if self.project_id != PROVIDE_PROJECT_ID and not self.table_project_id:
             self.table_project_id = self._assign_project_id(self.project_id)
         elif self.project_id != PROVIDE_PROJECT_ID and self.table_project_id:
@@ -1279,10 +1285,14 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
         google_cloud_storage_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         if_exists: str = "log",
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: Retry | _MethodDefault = _UNSET,
         timeout: float | None = None,
         **kwargs,
     ) -> None:
+        if retry is _UNSET:
+            from google.api_core.gapic_v1.method import DEFAULT
+
+            retry = DEFAULT
         super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
@@ -1299,6 +1309,11 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
         self._table: Table | None = None
 
     def execute(self, context: Context) -> None:
+        from google.api_core.exceptions import Conflict
+
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+        from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
+
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
@@ -1446,6 +1461,8 @@ class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context: Context) -> None:
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
         self.log.info("Dataset id: %s Project id: %s", self.dataset_id, self.project_id)
 
         bq_hook = BigQueryHook(
@@ -1541,6 +1558,10 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context: Context) -> None:
+        from google.api_core.exceptions import Conflict
+
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
@@ -1629,6 +1650,8 @@ class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1695,6 +1718,8 @@ class BigQueryGetDatasetTablesOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1773,6 +1798,8 @@ class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1799,6 +1826,8 @@ class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
 
     def get_openlineage_facets_on_complete(self, _):
         """Implement _on_complete as we will use table resource returned by update method."""
+        from google.cloud.bigquery.table import Table
+
         from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.google.cloud.openlineage.utils import (
             BIGQUERY_NAMESPACE,
@@ -1877,6 +1906,8 @@ class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1951,6 +1982,8 @@ class BigQueryDeleteTableOperator(GoogleCloudBaseOperator):
         self.hook: BigQueryHook | None = None
 
     def execute(self, context: Context) -> None:
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
         self.log.info("Deleting: %s", self.deletion_dataset_table)
         # Save hook as attribute for further use by OpenLineage
         self.hook = BigQueryHook(
@@ -1962,6 +1995,8 @@ class BigQueryDeleteTableOperator(GoogleCloudBaseOperator):
 
     def get_openlineage_facets_on_complete(self, _):
         """Implement _on_complete as we need default project_id from hook."""
+        from google.cloud.bigquery.table import TableReference
+
         from airflow.providers.common.compat.openlineage.facet import (
             Dataset,
             LifecycleStateChange,
@@ -2051,6 +2086,8 @@ class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
         self._table: dict | None = None
 
     def execute(self, context: Context) -> None:
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
         self.log.info("Upserting Dataset: %s with table_resource: %s", self.dataset_id, self.table_resource)
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -2073,6 +2110,8 @@ class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
 
     def get_openlineage_facets_on_complete(self, _):
         """Implement _on_complete as we will use table resource returned by upsert method."""
+        from google.cloud.bigquery.table import Table
+
         from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.google.cloud.openlineage.utils import (
             BIGQUERY_NAMESPACE,
@@ -2181,6 +2220,8 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
         )
@@ -2204,6 +2245,8 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
 
     def get_openlineage_facets_on_complete(self, _):
         """Implement _on_complete as we will use table resource returned by update method."""
+        from google.cloud.bigquery.table import Table
+
         from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.google.cloud.openlineage.utils import (
             BIGQUERY_NAMESPACE,
@@ -2305,12 +2348,16 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         cancel_on_kill: bool = True,
-        result_retry: Retry = DEFAULT_RETRY,
+        result_retry: Retry = _UNSET,
         result_timeout: float | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
+        if result_retry is _UNSET:
+            from google.cloud.bigquery import DEFAULT_RETRY
+
+            result_retry = DEFAULT_RETRY
         super().__init__(**kwargs)
         self.configuration = configuration
         self.location = location
@@ -2401,6 +2448,13 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         return job
 
     def execute(self, context: Any):
+        from google.api_core.exceptions import Conflict
+        from google.cloud.bigquery import CopyJob, ExtractJob, LoadJob, QueryJob
+
+        from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+        from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
+        from airflow.providers.google.cloud.utils.bigquery import convert_job_id
+
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

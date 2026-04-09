@@ -83,6 +83,7 @@ AIRFLOW_VERSION_LABEL = "v" + str(AIRFLOW_VERSION).replace(".", "-").replace("+"
 cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
 
 DATAPROC_PATH = "airflow.providers.google.cloud.operators.dataproc.{}"
+DATAPROC_HOOKS_PATH = "airflow.providers.google.cloud.hooks.dataproc.{}"
 DATAPROC_TRIGGERS_PATH = "airflow.providers.google.cloud.triggers.dataproc.{}"
 
 TASK_ID = "task-id"
@@ -783,8 +784,8 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
         assert op.cluster_config["worker_config"]["num_instances"] == 2
         assert "zones/zone" in op.cluster_config["master_config"]["machine_type_uri"]
 
-    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Cluster.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook, to_dict_mock):
         self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
         mock_hook.return_value.create_cluster.result.return_value = None
@@ -838,8 +839,8 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
                 value=DATAPROC_CLUSTER_EXPECTED,
             )
 
-    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Cluster.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_in_gke(self, mock_hook, to_dict_mock):
         self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
         mock_hook.return_value.create_cluster.return_value = None
@@ -893,8 +894,8 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
                 value=DATAPROC_CLUSTER_EXPECTED,
             )
 
-    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Cluster.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_if_cluster_exists(self, mock_hook, to_dict_mock):
         mock_hook.return_value.create_cluster.side_effect = [AlreadyExists("test")]
         mock_hook.return_value.get_cluster.return_value.status.state = 0
@@ -936,7 +937,7 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
         )
         to_dict_mock.assert_called_once_with(mock_hook.return_value.get_cluster.return_value)
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_if_cluster_exists_do_not_use(self, mock_hook):
         mock_hook.return_value.create_cluster.side_effect = [AlreadyExists("test")]
         mock_hook.return_value.get_cluster.return_value.status.state = 0
@@ -958,7 +959,7 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
             op.execute(context=self.mock_context)
 
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._wait_for_cluster_in_deleting_state"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_if_cluster_exists_in_error_state(self, mock_hook, mock_wait_for_deleting):
         mock_hook.return_value.create_cluster.side_effect = [AlreadyExists("test")]
         cluster_status = mock_hook.return_value.get_cluster.return_value.status
@@ -992,11 +993,11 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
             region=GCP_REGION, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
         )
 
-    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("exponential_sleep_generator"))
+    @mock.patch("google.cloud.dataproc_v1.Cluster.to_dict")
+    @mock.patch("google.api_core.retry.exponential_sleep_generator")
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._create_cluster"))
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._get_cluster"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_if_cluster_exists_in_deleting_state(
         self,
         mock_hook,
@@ -1035,10 +1036,10 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
 
         to_dict_mock.assert_called_once_with(cluster_running)
 
-    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
+    @mock.patch("google.cloud.dataproc_v1.Cluster.to_dict")
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._wait_for_cluster_in_deleting_state"))
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._get_cluster"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_recreates_when_deleted_during_creation(
         self,
         mock_hook,
@@ -1080,7 +1081,7 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._wait_for_cluster_in_deleting_state"))
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._get_cluster"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_deleting_timeout_raises(
         self,
         mock_hook,
@@ -1110,10 +1111,10 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
         # Ensure no re-creation is attempted.
         assert mock_hook.return_value.create_cluster.call_count == 1
 
-    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
+    @mock.patch("google.cloud.dataproc_v1.Cluster.to_dict")
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._wait_for_cluster_in_creating_state"))
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._get_cluster"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_waits_when_still_creating(
         self,
         mock_hook,
@@ -1146,10 +1147,10 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
         mock_wait_for_creating.assert_called_once()
         to_dict_mock.assert_called_once_with(cluster_running)
 
-    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
+    @mock.patch("google.cloud.dataproc_v1.Cluster.to_dict")
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._start_cluster"))
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._get_cluster"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_stopped_cluster_restarts(
         self,
         mock_hook,
@@ -1180,7 +1181,7 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._handle_error_state"))
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._get_cluster"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_error_state_after_wait_for_completion(
         self,
         mock_hook,
@@ -1209,7 +1210,7 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
 
         mock_handle_error.assert_called_once()
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
     def test_create_execute_call_defer_method(self, mock_trigger_hook, mock_hook):
         mock_hook.return_value.create_cluster.return_value = None
@@ -1255,7 +1256,7 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator.defer"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
     def test_create_execute_call_finished_before_defer(self, mock_trigger_hook, mock_hook, mock_defer):
         cluster = Cluster(
@@ -1347,7 +1348,7 @@ def test_create_cluster_operator_extra_links(
 
 
 class TestDataprocClusterDeleteOperator:
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         op = DataprocDeleteClusterOperator(
             task_id=TASK_ID,
@@ -1374,7 +1375,7 @@ class TestDataprocClusterDeleteOperator:
             metadata=METADATA,
         )
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
     def test_create_execute_call_defer_method(self, mock_trigger_hook, mock_hook):
         mock_hook.return_value.create_cluster.return_value = None
@@ -1416,7 +1417,7 @@ class TestDataprocClusterDeleteOperator:
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
     @mock.patch(DATAPROC_PATH.format("DataprocDeleteClusterOperator.defer"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
     def test_create_execute_call_finished_before_defer(self, mock_trigger_hook, mock_hook, mock_defer):
         mock_hook.return_value.create_cluster.return_value = None
@@ -1456,7 +1457,7 @@ class TestDataprocClusterDeleteOperator:
         mock_hook.return_value.wait_for_operation.assert_not_called()
         assert mock_defer.called
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_cluster_not_found(self, mock_hook):
         mock_hook.return_value.create_cluster.return_value = None
         mock_hook.return_value.delete_cluster.side_effect = NotFound("test")
@@ -1484,7 +1485,7 @@ class TestDataprocClusterDeleteOperator:
             metadata=METADATA,
         )
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
     def test_execute_cluster_not_found_deffered(self, mock_deffer, mock_hook):
         mock_hook.return_value.create_cluster.return_value = None
@@ -1518,7 +1519,7 @@ class TestDataprocClusterDeleteOperator:
 
 
 class TestDataprocSubmitJobOperator(DataprocJobTestBase):
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         xcom_push_call = call.ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
         wait_for_job_call = call.hook().wait_for_job(
@@ -1568,7 +1569,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
 
         self.mock_ti.xcom_push.assert_called_once_with(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_async(self, mock_hook):
         job = {}
         mock_hook.return_value.wait_for_job.return_value = None
@@ -1606,7 +1607,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
 
         self.mock_ti.xcom_push.assert_called_once_with(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
     def test_execute_deferrable(self, mock_trigger_hook, mock_hook):
         job = {}
@@ -1649,9 +1650,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         assert isinstance(exc.value.trigger, DataprocSubmitTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_PATH.format("DataprocSubmitJobOperator.defer"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook.submit_job"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook.submit_job"))
     def test_dataproc_operator_execute_async_done_before_defer(self, mock_submit_job, mock_defer, mock_hook):
         mock_submit_job.return_value.reference.job_id = TEST_JOB_ID
         job_status = mock_hook.return_value.get_job.return_value.status
@@ -1678,7 +1679,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection(
         self, mock_hook, mock_ol_accessible, task_ol_run_id, dag_ol_run_id
     ):
@@ -1750,7 +1751,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_http_transport_info_injection(
         self, mock_hook, mock_ol_accessible, mock_ol_listener, task_ol_run_id, dag_ol_run_id
     ):
@@ -1809,7 +1810,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_all_info_injection(
         self, mock_hook, mock_ol_accessible, mock_ol_listener, task_ol_run_id, dag_ol_run_id
     ):
@@ -1868,7 +1869,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
 
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_unsupported_transport_info_injection(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
@@ -1922,7 +1923,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
 
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection_skipped_when_already_present(
         self, mock_hook, mock_ol_accessible
     ):
@@ -1963,7 +1964,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
 
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_when_already_present(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
@@ -2008,7 +2009,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
 
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection_skipped_by_default_unless_enabled(
         self, mock_hook, mock_ol_accessible
     ):
@@ -2048,7 +2049,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
 
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_by_default_unless_enabled(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
@@ -2092,7 +2093,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
 
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection_skipped_when_ol_not_accessible(
         self, mock_hook, mock_ol_accessible
     ):
@@ -2132,7 +2133,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
 
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_when_ol_not_accessible(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
@@ -2175,7 +2176,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_on_kill(self, mock_hook):
         job = {}
         job_id = "job_id"
@@ -2206,7 +2207,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             project_id=GCP_PROJECT, region=GCP_REGION, job_id=job_id
         )
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_on_kill_after_execution_timeout(self, mock_hook):
         job = {}
         job_id = "job_id"
@@ -2306,7 +2307,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
 
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
-@mock.patch(DATAPROC_PATH.format("DataprocHook"))
+@mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
 def test_submit_job_operator_extra_links(
     mock_hook, dag_maker, create_task_instance_of_operator, mock_supervisor_comms
 ):
@@ -2350,7 +2351,7 @@ def test_submit_job_operator_extra_links(
 
 
 class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
         mock_hook.return_value.update_cluster.result.return_value = None
@@ -2416,7 +2417,7 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
     def test_create_execute_call_defer_method(self, mock_trigger_hook, mock_hook):
         mock_hook.return_value.update_cluster.return_value = None
@@ -2461,7 +2462,7 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator.defer"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
     def test_create_execute_call_finished_before_defer(self, mock_trigger_hook, mock_hook, mock_defer):
         cluster = Cluster(
@@ -2557,8 +2558,8 @@ def test_update_cluster_operator_extra_links(
 
 
 class TestDataprocStartClusterOperator(DataprocClusterTestBase):
-    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Cluster.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook, mock_to_dict):
         cluster = MagicMock()
         cluster.status.State.RUNNING = 3
@@ -2599,8 +2600,8 @@ class TestDataprocStartClusterOperator(DataprocClusterTestBase):
 
 
 class TestDataprocStopClusterOperator(DataprocClusterTestBase):
-    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Cluster.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook, mock_to_dict):
         cluster = MagicMock()
         cluster.status.State.STOPPED = 4
@@ -2641,7 +2642,7 @@ class TestDataprocStopClusterOperator(DataprocClusterTestBase):
 
 
 class TestDataprocInstantiateWorkflowTemplateOperator:
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         version = 6
         parameters = {}
@@ -2674,7 +2675,7 @@ class TestDataprocInstantiateWorkflowTemplateOperator:
             metadata=METADATA,
         )
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
     def test_execute_call_defer_method(self, mock_trigger_hook, mock_hook):
         operator = DataprocInstantiateWorkflowTemplateOperator(
@@ -2704,7 +2705,7 @@ class TestDataprocInstantiateWorkflowTemplateOperator:
         assert isinstance(exc.value.trigger, DataprocOperationTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_on_kill(self, mock_hook):
         operation_name = "operation_name"
         mock_hook.return_value.instantiate_workflow_template.return_value.operation.name = operation_name
@@ -2738,7 +2739,7 @@ class TestDataprocInstantiateWorkflowTemplateOperator:
 
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
-@mock.patch(DATAPROC_PATH.format("DataprocHook"))
+@mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
 def test_instantiate_workflow_operator_extra_links(
     mock_hook, dag_maker, create_task_instance_of_operator, mock_supervisor_comms
 ):
@@ -2781,7 +2782,7 @@ def test_instantiate_workflow_operator_extra_links(
 
 
 class TestDataprocWorkflowTemplateInstantiateInlineOperator:
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         template = {}
 
@@ -2809,7 +2810,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             metadata=METADATA,
         )
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
     def test_execute_call_defer_method(self, mock_trigger_hook, mock_hook):
         operator = DataprocInstantiateInlineWorkflowTemplateOperator(
@@ -2837,7 +2838,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         assert isinstance(exc.value.trigger, DataprocOperationTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_on_kill(self, mock_hook):
         operation_name = "operation_name"
         mock_hook.return_value.instantiate_inline_workflow_template.return_value.operation.name = (
@@ -2868,7 +2869,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             name=operation_name
         )
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_wait_for_operation_on_execute(self, mock_hook):
         template = {}
 
@@ -2900,7 +2901,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection(
         self, mock_hook, mock_ol_accessible, task_ol_run_id, dag_ol_run_id
     ):
@@ -3006,7 +3007,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection_skipped_by_default_unless_enabled(
         self, mock_hook, mock_ol_accessible
     ):
@@ -3049,7 +3050,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection_skipped_when_ol_not_accessible(
         self, mock_hook, mock_ol_accessible
     ):
@@ -3096,7 +3097,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection(
         self, mock_hook, mock_ol_accessible, mock_ol_listener, task_ol_run_id, dag_ol_run_id
     ):
@@ -3206,7 +3207,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_all_info_injection(
         self, mock_hook, mock_ol_accessible, mock_ol_listener, task_ol_run_id, dag_ol_run_id
     ):
@@ -3337,7 +3338,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
 
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_by_default_unless_enabled(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
@@ -3387,7 +3388,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
 
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_when_ol_not_accessible(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
@@ -3438,7 +3439,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
 
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
-@mock.patch(DATAPROC_PATH.format("DataprocHook"))
+@mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
 def test_instantiate_inline_workflow_operator_extra_links(
     mock_hook, dag_maker, create_task_instance_of_operator, mock_supervisor_comms
 ):
@@ -3480,7 +3481,7 @@ def test_instantiate_inline_workflow_operator_extra_links(
 
 
 class TestDataprocCreateWorkflowTemplateOperator:
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         op = DataprocCreateWorkflowTemplateOperator(
             task_id=TASK_ID,
@@ -3520,8 +3521,8 @@ class TestDataprocCreateWorkflowTemplateOperator:
 
 class TestDataprocCreateBatchOperator:
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook, to_dict_mock, mock_log):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
@@ -3563,8 +3564,8 @@ class TestDataprocCreateBatchOperator:
             ]
         )
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_with_result_retry(self, mock_hook, to_dict_mock):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
@@ -3594,8 +3595,8 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
         )
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_batch_failed(self, mock_hook, to_dict_mock):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
@@ -3615,7 +3616,7 @@ class TestDataprocCreateBatchOperator:
             op.execute(context=MagicMock())
 
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_batch_already_exists_succeeds(self, mock_hook, mock_log):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
@@ -3658,7 +3659,7 @@ class TestDataprocCreateBatchOperator:
         )
 
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_batch_already_exists_fails(self, mock_hook, mock_log):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
@@ -3694,7 +3695,7 @@ class TestDataprocCreateBatchOperator:
         mock_log.info.assert_any_call("Batch with given id already exists.")
 
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_batch_already_exists_cancelled(self, mock_hook, mock_log):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
@@ -3734,8 +3735,8 @@ class TestDataprocCreateBatchOperator:
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection(
         self,
         mock_hook,
@@ -3793,8 +3794,8 @@ class TestDataprocCreateBatchOperator:
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection(
         self,
         mock_hook,
@@ -3861,8 +3862,8 @@ class TestDataprocCreateBatchOperator:
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_all_info_injection(
         self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener, task_ol_run_id, dag_ol_run_id
     ):
@@ -3914,8 +3915,8 @@ class TestDataprocCreateBatchOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection_skipped_when_already_present(
         self, mock_hook, to_dict_mock, mock_ol_accessible
     ):
@@ -3959,8 +3960,8 @@ class TestDataprocCreateBatchOperator:
 
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_when_already_present(
         self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener
     ):
@@ -4008,8 +4009,8 @@ class TestDataprocCreateBatchOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection_skipped_by_default_unless_enabled(
         self, mock_hook, to_dict_mock, mock_ol_accessible
     ):
@@ -4047,8 +4048,8 @@ class TestDataprocCreateBatchOperator:
 
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_by_default_unless_enabled(
         self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener
     ):
@@ -4090,8 +4091,8 @@ class TestDataprocCreateBatchOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection_skipped_when_ol_not_accessible(
         self, mock_hook, to_dict_mock, mock_ol_accessible
     ):
@@ -4129,8 +4130,8 @@ class TestDataprocCreateBatchOperator:
 
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_when_ol_not_accessible(
         self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener
     ):
@@ -4184,8 +4185,8 @@ class TestDataprocCreateBatchOperator:
             metadata=ANY,
         )
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_create_batch_asdict_labels_updated(self, mock_hook, to_dict_mock):
         expected_batch = {
             **BATCH,
@@ -4200,8 +4201,8 @@ class TestDataprocCreateBatchOperator:
 
         TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_create_batch_asdict_labels_uppercase_transformed(self, mock_hook, to_dict_mock):
         expected_batch = {
             **BATCH,
@@ -4216,8 +4217,8 @@ class TestDataprocCreateBatchOperator:
 
         TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_create_batch_asdict_taskid_max_length_labels_updated(self, mock_hook, to_dict_mock):
         long_task_id = "a" * 63
         expected_batch = {
@@ -4237,8 +4238,8 @@ class TestDataprocCreateBatchOperator:
 
         TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_create_batch_invalid_taskid_labels_ignored(self, mock_hook, to_dict_mock):
         DataprocCreateBatchOperator(
             task_id=".task-id",
@@ -4249,8 +4250,8 @@ class TestDataprocCreateBatchOperator:
 
         TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, BATCH)
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_create_batch_long_taskid_labels_ignored(self, mock_hook, to_dict_mock):
         DataprocCreateBatchOperator(
             task_id="a" * 64,
@@ -4261,8 +4262,8 @@ class TestDataprocCreateBatchOperator:
 
         TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, BATCH)
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_create_batch_asobj_labels_updated(self, mock_hook, to_dict_mock):
         batch = Batch(name="test")
         batch.labels["foo"] = "bar"
@@ -4275,8 +4276,8 @@ class TestDataprocCreateBatchOperator:
         )
         TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_create_batch_labels_sanitize_underscores_and_dots(self, mock_hook, to_dict_mock):
         """Labels with dots and underscores should be replaced with dashes (GCP requirement)."""
         dag_id_with_dots = "my.dag_id.with.dots"
@@ -4300,7 +4301,7 @@ class TestDataprocCreateBatchOperator:
 
 
 class TestDataprocDeleteBatchOperator:
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         op = DataprocDeleteBatchOperator(
             task_id=TASK_ID,
@@ -4326,8 +4327,8 @@ class TestDataprocDeleteBatchOperator:
 
 
 class TestDataprocGetBatchOperator:
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("google.cloud.dataproc_v1.Batch.to_dict")
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook, to_dict_mock):
         op = DataprocGetBatchOperator(
             task_id=TASK_ID,
@@ -4353,7 +4354,7 @@ class TestDataprocGetBatchOperator:
 
 
 class TestDataprocListBatchesOperator:
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         page_token = "page_token"
         page_size = 42
@@ -4388,7 +4389,7 @@ class TestDataprocListBatchesOperator:
             order_by=order_by,
         )
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
     def test_execute_deferrable(self, mock_trigger_hook, mock_hook):
         mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
@@ -4431,7 +4432,7 @@ class TestDataprocListBatchesOperator:
 
 
 class TestDataprocDiagnoseClusterOperator:
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         op = DataprocDiagnoseClusterOperator(
             task_id=TASK_ID,
@@ -4459,7 +4460,7 @@ class TestDataprocDiagnoseClusterOperator:
             metadata=METADATA,
         )
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_HOOKS_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
     def test_create_execute_call_defer_method(self, mock_trigger_hook, mock_hook):
         mock_hook.return_value.create_cluster.return_value = None

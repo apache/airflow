@@ -30,18 +30,8 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from google.api_core.exceptions import AlreadyExists, NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry, exponential_sleep_generator
-from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
-
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
-from airflow.providers.google.cloud.hooks.dataproc import (
-    DataprocHook,
-    DataProcJobBuilder,
-    DataprocResourceIsNotReadyError,
-)
 from airflow.providers.google.cloud.links.dataproc import (
     DATAPROC_BATCH_LINK,
     DATAPROC_JOB_LINK_DEPRECATED,
@@ -54,25 +44,23 @@ from airflow.providers.google.cloud.links.dataproc import (
     DataprocWorkflowTemplateLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.dataproc import (
-    DataprocBatchTrigger,
-    DataprocClusterTrigger,
-    DataprocDeleteClusterTrigger,
-    DataprocOperationTrigger,
-    DataprocSubmitTrigger,
-)
-from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import StartTriggerArgs
 
 if TYPE_CHECKING:
     from google.api_core import operation
+    from google.api_core.gapic_v1.method import _MethodDefault
+    from google.api_core.retry import Retry
     from google.api_core.retry_async import AsyncRetry
+    from google.cloud.dataproc_v1 import Batch, Cluster
     from google.protobuf.duration_pb2 import Duration
     from google.protobuf.field_mask_pb2 import FieldMask
     from google.type.interval_pb2 import Interval
 
     from airflow.providers.common.compat.sdk import Context
+    from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
+
+_UNSET: Any = object()
 
 
 class PreemptibilityType(Enum):
@@ -654,7 +642,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         delete_on_error: bool = True,
         use_if_exists: bool = True,
         num_retries_if_resource_is_not_ready: int = 0,
-        retry: AsyncRetry | _MethodDefault | Retry = DEFAULT,
+        retry: AsyncRetry | _MethodDefault | Retry = _UNSET,
         timeout: float = 1 * 60 * 60,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -663,6 +651,10 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         polling_interval_seconds: int = 10,
         **kwargs,
     ) -> None:
+        if retry is _UNSET:
+            from google.api_core.gapic_v1.method import DEFAULT
+
+            retry = DEFAULT
         # TODO: remove one day
         if cluster_config is None and virtual_cluster_config is None:
             warnings.warn(
@@ -767,6 +759,9 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             raise AirflowException("Cluster was created but is in ERROR state")
 
     def _wait_for_cluster_in_deleting_state(self, hook: DataprocHook) -> None:
+        from google.api_core.exceptions import NotFound
+        from google.api_core.retry import exponential_sleep_generator
+
         time_left = self.timeout
         for time_to_sleep in exponential_sleep_generator(initial=10, maximum=120):
             if time_left < 0:
@@ -779,6 +774,8 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 break
 
     def _wait_for_cluster_in_creating_state(self, hook: DataprocHook) -> Cluster:
+        from google.api_core.retry import exponential_sleep_generator
+
         time_left = self.timeout
         cluster = self._get_cluster(hook)
         for time_to_sleep in exponential_sleep_generator(initial=10, maximum=120):
@@ -803,6 +800,8 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         return hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=op)
 
     def _retry_cluster_creation(self, hook: DataprocHook):
+        from google.cloud.dataproc_v1 import Cluster
+
         self.log.info("Retrying creation process for Cluster %s", self.cluster_name)
         self._delete_cluster(hook)
         self._wait_for_cluster_in_deleting_state(hook)
@@ -848,6 +847,14 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         return cluster
 
     def execute(self, context: Context) -> dict:
+        from google.api_core.exceptions import AlreadyExists
+        from google.cloud.dataproc_v1 import Cluster
+
+        from airflow.providers.google.cloud.hooks.dataproc import (
+            DataprocHook,
+            DataprocResourceIsNotReadyError,
+        )
+        from airflow.providers.google.cloud.triggers.dataproc import DataprocClusterTrigger
 
         self.log.info("Attempting to create cluster: %s", self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
@@ -946,6 +953,8 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
+        from google.cloud.dataproc_v1 import ClusterStatus
+
         cluster_state = event["cluster_state"]
         cluster_name = event["cluster_name"]
 
@@ -1002,7 +1011,7 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
         project_id: str = PROVIDE_PROJECT_ID,
         cluster_uuid: str | None = None,
         request_id: str | None = None,
-        retry: AsyncRetry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = _UNSET,
         timeout: float = 1 * 60 * 60,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1011,6 +1020,10 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
         polling_interval_seconds: int = 10,
         **kwargs,
     ):
+        if retry is _UNSET:
+            from google.api_core.gapic_v1.method import DEFAULT
+
+            retry = DEFAULT
         super().__init__(**kwargs)
         if deferrable and polling_interval_seconds <= 0:
             raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
@@ -1028,6 +1041,11 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
         self.polling_interval_seconds = polling_interval_seconds
 
     def execute(self, context: Context) -> None:
+        from google.api_core.exceptions import NotFound
+
+        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+        from airflow.providers.google.cloud.triggers.dataproc import DataprocDeleteClusterTrigger
+
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         try:
             op: operation.Operation = self._delete_cluster(hook)
@@ -1133,13 +1151,17 @@ class _DataprocStartStopClusterBaseOperator(GoogleCloudBaseOperator):
         project_id: str = PROVIDE_PROJECT_ID,
         cluster_uuid: str | None = None,
         request_id: str | None = None,
-        retry: AsyncRetry | _MethodDefault | Retry = DEFAULT,
+        retry: AsyncRetry | _MethodDefault | Retry = _UNSET,
         timeout: float = 1 * 60 * 60,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
+        if retry is _UNSET:
+            from google.api_core.gapic_v1.method import DEFAULT
+
+            retry = DEFAULT
         super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region
@@ -1155,6 +1177,8 @@ class _DataprocStartStopClusterBaseOperator(GoogleCloudBaseOperator):
 
     @property
     def hook(self):
+        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+
         if self._hook is None:
             self._hook = DataprocHook(
                 gcp_conn_id=self.gcp_conn_id,
@@ -1204,6 +1228,8 @@ class _DataprocStartStopClusterBaseOperator(GoogleCloudBaseOperator):
         raise NotImplementedError
 
     def execute(self, context: Context) -> dict | None:
+        from google.cloud.dataproc_v1 import Cluster
+
         cluster: Cluster = self._get_cluster()
         is_already_desired_state, log_str = self._check_desired_cluster_state(cluster)
         if is_already_desired_state:
@@ -1355,6 +1381,8 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         self.dataproc_jars = dataproc_jars
         self.region = region
 
+        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+
         self.job_error_states = job_error_states or {"ERROR"}
         self.impersonation_chain = impersonation_chain
         self.hook = DataprocHook(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
@@ -1368,6 +1396,8 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
 
     def create_job_template(self) -> DataProcJobBuilder:
         """Initialize `self.job_template` with default values."""
+        from airflow.providers.google.cloud.hooks.dataproc import DataProcJobBuilder
+
         if self.project_id is None:
             raise AirflowException(
                 "project id should either be set via project_id parameter or retrieved from the connection,"
@@ -1392,6 +1422,8 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         raise AirflowException("Create a job template before")
 
     def execute(self, context: Context):
+        from airflow.providers.google.cloud.triggers.dataproc import DataprocSubmitTrigger
+
         if self.job_template:
             self.job = self.job_template.build()
             if self.job is None:
@@ -1437,6 +1469,8 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
+        from google.cloud.dataproc_v1 import JobStatus
+
         job_state = event["job_state"]
         job_id = event["job_id"]
         if job_state == JobStatus.State.ERROR:
@@ -1477,13 +1511,17 @@ class DataprocCreateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         template: dict,
         region: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: Retry | _MethodDefault = _UNSET,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
+        if retry is _UNSET:
+            from google.api_core.gapic_v1.method import DEFAULT
+
+            retry = DEFAULT
         super().__init__(**kwargs)
         self.region = region
         self.template = template
@@ -1495,6 +1533,10 @@ class DataprocCreateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
+        from google.api_core.exceptions import AlreadyExists
+
+        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Creating template")
         try:
@@ -1580,7 +1622,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         version: int | None = None,
         request_id: str | None = None,
         parameters: dict[str, str] | None = None,
-        retry: AsyncRetry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = _UNSET,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1590,6 +1632,10 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
+        if retry is _UNSET:
+            from google.api_core.gapic_v1.method import DEFAULT
+
+            retry = DEFAULT
         super().__init__(**kwargs)
         if deferrable and polling_interval_seconds <= 0:
             raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
@@ -1610,6 +1656,9 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         self.operation_name: str | None = None
 
     def execute(self, context: Context):
+        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+        from airflow.providers.google.cloud.triggers.dataproc import DataprocOperationTrigger
+
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Instantiating template %s", self.template_id)
         operation = hook.instantiate_workflow_template(
@@ -1666,6 +1715,8 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
 
     def on_kill(self) -> None:
         if self.cancel_on_kill and self.operation_name:
+            from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+
             hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
             hook.get_operations_client(region=self.region).cancel_operation(name=self.operation_name)
 
@@ -1726,7 +1777,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         region: str,
         project_id: str = PROVIDE_PROJECT_ID,
         request_id: str | None = None,
-        retry: AsyncRetry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = _UNSET,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1742,6 +1793,10 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         ),
         **kwargs,
     ) -> None:
+        if retry is _UNSET:
+            from google.api_core.gapic_v1.method import DEFAULT
+
+            retry = DEFAULT
         super().__init__(**kwargs)
         if deferrable and polling_interval_seconds <= 0:
             raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
@@ -1763,6 +1818,9 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         self.openlineage_inject_transport_info = openlineage_inject_transport_info
 
     def execute(self, context: Context):
+        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+        from airflow.providers.google.cloud.triggers.dataproc import DataprocOperationTrigger
+
         self.log.info("Instantiating Inline Template")
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         project_id = self.project_id or hook.project_id
@@ -1820,6 +1878,8 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         self.log.info("Workflow %s completed successfully", event["operation_name"])
 
     def on_kill(self) -> None:
+        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+
         if self.cancel_on_kill and self.operation_name:
             hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
             hook.get_operations_client(region=self.region).cancel_operation(name=self.operation_name)
@@ -1913,7 +1973,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         region: str,
         project_id: str = PROVIDE_PROJECT_ID,
         request_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: Retry | _MethodDefault = _UNSET,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1932,6 +1992,10 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         ),
         **kwargs,
     ) -> None:
+        if retry is _UNSET:
+            from google.api_core.gapic_v1.method import DEFAULT
+
+            retry = DEFAULT
         super().__init__(**kwargs)
         if deferrable and polling_interval_seconds <= 0:
             raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
@@ -1974,6 +2038,11 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
             )
 
     def execute(self, context: Context):
+        from google.cloud.dataproc_v1 import JobStatus
+
+        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+        from airflow.providers.google.cloud.triggers.dataproc import DataprocSubmitTrigger
+
         self.log.info("Submitting job")
         self.hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         if self.openlineage_inject_parent_job_info or self.openlineage_inject_transport_info:
@@ -2038,6 +2107,8 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
         """
+        from google.cloud.dataproc_v1 import JobStatus
+
         job_state = event["job_state"]
         job_id = event["job_id"]
         job = event["job"]
@@ -2135,7 +2206,7 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
         region: str,
         request_id: str | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: AsyncRetry | _MethodDefault | Retry = DEFAULT,
+        retry: AsyncRetry | _MethodDefault | Retry = _UNSET,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -2144,6 +2215,10 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
         polling_interval_seconds: int = 10,
         **kwargs,
     ):
+        if retry is _UNSET:
+            from google.api_core.gapic_v1.method import DEFAULT
+
+            retry = DEFAULT
         super().__init__(**kwargs)
         if deferrable and polling_interval_seconds <= 0:
             raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
@@ -2163,6 +2238,9 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
         self.polling_interval_seconds = polling_interval_seconds
 
     def execute(self, context: Context):
+        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+        from airflow.providers.google.cloud.triggers.dataproc import DataprocClusterTrigger
+
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         # Save data required by extra links no matter what the cluster status will be
         project_id = self.project_id or hook.project_id
@@ -2213,6 +2291,8 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
+        from google.cloud.dataproc_v1 import ClusterStatus
+
         cluster_state = event["cluster_state"]
         cluster_name = event["cluster_name"]
 
@@ -2274,7 +2354,7 @@ class DataprocDiagnoseClusterOperator(GoogleCloudBaseOperator):
         diagnosis_interval: dict | Interval | None = None,
         jobs: MutableSequence[str] | None = None,
         yarn_application_ids: MutableSequence[str] | None = None,
-        retry: AsyncRetry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = _UNSET,
         timeout: float = 1 * 60 * 60,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -2283,6 +2363,10 @@ class DataprocDiagnoseClusterOperator(GoogleCloudBaseOperator):
         polling_interval_seconds: int = 10,
         **kwargs,
     ):
+        if retry is _UNSET:
+            from google.api_core.gapic_v1.method import DEFAULT
+
+            retry = DEFAULT
         super().__init__(**kwargs)
         if deferrable and polling_interval_seconds <= 0:
             raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
@@ -2302,6 +2386,10 @@ class DataprocDiagnoseClusterOperator(GoogleCloudBaseOperator):
         self.polling_interval_seconds = polling_interval_seconds
 
     def execute(self, context: Context):
+        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+        from airflow.providers.google.cloud.triggers.dataproc import DataprocOperationTrigger
+        from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
+
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Collecting diagnostic tarball for cluster: %s", self.cluster_name)
         operation = hook.diagnose_cluster(
@@ -2417,12 +2505,12 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         batch_id: str | None = None,
         request_id: str | None = None,
         num_retries_if_resource_is_not_ready: int = 0,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: Retry | _MethodDefault = _UNSET,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        result_retry: AsyncRetry | _MethodDefault | Retry = DEFAULT,
+        result_retry: AsyncRetry | _MethodDefault | Retry = _UNSET,
         asynchronous: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         polling_interval_seconds: int = 5,
@@ -2434,6 +2522,13 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         ),
         **kwargs,
     ):
+        if retry is _UNSET or result_retry is _UNSET:
+            from google.api_core.gapic_v1.method import DEFAULT
+
+            if retry is _UNSET:
+                retry = DEFAULT
+            if result_retry is _UNSET:
+                result_retry = DEFAULT
         super().__init__(**kwargs)
         if deferrable and polling_interval_seconds <= 0:
             raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
@@ -2457,6 +2552,11 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         self.openlineage_inject_transport_info = openlineage_inject_transport_info
 
     def execute(self, context: Context):
+        from google.api_core.exceptions import AlreadyExists
+        from google.cloud.dataproc_v1 import Batch
+
+        from airflow.providers.google.cloud.triggers.dataproc import DataprocBatchTrigger
+
         if self.asynchronous and self.deferrable:
             raise AirflowException(
                 "Both asynchronous and deferrable parameters were passed. Please, provide only one."
@@ -2559,6 +2659,8 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
 
     @cached_property
     def hook(self) -> DataprocHook:
+        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+
         return DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
     def execute_complete(self, context, event=None) -> None:
@@ -2581,6 +2683,8 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     def handle_batch_status(
         self, context: Context, state: str, batch_id: str, state_message: str | None = None
     ) -> None:
+        from google.cloud.dataproc_v1 import Batch
+
         # The existing batch may be a number of states other than 'SUCCEEDED'\
         # wait_for_operation doesn't fail if the job is cancelled, so we will check for it here which also
         # finds a cancelling|canceled|unspecified job from wait_for_batch or the deferred trigger
@@ -2599,6 +2703,8 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         self,
         previous_batch_id: str,
     ):
+        from google.api_core.exceptions import AlreadyExists
+
         self.log.info("Retrying creation process for batch_id %s", self.batch_id)
         self.log.info("Deleting previous failed Batch")
         self.hook.delete_batch(
@@ -2662,6 +2768,8 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
             )
 
     def __update_batch_labels(self):
+        from google.cloud.dataproc_v1 import Batch
+
         dag_id = re.sub(r"[^a-z0-9-]", "-", self.dag_id.lower())
         task_id = re.sub(r"[^a-z0-9-]", "-", self.task_id.lower())
 
@@ -2726,13 +2834,17 @@ class DataprocDeleteBatchOperator(GoogleCloudBaseOperator):
         batch_id: str,
         region: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: Retry | _MethodDefault = _UNSET,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
+        if retry is _UNSET:
+            from google.api_core.gapic_v1.method import DEFAULT
+
+            retry = DEFAULT
         super().__init__(**kwargs)
         self.batch_id = batch_id
         self.region = region
@@ -2744,6 +2856,8 @@ class DataprocDeleteBatchOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
+        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Deleting batch: %s", self.batch_id)
         hook.delete_batch(
@@ -2797,13 +2911,17 @@ class DataprocGetBatchOperator(GoogleCloudBaseOperator):
         batch_id: str,
         region: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: Retry | _MethodDefault = _UNSET,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
+        if retry is _UNSET:
+            from google.api_core.gapic_v1.method import DEFAULT
+
+            retry = DEFAULT
         super().__init__(**kwargs)
         self.batch_id = batch_id
         self.region = region
@@ -2815,6 +2933,10 @@ class DataprocGetBatchOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
+        from google.cloud.dataproc_v1 import Batch
+
+        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Getting batch: %s", self.batch_id)
         batch = hook.get_batch(
@@ -2874,7 +2996,7 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
         project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         page_token: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: Retry | _MethodDefault = _UNSET,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -2883,6 +3005,10 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
         order_by: str | None = None,
         **kwargs,
     ) -> None:
+        if retry is _UNSET:
+            from google.api_core.gapic_v1.method import DEFAULT
+
+            retry = DEFAULT
         super().__init__(**kwargs)
         self.region = region
         self.project_id = project_id
@@ -2897,6 +3023,10 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
         self.order_by = order_by
 
     def execute(self, context: Context):
+        from google.cloud.dataproc_v1 import Batch
+
+        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         results = hook.list_batches(
             region=self.region,
@@ -2952,13 +3082,17 @@ class DataprocCancelOperationOperator(GoogleCloudBaseOperator):
         operation_name: str,
         region: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: Retry | _MethodDefault = _UNSET,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
+        if retry is _UNSET:
+            from google.api_core.gapic_v1.method import DEFAULT
+
+            retry = DEFAULT
         super().__init__(**kwargs)
         self.operation_name = operation_name
         self.region = region
@@ -2970,6 +3104,8 @@ class DataprocCancelOperationOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
+        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         self.log.info("Canceling operation: %s", self.operation_name)
