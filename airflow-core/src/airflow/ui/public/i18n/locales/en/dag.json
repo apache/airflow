@@ -46,7 +46,7 @@
     "parsedAt": "Parsed at:"
   },
   "deadlineAlerts": {
-    "completionRule": "Run to complete within {{interval}} of {{reference}}",
+    "completionRule": "The run must complete within {{interval}} of {{reference}}",
     "count_one": "{{count}} deadline",
     "count_other": "{{count}} deadlines",
     "referenceType": {

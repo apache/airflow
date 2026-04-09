@@ -18,12 +18,17 @@
  */
 import { Box, Button, Separator, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
+import duration from "dayjs/plugin/duration";
+import relativeTime from "dayjs/plugin/relativeTime";
 import { useTranslation } from "react-i18next";
 import { FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { Popover } from "src/components/ui";
+
+dayjs.extend(duration);
+dayjs.extend(relativeTime);
 
 const AlertRow = ({ alert }: { readonly alert: DeadlineAlertResponse }) => {
   const { t: translate } = useTranslation("dag");
@@ -35,16 +40,11 @@ const AlertRow = ({ alert }: { readonly alert: DeadlineAlertResponse }) => {
   return (
     <Box py={2} width="100%">
       <Text color="white" fontSize="xs">
-        {alert.id}:
+        {alert.id} ({alert.name}):
       </Text>
       <Text color="fg.muted" fontSize="xs">
         {translate("deadlineAlerts.completionRule", { interval, reference })}
       </Text>
-      {alert.description !== undefined && alert.description !== null && alert.description !== "" ? (
-        <Text color="fg.muted" fontSize="xs">
-          {alert.description}
-        </Text>
-      ) : undefined}
     </Box>
   );
 };
