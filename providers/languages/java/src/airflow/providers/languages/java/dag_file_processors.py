@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import contextlib
 import email
+import json
 import os
 import pathlib
 import socket
@@ -99,8 +100,8 @@ def parse_jar_bundles_entrypoint(path: str, bundle_name: str, bundle_path: str) 
     2. Spawns Java via ``subprocess.Popen``, passing both TCP addresses.
     3. Accepts connections from Java on both channels.
     4. Runs a threaded bridge that transparently forwards bytes between
-       fd 0 (supervisor) and the Java comm socket, and forwards Java's
-       structured log output to the child's stderr.
+       fd 0 (supervisor) and the Java comm socket, and re-emits Java's
+       log output through structlog (routed to ``log_fd``).
 
     No ``CommsDecoder`` is needed — the supervisor and Java both speak
     the length-prefixed msgpack protocol; we just shuttle bytes.
@@ -130,6 +131,27 @@ def parse_jar_bundles_entrypoint(path: str, bundle_name: str, bundle_path: str) 
     classpath = f"{bundle_path}/*"
 
     # Spawn the Java subprocess.
+    #
+    # fd layout in the forked child (set up by ``_reopen_std_io_handles``
+    # before this entrypoint is called):
+    #
+    #   fd 0  — bidirectional comms socket to the supervisor
+    #           (``DagFileParseRequest`` <-> ``DagFileParsingResult``,
+    #            length-prefixed msgpack frames)
+    #   fd 1  — stdout socket to the supervisor
+    #   fd 2  — stderr socket to the supervisor
+    #   fd N  — structured JSON log channel (``log_fd``, configured by
+    #           ``_configure_logs_over_json_channel`` -> structlog)
+    #
+    # We redirect stdin to ``/dev/null`` so that the Java subprocess does
+    # not inherit fd 0 (the comms socket).  Java communicates over the TCP
+    # sockets passed as ``--comm`` / ``--logs``; the bridge threads shuttle
+    # bytes between those TCP sockets and fd 0.
+    #
+    # stderr is captured via a pipe so that Java's SLF4J output can be
+    # re-emitted through structlog -> ``log_fd`` with the correct log level
+    # (instead of landing as ERROR-level ``task.stderr`` lines on the
+    # supervisor's raw stderr reader).
     proc = subprocess.Popen(
         [
             "java",
@@ -139,8 +161,8 @@ def parse_jar_bundles_entrypoint(path: str, bundle_name: str, bundle_path: str) 
             f"--comm={comm_host}:{comm_port}",
             f"--logs={logs_host}:{logs_port}",
         ],
-        # Java stdout/stderr are inherited from the forked child
-        # (fd 1 and fd 2 already go to the supervisor's log readers).
+        stdin=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
     )
 
     # Wait for Java to connect to both servers.
@@ -153,7 +175,7 @@ def parse_jar_bundles_entrypoint(path: str, bundle_name: str, bundle_path: str) 
     supervisor_comm = socket.socket(fileno=os.dup(0))
 
     # Bridge: forward raw bytes between the supervisor and Java.
-    _bridge(supervisor_comm, java_comm, java_logs, proc)
+    _bridge(supervisor_comm, java_comm, java_logs, proc, log)
 
 
 def _pipe(src: socket.socket, dest: socket.socket) -> None:
@@ -168,14 +190,40 @@ def _pipe(src: socket.socket, dest: socket.socket) -> None:
         pass
 
 
-def _forward_logs(src: socket.socket) -> None:
-    """Forward Java's structured log lines to stderr for the supervisor to capture."""
+_JAVA_LEVEL_MAP = {"warn": "warning", "trace": "debug"}
+
+
+def _forward_java_output(source, log) -> None:
+    """
+    Parse JSON log lines from Java and re-emit through structlog.
+
+    Routes Java's log output through the structured log channel
+    (``log_fd``, already configured by ``_configure_logs_over_json_channel``)
+    so the supervisor receives correct log levels instead of raw
+    ERROR-level ``task.stderr`` lines.
+
+    *source* is any line-iterable (``proc.stderr`` pipe or
+    ``socket.makefile("rb")``).
+    """
     try:
-        while True:
-            data = src.recv(4096)
-            if not data:
-                break
-            os.write(2, data)
+        for raw_line in source:
+            line = (
+                raw_line.decode("utf-8", errors="replace").rstrip()
+                if isinstance(raw_line, bytes)
+                else raw_line.rstrip()
+            )
+            if not line:
+                continue
+            try:
+                msg = json.loads(line)
+                level = msg.pop("level", "info")
+                event = msg.pop("event", "")
+                msg.pop("timestamp", None)
+                level_name = _JAVA_LEVEL_MAP.get(level, level)
+                log_fn = getattr(log, level_name, log.info)
+                log_fn(event, **msg)
+            except (json.JSONDecodeError, ValueError, TypeError):
+                log.info(line)
     except (ConnectionResetError, BrokenPipeError, OSError):
         pass
 
@@ -185,22 +233,29 @@ def _bridge(
     java_comm: socket.socket,
     java_logs: socket.socket,
     proc: subprocess.Popen,
+    log,
 ) -> None:
     """
     Forward bytes between the supervisor and Java until the Java process exits.
 
-    Three threads run concurrently:
-    - supervisor → Java comm (forwards ``DagFileParseRequest`` and intermediate responses)
-    - Java comm → supervisor (forwards intermediate requests and ``DagFileParsingResult``)
-    - Java logs → stderr (structured log lines from the Java SDK)
+    Four threads run concurrently:
+
+    - supervisor -> Java comm (forwards ``DagFileParseRequest`` and intermediate responses)
+    - Java comm -> supervisor (forwards intermediate requests and ``DagFileParsingResult``)
+    - Java TCP logs -> structlog (structured log lines from the Java SDK's ``LogSender``)
+    - Java stderr -> structlog (SLF4J output from the Java process)
     """
     sup_to_java = threading.Thread(target=_pipe, args=(supervisor_comm, java_comm), daemon=True)
     java_to_sup = threading.Thread(target=_pipe, args=(java_comm, supervisor_comm), daemon=True)
-    logs_fwd = threading.Thread(target=_forward_logs, args=(java_logs,), daemon=True)
+    logs_fwd = threading.Thread(
+        target=_forward_java_output, args=(java_logs.makefile("rb"), log), daemon=True
+    )
+    stderr_fwd = threading.Thread(target=_forward_java_output, args=(proc.stderr, log), daemon=True)
 
     sup_to_java.start()
     java_to_sup.start()
     logs_fwd.start()
+    stderr_fwd.start()
 
     # Wait for the Java process to complete.
     proc.wait()
@@ -209,6 +264,7 @@ def _bridge(
     # to finish forwarding all remaining data (including DagFileParsingResult).
     java_to_sup.join(timeout=30.0)
     logs_fwd.join(timeout=5.0)
+    stderr_fwd.join(timeout=5.0)
 
     # Unblock the sup_to_java thread — the supervisor won't send more data
     # now that Java has exited.
