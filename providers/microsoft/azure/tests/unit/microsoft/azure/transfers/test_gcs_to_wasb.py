@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+import sys
+from types import ModuleType
 from unittest import mock
 
 import pytest
@@ -76,13 +78,28 @@ class TestGCSToAzureBlobStorageOperator:
         )
         result = op.execute(context=mock.Mock())
 
-        assert result == GCS_OBJECTS
+        assert result == [f"{BLOB_PREFIX}/data/a.txt", f"{BLOB_PREFIX}/data/b.txt"]
         mock_wasb_hook.return_value.load_file.assert_called()
         assert mock_wasb_hook.return_value.load_file.call_count == 2
         first_kw = mock_wasb_hook.return_value.load_file.call_args_list[0].kwargs
         assert first_kw["container_name"] == CONTAINER
         assert first_kw["blob_name"].startswith(BLOB_PREFIX.replace("\\", "/"))
         assert first_kw["overwrite"] is True
+
+    @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.GCSHook")
+    def test_execute_returns_empty_when_no_objects(self, mock_gcs_hook, mock_wasb_hook):
+        mock_gcs_hook.return_value.list.return_value = []
+
+        op = GCSToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            gcs_bucket=GCS_BUCKET,
+            container_name=CONTAINER,
+            blob_prefix=BLOB_PREFIX,
+            replace=True,
+        )
+        assert op.execute(context=mock.Mock()) == []
+        mock_wasb_hook.return_value.load_file.assert_not_called()
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.WasbHook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.GCSHook")
@@ -128,7 +145,7 @@ class TestGCSToAzureBlobStorageOperator:
         )
         result = op.execute(context=mock.Mock())
 
-        assert result == ["data/b.txt"]
+        assert result == [f"{BLOB_PREFIX}/data/b.txt"]
         mock_wasb_hook.return_value.load_file.assert_called_once()
         assert mock_wasb_hook.return_value.load_file.call_args.kwargs["overwrite"] is False
 
@@ -149,8 +166,9 @@ class TestGCSToAzureBlobStorageOperator:
             replace=True,
             flatten_structure=True,
         )
-        op.execute(context=mock.Mock())
+        result = op.execute(context=mock.Mock())
 
+        assert result == [f"{BLOB_PREFIX}/a.txt"]
         kw = mock_wasb_hook.return_value.load_file.call_args.kwargs
         assert kw["blob_name"] == f"{BLOB_PREFIX}/a.txt"
         assert kw["overwrite"] is True
@@ -158,15 +176,39 @@ class TestGCSToAzureBlobStorageOperator:
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.WasbHook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.GCSHook")
     def test_openlineage_facets(self, mock_gcs_hook, mock_wasb_hook):
-        mock_wasb_hook.return_value.get_conn.return_value.account_name = "mystorage"
-        op = GCSToAzureBlobStorageOperator(
-            task_id=TASK_ID,
-            gcs_bucket=GCS_BUCKET,
-            prefix="p/",
-            container_name=CONTAINER,
-            blob_prefix=BLOB_PREFIX,
-        )
-        lineage = op.get_openlineage_facets_on_start()
-        assert len(lineage.inputs) == 1
-        assert lineage.inputs[0].namespace == "gs://gcs-bucket"
-        assert "wasbs://" in lineage.outputs[0].namespace
+        injected: list[str] = []
+        if "airflow.providers.openlineage.extractors" not in sys.modules:
+            ol_pkg = ModuleType("airflow.providers.openlineage")
+            ol_ext = ModuleType("airflow.providers.openlineage.extractors")
+
+            class _OperatorLineage:
+                __slots__ = ("inputs", "outputs")
+
+                def __init__(self, *, inputs=None, outputs=None):
+                    self.inputs = inputs
+                    self.outputs = outputs
+
+            ol_ext.OperatorLineage = _OperatorLineage
+            sys.modules["airflow.providers.openlineage"] = ol_pkg
+            sys.modules["airflow.providers.openlineage.extractors"] = ol_ext
+            injected = [
+                "airflow.providers.openlineage.extractors",
+                "airflow.providers.openlineage",
+            ]
+
+        try:
+            mock_wasb_hook.return_value.get_conn.return_value.account_name = "mystorage"
+            op = GCSToAzureBlobStorageOperator(
+                task_id=TASK_ID,
+                gcs_bucket=GCS_BUCKET,
+                prefix="p/",
+                container_name=CONTAINER,
+                blob_prefix=BLOB_PREFIX,
+            )
+            lineage = op.get_openlineage_facets_on_start()
+            assert len(lineage.inputs) == 1
+            assert lineage.inputs[0].namespace == "gs://gcs-bucket"
+            assert "wasbs://" in lineage.outputs[0].namespace
+        finally:
+            for name in injected:
+                sys.modules.pop(name, None)
