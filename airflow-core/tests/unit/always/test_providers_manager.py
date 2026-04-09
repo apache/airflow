@@ -319,7 +319,9 @@ class TestProviderManager:
         with caplog.at_level(logging.WARNING):
             providers_manager._discover_hooks()
         assert "already registered" in caplog.text
-        assert providers_manager._object_storage_provider_dict["s3"].provider_class_name == "second.S3Provider"
+        assert (
+            providers_manager._object_storage_provider_dict["s3"].provider_class_name == "second.S3Provider"
+        )
 
     def test_object_storage_providers_property(self):
         providers_manager = ProvidersManager()

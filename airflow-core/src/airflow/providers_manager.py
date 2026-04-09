@@ -816,8 +816,7 @@ class ProvidersManager(LoggingMixin):
             if storage_type in self._object_storage_provider_dict:
                 existing = self._object_storage_provider_dict[storage_type]
                 log.warning(
-                    "ObjectStorageProvider for '%s' already registered by %s, "
-                    "overriding with %s",
+                    "ObjectStorageProvider for '%s' already registered by %s, overriding with %s",
                     storage_type,
                     existing.provider_name,
                     provider_name,
