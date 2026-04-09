@@ -135,23 +135,53 @@ class TestWorker:
 
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
 
-    def test_should_add_extra_containers(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "extraContainers": [
+                    {"name": "{{ .Chart.Name }}-test-container", "image": "test-registry/test-repo:test-tag"}
+                ]
+            },
+            {
+                "celery": {
+                    "extraContainers": [
+                        {
+                            "name": "{{ .Chart.Name }}-test-container",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
+                    ]
+                }
+            },
+            {
+                "extraContainers": [{"name": "test", "image": "repo:test"}],
+                "celery": {
+                    "extraContainers": [
+                        {
+                            "name": "{{ .Chart.Name }}-test-container",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
+                    ]
+                },
+            },
+        ],
+    )
+    def test_should_add_extra_containers_with_template(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "extraContainers": [
-                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
-                    ],
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[-1]", docs[0]) == {
-            "name": "airflow",
-            "image": "test-registry/test-repo:test-tag",
-        }
+        # [2:] -> Skipping worker and worker-log-groomer containers
+        assert jmespath.search("spec.template.spec.containers[2:]", docs[0]) == [
+            {
+                "name": "airflow-test-container",
+                "image": "test-registry/test-repo:test-tag",
+            }
+        ]
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -186,21 +216,6 @@ class TestWorker:
 
         assert jmespath.search("spec.persistentVolumeClaimRetentionPolicy", docs[0]) == {
             "whenDeleted": "Delete",
-        }
-
-    def test_should_template_extra_containers(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
-                },
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.template.spec.containers[-1]", docs[0]) == {
-            "name": "release-name-test-container"
         }
 
     @pytest.mark.parametrize(
@@ -510,11 +525,56 @@ class TestWorker:
 
         assert expected_strategy == jmespath.search("spec.strategy", docs[0])
 
-    def test_affinity(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "affinity": {
+                    "nodeAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": {
+                            "nodeSelectorTerms": [
+                                {
+                                    "matchExpressions": [
+                                        {"key": "foo", "operator": "In", "values": ["true"]},
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+            },
+            {
+                "celery": {
+                    "affinity": {
+                        "nodeAffinity": {
+                            "requiredDuringSchedulingIgnoredDuringExecution": {
+                                "nodeSelectorTerms": [
+                                    {
+                                        "matchExpressions": [
+                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                }
+            },
+            {
+                "affinity": {
+                    "podAffinity": {
+                        "preferredDuringSchedulingIgnoredDuringExecution": [
+                            {
+                                "podAffinityTerm": {
+                                    "topologyKey": "foo",
+                                    "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                                },
+                                "weight": 1,
+                            }
+                        ]
+                    }
+                },
+                "celery": {
                     "affinity": {
                         "nodeAffinity": {
                             "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -529,6 +589,14 @@ class TestWorker:
                         }
                     },
                 },
+            },
+        ],
+    )
+    def test_affinity(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
