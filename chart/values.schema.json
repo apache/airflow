@@ -2363,7 +2363,7 @@
                     "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
                 },
                 "tolerations": {
-                    "description": "Specify Tolerations for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify Tolerations for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.tolerations`` and/or ``workers.kubernetes.tolerations`` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -3442,6 +3442,15 @@
                             "default": {},
                             "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
                         },
+                        "tolerations": {
+                            "description": "Specify Tolerations for Airflow Celery worker pods.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                            }
+                        },
                         "hostAliases": {
                             "description": "Specify HostAliases for Airflow Celery worker pods.",
                             "items": {
@@ -3947,6 +3956,15 @@
                             "type": "object",
                             "default": {},
                             "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
+                        },
+                        "tolerations": {
+                            "description": "Specify Tolerations for pods created with pod-template-file.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                            }
                         },
                         "hostAliases": {
                             "description": "Specify HostAliases for pods created with pod-template-file.",

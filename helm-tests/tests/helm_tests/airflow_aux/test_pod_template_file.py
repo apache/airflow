@@ -554,15 +554,36 @@ class TestPodTemplateFile:
             }
         }
 
-    def test_workers_tolerations(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "tolerations": [
+                    {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+            },
+            {
+                "kubernetes": {
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ]
+                },
+            },
+            {
+                "tolerations": [{"key": "pods", "operator": "Exists", "effect": "PreferNoSchedule"}],
+                "kubernetes": {
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ]
+                },
+            },
+        ],
+    )
+    def test_workers_tolerations(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "KubernetesExecutor",
-                "workers": {
-                    "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
-                    ],
-                },
+                "workers": workers_values,
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
