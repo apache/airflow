@@ -189,7 +189,7 @@ class BaseDagFileProcessor:
         # We will only store dag_bundle_name but not dag_bundle_path here because it's DagBundle's responsibility to manage the path
         self.target_bundle_name = target_bundle_name
 
-    def can_handle(self, bundle_name: str) -> bool:
+    def can_handle(self, bundle_name: str, path: str | os.PathLike[str]) -> bool:
         """Return ``True`` if this processor should handle the given file."""
         # The Airflow Core DagFileProcessorProcess will pass the bundle_name to see
         return self.target_bundle_name == bundle_name
@@ -649,7 +649,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
                     processor_class_path,
                     path,
                 )
-                if processor_instance.can_handle(bundle_name):
+                if processor_instance.can_handle(bundle_name, path):
                     log.debug(
                         "Using provider-registered DAG file processor %s for file %s",
                         processor_class_path,
