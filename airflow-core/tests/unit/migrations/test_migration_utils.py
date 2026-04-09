@@ -22,8 +22,9 @@ to verify that all migrations are fully reversible.  This catches problems like:
 - a migration that creates a constraint the downgrade forgets to drop
 - a downgrade that references a column that was never added by the upgrade
 
-The test starts from the squashed baseline (revision 4bc4d934e2bc, the 2.6.2
-snapshot) and iterates through each revision in topological order.
+The test starts from the squashed baseline (the 2.6.2 snapshot, looked up via
+``_REVISION_HEADS_MAP["2.6.2"]``) and iterates through each subsequent revision
+in topological order.
 """
 
 from __future__ import annotations
@@ -32,12 +33,12 @@ import pytest
 from alembic import command
 from alembic.script import ScriptDirectory
 
-from airflow.utils.db import _get_alembic_config
+from airflow.utils.db import _REVISION_HEADS_MAP, _get_alembic_config, upgradedb
 
 pytestmark = pytest.mark.db_test
 
 # The squashed "start-of-history" revision – stairway starts here.
-_SQUASHED_BASE_REVISION = "4bc4d934e2bc"
+_SQUASHED_BASE_REVISION = _REVISION_HEADS_MAP["2.6.2"]
 
 
 def _get_revisions_in_order() -> list[str]:
@@ -51,52 +52,52 @@ def _get_revisions_in_order() -> list[str]:
 
     revision_ids = [rev.revision for rev in all_revisions]
 
-    # Find the squashed base and return everything *after* it (the incremental steps)
     try:
         base_index = revision_ids.index(_SQUASHED_BASE_REVISION)
     except ValueError:
         return revision_ids  # squashed revision not present, return all
 
-    return revision_ids[base_index + 1 :]
+    return revision_ids[base_index + 1:]
 
 
-# Force these tests to run sequentially on the same worker to prevent DB state 
-# conflicts during parallel testing (e.g., when using pytest-xdist).
-@pytest.mark.xdist_group(name="migration_stairway")
-@pytest.mark.parametrize(
-    "revision_id",
-    [pytest.param(rev, id=rev) for rev in _get_revisions_in_order()],
-)
-def test_migration_stairway(revision_id: str) -> None:
+@pytest.fixture(scope="module")
+def stairway_db():
     """
-    For each migration step verify that upgrade followed by downgrade works.
-
-    The test applies the migration under test (upgrade to *revision_id*), then
-    immediately rolls it back (downgrade to the previous revision), and finally
-    re-applies it so that subsequent parametrized steps start from the correct
-    state.
+    Bring the DB to the squashed baseline before the stairway test runs, and
+    restore it to the current heads afterwards so other tests are unaffected.
     """
     config = _get_alembic_config()
-    script = ScriptDirectory.from_config(config)
 
-    revision_obj = script.get_revision(revision_id)
-    if revision_obj is None:
-        pytest.skip(f"Revision {revision_id!r} not found in migration scripts")
+    # Downgrade to the squashed base so the stairway starts from a known state.
+    command.downgrade(config, revision=_SQUASHED_BASE_REVISION)
 
-    prev_revision = revision_obj.down_revision
-    if isinstance(prev_revision, tuple):
-        # Merge point – pick the first parent.
-        prev_revision = prev_revision[0]
+    yield
 
-    # Step 1: upgrade to this revision
-    command.upgrade(config, revision=revision_id)
+    # Always restore to the latest heads, even if the test failed mid-way.
+    upgradedb()
 
-    # Determine the target revision for downgrade
-    target = prev_revision if prev_revision else "base"
-    
-    try:
-        # Step 2: downgrade back to the previous revision
-        command.downgrade(config, revision=target)
-    finally:
-        # Step 3: re-apply so subsequent steps see a consistent DB state.
+
+def test_migration_stairway(stairway_db) -> None:
+    """
+    Walk every incremental migration step: upgrade → downgrade → re-upgrade.
+
+    Runs as a single test (not parametrized) so execution order and DB state
+    are guaranteed without relying on xdist grouping or cross-test ordering.
+    Each step uses Alembic's relative ``-1`` target for downgrade so that merge
+    revisions are handled correctly — it always rolls back exactly one step from
+    the current head regardless of how many parents a merge revision has.
+    """
+    config = _get_alembic_config()
+    revisions = _get_revisions_in_order()
+
+    for revision_id in revisions:
+        # Step 1: upgrade to this revision
+        command.upgrade(config, revision=revision_id)
+
+        # Step 2: downgrade exactly one step back.
+        # Using the relative specifier "-1" from the current head is correct for
+        # both normal and merge revisions — it never picks an arbitrary parent.
+        command.downgrade(config, revision="-1")
+
+        # Step 3: re-apply so the next iteration starts from the right state.
         command.upgrade(config, revision=revision_id)
