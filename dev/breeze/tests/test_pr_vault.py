@@ -52,11 +52,11 @@ class _FakePR:
     base_ref: str = "main"
     check_summary: str = "3 checks: 2 success, 1 failure"
     checks_state: str = "FAILURE"
-    failed_checks: list = None
+    failed_checks: list | None = None
     commits_behind: int = 5
     is_draft: bool = False
     mergeable: str = "MERGEABLE"
-    labels: list = None
+    labels: list | None = None
 
     def __post_init__(self):
         if self.failed_checks is None:

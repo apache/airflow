@@ -1859,7 +1859,6 @@ def _fetch_single_pr_graphql(token: str, github_repository: str, pr_number: int)
     )
 
 
-
 _author_profile_cache: dict[str, dict] = {}
 _author_profile_lock = threading.Lock()
 
