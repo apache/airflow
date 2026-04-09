@@ -23,9 +23,10 @@ description: |
     systems (OLAP) and Gremlin is its graph traversal language.
 state: ready
 lifecycle: production
-source-date-epoch: 1774298539
+source-date-epoch: 1775591763
 # note that these versions are maintained by the release manager - do not update them manually
 versions:
+  - 1.1.3
   - 1.1.2
   - 1.1.1
   - 1.1.0
@@ -52,4 +53,5 @@ hooks:
       - airflow.providers.apache.tinkerpop.hooks.gremlin
 connection-types:
   - hook-class-name: airflow.providers.apache.tinkerpop.hooks.gremlin.GremlinHook
+    hook-name: "Gremlin"
     connection-type: gremlin

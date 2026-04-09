@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Literal
 
 import structlog
 from fastapi import HTTPException, Query, status
@@ -27,6 +28,8 @@ from sqlalchemy import select, tuple_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.session import Session
 
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import (
@@ -45,6 +48,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
+from airflow.models.dag import DagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.utils.state import TaskInstanceState
@@ -201,6 +205,8 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         self,
         entities: Sequence[str | BulkTaskInstanceBody],
         results: BulkActionResponse,
+        method: Literal["PUT", "DELETE"],
+        action_name: str,
     ) -> tuple[set[tuple[str, str, str, int]], set[tuple[str, str, str]]]:
         """
         Validate entities and categorize them into specific and all map index update sets.
@@ -211,6 +217,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         """
         specific_map_index_task_keys = set()
         all_map_index_task_keys = set()
+        dag_authorization_cache: dict[str, bool] = {}
 
         for entity in entities:
             dag_id, dag_run_id, task_id, map_index = self._extract_task_identifiers(entity)
@@ -225,6 +232,23 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                     {
                         "error": error_msg,
                         "status_code": status.HTTP_400_BAD_REQUEST,
+                    }
+                )
+                continue
+
+            if dag_id not in dag_authorization_cache:
+                team_name = DagModel.get_team_name(dag_id, session=self.session)
+                dag_authorization_cache[dag_id] = get_auth_manager().is_authorized_dag(
+                    method=method,
+                    access_entity=DagAccessEntity.TASK_INSTANCE,
+                    details=DagDetails(id=dag_id, team_name=team_name),
+                    user=self.user,
+                )
+            if not dag_authorization_cache[dag_id]:
+                results.errors.append(
+                    {
+                        "error": f"User is not authorized to {action_name} task instances for DAG '{dag_id}'",
+                        "status_code": status.HTTP_403_FORBIDDEN,
                     }
                 )
                 continue
@@ -318,7 +342,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         """Bulk Update Task Instances."""
         # Validate and categorize entities into specific and all map index update sets
         update_specific_map_index_task_keys, update_all_map_index_task_keys = self._categorize_entities(
-            action.entities, results
+            action.entities, results, method="PUT", action_name=action.action.value
         )
 
         try:
@@ -420,7 +444,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         """Bulk delete task instances."""
         # Validate and categorize entities into specific and all map index delete sets
         delete_specific_map_index_task_keys, delete_all_map_index_task_keys = self._categorize_entities(
-            action.entities, results
+            action.entities, results, method="DELETE", action_name=action.action.value
         )
 
         try:

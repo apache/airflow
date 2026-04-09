@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1774298972
+source-date-epoch: 1775591964
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 7.12.1
   - 7.12.0
   - 7.11.0
   - 7.10.0
@@ -168,6 +169,7 @@ sensors:
 
 connection-types:
   - hook-class-name: airflow.providers.databricks.hooks.databricks.DatabricksHook
+    hook-name: "Databricks"
     connection-type: databricks
 
 plugins:

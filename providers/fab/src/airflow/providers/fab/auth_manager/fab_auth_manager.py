@@ -91,6 +91,8 @@ from airflow.providers.fab.www.utils import get_fab_action_from_method_map
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from flask import Flask
+
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.cli.cli_config import (
         CLICommand,
@@ -174,6 +176,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     cache: TTLCache = TTLCache(maxsize=1024, ttl=CACHE_TTL)
     appbuilder: AirflowAppBuilder | None = None
+    flask_app: Flask | None = None
 
     def init_flask_resources(self) -> None:
         self._sync_appbuilder_roles()
@@ -198,6 +201,7 @@ class FabAuthManager(BaseAuthManager[User]):
         )
 
         flask_app = create_app(enable_plugins=False)
+        self.flask_app = flask_app
 
         app = FastAPI(
             title="FAB auth manager API",

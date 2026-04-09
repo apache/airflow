@@ -65,7 +65,7 @@
       "future": "未來",
       "onlyFailed": "只清除失敗任務",
       "past": "過去",
-      "preventRunningTasks": "如果任務正在運行，則阻止重新運行",
+      "preventRunningTasks": "若任務正在執行中，則防止重新執行",
       "queueNew": "排隊新任務",
       "runOnLatestVersion": "執行最新套件包版本",
       "upstream": "上游"

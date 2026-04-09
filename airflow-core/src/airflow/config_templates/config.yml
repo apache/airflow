@@ -1987,8 +1987,14 @@ api_auth:
       description: |
         Secret key used to encode and decode JWTs to authenticate to public and private APIs.
 
-        It should be as random as possible. However, when running more than 1 instances of API services,
-        make sure all of them use the same ``jwt_secret`` otherwise calls will fail on authentication.
+        It should be as random as possible. This key must be consistent across all components that
+        generate or validate JWT tokens (Scheduler, API Server). For improved security, consider
+        using asymmetric keys (``jwt_private_key_path``) instead, which allow you to restrict the
+        signing key to only the components that need to generate tokens.
+
+        For security-sensitive deployments, pass this value via environment variable
+        (``AIRFLOW__API_AUTH__JWT_SECRET``) rather than storing it in a configuration file, and
+        restrict it to only the components that need it.
 
         Mutually exclusive with ``jwt_private_key_path``.
       version_added: 3.0.0

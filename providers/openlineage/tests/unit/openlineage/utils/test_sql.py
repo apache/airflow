@@ -181,11 +181,6 @@ def test_get_table_schemas_with_mixed_schemas():
             Dataset(
                 namespace="bigquery", name="FOOD_DELIVERY.PUBLIC.DISCOUNTS", facets={"schema": SCHEMA_FACET}
             ),
-            Dataset(
-                namespace="bigquery",
-                name="FOOD_DELIVERY.ANOTHER_DB_SCHEMA.DISCOUNTS",
-                facets={"schema": SCHEMA_FACET},
-            ),
         ],
         [],
     )
@@ -246,6 +241,101 @@ def test_get_table_schemas_with_other_database():
                 namespace="bigquery", name="ANOTHER_DB.PUBLIC.DISCOUNTS", facets={"schema": SCHEMA_FACET}
             ),
         ],
+    )
+
+
+def test_get_table_schemas_filters_by_default_schema():
+    """When the same table exists in multiple schemas, only the default schema should be returned."""
+    hook = MagicMock()
+    ANOTHER_DB_SCHEMA_NAME = "ANOTHER_DB_SCHEMA"
+
+    rows = [
+        (DB_SCHEMA_NAME, DB_TABLE_NAME.name, "ID", 1, "int4"),
+        (DB_SCHEMA_NAME, DB_TABLE_NAME.name, "AMOUNT_OFF", 2, "int4"),
+        (DB_SCHEMA_NAME, DB_TABLE_NAME.name, "CUSTOMER_EMAIL", 3, "varchar"),
+        (DB_SCHEMA_NAME, DB_TABLE_NAME.name, "STARTS_ON", 4, "timestamp"),
+        (DB_SCHEMA_NAME, DB_TABLE_NAME.name, "ENDS_ON", 5, "timestamp"),
+        (ANOTHER_DB_SCHEMA_NAME, DB_TABLE_NAME.name, "ID", 1, "int4"),
+        (ANOTHER_DB_SCHEMA_NAME, DB_TABLE_NAME.name, "AMOUNT_OFF", 2, "int4"),
+        (ANOTHER_DB_SCHEMA_NAME, DB_TABLE_NAME.name, "CUSTOMER_EMAIL", 3, "varchar"),
+        (ANOTHER_DB_SCHEMA_NAME, DB_TABLE_NAME.name, "STARTS_ON", 4, "timestamp"),
+        (ANOTHER_DB_SCHEMA_NAME, DB_TABLE_NAME.name, "ENDS_ON", 5, "timestamp"),
+    ]
+
+    hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [rows, []]
+
+    table_schemas = get_table_schemas(
+        hook=hook,
+        namespace="bigquery",
+        database=DB_NAME,
+        schema=DB_SCHEMA_NAME,
+        in_query="fake_sql",
+        out_query="another_fake_sql",
+    )
+
+    # Only the default schema (PUBLIC) should be returned, not ANOTHER_DB_SCHEMA
+    assert table_schemas == (
+        [
+            Dataset(
+                namespace="bigquery", name="FOOD_DELIVERY.PUBLIC.DISCOUNTS", facets={"schema": SCHEMA_FACET}
+            ),
+        ],
+        [],
+    )
+
+
+def test_get_table_schemas_no_default_schema_keeps_all():
+    """When no default schema is provided, all schemas should be returned."""
+    hook = MagicMock()
+    ANOTHER_DB_SCHEMA_NAME = "ANOTHER_DB_SCHEMA"
+
+    rows = [
+        (DB_SCHEMA_NAME, DB_TABLE_NAME.name, "ID", 1, "int4"),
+        (DB_SCHEMA_NAME, DB_TABLE_NAME.name, "AMOUNT_OFF", 2, "int4"),
+        (DB_SCHEMA_NAME, DB_TABLE_NAME.name, "CUSTOMER_EMAIL", 3, "varchar"),
+        (DB_SCHEMA_NAME, DB_TABLE_NAME.name, "STARTS_ON", 4, "timestamp"),
+        (DB_SCHEMA_NAME, DB_TABLE_NAME.name, "ENDS_ON", 5, "timestamp"),
+        (ANOTHER_DB_SCHEMA_NAME, DB_TABLE_NAME.name, "ID", 1, "int4"),
+        (ANOTHER_DB_SCHEMA_NAME, DB_TABLE_NAME.name, "AMOUNT_OFF", 2, "int4"),
+        (ANOTHER_DB_SCHEMA_NAME, DB_TABLE_NAME.name, "CUSTOMER_EMAIL", 3, "varchar"),
+        (ANOTHER_DB_SCHEMA_NAME, DB_TABLE_NAME.name, "STARTS_ON", 4, "timestamp"),
+        (ANOTHER_DB_SCHEMA_NAME, DB_TABLE_NAME.name, "ENDS_ON", 5, "timestamp"),
+    ]
+
+    hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [rows, []]
+
+    table_schemas = get_table_schemas(
+        hook=hook,
+        namespace="bigquery",
+        database=DB_NAME,
+        schema=None,
+        in_query="fake_sql",
+        out_query="another_fake_sql",
+    )
+
+    another_schema_facet = schema_dataset.SchemaDatasetFacet(
+        fields=[
+            schema_dataset.SchemaDatasetFacetFields(name="ID", type="int4"),
+            schema_dataset.SchemaDatasetFacetFields(name="AMOUNT_OFF", type="int4"),
+            schema_dataset.SchemaDatasetFacetFields(name="CUSTOMER_EMAIL", type="varchar"),
+            schema_dataset.SchemaDatasetFacetFields(name="STARTS_ON", type="timestamp"),
+            schema_dataset.SchemaDatasetFacetFields(name="ENDS_ON", type="timestamp"),
+        ]
+    )
+
+    # No default schema provided, so all schemas should be returned
+    assert table_schemas == (
+        [
+            Dataset(
+                namespace="bigquery", name="FOOD_DELIVERY.PUBLIC.DISCOUNTS", facets={"schema": SCHEMA_FACET}
+            ),
+            Dataset(
+                namespace="bigquery",
+                name="FOOD_DELIVERY.ANOTHER_DB_SCHEMA.DISCOUNTS",
+                facets={"schema": another_schema_facet},
+            ),
+        ],
+        [],
     )
 
 

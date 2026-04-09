@@ -134,6 +134,7 @@ services:
       - ../../../providers/teradata/tests:/opt/airflow/providers/teradata/tests
       - ../../../providers/trino/tests:/opt/airflow/providers/trino/tests
       - ../../../providers/vertica/tests:/opt/airflow/providers/vertica/tests
+      - ../../../providers/vespa/tests:/opt/airflow/providers/vespa/tests
       - ../../../providers/weaviate/tests:/opt/airflow/providers/weaviate/tests
       - ../../../providers/yandex/tests:/opt/airflow/providers/yandex/tests
       - ../../../providers/ydb/tests:/opt/airflow/providers/ydb/tests

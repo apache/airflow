@@ -260,7 +260,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "26.0.1"
-AIRFLOW_UV_VERSION = "0.11.2"
+AIRFLOW_UV_VERSION = "0.11.3"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.46"
 RICH_VERSION = "14.3.3"
@@ -4253,6 +4253,13 @@ def publish_docs_to_s3(
     default=False,
     help="Show explanations for outdated packages.",
 )
+@click.option(
+    "--cooldown-days",
+    type=int,
+    default=4,
+    show_default=True,
+    help="Ignore package versions released within this many days (cooldown period).",
+)
 @option_github_token
 @option_github_repository
 @option_verbose
@@ -4263,6 +4270,7 @@ def version_check(
     diff_mode,
     package: tuple[str],
     explain_why: bool,
+    cooldown_days: int,
     github_token: str,
     github_repository: str,
     builder: str,
@@ -4288,6 +4296,7 @@ def version_check(
         explain_why=explain_why,
         github_token=github_token,
         github_repository=github_repository,
+        cooldown_days=cooldown_days,
     )
 
 

@@ -385,6 +385,38 @@ you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerPro
     :start-after: [START howto_sensor_sagemaker_processing]
     :end-before: [END howto_sensor_sagemaker_processing]
 
+.. _howto/operator:SageMakerConditionOperator:
+
+Branch a DAG based on condition evaluation
+==========================================
+
+To branch an Airflow DAG based on upstream task outputs you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerConditionOperator`.
+
+Simple usage with flat parameters (single condition):
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_sagemaker_condition.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_condition_flat]
+    :end-before: [END howto_operator_sagemaker_condition_flat]
+
+Advanced usage with conditions list (multiple AND-ed conditions):
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_sagemaker_condition.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_condition]
+    :end-before: [END howto_operator_sagemaker_condition]
+
+Using Not and Or conditions:
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_sagemaker_condition.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_condition_not_or]
+    :end-before: [END howto_operator_sagemaker_condition_not_or]
+
 Reference
 ---------
 

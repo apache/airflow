@@ -69,7 +69,7 @@ apache-airflow-providers-ssh package
 `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 
-Release: 4.3.3
+Release: 5.0.0
 
 Provider package
 ----------------
@@ -95,8 +95,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``asyncssh``                                ``>=2.12.0``
-``paramiko``                                ``>=3.4.0,<4.0.0``
-``sshtunnel``                               ``>=0.3.2``
+``paramiko``                                ``>=3.5.1,<4.0.0``
 ==========================================  ==================
 
 Cross provider package dependencies
@@ -124,5 +123,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-ssh 4.3.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-4.3.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-4.3.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-4.3.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-ssh 4.3.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-4.3.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-4.3.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-4.3.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-ssh 5.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-5.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-5.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-5.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-ssh 5.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-5.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-5.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-5.0.0-py3-none-any.whl.sha512>`__)

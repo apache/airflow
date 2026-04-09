@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1774299545
+source-date-epoch: 1775592616
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.9.0
   - 1.8.5
   - 1.8.4
   - 1.8.3
@@ -75,6 +76,7 @@ operators:
 
 connection-types:
   - hook-class-name: airflow.providers.opensearch.hooks.opensearch.OpenSearchHook
+    hook-name: "OpenSearch Hook"
     connection-type: opensearch
     ui-field-behaviour:
       hidden-fields:
@@ -143,6 +145,20 @@ config:
         type: string
         example: ~
         default: "False"
+      write_to_os:
+        description: |
+          Write the task logs directly to OpenSearch
+        version_added: 1.9.0
+        type: string
+        example: ~
+        default: "False"
+      target_index:
+        description: |
+          Name of the index to write to when direct OpenSearch log writing is enabled
+        version_added: 1.9.0
+        type: string
+        example: ~
+        default: "airflow-logs"
       json_format:
         description: |
           Instead of the default log formatter, write the log lines as JSON

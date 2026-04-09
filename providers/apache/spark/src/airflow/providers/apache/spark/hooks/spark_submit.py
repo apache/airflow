@@ -21,6 +21,7 @@ import base64
 import contextlib
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -94,6 +95,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         (will overwrite any deployment mode defined in the connection's extra JSON)
     :param use_krb5ccache: if True, configure spark to use ticket cache instead of relying
         on keytab for Kerberos login
+    :param post_submit_commands: Optional list of shell commands to run after the Spark
+        job finishes (on both success and on_kill). Useful for cleaning up sidecars such
+        as Istio (e.g. ``["curl -X POST localhost:15020/quitquitquit"]``). Each command
+        is executed via the shell; failures produce a warning but do not fail the task.
     """
 
     conn_name_attr = "conn_id"
@@ -189,6 +194,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         deploy_mode: str | None = None,
         *,
         use_krb5ccache: bool = False,
+        post_submit_commands: list[str] | None = None,
     ) -> None:
         super().__init__()
         self._conf = conf or {}
@@ -237,6 +243,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._driver_status: str | None = None
         self._spark_exit_code: int | None = None
         self._env: dict[str, Any] | None = None
+        self._post_submit_commands: list[str] = list(post_submit_commands) if post_submit_commands else []
 
     def _resolve_should_track_driver_status(self) -> bool:
         """
@@ -545,8 +552,40 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             func = kerberos.get_kerberos_principal
         except AttributeError:
             # Fallback for older versions of Airflow
-            func = kerberos.get_kerberos_principle  # type: ignore[attr-defined]
+            func = getattr(kerberos, "get_kerberos_principle")
         return func(principal)
+
+    def _run_post_submit_commands(self) -> None:
+        """
+        Run any post-submit shell commands configured on this hook.
+
+        Called after the Spark job finishes (success or on_kill). Typical use case
+        is killing sidecars like Istio that don't shut down automatically.
+        Failures are logged as warnings and never raise.
+        """
+        for cmd in self._post_submit_commands:
+            self.log.debug("Running post-submit command: %s", cmd)
+            try:
+                result = subprocess.run(
+                    shlex.split(cmd),
+                    shell=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    check=False,
+                    timeout=30,
+                )
+                self.log.debug("Post-submit command output:\n%s", result.stdout[:2000])
+                if result.returncode != 0:
+                    self.log.warning(
+                        "Post-submit command exited with non-zero code %d: %s",
+                        result.returncode,
+                        cmd,
+                    )
+            except subprocess.TimeoutExpired:
+                self.log.warning("Post-submit command timed out (30s): %s", cmd)
+            except Exception as exc:
+                self.log.warning("Post-submit command raised an exception: %s. Error: %s", cmd, exc)
 
     def submit(self, application: str = "", **kwargs: Any) -> None:
         """
@@ -576,35 +615,38 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         # Check spark-submit return code. In Kubernetes mode, also check the value
         # of exit code in the log, as it may differ.
-        if returncode or (self._is_kubernetes and self._spark_exit_code != 0):
-            if self._is_kubernetes:
+        try:
+            if returncode or (self._is_kubernetes and self._spark_exit_code != 0):
+                if self._is_kubernetes:
+                    raise AirflowException(
+                        f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}. "
+                        f"Kubernetes spark exit code is: {self._spark_exit_code}"
+                    )
                 raise AirflowException(
-                    f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}. "
-                    f"Kubernetes spark exit code is: {self._spark_exit_code}"
-                )
-            raise AirflowException(
-                f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}."
-            )
-
-        self.log.debug("Should track driver: %s", self._should_track_driver_status)
-
-        # We want the Airflow job to wait until the Spark driver is finished
-        if self._should_track_driver_status:
-            if self._driver_id is None:
-                raise AirflowException(
-                    "No driver id is known: something went wrong when executing the spark submit command"
+                    f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}."
                 )
 
-            # We start with the SUBMITTED status as initial status
-            self._driver_status = "SUBMITTED"
+            self.log.debug("Should track driver: %s", self._should_track_driver_status)
 
-            # Start tracking the driver status (blocking function)
-            self._start_driver_status_tracking()
+            # We want the Airflow job to wait until the Spark driver is finished
+            if self._should_track_driver_status:
+                if self._driver_id is None:
+                    raise AirflowException(
+                        "No driver id is known: something went wrong when executing the spark submit command"
+                    )
 
-            if self._driver_status != "FINISHED":
-                raise AirflowException(
-                    f"ERROR : Driver {self._driver_id} badly exited with status {self._driver_status}"
-                )
+                # We start with the SUBMITTED status as initial status
+                self._driver_status = "SUBMITTED"
+
+                # Start tracking the driver status (blocking function)
+                self._start_driver_status_tracking()
+
+                if self._driver_status != "FINISHED":
+                    raise AirflowException(
+                        f"ERROR : Driver {self._driver_id} badly exited with status {self._driver_status}"
+                    )
+        finally:
+            self._run_post_submit_commands()
 
     def _process_spark_submit_log(self, itr: Iterator[Any]) -> None:
         """
@@ -827,3 +869,5 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
                 except kube_client.ApiException:
                     self.log.exception("Exception when attempting to kill Spark on K8s")
+
+        self._run_post_submit_commands()

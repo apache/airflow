@@ -28,14 +28,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
-      run-mypy:
-        description: "Whether to run mypy checks (true/false)"
-        required: true
-        type: string
-      mypy-checks:
-        description: "List of folders to run mypy checks on"
-        required: false
-        type: string
       python-versions-list-as-string:
         description: "The list of python versions as string separated by spaces"
         required: true
@@ -168,55 +160,6 @@ jobs:
       - name: "Show prek log on failure"
         run: cat ~/.cache/prek/prek.log || true
         if: failure()
-
-  mypy:
-    timeout-minutes: 45
-    name: "MyPy checks"
-    runs-on: ${{ fromJSON(inputs.runners) }}
-    if: inputs.run-mypy == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        mypy-check: ${{ fromJSON(inputs.mypy-checks) }}
-    env:
-      PYTHON_MAJOR_MINOR_VERSION: "${{inputs.default-python-version}}"
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        with:
-          persist-credentials: false
-      - name: "Free up disk space"
-        shell: bash
-        run: ./scripts/tools/free_up_disk_space.sh
-      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
-        uses: ./.github/actions/prepare_breeze_and_image
-        with:
-          platform: ${{ inputs.platform }}
-          python: "${{ inputs.default-python-version }}"
-          use-uv: ${{ inputs.use-uv }}
-          make-mnt-writeable-and-cleanup: true
-        id: breeze
-      - name: "Install prek"
-        uses: ./.github/actions/install-prek
-        id: prek
-        with:
-          python-version: ${{steps.breeze.outputs.host-python-version}}
-          platform: ${{ inputs.platform }}
-          save-cache: false
-      - name: "MyPy checks for ${{ matrix.mypy-check }}"
-        run: prek --color always --verbose --stage manual "$MYPY_CHECK" --all-files
-        env:
-          VERBOSE: "false"
-          COLUMNS: "202"
-          SKIP_GROUP_OUTPUT: "true"
-          DEFAULT_BRANCH: ${{ inputs.branch }}
-          RUFF_FORMAT: "github"
-          INCLUDE_MYPY_VOLUME: "false"
-          MYPY_CHECK: ${{ matrix.mypy-check }}
 
   build-docs:
     timeout-minutes: 150
