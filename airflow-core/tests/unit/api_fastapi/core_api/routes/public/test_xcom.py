@@ -490,6 +490,48 @@ class TestGetXComEntries(TestXComEndpoint):
                 map_index=map_index,
             )
 
+    @pytest.mark.parametrize(
+        "order_by_field",
+        [
+            "key",
+            "dag_id",
+            "run_id",
+            "run_after",
+            "map_index",
+            "timestamp",
+        ],
+    )
+    def test_should_respond_200_for_order_by(self, order_by_field, test_client):
+        self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
+        self._create_xcom_entries(TEST_DAG_ID_2, run_id, logical_date_parsed, TEST_TASK_ID_2)
+
+        response_asc = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+            params={"order_by": order_by_field},
+        )
+        assert response_asc.status_code == 200
+        assert response_asc.json()["total_entries"] == 4
+
+        response_desc = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+            params={"order_by": f"-{order_by_field}"},
+        )
+        assert response_desc.status_code == 200
+        assert response_desc.json()["total_entries"] == 4
+
+        keys_asc = [entry["key"] for entry in response_asc.json()["xcom_entries"]]
+        keys_desc = [entry["key"] for entry in response_desc.json()["xcom_entries"]]
+        assert keys_asc == list(reversed(keys_desc))
+
+    def test_order_by_raises_400_for_invalid_attr(self, test_client):
+        response = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+            params={"order_by": "invalid_field"},
+        )
+        assert response.status_code == 400
+        msg = "Ordering with 'invalid_field' is disallowed or the attribute does not exist on the model"
+        assert response.json()["detail"] == msg
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
             "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
