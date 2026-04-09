@@ -21,12 +21,12 @@ from unittest import mock
 import click
 import click.testing
 import pytest
-from rich.rule import Rule
 
-from airflow_breeze.params.build_ci_params import BuildCiParams
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.reproduce_ci import (
     ReproductionCommand,
-    build_local_reproduction_commands,
+    build_checkout_reproduction_commands,
+    build_ci_image_reproduction_command,
     build_reproduction_command_from_context,
     print_local_reproduction,
     should_print_local_reproduction,
@@ -50,28 +50,14 @@ def test_should_print_local_reproduction_only_in_github_actions(env_vars, expect
     assert should_print_local_reproduction() is expected
 
 
-def test_build_local_reproduction_commands_builds_ci_image_locally(monkeypatch):
-    monkeypatch.delenv("GITHUB_REF", raising=False)
-    monkeypatch.setenv("GITHUB_SHA", "abc123")
-    monkeypatch.setenv("GITHUB_RUN_ID", "98765")
-    build_params = BuildCiParams(
+def test_build_ci_image_reproduction_command_with_custom_repo():
+    result = build_ci_image_reproduction_command(
         github_repository="someone/airflow",
         platform="linux/arm64",
         python="3.11",
     )
-
-    commands = build_local_reproduction_commands(
-        command_params=build_params,
-        main_command=ReproductionCommand(argv=["breeze", "build-docs", "--docs-only"]),
-    )
-
-    assert [command.comment for command in commands] == [
-        "Check out the same commit",
-        "Build the CI image locally",
-        None,
-    ]
-    assert commands[0].argv == ["git", "checkout", "abc123"]
-    assert commands[1].argv == [
+    assert result.comment == "Build the CI image locally"
+    assert result.argv == [
         "breeze",
         "ci-image",
         "build",
@@ -84,27 +70,29 @@ def test_build_local_reproduction_commands_builds_ci_image_locally(monkeypatch):
     ]
 
 
+def test_build_ci_image_reproduction_command_default_repo():
+    result = build_ci_image_reproduction_command(platform="linux/amd64", python="3.10")
+    assert result.argv == [
+        "breeze",
+        "ci-image",
+        "build",
+        "--platform",
+        "linux/amd64",
+        "--python",
+        "3.10",
+    ]
+
+
 @pytest.mark.parametrize("pr_ref_kind", ["merge", "head"])
-def test_build_local_reproduction_commands_fetches_pull_request_ref(pr_ref_kind, monkeypatch):
+def test_build_checkout_reproduction_commands_fetches_pull_request_ref(pr_ref_kind, monkeypatch):
     github_ref = f"refs/pull/42/{pr_ref_kind}"
     monkeypatch.setenv("GITHUB_REF", github_ref)
     monkeypatch.setenv("GITHUB_SHA", "merge-sha")
-    monkeypatch.setenv("GITHUB_RUN_ID", "98765")
-    build_params = BuildCiParams(
-        github_repository="someone/airflow",
-        platform="linux/amd64",
-        python="3.10",
-    )
 
-    commands = build_local_reproduction_commands(
-        command_params=build_params,
-        main_command=ReproductionCommand(argv=["breeze", "build-docs", "--docs-only"]),
-    )
+    commands = build_checkout_reproduction_commands("someone/airflow")
 
     assert [command.comment for command in commands] == [
-        f"Fetch the same code as CI (pull request {pr_ref_kind} ref)",
-        None,
-        "Build the CI image locally",
+        f"Fetch the same code as CI (pull request {pr_ref_kind} ref) — or: gh pr checkout 42",
         None,
     ]
     assert commands[0].argv == [
@@ -116,26 +104,14 @@ def test_build_local_reproduction_commands_fetches_pull_request_ref(pr_ref_kind,
     assert commands[1].argv == ["git", "checkout", "merge-sha"]
 
 
-def test_build_local_reproduction_commands_builds_ci_image_for_default_repo(monkeypatch):
-    monkeypatch.delenv("GITHUB_RUN_ID", raising=False)
+def test_build_checkout_reproduction_commands_plain_sha(monkeypatch):
     monkeypatch.delenv("GITHUB_REF", raising=False)
     monkeypatch.setenv("GITHUB_SHA", "def456")
-    build_params = BuildCiParams(platform="linux/amd64", python="3.10")
 
-    commands = build_local_reproduction_commands(
-        command_params=build_params,
-        main_command=ReproductionCommand(argv=["breeze", "build-docs", "--docs-only"]),
-    )
+    commands = build_checkout_reproduction_commands("apache/airflow")
 
-    assert commands[1].argv == [
-        "breeze",
-        "ci-image",
-        "build",
-        "--platform",
-        "linux/amd64",
-        "--python",
-        "3.10",
-    ]
+    assert len(commands) == 1
+    assert commands[0].argv == ["git", "checkout", "def456"]
 
 
 @mock.patch("airflow_breeze.utils.reproduce_ci.get_console", autospec=True)
@@ -153,20 +129,54 @@ def test_print_local_reproduction_renders_copyable_commands(mock_get_console, mo
         ]
     )
 
-    assert mock_get_console.return_value.print.call_count == 5
-    top_rule = mock_get_console.return_value.print.call_args_list[1].args[0]
-    assert isinstance(top_rule, Rule)
-    assert str(top_rule.title) == "HOW TO REPRODUCE LOCALLY"
-    assert top_rule.characters == "-"
-    assert str(top_rule.style) == "warning"
+    assert mock_get_console.return_value.print.call_count == 4
+    ruler_line = mock_get_console.return_value.print.call_args_list[0].args[0]
+    assert "─" * 80 in ruler_line
     rendered_output = mock_get_console.return_value.print.call_args_list[2].args[0]
     assert "# 1. Check out the same commit" in rendered_output
     assert "git checkout abc123" in rendered_output
     assert "breeze build-docs --docs-only" in rendered_output
-    bottom_rule = mock_get_console.return_value.print.call_args_list[3].args[0]
-    assert isinstance(bottom_rule, Rule)
-    assert bottom_rule.characters == "-"
-    assert str(bottom_rule.style) == "warning"
+    bottom_ruler = mock_get_console.return_value.print.call_args_list[3].args[0]
+    assert "─" * 80 in bottom_ruler
+
+
+def _invoke_and_capture_reproduction(cli, args, monkeypatch, *, env: dict[str, str] | None = None):
+    captured_commands: list[list[ReproductionCommand]] = []
+
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_SHA", "abc123")
+    monkeypatch.delenv("GITHUB_REF", raising=False)
+    if env:
+        for key, value in env.items():
+            monkeypatch.setenv(key, value)
+    monkeypatch.setattr(
+        "airflow_breeze.utils.reproduce_ci.print_local_reproduction",
+        lambda commands: captured_commands.append(commands),
+    )
+
+    result = click.testing.CliRunner().invoke(cli, args)
+
+    assert result.exit_code == 0, result.output
+    assert len(captured_commands) == 1
+    return captured_commands[0]
+
+
+def test_breeze_command_smoke_skip_cleanup_is_included_in_rendered_command(monkeypatch):
+    @click.group(cls=BreezeGroup, name="breeze")
+    def cli():
+        pass
+
+    @cli.command(name="parallel-task")
+    @click.option("--skip-cleanup", is_flag=True)
+    def parallel_task(skip_cleanup: bool):
+        del skip_cleanup
+
+    captured_commands = _invoke_and_capture_reproduction(
+        cli, ["parallel-task", "--skip-cleanup"], monkeypatch
+    )
+
+    assert captured_commands[-1].argv == ["breeze", "parallel-task", "--skip-cleanup"]
 
 
 # ---------------------------------------------------------------------------

@@ -129,11 +129,6 @@ from airflow_breeze.utils.path_utils import (
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
-from airflow_breeze.utils.reproduce_ci import (
-    build_local_reproduction_commands,
-    build_reproduction_command_from_context,
-    print_local_reproduction,
-)
 from airflow_breeze.utils.run_utils import (
     assert_prek_installed,
     run_command,
@@ -814,9 +809,7 @@ def start_airflow(
 @option_verbose
 @option_answer
 @argument_doc_packages
-@click.pass_context
 def build_docs(
-    ctx: click.Context,
     builder: str,
     clean_build: bool,
     clean_inventory_cache: bool,
@@ -843,12 +836,6 @@ def build_docs(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         builder=builder,
-    )
-    print_local_reproduction(
-        build_local_reproduction_commands(
-            command_params=build_params,
-            main_command=build_reproduction_command_from_context(ctx),
-        )
     )
     rebuild_or_pull_ci_image_if_needed(command_params=build_params)
     if clean_build:

@@ -21,20 +21,14 @@ from __future__ import annotations
 import os
 import shlex
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import click
 from click.core import ParameterSource
 from rich.markup import escape
-from rich.rule import Rule
 
 from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_utils import commit_sha
-
-if TYPE_CHECKING:
-    from airflow_breeze.params.build_ci_params import BuildCiParams
-    from airflow_breeze.params.shell_params import ShellParams
 
 # Options that are side-effect-only or not meaningful for reproduction (safety net;
 # expose_value=False options like --verbose/--dry-run/--answer are already excluded
@@ -46,7 +40,6 @@ _EXCLUDED_PARAMS: frozenset[str] = frozenset(
         "answer",
         "include_success_outputs",
         "debug_resources",
-        "skip_cleanup",
     }
 )
 
@@ -132,7 +125,7 @@ def build_reproduction_command_from_context(
     for param in ctx.command.params:
         if isinstance(param, click.Argument) and param.name is not None:
             value = ctx.params.get(param.name)
-            if value:
+            if value is not None:
                 if isinstance(value, (list, tuple)):
                     argv.extend(str(v) for v in value)
                 else:
@@ -147,6 +140,7 @@ def build_checkout_reproduction_commands(github_repository: str) -> list[Reprodu
     github_ref = os.environ.get("GITHUB_REF", "")
     github_ref_parts = github_ref.split("/")
     if len(github_ref_parts) == 4 and github_ref_parts[:2] == ["refs", "pull"]:
+        pull_request_number = github_ref_parts[2]
         pull_request_ref_kind = github_ref_parts[3]
         return [
             ReproductionCommand(
@@ -156,7 +150,8 @@ def build_checkout_reproduction_commands(github_repository: str) -> list[Reprodu
                     f"https://github.com/{github_repository}.git",
                     github_ref,
                 ],
-                comment=f"Fetch the same code as CI (pull request {pull_request_ref_kind} ref)",
+                comment=f"Fetch the same code as CI (pull request {pull_request_ref_kind} ref)"
+                f" — or: gh pr checkout {pull_request_number}",
             ),
             ReproductionCommand(
                 argv=["git", "checkout", current_commit_sha],
@@ -173,29 +168,25 @@ def build_checkout_reproduction_commands(github_repository: str) -> list[Reprodu
     ]
 
 
-def build_ci_image_reproduction_command(command_params: ShellParams | BuildCiParams) -> ReproductionCommand:
+def build_ci_image_reproduction_command(
+    *,
+    github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    platform: str = "linux/amd64",
+    python: str = "",
+) -> ReproductionCommand:
     """Build the CI image preparation command for local reproduction."""
-    # Current CI jobs restore images from stash keys rather than GitHub Actions artifacts,
-    # so building locally is the reliable reproduction path.
+    if not python:
+        from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+
+        python = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
     command = ["breeze", "ci-image", "build"]
-    if command_params.github_repository != APACHE_AIRFLOW_GITHUB_REPOSITORY:
-        command.extend(["--github-repository", command_params.github_repository])
-    command.extend(["--platform", command_params.platform, "--python", command_params.python])
+    if github_repository != APACHE_AIRFLOW_GITHUB_REPOSITORY:
+        command.extend(["--github-repository", github_repository])
+    command.extend(["--platform", platform, "--python", python])
     return ReproductionCommand(
         argv=command,
         comment="Build the CI image locally",
     )
-
-
-def build_local_reproduction_commands(
-    command_params: ShellParams | BuildCiParams,
-    main_command: ReproductionCommand,
-) -> list[ReproductionCommand]:
-    """Build the ordered list of local reproduction commands."""
-    commands = build_checkout_reproduction_commands(command_params.github_repository)
-    commands.append(build_ci_image_reproduction_command(command_params))
-    commands.append(main_command)
-    return commands
 
 
 def should_print_local_reproduction() -> bool:
@@ -219,9 +210,30 @@ def print_local_reproduction(commands: list[ReproductionCommand]) -> None:
             lines.append(f"# {step_number}. {command.comment}")
         lines.append(shlex.join(command.argv))
     rendered = "\n".join(lines)
+    ruler = "─" * 80
     console = get_console()
-    console.print()
-    console.print(Rule("HOW TO REPRODUCE LOCALLY", characters="-", style="warning"))
-    console.print(f"\n[info]{escape(rendered)}[/]\n", soft_wrap=True)
-    console.print(Rule(characters="-", style="warning"))
-    console.print()
+    console.print(f"\n[warning]{ruler}[/]")
+    console.print("[warning]HOW TO REPRODUCE LOCALLY[/]\n")
+    console.print(f"[info]{escape(rendered)}[/]\n", soft_wrap=True)
+    console.print(f"[warning]{ruler}[/]\n")
+
+
+def maybe_print_reproduction(ctx: click.Context) -> None:
+    """Called by BreezeCommand.invoke() — prints reproduction instructions in CI."""
+    if not should_print_local_reproduction():
+        return
+
+    github_repository = ctx.params.get("github_repository", APACHE_AIRFLOW_GITHUB_REPOSITORY)
+    commands = build_checkout_reproduction_commands(github_repository)
+    # Skip CI image prelude for image build commands themselves — it would be redundant.
+    command_path = ctx.command_path
+    if not command_path.startswith(("breeze ci-image", "breeze prod-image")):
+        commands.append(
+            build_ci_image_reproduction_command(
+                github_repository=github_repository,
+                python=ctx.params.get("python", ""),
+                platform=ctx.params.get("platform", "linux/amd64"),
+            )
+        )
+    commands.append(build_reproduction_command_from_context(ctx))
+    print_local_reproduction(commands)

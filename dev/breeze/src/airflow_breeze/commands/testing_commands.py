@@ -112,11 +112,6 @@ from airflow_breeze.utils.parallel import (
     run_with_pool,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_CTL_ROOT_PATH, FILES_PATH, cleanup_python_generated_files
-from airflow_breeze.utils.reproduce_ci import (
-    build_local_reproduction_commands,
-    build_reproduction_command_from_context,
-    print_local_reproduction,
-)
 from airflow_breeze.utils.run_tests import (
     TASK_SDK_INTEGRATION_TESTS_ROOT_PATH,
     are_all_test_paths_excluded,
@@ -691,10 +686,8 @@ option_total_test_timeout = click.option(
 @option_use_xdist
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
-@click.pass_context
-def core_tests(ctx: click.Context, **kwargs):
+def core_tests(**kwargs):
     _run_test_command(
-        click_context=ctx,
         test_group=GroupOfTests.CORE,
         integration=(),
         excluded_providers="",
@@ -760,9 +753,8 @@ def core_tests(ctx: click.Context, **kwargs):
 @option_use_xdist
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
-@click.pass_context
-def providers_tests(ctx: click.Context, **kwargs):
-    _run_test_command(click_context=ctx, test_group=GroupOfTests.PROVIDERS, integration=(), **kwargs)
+def providers_tests(**kwargs):
+    _run_test_command(test_group=GroupOfTests.PROVIDERS, integration=(), **kwargs)
 
 
 @testing_group.command(
@@ -786,11 +778,9 @@ def providers_tests(ctx: click.Context, **kwargs):
 @option_test_timeout
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
-@click.pass_context
-def task_sdk_tests(ctx: click.Context, **kwargs):
+def task_sdk_tests(**kwargs):
     """Run task SDK tests."""
     _run_test_command(
-        click_context=ctx,
         test_group=GroupOfTests.TASK_SDK,
         allow_pre_releases=False,
         airflow_constraints_reference="constraints-main",
@@ -1743,7 +1733,6 @@ def run_with_timeout(timeout: int, shell_params: ShellParams) -> Generator[Timeo
 
 def _run_test_command(
     *,
-    click_context: click.Context | None = None,
     test_group: GroupOfTests,
     airflow_constraints_reference: str,
     allow_pre_releases: bool,
@@ -1840,13 +1829,6 @@ def _run_test_command(
         run_tests=True,
         db_reset=db_reset if not skip_db_tests else False,
     )
-    if click_context:
-        print_local_reproduction(
-            build_local_reproduction_commands(
-                command_params=shell_params,
-                main_command=build_reproduction_command_from_context(click_context),
-            )
-        )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     fix_ownership_using_docker()
     cleanup_python_generated_files()
