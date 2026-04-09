@@ -1472,17 +1472,34 @@ class TestWorker:
         )
         assert jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0]) == {"foo": "bar"}
 
-    def test_should_add_component_specific_annotations(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "annotations": {"test_annotation": "test_annotation_value"},
+            },
+            {
+                "celery": {
+                    "annotations": {"test_annotation": "test_annotation_value"},
+                }
+            },
+            {
+                "annotations": {"test": "test"},
+                "celery": {
                     "annotations": {"test_annotation": "test_annotation_value"},
                 },
             },
+        ],
+    )
+    def test_should_add_component_specific_annotations(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        assert "annotations" in jmespath.search("metadata", docs[0])
-        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
+        assert jmespath.search("metadata.annotations", docs[0]) == {
+            "test_annotation": "test_annotation_value"
+        }
 
     @pytest.mark.parametrize(
         ("globalScope", "localScope", "precedence"),
