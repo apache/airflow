@@ -216,7 +216,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 # always be in the return type union
                 return resp  # type: ignore[return-value]
 
-        return self._get_response()
+            return self._get_response()
 
     async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """
