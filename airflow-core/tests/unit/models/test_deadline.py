@@ -254,6 +254,9 @@ class TestDeadline:
         assert context["ds_nodash"] == dagrun.logical_date.strftime("%Y%m%d")
         assert context["ts"] == dagrun.logical_date.isoformat()
         assert context["ts_nodash"] == dagrun.logical_date.strftime("%Y%m%dT%H%M%S")
+        assert context["ts_nodash_with_tz"] == dagrun.logical_date.isoformat().replace("-", "").replace(
+            ":", ""
+        )
 
 
 @pytest.mark.db_test

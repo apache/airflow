@@ -20,11 +20,14 @@ from __future__ import annotations
 import logging
 import traceback
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow._shared.module_loading import import_string, qualname
 from airflow.models.callback import CallbackState, _accepts_context
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.sdk.definitions.context import Context
 
 log = logging.getLogger(__name__)
 
@@ -50,12 +53,7 @@ def _render_callback_kwargs(kwargs: dict[str, Any], context: dict) -> dict[str, 
     in the kwargs dict.  Non-string values (int, float, datetime, …) pass
     through unchanged.
     """
-    from typing import TYPE_CHECKING, cast
-
     from airflow.sdk.definitions._internal.templater import SandboxedEnvironment, Templater
-
-    if TYPE_CHECKING:
-        from airflow.sdk.definitions.context import Context
 
     templater = Templater()
     templater.template_fields = ()
