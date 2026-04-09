@@ -12,7 +12,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-04T09:38:26.261919Z"
+exclude-newer = "2026-04-04T19:04:30.711701451Z"
 exclude-newer-span = "P4D"
 
 [options.exclude-newer-package]
@@ -80,6 +80,7 @@ apache-airflow-providers-apache-hdfs = false
 apache-airflow-shared-template-rendering = false
 apache-airflow-providers-http = false
 apache-airflow-providers-slack = false
+apache-airflow-providers-vespa = false
 apache-airflow-providers-databricks = false
 apache-airflow-providers-sqlite = false
 apache-airflow-shared-module-loading = false
@@ -91,9 +92,9 @@ apache-airflow-providers-mongo = false
 apache-airflow-providers-apprise = false
 apache-airflow-providers-apache-impala = false
 apache-airflow-ctl = false
+apache-airflow-providers-zendesk = false
 apache-airflow-providers-github = false
 apache-airflow-providers-snowflake = false
-apache-airflow-providers-zendesk = false
 apache-airflow-providers-presto = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-apache-hive = false

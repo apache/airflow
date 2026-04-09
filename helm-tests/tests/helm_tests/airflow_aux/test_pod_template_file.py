@@ -1100,38 +1100,64 @@ class TestPodTemplateFile:
             "name": "release-name-test-init-container",
         }
 
-    def test_should_add_extra_containers(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"extraContainers": [{"name": "test-container", "image": "test-registry/test-repo:test-tag"}]},
+            {
+                "kubernetes": {
                     "extraContainers": [
                         {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
-                    ],
+                    ]
+                }
+            },
+            {
+                "extraContainers": [{"name": "container", "image": "repo:tag"}],
+                "kubernetes": {
+                    "extraContainers": [
+                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                    ]
                 },
             },
-            show_only=["templates/pod-template-file.yaml"],
-            chart_dir=self.temp_chart_dir,
-        )
-
-        assert jmespath.search("spec.containers[-1]", docs[0]) == {
-            "name": "test-container",
-            "image": "test-registry/test-repo:test-tag",
-        }
-
-    def test_should_template_extra_containers(self):
+        ],
+    )
+    def test_should_add_extra_containers(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": {
-                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
-                },
-            },
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.containers[-1]", docs[0]) == {
-            "name": "release-name-test-container",
-        }
+        assert jmespath.search("spec.containers[1:]", docs[0]) == [
+            {
+                "name": "test-container",
+                "image": "test-registry/test-repo:test-tag",
+            }
+        ]
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"extraContainers": [{"name": "{{ .Release.Name }}-test-container"}]},
+            {"kubernetes": {"extraContainers": [{"name": "{{ .Release.Name }}-test-container"}]}},
+            {
+                "extraContainers": [{"name": "{{ .Release.Name }}-test"}],
+                "kubernetes": {"extraContainers": [{"name": "{{ .Release.Name }}-test-container"}]},
+            },
+        ],
+    )
+    def test_should_template_extra_containers(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[1:]", docs[0]) == [
+            {
+                "name": "release-name-test-container",
+            }
+        ]
 
     def test_should_add_pod_labels(self):
         docs = render_chart(
