@@ -3423,23 +3423,26 @@ class TestChildExecMain:
     """Test the macOS fork+exec child entry point."""
 
     def test_reconstructs_sockets_from_env_and_calls_fork_main(self, monkeypatch):
-        """_child_exec_main reads FD numbers from env, wraps them in sockets, calls _fork_main."""
-        # Create socketpairs. _child_exec_main will wrap the "child" ends in
-        # new socket objects via socket.socket(fileno=N), taking ownership of
-        # those FDs. We only need to clean up the "parent" ends (s2, s4, s6).
-        s1, s2 = socket.socketpair()
-        s3, s4 = socket.socketpair()
-        s5, s6 = socket.socketpair()
-        parent_sockets = [s2, s4, s6]
+        """_child_exec_main reads log FD from env, uses FDs 0/1/2 for sockets, calls _fork_main."""
+        # _child_exec_main expects FDs 0/1/2 to be sockets (dup2'd by the
+        # parent before exec).  We dup2 real sockets onto 0/1/2 for the test,
+        # then restore the originals afterward.
+        req_a, req_b = socket.socketpair()
+        out_a, out_b = socket.socketpair()
+        err_a, err_b = socket.socketpair()
+        log_child, log_parent = socket.socketpair()
+
+        # Save originals so we can restore after the test.
+        saved_0 = os.dup(0)
+        saved_1 = os.dup(1)
+        saved_2 = os.dup(2)
 
         try:
-            fds = {
-                "requests": s1.fileno(),
-                "stdout": s3.fileno(),
-                "stderr": s5.fileno(),
-                "logs": s2.fileno(),
-            }
-            monkeypatch.setenv(supervisor._CHILD_FDS_ENV_VAR, json.dumps(fds))
+            os.dup2(req_a.fileno(), 0)
+            os.dup2(out_a.fileno(), 1)
+            os.dup2(err_a.fileno(), 2)
+
+            monkeypatch.setenv(supervisor._LOG_FD_ENV_VAR, str(log_child.fileno()))
 
             captured = {}
 
@@ -3459,12 +3462,19 @@ class TestChildExecMain:
 
             supervisor._child_exec_main()
 
-            assert captured["requests_fd"] == fds["requests"]
-            assert captured["stdout_fd"] == fds["stdout"]
-            assert captured["stderr_fd"] == fds["stderr"]
-            assert captured["log_fd"] == fds["logs"]
+            assert captured["requests_fd"] == 0
+            assert captured["stdout_fd"] == 1
+            assert captured["stderr_fd"] == 2
+            assert captured["log_fd"] == log_child.fileno()
             assert captured["target"] is supervisor._subprocess_main
-            assert supervisor._CHILD_FDS_ENV_VAR not in os.environ
+            assert supervisor._LOG_FD_ENV_VAR not in os.environ
         finally:
-            for s in parent_sockets:
+            # Restore original FDs.
+            os.dup2(saved_0, 0)
+            os.dup2(saved_1, 1)
+            os.dup2(saved_2, 2)
+            os.close(saved_0)
+            os.close(saved_1)
+            os.close(saved_2)
+            for s in [req_a, req_b, out_a, out_b, err_a, err_b, log_child, log_parent]:
                 s.close()

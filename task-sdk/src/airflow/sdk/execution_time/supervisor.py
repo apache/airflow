@@ -459,9 +459,10 @@ ObjC runtime state; if the child then triggers ObjC class initialization
 runtime detects the corrupted state and crashes with SIGABRT.
 
 Calling ``os.execv`` immediately after ``os.fork`` replaces the child's address
-space, giving it clean ObjC state.  The socketpair FDs survive across exec
-because they are marked inheritable; the child reads FD numbers from an env var
-and reconstructs the communication channels.
+space, giving it clean ObjC state.  Before exec, the supervisor dup2s the
+socketpairs onto FDs 0 (requests/stdin), 1 (stdout), 2 (stderr) -- these are
+inheritable by default and survive across exec.  Only the log channel FD has no
+well-known number and is passed via ``_AIRFLOW_SUPERVISOR_LOG_FD``.
 
 This applies to all executors (Local, Celery, etc.) but only on macOS and only
 for task execution (``target is _subprocess_main``).  DAG processor and triggerer
@@ -472,26 +473,27 @@ See: https://github.com/python/cpython/issues/105912
      https://github.com/apache/airflow/discussions/24463
 """
 
-# Env var key used to pass socket FDs to the child when using fork+exec.
-_CHILD_FDS_ENV_VAR = "_AIRFLOW_SUPERVISOR_CHILD_FDS"
+# Env var used to pass the log channel FD to the exec'd child (macOS fork+exec).
+_LOG_FD_ENV_VAR = "_AIRFLOW_SUPERVISOR_LOG_FD"
 
 
 def _child_exec_main():
     """
     Entry point for the child process when using fork+exec (macOS).
 
-    Reads socket FD numbers from the environment, reconstructs the sockets,
-    and hands off to ``_fork_main`` -- the same code path as the bare-fork
-    child.
+    After exec, FDs 0/1/2 are already the requests/stdout/stderr sockets
+    (dup2'd by the parent before exec).  Only the log FD is read from the
+    environment.  Hands off to ``_fork_main`` -- the same code path as the
+    bare-fork child.
     """
-    import json
     import socket as _socket
 
-    fds = json.loads(os.environ.pop(_CHILD_FDS_ENV_VAR))
-    child_requests = _socket.socket(fileno=fds["requests"])
-    child_stdout = _socket.socket(fileno=fds["stdout"])
-    child_stderr = _socket.socket(fileno=fds["stderr"])
-    log_fd = fds["logs"]
+    log_fd = int(os.environ.pop(_LOG_FD_ENV_VAR))
+
+    # FDs 0, 1, 2 were dup2'd onto the socketpairs before exec.
+    child_requests = _socket.socket(fileno=0)
+    child_stdout = _socket.socket(fileno=1)
+    child_stderr = _socket.socket(fileno=2)
 
     # _fork_main always exits via os._exit(), so the socket objects above are
     # never GC'd (which would close their underlying FDs). This is safe but
@@ -573,21 +575,20 @@ class WatchedSubprocess:
                 # macOS: immediately exec a fresh Python interpreter to replace the
                 # inherited ObjC/CoreFoundation state that is not fork-safe.  Only
                 # for task execution (_subprocess_main); DAG processor and triggerer
-                # use different targets and keep bare fork.  The socketpair FDs
-                # survive across exec because we mark them inheritable.
+                # use different targets and keep bare fork.
+                #
+                # dup2 the socketpairs onto FDs 0/1/2 (which are inheritable by
+                # default and survive across exec).  Only the log FD needs to be
+                # passed explicitly.
                 try:
-                    import json
+                    os.dup2(child_requests.fileno(), 0)
+                    os.dup2(child_stdout.fileno(), 1)
+                    os.dup2(child_stderr.fileno(), 2)
 
-                    fds = {
-                        "requests": child_requests.fileno(),
-                        "stdout": child_stdout.fileno(),
-                        "stderr": child_stderr.fileno(),
-                        "logs": child_logs.fileno(),
-                    }
-                    for fd in fds.values():
-                        os.set_inheritable(fd, True)
+                    log_fd = child_logs.fileno()
+                    os.set_inheritable(log_fd, True)
+                    os.environ[_LOG_FD_ENV_VAR] = str(log_fd)
 
-                    os.environ[_CHILD_FDS_ENV_VAR] = json.dumps(fds)
                     os.execv(sys.executable, [
                         sys.executable,
                         "-c",
