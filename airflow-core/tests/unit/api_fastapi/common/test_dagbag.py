@@ -21,6 +21,7 @@ from unittest import mock
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.app import purge_cached_app
 from airflow.models.dagbag import DBDagBag
@@ -32,9 +33,9 @@ pytestmark = pytest.mark.db_test
 
 
 def _make_serialized_dag_model(version_id):
-    m = mock.MagicMock()
+    m = mock.Mock(spec_set=["dag_version_id", "dag", "load_op_links"])
     m.dag_version_id = version_id
-    m.dag = mock.MagicMock()  # truthy — deserialization succeeds
+    m.dag = mock.Mock()  # truthy — deserialization succeeds
     return m
 
 
@@ -120,7 +121,7 @@ class TestDBDagBagLRUCache:
             bag._read_dag(models[uid])
 
         # Re-access ids[0] through get_serialized_dag_model to promote it
-        session = mock.MagicMock()
+        session = mock.create_autospec(Session, instance=True)
         bag.get_serialized_dag_model(ids[0], session=session)
         session.get.assert_not_called()  # should be a pure cache hit
 
@@ -133,7 +134,7 @@ class TestDBDagBagLRUCache:
     def test_failed_deserialization_not_cached(self):
         """Entries whose .dag property is falsy are not inserted into the cache."""
         bag = self._make_bag(max_size=10)
-        m = mock.MagicMock()
+        m = mock.Mock(spec_set=["dag_version_id", "dag", "load_op_links"])
         m.dag_version_id = uuid4()
         m.dag = None  # deserialization failure
 
@@ -148,7 +149,7 @@ class TestDBDagBagLRUCache:
         bag._dags[uid] = _make_serialized_dag_model(uid)
 
         with mock.patch("airflow.models.dagbag.Stats") as mock_stats:
-            bag.get_serialized_dag_model(uid, session=mock.MagicMock())
+            bag.get_serialized_dag_model(uid, session=mock.create_autospec(Session, instance=True))
             mock_stats.incr.assert_called_with("dag_bag.cache.hits")
 
     def test_unbounded_cache_never_evicts(self):
