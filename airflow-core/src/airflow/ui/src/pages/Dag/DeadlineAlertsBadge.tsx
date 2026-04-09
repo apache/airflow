@@ -16,50 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, HStack, Separator, Text, VStack } from "@chakra-ui/react";
+import { Box, Button, Separator, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { FiClock } from "react-icons/fi";
 
-import { useDeadlinesServiceGetDeadlines, useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
+import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { Popover } from "src/components/ui";
-import { renderDuration } from "src/utils";
-
-const referenceTypeLabels: Record<string, string> = {
-  AverageRuntimeDeadline: "Average Runtime",
-  DagRunLogicalDateDeadline: "Logical Date",
-  DagRunQueuedAtDeadline: "Queued At",
-  FixedDatetimeDeadline: "Fixed Datetime",
-};
-
-const formatReferenceType = (referenceType: string): string =>
-  referenceTypeLabels[referenceType] ?? referenceType;
 
 const AlertRow = ({ alert }: { readonly alert: DeadlineAlertResponse }) => {
   const { t: translate } = useTranslation("dag");
+  const reference = translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
+    defaultValue: alert.reference_type,
+  });
+  const interval = dayjs.duration(alert.interval, "seconds").humanize();
 
   return (
     <Box py={2} width="100%">
-      <Text fontWeight="bold">
-        {alert.name !== undefined && alert.name !== null && alert.name !== ""
-          ? alert.name
-          : translate("deadlineAlerts.unnamed")}
+      <Text color="white" fontSize="xs">
+        {alert.id}:
+      </Text>
+      <Text color="fg.muted" fontSize="xs">
+        {translate("deadlineAlerts.completionRule", { interval, reference })}
       </Text>
       {alert.description !== undefined && alert.description !== null && alert.description !== "" ? (
         <Text color="fg.muted" fontSize="xs">
           {alert.description}
         </Text>
       ) : undefined}
-      <HStack fontSize="xs" gap={3} mt={1}>
-        <Text color="fg.muted">
-          {translate("deadlineAlerts.referenceType")}: {formatReferenceType(alert.reference_type)}
-        </Text>
-        <Text color="fg.muted">
-          {translate("deadlineAlerts.interval")}:{" "}
-          {renderDuration(alert.interval, false) ?? `${alert.interval}s`}
-        </Text>
-      </HStack>
     </Box>
   );
 };
@@ -68,16 +53,8 @@ export const DeadlineAlertsBadge = ({ dagId }: { readonly dagId: string }) => {
   const { t: translate } = useTranslation("dag");
 
   const { data } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId });
-  const { data: missedData } = useDeadlinesServiceGetDeadlines({
-    dagId,
-    dagRunId: "~",
-    lastUpdatedAtGte: dayjs().subtract(24, "hour").toISOString(),
-    limit: 1,
-    missed: true,
-  });
 
   const alerts = (data?.total_entries ?? 0) > 0 ? data?.deadline_alerts : [];
-  const hasMissed = (missedData?.total_entries ?? 0) > 0;
 
   if (!alerts || alerts.length === 0) {
     return undefined;
@@ -87,7 +64,7 @@ export const DeadlineAlertsBadge = ({ dagId }: { readonly dagId: string }) => {
     // eslint-disable-next-line jsx-a11y/no-autofocus
     <Popover.Root autoFocus={false} lazyMount unmountOnExit>
       <Popover.Trigger asChild>
-        <Button color={hasMissed ? "fg.error" : "fg.info"} size="xs" variant="outline">
+        <Button color="fg.info" size="xs" variant="outline">
           <FiClock />
           {translate("deadlineAlerts.count", { count: alerts.length })}
         </Button>

@@ -16,12 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, HStack, Text, VStack } from "@chakra-ui/react";
+import { Badge, Button, HStack, Text, VStack } from "@chakra-ui/react";
+import dayjs from "dayjs";
+import duration from "dayjs/plugin/duration";
+import relativeTime from "dayjs/plugin/relativeTime";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiCheck, FiClock } from "react-icons/fi";
 
-import { useDeadlinesServiceGetDagDeadlineAlerts, useDeadlinesServiceGetDeadlines } from "openapi/queries";
+import {
+  useDagRunServiceGetDagRun,
+  useDeadlinesServiceGetDagDeadlineAlerts,
+  useDeadlinesServiceGetDeadlines,
+} from "openapi/queries";
+import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
+
+import { DeadlineStatusModal } from "./DeadlineStatusModal";
+
+dayjs.extend(duration);
+dayjs.extend(relativeTime);
 
 type DeadlineStatusProps = {
   readonly dagId: string;
@@ -30,6 +44,7 @@ type DeadlineStatusProps = {
 
 export const DeadlineStatus = ({ dagId, dagRunId }: DeadlineStatusProps) => {
   const { t: translate } = useTranslation("dag");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { data: deadlineData, isLoading: isLoadingDeadlines } = useDeadlinesServiceGetDeadlines({
     dagId,
@@ -38,72 +53,140 @@ export const DeadlineStatus = ({ dagId, dagRunId }: DeadlineStatusProps) => {
     orderBy: ["deadline_time"],
   });
 
+  // Used to detect whether the DAG has any deadline alerts at all, so we can show "Met" when there are alerts configured but no active deadline instances.
   const { data: alertData, isLoading: isLoadingAlerts } = useDeadlinesServiceGetDagDeadlineAlerts({
     dagId,
+    limit: 100,
   });
 
-  if (isLoadingDeadlines || isLoadingAlerts) {
+  const { data: runData, isLoading: isLoadingRun } = useDagRunServiceGetDagRun({ dagId, dagRunId });
+
+  const alertMap = new Map<string, DeadlineAlertResponse>();
+
+  for (const alert of alertData?.deadline_alerts ?? []) {
+    if (alert.name !== undefined && alert.name !== null && alert.name !== "") {
+      alertMap.set(alert.name, alert);
+    }
+  }
+
+  if (isLoadingDeadlines || isLoadingAlerts || isLoadingRun) {
     return undefined;
   }
 
+  // Active instances for this run; hasAlerts = DAG has deadline alerts configured.
   const deadlines = deadlineData?.deadlines ?? [];
   const hasAlerts = (alertData?.total_entries ?? 0) > 0;
 
+  // No deadline alerts configured on the DAG at all
   if (deadlines.length === 0 && !hasAlerts) {
     return undefined;
   }
 
+  // Alerts are configured but no active deadline instances exist therefore all deadlines were met.
   if (deadlines.length === 0 && hasAlerts) {
     return (
       <HStack gap={1}>
         <Badge colorPalette="green" size="sm" variant="solid">
-          <FiCheck color="var(--chakra-colors-fg-white)" />
+          <FiCheck />
           {translate("deadlineStatus.met")}
         </Badge>
       </HStack>
     );
   }
 
-  const missedDeadlines = deadlines.filter((dl) => dl.missed);
-  const upcomingDeadlines = deadlines.filter((dl) => !dl.missed);
-
-  if (missedDeadlines.length > 0) {
-    return (
-      <VStack alignItems="flex-start" gap={1}>
-        {missedDeadlines.map((dl) => (
-          <HStack gap={1} key={dl.id}>
-            <Badge colorPalette="red" size="sm" variant="solid">
-              <FiAlertTriangle color="var(--chakra-colors-fg-white)" />
-              {translate("deadlineStatus.missed")}
-            </Badge>
-            <Time datetime={dl.deadline_time} fontSize="sm" />
-            {dl.alert_name !== undefined && dl.alert_name !== null && dl.alert_name !== "" ? (
-              <Text color="fg.muted" fontSize="xs">
-                ({dl.alert_name})
-              </Text>
-            ) : undefined}
-          </HStack>
-        ))}
-      </VStack>
-    );
-  }
+  const totalEntries = deadlineData?.total_entries ?? 0;
+  const extraCount = totalEntries - deadlines.length;
+  const runEndDate = runData?.end_date ?? undefined;
 
   return (
-    <VStack alignItems="flex-start" gap={1}>
-      {upcomingDeadlines.map((dl) => (
-        <HStack gap={1} key={dl.id}>
-          <Badge colorPalette="blue" size="sm" variant="solid">
-            <FiClock color="var(--chakra-colors-fg-white)" />
-            {translate("deadlineStatus.upcoming")}
-          </Badge>
-          <Time datetime={dl.deadline_time} fontSize="sm" />
-          {dl.alert_name !== undefined && dl.alert_name !== null && dl.alert_name !== "" ? (
-            <Text color="fg.muted" fontSize="xs">
-              ({dl.alert_name})
-            </Text>
-          ) : undefined}
-        </HStack>
-      ))}
-    </VStack>
+    <>
+      <VStack alignItems="flex-start" gap={1}>
+        {deadlines.map((dl) => {
+          const alert =
+            dl.alert_name !== undefined && dl.alert_name !== null && dl.alert_name !== ""
+              ? alertMap.get(dl.alert_name)
+              : undefined;
+          const deadlineTime = dayjs(dl.deadline_time);
+          let contextLine: string | undefined;
+
+          if (dl.missed) {
+            if (runEndDate === undefined) {
+              contextLine = translate("deadlineStatus.stillRunning");
+            } else {
+              const diff = dayjs(runEndDate).diff(deadlineTime);
+
+              contextLine =
+                diff >= 0
+                  ? translate("deadlineStatus.finishedLate", {
+                      duration: dayjs.duration(diff).humanize(),
+                    })
+                  : translate("deadlineStatus.finishedEarly", {
+                      duration: dayjs.duration(-diff).humanize(),
+                    });
+            }
+          } else {
+            const remaining = deadlineTime.diff(dayjs());
+
+            if (remaining > 0) {
+              contextLine = translate("deadlineStatus.deadlineIn", {
+                duration: dayjs.duration(remaining).humanize(),
+              });
+            }
+          }
+
+          return (
+            <VStack alignItems="flex-start" gap={0.5} key={dl.id}>
+              <HStack gap={1}>
+                {dl.missed ? (
+                  <Badge colorPalette="red" size="sm" variant="solid">
+                    <FiAlertTriangle />
+                    {translate("deadlineStatus.missed")}
+                  </Badge>
+                ) : (
+                  <Badge colorPalette="blue" size="sm" variant="solid">
+                    <FiClock />
+                    {translate("deadlineStatus.upcoming")}
+                  </Badge>
+                )}
+                <Time datetime={dl.deadline_time} fontSize="sm" />
+                {dl.alert_name === undefined || dl.alert_name === null || dl.alert_name === "" ? undefined : (
+                  <Text color="fg.muted" fontSize="xs">
+                    ({dl.alert_name})
+                  </Text>
+                )}
+              </HStack>
+              {alert === undefined ? undefined : (
+                <Text color="fg.muted" fontSize="xs" pl={1}>
+                  {translate("deadlineStatus.completionRule", {
+                    interval: dayjs.duration(alert.interval, "seconds").humanize(),
+                    reference: translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
+                      defaultValue: alert.reference_type,
+                    }),
+                  })}
+                </Text>
+              )}
+              {contextLine === undefined ? undefined : (
+                <Text color={dl.missed ? "fg.error" : "fg.muted"} fontSize="xs" pl={1}>
+                  {contextLine}
+                </Text>
+              )}
+            </VStack>
+          );
+        })}
+        {extraCount > 0 ? (
+          <Button onClick={() => setIsModalOpen(true)} size="xs" variant="ghost">
+            {translate("deadlineStatus.viewAll", { count: totalEntries })}
+          </Button>
+        ) : undefined}
+      </VStack>
+      <DeadlineStatusModal
+        alertMap={alertMap}
+        dagId={dagId}
+        dagRunId={dagRunId}
+        onClose={() => setIsModalOpen(false)}
+        open={isModalOpen}
+        runEndDate={runEndDate}
+      />
+    </>
   );
 };

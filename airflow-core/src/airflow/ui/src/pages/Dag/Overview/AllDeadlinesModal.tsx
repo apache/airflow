@@ -19,7 +19,8 @@
 import { Heading, HStack, Separator, Skeleton, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 
-import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
+import { useDagRunServiceGetDagRuns, useDeadlinesServiceGetDeadlines } from "openapi/queries";
+import type { DAGRunResponse, DagRunState, DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { Dialog } from "src/components/ui";
 import { Pagination } from "src/components/ui/Pagination";
@@ -29,6 +30,7 @@ import { DeadlineRow } from "./DeadlineRow";
 const PAGE_LIMIT = 10;
 
 type AllDeadlinesModalProps = {
+  readonly alertMap: Map<string, DeadlineAlertResponse>;
   readonly dagId: string;
   readonly endDate: string;
   readonly missed: boolean;
@@ -40,6 +42,7 @@ type AllDeadlinesModalProps = {
 };
 
 export const AllDeadlinesModal = ({
+  alertMap,
   dagId,
   endDate,
   missed,
@@ -77,8 +80,25 @@ export const AllDeadlinesModal = ({
     { enabled: open, refetchInterval },
   );
 
+  const { data: runsData } = useDagRunServiceGetDagRuns(
+    { dagId, limit: 100, runAfterGte: startDate, runAfterLte: endDate },
+    undefined,
+    { enabled: open, refetchInterval },
+  );
+
+  const runStateMap = new Map<string, DagRunState>();
+  const runMap = new Map<string, DAGRunResponse>();
+
+  for (const run of runsData?.dag_runs ?? []) {
+    runStateMap.set(run.dag_run_id, run.state);
+    runMap.set(run.dag_run_id, run);
+  }
+
   const deadlines = data?.deadlines ?? [];
   const totalEntries = data?.total_entries ?? 0;
+
+  const getAlert = (alertName?: string | null) =>
+    alertName !== undefined && alertName !== null && alertName !== "" ? alertMap.get(alertName) : undefined;
 
   const onOpenChange = () => {
     setPage(1);
@@ -104,7 +124,13 @@ export const AllDeadlinesModal = ({
           ) : (
             <VStack gap={0} separator={<Separator />}>
               {deadlines.map((dl) => (
-                <DeadlineRow deadline={dl} key={dl.id} />
+                <DeadlineRow
+                  alert={getAlert(dl.alert_name)}
+                  deadline={dl}
+                  key={dl.id}
+                  run={runMap.get(dl.dag_run_id)}
+                  runState={runStateMap.get(dl.dag_run_id)}
+                />
               ))}
             </VStack>
           )}

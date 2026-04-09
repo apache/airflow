@@ -46,18 +46,29 @@
     "parsedAt": "Parsed at:"
   },
   "deadlineAlerts": {
+    "completionRule": "Run to complete within {{interval}} of {{reference}}",
     "count_one": "{{count}} deadline",
     "count_other": "{{count}} deadlines",
-    "interval": "Interval",
-    "referenceType": "Calculated from",
+    "referenceType": {
+      "AverageRuntimeDeadline": "average runtime",
+      "DagRunLogicalDateDeadline": "logical date",
+      "DagRunQueuedAtDeadline": "queue time",
+      "FixedDatetimeDeadline": "fixed datetime"
+    },
     "title": "Deadline Alerts",
     "unnamed": "Unnamed Alert"
   },
   "deadlineStatus": {
+    "completionRule": "Must complete within {{interval}} of {{reference}}",
+    "deadlineIn": "Deadline in {{duration}}",
+    "finishedEarly": "Finished {{duration}} before deadline",
+    "finishedLate": "Finished {{duration}} after deadline",
     "label": "Deadline",
     "met": "Met",
     "missed": "Missed",
-    "upcoming": "Upcoming"
+    "stillRunning": "Still running",
+    "upcoming": "Upcoming",
+    "viewAll": "View all {{count}}"
   },
   "extraLinks": "Extra Links",
   "grid": {
@@ -113,8 +124,12 @@
       "assetEvent_other": "Created Asset Events"
     },
     "deadlines": {
+      "completionRule": "Complete within {{interval}} of {{reference}}",
+      "finishedEarly": "Finished {{duration}} before deadline",
+      "finishedLate": "Finished {{duration}} after deadline",
       "pending": "Pending Deadlines",
       "recentlyMissed": "Recently Missed Deadlines",
+      "stillRunning": "Still running past deadline",
       "title": "Deadlines",
       "viewAll": "View all {{count}}"
     },

@@ -21,7 +21,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
-import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
+import {
+  useDagRunServiceGetDagRuns,
+  useDeadlinesServiceGetDagDeadlineAlerts,
+  useDeadlinesServiceGetDeadlines,
+} from "openapi/queries";
+import type { DAGRunResponse, DagRunState, DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { useAutoRefresh } from "src/utils";
 
@@ -39,7 +44,7 @@ type DagDeadlinesProps = {
 export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) => {
   const { t: translate } = useTranslation("dag");
   const refetchInterval = useAutoRefresh({ dagId });
-  const [modalOpen, setModalOpen] = useState<"missed" | "pending" | null>(null);
+  const [modalOpen, setModalOpen] = useState<"missed" | "pending" | undefined>(undefined);
 
   const {
     data: pendingData,
@@ -76,6 +81,32 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
     { refetchInterval },
   );
 
+  const { data: runsData } = useDagRunServiceGetDagRuns(
+    { dagId, limit: 100, runAfterGte: startDate, runAfterLte: endDate },
+    undefined,
+    { refetchInterval },
+  );
+
+  const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId, limit: 100 }, undefined, {
+    refetchInterval,
+  });
+
+  const runStateMap = new Map<string, DagRunState>();
+  const runMap = new Map<string, DAGRunResponse>();
+
+  for (const run of runsData?.dag_runs ?? []) {
+    runStateMap.set(run.dag_run_id, run.state);
+    runMap.set(run.dag_run_id, run);
+  }
+
+  const alertMap = new Map<string, DeadlineAlertResponse>();
+
+  for (const alert of alertData?.deadline_alerts ?? []) {
+    if (alert.name !== undefined && alert.name !== null && alert.name !== "") {
+      alertMap.set(alert.name, alert);
+    }
+  }
+
   const pendingDeadlines = pendingData?.deadlines ?? [];
   const missedDeadlines = missedData?.deadlines ?? [];
 
@@ -87,6 +118,9 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
   ) {
     return undefined;
   }
+
+  const getAlert = (alertName?: string | null) =>
+    alertName !== undefined && alertName !== null && alertName !== "" ? alertMap.get(alertName) : undefined;
 
   return (
     <Box>
@@ -119,7 +153,13 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
             ) : (
               <VStack gap={0} separator={<Separator />}>
                 {pendingDeadlines.map((dl) => (
-                  <DeadlineRow deadline={dl} key={dl.id} />
+                  <DeadlineRow
+                    alert={getAlert(dl.alert_name)}
+                    deadline={dl}
+                    key={dl.id}
+                    run={runMap.get(dl.dag_run_id)}
+                    runState={runStateMap.get(dl.dag_run_id)}
+                  />
                 ))}
                 {(pendingData?.total_entries ?? 0) > LIMIT ? (
                   <Button
@@ -160,7 +200,13 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
             ) : (
               <VStack gap={0} separator={<Separator />}>
                 {missedDeadlines.map((dl) => (
-                  <DeadlineRow deadline={dl} key={dl.id} />
+                  <DeadlineRow
+                    alert={getAlert(dl.alert_name)}
+                    deadline={dl}
+                    key={dl.id}
+                    run={runMap.get(dl.dag_run_id)}
+                    runState={runStateMap.get(dl.dag_run_id)}
+                  />
                 ))}
                 {(missedData?.total_entries ?? 0) > LIMIT ? (
                   <Button
@@ -182,11 +228,12 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
       </Flex>
 
       <AllDeadlinesModal
+        alertMap={alertMap}
         dagId={dagId}
         endDate={endDate}
         missed={modalOpen === "missed"}
-        onClose={() => setModalOpen(null)}
-        open={modalOpen !== null}
+        onClose={() => setModalOpen(undefined)}
+        open={modalOpen !== undefined}
         refetchInterval={refetchInterval}
         startDate={startDate}
         title={
