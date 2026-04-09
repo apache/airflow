@@ -112,6 +112,7 @@ body:
       multiple: true
       options:
         - airbyte
+        - akeyless
         - alibaba
         - amazon
         - apache-beam

@@ -52,6 +52,13 @@
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-akeyless/>
     Installing from sources <installing-providers-from-sources>
 
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/akeyless/index>
+
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
@@ -64,9 +71,11 @@
 
 
 apache-airflow-providers-akeyless package
------------------------------------------
+------------------------------------------------------
 
 `Akeyless <https://www.akeyless.io/>`__ Vault Platform provider for Apache Airflow.
+Provides a Hook, Connection type, and Secrets Backend for managing static secrets,
+dynamic secrets, rotated secrets, and more.
 
 
 Release: 1.0.0
@@ -96,3 +105,31 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``akeyless``                                ``>=5.0.0``
 ==========================================  ==================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider distributions in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-akeyless[common.compat]
+
+
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+==================================================================================================================  =================
+
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-akeyless 1.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-1.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-1.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-1.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-akeyless 1.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-1.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-1.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_akeyless-1.0.0-py3-none-any.whl.sha512>`__)

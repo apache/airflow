@@ -1,14 +1,19 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 """Hook for Akeyless Vault Platform."""
 
 from __future__ import annotations
@@ -24,7 +29,8 @@ VALID_AUTH_TYPES = ("api_key", "aws_iam", "gcp", "azure_ad", "uid", "jwt", "k8s"
 
 
 class AkeylessHook(BaseHook):
-    """Hook to interact with the Akeyless Vault Platform.
+    """
+    Hook to interact with the Akeyless Vault Platform.
 
     Thin wrapper around the ``akeyless`` Python SDK.
 
@@ -66,7 +72,8 @@ class AkeylessHook(BaseHook):
         return self.client
 
     def authenticate(self) -> str:
-        """Authenticate and return an API token.
+        """
+        Authenticate and return an API token.
 
         For ``uid`` auth the token is the UID token itself.
         For all other methods, calls ``akeyless.Auth``.
@@ -161,9 +168,7 @@ class AkeylessHook(BaseHook):
     def get_rotated_secret_value(self, name: str) -> dict[str, Any]:
         """Retrieve a rotated secret value."""
         token = self.authenticate()
-        res = self.client.get_rotated_secret_value(
-            akeyless.GetRotatedSecretValue(names=name, token=token)
-        )
+        res = self.client.get_rotated_secret_value(akeyless.GetRotatedSecretValue(names=name, token=token))
         return res.to_dict() if hasattr(res, "to_dict") else dict(res)
 
     # ------------------------------------------------------------------
