@@ -204,6 +204,9 @@ def on_celery_worker_ready(*args, **kwargs):
 # and deserialization for us.
 @app.task(name="execute_workload")
 def execute_workload(input: str) -> None:
+    if not AIRFLOW_V_3_2_PLUS:
+        raise RuntimeError("BaseExecutor.run_workload() requires Airflow 3.2+.")
+
     from celery.exceptions import Ignore
     from pydantic import TypeAdapter
 

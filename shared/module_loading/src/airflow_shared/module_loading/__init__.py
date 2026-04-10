@@ -54,6 +54,23 @@ def accepts_context(callback: Callable) -> bool:
     return "context" in params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
 
 
+def accepts_keyword_args(func: Callable) -> bool:
+    """Check if a callable accepts any keyword arguments (named params or **kwargs)."""
+    try:
+        sig = inspect.signature(func)
+    except (ValueError, TypeError):
+        return True
+    return any(
+        p.kind
+        in (
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+            inspect.Parameter.VAR_KEYWORD,
+        )
+        for p in sig.parameters.values()
+    )
+
+
 def import_string(dotted_path: str):
     """
     Import a dotted module path and return the attribute/class designated by the last name in the path.

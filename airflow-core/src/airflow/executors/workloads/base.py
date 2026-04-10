@@ -97,7 +97,7 @@ class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
 
         Must be implemented by subclasses.
         """
-        raise NotImplementedError(f"{self.__class__.__name__} must implement key")
+        ...
 
     @property
     @abstractmethod
@@ -120,7 +120,7 @@ class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
             # Results in process titles like:
             # "airflow worker -- LocalExecutor: 4d828a62-a417-4936-a7a6-2b3fabacecab"
         """
-        raise NotImplementedError(f"{self.__class__.__name__} must implement display_name")
+        ...
 
     @property
     @abstractmethod
@@ -130,7 +130,7 @@ class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
 
         Must be implemented by subclasses.
         """
-        raise NotImplementedError(f"{self.__class__.__name__} must implement success_state")
+        ...
 
     @property
     @abstractmethod
@@ -140,7 +140,7 @@ class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
 
         Must be implemented by subclasses.
         """
-        raise NotImplementedError(f"{self.__class__.__name__} must implement failure_state")
+        ...
 
     @property
     def running_state(self) -> WorkloadState | None:

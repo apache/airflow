@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -606,9 +607,10 @@ class BaseExecutor(LoggingMixin):
         :return: Exit code of the process.
         """
         try:
-            from setproctitle import setproctitle
+            if sys.platform != "darwin":
+                from setproctitle import setproctitle
 
-            setproctitle(proctitle or f"airflow supervisor: {workload.display_name}")
+                setproctitle(proctitle or f"airflow supervisor: {workload.display_name}")
         except ImportError:
             pass
 

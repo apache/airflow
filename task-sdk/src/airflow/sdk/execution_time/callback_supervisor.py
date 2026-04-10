@@ -28,6 +28,7 @@ import attrs
 import structlog
 from pydantic import TypeAdapter
 
+from airflow.sdk._shared.module_loading import accepts_context, accepts_keyword_args
 from airflow.sdk.execution_time.supervisor import (
     MIN_HEARTBEAT_INTERVAL,
     SOCKET_CLEANUP_TIMEOUT,
@@ -75,8 +76,6 @@ def execute_callback(
     :param log: Logger instance for recording execution.
     :return: Tuple of (success: bool, error_message: str | None)
     """
-    from airflow.sdk._shared.module_loading import accepts_context
-
     if not callback_path:
         return False, "Callback path not found."
 
@@ -87,7 +86,7 @@ def execute_callback(
         module = import_module(module_path)
         callback_callable = getattr(module, function_name)
 
-        log.debug("Executing callback %s(%s)...", callback_path, callback_kwargs)
+        log.debug("Executing callback", callback_path=callback_path, callback_kwargs=callback_kwargs)
 
         kwargs_without_context = {k: v for k, v in callback_kwargs.items() if k != "context"}
 
@@ -98,23 +97,29 @@ def execute_callback(
             result = callback_callable(**kwargs_without_context)
 
         # If the callback was a class then it is now instantiated and callable, call it.
-        # Try keyword args first. If the callable only accepts positional args (like
-        # BaseNotifier.__call__(self, *args)), fall back to passing context positionally.
+        # The constructor already received the full kwargs above; the __call__ method
+        # typically only needs context (e.g. BaseNotifier.__call__(self, *args)).
+        # Some callables (like BaseNotifier.__call__) only accept positional args,
+        # so check the signature first rather than catching a broad TypeError.
         if callable(result):
-            try:
-                if accepts_context(result):
-                    result = result(**callback_kwargs)
-                else:
-                    result = result(**kwargs_without_context)
-            except TypeError:
-                result = result(callback_kwargs.get("context", {}))
+            context = callback_kwargs.get("context", {})
+            if accepts_keyword_args(result):
+                result = result(context=context) if accepts_context(result) else result()
+            else:
+                # Positional-only callable (e.g. BaseNotifier.__call__(self, *args))
+                result = result(context)
 
-        log.info("Callback %s executed successfully.", callback_path)
+        log.info("Callback executed successfully", callback_path=callback_path)
         return True, None
 
     except Exception as e:
         error_msg = f"Callback execution failed: {type(e).__name__}: {str(e)}"
-        log.exception("Callback %s(%s) execution failed: %s", callback_path, callback_kwargs, error_msg)
+        log.exception(
+            "Callback execution failed",
+            callback_path=callback_path,
+            callback_kwargs=callback_kwargs,
+            error_msg=error_msg,
+        )
         return False, error_msg
 
 
