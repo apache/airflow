@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from types import ModuleType
 from unittest import mock
@@ -32,6 +33,15 @@ GCS_BUCKET = "gcs-bucket"
 CONTAINER = "container"
 BLOB_PREFIX = "dest/prefix"
 GCS_OBJECTS = ["data/a.txt", "data/b.txt"]
+
+
+def _expected_blob_paths(blob_prefix: str, *relative_keys: str) -> list[str]:
+    """Match operator dest_blob construction (os.path.join) with forward slashes for asserts."""
+    return [os.path.join(blob_prefix, key).replace("\\", "/") for key in relative_keys]
+
+
+def _norm_paths(paths: list[str]) -> list[str]:
+    return [p.replace("\\", "/") for p in paths]
 
 
 class TestGCSToAzureBlobStorageOperator:
@@ -76,9 +86,9 @@ class TestGCSToAzureBlobStorageOperator:
             blob_prefix=BLOB_PREFIX,
             replace=True,
         )
-        result = op.execute(context=mock.Mock())
+        result = op.execute(context=None)
 
-        assert result == [f"{BLOB_PREFIX}/data/a.txt", f"{BLOB_PREFIX}/data/b.txt"]
+        assert _norm_paths(result) == _expected_blob_paths(BLOB_PREFIX, "data/a.txt", "data/b.txt")
         mock_wasb_hook.return_value.load_file.assert_called()
         assert mock_wasb_hook.return_value.load_file.call_count == 2
         first_kw = mock_wasb_hook.return_value.load_file.call_args_list[0].kwargs
@@ -98,7 +108,7 @@ class TestGCSToAzureBlobStorageOperator:
             blob_prefix=BLOB_PREFIX,
             replace=True,
         )
-        assert op.execute(context=mock.Mock()) == []
+        assert op.execute(context=None) == []
         mock_wasb_hook.return_value.load_file.assert_not_called()
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.WasbHook")
@@ -117,9 +127,9 @@ class TestGCSToAzureBlobStorageOperator:
             blob_prefix="",
             replace=True,
         )
-        result = op.execute(context=mock.Mock())
+        result = op.execute(context=None)
 
-        assert result == ["src/airflow.png"]
+        assert _norm_paths(result) == ["src/airflow.png"]
         mock_wasb_hook.return_value.load_file.assert_called_once()
         assert mock_wasb_hook.return_value.load_file.call_args.kwargs["blob_name"] == "src/airflow.png"
         assert mock_wasb_hook.return_value.load_file.call_args.kwargs["overwrite"] is True
@@ -143,9 +153,9 @@ class TestGCSToAzureBlobStorageOperator:
             blob_prefix=BLOB_PREFIX,
             replace=False,
         )
-        result = op.execute(context=mock.Mock())
+        result = op.execute(context=None)
 
-        assert result == [f"{BLOB_PREFIX}/data/b.txt"]
+        assert _norm_paths(result) == _expected_blob_paths(BLOB_PREFIX, "data/b.txt")
         mock_wasb_hook.return_value.load_file.assert_called_once()
         assert mock_wasb_hook.return_value.load_file.call_args.kwargs["overwrite"] is False
 
@@ -166,11 +176,11 @@ class TestGCSToAzureBlobStorageOperator:
             replace=True,
             flatten_structure=True,
         )
-        result = op.execute(context=mock.Mock())
+        result = op.execute(context=None)
 
-        assert result == [f"{BLOB_PREFIX}/a.txt"]
+        assert _norm_paths(result) == _expected_blob_paths(BLOB_PREFIX, "a.txt")
         kw = mock_wasb_hook.return_value.load_file.call_args.kwargs
-        assert kw["blob_name"] == f"{BLOB_PREFIX}/a.txt"
+        assert str(kw["blob_name"]).replace("\\", "/") == _expected_blob_paths(BLOB_PREFIX, "a.txt")[0]
         assert kw["overwrite"] is True
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.WasbHook")

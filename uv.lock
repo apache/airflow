@@ -6017,6 +6017,12 @@ amazon = [
 common-messaging = [
     { name = "apache-airflow-providers-common-messaging" },
 ]
+google = [
+    { name = "apache-airflow-providers-google" },
+]
+openlineage = [
+    { name = "apache-airflow-providers-openlineage" },
+]
 oracle = [
     { name = "apache-airflow-providers-oracle" },
 ]
@@ -6031,6 +6037,8 @@ dev = [
     { name = "apache-airflow-providers-amazon" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-messaging" },
+    { name = "apache-airflow-providers-google" },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-providers-oracle" },
     { name = "apache-airflow-providers-sftp" },
     { name = "apache-airflow-task-sdk" },
@@ -6048,6 +6056,8 @@ requires-dist = [
     { name = "apache-airflow-providers-amazon", marker = "extra == 'amazon'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-messaging", marker = "extra == 'common-messaging'", editable = "providers/common/messaging" },
+    { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
+    { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-oracle", marker = "extra == 'oracle'", editable = "providers/oracle" },
     { name = "apache-airflow-providers-sftp", marker = "extra == 'sftp'", editable = "providers/sftp" },
     { name = "azure-batch", specifier = ">=8.0.0,<15.0.0" },
@@ -6079,7 +6089,7 @@ requires-dist = [
     { name = "msgraph-core", specifier = ">=1.3.3" },
     { name = "msgraphfs", specifier = ">=0.3.0" },
 ]
-provides-extras = ["amazon", "oracle", "sftp", "common-messaging"]
+provides-extras = ["amazon", "oracle", "sftp", "common-messaging", "google", "openlineage"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -6088,6 +6098,8 @@ dev = [
     { name = "apache-airflow-providers-amazon", editable = "providers/amazon" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-messaging", editable = "providers/common/messaging" },
+    { name = "apache-airflow-providers-google", editable = "providers/google" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-oracle", editable = "providers/oracle" },
     { name = "apache-airflow-providers-sftp", editable = "providers/sftp" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },

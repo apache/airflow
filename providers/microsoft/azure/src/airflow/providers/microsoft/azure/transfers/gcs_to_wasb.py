@@ -185,9 +185,7 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
         gcs_files = gcs_hook.list(**list_kwargs)  # type: ignore[call-arg]
 
         gcs_files = [
-            f
-            for f in gcs_files
-            if not self._should_skip_gcs_object(f) and self._transform_file_path(f)
+            f for f in gcs_files if not self._should_skip_gcs_object(f) and self._transform_file_path(f)
         ]
 
         if not self.keep_directory_structure and self.prefix and not self.flatten_structure:
@@ -221,6 +219,7 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
 
             gcs_files = filtered_files
 
+        uploaded_blobs: list[str] = []
         if gcs_files:
             for file in gcs_files:
                 with gcs_hook.provide_file(
@@ -236,11 +235,12 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
                         create_container=self.create_container,
                         overwrite=self.replace,
                     )
-            self.log.info("All done, uploaded %d files to Azure Blob Storage", len(gcs_files))
+                    uploaded_blobs.append(dest_blob)
+            self.log.info("All done, uploaded %d files to Azure Blob Storage", len(uploaded_blobs))
         else:
             self.log.info("In sync, no files needed to be uploaded to Azure Blob Storage")
 
-        return gcs_files
+        return uploaded_blobs
 
     def get_openlineage_facets_on_start(self) -> OperatorLineage:
         from airflow.providers.common.compat.openlineage.facet import Dataset
