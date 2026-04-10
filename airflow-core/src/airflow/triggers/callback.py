@@ -21,7 +21,7 @@ import inspect
 import logging
 import traceback
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, cast
 
 from airflow._shared.module_loading import import_string, qualname
 from airflow.models.callback import CallbackState, _accepts_context
@@ -62,7 +62,7 @@ def _render_callback_kwargs(kwargs: dict[str, Any], context: dict) -> dict[str, 
 
     trigger = CallbackTrigger(callback_path="", callback_kwargs={})
     jinja_env = SandboxedEnvironment(cache_size=0)
-    return trigger.render_template(kwargs, context, jinja_env)
+    return trigger.render_template(kwargs, cast("Any", context), jinja_env)
 
 
 class CallbackTrigger(BaseTrigger):
