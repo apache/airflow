@@ -65,11 +65,17 @@ type Props = {
   readonly virtualizerScrollPaddingStart: number;
 };
 
+/** Matches `TaskInstanceTooltip` payload for Gantt segments (grid summary + optional `*_when`). */
+type GanttSegmentTooltipSummary = {
+  readonly queued_when?: string | null;
+  readonly scheduled_when?: string | null;
+} & LightGridTaskInstanceSummary;
+
 const toTooltipSummary = (
   segment: GanttDataItem,
   node: GridTask,
   gridSummary: LightGridTaskInstanceSummary | undefined,
-): LightGridTaskInstanceSummary => {
+): GanttSegmentTooltipSummary => {
   if (gridSummary !== undefined && (node.isGroup ?? node.is_mapped)) {
     return gridSummary;
   }
@@ -81,6 +87,12 @@ const toTooltipSummary = (
     state: segment.state ?? null,
     task_display_name: segment.y,
     task_id: segment.taskId,
+    ...(segment.tryNumber === undefined
+      ? {}
+      : {
+          queued_when: segment.queued_when ?? null,
+          scheduled_when: segment.scheduled_when ?? null,
+        }),
   };
 };
 
@@ -299,6 +311,11 @@ export const GanttTimeline = ({
                       runId,
                     });
                     const tooltipInstance = toTooltipSummary(segment, node, gridSummary);
+                    const prevSegment = segIndex > 0 ? segments[segIndex - 1] : undefined;
+                    const nextSegment = segIndex < segments.length - 1 ? segments[segIndex + 1] : undefined;
+                    const touchesPrev = prevSegment?.x[1] === segment.x[0];
+                    const touchesNext = segment.x[1] === nextSegment?.x[0];
+                    const barRadius = 4;
 
                     if (to === undefined) {
                       return undefined;
@@ -334,7 +351,10 @@ export const GanttTimeline = ({
                           >
                             <Badge
                               alignItems="center"
-                              borderRadius={4}
+                              borderBottomLeftRadius={touchesPrev ? 0 : barRadius}
+                              borderBottomRightRadius={touchesNext ? 0 : barRadius}
+                              borderTopLeftRadius={touchesPrev ? 0 : barRadius}
+                              borderTopRightRadius={touchesNext ? 0 : barRadius}
                               colorPalette={segment.state ?? "none"}
                               display="flex"
                               h="100%"

@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 /* eslint-disable max-lines -- Gantt transform, time range, links, and axis ticks share one module */
 import dayjs from "dayjs";
 import type { Location, To } from "react-router-dom";
@@ -31,6 +32,9 @@ import { buildTaskInstanceUrl } from "src/utils/links";
 export type GanttDataItem = {
   isGroup?: boolean | null;
   isMapped?: boolean | null;
+  /** Source try times for tooltips (matches TaskInstance `*_when` fields). */
+  queued_when?: string | null;
+  scheduled_when?: string | null;
   state?: TaskInstanceState | null;
   taskId: string;
   tryNumber?: number;
@@ -117,13 +121,16 @@ export const transformGanttData = ({
             const items: Array<GanttDataItem> = [];
             const hasTaskRunning = isStatePending(tryRow.state);
             const startDate: string | null = tryRow.start_date;
-            // Narrow OpenAPI row fields for dayjs (eslint cannot resolve generated client types here).
-            const queuedDttm = tryRow.queued_dttm as string | null;
-            const scheduledDttm = tryRow.scheduled_dttm as string | null;
             const endDate: string | null = tryRow.end_date;
+            const queuedDttm = tryRow.queued_dttm;
+            const scheduledDttm = tryRow.scheduled_dttm;
             const startMs = startDate === null ? undefined : dayjs(startDate).valueOf();
             const queuedMs = queuedDttm === null ? undefined : dayjs(queuedDttm).valueOf();
             const scheduledMs = scheduledDttm === null ? undefined : dayjs(scheduledDttm).valueOf();
+            const tryWhenForTooltip = {
+              queued_when: queuedDttm,
+              scheduled_when: scheduledDttm,
+            };
 
             let endMs: number;
 
@@ -138,9 +145,7 @@ export const transformGanttData = ({
             // Scheduled segment: scheduled_dttm → queued_dttm, start_date, or now while still scheduled
             if (scheduledMs !== undefined) {
               const scheduledEndMs =
-                queuedMs ??
-                startMs ??
-                (hasTaskRunning || tryRow.state === "scheduled" ? Date.now() : endMs);
+                queuedMs ?? startMs ?? (hasTaskRunning || tryRow.state === "scheduled" ? Date.now() : endMs);
 
               if (scheduledEndMs > scheduledMs) {
                 items.push({
@@ -149,6 +154,7 @@ export const transformGanttData = ({
                   state: "scheduled",
                   taskId: tryRow.task_id,
                   tryNumber: tryRow.try_number,
+                  ...tryWhenForTooltip,
                   x: [scheduledMs, scheduledEndMs],
                   y: tryRow.task_display_name,
                 });
@@ -166,6 +172,7 @@ export const transformGanttData = ({
                   state: "queued",
                   taskId: tryRow.task_id,
                   tryNumber: tryRow.try_number,
+                  ...tryWhenForTooltip,
                   x: [queuedMs, queueEndMs],
                   y: tryRow.task_display_name,
                 });
@@ -182,6 +189,7 @@ export const transformGanttData = ({
                 state: tryRow.state,
                 taskId: tryRow.task_id,
                 tryNumber: tryRow.try_number,
+                ...tryWhenForTooltip,
                 x: [startMs, execEndMs],
                 y: tryRow.task_display_name,
               });
