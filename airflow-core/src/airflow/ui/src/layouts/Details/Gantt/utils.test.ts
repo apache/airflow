@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -166,6 +168,10 @@ describe("transformGanttData", () => {
           end_date: null,
           is_mapped: false,
           // eslint-disable-next-line unicorn/no-null
+          queued_dttm: null,
+          // eslint-disable-next-line unicorn/no-null
+          scheduled_dttm: null,
+          // eslint-disable-next-line unicorn/no-null
           start_date: null,
           // eslint-disable-next-line unicorn/no-null
           state: null,
@@ -189,6 +195,10 @@ describe("transformGanttData", () => {
           // eslint-disable-next-line unicorn/no-null
           end_date: null,
           is_mapped: false,
+          // eslint-disable-next-line unicorn/no-null
+          queued_dttm: null,
+          // eslint-disable-next-line unicorn/no-null
+          scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "running",
           task_display_name: "task_1",
@@ -237,6 +247,10 @@ describe("transformGanttData", () => {
         {
           end_date: "2024-03-14T10:05:00+00:00",
           is_mapped: false,
+          // eslint-disable-next-line unicorn/no-null
+          queued_dttm: null,
+          // eslint-disable-next-line unicorn/no-null
+          scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "success",
           task_display_name: "task_1",
@@ -257,5 +271,80 @@ describe("transformGanttData", () => {
     expect(end.isValid()).toBe(true);
     expect(Number.isNaN(start.valueOf())).toBe(false);
     expect(Number.isNaN(end.valueOf())).toBe(false);
+  });
+
+  it("should produce 3 segments when scheduled_dttm and queued_dttm are present", () => {
+    const result = transformGanttData({
+      allTries: [
+        {
+          end_date: "2024-03-14T10:05:00+00:00",
+          is_mapped: false,
+          queued_dttm: "2024-03-14T09:59:00+00:00",
+          scheduled_dttm: "2024-03-14T09:58:00+00:00",
+          start_date: "2024-03-14T10:00:00+00:00",
+          state: "success",
+          task_display_name: "task_1",
+          task_id: "task_1",
+          try_number: 1,
+        },
+      ],
+      flatNodes: [{ depth: 0, id: "task_1", is_mapped: false, label: "task_1" }],
+      gridSummaries: [],
+    });
+
+    expect(result).toHaveLength(3);
+    expect(result[0]?.state).toBe("scheduled");
+    expect(result[1]?.state).toBe("queued");
+    expect(result[2]?.state).toBe("success");
+  });
+
+  it("should produce 2 segments when only queued_dttm is present", () => {
+    const result = transformGanttData({
+      allTries: [
+        {
+          end_date: "2024-03-14T10:05:00+00:00",
+          is_mapped: false,
+          queued_dttm: "2024-03-14T09:59:00+00:00",
+          // eslint-disable-next-line unicorn/no-null
+          scheduled_dttm: null,
+          start_date: "2024-03-14T10:00:00+00:00",
+          state: "success",
+          task_display_name: "task_1",
+          task_id: "task_1",
+          try_number: 1,
+        },
+      ],
+      flatNodes: [{ depth: 0, id: "task_1", is_mapped: false, label: "task_1" }],
+      gridSummaries: [],
+    });
+
+    expect(result).toHaveLength(2);
+    expect(result[0]?.state).toBe("queued");
+    expect(result[1]?.state).toBe("success");
+  });
+
+  it("should produce 1 segment when scheduled_dttm and queued_dttm are null", () => {
+    const result = transformGanttData({
+      allTries: [
+        {
+          end_date: "2024-03-14T10:05:00+00:00",
+          is_mapped: false,
+          // eslint-disable-next-line unicorn/no-null
+          queued_dttm: null,
+          // eslint-disable-next-line unicorn/no-null
+          scheduled_dttm: null,
+          start_date: "2024-03-14T10:00:00+00:00",
+          state: "success",
+          task_display_name: "task_1",
+          task_id: "task_1",
+          try_number: 1,
+        },
+      ],
+      flatNodes: [{ depth: 0, id: "task_1", is_mapped: false, label: "task_1" }],
+      gridSummaries: [],
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.state).toBe("success");
   });
 });

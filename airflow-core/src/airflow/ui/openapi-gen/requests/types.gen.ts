@@ -1973,6 +1973,8 @@ export type GanttTaskInstance = {
     task_display_name: string;
     try_number: number;
     state: TaskInstanceState | null;
+    scheduled_dttm: string | null;
+    queued_dttm: string | null;
     start_date: string | null;
     end_date: string | null;
     is_group?: boolean;
