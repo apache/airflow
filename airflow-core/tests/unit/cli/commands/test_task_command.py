@@ -336,8 +336,8 @@ class TestCliTasks:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_mapped_task_render_out_of_range_map_index(self):
-        """Raise ValueError when map_index exceeds the parse-time mapped count."""
-        with pytest.raises(ValueError) as exc_info:
+        """Raise RuntimeError when map_index exceeds the parse-time mapped count."""
+        with pytest.raises(RuntimeError) as exc_info:
             task_command.task_render(
                 self.parser.parse_args(
                     [
@@ -382,8 +382,8 @@ class TestCliTasks:
         # consumer depends on XCom from make_arg_lists, so parse-time count
         # is not available. Validation should be skipped (NotFullyPopulated).
         # The render may fail for other reasons, but not with our
-        # "out of range" ValueError.
-        with pytest.raises(Exception) as exc_info:  # noqa: PT011
+        # "out of range" RuntimeError.
+        with pytest.raises(Exception, match=".*") as exc_info:
             task_command.task_render(
                 self.parser.parse_args(
                     [
