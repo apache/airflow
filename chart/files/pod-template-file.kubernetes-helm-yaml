@@ -287,6 +287,6 @@ spec:
   - name: kerberos-ccache
     emptyDir: {}
   {{- end }}
-  {{- if .Values.workers.extraVolumes }}
-    {{- tpl (toYaml .Values.workers.extraVolumes) . | nindent 2 }}
+  {{- if or .Values.workers.kubernetes.extraVolumes .Values.workers.extraVolumes }}
+    {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumes | default .Values.workers.extraVolumes)) . | nindent 2 }}
   {{- end }}

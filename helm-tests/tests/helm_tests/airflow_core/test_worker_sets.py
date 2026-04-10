@@ -2564,6 +2564,18 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "extraVolumes": [{"name": "test", "emptyDir": {}}],
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_extra_volumes(self, workers_values):
