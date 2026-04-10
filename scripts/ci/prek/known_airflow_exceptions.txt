@@ -21,7 +21,7 @@ airflow-core/src/airflow/utils/db.py::1
 airflow-core/src/airflow/utils/db_cleanup.py::1
 airflow-core/src/airflow/utils/db_manager.py::3
 airflow-core/src/airflow/utils/dot_renderer.py::3
-airflow-core/src/airflow/utils/helpers.py::4
+airflow-core/src/airflow/utils/helpers.py::3
 airflow-core/src/airflow/utils/process_utils.py::1
 airflow-core/tests/unit/models/test_dag.py::1
 airflow-core/tests/unit/models/test_taskinstance.py::3
@@ -69,11 +69,11 @@ providers/amazon/src/airflow/providers/amazon/aws/operators/batch.py::7
 providers/amazon/src/airflow/providers/amazon/aws/operators/bedrock.py::6
 providers/amazon/src/airflow/providers/amazon/aws/operators/comprehend.py::2
 providers/amazon/src/airflow/providers/amazon/aws/operators/datasync.py::10
-providers/amazon/src/airflow/providers/amazon/aws/operators/dms.py::6
+providers/amazon/src/airflow/providers/amazon/aws/operators/dms.py::1
 providers/amazon/src/airflow/providers/amazon/aws/operators/ec2.py::1
 providers/amazon/src/airflow/providers/amazon/aws/operators/ecs.py::7
 providers/amazon/src/airflow/providers/amazon/aws/operators/eks.py::12
-providers/amazon/src/airflow/providers/amazon/aws/operators/emr.py::24
+providers/amazon/src/airflow/providers/amazon/aws/operators/emr.py::21
 providers/amazon/src/airflow/providers/amazon/aws/operators/eventbridge.py::1
 providers/amazon/src/airflow/providers/amazon/aws/operators/glue.py::6
 providers/amazon/src/airflow/providers/amazon/aws/operators/glue_crawler.py::1
@@ -81,7 +81,7 @@ providers/amazon/src/airflow/providers/amazon/aws/operators/glue_databrew.py::1
 providers/amazon/src/airflow/providers/amazon/aws/operators/kinesis_analytics.py::5
 providers/amazon/src/airflow/providers/amazon/aws/operators/lambda_function.py::1
 providers/amazon/src/airflow/providers/amazon/aws/operators/mwaa.py::1
-providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::4
+providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::2
 providers/amazon/src/airflow/providers/amazon/aws/operators/rds.py::4
 providers/amazon/src/airflow/providers/amazon/aws/operators/redshift_cluster.py::9
 providers/amazon/src/airflow/providers/amazon/aws/operators/redshift_data.py::2
@@ -104,7 +104,7 @@ providers/amazon/src/airflow/providers/amazon/aws/sensors/glue_catalog_partition
 providers/amazon/src/airflow/providers/amazon/aws/sensors/glue_crawler.py::1
 providers/amazon/src/airflow/providers/amazon/aws/sensors/kinesis_analytics.py::1
 providers/amazon/src/airflow/providers/amazon/aws/sensors/lambda_function.py::1
-providers/amazon/src/airflow/providers/amazon/aws/sensors/mwaa.py::4
+providers/amazon/src/airflow/providers/amazon/aws/sensors/mwaa.py::2
 providers/amazon/src/airflow/providers/amazon/aws/sensors/opensearch_serverless.py::1
 providers/amazon/src/airflow/providers/amazon/aws/sensors/quicksight.py::1
 providers/amazon/src/airflow/providers/amazon/aws/sensors/rds.py::1
@@ -322,7 +322,7 @@ providers/google/src/airflow/providers/google/firebase/operators/firestore.py::1
 providers/google/src/airflow/providers/google/leveldb/hooks/leveldb.py::4
 providers/google/src/airflow/providers/google/marketing_platform/hooks/campaign_manager.py::2
 providers/google/src/airflow/providers/google/marketing_platform/hooks/search_ads.py::1
-providers/google/src/airflow/providers/google/marketing_platform/operators/bid_manager.py::3
+providers/google/src/airflow/providers/google/marketing_platform/operators/bid_manager.py::2
 providers/google/src/airflow/providers/google/marketing_platform/operators/campaign_manager.py::2
 providers/google/src/airflow/providers/google/marketing_platform/sensors/display_video.py::1
 providers/google/src/airflow/providers/google/suite/hooks/calendar.py::1
@@ -369,7 +369,7 @@ providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_asb.py::3
 providers/microsoft/psrp/src/airflow/providers/microsoft/psrp/hooks/psrp.py::2
 providers/microsoft/psrp/src/airflow/providers/microsoft/psrp/operators/psrp.py::3
 providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/hooks/winrm.py::5
-providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/operators/winrm.py::7
+providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/operators/winrm.py::5
 providers/neo4j/src/airflow/providers/neo4j/sensors/neo4j.py::5
 providers/openfaas/src/airflow/providers/openfaas/hooks/openfaas.py::4
 providers/opensearch/src/airflow/providers/opensearch/hooks/opensearch.py::1
@@ -417,7 +417,6 @@ providers/teradata/src/airflow/providers/teradata/operators/teradata_compute_clu
 providers/teradata/src/airflow/providers/teradata/triggers/teradata_compute_cluster.py::1
 providers/teradata/src/airflow/providers/teradata/utils/bteq_util.py::2
 providers/trino/src/airflow/providers/trino/hooks/trino.py::1
-providers/vespa/src/airflow/providers/vespa/operators/vespa_ingest.py::1
 providers/ydb/src/airflow/providers/ydb/hooks/ydb.py::1
 providers/ydb/src/airflow/providers/ydb/operators/ydb.py::1
 scripts/ci/prek/check_new_airflow_exception_usage.py::5
