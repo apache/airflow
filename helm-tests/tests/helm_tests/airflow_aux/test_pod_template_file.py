@@ -924,11 +924,31 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.securityContext.runAsUser", docs[0]) == 1
 
-    def test_should_create_valid_volume_mount_and_volume(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}]},
+            {"kubernetes": {"extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}]}},
+            {
+                "extraVolumes": [{"name": "test", "emptyDir": {}}],
+                "kubernetes": {"extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}]},
+            },
+        ],
+    )
+    def test_should_create_valid_volume(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        # [2:] -> Skipping logs and config volumes
+        assert jmespath.search("spec.volumes[2:].name", docs[0]) == ["test-volume-airflow"]
+
+    def test_should_create_valid_volume_mount(self):
         docs = render_chart(
             values={
                 "workers": {
-                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
                     "extraVolumeMounts": [
                         {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
                     ],
@@ -938,10 +958,6 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert "test-volume-airflow" in jmespath.search(
-            "spec.volumes[*].name",
-            docs[0],
-        )
         assert "test-volume-airflow" in jmespath.search(
             "spec.containers[0].volumeMounts[*].name",
             docs[0],
