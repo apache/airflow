@@ -77,7 +77,8 @@ def _jwt_generator():
 
     generator = JWTGenerator(
         valid_for=conf.getint("execution_api", "jwt_expiration_time"),
-        # workload_valid_for uses the attrs default factory which reads the same config key
+        # workload_valid_for uses the attrs default factory, which reads
+        # execution_api.jwt_workload_token_expiration_time
         audience=conf.get_mandatory_list_value("execution_api", "jwt_audience")[0],
         issuer=conf.get("api_auth", "jwt_issuer", fallback=None),
         # Since this one is used across components/server, there is no point trying to generate one, error
@@ -319,11 +320,7 @@ class InProcessExecutionAPI:
     @cached_property
     def app(self):
         if not self._app:
-            import svcs
-
-            from airflow.api_fastapi.auth.tokens import JWTGenerator
             from airflow.api_fastapi.common.dagbag import create_dag_bag
-            from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
             from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
             from airflow.api_fastapi.execution_api.deps import _container
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
