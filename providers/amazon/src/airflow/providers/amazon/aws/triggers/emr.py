@@ -202,7 +202,7 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
         self.cancel_on_kill = cancel_on_kill
 
     def hook(self) -> AwsGenericHook:
-        return EmrContainerHook(aws_conn_id=self.aws_conn_id)
+        return EmrContainerHook(aws_conn_id=self.aws_conn_id, virtual_cluster_id=self.virtual_cluster_id)
 
     if not AIRFLOW_V_3_0_PLUS:
 
