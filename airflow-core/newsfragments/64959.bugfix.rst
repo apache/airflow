@@ -1,0 +1,1 @@
+Fix ``DagProcessorJob`` crash with ``ValueError: write to closed file`` when terminating orphan subprocess processors.

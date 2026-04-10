@@ -1075,6 +1075,15 @@ class DagFileProcessorManager(LoggingMixin):
         for file in stats_to_remove:
             del self._file_stats[file]
 
+    def _deregister_processor_sockets(self, processor: DagFileProcessorProcess) -> None:
+        """Unregister and close all sockets for a killed processor before closing its log handle."""
+        for sock in list(processor._open_sockets.keys()):
+            with contextlib.suppress(KeyError):
+                self.selector.unregister(sock)
+            with contextlib.suppress(Exception):
+                sock.close()
+        processor._open_sockets.clear()
+
     def terminate_orphan_processes(self, present: set[DagFileInfo]):
         """Stop processors that are working on deleted files."""
         present_keys = {file.presence_key for file in present}
@@ -1087,6 +1096,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.log.warning("Stopping processor for %s", file_name)
                 stats.decr("dag_processing.processes", tags={"file_path": file_name, "action": "stop"})
                 processor.kill(signal.SIGKILL)
+                self._deregister_processor_sockets(processor)
                 processor.logger_filehandle.close()
                 self._file_stats.pop(file, None)
 
@@ -1499,6 +1509,7 @@ class DagFileProcessorManager(LoggingMixin):
         # Clean up `self._processors` after iterating over it
         for proc in processors_to_remove:
             processor = self._processors.pop(proc)
+            self._deregister_processor_sockets(processor)
             processor.logger_filehandle.close()
 
     def _add_files_to_queue(
