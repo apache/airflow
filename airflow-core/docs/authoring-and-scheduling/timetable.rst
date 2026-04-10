@@ -301,9 +301,9 @@ Here's an example of a Dag using ``AssetAndTimeSchedule`` to require both the ti
 
     @dag(
         schedule=AssetAndTimeSchedule(
-            timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), assets=(dag1_asset & dag2_asset)
-        )
-        # Additional arguments here, replace this comment with actual arguments
+            timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"),
+            assets=(dag1_asset & dag2_asset),
+        ),
     )
     def example_gated_dag():
         # Dag tasks go here
