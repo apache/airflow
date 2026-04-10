@@ -349,28 +349,31 @@ class _VaultClient(LoggingMixin):
         import time
 
         # Determine service account email
-        service_account_email = getattr(credentials, "service_account_email", None)
-        if not service_account_email or not isinstance(service_account_email, str):
-            service_account_email = getattr(credentials, "client_email", None)
+        service_account_email = getattr(credentials, "service_account_email", None) or getattr(
+            credentials, "client_email", None
+        )
 
-        if not service_account_email or not isinstance(service_account_email, str):
+        if service_account_email is None:
             # Fallback for Compute Engine credentials if email is not yet populated
             try:
                 from google.auth import compute_engine
 
                 if isinstance(credentials, compute_engine.Credentials):
-                    if not getattr(credentials, "service_account_email", None):
-                        from google.auth import transport
+                    from google.auth import transport
 
-                        credentials.refresh(transport.requests.Request())
-                    service_account_email = credentials.service_account_email
+                    credentials.refresh(transport.requests.Request())
+                    service_account_email = getattr(credentials, "service_account_email", None)
             except Exception:
                 pass
 
-        if not service_account_email:
-            raise VaultError("Could not determine service account email from credentials")
+        if not isinstance(service_account_email, str):
+            raise VaultError(
+                f"Could not determine service account email from credentials. "
+                f"Expected string, got {type(service_account_email).__name__}"
+            )
 
-        # Generate a payload for subsequent "signJwt()" call
+        # Generate a payload for subsequent "signJwt()" call.
+        # The 'sub' claim must be the service account email.
         now = int(time.time())
         expires = now + 900  # 15 mins in seconds, can't be longer.
         payload = {"iat": now, "exp": expires, "sub": service_account_email, "aud": f"vault/{self.role_id}"}

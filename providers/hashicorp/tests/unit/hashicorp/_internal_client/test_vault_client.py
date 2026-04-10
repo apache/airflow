@@ -264,7 +264,7 @@ class TestVaultClient:
         mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
 
-        mock_credentials = mock.MagicMock()
+        mock_credentials = mock.Mock(spec=[])
         mock_credentials.client_email = "service_account_email"
         mock_get_credentials.return_value = (mock_credentials, "project_id")
 
@@ -334,7 +334,7 @@ class TestVaultClient:
         mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
 
-        mock_credentials = mock.MagicMock()
+        mock_credentials = mock.Mock(spec=[])
         mock_credentials.service_account_email = "service_account_email"
         mock_get_credentials.return_value = (mock_credentials, "project_id")
 
@@ -384,7 +384,7 @@ class TestVaultClient:
         mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
 
-        mock_credentials = mock.MagicMock()
+        mock_credentials = mock.Mock(spec=[])
         mock_credentials.client_email = "service_account_email"
         mock_get_credentials.return_value = (mock_credentials, "project_id")
 
@@ -453,7 +453,7 @@ class TestVaultClient:
         mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
 
-        mock_credentials = mock.MagicMock()
+        mock_credentials = mock.Mock(spec=[])
         mock_credentials.client_email = "service_account_email"
         mock_get_credentials.return_value = (mock_credentials, "project_id")
 
@@ -511,6 +511,29 @@ class TestVaultClient:
         client.auth.gcp.login.assert_called_with(role="role", jwt="mocked_jwt")
         client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
+    @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
+    def test_gcp_error_wrong_type(self, mock_hvac_client, mock_get_credentials, mock_get_scopes):
+        mock_client = mock.MagicMock()
+        mock_hvac_client.return_value = mock_client
+        mock_get_scopes.return_value = ["scope1"]
+
+        # Return something that is not a string for client_email
+        mock_credentials = mock.Mock(spec=[])
+        mock_credentials.client_email = 12345
+        mock_get_credentials.return_value = (mock_credentials, "project_id")
+
+        vault_client = _VaultClient(
+            auth_type="gcp",
+            gcp_scopes="scope1",
+            role_id="role",
+            url="http://localhost:8180",
+        )
+
+        with pytest.raises(VaultError, match="Expected string, got int"):
+            _ = vault_client.client
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_github(self, mock_hvac):
