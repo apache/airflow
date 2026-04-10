@@ -132,7 +132,7 @@ export const transformGanttData = ({
 
               // Scheduled segment: from scheduled_dttm to queued_dttm (or start_date if no queued_dttm)
               if (tryInstance.scheduled_dttm !== null) {
-                const scheduledEnd = tryInstance.queued_dttm ?? tryInstance.start_date;
+                const scheduledEnd = tryInstance.queued_dttm ?? tryInstance.start_date ?? undefined;
 
                 items.push({
                   isGroup: false,
@@ -155,7 +155,7 @@ export const transformGanttData = ({
                   tryNumber: tryInstance.try_number,
                   x: [
                     dayjs(tryInstance.queued_dttm).toISOString(),
-                    dayjs(tryInstance.start_date).toISOString(),
+                    dayjs(tryInstance.start_date ?? undefined).toISOString(),
                   ],
                   y: tryInstance.task_display_name,
                 });
