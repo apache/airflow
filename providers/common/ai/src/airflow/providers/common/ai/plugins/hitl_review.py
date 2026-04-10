@@ -505,6 +505,8 @@ class HITLReviewPlugin(AirflowPlugin):
     """Register the HITL Review REST API + chat UI on the Airflow API server."""
 
     name = "hitl_review"
+    fastapi_apps: list[dict[str, Any]] = []
+    react_apps: list[dict[str, str]] = []
     if AIRFLOW_V_3_1_PLUS:
         fastapi_apps = [
             {
