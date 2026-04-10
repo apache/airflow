@@ -59,6 +59,14 @@ TEST_EXEC_RESULT = {
     "output_end": True,
     "exit_info": {"exit_code": 0, "error": ""},
 }
+TEST_DAG_RUNS_RESULT = lambda state, date_key, dag_run_date: [
+    {
+        "dag_id": TEST_COMPOSER_DAG_ID,
+        "dag_run_id": TEST_COMPOSER_DAG_RUN_ID,
+        "state": state,
+        date_key: dag_run_date,
+    }
+]
 
 
 @pytest.fixture
@@ -183,6 +191,29 @@ class TestCloudComposerDAGRunTrigger:
             },
         )
         assert actual_data == expected_data
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @pytest.mark.parametrize(
+        ("state", "dag_run_date", "expected"),
+        [
+            pytest.param("success", "2024-03-22T11:10:00", True, id="allowed-in-range"),
+            pytest.param("running", "2024-03-22T11:10:00", False, id="disallowed-in-range"),
+            pytest.param("success", "2024-03-22T10:50:00", False, id="only-out-of-range"),
+        ],
+    )
+    def test_check_dag_runs_states(
+        self, dag_run_trigger, composer_airflow_version, state, dag_run_date, expected
+    ):
+        dag_run_trigger.composer_airflow_version = composer_airflow_version
+        date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+
+        actual = dag_run_trigger._check_dag_runs_states(
+            dag_runs=TEST_DAG_RUNS_RESULT(state, date_key, dag_run_date),
+            start_date=TEST_START_DATE,
+            end_date=TEST_END_DATE,
+        )
+
+        assert actual is expected
 
 
 class TestCloudComposerExternalTaskTrigger:

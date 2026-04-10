@@ -267,16 +267,16 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         start_date: datetime,
         end_date: datetime,
     ) -> bool:
+        found_in_range = False
         for dag_run in dag_runs:
-            if (
-                start_date.timestamp()
-                < parser.parse(
-                    dag_run["execution_date" if self.composer_airflow_version < 3 else "logical_date"]
-                ).timestamp()
-                < end_date.timestamp()
-            ) and dag_run["state"] not in self.allowed_states:
-                return False
-        return True
+            dag_run_date = parser.parse(
+                dag_run["execution_date" if self.composer_airflow_version < 3 else "logical_date"]
+            ).timestamp()
+            if start_date.timestamp() < dag_run_date < end_date.timestamp():
+                found_in_range = True
+                if dag_run["state"] not in self.allowed_states:
+                    return False
+        return found_in_range
 
     def _get_async_hook(self) -> CloudComposerAsyncHook:
         return CloudComposerAsyncHook(

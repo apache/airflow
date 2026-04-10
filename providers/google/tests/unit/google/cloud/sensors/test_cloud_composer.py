@@ -53,6 +53,20 @@ TEST_GET_RESULT = lambda state, date_key: {
     "dag_runs": TEST_DAG_RUNS_RESULT(state, date_key, "dag_run_id"),
     "total_entries": 1,
 }
+TEST_DAG_RUN_EXECUTION_RANGE = [datetime(2024, 5, 22, 11, 0, 0), datetime(2024, 5, 22, 12, 0, 0)]
+TEST_DAG_RUN_RESULT_WITH_DATE = lambda state, date_key, dag_run_date: {
+    "dag_runs": [
+        {
+            "dag_id": "test_dag_id",
+            "dag_run_id": TEST_COMPOSER_DAG_RUN_ID,
+            "state": state,
+            date_key: dag_run_date,
+            "start_date": "2024-05-22T11:20:01.531988+00:00",
+            "end_date": "2024-05-22T11:20:11.997479+00:00",
+        }
+    ],
+    "total_entries": 1,
+}
 TEST_COMPOSER_EXTERNAL_TASK_ID = "test_external_task_id"
 TEST_COMPOSER_EXTERNAL_TASK_GROUP_ID = "test_external_task_group_id"
 TEST_TASK_INSTANCES_RESULT = lambda state, date_key, task_id: [
@@ -90,6 +104,7 @@ class TestCloudComposerDAGRunSensor:
                 environment_id=TEST_ENVIRONMENT_ID,
                 composer_dag_id="test_dag_id",
                 allowed_states=["success"],
+                execution_range=TEST_DAG_RUN_EXECUTION_RANGE,
                 use_rest_api=use_rest_api,
             )
         task._composer_airflow_version = composer_airflow_version
@@ -114,6 +129,7 @@ class TestCloudComposerDAGRunSensor:
                 environment_id=TEST_ENVIRONMENT_ID,
                 composer_dag_id="test_dag_id",
                 allowed_states=["success"],
+                execution_range=TEST_DAG_RUN_EXECUTION_RANGE,
                 use_rest_api=use_rest_api,
             )
         task._composer_airflow_version = composer_airflow_version
@@ -141,6 +157,91 @@ class TestCloudComposerDAGRunSensor:
                 environment_id=TEST_ENVIRONMENT_ID,
                 composer_dag_id="test_dag_id",
                 allowed_states=["success"],
+                use_rest_api=use_rest_api,
+            )
+        task._composer_airflow_version = composer_airflow_version
+
+        assert not task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})
+
+    @pytest.mark.parametrize("use_rest_api", [True, False])
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_wait_ready_in_range(self, mock_hook, composer_airflow_version, use_rest_api):
+        date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+        mock_hook.return_value.wait_command_execution_result.return_value = TEST_EXEC_RESULT(
+            "success", date_key
+        )
+        mock_hook.return_value.get_dag_runs.return_value = TEST_DAG_RUN_RESULT_WITH_DATE(
+            "success",
+            date_key,
+            "2024-05-22T11:10:00+00:00",
+        )
+
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            task = CloudComposerDAGRunSensor(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                environment_id=TEST_ENVIRONMENT_ID,
+                composer_dag_id="test_dag_id",
+                allowed_states=["success"],
+                use_rest_api=use_rest_api,
+            )
+        task._composer_airflow_version = composer_airflow_version
+
+        assert task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})
+
+    @pytest.mark.parametrize("use_rest_api", [True, False])
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_wait_not_ready_in_range(self, mock_hook, composer_airflow_version, use_rest_api):
+        date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+        mock_hook.return_value.wait_command_execution_result.return_value = TEST_EXEC_RESULT(
+            "running", date_key
+        )
+        mock_hook.return_value.get_dag_runs.return_value = TEST_DAG_RUN_RESULT_WITH_DATE(
+            "running",
+            date_key,
+            "2024-05-22T11:10:00+00:00",
+        )
+
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            task = CloudComposerDAGRunSensor(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                environment_id=TEST_ENVIRONMENT_ID,
+                composer_dag_id="test_dag_id",
+                allowed_states=["success"],
+                use_rest_api=use_rest_api,
+            )
+        task._composer_airflow_version = composer_airflow_version
+
+        assert not task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})
+
+    @pytest.mark.parametrize("use_rest_api", [True, False])
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_only_out_of_range_runs_return_false(self, mock_hook, composer_airflow_version, use_rest_api):
+        date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+        mock_hook.return_value.wait_command_execution_result.return_value = TEST_EXEC_RESULT(
+            "success", date_key
+        )
+        mock_hook.return_value.get_dag_runs.return_value = TEST_DAG_RUN_RESULT_WITH_DATE(
+            "success",
+            date_key,
+            "2024-05-22T10:50:00+00:00",
+        )
+
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            task = CloudComposerDAGRunSensor(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                environment_id=TEST_ENVIRONMENT_ID,
+                composer_dag_id="test_dag_id",
+                allowed_states=["success"],
+                execution_range=TEST_DAG_RUN_EXECUTION_RANGE,
                 use_rest_api=use_rest_api,
             )
         task._composer_airflow_version = composer_airflow_version
