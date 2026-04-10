@@ -33,6 +33,9 @@ labelPRBasedOnFilePath:
   provider:apache-beam:
     - providers/apache/beam/**
 
+  provider:apache-datafusion:
+    - providers/apache/datafusion/**
+
   provider:apache-cassandra:
     - providers/apache/cassandra/**
 

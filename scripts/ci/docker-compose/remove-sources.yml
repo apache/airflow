@@ -32,6 +32,7 @@ services:
       - ../../../empty:/opt/airflow/providers/amazon/src
       - ../../../empty:/opt/airflow/providers/apache/beam/src
       - ../../../empty:/opt/airflow/providers/apache/cassandra/src
+      - ../../../empty:/opt/airflow/providers/apache/datafusion/src
       - ../../../empty:/opt/airflow/providers/apache/drill/src
       - ../../../empty:/opt/airflow/providers/apache/druid/src
       - ../../../empty:/opt/airflow/providers/apache/flink/src
