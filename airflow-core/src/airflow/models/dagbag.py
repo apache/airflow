@@ -55,7 +55,7 @@ class DBDagBag:
         # Use a real lock only when bounded caching is enabled (API server mode).
         # The scheduler uses max_cache_size=None (unbounded, single-threaded) and
         # gets a no-op context manager to avoid any locking overhead.
-        self._lock: contextlib.AbstractContextManager[None] = (
+        self._lock: threading.Lock | contextlib.nullcontext[None] = (
             threading.Lock() if max_cache_size is not None else contextlib.nullcontext()
         )
 
