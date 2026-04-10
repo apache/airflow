@@ -2320,7 +2320,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     continue
             # For AssetAndTimeSchedule, defer starting until all required assets are queued.
-            if isinstance(dag.timetable, AssetAndTimeSchedule):
+            # Only gate scheduled runs; manual and backfill runs should start immediately.
+            if isinstance(dag.timetable, AssetAndTimeSchedule) and dag_run.run_type == DagRunType.SCHEDULED:
                 # Reuse dagrun_timeout to fail runs that wait in QUEUED for assets for too long.
                 if (
                     dag.dagrun_timeout
