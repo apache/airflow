@@ -284,16 +284,14 @@ class SortParam(BaseParam[list[str]]):
         self.allowed_attrs = allowed_attrs
         self.model = model
         self.to_replace = to_replace
-        self._cached_resolution: tuple[list[ColumnElement], list[tuple[str, ColumnElement, bool]]] | None = (
-            None
-        )
+        self._cached_resolution: list[tuple[str, ColumnElement, bool]] | None = None
 
     def set_value(self, value: list[str] | None) -> Self:
         self._cached_resolution = None
         return super().set_value(value)
 
-    def _resolve(self) -> tuple[list[ColumnElement], list[tuple[str, ColumnElement, bool]]]:
-        """Resolve sort columns and ORDER BY expressions. Cached after first call."""
+    def _resolve(self) -> list[tuple[str, ColumnElement, bool]]:
+        """Resolve sort columns as (attr_name, column, is_descending) tuples. Cached after first call."""
         if self._cached_resolution is not None:
             return self._cached_resolution
 
@@ -307,7 +305,6 @@ class SortParam(BaseParam[list[str]]):
                 f"Ordering with more than {self.MAX_SORT_PARAMS} parameters is not allowed. Provided: {order_by_values}",
             )
 
-        columns: list[ColumnElement] = []
         resolved: list[tuple[str, ColumnElement, bool]] = []
         for order_by_value in order_by_values:
             lstriped_orderby = order_by_value.lstrip("-")
@@ -329,35 +326,28 @@ class SortParam(BaseParam[list[str]]):
             if column is None:
                 column = getattr(self.model, lstriped_orderby)
 
-            is_desc = order_by_value.startswith("-")
-            if is_desc:
-                columns.append(column.desc())
-            else:
-                columns.append(column.asc())
-            resolved.append((attr_name, column, is_desc))
+            resolved.append((attr_name, column, order_by_value.startswith("-")))
 
         primary_key_column = self.get_primary_key_column()
         pk_name = self.get_primary_key_string()
-        # Always use ascending PK as the final tie-breaker so keyset pagination is stable when
-        # sort columns contain duplicates.
         if not any(name == pk_name for name, _, _ in resolved):
-            columns.append(primary_key_column.asc())
-            resolved.append((pk_name, primary_key_column, False))
+            pk_desc = bool(order_by_values and order_by_values[0].startswith("-"))
+            resolved.append((pk_name, primary_key_column, pk_desc))
 
-        self._cached_resolution = (columns, resolved)
+        self._cached_resolution = resolved
         return self._cached_resolution
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
             raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
 
-        columns, _ = self._resolve()
+        resolved = self._resolve()
+        columns = [col.desc() if is_desc else col.asc() for _, col, is_desc in resolved]
         return select.order_by(None).order_by(*columns)
 
     def get_resolved_columns(self) -> list[tuple[str, ColumnElement, bool]]:
         """Return resolved sort columns as (attr_name, column_element, is_descending) tuples."""
-        _, resolved = self._resolve()
-        return resolved
+        return self._resolve()
 
     def get_primary_key_column(self) -> Column:
         """Get the primary key column of the model of SortParam object."""

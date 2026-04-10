@@ -134,7 +134,7 @@ class TestCursorPagination:
         assert resolved[0][0] == "start_date"
         assert resolved[0][2] is True
         assert resolved[1][0] == "id"
-        assert resolved[1][2] is False
+        assert resolved[1][2] is True
 
     def test_sort_param_pk_not_duplicated_when_sorting_by_id(self):
         sp = self._make_sort_param_with_resolved_columns(["id"])

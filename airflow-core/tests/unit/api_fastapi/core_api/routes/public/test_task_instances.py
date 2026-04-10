@@ -845,12 +845,12 @@ class TestGetMappedTaskInstances:
             ),
             (
                 {"order_by": "-state", "limit": 100},
-                list(range(5)) + list(range(25, 110)) + list(range(5, 15)),
+                list(range(5)[::-1]) + list(range(25, 110)[::-1]) + list(range(15, 25)[::-1]),
             ),
             ({"order_by": "logical_date", "limit": 100}, list(range(100))),
-            ({"order_by": "-logical_date", "limit": 100}, list(range(100))),
+            ({"order_by": "-logical_date", "limit": 100}, list(range(109, 9, -1))),
             ({"order_by": "data_interval_start", "limit": 100}, list(range(100))),
-            ({"order_by": "-data_interval_start", "limit": 100}, list(range(100))),
+            ({"order_by": "-data_interval_start", "limit": 100}, list(range(109, 9, -1))),
         ],
     )
     def test_mapped_instances_order(
@@ -1674,10 +1674,12 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert response_desc.json()["total_entries"] == ti_count
         assert len(response_desc.json()["task_instances"]) == ti_count
 
-        # Both orderings must return the same set of task instances.
-        ids_asc = {ti["id"] for ti in response_asc.json()["task_instances"]}
-        ids_desc = {ti["id"] for ti in response_desc.json()["task_instances"]}
-        assert ids_asc == ids_desc
+        # Compare
+        field_asc = [ti["id"] for ti in response_asc.json()["task_instances"]]
+        assert len(field_asc) == ti_count
+        field_desc = [ti["id"] for ti in response_desc.json()["task_instances"]]
+        assert len(field_desc) == ti_count
+        assert field_asc == list(reversed(field_desc))
 
     def test_should_respond_200_for_pagination(self, test_client, session):
         dag_id = "example_python_operator"
