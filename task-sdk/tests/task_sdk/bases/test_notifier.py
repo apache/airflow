@@ -24,6 +24,7 @@ import jinja2
 import pytest
 
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.dag import DAG
 
@@ -40,6 +41,13 @@ class MockNotifier(BaseNotifier):
     def __init__(self, message: str | None = "This is a test message"):
         super().__init__()
         self.message = message
+
+    def notify(self, context: Context) -> None:
+        pass
+
+
+class NoTemplateNotifier(BaseNotifier):
+    """Notifier used to verify callbacks without templated fields."""
 
     def notify(self, context: Context) -> None:
         pass
@@ -97,3 +105,16 @@ class TestBaseNotifier:
             }
         )
         assert notifier.message == "task: some_task"
+
+    def test_notifier_call_with_serialized_dag_and_no_template_fields(self):
+        with DAG("test_notifier_call_with_serialized_dag_and_no_template_fields") as dag:
+            EmptyOperator(task_id="test_id")
+
+        notifier = NoTemplateNotifier()
+        notifier.notify = MagicMock()
+        serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+        context: Context = {"dag": serialized_dag}
+
+        notifier(context)
+
+        notifier.notify.assert_called_once_with({"dag": serialized_dag})
