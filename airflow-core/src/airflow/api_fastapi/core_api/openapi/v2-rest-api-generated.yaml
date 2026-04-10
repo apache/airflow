@@ -3492,7 +3492,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Content
+          description: Unprocessable Entity
     patch:
       tags:
       - DAG
@@ -3613,7 +3613,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Content
+          description: Unprocessable Entity
   /api/v2/dags/{dag_id}/details:
     get:
       tags:
