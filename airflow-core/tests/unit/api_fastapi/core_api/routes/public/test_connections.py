@@ -168,6 +168,19 @@ class TestGetConnection(TestConnectionEndpoint):
         assert body["conn_type"] == TEST_CONN_TYPE
         assert body["extra"] == '{"extra_key": "extra_value"}'
 
+    @pytest.mark.parametrize("extra_value", [None, ""])
+    def test_get_should_respond_200_with_empty_extra(self, test_client, session, extra_value):
+        """Empty string or NULL extra should not break serialization (regression test for #64950)."""
+        self.create_connection()
+        connection = session.scalars(select(Connection)).first()
+        connection.extra = extra_value
+        session.commit()
+        response = test_client.get(f"/connections/{TEST_CONN_ID}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["connection_id"] == TEST_CONN_ID
+        assert body["extra"] == extra_value
+
     @pytest.mark.enable_redact
     def test_get_should_respond_200_with_extra_redacted(self, test_client, session):
         self.create_connection()
