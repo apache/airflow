@@ -27,7 +27,6 @@ import stat
 import tempfile
 import warnings
 from typing import Any
-from urllib.parse import quote as urlquote
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
