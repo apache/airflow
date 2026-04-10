@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -22,7 +23,14 @@ bidirectional socket to the supervisor (set up by ``_fork_main``).
 Instead of decoding messages with ``CommsDecoder``, we spawn a Java
 subprocess, let it connect back over TCP, and bridge raw bytes between
 fd 0 and the Java socket.  The supervisor's existing ``_handle_request``
-handles the protocol on its side — the bridge is transparent.
+handles the protocol on its side -- the bridge is transparent.
+
+I/O multiplexing uses the same selector-based loop as
+:class:`~airflow.sdk.execution_time.supervisor.WatchedSubprocess`:
+sockets are registered with ``(handler, on_close)`` callback tuples
+produced by :func:`~airflow.sdk.execution_time.selector_loop.make_buffered_socket_reader`
+and :func:`~airflow.sdk.execution_time.selector_loop.make_raw_forwarder`,
+then driven by :func:`~airflow.sdk.execution_time.selector_loop.service_selector`.
 """
 
 from __future__ import annotations
@@ -32,12 +40,19 @@ import email
 import json
 import os
 import pathlib
+import selectors
 import socket
 import subprocess
-import threading
+import time
 import zipfile
+from typing import TYPE_CHECKING
 
 from airflow.dag_processing.processor import BaseDagFileProcessor
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from structlog.typing import FilteringBoundLogger
 
 
 def _start_server() -> socket.socket:
@@ -99,11 +114,11 @@ def parse_jar_bundles_entrypoint(path: str, bundle_name: str, bundle_path: str) 
     1. Creates TCP servers for comm and logs channels.
     2. Spawns Java via ``subprocess.Popen``, passing both TCP addresses.
     3. Accepts connections from Java on both channels.
-    4. Runs a threaded bridge that transparently forwards bytes between
-       fd 0 (supervisor) and the Java comm socket, and re-emits Java's
-       log output through structlog (routed to ``log_fd``).
+    4. Runs a selector-based bridge that transparently forwards bytes
+       between fd 0 (supervisor) and the Java comm socket, and re-emits
+       Java's log output through structlog (routed to ``log_fd``).
 
-    No ``CommsDecoder`` is needed — the supervisor and Java both speak
+    No ``CommsDecoder`` is needed -- the supervisor and Java both speak
     the length-prefixed msgpack protocol; we just shuttle bytes.
     """
     os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
@@ -135,23 +150,24 @@ def parse_jar_bundles_entrypoint(path: str, bundle_name: str, bundle_path: str) 
     # fd layout in the forked child (set up by ``_reopen_std_io_handles``
     # before this entrypoint is called):
     #
-    #   fd 0  — bidirectional comms socket to the supervisor
-    #           (``DagFileParseRequest`` <-> ``DagFileParsingResult``,
-    #            length-prefixed msgpack frames)
-    #   fd 1  — stdout socket to the supervisor
-    #   fd 2  — stderr socket to the supervisor
-    #   fd N  — structured JSON log channel (``log_fd``, configured by
-    #           ``_configure_logs_over_json_channel`` -> structlog)
+    #   fd 0  -- bidirectional comms socket to the supervisor
+    #            (``DagFileParseRequest`` <-> ``DagFileParsingResult``,
+    #             length-prefixed msgpack frames)
+    #   fd 1  -- stdout socket to the supervisor
+    #   fd 2  -- stderr socket to the supervisor
+    #   fd N  -- structured JSON log channel (``log_fd``, configured by
+    #            ``_configure_logs_over_json_channel`` -> structlog)
     #
     # We redirect stdin to ``/dev/null`` so that the Java subprocess does
     # not inherit fd 0 (the comms socket).  Java communicates over the TCP
-    # sockets passed as ``--comm`` / ``--logs``; the bridge threads shuttle
-    # bytes between those TCP sockets and fd 0.
+    # sockets passed as ``--comm`` / ``--logs``; the bridge shuttles bytes
+    # between those TCP sockets and fd 0.
     #
-    # stderr is captured via a pipe so that Java's SLF4J output can be
-    # re-emitted through structlog -> ``log_fd`` with the correct log level
-    # (instead of landing as ERROR-level ``task.stderr`` lines on the
-    # supervisor's raw stderr reader).
+    # stderr uses a socketpair (instead of ``subprocess.PIPE``) so it is a
+    # real socket compatible with ``make_buffered_socket_reader``'s
+    # ``recv_into``.
+    child_stderr, read_stderr = socket.socketpair()
+
     proc = subprocess.Popen(
         [
             "java",
@@ -162,8 +178,9 @@ def parse_jar_bundles_entrypoint(path: str, bundle_name: str, bundle_path: str) 
             f"--logs={logs_host}:{logs_port}",
         ],
         stdin=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
+        stderr=child_stderr.fileno(),
     )
+    child_stderr.close()  # Close the child's end in the parent.
 
     # Wait for Java to connect to both servers.
     java_comm, _ = comm_server.accept()
@@ -174,106 +191,103 @@ def parse_jar_bundles_entrypoint(path: str, bundle_name: str, bundle_path: str) 
     # fd 0 is the bidirectional comms socket to the supervisor.
     supervisor_comm = socket.socket(fileno=os.dup(0))
 
-    # Bridge: forward raw bytes between the supervisor and Java.
-    _bridge(supervisor_comm, java_comm, java_logs, proc, log)
-
-
-def _pipe(src: socket.socket, dest: socket.socket) -> None:
-    """Forward all bytes from *src* to *dest* until EOF or error."""
-    try:
-        while True:
-            data = src.recv(65536)
-            if not data:
-                break
-            dest.sendall(data)
-    except (ConnectionResetError, BrokenPipeError, OSError):
-        pass
+    # Bridge: multiplex I/O between the supervisor and Java.
+    _bridge(supervisor_comm, java_comm, java_logs, read_stderr, proc, log)
 
 
 _JAVA_LEVEL_MAP = {"warn": "warning", "trace": "debug"}
 
 
-def _forward_java_output(source, log) -> None:
+def _java_log_forwarder(log: FilteringBoundLogger) -> Generator[None, bytes | bytearray, None]:
     """
-    Parse JSON log lines from Java and re-emit through structlog.
+    Receive line-buffered bytes from Java and re-emit via structlog.
 
-    Routes Java's log output through the structured log channel
-    (``log_fd``, already configured by ``_configure_logs_over_json_channel``)
-    so the supervisor receives correct log levels instead of raw
-    ERROR-level ``task.stderr`` lines.
-
-    *source* is any line-iterable (``proc.stderr`` pipe or
-    ``socket.makefile("rb")``).
+    Follows the same generator protocol as
+    :func:`~airflow.sdk.execution_time.supervisor.forward_to_log` and
+    :func:`~airflow.sdk.execution_time.supervisor.process_log_messages_from_subprocess`:
+    primed with ``next(gen)``, then fed lines via ``gen.send(line)``.
     """
-    try:
-        for raw_line in source:
-            line = (
-                raw_line.decode("utf-8", errors="replace").rstrip()
-                if isinstance(raw_line, bytes)
-                else raw_line.rstrip()
-            )
-            if not line:
-                continue
-            try:
-                msg = json.loads(line)
-                level = msg.pop("level", "info")
-                event = msg.pop("event", "")
-                msg.pop("timestamp", None)
-                level_name = _JAVA_LEVEL_MAP.get(level, level)
-                log_fn = getattr(log, level_name, log.info)
-                log_fn(event, **msg)
-            except (json.JSONDecodeError, ValueError, TypeError):
-                log.info(line)
-    except (ConnectionResetError, BrokenPipeError, OSError):
-        pass
+    while True:
+        raw_line = yield
+        line = raw_line.decode("utf-8", errors="replace").rstrip()
+        if not line:
+            continue
+        try:
+            msg = json.loads(line)
+            level = msg.pop("level", "info")
+            event = msg.pop("event", "")
+            msg.pop("timestamp", None)
+            level_name = _JAVA_LEVEL_MAP.get(level, level)
+            log_fn = getattr(log, level_name, log.info)
+            log_fn(event, **msg)
+        except (json.JSONDecodeError, ValueError, TypeError):
+            log.info(line)
 
 
 def _bridge(
     supervisor_comm: socket.socket,
     java_comm: socket.socket,
     java_logs: socket.socket,
+    java_stderr: socket.socket,
     proc: subprocess.Popen,
-    log,
+    log: FilteringBoundLogger,
 ) -> None:
     """
-    Forward bytes between the supervisor and Java until the Java process exits.
+    Multiplex I/O between the supervisor and Java using a selector loop.
 
-    Four threads run concurrently:
+    Four channels are registered with the selector:
 
-    - supervisor -> Java comm (forwards ``DagFileParseRequest`` and intermediate responses)
-    - Java comm -> supervisor (forwards intermediate requests and ``DagFileParsingResult``)
-    - Java TCP logs -> structlog (structured log lines from the Java SDK's ``LogSender``)
-    - Java stderr -> structlog (SLF4J output from the Java process)
+    - ``supervisor_comm`` -> ``java_comm`` (raw: ``DagFileParseRequest`` and
+      intermediate responses)
+    - ``java_comm`` -> ``supervisor_comm`` (raw: intermediate requests and
+      ``DagFileParsingResult``)
+    - ``java_logs`` -> structlog (line-buffered JSON from the Java SDK's
+      ``LogSender``)
+    - ``java_stderr`` -> structlog (line-buffered SLF4J output)
+
+    The same ``(handler, on_close)`` callback contract used by
+    :class:`~airflow.sdk.execution_time.supervisor.WatchedSubprocess`
+    applies here, driven by :func:`service_selector`.
     """
-    sup_to_java = threading.Thread(target=_pipe, args=(supervisor_comm, java_comm), daemon=True)
-    java_to_sup = threading.Thread(target=_pipe, args=(java_comm, supervisor_comm), daemon=True)
-    logs_fwd = threading.Thread(
-        target=_forward_java_output, args=(java_logs.makefile("rb"), log), daemon=True
+    from airflow.sdk.execution_time.selector_loop import (
+        make_buffered_socket_reader,
+        make_raw_forwarder,
+        service_selector,
     )
-    stderr_fwd = threading.Thread(target=_forward_java_output, args=(proc.stderr, log), daemon=True)
 
-    sup_to_java.start()
-    java_to_sup.start()
-    logs_fwd.start()
-    stderr_fwd.start()
+    sel = selectors.DefaultSelector()
 
-    # Wait for the Java process to complete.
-    proc.wait()
+    def on_close(sock: socket.socket) -> None:
+        with contextlib.suppress(KeyError):
+            sel.unregister(sock)
 
-    # java_to_sup sees EOF when Java closes its comm socket; wait for it
-    # to finish forwarding all remaining data (including DagFileParsingResult).
-    java_to_sup.join(timeout=30.0)
-    logs_fwd.join(timeout=5.0)
-    stderr_fwd.join(timeout=5.0)
+    # Comm: bidirectional raw byte forwarding.
+    sel.register(supervisor_comm, selectors.EVENT_READ, make_raw_forwarder(java_comm, on_close))
+    sel.register(java_comm, selectors.EVENT_READ, make_raw_forwarder(supervisor_comm, on_close))
 
-    # Unblock the sup_to_java thread — the supervisor won't send more data
-    # now that Java has exited.
-    for sock in (supervisor_comm, java_comm, java_logs):
+    # Logs: line-buffered JSON -> structlog.
+    sel.register(
+        java_logs,
+        selectors.EVENT_READ,
+        make_buffered_socket_reader(_java_log_forwarder(log), on_close),
+    )
+    sel.register(
+        java_stderr,
+        selectors.EVENT_READ,
+        make_buffered_socket_reader(_java_log_forwarder(log), on_close),
+    )
+
+    # Event loop -- runs until Java exits and all sockets are drained.
+    while sel.get_map():
+        service_selector(sel, timeout=1.0)
+        if proc.poll() is not None:
+            # Java has exited -- drain remaining data with a short deadline.
+            deadline = time.monotonic() + 5.0
+            while sel.get_map() and time.monotonic() < deadline:
+                service_selector(sel, timeout=0.5)
+            break
+
+    sel.close()
+    for sock in (supervisor_comm, java_comm, java_logs, java_stderr):
         with contextlib.suppress(OSError):
-            sock.shutdown(socket.SHUT_RDWR)
-
-    sup_to_java.join(timeout=5.0)
-
-    supervisor_comm.close()
-    java_comm.close()
-    java_logs.close()
+            sock.close()
