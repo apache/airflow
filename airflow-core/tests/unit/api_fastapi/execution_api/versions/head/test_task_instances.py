@@ -1929,6 +1929,95 @@ class TestTIHealthEndpoint:
         session.refresh(ti)
         assert ti.last_heartbeat_at == time_now.add(minutes=10)
 
+    def test_ti_heartbeat_fast_path_skips_fallback(
+        self, client, session, create_task_instance, monkeypatch, time_machine
+    ):
+        """When the fast-path UPDATE succeeds, the fallback path does not run."""
+        time_now = timezone.parse("2024-10-31T12:00:00Z")
+        time_machine.move_to(time_now, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_heartbeat_fast_path_skips_fallback",
+            state=State.RUNNING,
+            hostname="random-hostname",
+            pid=1547,
+            last_heartbeat_at=time_now,
+            session=session,
+        )
+        session.commit()
+
+        new_time = time_now.add(minutes=10)
+        time_machine.move_to(new_time, tick=False)
+
+        original_execute = Session.execute
+        update_count = 0
+
+        def counting_execute(session_obj, statement, *args, **kwargs):
+            nonlocal update_count
+            if getattr(statement, "is_update", False) and statement.table.name == TaskInstance.__table__.name:
+                update_count += 1
+            return original_execute(session_obj, statement, *args, **kwargs)
+
+        monkeypatch.setattr(Session, "execute", counting_execute)
+
+        response = client.put(
+            f"/execution/task-instances/{ti.id}/heartbeat",
+            json={"hostname": "random-hostname", "pid": 1547},
+        )
+
+        assert response.status_code == 204
+        # Only the fast-path UPDATE should have executed; no fallback UPDATE
+        assert update_count == 1
+        session.refresh(ti)
+        assert ti.last_heartbeat_at == new_time
+
+    def test_ti_heartbeat_fallback_updates_on_fast_path_miss(
+        self, client, session, create_task_instance, monkeypatch, time_machine
+    ):
+        """When the fast-path UPDATE returns rowcount=0 the fallback path should
+        still update last_heartbeat_at."""
+        time_now = timezone.parse("2024-10-31T12:00:00Z")
+        time_machine.move_to(time_now, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_heartbeat_fallback_updates_on_fast_path_miss",
+            state=State.RUNNING,
+            hostname="random-hostname",
+            pid=1547,
+            last_heartbeat_at=time_now,
+            session=session,
+        )
+        session.commit()
+
+        new_time = time_now.add(minutes=10)
+        time_machine.move_to(new_time, tick=False)
+
+        original_execute = Session.execute
+        fast_path_intercepted = False
+
+        def execute_with_fast_path_miss(session_obj, statement, *args, **kwargs):
+            nonlocal fast_path_intercepted
+            if (
+                not fast_path_intercepted
+                and getattr(statement, "is_update", False)
+                and statement.table.name == TaskInstance.__table__.name
+            ):
+                fast_path_intercepted = True
+                return mock.MagicMock(rowcount=0)
+            return original_execute(session_obj, statement, *args, **kwargs)
+
+        monkeypatch.setattr(Session, "execute", execute_with_fast_path_miss)
+
+        response = client.put(
+            f"/execution/task-instances/{ti.id}/heartbeat",
+            json={"hostname": "random-hostname", "pid": 1547},
+        )
+
+        assert response.status_code == 204
+        assert fast_path_intercepted
+        session.refresh(ti)
+        assert ti.last_heartbeat_at == new_time
+
 
 class TestTIPutRTIF:
     def setup_method(self):
