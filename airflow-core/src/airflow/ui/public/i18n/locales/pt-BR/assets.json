@@ -1,7 +1,7 @@
 {
   "additional_data": "Dados adicionais",
-  "asset_many": "Asset",
-  "asset_one": "Asset",
+  "asset_many": "Ativos",
+  "asset_one": "Ativo",
   "consumingDags": "Consumindo Dags",
   "consumingTasks": "Tarefas consumidoras",
   "createEvent": {
