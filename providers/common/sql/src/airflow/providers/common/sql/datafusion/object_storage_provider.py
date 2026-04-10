@@ -22,10 +22,9 @@ from typing import Any
 from datafusion.object_store import LocalFileSystem
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.sql.config import ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.base import ObjectStorageProvider
-
-from airflow.providers.common.compat.module_loading import import_string
 
 
 class LocalObjectStorageProvider(ObjectStorageProvider):
