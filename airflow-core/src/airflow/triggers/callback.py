@@ -17,17 +17,15 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 import traceback
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any
 
 from airflow._shared.module_loading import import_string, qualname
 from airflow.models.callback import CallbackState, _accepts_context
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-if TYPE_CHECKING:
-    from airflow.sdk.definitions.context import Context
 
 log = logging.getLogger(__name__)
 
@@ -36,13 +34,18 @@ PAYLOAD_BODY_KEY = "body"
 
 
 def _is_notifier_class(callback: Any) -> bool:
-    """Check if the callback is a BaseNotifier subclass (not an instance)."""
-    try:
-        from airflow.sdk.bases.notifier import BaseNotifier
+    """
+    Check if the callback is a BaseNotifier subclass (not an instance).
 
-        return isinstance(callback, type) and issubclass(callback, BaseNotifier)
-    except ImportError:
-        return False
+    Uses duck-typing (checks for ``async_notify`` and ``template_fields``)
+    to avoid importing ``airflow.sdk`` in core.
+    """
+    return (
+        inspect.isclass(callback)
+        and hasattr(callback, "async_notify")
+        and hasattr(callback, "template_fields")
+        and hasattr(callback, "__await__")
+    )
 
 
 def _render_callback_kwargs(kwargs: dict[str, Any], context: dict) -> dict[str, Any]:
@@ -53,13 +56,13 @@ def _render_callback_kwargs(kwargs: dict[str, Any], context: dict) -> dict[str, 
     in the kwargs dict.  Non-string values (int, float, datetime, …) pass
     through unchanged.
     """
-    from airflow.sdk.definitions._internal.templater import SandboxedEnvironment, Templater
+    # Use CallbackTrigger (which inherits Templater via BaseTrigger) to access
+    # render_template without importing airflow.sdk directly in core.
+    from jinja2.sandbox import SandboxedEnvironment
 
-    templater = Templater()
-    templater.template_fields = ()
-    templater.template_ext = ()
+    trigger = CallbackTrigger(callback_path="", callback_kwargs={})
     jinja_env = SandboxedEnvironment(cache_size=0)
-    return templater.render_template(kwargs, cast("Context", context), jinja_env)
+    return trigger.render_template(kwargs, context, jinja_env)
 
 
 class CallbackTrigger(BaseTrigger):
