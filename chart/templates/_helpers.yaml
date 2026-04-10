@@ -130,7 +130,7 @@ If release name contains chart name it will be used as a full name.
   - name: AIRFLOW__CELERY__BROKER_URL
     valueFrom:
       secretKeyRef:
-        name: {{ default (printf "%s-broker-url" .Release.Name) .Values.data.brokerUrlSecretName }}
+        name: {{ template "airflow_broker_url_secret" . }}
         key: connection
     {{- end }}
   {{- end }}
@@ -429,6 +429,10 @@ If release name contains chart name it will be used as a full name.
 
 {{- define "redis_password_secret" -}}
   {{- default (printf "%s-redis-password" (include "airflow.fullname" .)) .Values.redis.passwordSecretName }}
+{{- end }}
+
+{{- define "airflow_broker_url_secret" -}}
+  {{- default (printf "%s-broker-url" (include "airflow.fullname" .)) .Values.data.brokerUrlSecretName }}
 {{- end }}
 
 {{- define "airflow_metadata_secret" -}}
