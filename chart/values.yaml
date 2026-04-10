@@ -1131,6 +1131,7 @@ workers:
   annotations: {}
 
   # Pod annotations for the Airflow Celery workers and pods created with pod-template-file (templated)
+  # (deprecated, use `workers.celery.podAnnotations` and/or `workers.kubernetes.podAnnotations` instead)
   podAnnotations: {}
 
   # Labels specific to Airflow Celery workers objects and pods created with pod-template-file
@@ -1517,6 +1518,9 @@ workers:
     # Annotations for the Airflow Celery worker resource
     annotations: {}
 
+    # Pod annotations for the Airflow Celery workers (templated)
+    podAnnotations: {}
+
     # Configuration of wait-for-airflow-migration init container for Airflow Celery workers
     waitForMigrations:
       # Whether to create init container to wait for db migrations
@@ -1688,6 +1692,9 @@ workers:
     # - ip: "127.0.0.3"
     #   hostnames:
     #   - "test.hostname.two"
+
+    # Pod annotations for the pods created with pod-template-file (templated)
+    podAnnotations: {}
 
     schedulerName: ~
 

@@ -2411,7 +2411,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the Airflow Celery workers and pods created with pod-template-file (templated).",
+                    "description": "Annotations to add to the Airflow Celery workers and pods created with pod-template-file (templated) (deprecated, use ``workers.celery.podAnnotations`` and/or ``workers.kubernetes.podAnnotations`` instead).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -3490,6 +3490,14 @@
                                 "type": "string"
                             }
                         },
+                        "podAnnotations": {
+                            "description": "Annotations to add to the Airflow Celery workers (templated).",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
                         "waitForMigrations": {
                             "description": "Configuration of wait-for-airflow-migration init container for Airflow Celery workers.",
                             "type": "object",
@@ -4013,6 +4021,14 @@
                                     ]
                                 }
                             ]
+                        },
+                        "podAnnotations": {
+                            "description": "Annotations to add to the pods created with pod-template-file (templated).",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         },
                         "schedulerName": {
                             "description": "Specify kube scheduler name for pods created with pod-template-file.",

@@ -1126,9 +1126,20 @@ class TestPodTemplateFile:
         assert len(annotations) == 2  # safe-to-evict + extra annotation
         assert annotations["global"] == "release-name"
 
-    def test_workers_pod_annotations_templated(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"podAnnotations": {"my_annotation": "{{ .Release.Name }}"}},
+            {"kubernetes": {"podAnnotations": {"my_annotation": "{{ .Release.Name }}"}}},
+            {
+                "podAnnotations": {"test": "test"},
+                "kubernetes": {"podAnnotations": {"my_annotation": "{{ .Release.Name }}"}},
+            },
+        ],
+    )
+    def test_workers_pod_annotations_templated(self, workers_values):
         docs = render_chart(
-            values={"workers": {"podAnnotations": {"my_annotation": "{{ .Release.Name }}"}}},
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -1137,12 +1148,19 @@ class TestPodTemplateFile:
         assert len(annotations) == 2  # safe-to-evict + extra annotation
         assert annotations["my_annotation"] == "release-name"
 
-    def test_workers_pod_annotations_override(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"podAnnotations": {"my_annotation": "workerPodAnnotations"}},
+            {"kubernetes": {"podAnnotations": {"my_annotation": "workerPodAnnotations"}}},
+        ],
+    )
+    def test_workers_pod_annotations_override(self, workers_values):
         # should give preference to workers.podAnnotations
         docs = render_chart(
             values={
                 "airflowPodAnnotations": {"my_annotation": "airflowPodAnnotations"},
-                "workers": {"podAnnotations": {"my_annotation": "workerPodAnnotations"}},
+                "workers": workers_values,
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
@@ -1152,11 +1170,18 @@ class TestPodTemplateFile:
         assert len(annotations) == 2  # safe-to-evict + extra annotation
         assert annotations["my_annotation"] == "workerPodAnnotations"
 
-    def test_pod_annotations_merge(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"podAnnotations": {"local": "workerPodAnnotations"}},
+            {"kubernetes": {"podAnnotations": {"local": "workerPodAnnotations"}}},
+        ],
+    )
+    def test_pod_annotations_merge(self, workers_values):
         docs = render_chart(
             values={
                 "airflowPodAnnotations": {"global": "airflowPodAnnotations"},
-                "workers": {"podAnnotations": {"local": "workerPodAnnotations"}},
+                "workers": workers_values,
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
