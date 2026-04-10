@@ -82,7 +82,7 @@ func TestWorkerSuite(t *testing.T) {
 	suite.Run(t, &WorkerSuite{})
 }
 
-func (s *WorkerSuite) SetupTest() {
+func (s *WorkerSuite) SetupSuite() {
 	// Stop the test from writing log files
 	viper.Set("logging.task.stdout_only", "true")
 
@@ -95,7 +95,7 @@ func (s *WorkerSuite) SetupTest() {
 	s.worker = s.worker.WithHeartbeatInterval(100 * time.Millisecond).WithClient(s.client)
 }
 
-func (s *WorkerSuite) TearDownTest() {
+func (s *WorkerSuite) TearDownSuite() {
 	s.ti.AssertExpectations(s.T())
 	s.client.AssertExpectations(s.T())
 }
