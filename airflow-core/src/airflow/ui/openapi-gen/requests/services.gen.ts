@@ -1517,7 +1517,7 @@ export class DagService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
-                422: 'Unprocessable Entity'
+                422: 'Unprocessable Content'
             }
         });
     }
@@ -1574,7 +1574,7 @@ export class DagService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
-                422: 'Unprocessable Entity'
+                422: 'Unprocessable Content'
             }
         });
     }
@@ -3360,6 +3360,7 @@ export class XcomService {
      * @param data.mapIndex
      * @param data.limit
      * @param data.offset
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, task_id, run_id, map_index, key, timestamp, run_after, task_display_name`
      * @param data.xcomKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
@@ -3390,6 +3391,7 @@ export class XcomService {
                 map_index: data.mapIndex,
                 limit: data.limit,
                 offset: data.offset,
+                order_by: data.orderBy,
                 xcom_key_pattern: data.xcomKeyPattern,
                 dag_display_name_pattern: data.dagDisplayNamePattern,
                 run_id_pattern: data.runIdPattern,

@@ -3471,6 +3471,10 @@ export type GetXcomEntriesData = {
     mapIndex?: number | null;
     mapIndexFilter?: number | null;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, task_id, run_id, map_index, key, timestamp, run_after, task_display_name`
+     */
+    orderBy?: Array<(string)>;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
@@ -5072,7 +5076,7 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
-                 * Unprocessable Entity
+                 * Unprocessable Content
                  */
                 422: HTTPExceptionResponse;
             };
@@ -5130,7 +5134,7 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
-                 * Unprocessable Entity
+                 * Unprocessable Content
                  */
                 422: HTTPExceptionResponse;
             };

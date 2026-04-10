@@ -3492,7 +3492,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
+          description: Unprocessable Content
     patch:
       tags:
       - DAG
@@ -3613,7 +3613,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
+          description: Unprocessable Content
   /api/v2/dags/{dag_id}/details:
     get:
       tags:
@@ -5212,6 +5212,22 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `dag_id, task_id,
+            run_id, map_index, key, timestamp, run_after, task_display_name`'
+          default:
+          - -timestamp
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `dag_id, task_id, run_id,
+          map_index, key, timestamp, run_after, task_display_name`'
       - name: xcom_key_pattern
         in: query
         required: false

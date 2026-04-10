@@ -1,0 +1,1 @@
+Add server-side column sorting to the Browse/XComs page with support for timestamp, run_after, dag_id, task_id, key, and map_index columns. Default ordering is newest-first by timestamp.

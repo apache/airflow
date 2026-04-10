@@ -236,7 +236,8 @@ class TestGetXComEntries(TestXComEndpoint):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
         with assert_queries_count(4):
             response = test_client.get(
-                f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries"
+                f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+                params={"order_by": "key"},
             )
         assert response.status_code == 200
         response_data = response.json()
@@ -279,7 +280,10 @@ class TestGetXComEntries(TestXComEndpoint):
         self._create_xcom_entries(TEST_DAG_ID_2, run_id, logical_date_parsed, TEST_TASK_ID_2)
 
         with assert_queries_count(4):
-            response = test_client.get("/dags/~/dagRuns/~/taskInstances/~/xcomEntries")
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+                params={"order_by": ["dag_id", "task_id", "key"]},
+            )
         assert response.status_code == 200
         response_data = response.json()
         for xcom_entry in response_data["xcom_entries"]:
@@ -344,10 +348,13 @@ class TestGetXComEntries(TestXComEndpoint):
     def test_should_respond_200_with_map_index(self, map_index, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID, mapped_ti=True)
 
+        params = {"order_by": "map_index"}
+        if map_index is not None:
+            params["map_index"] = map_index
         with assert_queries_count(4):
             response = test_client.get(
                 "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
-                params={"map_index": map_index} if map_index is not None else None,
+                params=params,
             )
         assert response.status_code == 200
         response_data = response.json()
@@ -427,10 +434,13 @@ class TestGetXComEntries(TestXComEndpoint):
     )
     def test_should_respond_200_with_xcom_key(self, key, expected_entries, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID, mapped_ti=True)
+        params = {"order_by": "map_index"}
+        if key is not None:
+            params["xcom_key_pattern"] = key
         with assert_queries_count(4):
             response = test_client.get(
                 "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
-                params={"xcom_key_pattern": key} if key is not None else None,
+                params=params,
             )
 
         assert response.status_code == 200
@@ -505,6 +515,63 @@ class TestGetXComEntries(TestXComEndpoint):
         assert response.status_code == 403
 
 
+class TestGetXComEntriesOrderBy(TestXComEndpoint):
+    @pytest.mark.parametrize(
+        ("query_params", "expected_keys"),
+        [
+            # Ascending key order
+            (
+                {"order_by": "key"},
+                ["alpha_key", "beta_key", "gamma_key"],
+            ),
+            # Descending key order
+            (
+                {"order_by": "-key"},
+                ["gamma_key", "beta_key", "alpha_key"],
+            ),
+            # Ascending timestamp (insertion order)
+            (
+                {"order_by": "timestamp"},
+                ["alpha_key", "beta_key", "gamma_key"],
+            ),
+            # Descending timestamp (default behavior, reverse insertion)
+            (
+                {"order_by": "-timestamp"},
+                ["gamma_key", "beta_key", "alpha_key"],
+            ),
+            # run_after ordering via joined DagRun column (single run, no error)
+            (
+                {"order_by": "run_after"},
+                ["alpha_key", "beta_key", "gamma_key"],
+            ),
+            # task_display_name ordering (maps to task_id)
+            (
+                {"order_by": "task_display_name"},
+                ["alpha_key", "beta_key", "gamma_key"],
+            ),
+        ],
+    )
+    def test_order_by(self, query_params, expected_keys, test_client):
+        for key in ["alpha_key", "beta_key", "gamma_key"]:
+            self._create_xcom(key, TEST_XCOM_VALUE)
+        response = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+            params=query_params,
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        keys = [entry["key"] for entry in response_data["xcom_entries"]]
+        assert keys == expected_keys
+
+    def test_order_by_invalid_attribute(self, test_client):
+        self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
+        response = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+            params={"order_by": "nonexistent"},
+        )
+        assert response.status_code == 400
+
+
 class TestPaginationGetXComEntries(TestXComEndpoint):
     @pytest.mark.parametrize(
         ("query_params", "expected_xcom_ids"),
@@ -559,6 +626,7 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
     def test_handle_limit_offset(self, query_params, expected_xcom_ids, test_client):
         for i in range(10):
             self._create_xcom(f"TEST_XCOM_KEY{i}", TEST_XCOM_VALUE)
+        query_params["order_by"] = "key"
         response = test_client.get("/dags/~/dagRuns/~/taskInstances/~/xcomEntries", params=query_params)
         assert response.status_code == 200
         response_data = response.json()

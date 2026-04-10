@@ -35,6 +35,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryXComRunIdPatternSearch,
     QueryXComTaskIdPatternSearch,
     RangeFilter,
+    SortParam,
     datetime_range_filter_factory,
     filter_param_factory,
 )
@@ -151,6 +152,16 @@ def get_xcom_entries(
     offset: QueryOffset,
     readable_xcom_filter: ReadableXComFilterDep,
     session: SessionDep,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["dag_id", "task_id", "run_id", "map_index", "key", "timestamp"],
+                XComModel,
+                to_replace={"run_after": DR.run_after, "task_display_name": XComModel.task_id},
+            ).dynamic_depends(default="-timestamp")
+        ),
+    ],
     xcom_key_pattern: QueryXComKeyPatternSearch,
     dag_display_name_pattern: QueryXComDagDisplayNamePatternSearch,
     run_id_pattern: QueryXComRunIdPatternSearch,
@@ -189,6 +200,7 @@ def get_xcom_entries(
 
     query, total_entries = paginated_select(
         statement=query,
+        order_by=order_by,
         filters=[
             readable_xcom_filter,
             xcom_key_pattern,
@@ -202,9 +214,6 @@ def get_xcom_entries(
         offset=offset,
         limit=limit,
         session=session,
-    )
-    query = query.order_by(
-        XComModel.dag_id, XComModel.task_id, XComModel.run_id, XComModel.map_index, XComModel.key
     )
     return XComCollectionResponse(xcom_entries=session.scalars(query), total_entries=total_entries)
 
