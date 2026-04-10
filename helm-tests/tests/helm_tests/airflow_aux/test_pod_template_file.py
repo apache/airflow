@@ -1115,17 +1115,29 @@ class TestPodTemplateFile:
             annotations = jmespath.search("spec.template.metadata.annotations", doc)
             assert annotations.get("cluster-autoscaler.kubernetes.io/safe-to-evict") == "true"
 
-    def test_workers_pod_annotations(self):
+    def test_global_pod_annotations_templated(self):
         docs = render_chart(
-            values={"workers": {"podAnnotations": {"my_annotation": "annotated!"}}},
+            values={"airflowPodAnnotations": {"global": "{{ .Release.Name }}"}},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
-        annotations = jmespath.search("metadata.annotations", docs[0])
-        assert "my_annotation" in annotations
-        assert "annotated!" in annotations["my_annotation"]
 
-    def test_airflow_and_workers_pod_annotations(self):
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert len(annotations) == 2  # safe-to-evict + extra annotation
+        assert annotations["global"] == "release-name"
+
+    def test_workers_pod_annotations_templated(self):
+        docs = render_chart(
+            values={"workers": {"podAnnotations": {"my_annotation": "{{ .Release.Name }}"}}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert len(annotations) == 2  # safe-to-evict + extra annotation
+        assert annotations["my_annotation"] == "release-name"
+
+    def test_workers_pod_annotations_override(self):
         # should give preference to workers.podAnnotations
         docs = render_chart(
             values={
@@ -1135,9 +1147,25 @@ class TestPodTemplateFile:
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
+
         annotations = jmespath.search("metadata.annotations", docs[0])
-        assert "my_annotation" in annotations
-        assert "workerPodAnnotations" in annotations["my_annotation"]
+        assert len(annotations) == 2  # safe-to-evict + extra annotation
+        assert annotations["my_annotation"] == "workerPodAnnotations"
+
+    def test_pod_annotations_merge(self):
+        docs = render_chart(
+            values={
+                "airflowPodAnnotations": {"global": "airflowPodAnnotations"},
+                "workers": {"podAnnotations": {"local": "workerPodAnnotations"}},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert len(annotations) == 3  # safe-to-evict + extra annotations
+        assert annotations["global"] == "airflowPodAnnotations"
+        assert annotations["local"] == "workerPodAnnotations"
 
     @pytest.mark.parametrize(
         "workers_values",

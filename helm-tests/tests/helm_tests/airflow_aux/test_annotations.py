@@ -18,9 +18,7 @@ from __future__ import annotations
 
 import copy
 
-import jmespath
 import pytest
-import yaml
 from chart_utils.helm_template_generator import render_chart
 
 
@@ -643,50 +641,6 @@ class TestRedisAnnotations:
         for k, v in expected_annotations.items():
             assert k in obj["metadata"]["annotations"]
             assert v == obj["metadata"]["annotations"][k]
-
-
-class TestPodTemplateFileAnnotationsTemplating:
-    """Tests that podAnnotations are templated in the pod template file."""
-
-    def test_pod_template_file_annotations_are_templated(self):
-        k8s_objects = render_chart(
-            values={
-                "executor": "KubernetesExecutor",
-                "workers": {
-                    "podAnnotations": {
-                        "release-name": "{{ .Release.Name }}",
-                    },
-                },
-            },
-            show_only=["templates/configmaps/configmap.yaml"],
-        )
-
-        assert len(k8s_objects) == 1
-        pod_template = k8s_objects[0]["data"]["pod_template_file.yaml"]
-        annotations = jmespath.search(
-            "metadata.annotations",
-            yaml.safe_load(pod_template),
-        )
-        assert annotations["release-name"] == "release-name"
-
-    def test_pod_template_file_global_annotations_are_templated(self):
-        k8s_objects = render_chart(
-            values={
-                "executor": "KubernetesExecutor",
-                "airflowPodAnnotations": {
-                    "global-release": "{{ .Release.Name }}",
-                },
-            },
-            show_only=["templates/configmaps/configmap.yaml"],
-        )
-
-        assert len(k8s_objects) == 1
-        pod_template = k8s_objects[0]["data"]["pod_template_file.yaml"]
-        annotations = jmespath.search(
-            "metadata.annotations",
-            yaml.safe_load(pod_template),
-        )
-        assert annotations["global-release"] == "release-name"
 
 
 class TestWebserverPodAnnotationsTemplating:
