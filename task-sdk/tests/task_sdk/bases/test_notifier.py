@@ -118,3 +118,15 @@ class TestBaseNotifier:
         notifier(context)
 
         notifier.notify.assert_called_once_with({"dag": serialized_dag})
+
+    def test_notifier_render_template_fields_with_serialized_dag(self):
+        with DAG("test_notifier_render_template_fields_with_serialized_dag") as dag:
+            EmptyOperator(task_id="test_id")
+
+        notifier = MockNotifier(message="Hello {{ dag.dag_id }}")
+        serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+        context: Context = {"dag": serialized_dag}
+
+        notifier.render_template_fields(context)
+
+        assert notifier.message == "Hello test_notifier_render_template_fields_with_serialized_dag"
