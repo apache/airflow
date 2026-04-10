@@ -2290,6 +2290,13 @@ class TestWorkerLogGroomer(LogGroomerTestBase):
     folder = "workers"
 
 
+class TestWorkerCeleryLogGroomer(LogGroomerTestBase):
+    """Worker Celery groomer."""
+
+    obj_name = "workers-celery"
+    folder = "workers"
+
+
 class TestWorkerKedaAutoScaler:
     """Tests worker keda auto scaler."""
 
