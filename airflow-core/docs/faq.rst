@@ -677,10 +677,10 @@ How to prevent API server memory growth?
 The API server caches serialized Dag objects in memory. Over time, as Dag versions accumulate
 (see :ref:`faq:dag-version-inflation`), this cache grows and can consume several gigabytes of memory.
 
-The recommended solution is to use **gunicorn** with **rolling worker restarts**. Gunicorn periodically
-recycles worker processes, releasing all accumulated memory. It also uses ``preload`` + ``fork``, so
-workers share read-only memory pages via copy-on-write, reducing overall memory usage by 40-50% compared
-to uvicorn's multiprocess mode.
+The recommended solution (available since Airflow 3.2.0) is to use **gunicorn** with **rolling worker
+restarts**. Gunicorn periodically recycles worker processes, releasing all accumulated memory. It also
+uses ``preload`` + ``fork``, so workers share read-only memory pages via copy-on-write, reducing overall
+memory usage by 40-50% compared to uvicorn's multiprocess mode.
 
 To enable gunicorn with worker recycling:
 
