@@ -20,32 +20,32 @@ import { Text, useToken } from "@chakra-ui/react";
 import { Group } from "@visx/group";
 import { LinePath } from "@visx/shape";
 import type { Edge as EdgeType } from "@xyflow/react";
+import { useNodesData } from "@xyflow/react";
 import type { ElkPoint } from "elkjs";
 
 import type { EdgeData } from "./reactflowUtils";
 
 type Props = EdgeType<EdgeData>;
 
-const CustomEdge = ({ data }: Props) => {
+const CustomEdge = ({ data, source, target }: Props) => {
   const [strokeColor, blueColor, dataEdgeColor] = useToken("colors", [
     "border.inverted",
     "blue.500",
     "purple.500",
   ]);
 
+  // Read isSelected directly from the node store so that selection changes
+  // don't require the parent to rebuild and pass down a new edges array.
+  // useNodesData subscribes to data changes for these specific node IDs only.
+  const nodesData = useNodesData([source, target]);
+  const isSelected = nodesData.some((node) => Boolean(node.data.isSelected));
+
   if (data === undefined) {
     return undefined;
   }
   const { rest } = data;
 
-  // Determine edge color based on type
-  const getEdgeColor = () => {
-    if (rest.isSelected) {
-      return rest.edgeType === "data" ? dataEdgeColor : blueColor;
-    }
-
-    return strokeColor;
-  };
+  const edgeStrokeColor = isSelected ? (rest.edgeType === "data" ? dataEdgeColor : blueColor) : strokeColor;
 
   return (
     <>
@@ -73,9 +73,9 @@ const CustomEdge = ({ data }: Props) => {
         <LinePath
           data={[section.startPoint, ...(section.bendPoints ?? []), section.endPoint]}
           key={section.id}
-          stroke={getEdgeColor()}
+          stroke={edgeStrokeColor}
           strokeDasharray={rest.isSetupTeardown ? "10,5" : undefined}
-          strokeWidth={rest.isSelected ? 3 : 1}
+          strokeWidth={isSelected ? 3 : 1}
           x={(point: ElkPoint) => point.x}
           y={(point: ElkPoint) => point.y}
         />
