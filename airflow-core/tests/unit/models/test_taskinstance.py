@@ -1321,6 +1321,48 @@ class TestTaskInstance:
         assert completed == expect_completed
         assert ti.state == expect_state
 
+    def test_get_task_instance_filters_by_dag_id(self, dag_maker, session):
+        shared_run_id = "manual__shared_run_id"
+        task_id = "common_task"
+
+        with dag_maker(dag_id="dag_one", session=session):
+            EmptyOperator(task_id=task_id)
+        dag_maker.create_dagrun(
+            session=session,
+            run_id=shared_run_id,
+            run_type=DagRunType.MANUAL,
+            logical_date=timezone.datetime(2024, 1, 1),
+        )
+
+        with dag_maker(dag_id="dag_two", session=session):
+            EmptyOperator(task_id=task_id)
+        dag_maker.create_dagrun(
+            session=session,
+            run_id=shared_run_id,
+            run_type=DagRunType.MANUAL,
+            logical_date=timezone.datetime(2024, 1, 2),
+        )
+
+        ti_one = TaskInstance.get_task_instance(
+            dag_id="dag_one",
+            run_id=shared_run_id,
+            task_id=task_id,
+            map_index=-1,
+            session=session,
+        )
+        ti_two = TaskInstance.get_task_instance(
+            dag_id="dag_two",
+            run_id=shared_run_id,
+            task_id=task_id,
+            map_index=-1,
+            session=session,
+        )
+
+        assert ti_one is not None
+        assert ti_two is not None
+        assert ti_one.dag_id == "dag_one"
+        assert ti_two.dag_id == "dag_two"
+
     def test_respects_prev_dagrun_dep(self, dag_maker, session):
         with dag_maker("test_respects_prev_dagrun_dep", serialized=True) as dag:
             EmptyOperator(task_id="t")
