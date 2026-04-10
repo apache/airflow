@@ -32,6 +32,7 @@ import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
+import { getPortalledMenuTarget, portalledSelectStyles } from "src/utils/advancedSelectStyles";
 
 import StandardFields from "./ConnectionStandardFields";
 import type { ConnectionBody } from "./Connections";
@@ -186,9 +187,12 @@ const ConnectionForm = ({
                   <Select
                     {...Field}
                     isDisabled={isMetaPending}
+                    menuPortalTarget={getPortalledMenuTarget()}
+                    menuPosition="fixed"
                     onChange={(val) => onChange(val?.value)}
                     options={connTypesOptions}
                     placeholder={translate("connections.form.selectConnectionType")}
+                    styles={portalledSelectStyles}
                     value={connTypesOptions.find((type) => type.value === value)}
                   />
                 </Stack>

@@ -23,6 +23,28 @@ import { Wrapper } from "src/utils/Wrapper";
 
 import { FieldDropdown } from "./FieldDropdown";
 
+type MockSelectProps = {
+  readonly menuPortalTarget?: HTMLElement;
+  readonly menuPosition?: string;
+  readonly styles?: {
+    readonly menuPortal?: unknown;
+  };
+};
+
+let lastSelectProps: MockSelectProps | undefined;
+
+vi.mock("chakra-react-select", async () => {
+  const React = await import("react");
+
+  return {
+    Select: (props: MockSelectProps) => {
+      lastSelectProps = props;
+
+      return React.createElement("div", { role: "combobox" });
+    },
+  };
+});
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockParamsDict: Record<string, any> = {};
 const mockSetParamsDict = vi.fn();
@@ -46,6 +68,7 @@ describe("FieldDropdown", () => {
       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       delete mockParamsDict[key];
     });
+    lastSelectProps = undefined;
   });
 
   it("renders dropdown with null value in enum", () => {
@@ -168,5 +191,23 @@ describe("FieldDropdown", () => {
 
     expect(original).toBe(6);
     expect(typeof original).toBe("number");
+  });
+
+  it("renders the dropdown menu in a portal so accordion overflow does not clip it", () => {
+    mockParamsDict.test_param = {
+      schema: {
+        enum: ["value1", "value2"],
+        type: ["string"],
+      },
+      value: "value1",
+    };
+
+    render(<FieldDropdown name="test_param" onUpdate={vi.fn()} />, {
+      wrapper: Wrapper,
+    });
+
+    expect(lastSelectProps?.menuPortalTarget).toBe(document.body);
+    expect(lastSelectProps?.menuPosition).toBe("fixed");
+    expect(lastSelectProps?.styles?.menuPortal).toBeTypeOf("function");
   });
 });

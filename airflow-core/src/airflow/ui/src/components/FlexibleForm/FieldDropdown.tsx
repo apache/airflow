@@ -20,6 +20,7 @@ import { type SingleValue, Select as ReactSelect } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
+import { getPortalledMenuTarget, portalledSelectStyles } from "src/utils/advancedSelectStyles";
 
 import type { FlexibleFormElementProps } from ".";
 
@@ -53,11 +54,10 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
 
   const currentValue =
     param.value === null
-      ? (options.find((opt) => opt.value === NULL_STRING_VALUE) ?? null)
+      ? options.find((opt) => opt.value === NULL_STRING_VALUE)
       : enumTypes.includes(typeof param.value)
-        ? (options.find((opt) => opt.value === String(param.value)) ?? null)
-        : // eslint-disable-next-line unicorn/no-null
-          null;
+        ? options.find((opt) => opt.value === String(param.value))
+        : undefined;
 
   const handleChange = (
     selected: SingleValue<{
@@ -89,11 +89,14 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
       id={`element_${name}`}
       isClearable
       isDisabled={disabled}
+      menuPortalTarget={getPortalledMenuTarget()}
+      menuPosition="fixed"
       name={`element_${name}`}
       onChange={handleChange}
       options={options}
       placeholder={translate("flexibleForm.placeholder")}
       size="sm"
+      styles={portalledSelectStyles}
       value={currentValue}
     />
   );

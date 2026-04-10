@@ -16,3 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { GroupBase, StylesConfig } from "chakra-react-select";
+
+type SelectOption = {
+  label: string;
+  value: string;
+};
+
+const PORTALLED_SELECT_Z_INDEX = "calc(var(--chakra-z-index-modal) + 1)";
+
+export const getPortalledMenuTarget = () => (typeof document === "undefined" ? undefined : document.body);
+
+export const portalledSelectStyles: StylesConfig<SelectOption, boolean, GroupBase<SelectOption>> = {
+  menuPortal: (provided) => ({
+    ...provided,
+    zIndex: PORTALLED_SELECT_Z_INDEX,
+  }),
+};

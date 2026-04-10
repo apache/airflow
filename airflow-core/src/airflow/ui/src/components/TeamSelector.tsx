@@ -23,6 +23,7 @@ import { type Control, Controller, type FieldValues, type Path } from "react-hoo
 import { useTranslation } from "react-i18next";
 
 import { useTeamsServiceListTeams } from "openapi/queries";
+import { getPortalledMenuTarget, portalledSelectStyles } from "src/utils/advancedSelectStyles";
 
 type Props<T extends FieldValues = FieldValues> = {
   readonly control: Control<T>;
@@ -62,10 +63,13 @@ export const TeamSelector = <T extends FieldValues = FieldValues>({ control }: P
                 data-testid="team-selector"
                 isClearable
                 isDisabled={isLoading}
+                menuPortalTarget={getPortalledMenuTarget()}
+                menuPosition="fixed"
                 // eslint-disable-next-line unicorn/no-null
                 onChange={(val) => onChange(val?.value ?? null)}
                 options={options}
                 placeholder={translate("team.selector.placeHolder")}
+                styles={portalledSelectStyles}
                 value={options.find((option) => option.value === value)}
               />
             </Stack>

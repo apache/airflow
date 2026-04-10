@@ -21,6 +21,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
+import { getPortalledMenuTarget, portalledSelectStyles } from "src/utils/advancedSelectStyles";
 
 import type { FlexibleFormElementProps } from ".";
 
@@ -76,6 +77,8 @@ export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: Flex
       isClearable
       isDisabled={disabled}
       isMulti
+      menuPortalTarget={getPortalledMenuTarget()}
+      menuPosition="fixed"
       name={`element_${name}`}
       onChange={handleChange}
       options={
@@ -88,6 +91,7 @@ export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: Flex
       }
       placeholder={translate("flexibleForm.placeholderMulti")}
       size="sm"
+      styles={portalledSelectStyles}
       value={selectedOptions}
     />
   );
