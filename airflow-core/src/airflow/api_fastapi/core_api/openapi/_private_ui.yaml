@@ -2896,7 +2896,6 @@ components:
       - Config
       - Connections
       - Dags
-      - Deadlines
       - Docs
       - Jobs
       - Plugins

@@ -57,7 +57,7 @@ const DeadlineRow = ({ deadline }: { readonly deadline: DeadlineResponse }) => (
 );
 
 export const Deadlines = () => {
-  const { t: translate } = useTranslation("dashboard");
+  const { t: translate } = useTranslation("dag");
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
   const now = dayjs().toISOString();
   const last24h = dayjs().subtract(24, "hour").toISOString();
@@ -113,7 +113,7 @@ export const Deadlines = () => {
       <Flex color="fg.muted" mb={2}>
         <FiClock />
         <Heading ml={1} size="xs">
-          {translate("deadlines.deadlines")}
+          {translate("overview.deadlines.title")}
         </Heading>
       </Flex>
       <ErrorAlert error={pendingError ?? missedError} />
@@ -122,7 +122,7 @@ export const Deadlines = () => {
           <Box borderRadius="lg" borderWidth={1} flex={1} overflow="hidden" p={3}>
             <HStack mb={2}>
               <FiClock />
-              <Heading size="xs">{translate("deadlines.pending")}</Heading>
+              <Heading size="xs">{translate("overview.deadlines.pending")}</Heading>
               {pendingData ? (
                 <Badge colorPalette="blue" size="sm" variant="solid">
                   {pendingData.total_entries}
@@ -150,7 +150,7 @@ export const Deadlines = () => {
           <Box borderRadius="lg" borderWidth={1} flex={1} overflow="hidden" p={3}>
             <HStack color="fg.error" mb={2}>
               <FiAlertTriangle />
-              <Heading size="xs">{translate("deadlines.recentlyMissed")}</Heading>
+              <Heading size="xs">{translate("overview.deadlines.recentlyMissed")}</Heading>
               {missedData ? (
                 <Badge colorPalette="failed" size="sm" variant="solid">
                   {missedData.total_entries}
