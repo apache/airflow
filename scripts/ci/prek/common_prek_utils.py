@@ -141,7 +141,13 @@ def read_allowed_kubernetes_versions() -> list[str]:
 
 def read_default_python_major_minor_version_for_images() -> str:
     """Parse DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES from global_constants.py."""
-    return _read_global_constants_assignment("DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES")
+    value = _read_global_constants_assignment("DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES")
+    if not isinstance(value, str):
+        raise RuntimeError(
+            "DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES in global_constants.py "
+            f"must be a string, got {type(value).__name__}"
+        )
+    return value
 
 
 def pre_process_mypy_files(files: list[str]) -> list[str]:
