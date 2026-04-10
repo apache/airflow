@@ -1,2 +1,1 @@
-Fixed missing ``dag_id`` filter in ``TaskInstance.get_task_instance`` that could cause scheduler crashes
-when multiple DAGs share the same ``task_id`` and ``run_id``.
+Fixed missing ``dag_id`` filter in ``TaskInstance.get_task_instance`` that could cause scheduler crashes when multiple DAGs share the same ``task_id`` and ``run_id``.
