@@ -21,11 +21,9 @@ import logging
 import mimetypes
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Any
 from urllib.parse import urlparse
 
-from fastapi import Depends, FastAPI, HTTPException, Query
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -83,58 +81,6 @@ def _get_bundle_url() -> str:
 def _get_session():
     with create_session(scoped=False) as session:
         yield session
-
-
-SessionDep = Annotated[Session, Depends(_get_session)]
-
-
-def _get_map_index(q: str = Query("-1", alias="map_index")) -> int:
-    """Parse map_index query; use -1 when placeholder unreplaced (e.g. ``{MAP_INDEX}``) or invalid."""
-    try:
-        return int(q)
-    except (ValueError, TypeError):
-        return -1
-
-
-MapIndexDep = Annotated[int, Depends(_get_map_index)]
-
-
-def _get_access_dependencies(*, method: str, airflow_v_3_1_plus: bool) -> list[Any]:
-    """Return DAG access dependencies only for Airflow versions that support HITL auth entities."""
-    if not airflow_v_3_1_plus:
-        return []
-
-    from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-    from airflow.api_fastapi.core_api.security import requires_access_dag
-
-    return [Depends(requires_access_dag(method=method, access_entity=DagAccessEntity.HITL_DETAIL))]
-
-
-def _get_plugin_fastapi_apps(*, airflow_v_3_1_plus: bool, app: FastAPI) -> list[dict[str, Any]]:
-    """Register the FastAPI app only on Airflow versions that support HITL review permissions."""
-    if not airflow_v_3_1_plus:
-        return []
-    return [
-        {
-            "name": "hitl-review",
-            "app": app,
-            "url_prefix": _PLUGIN_PREFIX,
-        }
-    ]
-
-
-def _get_plugin_react_apps(*, airflow_v_3_1_plus: bool) -> list[dict[str, str]]:
-    """Register the React app only on Airflow versions that support HITL review permissions."""
-    if not airflow_v_3_1_plus:
-        return []
-    return [
-        {
-            "name": "HITL Review",
-            "bundle_url": _get_bundle_url(),
-            "destination": "task_instance",
-            "url_route": "hitl-review",
-        }
-    ]
 
 
 def _read_xcom(session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, key: str):
@@ -268,286 +214,310 @@ def _build_session_response(
     )
 
 
-hitl_review_app = FastAPI(
-    title="HITL Review",
-    description=(
-        "REST API and chat UI for human-in-the-loop LLM feedback sessions.  "
-        "Sessions are stored in XCom entries on the running task instance."
-    ),
-)
+if AIRFLOW_V_3_1_PLUS:
+    from typing import Annotated
 
-_FIND_SESSION_DEPENDENCIES = _get_access_dependencies(method="GET", airflow_v_3_1_plus=AIRFLOW_V_3_1_PLUS)
-_UPDATE_SESSION_DEPENDENCIES = _get_access_dependencies(method="PUT", airflow_v_3_1_plus=AIRFLOW_V_3_1_PLUS)
-_FASTAPI_APPS = _get_plugin_fastapi_apps(airflow_v_3_1_plus=AIRFLOW_V_3_1_PLUS, app=hitl_review_app)
+    from fastapi import Depends, FastAPI, HTTPException, Query
+    from fastapi.staticfiles import StaticFiles
 
+    from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+    from airflow.api_fastapi.core_api.security import requires_access_dag
 
-@hitl_review_app.get("/health")
-async def health() -> dict[str, str]:
-    """Liveness check."""
-    return {"status": "ok"}
+    SessionDep = Annotated[Session, Depends(_get_session)]
 
+    def _get_map_index(q: str = Query("-1", alias="map_index")) -> int:
+        """Parse map_index query; use -1 when placeholder unreplaced (e.g. ``{MAP_INDEX}``) or invalid."""
+        try:
+            return int(q)
+        except (ValueError, TypeError):
+            return -1
 
-@hitl_review_app.get(
-    "/sessions/find",
-    response_model=HITLReviewResponse,
-    dependencies=_FIND_SESSION_DEPENDENCIES,
-)
-async def find_session(
-    db: SessionDep,
-    dag_id: str,
-    task_id: str,
-    run_id: str,
-    map_index: MapIndexDep,
-) -> HITLReviewResponse:
-    """Find the feedback session for a specific task instance."""
-    resp = _build_session_response(
-        db,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
+    MapIndexDep = Annotated[int, Depends(_get_map_index)]
+
+    hitl_review_app = FastAPI(
+        title="HITL Review",
+        description=(
+            "REST API and chat UI for human-in-the-loop LLM feedback sessions.  "
+            "Sessions are stored in XCom entries on the running task instance."
+        ),
     )
-    if resp is None:
-        task_active = not _is_task_completed(
+
+    @hitl_review_app.get("/health")
+    async def health() -> dict[str, str]:
+        """Liveness check."""
+        return {"status": "ok"}
+
+    @hitl_review_app.get(
+        "/sessions/find",
+        response_model=HITLReviewResponse,
+        dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
+    )
+    async def find_session(
+        db: SessionDep,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: MapIndexDep,
+    ) -> HITLReviewResponse:
+        """Find the feedback session for a specific task instance."""
+        resp = _build_session_response(
             db,
             dag_id=dag_id,
             run_id=run_id,
             task_id=task_id,
             map_index=map_index,
         )
-        raise HTTPException(
-            status_code=404,
-            detail={"message": "No matching session found.", "task_active": task_active},
+        if resp is None:
+            task_active = not _is_task_completed(
+                db,
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                map_index=map_index,
+            )
+            raise HTTPException(
+                status_code=404,
+                detail={"message": "No matching session found.", "task_active": task_active},
+            )
+        return resp
+
+    @hitl_review_app.post(
+        "/sessions/feedback",
+        response_model=HITLReviewResponse,
+        dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
+    )
+    async def submit_feedback(
+        body: HumanFeedbackRequest,
+        db: SessionDep,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: MapIndexDep,
+    ) -> HITLReviewResponse:
+        """Request changes — provide human feedback for the LLM."""
+        if not (body.feedback and body.feedback.strip()):
+            raise HTTPException(
+                status_code=400,
+                detail="Feedback is required when requesting changes.",
+            )
+        raw = _read_xcom(
+            db,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            key=XCOM_AGENT_SESSION,
         )
-    return resp
+        if raw is None:
+            raise HTTPException(status_code=404, detail="No matching session found.")
+        sess_data = AgentSessionData.model_validate(raw)
+        if sess_data.status != SessionStatus.PENDING_REVIEW:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Session is '{sess_data.status.value}', expected 'pending_review'.",
+            )
 
-
-@hitl_review_app.post(
-    "/sessions/feedback",
-    response_model=HITLReviewResponse,
-    dependencies=_UPDATE_SESSION_DEPENDENCIES,
-)
-async def submit_feedback(
-    body: HumanFeedbackRequest,
-    db: SessionDep,
-    dag_id: str,
-    task_id: str,
-    run_id: str,
-    map_index: MapIndexDep,
-) -> HITLReviewResponse:
-    """Request changes — provide human feedback for the LLM."""
-    if not (body.feedback and body.feedback.strip()):
-        raise HTTPException(
-            status_code=400,
-            detail="Feedback is required when requesting changes.",
-        )
-    raw = _read_xcom(
-        db,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-        key=XCOM_AGENT_SESSION,
-    )
-    if raw is None:
-        raise HTTPException(status_code=404, detail="No matching session found.")
-    sess_data = AgentSessionData.model_validate(raw)
-    if sess_data.status != SessionStatus.PENDING_REVIEW:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Session is '{sess_data.status.value}', expected 'pending_review'.",
-        )
-
-    iteration = sess_data.iteration
-    _write_xcom(
-        db,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-        key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}{iteration}",
-        value=body.feedback,
-    )
-
-    action = HumanActionData(action="changes_requested", feedback=body.feedback, iteration=iteration)
-    _write_xcom(
-        db,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-        key=XCOM_HUMAN_ACTION,
-        value=action.model_dump(mode="json"),
-    )
-
-    sess_data.status = SessionStatus.CHANGES_REQUESTED
-    _write_xcom(
-        db,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-        key=XCOM_AGENT_SESSION,
-        value=sess_data.model_dump(mode="json"),
-    )
-
-    resp = _build_session_response(
-        db,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-    )
-    if resp is None:
-        raise HTTPException(status_code=500, detail="Failed to read session after update.")
-    return resp
-
-
-@hitl_review_app.post(
-    "/sessions/approve",
-    response_model=HITLReviewResponse,
-    dependencies=_UPDATE_SESSION_DEPENDENCIES,
-)
-async def approve_session(
-    db: SessionDep,
-    dag_id: str,
-    task_id: str,
-    run_id: str,
-    map_index: MapIndexDep,
-) -> HITLReviewResponse:
-    """Approve the current output."""
-    raw = _read_xcom(
-        db,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-        key=XCOM_AGENT_SESSION,
-    )
-    if raw is None:
-        raise HTTPException(status_code=404, detail="No matching session found.")
-
-    sess_data = AgentSessionData.model_validate(raw)
-    if sess_data.status != SessionStatus.PENDING_REVIEW:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Session is '{sess_data.status.value}', expected 'pending_review'.",
+        iteration = sess_data.iteration
+        _write_xcom(
+            db,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}{iteration}",
+            value=body.feedback,
         )
 
-    action = HumanActionData(action="approve", iteration=sess_data.iteration)
-    _write_xcom(
-        db,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-        key=XCOM_HUMAN_ACTION,
-        value=action.model_dump(mode="json"),
-    )
-
-    sess_data.status = SessionStatus.APPROVED
-    _write_xcom(
-        db,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-        key=XCOM_AGENT_SESSION,
-        value=sess_data.model_dump(mode="json"),
-    )
-
-    resp = _build_session_response(
-        db,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-    )
-    if resp is None:
-        raise HTTPException(status_code=500, detail="Failed to read session after update.")
-    return resp
-
-
-@hitl_review_app.post(
-    "/sessions/reject",
-    response_model=HITLReviewResponse,
-    dependencies=_UPDATE_SESSION_DEPENDENCIES,
-)
-async def reject_session(
-    db: SessionDep,
-    dag_id: str,
-    task_id: str,
-    run_id: str,
-    map_index: MapIndexDep,
-) -> HITLReviewResponse:
-    """Reject the output."""
-    raw = _read_xcom(
-        db,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-        key=XCOM_AGENT_SESSION,
-    )
-    if raw is None:
-        raise HTTPException(status_code=404, detail="No matching session found.")
-    sess_data = AgentSessionData.model_validate(raw)
-    if sess_data.status != SessionStatus.PENDING_REVIEW:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Session is '{sess_data.status.value}', expected 'pending_review'.",
+        action = HumanActionData(action="changes_requested", feedback=body.feedback, iteration=iteration)
+        _write_xcom(
+            db,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            key=XCOM_HUMAN_ACTION,
+            value=action.model_dump(mode="json"),
         )
 
-    action = HumanActionData(action="reject", iteration=sess_data.iteration)
-    _write_xcom(
-        db,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-        key=XCOM_HUMAN_ACTION,
-        value=action.model_dump(mode="json"),
+        sess_data.status = SessionStatus.CHANGES_REQUESTED
+        _write_xcom(
+            db,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            key=XCOM_AGENT_SESSION,
+            value=sess_data.model_dump(mode="json"),
+        )
+
+        resp = _build_session_response(
+            db,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+        )
+        if resp is None:
+            raise HTTPException(status_code=500, detail="Failed to read session after update.")
+        return resp
+
+    @hitl_review_app.post(
+        "/sessions/approve",
+        response_model=HITLReviewResponse,
+        dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
     )
+    async def approve_session(
+        db: SessionDep,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: MapIndexDep,
+    ) -> HITLReviewResponse:
+        """Approve the current output."""
+        raw = _read_xcom(
+            db,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            key=XCOM_AGENT_SESSION,
+        )
+        if raw is None:
+            raise HTTPException(status_code=404, detail="No matching session found.")
 
-    sess_data.status = SessionStatus.REJECTED
-    _write_xcom(
-        db,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-        key=XCOM_AGENT_SESSION,
-        value=sess_data.model_dump(mode="json"),
+        sess_data = AgentSessionData.model_validate(raw)
+        if sess_data.status != SessionStatus.PENDING_REVIEW:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Session is '{sess_data.status.value}', expected 'pending_review'.",
+            )
+
+        action = HumanActionData(action="approve", iteration=sess_data.iteration)
+        _write_xcom(
+            db,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            key=XCOM_HUMAN_ACTION,
+            value=action.model_dump(mode="json"),
+        )
+
+        sess_data.status = SessionStatus.APPROVED
+        _write_xcom(
+            db,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            key=XCOM_AGENT_SESSION,
+            value=sess_data.model_dump(mode="json"),
+        )
+
+        resp = _build_session_response(
+            db,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+        )
+        if resp is None:
+            raise HTTPException(status_code=500, detail="Failed to read session after update.")
+        return resp
+
+    @hitl_review_app.post(
+        "/sessions/reject",
+        response_model=HITLReviewResponse,
+        dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
     )
+    async def reject_session(
+        db: SessionDep,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: MapIndexDep,
+    ) -> HITLReviewResponse:
+        """Reject the output."""
+        raw = _read_xcom(
+            db,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            key=XCOM_AGENT_SESSION,
+        )
+        if raw is None:
+            raise HTTPException(status_code=404, detail="No matching session found.")
+        sess_data = AgentSessionData.model_validate(raw)
+        if sess_data.status != SessionStatus.PENDING_REVIEW:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Session is '{sess_data.status.value}', expected 'pending_review'.",
+            )
 
-    resp = _build_session_response(
-        db,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-    )
-    if resp is None:
-        raise HTTPException(status_code=500, detail="Failed to read session after update.")
-    return resp
+        action = HumanActionData(action="reject", iteration=sess_data.iteration)
+        _write_xcom(
+            db,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            key=XCOM_HUMAN_ACTION,
+            value=action.model_dump(mode="json"),
+        )
 
+        sess_data.status = SessionStatus.REJECTED
+        _write_xcom(
+            db,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            key=XCOM_AGENT_SESSION,
+            value=sess_data.model_dump(mode="json"),
+        )
 
-# Ensure proper MIME types for plugin bundle (FastAPI serves .cjs as text/plain by default)
-mimetypes.add_type("application/javascript", ".cjs")
+        resp = _build_session_response(
+            db,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+        )
+        if resp is None:
+            raise HTTPException(status_code=500, detail="Failed to read session after update.")
+        return resp
 
-_WWW_DIR = Path(__file__).parent / "www"
-_dist_dir = _WWW_DIR / "dist"
-if _dist_dir.is_dir():
-    hitl_review_app.mount(
-        "/static",
-        StaticFiles(directory=str(_dist_dir.absolute()), html=True),
-        name="hitl_review_static",
-    )
+    # Ensure proper MIME types for plugin bundle (FastAPI serves .cjs as text/plain by default)
+    mimetypes.add_type("application/javascript", ".cjs")
+
+    _WWW_DIR = Path(__file__).parent / "www"
+    _dist_dir = _WWW_DIR / "dist"
+    if _dist_dir.is_dir():
+        hitl_review_app.mount(
+            "/static",
+            StaticFiles(directory=str(_dist_dir.absolute()), html=True),
+            name="hitl_review_static",
+        )
 
 
 class HITLReviewPlugin(AirflowPlugin):
     """Register the HITL Review REST API + chat UI on the Airflow API server."""
 
     name = "hitl_review"
-    fastapi_apps = _FASTAPI_APPS
-    react_apps = _get_plugin_react_apps(airflow_v_3_1_plus=AIRFLOW_V_3_1_PLUS)
+    if AIRFLOW_V_3_1_PLUS:
+        fastapi_apps = [
+            {
+                "name": "hitl-review",
+                "app": hitl_review_app,
+                "url_prefix": _PLUGIN_PREFIX,
+            }
+        ]
+        react_apps = [
+            {
+                "name": "HITL Review",
+                "bundle_url": _get_bundle_url(),
+                "destination": "task_instance",
+                "url_route": "hitl-review",
+            }
+        ]

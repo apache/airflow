@@ -18,28 +18,9 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.common.ai.plugins.hitl_review import (
-    HITLReviewPlugin,
-    _get_access_dependencies,
-    _get_plugin_fastapi_apps,
-    _get_plugin_react_apps,
-    hitl_review_app,
-)
+from airflow.providers.common.ai.plugins.hitl_review import HITLReviewPlugin
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
-
-
-def test_version_guard_returns_empty_for_unsupported_airflow():
-    assert _get_access_dependencies(method="GET", airflow_v_3_1_plus=False) == []
-    assert _get_access_dependencies(method="PUT", airflow_v_3_1_plus=False) == []
-    assert _get_plugin_fastapi_apps(airflow_v_3_1_plus=False, app=hitl_review_app) == []
-    assert _get_plugin_react_apps(airflow_v_3_1_plus=False) == []
-
-
-@pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Requires Airflow 3.1+")
-def test_access_dependencies_enabled_on_supported_airflow():
-    deps = _get_access_dependencies(method="GET", airflow_v_3_1_plus=True)
-    assert len(deps) == 1
 
 
 def test_hitl_review_plugin_registration_matches_airflow_version():
@@ -49,3 +30,9 @@ def test_hitl_review_plugin_registration_matches_airflow_version():
     else:
         assert HITLReviewPlugin.fastapi_apps == []
         assert HITLReviewPlugin.react_apps == []
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Requires Airflow 3.1+")
+def test_hitl_review_plugin_registers_expected_app_names():
+    assert HITLReviewPlugin.fastapi_apps[0]["name"] == "hitl-review"
+    assert HITLReviewPlugin.react_apps[0]["name"] == "HITL Review"
