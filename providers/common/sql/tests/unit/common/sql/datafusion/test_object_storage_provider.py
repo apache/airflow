@@ -45,9 +45,7 @@ class TestGetObjectStorageProvider:
         provider = get_object_storage_provider(StorageType.LOCAL)
         assert isinstance(provider, LocalObjectStorageProvider)
 
-    @patch(
-        "airflow.providers.common.sql.datafusion.object_storage_provider.import_string", autospec=True
-    )
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.import_string", autospec=True)
     @patch("airflow.providers_manager.ProvidersManager", autospec=True)
     def test_resolves_s3_via_registry(self, mock_pm_cls, mock_import_string):
         mock_provider_cls = MagicMock()
