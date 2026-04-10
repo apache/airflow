@@ -87,9 +87,14 @@ class BaseNotifier(LoggingMixin, Templater):
         :param context: Context dict with values to apply on content.
         :param jinja_env: Jinja environment to use for rendering.
         """
+        if not self.template_fields:
+            return
         dag = context.get("dag")
         if not jinja_env:
-            jinja_env = self.get_template_env(dag=dag)
+            if dag is not None and hasattr(dag, "get_template_env"):
+                jinja_env = self.get_template_env(dag=dag)
+            else:
+                jinja_env = self.get_template_env()
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
     async def async_notify(self, context: Context) -> None:
