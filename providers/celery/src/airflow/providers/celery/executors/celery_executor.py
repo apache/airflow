@@ -37,8 +37,12 @@ from typing import TYPE_CHECKING, Any, TypeAlias, cast
 from celery import states as celery_states
 from deprecated import deprecated
 
+from sqlalchemy import update
+
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.celery.executors import (
     celery_executor_utils as _celery_executor_utils,  # noqa: F401 # Needed to register Celery tasks at worker startup, see #63043.
 )
@@ -59,8 +63,6 @@ if TYPE_CHECKING:
 
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
-    from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.providers.celery.executors.celery_executor_utils import TaskTuple, WorkloadInCelery
 
     if AIRFLOW_V_3_2_PLUS:
@@ -236,10 +238,6 @@ class CeleryExecutor(BaseExecutor):
 
     def _persist_task_external_executor_id(self, key: WorkloadKey, task_id: str) -> None:
         """Persist Celery task ids for task workloads so they survive scheduler restarts."""
-        from sqlalchemy import update
-
-        from airflow.models.taskinstance import TaskInstance as TI
-        from airflow.models.taskinstancekey import TaskInstanceKey
         from airflow.utils.session import create_session
 
         if not isinstance(key, TaskInstanceKey):
@@ -247,12 +245,12 @@ class CeleryExecutor(BaseExecutor):
 
         with create_session() as session:
             result = session.execute(
-                update(TI)
+                update(TaskInstance)
                 .where(
-                    TI.dag_id == key.dag_id,
-                    TI.task_id == key.task_id,
-                    TI.run_id == key.run_id,
-                    TI.map_index == key.map_index,
+                    TaskInstance.dag_id == key.dag_id,
+                    TaskInstance.task_id == key.task_id,
+                    TaskInstance.run_id == key.run_id,
+                    TaskInstance.map_index == key.map_index,
                 )
                 .values(external_executor_id=task_id)
             )
