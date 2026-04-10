@@ -29,6 +29,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper
+from typing import Any
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
@@ -118,7 +119,7 @@ GLOBAL_CONSTANTS_PATH = (
 )
 
 
-def _read_global_constants_assignment(name: str) -> str | list[str]:
+def _read_global_constants_assignment(name: str) -> Any:
     """Read a top-level assignment from global_constants.py."""
     tree = ast.parse(GLOBAL_CONSTANTS_PATH.read_text())
     for node in tree.body:
