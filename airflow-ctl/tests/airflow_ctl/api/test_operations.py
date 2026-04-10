@@ -79,6 +79,10 @@ from airflowctl.api.datamodels.generated import (
     ImportErrorResponse,
     JobCollectionResponse,
     JobResponse,
+    PluginCollectionResponse,
+    PluginImportErrorCollectionResponse,
+    PluginImportErrorResponse,
+    PluginResponse,
     PoolBody,
     PoolCollectionResponse,
     PoolResponse,
@@ -1703,3 +1707,53 @@ class TestXComOperations:
             map_index=self.map_index,
         )
         assert response == self.key
+
+
+class TestPluginsOperations:
+    plugin_response = PluginResponse(
+        name="test-plugin",
+        macros=[],
+        flask_blueprints=[],
+        fastapi_apps=[],
+        fastapi_root_middlewares=[],
+        external_views=[],
+        react_apps=[],
+        appbuilder_views=[],
+        appbuilder_menu_items=[],
+        global_operator_extra_links=[],
+        operator_extra_links=[],
+        source="test-source",
+        listeners=[],
+        timetables=[],
+    )
+    plugin_collection_response = PluginCollectionResponse(plugins=[plugin_response], total_entries=1)
+    plugin_import_error_response = PluginImportErrorResponse(
+        source="plugins/test_plugin.py", error="something went wrong"
+    )
+    plugin_import_error_collection_response = PluginImportErrorCollectionResponse(
+        import_errors=[plugin_import_error_response], total_entries=1
+    )
+
+    def test_list(self):
+        """Test listing plugins"""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == ("/api/v2/plugins")
+            return httpx.Response(200, json=json.loads(self.plugin_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.plugins.list()
+        assert response == self.plugin_collection_response
+
+    def test_list_import_errors(self):
+        """Test listing plugin import errors"""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/plugins/importErrors"
+            return httpx.Response(
+                200, json=json.loads(self.plugin_import_error_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.plugins.list_import_errors()
+        assert response == self.plugin_import_error_collection_response

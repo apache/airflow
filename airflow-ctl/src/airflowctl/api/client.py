@@ -52,6 +52,7 @@ from airflowctl.api.operations import (
     DagsOperations,
     JobsOperations,
     LoginOperations,
+    PluginsOperations,
     PoolsOperations,
     ProvidersOperations,
     ServerResponseError,
@@ -414,6 +415,12 @@ class Client(httpx.Client):
     def xcom(self):
         """Operations related to XComs."""
         return XComOperations(self)
+
+    @lru_cache()  # type: ignore[prop-decorator]
+    @property
+    def plugins(self):
+        """Operations related to plugins."""
+        return PluginsOperations(self)
 
 
 # API Client Decorator for CLI Actions

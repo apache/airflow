@@ -124,6 +124,9 @@ TEST_COMMANDS = [
     "variables delete --variable-key=test_import_var_with_desc",
     # Version command
     "version --remote",
+    # Plugins command
+    "plugins list",
+    "plugins list-import-errors",
 ]
 
 DATE_PARAM_1 = date_param()
