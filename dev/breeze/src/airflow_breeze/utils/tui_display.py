@@ -1753,7 +1753,7 @@ class TriageTUI:
         matching entry. Pressing Escape cancels. Returns True if the cursor moved.
         """
         width, height = _get_terminal_size()
-        prompt = "/ Jump to PR #: "
+        prompt = "/ Search (PR#, title, author): "
         query = ""
 
         while True:
@@ -1786,18 +1786,28 @@ class TriageTUI:
         if not query:
             return False
 
-        # Match by PR number only
+        # Try exact PR number match first
+        stripped = query.lstrip("#")
         try:
-            target_num = int(query.lstrip("#"))
+            target_num = int(stripped)
         except ValueError:
-            return False
+            target_num = None
 
+        if target_num is not None:
+            for idx, entry in enumerate(self.entries):
+                if entry.pr.number == target_num:
+                    self.cursor = idx
+                    self.scroll_offset = idx
+                    self._focus = _FocusPanel.PR_LIST
+                    return True
+
+        # Fall back to text search on title/author (also for numeric queries
+        # that didn't match any PR number)
+        query_lower = query.lower()
         for idx, entry in enumerate(self.entries):
-            if entry.pr.number == target_num:
+            if query_lower in entry.pr.title.lower() or query_lower in entry.pr.author_login.lower():
                 self.cursor = idx
-                # Put the matched entry at the top of the visible list
                 self.scroll_offset = idx
-                # Switch focus to PR list so the selection is highlighted
                 self._focus = _FocusPanel.PR_LIST
                 return True
 
