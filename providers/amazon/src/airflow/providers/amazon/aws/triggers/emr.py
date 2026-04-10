@@ -258,7 +258,7 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
         if AIRFLOW_V_3_0_PLUS:
             task_state = await self.get_task_state()
         else:
-            task_instance = self.get_task_instance()  # type: ignore[call-arg]
+            task_instance = await sync_to_async(self.get_task_instance)()  # type: ignore[call-arg]
             task_state = task_instance.state
         return task_state != TaskInstanceState.DEFERRED
 
@@ -298,7 +298,7 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
                         self.job_id,
                     )
                     try:
-                        hook.stop_query(self.job_id)
+                        await sync_to_async(hook.stop_query)(self.job_id)
                         self.log.info("EMR container job %s cancelled successfully.", self.job_id)
                     except Exception:
                         self.log.exception(
@@ -321,6 +321,8 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
                 )
             raise
         except AirflowException as e:
+            yield TriggerEvent({"status": "error", "message": str(e), self.return_key: self.return_value})
+        except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e), self.return_key: self.return_value})
 
 

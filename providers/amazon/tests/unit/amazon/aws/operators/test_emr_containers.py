@@ -175,6 +175,15 @@ class TestEmrContainerOperator:
         result = self.emr_container.execute_complete(context=None, event=event)
         assert result == "test_job_id"
 
+    @mock.patch.object(EmrContainerHook, "stop_query", side_effect=Exception("AWS API error"))
+    def test_execute_complete_raises_original_error_when_cancel_fails(self, mock_stop_query):
+        """Test that execute_complete raises AirflowException even if stop_query fails."""
+        self.emr_container.job_id = "test_job_id"
+        event = {"status": "error", "message": "Job timed out", "job_id": "test_job_id"}
+        with pytest.raises(AirflowException, match="Error while running job"):
+            self.emr_container.execute_complete(context=None, event=event)
+        mock_stop_query.assert_called_once_with("test_job_id")
+
 
 class TestEmrEksCreateClusterOperator:
     def setup_method(self):
