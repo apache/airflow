@@ -297,7 +297,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-openlineage>=2.3.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "opensearch" = [
-    "apache-airflow-providers-opensearch>=1.5.0"
+    "apache-airflow-providers-opensearch>=1.9.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "opsgenie" = [
     "apache-airflow-providers-opsgenie>=5.8.0"
@@ -461,7 +461,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-openai>=1.5.0",
     "apache-airflow-providers-openfaas>=3.7.0",
     "apache-airflow-providers-openlineage>=2.3.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
-    "apache-airflow-providers-opensearch>=1.5.0",
+    "apache-airflow-providers-opensearch>=1.9.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-opsgenie>=5.8.0",
     "apache-airflow-providers-oracle>=3.12.0",
     "apache-airflow-providers-pagerduty>=3.8.1",

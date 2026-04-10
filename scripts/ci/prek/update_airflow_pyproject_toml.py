@@ -78,6 +78,7 @@ MIN_VERSION_OVERRIDE: dict[str, Version] = {
     "git": parse_version("0.0.2"),
     "common.messaging": parse_version("2.0.0"),
     "elasticsearch": parse_version("6.5.0"),
+    "opensearch": parse_version("1.9.0"),
 }
 
 
