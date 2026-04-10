@@ -285,6 +285,45 @@ class TestCeleryExecutor:
         assert executor.workloads == {key_1: AsyncResult("231"), key_2: AsyncResult("232")}
         assert not_adopted_tis == []
 
+    @pytest.mark.backend("mysql", "postgres")
+    def test_send_workloads_persists_external_executor_id(
+        self, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
+        from sqlalchemy import select
+
+        from airflow.utils.session import create_session
+
+        start_date = timezone.utcnow() - timedelta(days=2)
+
+        with DAG("test_send_workloads_persists_external_executor_id", schedule=None) as dag:
+            task = BaseOperator(task_id="task_1", start_date=start_date)
+
+        if AIRFLOW_V_3_0_PLUS:
+            sync_dag_to_db(dag)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti = create_task_instance(task=task, run_id=None, dag_version_id=dag_version.id)
+        else:
+            ti = TaskInstance(task=task, run_id=None)
+
+        celery_result = mock.Mock(task_id="celery-task-id", backend=None)
+        executor = celery_executor.CeleryExecutor()
+        executor._send_workloads_to_celery = mock.Mock(return_value=[(ti.key, None, celery_result)])
+
+        executor._send_workloads([(ti.key, None, task.queue, None)])
+
+        with create_session() as session:
+            stored_external_executor_id = session.scalar(
+                select(TaskInstance.external_executor_id).where(
+                    TaskInstance.dag_id == ti.dag_id,
+                    TaskInstance.task_id == ti.task_id,
+                    TaskInstance.run_id == ti.run_id,
+                    TaskInstance.map_index == ti.map_index,
+                )
+            )
+
+        assert stored_external_executor_id == "celery-task-id"
+        assert executor.event_buffer[ti.key] == (TaskInstanceState.QUEUED, "celery-task-id")
+
     @pytest.fixture
     def mock_celery_revoke(self):
         with _prepare_app() as app:

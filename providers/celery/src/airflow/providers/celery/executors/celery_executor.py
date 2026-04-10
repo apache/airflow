@@ -225,11 +225,40 @@ class CeleryExecutor(BaseExecutor):
                 result.backend = cached_celery_backend
                 self.running.add(key)
                 self.workloads[key] = result
+                # Persist the Celery task_id before scheduler event handling so a replacement
+                # scheduler can still adopt the task after a crash/restart.
+                self._persist_task_external_executor_id(key, result.task_id)
 
                 # Store the Celery task_id (workload execution ID) in the event buffer. This will get "overwritten" if the task
                 # has another event, but that is fine, because the only other events are success/failed at
                 # which point we don't need the ID anymore anyway.
                 self.event_buffer[key] = (TaskInstanceState.QUEUED, result.task_id)
+
+    def _persist_task_external_executor_id(self, key: WorkloadKey, task_id: str) -> None:
+        """Persist Celery task ids for task workloads so they survive scheduler restarts."""
+        from sqlalchemy import update
+
+        from airflow.models.taskinstance import TaskInstance as TI
+        from airflow.models.taskinstancekey import TaskInstanceKey
+        from airflow.utils.session import create_session
+
+        if not isinstance(key, TaskInstanceKey):
+            return
+
+        with create_session() as session:
+            result = session.execute(
+                update(TI)
+                .where(
+                    TI.dag_id == key.dag_id,
+                    TI.task_id == key.task_id,
+                    TI.run_id == key.run_id,
+                    TI.map_index == key.map_index,
+                )
+                .values(external_executor_id=task_id)
+            )
+
+        if not getattr(result, "rowcount", 0):
+            self.log.debug("Could not persist external_executor_id for %s", key)
 
     def _send_workloads_to_celery(self, workload_tuples_to_send: Sequence[WorkloadInCelery]):
         from airflow.providers.celery.executors.celery_executor_utils import send_workload_to_executor
