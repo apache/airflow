@@ -135,23 +135,53 @@ class TestWorker:
 
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
 
-    def test_should_add_extra_containers(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "extraContainers": [
+                    {"name": "{{ .Chart.Name }}-test-container", "image": "test-registry/test-repo:test-tag"}
+                ]
+            },
+            {
+                "celery": {
+                    "extraContainers": [
+                        {
+                            "name": "{{ .Chart.Name }}-test-container",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
+                    ]
+                }
+            },
+            {
+                "extraContainers": [{"name": "test", "image": "repo:test"}],
+                "celery": {
+                    "extraContainers": [
+                        {
+                            "name": "{{ .Chart.Name }}-test-container",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
+                    ]
+                },
+            },
+        ],
+    )
+    def test_should_add_extra_containers_with_template(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "extraContainers": [
-                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
-                    ],
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[-1]", docs[0]) == {
-            "name": "airflow",
-            "image": "test-registry/test-repo:test-tag",
-        }
+        # [2:] -> Skipping worker and worker-log-groomer containers
+        assert jmespath.search("spec.template.spec.containers[2:]", docs[0]) == [
+            {
+                "name": "airflow-test-container",
+                "image": "test-registry/test-repo:test-tag",
+            }
+        ]
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -186,21 +216,6 @@ class TestWorker:
 
         assert jmespath.search("spec.persistentVolumeClaimRetentionPolicy", docs[0]) == {
             "whenDeleted": "Delete",
-        }
-
-    def test_should_template_extra_containers(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
-                },
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.template.spec.containers[-1]", docs[0]) == {
-            "name": "release-name-test-container"
         }
 
     @pytest.mark.parametrize(
@@ -264,36 +279,66 @@ class TestWorker:
                 for m in mounts
             )
 
-    def test_should_add_extra_init_containers(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "extraInitContainers": [
+                    {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                ]
+            },
+            {
+                "celery": {
                     "extraInitContainers": [
                         {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
-                    ],
+                    ]
+                }
+            },
+            {
+                "extraInitContainers": [{"name": "container", "image": "repo:tag"}],
+                "celery": {
+                    "extraInitContainers": [
+                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                    ]
                 },
             },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.template.spec.initContainers[-1]", docs[0]) == {
-            "name": "test-init-container",
-            "image": "test-registry/test-repo:test-tag",
-        }
-
-    def test_should_template_extra_init_containers(self):
+        ],
+    )
+    def test_should_add_extra_init_containers(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": {
-                    "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
-                },
-            },
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.initContainers[-1]", docs[0]) == {
-            "name": "release-name-test-init-container"
-        }
+        # [1:] -> Skipping wait-for-airflow-migrations init container
+        assert jmespath.search("spec.template.spec.initContainers[1:]", docs[0]) == [
+            {
+                "name": "test-init-container",
+                "image": "test-registry/test-repo:test-tag",
+            }
+        ]
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}]},
+            {"celery": {"extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}]}},
+            {
+                "extraInitContainers": [{"name": "container"}],
+                "celery": {"extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}]},
+            },
+        ],
+    )
+    def test_should_template_extra_init_containers(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        # [1:] -> Skipping wait-for-airflow-migrations init container
+        assert jmespath.search("spec.template.spec.initContainers[1:]", docs[0]) == [
+            {"name": "release-name-test-init-container"}
+        ]
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
@@ -925,19 +970,24 @@ class TestWorker:
         docs = render_chart(
             values={
                 "workers": {
-                    "extraInitContainers": [
-                        {
-                            "name": "test-init-container",
-                            "image": "test-registry/test-repo:test-tag",
-                            "restartPolicy": "Always",
-                        }
-                    ]
+                    "celery": {
+                        "extraInitContainers": [
+                            {
+                                "name": "test-init-container",
+                                "image": "test-registry/test-repo:test-tag",
+                                "restartPolicy": "Always",
+                            }
+                        ]
+                    }
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.initContainers[1].restartPolicy", docs[0]) == "Always"
+        # [1:] -> Skipping wait-for-airflow-migrations init container
+        assert jmespath.search("spec.template.spec.initContainers[1:] | [*].restartPolicy", docs[0]) == [
+            "Always"
+        ]
 
     @pytest.mark.parametrize(
         ("log_values", "expected_volume"),

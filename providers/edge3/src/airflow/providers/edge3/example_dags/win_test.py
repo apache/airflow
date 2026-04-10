@@ -28,7 +28,7 @@ from __future__ import annotations
 import os
 from collections.abc import Callable, Container, Sequence
 from datetime import datetime
-from subprocess import STDOUT, Popen
+from subprocess import STDOUT, Popen, SubprocessError
 from time import sleep
 from typing import TYPE_CHECKING, Any
 
@@ -36,7 +36,6 @@ from airflow.models import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.variable import Variable
 from airflow.providers.common.compat.sdk import (
-    AirflowException,
     AirflowNotFoundException,
     AirflowSkipException,
 )
@@ -125,7 +124,7 @@ class CmdOperator(BaseOperator):
        * - `skip_on_exit_code` (default: 99)
          - raise :class:`airflow.exceptions.AirflowSkipException`
        * - otherwise
-         - raise :class:`airflow.exceptions.AirflowException`
+         - raise :class:`subprocess.SubprocessError`
 
     .. warning::
 
@@ -210,9 +209,9 @@ class CmdOperator(BaseOperator):
     def execute(self, context: Context):
         if self.cwd is not None:
             if not os.path.exists(self.cwd):
-                raise AirflowException(f"Can not find the cwd: {self.cwd}")
+                raise SubprocessError(f"Can not find the cwd: {self.cwd}")
             if not os.path.isdir(self.cwd):
-                raise AirflowException(f"The cwd {self.cwd} must be a directory")
+                raise SubprocessError(f"The cwd {self.cwd} must be a directory")
         env = self.get_env(context)
 
         # Because the command value is evaluated at runtime using the @task.command decorator, the
@@ -237,7 +236,7 @@ class CmdOperator(BaseOperator):
         if exit_code in self.skip_on_exit_code:
             raise AirflowSkipException(f"Command returned exit code {exit_code}. Skipping.")
         if exit_code != 0:
-            raise AirflowException(f"Command failed. The command returned a non-zero exit code {exit_code}.")
+            raise SubprocessError(f"Command failed. The command returned a non-zero exit code {exit_code}.")
 
         return self.output_processor(outs)
 
