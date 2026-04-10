@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
     EmrContainerTrigger,
@@ -205,14 +206,13 @@ class TestEmrContainerTrigger:
             cancel_on_kill=True,
         )
 
-        mock_hook = mock.MagicMock()
+        mock_hook = mock.MagicMock(spec=EmrContainerHook)
         mock_hook.get_waiter.return_value = mock.MagicMock()
         mock_hook.stop_query.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
 
         mock_client = mock.MagicMock()
-        mock_async_cm = mock.MagicMock()
-        mock_async_cm.__aenter__ = mock.AsyncMock(return_value=mock_client)
-        mock_async_cm.__aexit__ = mock.AsyncMock(return_value=None)
+        mock_async_cm = mock.AsyncMock()
+        mock_async_cm.__aenter__.return_value = mock_client
         mock_hook.get_async_conn = mock.AsyncMock(return_value=mock_async_cm)
 
         with mock.patch.object(trigger, "hook", return_value=mock_hook):
@@ -242,13 +242,12 @@ class TestEmrContainerTrigger:
             cancel_on_kill=True,
         )
 
-        mock_hook = mock.MagicMock()
+        mock_hook = mock.MagicMock(spec=EmrContainerHook)
         mock_hook.get_waiter.return_value = mock.MagicMock()
 
         mock_client = mock.MagicMock()
-        mock_async_cm = mock.MagicMock()
-        mock_async_cm.__aenter__ = mock.AsyncMock(return_value=mock_client)
-        mock_async_cm.__aexit__ = mock.AsyncMock(return_value=None)
+        mock_async_cm = mock.AsyncMock()
+        mock_async_cm.__aenter__.return_value = mock_client
         mock_hook.get_async_conn = mock.AsyncMock(return_value=mock_async_cm)
 
         with mock.patch.object(trigger, "hook", return_value=mock_hook):
@@ -278,13 +277,12 @@ class TestEmrContainerTrigger:
             cancel_on_kill=False,
         )
 
-        mock_hook = mock.MagicMock()
+        mock_hook = mock.MagicMock(spec=EmrContainerHook)
         mock_hook.get_waiter.return_value = mock.MagicMock()
 
         mock_client = mock.MagicMock()
-        mock_async_cm = mock.MagicMock()
-        mock_async_cm.__aenter__ = mock.AsyncMock(return_value=mock_client)
-        mock_async_cm.__aexit__ = mock.AsyncMock(return_value=None)
+        mock_async_cm = mock.AsyncMock()
+        mock_async_cm.__aenter__.return_value = mock_client
         mock_hook.get_async_conn = mock.AsyncMock(return_value=mock_async_cm)
 
         with mock.patch.object(trigger, "hook", return_value=mock_hook):
@@ -308,13 +306,12 @@ class TestEmrContainerTrigger:
             aws_conn_id="aws_default",
         )
 
-        mock_hook = mock.MagicMock()
+        mock_hook = mock.MagicMock(spec=EmrContainerHook)
         mock_hook.get_waiter.return_value = mock.MagicMock()
 
         mock_client = mock.MagicMock()
-        mock_async_cm = mock.MagicMock()
-        mock_async_cm.__aenter__ = mock.AsyncMock(return_value=mock_client)
-        mock_async_cm.__aexit__ = mock.AsyncMock(return_value=None)
+        mock_async_cm = mock.AsyncMock()
+        mock_async_cm.__aenter__.return_value = mock_client
         mock_hook.get_async_conn = mock.AsyncMock(return_value=mock_async_cm)
 
         with mock.patch.object(trigger, "hook", return_value=mock_hook):

@@ -37,6 +37,8 @@ if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 if not AIRFLOW_V_3_0_PLUS:
+    from sqlalchemy import select
+
     from airflow.models.taskinstance import TaskInstance
     from airflow.utils.session import provide_session
 
@@ -209,8 +211,6 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
         @provide_session
         def get_task_instance(self, session: Session) -> TaskInstance:
             """Get the task instance for the current trigger (Airflow 2.x compatibility)."""
-            from sqlalchemy import select
-
             query = select(TaskInstance).where(
                 TaskInstance.dag_id == self.task_instance.dag_id,
                 TaskInstance.task_id == self.task_instance.task_id,
