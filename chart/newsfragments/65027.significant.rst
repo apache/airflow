@@ -1,0 +1,1 @@
+``workers.podAnnotations`` field is now deprecated in favor of ``workers.celery.podAnnotations`` and ``workers.kubernetes.podAnnotations``. Please update your configuration accordingly.
