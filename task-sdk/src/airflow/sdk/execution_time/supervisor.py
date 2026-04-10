@@ -36,7 +36,7 @@ from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
 from socket import socket, socketpair
-from typing import TYPE_CHECKING, BinaryIO, ClassVar, NoReturn, TextIO, cast
+from typing import TYPE_CHECKING, BinaryIO, ClassVar, NoReturn, Protocol, TextIO, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -441,6 +441,52 @@ def _fork_main(
             exit(125)
 
 
+class _ProcessHandle(Protocol):
+    pid: int
+
+    def send_signal(self, sig: int) -> None: ...
+
+    def wait(self, timeout: float | None = None) -> int: ...
+
+
+class _ForkedProcessHandle:
+    """Track a directly-forked child without relying on immediate psutil lookup."""
+
+    def __init__(self, pid: int):
+        self.pid = pid
+        self._wait_status: int | None = None
+
+    def send_signal(self, sig: int) -> None:
+        if self._wait_status is not None:
+            raise psutil.NoSuchProcess(pid=self.pid, msg="process PID not found")
+        try:
+            os.kill(self.pid, sig)
+        except ProcessLookupError:
+            raise psutil.NoSuchProcess(pid=self.pid, msg="process PID not found") from None
+
+    def wait(self, timeout: float | None = None) -> int:
+        if self._wait_status is not None:
+            return os.waitstatus_to_exitcode(self._wait_status)
+
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while True:
+            try:
+                waited_pid, status = os.waitpid(
+                    self.pid, 0 if deadline is None else os.WNOHANG
+                )
+            except ChildProcessError:
+                raise psutil.NoSuchProcess(pid=self.pid, msg="process PID not found") from None
+
+            if waited_pid == self.pid:
+                self._wait_status = status
+                return os.waitstatus_to_exitcode(status)
+
+            if deadline is not None and time.monotonic() >= deadline:
+                raise psutil.TimeoutExpired(seconds=timeout or 0, pid=self.pid)
+
+            time.sleep(0.01)
+
+
 @attrs.define(kw_only=True)
 class WatchedSubprocess:
     """
@@ -461,7 +507,7 @@ class WatchedSubprocess:
     decoder: ClassVar[TypeAdapter]
     """The decoder to use for incoming messages from the child process."""
 
-    _process: psutil.Process = attrs.field(repr=False)
+    _process: _ProcessHandle = attrs.field(repr=False)
     """File descriptor for request handling."""
 
     _exit_code: int | None = attrs.field(default=None, init=False)
@@ -534,7 +580,7 @@ class WatchedSubprocess:
         proc = cls(
             pid=pid,
             stdin=read_requests,
-            process=psutil.Process(pid),
+            process=_ForkedProcessHandle(pid),
             process_log=logger,
             start_time=time.monotonic(),
             **constructor_kwargs,

@@ -540,6 +540,31 @@ class TestWatchedSubprocess:
         assert "Last chance exception handler" in captured.err
         assert "RuntimeError: Fake syntax error" in captured.err
 
+    def test_start_does_not_require_psutil_lookup_for_forked_child(self, client_with_ti_start, monkeypatch):
+        real_process = psutil.Process
+
+        def no_forked_child_lookup(pid=None):
+            if pid is not None:
+                raise psutil.NoSuchProcess(pid=pid, msg="process PID not found")
+            return real_process()
+
+        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.psutil.Process", no_forked_child_lookup)
+
+        def subprocess_main():
+            CommsDecoder()._get_response()
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            ),
+            client=client_with_ti_start,
+            target=subprocess_main,
+        )
+
+        assert proc.wait() == 0
+
     def test_regular_heartbeat(self, spy_agency: kgb.SpyAgency, monkeypatch, mocker, make_ti_context):
         """Test that the WatchedSubprocess class regularly sends heartbeat requests, up to a certain frequency"""
         import airflow.sdk.execution_time.supervisor
