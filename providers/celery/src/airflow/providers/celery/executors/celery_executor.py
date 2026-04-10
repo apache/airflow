@@ -37,8 +37,6 @@ from typing import TYPE_CHECKING, Any, TypeAlias, cast
 from celery import states as celery_states
 from deprecated import deprecated
 
-from sqlalchemy import update
-
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance
@@ -238,6 +236,8 @@ class CeleryExecutor(BaseExecutor):
 
     def _persist_task_external_executor_id(self, key: WorkloadKey, task_id: str) -> None:
         """Persist Celery task ids for task workloads so they survive scheduler restarts."""
+        from sqlalchemy import update
+
         from airflow.utils.session import create_session
 
         if not isinstance(key, TaskInstanceKey):
