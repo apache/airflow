@@ -718,7 +718,7 @@ class SnowflakeHook(DbApiHook):
         except Exception:
             self.log.debug("Could not read connection params to check AUTOCOMMIT session parameter")
             return False
-        session_params = static_config.get("session_parameters") or {}
+        session_params: dict = static_config.get("session_parameters") or {}
         return self._session_params_has_autocommit(session_params)
 
     def _run_command(self, cur, sql_statement, parameters, *, num_statements=None):
@@ -856,7 +856,7 @@ class SnowflakeHook(DbApiHook):
                 # AUTOCOMMIT is set in session_parameters and was applied
                 # during connect(). Record the mode so get_autocommit()
                 # returns True and we skip the redundant conn.commit().
-                conn.autocommit_mode = True
+                setattr(conn, "autocommit_mode", True)
 
             with self._get_cursor(conn, return_dictionaries) as cur:
                 results = []
