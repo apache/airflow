@@ -237,10 +237,10 @@ class GCSHook(GoogleBaseHook):
             Can be omitted; then the same name is used.
         :param retain_until_time: Optional datetime specifying until when the destination
             object should be retained. Requires the destination bucket to have
-            object retention enabled.
+            object retention enabled. If ``tzinfo`` has not been set, UTC will be assumed.
         :param retention_mode: Optional retention mode for the destination object.
-            Can be ``"Locked"`` or ``"Unlocked"``. Only used when ``retain_until_time``
-            is set.
+            Must be ``"Locked"`` or ``"Unlocked"``. Defaults to ``"Unlocked"`` when
+            ``retain_until_time`` is set. Cannot be provided without ``retain_until_time``.
         """
         destination_object = destination_object or source_object
         if source_bucket == destination_bucket and source_object == destination_object:
@@ -250,6 +250,10 @@ class GCSHook(GoogleBaseHook):
             )
         if not source_bucket or not source_object:
             raise ValueError("source_bucket and source_object cannot be empty.")
+        if retention_mode is not None and retain_until_time is None:
+            raise ValueError("retention_mode cannot be set without retain_until_time.")
+        if retention_mode is not None and retention_mode not in ("Locked", "Unlocked"):
+            raise ValueError(f"retention_mode must be 'Locked' or 'Unlocked', got {retention_mode!r}.")
 
         client = self.get_conn()
         source_bucket = client.bucket(source_bucket)
