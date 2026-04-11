@@ -193,6 +193,7 @@ class TestPodManager:
                 container_name_log_prefix_enabled=True,
                 log_formatter=None,
             )
+        mock_log.assert_called_once()
         assert mock_log.call_args[0][0] == logging.INFO
 
     def test_read_pod_logs_successfully_returns_logs(self):
@@ -1522,9 +1523,11 @@ class TestAsyncPodManager:
                 assert result == now
 
                 for expected in expected_log_messages:
-                    mock_log.assert_any_call(logging.INFO, "[%s] %s", container_name, expected)
+                    mock_log.assert_any_call(_parse_log_level(expected), "[%s] %s", container_name, expected)
                 for not_expected in not_expected_log_messages:
-                    unexpected_call = mock.call(logging.INFO, "[%s] %s", container_name, not_expected)
+                    unexpected_call = mock.call(
+                        _parse_log_level(not_expected), "[%s] %s", container_name, not_expected
+                    )
                     assert unexpected_call not in mock_log.mock_calls
 
     @pytest.mark.asyncio
