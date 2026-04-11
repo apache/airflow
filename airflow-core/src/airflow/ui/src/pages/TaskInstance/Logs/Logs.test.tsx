@@ -353,4 +353,39 @@ describe("Task log search", () => {
     // Auto-expand should make it visible.
     await waitFor(() => expect(screen.getByText(/starting attempt 1 of 3/iu)).toBeInTheDocument());
   }, 10_000);
+
+  it("Has sequential line numbers with no gaps or duplicates", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/generate"]} />,
+    );
+
+    await waitForLogs();
+
+    // Expand all groups so their content lines are in the DOM
+    const summaryPre = screen.getByTestId("summary-Pre task execution logs");
+
+    fireEvent.click(summaryPre);
+    await waitFor(() => expect(screen.getByText(/starting attempt 1 of 3/iu)).toBeVisible());
+
+    const summaryPost = screen.getByTestId("summary-Post task execution logs");
+
+    fireEvent.click(summaryPost);
+    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeVisible());
+
+    // Collect all rendered line number links within the log component
+    const logContainer = screen.getByTestId("virtual-scroll-container");
+    const lineNumbers = [...logContainer.querySelectorAll<HTMLAnchorElement>("a[id]")]
+      .map((el) => parseInt(el.id, 10))
+      .filter((num) => !isNaN(num))
+      .sort((numA, numB) => numA - numB);
+
+    expect(lineNumbers.length).toBeGreaterThan(0);
+    expect(lineNumbers[0]).toBe(0);
+    expect(new Set(lineNumbers).size).toBe(lineNumbers.length);
+
+    // No gaps
+    lineNumbers.forEach((num, idx) => {
+      expect(num).toBe(idx);
+    });
+  }, 10_000);
 });

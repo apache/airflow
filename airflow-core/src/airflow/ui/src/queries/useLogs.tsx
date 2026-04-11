@@ -75,6 +75,20 @@ const parseLogs = ({
   const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance)}?try_number=${tryNumber}` : "";
 
   try {
+    let lineNumber = 0;
+    const lineNumbers = data.map((datum) => {
+      const text = typeof datum === "string" ? datum : datum.event;
+
+      if (text.includes("::group::") || text.includes("::endgroup::")) {
+        return undefined;
+      }
+      const current = lineNumber;
+
+      lineNumber += 1;
+
+      return current;
+    });
+
     parsedLines = data
       .map((datum, index) => {
         if (typeof datum !== "string" && "logger" in datum) {
@@ -86,7 +100,7 @@ const parseLogs = ({
         }
 
         return renderStructuredLog({
-          index,
+          index: lineNumbers[index] ?? index,
           logLevelFilters,
           logLink,
           logMessage: datum,
