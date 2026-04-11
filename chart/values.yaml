@@ -3944,6 +3944,9 @@ databaseCleanup:
   failedJobsHistoryLimit: 1
   successfulJobsHistoryLimit: 1
 
+  # Time to live (in seconds) for Jobs created by this CronJob after they finish.
+  ttlSecondsAfterFinished: ~
+
 # Configuration for postgresql subchart
 # Uses bitnamilegacy images to avoid Bitnami licensing restrictions
 # Not recommended for production - use external database instead

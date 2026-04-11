@@ -10890,6 +10890,15 @@
                     ],
                     "default": 1,
                     "x-docsSection": "Kubernetes"
+                },
+                "ttlSecondsAfterFinished": {
+                    "description": "The number of seconds after a finished Job is eligible to be automatically deleted.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": "Kubernetes"
                 }
             }
         },
