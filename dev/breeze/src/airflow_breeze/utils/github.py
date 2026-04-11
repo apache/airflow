@@ -646,3 +646,70 @@ def assess_pr_unresolved_comments(
         ],
         summary=f"PR #{pr_number} has {unresolved_review_comments} unresolved review {thread_word}.",
     )
+
+
+# Patterns that indicate screenshots or video demos in a PR body.
+# Based on analysis of real Airflow UI PRs — GitHub drag-and-drop uploads
+# produce HTML <img> tags or bare URLs with user-attachments/assets/ paths.
+_DEMO_EVIDENCE_PATTERNS = [
+    r"<img\s",  # HTML <img> tag (GitHub drag-and-drop screenshots)
+    r"https://github\.com/user-attachments/assets/",  # GitHub-uploaded assets (images & videos)
+    r"!\[",  # Markdown image syntax (rare but valid)
+    r"https?://\S+\.(?:png|jpg|jpeg|gif|webp|mp4|mov|webm)",  # Direct media file URLs
+]
+
+# authorAssociation values that indicate the author has write access
+_COLLABORATOR_ASSOCIATIONS_FOR_UI = {"COLLABORATOR", "MEMBER", "OWNER"}
+
+
+def _has_demo_evidence(body: str | None) -> bool:
+    """Check if PR body contains screenshots, images, or video links."""
+    if not body:
+        return False
+    for pattern in _DEMO_EVIDENCE_PATTERNS:
+        if re.search(pattern, body, re.IGNORECASE):
+            return True
+    return False
+
+
+def assess_pr_ui_demo(
+    pr_number: int,
+    labels: list[str],
+    body: str | None,
+    author_association: str,
+) -> PRAssessment | None:
+    """Flag UI PRs from new contributors that lack screenshots or demo videos.
+
+    Returns None if the PR does not have the ``area:UI`` label, the author is a
+    collaborator/member/owner, or the PR body already contains demo evidence.
+    """
+    if "area:UI" not in labels:
+        return None
+
+    if author_association in _COLLABORATOR_ASSOCIATIONS_FOR_UI:
+        return None
+
+    if _has_demo_evidence(body):
+        return None
+
+    return PRAssessment(
+        should_flag=True,
+        violations=[
+            Violation(
+                category="Missing UI demo",
+                explanation=(
+                    "This PR changes UI code but the description does not include "
+                    "screenshots or a demo video."
+                ),
+                severity="warning",
+                details=(
+                    "For UI changes, please add screenshots or a short screen recording "
+                    "directly to the PR description (not in comments) so reviewers can "
+                    "verify the visual changes. You can paste images directly into the "
+                    "GitHub PR description or drag-and-drop a screen recording. "
+                    f"See [pull request guidelines]({_CONTRIBUTING_DOCS_URL}/05_pull_requests.rst)."
+                ),
+            )
+        ],
+        summary=f"PR #{pr_number} changes UI code but has no screenshots or demo.",
+    )

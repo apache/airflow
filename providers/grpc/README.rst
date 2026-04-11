@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-grpc``
 
-Release: ``3.9.3``
+Release: ``3.9.4``
 
 
 `gRPC <https://grpc.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``grpc`` provider. All classes for this provider 
 are in ``airflow.providers.grpc`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-grpc/3.9.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-grpc/3.9.4/>`_.
 
 Installation
 ------------
@@ -80,4 +80,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-grpc/3.9.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-grpc/3.9.4/changelog.html>`_.

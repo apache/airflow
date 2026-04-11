@@ -45,6 +45,9 @@ runs:
       shell: bash
       run: ./scripts/ci/make_mnt_writeable.sh
       if: inputs.make-mnt-writeable-and-cleanup == 'true'
+    - name: "Free up disk space"
+      shell: bash
+      run: ./scripts/tools/free_up_disk_space.sh
     - name: "Install Breeze"
       uses: ./.github/actions/breeze
       id: breeze

@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+1.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'write_to_os' writing task logs to opensearch (#64364)``
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.8.5
 .....
 

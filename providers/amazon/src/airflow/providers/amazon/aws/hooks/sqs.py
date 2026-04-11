@@ -51,7 +51,10 @@ class SqsHook(AwsBaseHook):
         :param attributes: additional attributes for the queue (default: None)
         :return: dict with the information about the queue.
         """
-        return self.get_conn().create_queue(QueueName=queue_name, Attributes=attributes or {})
+        self.log.debug("Creating SQS queue %s with attributes %s", queue_name, attributes)
+        result = self.get_conn().create_queue(QueueName=queue_name, Attributes=attributes or {})
+        self.log.debug("Created SQS queue %s, response: %s", queue_name, result.get("QueueUrl"))
+        return result
 
     @staticmethod
     def _build_msg_params(
@@ -104,7 +107,10 @@ class SqsHook(AwsBaseHook):
             message_group_id=message_group_id,
             message_deduplication_id=message_deduplication_id,
         )
-        return self.get_conn().send_message(**params)
+        self.log.debug("Sending message to SQS queue %s with delay %ds", queue_url, delay_seconds)
+        result = self.get_conn().send_message(**params)
+        self.log.debug("Message sent to %s, MessageId: %s", queue_url, result.get("MessageId"))
+        return result
 
     async def asend_message(
         self,
@@ -138,5 +144,12 @@ class SqsHook(AwsBaseHook):
             message_deduplication_id=message_deduplication_id,
         )
 
+        self.log.debug(
+            "Sending message (async) to SQS queue %s with delay %ds",
+            queue_url,
+            delay_seconds,
+        )
         async with await self.get_async_conn() as async_conn:
-            return await async_conn.send_message(**params)
+            result = await async_conn.send_message(**params)
+        self.log.debug("Message sent (async) to %s, MessageId: %s", queue_url, result.get("MessageId"))
+        return result
