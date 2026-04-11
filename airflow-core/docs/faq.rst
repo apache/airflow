@@ -666,6 +666,43 @@ try pausing the Dag again, or check the console or server logs if the
 issue recurs.
 
 
+API Server
+^^^^^^^^^^
+
+.. _faq:api-server-memory-growth:
+
+How to prevent API server memory growth?
+-----------------------------------------
+
+The API server caches serialized Dag objects in memory. Over time, as Dag versions accumulate
+(see :ref:`faq:dag-version-inflation`), this cache grows and can consume several gigabytes of memory.
+
+The recommended solution (available since Airflow 3.2.0) is to use **gunicorn** with **rolling worker
+restarts**. Gunicorn periodically recycles worker processes, releasing all accumulated memory. It also
+uses ``preload`` + ``fork``, so workers share read-only memory pages via copy-on-write, reducing overall
+memory usage by 40-50% compared to uvicorn's multiprocess mode.
+
+To enable gunicorn with worker recycling:
+
+.. code-block:: ini
+
+    [api]
+    server_type = gunicorn
+    # Restart each worker every 12 hours (43200 seconds)
+    worker_refresh_interval = 43200
+    worker_refresh_batch_size = 1
+
+This requires the ``apache-airflow-core[gunicorn]`` extra to be installed.
+
+See :ref:`config:api__server_type`, :ref:`config:api__worker_refresh_interval`, and
+:ref:`config:api__worker_refresh_batch_size` for the full configuration reference.
+
+.. note::
+
+    Worker recycling handles memory growth from *any* source, not just the Dag cache. It is the
+    recommended approach for production API server deployments.
+
+
 MySQL and MySQL variant Databases
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

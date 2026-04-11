@@ -52,8 +52,8 @@ spec:
     {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
       {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 4 }}
     {{- end }}
-    {{- if .Values.workers.extraInitContainers }}
-      {{- tpl (toYaml .Values.workers.extraInitContainers) . | nindent 4 }}
+    {{- if or .Values.workers.kubernetes.extraInitContainers .Values.workers.extraInitContainers }}
+      {{- tpl (toYaml (.Values.workers.kubernetes.extraInitContainers | default .Values.workers.extraInitContainers)) . | nindent 4 }}
     {{- end }}
     {{- if or .Values.workers.kubernetes.kerberosInitContainer.enabled .Values.workers.kerberosInitContainer.enabled }}
     - name: kerberos-init
@@ -213,8 +213,8 @@ spec:
         {{- include "custom_airflow_environment" . | indent 6 }}
         {{- include "standard_airflow_environment" . | indent 6 }}
     {{- end }}
-    {{- if .Values.workers.extraContainers }}
-      {{- tpl (toYaml .Values.workers.extraContainers) . | nindent 4 }}
+    {{- if or .Values.workers.kubernetes.extraContainers .Values.workers.extraContainers }}
+      {{- tpl (toYaml (.Values.workers.kubernetes.extraContainers | default .Values.workers.extraContainers)) . | nindent 4 }}
     {{- end }}
   {{- if or .Values.workers.kubernetes.priorityClassName .Values.workers.priorityClassName }}
   priorityClassName: {{ .Values.workers.kubernetes.priorityClassName | default .Values.workers.priorityClassName }}
@@ -287,6 +287,6 @@ spec:
   - name: kerberos-ccache
     emptyDir: {}
   {{- end }}
-  {{- if .Values.workers.extraVolumes }}
-    {{- tpl (toYaml .Values.workers.extraVolumes) . | nindent 2 }}
+  {{- if or .Values.workers.kubernetes.extraVolumes .Values.workers.extraVolumes }}
+    {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumes | default .Values.workers.extraVolumes)) . | nindent 2 }}
   {{- end }}

@@ -334,34 +334,36 @@ if REMOTE_LOGGING:
         )
 
     elif OPENSEARCH_HOST:
-        OPENSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value("opensearch", "END_OF_LOG_MARK")
-        OPENSEARCH_PORT: str = conf.get_mandatory_value("opensearch", "PORT")
+        from airflow.providers.opensearch.log.os_task_handler import OpensearchRemoteLogIO
+
+        OPENSEARCH_PORT = conf.getint("opensearch", "PORT", fallback=9200)
         OPENSEARCH_USERNAME: str = conf.get_mandatory_value("opensearch", "USERNAME")
         OPENSEARCH_PASSWORD: str = conf.get_mandatory_value("opensearch", "PASSWORD")
         OPENSEARCH_WRITE_STDOUT: bool = conf.getboolean("opensearch", "WRITE_STDOUT")
+        OPENSEARCH_WRITE_TO_OS: bool = conf.getboolean("opensearch", "WRITE_TO_OS")
         OPENSEARCH_JSON_FORMAT: bool = conf.getboolean("opensearch", "JSON_FORMAT")
-        OPENSEARCH_JSON_FIELDS: str = conf.get_mandatory_value("opensearch", "JSON_FIELDS")
+        OPENSEARCH_TARGET_INDEX: str = conf.get_mandatory_value("opensearch", "TARGET_INDEX")
         OPENSEARCH_HOST_FIELD: str = conf.get_mandatory_value("opensearch", "HOST_FIELD")
         OPENSEARCH_OFFSET_FIELD: str = conf.get_mandatory_value("opensearch", "OFFSET_FIELD")
+        OPENSEARCH_LOG_ID_TEMPLATE: str = conf.get("opensearch", "LOG_ID_TEMPLATE", fallback="") or (
+            "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}"
+        )
 
-        OPENSEARCH_REMOTE_HANDLERS: dict[str, dict[str, str | bool | None]] = {
-            "task": {
-                "class": "airflow.providers.opensearch.log.os_task_handler.OpensearchTaskHandler",
-                "formatter": "airflow",
-                "base_log_folder": BASE_LOG_FOLDER,
-                "end_of_log_mark": OPENSEARCH_END_OF_LOG_MARK,
-                "host": OPENSEARCH_HOST,
-                "port": OPENSEARCH_PORT,
-                "username": OPENSEARCH_USERNAME,
-                "password": OPENSEARCH_PASSWORD,
-                "write_stdout": OPENSEARCH_WRITE_STDOUT,
-                "json_format": OPENSEARCH_JSON_FORMAT,
-                "json_fields": OPENSEARCH_JSON_FIELDS,
-                "host_field": OPENSEARCH_HOST_FIELD,
-                "offset_field": OPENSEARCH_OFFSET_FIELD,
-            },
-        }
-        DEFAULT_LOGGING_CONFIG["handlers"].update(OPENSEARCH_REMOTE_HANDLERS)
+        REMOTE_TASK_LOG = OpensearchRemoteLogIO(
+            host=OPENSEARCH_HOST,
+            port=OPENSEARCH_PORT,
+            username=OPENSEARCH_USERNAME,
+            password=OPENSEARCH_PASSWORD,
+            target_index=OPENSEARCH_TARGET_INDEX,
+            write_stdout=OPENSEARCH_WRITE_STDOUT,
+            write_to_opensearch=OPENSEARCH_WRITE_TO_OS,
+            offset_field=OPENSEARCH_OFFSET_FIELD,
+            host_field=OPENSEARCH_HOST_FIELD,
+            base_log_folder=BASE_LOG_FOLDER,
+            delete_local_copy=delete_local_copy,
+            json_format=OPENSEARCH_JSON_FORMAT,
+            log_id_template=OPENSEARCH_LOG_ID_TEMPLATE,
+        )
     else:
         raise AirflowException(
             "Incorrect remote log configuration. Please check the configuration of option 'host' in "

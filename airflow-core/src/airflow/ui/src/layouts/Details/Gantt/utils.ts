@@ -122,14 +122,47 @@ export const transformGanttData = ({
         if (tries && tries.length > 0) {
           return tries
             .filter((tryInstance) => tryInstance.start_date !== null)
-            .map((tryInstance) => {
+            .flatMap((tryInstance) => {
               const hasTaskRunning = isStatePending(tryInstance.state);
               const endTime =
                 hasTaskRunning || tryInstance.end_date === null
                   ? dayjs().toISOString()
                   : tryInstance.end_date;
+              const items: Array<GanttDataItem> = [];
 
-              return {
+              // Scheduled segment: from scheduled_dttm to queued_dttm (or start_date if no queued_dttm)
+              if (tryInstance.scheduled_dttm !== null) {
+                const scheduledEnd = tryInstance.queued_dttm ?? tryInstance.start_date ?? undefined;
+
+                items.push({
+                  isGroup: false,
+                  isMapped: tryInstance.is_mapped,
+                  state: "scheduled" as TaskInstanceState,
+                  taskId: tryInstance.task_id,
+                  tryNumber: tryInstance.try_number,
+                  x: [dayjs(tryInstance.scheduled_dttm).toISOString(), dayjs(scheduledEnd).toISOString()],
+                  y: tryInstance.task_display_name,
+                });
+              }
+
+              // Queue segment: from queued_dttm to start_date
+              if (tryInstance.queued_dttm !== null) {
+                items.push({
+                  isGroup: false,
+                  isMapped: tryInstance.is_mapped,
+                  state: "queued" as TaskInstanceState,
+                  taskId: tryInstance.task_id,
+                  tryNumber: tryInstance.try_number,
+                  x: [
+                    dayjs(tryInstance.queued_dttm).toISOString(),
+                    dayjs(tryInstance.start_date ?? undefined).toISOString(),
+                  ],
+                  y: tryInstance.task_display_name,
+                });
+              }
+
+              // Execution segment: from start_date to end_date
+              items.push({
                 isGroup: false,
                 isMapped: tryInstance.is_mapped,
                 state: tryInstance.state,
@@ -137,7 +170,9 @@ export const transformGanttData = ({
                 tryNumber: tryInstance.try_number,
                 x: [dayjs(tryInstance.start_date).toISOString(), dayjs(endTime).toISOString()],
                 y: tryInstance.task_display_name,
-              };
+              });
+
+              return items;
             });
         }
       }
@@ -259,6 +294,11 @@ export const createChartOptions = ({
       duration: 150,
       easing: "linear" as const,
     },
+    datasets: {
+      bar: {
+        minBarLength: 4,
+      },
+    },
     indexAxis: "y" as const,
     maintainAspectRatio: false,
     onClick: handleBarClick,
@@ -331,7 +371,7 @@ export const createChartOptions = ({
           label(tooltipItem: TooltipItem<"bar">) {
             const taskInstance = data[tooltipItem.dataIndex];
 
-            return `${translate("state")}: ${translate(`states.${taskInstance?.state}`)}`;
+            return `${translate("state")}: ${translate(`common:states.${taskInstance?.state}`)}`;
           },
         },
       },
