@@ -200,8 +200,21 @@ class GitHook(BaseHook):
             askpass_script.flush()
             os.chmod(askpass_script.name, stat.S_IRWXU)
 
-            self.env["GIT_ASKPASS"] = askpass_script.name
-            yield
+            old_git_askpass = self.env.get("GIT_ASKPASS")
+            old_git_terminal_prompt = self.env.get("GIT_TERMINAL_PROMPT")
+            try:
+                self.env["GIT_ASKPASS"] = askpass_script.name
+                self.env["GIT_TERMINAL_PROMPT"] = "0"
+                yield
+            finally:
+                for var, old_val in [
+                    ("GIT_ASKPASS", old_git_askpass),
+                    ("GIT_TERMINAL_PROMPT", old_git_terminal_prompt),
+                ]:
+                    if old_val is None:
+                        self.env.pop(var, None)
+                    else:
+                        self.env[var] = old_val
 
     def set_git_env(self, key: str | None = None) -> None:
         self.env["GIT_SSH_COMMAND"] = self._build_ssh_command(key)
