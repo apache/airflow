@@ -418,10 +418,40 @@ class TestWorker:
             jmespath.search("spec.template.spec.containers[0].volumeMounts[0].name", docs[0]) == "test-volume"
         )
 
-    def test_should_add_extraEnvs(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "env": [
+                    {"name": "TEST_ENV_1", "value": "test_env_1"},
+                    {
+                        "name": "TEST_ENV_2",
+                        "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                    },
+                    {
+                        "name": "TEST_ENV_3",
+                        "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                    },
+                ],
+            },
+            {
+                "celery": {
+                    "env": [
+                        {"name": "TEST_ENV_1", "value": "test_env_1"},
+                        {
+                            "name": "TEST_ENV_2",
+                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                        },
+                        {
+                            "name": "TEST_ENV_3",
+                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                        },
+                    ],
+                }
+            },
+            {
+                "env": [{"name": "TEST", "value": "test"}],
+                "celery": {
                     "env": [
                         {"name": "TEST_ENV_1", "value": "test_env_1"},
                         {
@@ -435,10 +465,18 @@ class TestWorker:
                     ],
                 },
             },
+        ],
+    )
+    def test_should_add_extraEnvs(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
         assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
+        )
+        assert {"name": "TEST", "value": "test"} not in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
         assert {

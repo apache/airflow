@@ -3362,6 +3362,13 @@ class TestWorkerSets:
                     "sets": [{"name": "set1", "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "env": [{"name": "TEST", "value": "test"}],
+                    "sets": [{"name": "set1", "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}],
+                },
+            },
         ],
     )
     def test_overwrite_env(self, workers_values):

@@ -1220,6 +1220,7 @@ workers:
       container: {}
 
   # Additional env variable configuration for Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.env` and/or `workers.kubernetes.env` instead)
   env: []
 
   # Additional volume claim templates for Airflow Celery workers.
@@ -1612,6 +1613,9 @@ workers:
       securityContexts:
         container: {}
 
+    # Additional env variable configuration for Airflow Celery workers
+    env: []
+
     # Additional volume claim templates for Airflow Celery workers.
     # Requires mounting of specified volumes under extraVolumeMounts.
     volumeClaimTemplates: []
@@ -1786,6 +1790,9 @@ workers:
 
     # Labels specific to pods created with pod-template-file
     labels: {}
+
+    # Additional env variable configuration for pods created with pod-template-file
+    env: []
 
     schedulerName: ~
 

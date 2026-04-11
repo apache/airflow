@@ -957,6 +957,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (empty .Values.workers.env) }}
+
+ DEPRECATION WARNING:
+    `workers.env` has been renamed to `workers.celery.env`/`workers.kubernetes.env`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (empty .Values.webserver.defaultUser) }}
 
  DEPRECATION WARNING:
