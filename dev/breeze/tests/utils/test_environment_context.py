@@ -48,7 +48,6 @@ class TestDetectWSL:
     def test_detect_wsl_not_present_env_var(self, monkeypatch):
         """Test when WSL_DISTRO_NAME is not set but on non-WSL system."""
         monkeypatch.delenv("WSL_DISTRO_NAME", raising=False)
-        
         # Mock all detection methods to return non-WSL values
         with patch("builtins.open", side_effect=OSError):  # /proc/version not available
             with patch("os.uname") as mock_uname:
