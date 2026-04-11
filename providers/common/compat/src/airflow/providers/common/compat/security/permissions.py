@@ -22,10 +22,9 @@ from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 RESOURCE_BACKFILL = "Backfills"
 RESOURCE_DAG_VERSION = "DAG Versions"
 RESOURCE_ASSET_ALIAS = "Asset Aliases"
-
 if AIRFLOW_V_3_0_PLUS:
     RESOURCE_ASSET = "Assets"
 else:
-    from airflow.security.permissions import (
-        RESOURCE_DATASET as RESOURCE_ASSET,  # noqa: F401  # type: ignore[attr-defined, no-redef]
+    from airflow.security.permissions import (  # type: ignore[attr-defined, no-redef]
+        RESOURCE_DATASET as RESOURCE_ASSET,  # noqa: F401
     )
