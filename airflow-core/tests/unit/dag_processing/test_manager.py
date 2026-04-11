@@ -1455,11 +1455,23 @@ class TestDagFileProcessorManager:
 
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
     def test_add_callback_initializes_versioned_bundle_when_version_is_none(self, mock_bundle_manager):
-        """Ensure versioned bundles are initialized even when bundle_version is None."""
+        """
+        Ensure versioned bundles are initialized before ``bundle.path`` is read
+        when ``bundle_version`` is None (e.g. ``disable_bundle_versioning=True``),
+        so the queued ``DagFileInfo`` carries the initialized bundle path.
+        """
         manager = DagFileProcessorManager(max_runs=1)
+        initialized_path = Path("/tmp/bundle-initialized")
         bundle = MagicMock(spec=BaseDagBundle)
         bundle.supports_versioning = True
-        bundle.path = Path("/tmp/bundle")
+        # ``bundle.path`` is unresolved until ``initialize()`` runs; simulate that by
+        # attaching a side effect that materializes ``path`` on initialization.
+        bundle.path = None
+
+        def _materialize_path():
+            bundle.path = initialized_path
+
+        bundle.initialize.side_effect = _materialize_path
         mock_bundle_manager.return_value.get_bundle.return_value = bundle
 
         request = DagCallbackRequest(
@@ -1476,6 +1488,8 @@ class TestDagFileProcessorManager:
 
         bundle.initialize.assert_called_once()
         assert len(manager._callback_to_execute) == 1
+        queued_file_info = next(iter(manager._callback_to_execute))
+        assert queued_file_info.bundle_path == initialized_path
 
     def test_dag_with_assets(self, session, configure_testing_dag_bundle):
         """'Integration' test to ensure that the assets get parsed and stored correctly for parsed dags."""

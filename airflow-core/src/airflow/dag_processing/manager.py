@@ -584,7 +584,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.log.exception(
                     "Error initializing bundle %s version %s for callback, skipping",
                     request.bundle_name,
-                    request.bundle_version,
+                    request.bundle_version or "latest",
                 )
                 return None
 
