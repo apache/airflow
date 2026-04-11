@@ -258,13 +258,16 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         validated_event = validate_execute_complete_event(event)
 
+        # Set job_id first so CloudWatch link can be persisted even on failure
+        self.job_id = validated_event["job_id"]
+
+        # Persist CloudWatch logs for both success and failure
+        self._persist_cloudwatch_link(context)
+
         if validated_event["status"] != "success":
             raise AirflowException(f"Error while running job: {validated_event}")
 
-        self.job_id = validated_event["job_id"]
-
-        # Job already completed via trigger, persist CloudWatch logs and check success
-        self._persist_cloudwatch_link(context)
+        # Check job success (already know status is "success" from above)
         self.hook.check_job_success(self.job_id)
 
         self.log.info("Job completed successfully for job_id: %s", self.job_id)
@@ -389,6 +392,9 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
 
         :param context: Task context
         """
+        if not self.do_xcom_push:
+            return
+
         try:
             awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
         except AirflowException as ae:
