@@ -1115,29 +1115,76 @@ class TestPodTemplateFile:
             annotations = jmespath.search("spec.template.metadata.annotations", doc)
             assert annotations.get("cluster-autoscaler.kubernetes.io/safe-to-evict") == "true"
 
-    def test_workers_pod_annotations(self):
+    def test_global_pod_annotations_templated(self):
         docs = render_chart(
-            values={"workers": {"podAnnotations": {"my_annotation": "annotated!"}}},
+            values={"airflowPodAnnotations": {"global": "{{ .Release.Name }}"}},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
-        annotations = jmespath.search("metadata.annotations", docs[0])
-        assert "my_annotation" in annotations
-        assert "annotated!" in annotations["my_annotation"]
 
-    def test_airflow_and_workers_pod_annotations(self):
-        # should give preference to workers.podAnnotations
+        assert jmespath.search("metadata.annotations", docs[0])["global"] == "release-name"
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"podAnnotations": {"my_annotation": "{{ .Release.Name }}"}},
+            {"kubernetes": {"podAnnotations": {"my_annotation": "{{ .Release.Name }}"}}},
+            {
+                "podAnnotations": {"test": "test"},
+                "kubernetes": {"podAnnotations": {"my_annotation": "{{ .Release.Name }}"}},
+            },
+        ],
+    )
+    def test_workers_pod_annotations_templated(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("metadata.annotations", docs[0])["my_annotation"] == "release-name"
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"podAnnotations": {"my_annotation": "workerPodAnnotations"}},
+            {"kubernetes": {"podAnnotations": {"my_annotation": "workerPodAnnotations"}}},
+        ],
+    )
+    def test_workers_pod_annotations_override(self, workers_values):
+        # Worker-specific pod annotations should override global airflowPodAnnotations,
+        # whether they come from workers.podAnnotations or workers.kubernetes.podAnnotations
         docs = render_chart(
             values={
                 "airflowPodAnnotations": {"my_annotation": "airflowPodAnnotations"},
-                "workers": {"podAnnotations": {"my_annotation": "workerPodAnnotations"}},
+                "workers": workers_values,
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
+
+        assert jmespath.search("metadata.annotations", docs[0])["my_annotation"] == "workerPodAnnotations"
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"podAnnotations": {"local": "workerPodAnnotations"}},
+            {"kubernetes": {"podAnnotations": {"local": "workerPodAnnotations"}}},
+        ],
+    )
+    def test_pod_annotations_merge(self, workers_values):
+        docs = render_chart(
+            values={
+                "airflowPodAnnotations": {"global": "airflowPodAnnotations"},
+                "workers": workers_values,
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
         annotations = jmespath.search("metadata.annotations", docs[0])
-        assert "my_annotation" in annotations
-        assert "workerPodAnnotations" in annotations["my_annotation"]
+        assert annotations["global"] == "airflowPodAnnotations"
+        assert annotations["local"] == "workerPodAnnotations"
 
     @pytest.mark.parametrize(
         "workers_values",

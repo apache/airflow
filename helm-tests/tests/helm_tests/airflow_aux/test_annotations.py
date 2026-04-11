@@ -18,9 +18,7 @@ from __future__ import annotations
 
 import copy
 
-import jmespath
 import pytest
-import yaml
 from chart_utils.helm_template_generator import render_chart
 
 
@@ -392,39 +390,72 @@ class TestServiceAccountAnnotations:
             {
                 "scheduler": {
                     "podAnnotations": {
-                        "example": "scheduler",
+                        "example": "{{ .Release.Name }}-scheduler",
                     },
                 },
             },
             "templates/scheduler/scheduler-deployment.yaml",
             {
-                "example": "scheduler",
+                "example": "release-name-scheduler",
             },
         ),
         (
             {
                 "apiServer": {
                     "podAnnotations": {
-                        "example": "api-server",
+                        "example": "{{ .Release.Name }}-api-server",
                     },
                 },
             },
             "templates/api-server/api-server-deployment.yaml",
             {
-                "example": "api-server",
+                "example": "release-name-api-server",
             },
         ),
         (
             {
                 "workers": {
                     "podAnnotations": {
-                        "example": "worker",
+                        "example": "{{ .Release.Name }}-worker",
                     },
                 },
             },
             "templates/workers/worker-deployment.yaml",
             {
-                "example": "worker",
+                "example": "release-name-worker",
+            },
+        ),
+        (
+            {
+                "workers": {
+                    "celery": {
+                        "podAnnotations": {
+                            "example": "{{ .Release.Name }}-worker",
+                        },
+                    }
+                },
+            },
+            "templates/workers/worker-deployment.yaml",
+            {
+                "example": "release-name-worker",
+            },
+        ),
+        (
+            {
+                "workers": {
+                    "podAnnotations": {
+                        "test": "test",
+                    },
+                    "celery": {
+                        "podAnnotations": {
+                            "example": "{{ .Release.Name }}-worker",
+                        },
+                    },
+                },
+            },
+            "templates/workers/worker-deployment.yaml",
+            {
+                "example": "release-name-worker",
             },
         ),
         (
@@ -432,26 +463,26 @@ class TestServiceAccountAnnotations:
                 "flower": {
                     "enabled": True,
                     "podAnnotations": {
-                        "example": "flower",
+                        "example": "{{ .Release.Name }}-flower",
                     },
                 },
             },
             "templates/flower/flower-deployment.yaml",
             {
-                "example": "flower",
+                "example": "release-name-flower",
             },
         ),
         (
             {
                 "triggerer": {
                     "podAnnotations": {
-                        "example": "triggerer",
+                        "example": "{{ .Release.Name }}-triggerer",
                     },
                 },
             },
             "templates/triggerer/triggerer-deployment.yaml",
             {
-                "example": "triggerer",
+                "example": "release-name-triggerer",
             },
         ),
         (
@@ -459,13 +490,13 @@ class TestServiceAccountAnnotations:
                 "dagProcessor": {
                     "enabled": True,
                     "podAnnotations": {
-                        "example": "dag-processor",
+                        "example": "{{ .Release.Name }}-dag-processor",
                     },
                 },
             },
             "templates/dag-processor/dag-processor-deployment.yaml",
             {
-                "example": "dag-processor",
+                "example": "release-name-dag-processor",
             },
         ),
         (
@@ -474,13 +505,13 @@ class TestServiceAccountAnnotations:
                 "cleanup": {
                     "enabled": True,
                     "podAnnotations": {
-                        "example": "cleanup",
+                        "example": "{{ .Release.Name }}-cleanup",
                     },
                 },
             },
             "templates/cleanup/cleanup-cronjob.yaml",
             {
-                "example": "cleanup",
+                "example": "release-name-cleanup",
             },
         ),
         (
@@ -488,39 +519,39 @@ class TestServiceAccountAnnotations:
                 "databaseCleanup": {
                     "enabled": True,
                     "podAnnotations": {
-                        "example": "database-cleanup",
+                        "example": "{{ .Release.Name }}-database-cleanup",
                     },
                 }
             },
             "templates/database-cleanup/database-cleanup-cronjob.yaml",
             {
-                "example": "database-cleanup",
+                "example": "release-name-database-cleanup",
             },
         ),
         (
             {
                 "redis": {
                     "podAnnotations": {
-                        "example": "redis",
+                        "example": "{{ .Release.Name }}-redis",
                     },
                 },
             },
             "templates/redis/redis-statefulset.yaml",
             {
-                "example": "redis",
+                "example": "release-name-redis",
             },
         ),
         (
             {
                 "statsd": {
                     "podAnnotations": {
-                        "example": "statsd",
+                        "example": "{{ .Release.Name }}-statsd",
                     },
                 },
             },
             "templates/statsd/statsd-deployment.yaml",
             {
-                "example": "statsd",
+                "example": "release-name-statsd",
             },
         ),
         (
@@ -528,13 +559,13 @@ class TestServiceAccountAnnotations:
                 "pgbouncer": {
                     "enabled": True,
                     "podAnnotations": {
-                        "example": "pgbouncer",
+                        "example": "{{ .Release.Name }}-pgbouncer",
                     },
                 },
             },
             "templates/pgbouncer/pgbouncer-deployment.yaml",
             {
-                "example": "pgbouncer",
+                "example": "release-name-pgbouncer",
             },
         ),
     ],
@@ -583,19 +614,15 @@ class TestPerComponentPodAnnotations:
             assert v == annotations[k]
 
     def test_pod_annotations_are_templated(self, values, show_only, expected_annotations):
-        templated_values = copy.deepcopy(values)
-        for val in templated_values.values():
-            if isinstance(val, dict) and "podAnnotations" in val:
-                val["podAnnotations"] = {"release-name": "{{ .Release.Name }}"}
-
         k8s_objects = render_chart(
-            values=templated_values,
+            values=values,
             show_only=[show_only],
         )
 
         assert len(k8s_objects) == 1
         annotations = get_object_annotations(k8s_objects[0])
-        assert annotations["release-name"] == "release-name"
+        assert annotations["example"] == expected_annotations["example"]
+        assert "test" not in annotations
 
     def test_airflow_pod_annotations_are_templated(self, values, show_only, expected_annotations):
         templated_values = copy.deepcopy(values)
@@ -643,50 +670,6 @@ class TestRedisAnnotations:
         for k, v in expected_annotations.items():
             assert k in obj["metadata"]["annotations"]
             assert v == obj["metadata"]["annotations"][k]
-
-
-class TestPodTemplateFileAnnotationsTemplating:
-    """Tests that podAnnotations are templated in the pod template file."""
-
-    def test_pod_template_file_annotations_are_templated(self):
-        k8s_objects = render_chart(
-            values={
-                "executor": "KubernetesExecutor",
-                "workers": {
-                    "podAnnotations": {
-                        "release-name": "{{ .Release.Name }}",
-                    },
-                },
-            },
-            show_only=["templates/configmaps/configmap.yaml"],
-        )
-
-        assert len(k8s_objects) == 1
-        pod_template = k8s_objects[0]["data"]["pod_template_file.yaml"]
-        annotations = jmespath.search(
-            "metadata.annotations",
-            yaml.safe_load(pod_template),
-        )
-        assert annotations["release-name"] == "release-name"
-
-    def test_pod_template_file_global_annotations_are_templated(self):
-        k8s_objects = render_chart(
-            values={
-                "executor": "KubernetesExecutor",
-                "airflowPodAnnotations": {
-                    "global-release": "{{ .Release.Name }}",
-                },
-            },
-            show_only=["templates/configmaps/configmap.yaml"],
-        )
-
-        assert len(k8s_objects) == 1
-        pod_template = k8s_objects[0]["data"]["pod_template_file.yaml"]
-        annotations = jmespath.search(
-            "metadata.annotations",
-            yaml.safe_load(pod_template),
-        )
-        assert annotations["global-release"] == "release-name"
 
 
 class TestWebserverPodAnnotationsTemplating:
