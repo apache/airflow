@@ -2471,12 +2471,12 @@
                             ]
                         },
                         "retentionDays": {
-                            "description": "Number of days to retain the logs when running the Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.retentionDays`` instead). Total retention time is retentionDays + retentionMinutes.",
+                            "description": "Number of days to retain the logs when running the Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.retentionDays`` instead). Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                             "type": "integer",
                             "default": 15
                         },
                         "retentionMinutes": {
-                            "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.retentionMinutes`` instead). Total retention time is retentionDays + retentionMinutes.",
+                            "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.retentionMinutes`` instead). Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                             "type": "integer",
                             "default": 0
                         },
@@ -2492,7 +2492,7 @@
                             "minimum": 0
                         },
                         "maxSizePercent": {
-                            "description": "Max size of logs as a percentage of total disk space (deprecated, use ``workers.celery.logGroomerSidecar.maxSizePercent`` instead). When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if maxSizeBytes is set.",
+                            "description": "Max size of logs as a percentage of total disk space (deprecated, use ``workers.celery.logGroomerSidecar.maxSizePercent`` instead). When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if ``maxSizeBytes`` is set.",
                             "type": "integer",
                             "default": 0,
                             "minimum": 0,
@@ -3684,7 +3684,7 @@
                                     "default": []
                                 },
                                 "retentionDays": {
-                                    "description": "Number of days to retain the logs when running the Airflow log groomer sidecar. Total retention time is retentionDays + retentionMinutes.",
+                                    "description": "Number of days to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                                     "type": [
                                         "integer",
                                         "null"
@@ -3692,7 +3692,7 @@
                                     "default": null
                                 },
                                 "retentionMinutes": {
-                                    "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar. Total retention time is retentionDays + retentionMinutes.",
+                                    "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                                     "type": [
                                         "integer",
                                         "null"
@@ -3717,7 +3717,7 @@
                                     "minimum": 0
                                 },
                                 "maxSizePercent": {
-                                    "description": "Max size of logs as a percentage of total disk space. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if maxSizeBytes is set.",
+                                    "description": "Max size of logs as a percentage of total disk space. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if ``maxSizeBytes`` is set.",
                                     "type": [
                                         "integer",
                                         "null"
@@ -15001,12 +15001,12 @@
                     ]
                 },
                 "retentionDays": {
-                    "description": "Number of days to retain the logs when running the Airflow log groomer sidecar. Total retention time is retentionDays + retentionMinutes.",
+                    "description": "Number of days to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                     "type": "integer",
                     "default": 15
                 },
                 "retentionMinutes": {
-                    "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar. Total retention time is retentionDays + retentionMinutes.",
+                    "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                     "type": "integer",
                     "default": 0
                 },
@@ -15022,7 +15022,7 @@
                     "minimum": 0
                 },
                 "maxSizePercent": {
-                    "description": "Max size of logs as a percentage of total disk space. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if maxSizeBytes is set.",
+                    "description": "Max size of logs as a percentage of total disk space. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if ``maxSizeBytes`` is set.",
                     "type": "integer",
                     "default": 0,
                     "minimum": 0,

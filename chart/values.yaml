@@ -1162,7 +1162,7 @@ workers:
 
     # Number of minutes to retain logs.
     # This can be used for finer granularity than days.
-    # Total retention is retentionDays + retentionMinutes.
+    # Total retention is `retentionDays` + `retentionMinutes`.
     # (deprecated, use `workers.celery.logGroomerSidecar.retentionMinutes` instead)
     retentionMinutes: 0
 
@@ -1174,7 +1174,7 @@ workers:
     # (deprecated, use `workers.celery.logGroomerSidecar.maxSizeBytes` instead)
     maxSizeBytes: 0
 
-    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if `maxSizeBytes` is set.
     # (deprecated, use `workers.celery.logGroomerSidecar.maxSizePercent` instead)
     maxSizePercent: 0
 
@@ -1187,7 +1187,7 @@ workers:
     #   cpu: 100m
     #   memory: 128Mi
 
-    # Detailed default security context for logGroomerSidecar for container level
+    # Detailed default security context for `logGroomerSidecar` for container level
     # (deprecated, use `workers.celery.logGroomerSidecar.securityContexts` instead)
     securityContexts:
       # (deprecated, use `workers.celery.logGroomerSidecar.securityContexts.container` instead)
@@ -1566,7 +1566,7 @@ workers:
 
       # Number of minutes to retain logs.
       # This can be used for finer granularity than days.
-      # Total retention is retentionDays + retentionMinutes.
+      # Total retention is `retentionDays` + `retentionMinutes`.
       retentionMinutes: ~
 
       # Frequency to attempt to groom logs (in minutes)
@@ -1575,7 +1575,7 @@ workers:
       # Max size of logs in bytes. 0 = disabled
       maxSizeBytes: ~
 
-      # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+      # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if `maxSizeBytes` is set.
       maxSizePercent: ~
 
       resources: {}
@@ -1586,7 +1586,7 @@ workers:
       #   cpu: 100m
       #   memory: 128Mi
 
-      # Detailed default security context for logGroomerSidecar for container level
+      # Detailed default security context for `logGroomerSidecar` for container level
       securityContexts:
         container: {}
 
@@ -1973,7 +1973,7 @@ scheduler:
     # Max size of logs in bytes. 0 = disabled
     maxSizeBytes: 0
 
-    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if `maxSizeBytes` is set.
     maxSizePercent: 0
 
     resources: {}
@@ -1984,7 +1984,7 @@ scheduler:
     #   cpu: 100m
     #   memory: 128Mi
 
-    # Detailed default security context for logGroomerSidecar for container level
+    # Detailed default security context for `logGroomerSidecar` for container level
     securityContexts:
       container: {}
 
@@ -2907,7 +2907,7 @@ triggerer:
     #   cpu: 100m
     #   memory: 128Mi
 
-    # Detailed default security context for logGroomerSidecar for container level
+    # Detailed default security context for `logGroomerSidecar` for container level
     securityContexts:
       container: {}
 
