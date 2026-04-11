@@ -1001,23 +1001,39 @@ class TestPodTemplateFile:
         # [2:] -> Skipping logs and config volumes
         assert jmespath.search("spec.volumes[2:].name", docs[0]) == ["test-volume-airflow"]
 
-    def test_should_create_valid_volume_mount(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "extraVolumeMounts": [{"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}],
+            },
+            {
+                "kubernetes": {
                     "extraVolumeMounts": [
                         {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
                     ],
                 }
             },
+            {
+                "extraVolumeMounts": [{"name": "test", "mountPath": "test"}],
+                "kubernetes": {
+                    "extraVolumeMounts": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                    ],
+                },
+            },
+        ],
+    )
+    def test_should_create_valid_volume_mount(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert "test-volume-airflow" in jmespath.search(
-            "spec.containers[0].volumeMounts[*].name",
-            docs[0],
-        )
+        volume_mounts = jmespath.search("spec.containers[0].volumeMounts", docs[0])
+        assert {"name": "test-volume-airflow", "mountPath": "/opt/test"} in volume_mounts
+        assert {"name": "test", "mountPath": "test"} not in volume_mounts
 
     def test_should_add_env_for_gitsync(self):
         docs = render_chart(

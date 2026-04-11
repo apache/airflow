@@ -363,27 +363,46 @@ class TestWorker:
         # [:-1] -> Skipping config volume
         assert jmespath.search("spec.template.spec.volumes[:-1].name", docs[0]) == ["test-volume-airflow"]
 
-    def test_should_add_extra_volume_mount(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "extraVolumeMounts": [{"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}],
+            },
+            {
+                "celery": {
+                    "extraVolumeMounts": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                    ],
+                }
+            },
+            {
+                "extraVolumeMounts": [{"name": "test", "mountPath": "/opt"}],
+                "celery": {
                     "extraVolumeMounts": [
                         {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
                     ],
                 },
             },
+        ],
+    )
+    def test_should_add_extra_volume_mount(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
+            },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert (
-            jmespath.search("spec.template.spec.containers[0].volumeMounts[0].name", docs[0])
-            == "test-volume-airflow"
-        )
-        assert (
-            jmespath.search("spec.template.spec.initContainers[0].volumeMounts[-1].name", docs[0])
-            == "test-volume-airflow"
-        )
+        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        init_volume_mounts = jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
+
+        assert {"name": "test-volume-airflow", "mountPath": "/opt/test"} in init_volume_mounts
+        assert {"name": "test", "mountPath": "/opt"} not in init_volume_mounts
+
+        assert {"name": "test-volume-airflow", "mountPath": "/opt/test"} in volume_mounts
+        assert {"name": "test", "mountPath": "/opt"} not in volume_mounts
 
     def test_should_add_global_volume_and_global_volume_mount(self):
         docs = render_chart(
