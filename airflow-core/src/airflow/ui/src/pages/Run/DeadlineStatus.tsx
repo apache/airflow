@@ -59,9 +59,7 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
   const alertMap = new Map<string, DeadlineAlertResponse>();
 
   for (const alert of alertData?.deadline_alerts ?? []) {
-    if (alert.name !== undefined && alert.name !== null && alert.name !== "") {
-      alertMap.set(alert.name, alert);
-    }
+    alertMap.set(alert.id, alert);
   }
 
   if (isLoadingDeadlines || isLoadingAlerts) {
@@ -98,9 +96,7 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
       <VStack alignItems="flex-start" gap={1}>
         {deadlines.map((dl) => {
           const alert =
-            dl.alert_name !== undefined && dl.alert_name !== null && dl.alert_name !== ""
-              ? alertMap.get(dl.alert_name)
-              : undefined;
+            dl.alert_id !== undefined && dl.alert_id !== null ? alertMap.get(dl.alert_id) : undefined;
           const deadlineTime = dayjs(dl.deadline_time);
           let contextLine: string | undefined;
 

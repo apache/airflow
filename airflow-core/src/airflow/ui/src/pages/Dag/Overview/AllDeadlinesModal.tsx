@@ -97,8 +97,8 @@ export const AllDeadlinesModal = ({
   const deadlines = data?.deadlines ?? [];
   const totalEntries = data?.total_entries ?? 0;
 
-  const getAlert = (alertName?: string | null) =>
-    alertName !== undefined && alertName !== null && alertName !== "" ? alertMap.get(alertName) : undefined;
+  const getAlert = (alertId?: string | null) =>
+    alertId !== undefined && alertId !== null ? alertMap.get(alertId) : undefined;
 
   const onOpenChange = () => {
     setPage(1);
@@ -125,7 +125,7 @@ export const AllDeadlinesModal = ({
             <VStack gap={0} separator={<Separator />}>
               {deadlines.map((dl) => (
                 <DeadlineRow
-                  alert={getAlert(dl.alert_name)}
+                  alert={getAlert(dl.alert_id)}
                   deadline={dl}
                   key={dl.id}
                   run={runMap.get(dl.dag_run_id)}

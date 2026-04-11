@@ -97,9 +97,7 @@ export const DeadlineStatusModal = ({
             <VStack gap={0} separator={<Separator />}>
               {deadlines.map((dl) => {
                 const alert =
-                  dl.alert_name !== undefined && dl.alert_name !== null && dl.alert_name !== ""
-                    ? alertMap.get(dl.alert_name)
-                    : undefined;
+                  dl.alert_id !== undefined && dl.alert_id !== null ? alertMap.get(dl.alert_id) : undefined;
                 const deadlineTime = dayjs(dl.deadline_time);
                 let contextLine: string | undefined;
 

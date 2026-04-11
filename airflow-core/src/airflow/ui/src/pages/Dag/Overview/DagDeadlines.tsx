@@ -102,9 +102,7 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
   const alertMap = new Map<string, DeadlineAlertResponse>();
 
   for (const alert of alertData?.deadline_alerts ?? []) {
-    if (alert.name !== undefined && alert.name !== null && alert.name !== "") {
-      alertMap.set(alert.name, alert);
-    }
+    alertMap.set(alert.id, alert);
   }
 
   const pendingDeadlines = pendingData?.deadlines ?? [];
@@ -121,8 +119,8 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
     return undefined;
   }
 
-  const getAlert = (alertName?: string | null) =>
-    alertName !== undefined && alertName !== null && alertName !== "" ? alertMap.get(alertName) : undefined;
+  const getAlert = (alertId?: string | null) =>
+    alertId !== undefined && alertId !== null ? alertMap.get(alertId) : undefined;
 
   return (
     <Box>
@@ -156,7 +154,7 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
               <VStack gap={0} separator={<Separator />}>
                 {pendingDeadlines.map((dl) => (
                   <DeadlineRow
-                    alert={getAlert(dl.alert_name)}
+                    alert={getAlert(dl.alert_id)}
                     deadline={dl}
                     key={dl.id}
                     run={runMap.get(dl.dag_run_id)}
@@ -203,7 +201,7 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
               <VStack gap={0} separator={<Separator />}>
                 {missedDeadlines.map((dl) => (
                   <DeadlineRow
-                    alert={getAlert(dl.alert_name)}
+                    alert={getAlert(dl.alert_id)}
                     deadline={dl}
                     key={dl.id}
                     run={runMap.get(dl.dag_run_id)}
