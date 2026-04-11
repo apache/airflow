@@ -898,7 +898,7 @@ class SetRenderedMapIndex(BaseModel):
 class SetExecutionTimeout(BaseModel):
     """Notify the supervisor of the task's execution_timeout so it can enforce it as a safety net."""
 
-    execution_timeout: float  # seconds
+    execution_timeout: Annotated[float, Field(gt=0)]  # seconds
     type: Literal["SetExecutionTimeout"] = "SetExecutionTimeout"
 
 

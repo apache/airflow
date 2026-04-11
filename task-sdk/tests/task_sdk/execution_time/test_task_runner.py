@@ -4771,6 +4771,6 @@ class TestExecutionTimeoutSending:
         timeout_calls = [
             c
             for c in mock_supervisor_comms.send.mock_calls
-            if hasattr(c.kwargs.get("msg"), "type") and c.kwargs["msg"].type == "SetExecutionTimeout"
+            if isinstance(c.kwargs.get("msg"), SetExecutionTimeout)
         ]
         assert timeout_calls == []
