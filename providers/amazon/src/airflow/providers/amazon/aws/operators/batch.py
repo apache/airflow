@@ -263,13 +263,9 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
 
         self.job_id = validated_event["job_id"]
 
-        # Fetch logs if awslogs_enabled (links were already persisted before deferring)
-        if self.awslogs_enabled:
-            # monitor_job() handles log fetching and success check
-            self.monitor_job(context)
-        else:
-            # Links already persisted before deferring, just check job success
-            self.hook.check_job_success(self.job_id)
+        # Job already completed via trigger, persist CloudWatch logs and check success
+        self._persist_cloudwatch_link(context)
+        self.hook.check_job_success(self.job_id)
 
         self.log.info("Job completed successfully for job_id: %s", self.job_id)
         return self.job_id
@@ -440,27 +436,8 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
             else:
                 self.hook.wait_for_job(self.job_id)
 
-        # After job completes, fetch and persist CloudWatch logs once
-        try:
-            awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
-            if awslogs:
-                self.log.info(
-                    "AWS Batch job (%s) CloudWatch Events details found. Links to logs:", self.job_id
-                )
-                link_builder = CloudWatchEventsLink()
-                for log in awslogs:
-                    self.log.info(link_builder.format_link(**log))
-
-                # Persist the first log stream as the UI link
-                CloudWatchEventsLink.persist(
-                    context=context,
-                    operator=self,
-                    region_name=self.hook.conn_region_name,
-                    aws_partition=self.hook.conn_partition,
-                    **awslogs[0],
-                )
-        except AirflowException as ae:
-            self.log.warning("Cannot determine where to find the AWS logs for this Batch job: %s", ae)
+        # After job completes, persist CloudWatch logs
+        self._persist_cloudwatch_link(context)
 
         self.hook.check_job_success(self.job_id)
         self.log.info("AWS Batch job (%s) succeeded", self.job_id)
