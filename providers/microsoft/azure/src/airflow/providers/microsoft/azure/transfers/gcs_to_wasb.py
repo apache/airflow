@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 
 from packaging.version import Version
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 
 try:
@@ -132,9 +132,7 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
         except ImportError:
             self.__is_match_glob_supported = False
         if not self.__is_match_glob_supported and match_glob:
-            raise AirflowException(
-                "The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'."
-            )
+            raise ValueError("The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'.")
         self.match_glob = match_glob
 
     def _transform_file_path(self, file_path: str) -> str:

@@ -25,7 +25,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.transfers.gcs_to_wasb import GCSToAzureBlobStorageOperator
 
 TASK_ID = "test-gcs-to-azure-blob"
@@ -61,7 +60,7 @@ class TestGCSToAzureBlobStorageOperator:
 
     @mock.patch("airflow.providers.google.__version__", "10.2.0")
     def test_match_glob_requires_recent_google_provider(self):
-        with pytest.raises(AirflowException, match="match_glob"):
+        with pytest.raises(ValueError, match="match_glob"):
             GCSToAzureBlobStorageOperator(
                 task_id=TASK_ID,
                 gcs_bucket=GCS_BUCKET,
