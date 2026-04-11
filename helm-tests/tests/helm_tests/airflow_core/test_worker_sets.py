@@ -2923,6 +2923,27 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "tolerations": [
+                        {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ],
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "tolerations": [
+                                {
+                                    "key": "dynamic-pods",
+                                    "operator": "Equal",
+                                    "value": "true",
+                                    "effect": "NoSchedule",
+                                }
+                            ],
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_tolerations(self, workers_values):
