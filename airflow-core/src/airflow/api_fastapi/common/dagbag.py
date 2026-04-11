@@ -38,13 +38,13 @@ def create_dag_bag() -> DBDagBag:
     cache_ttl_config = conf.getint("api", "dag_cache_ttl", fallback=3600)
 
     if cache_size < 0:
-        log.warning("dag_cache_size must be >= 0, disabling cache")
+        log.warning("dag_cache_size must be >= 0, using unbounded dict")
         cache_size = 0
     if cache_ttl_config < 0:
         log.warning("dag_cache_ttl must be >= 0, disabling TTL")
         cache_ttl_config = 0
 
-    # Disable caching if cache_size is 0
+    # Use unbounded dict (no eviction) if cache_size is 0
     if cache_size <= 0:
         return DBDagBag(cache_size=0)
 
