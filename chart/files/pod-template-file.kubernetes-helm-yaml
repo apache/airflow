@@ -19,8 +19,8 @@
 ---
 {{- $nodeSelector := or .Values.workers.kubernetes.nodeSelector .Values.workers.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.workers.kubernetes.affinity .Values.workers.affinity .Values.affinity }}
-{{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
-{{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $tolerations := or .Values.workers.kubernetes.tolerations .Values.workers.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.workers.kubernetes.topologySpreadConstraints .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowPodSecurityContext" (list .Values.workers.kubernetes .Values.workers .Values) }}
 {{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list .Values.workers.kubernetes.kerberosSidecar .Values.workers.kerberosSidecar .Values) }}
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kubernetes.kerberosSidecar.containerLifecycleHooks .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
@@ -52,8 +52,8 @@ spec:
     {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
       {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 4 }}
     {{- end }}
-    {{- if .Values.workers.extraInitContainers }}
-      {{- tpl (toYaml .Values.workers.extraInitContainers) . | nindent 4 }}
+    {{- if or .Values.workers.kubernetes.extraInitContainers .Values.workers.extraInitContainers }}
+      {{- tpl (toYaml (.Values.workers.kubernetes.extraInitContainers | default .Values.workers.extraInitContainers)) . | nindent 4 }}
     {{- end }}
     {{- if or .Values.workers.kubernetes.kerberosInitContainer.enabled .Values.workers.kerberosInitContainer.enabled }}
     - name: kerberos-init
@@ -287,6 +287,6 @@ spec:
   - name: kerberos-ccache
     emptyDir: {}
   {{- end }}
-  {{- if .Values.workers.extraVolumes }}
-    {{- tpl (toYaml .Values.workers.extraVolumes) . | nindent 2 }}
+  {{- if or .Values.workers.kubernetes.extraVolumes .Values.workers.extraVolumes }}
+    {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumes | default .Values.workers.extraVolumes)) . | nindent 2 }}
   {{- end }}

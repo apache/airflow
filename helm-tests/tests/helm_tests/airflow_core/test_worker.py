@@ -279,43 +279,95 @@ class TestWorker:
                 for m in mounts
             )
 
-    def test_should_add_extra_init_containers(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "extraInitContainers": [
+                    {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                ]
+            },
+            {
+                "celery": {
                     "extraInitContainers": [
                         {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
-                    ],
+                    ]
+                }
+            },
+            {
+                "extraInitContainers": [{"name": "container", "image": "repo:tag"}],
+                "celery": {
+                    "extraInitContainers": [
+                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                    ]
                 },
             },
+        ],
+    )
+    def test_should_add_extra_init_containers(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.initContainers[-1]", docs[0]) == {
-            "name": "test-init-container",
-            "image": "test-registry/test-repo:test-tag",
-        }
+        # [1:] -> Skipping wait-for-airflow-migrations init container
+        assert jmespath.search("spec.template.spec.initContainers[1:]", docs[0]) == [
+            {
+                "name": "test-init-container",
+                "image": "test-registry/test-repo:test-tag",
+            }
+        ]
 
-    def test_should_template_extra_init_containers(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}]},
+            {"celery": {"extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}]}},
+            {
+                "extraInitContainers": [{"name": "container"}],
+                "celery": {"extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}]},
+            },
+        ],
+    )
+    def test_should_template_extra_init_containers(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        # [1:] -> Skipping wait-for-airflow-migrations init container
+        assert jmespath.search("spec.template.spec.initContainers[1:]", docs[0]) == [
+            {"name": "release-name-test-init-container"}
+        ]
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}]},
+            {"celery": {"extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}]}},
+            {
+                "extraVolumes": [{"name": "test", "emptyDir": {}}],
+                "celery": {"extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}]},
+            },
+        ],
+    )
+    def test_should_add_extra_volume(self, workers_values):
         docs = render_chart(
             values={
-                "workers": {
-                    "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
-                },
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.initContainers[-1]", docs[0]) == {
-            "name": "release-name-test-init-container"
-        }
+        # [:-1] -> Skipping config volume
+        assert jmespath.search("spec.template.spec.volumes[:-1].name", docs[0]) == ["test-volume-airflow"]
 
-    def test_should_add_extra_volume_and_extra_volume_mount(self):
+    def test_should_add_extra_volume_mount(self):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
                     "extraVolumeMounts": [
                         {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
                     ],
@@ -324,7 +376,6 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.volumes[0].name", docs[0]) == "test-volume-airflow"
         assert (
             jmespath.search("spec.template.spec.containers[0].volumeMounts[0].name", docs[0])
             == "test-volume-airflow"
@@ -616,15 +667,36 @@ class TestWorker:
             }
         }
 
-    def test_tolerations(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "tolerations": [
+                    {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+            },
+            {
+                "celery": {
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ]
+                },
+            },
+            {
+                "tolerations": [{"key": "pods", "operator": "Exists", "effect": "PreferNoSchedule"}],
+                "celery": {
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ]
+                },
+            },
+        ],
+    )
+    def test_tolerations(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
-                    ],
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -634,8 +706,60 @@ class TestWorker:
             {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
         ]
 
-    def test_topology_spread_constraints(self):
-        expected_topology_spread_constraints = [
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "topologySpreadConstraints": [
+                    {
+                        "maxSkew": 1,
+                        "topologyKey": "foo",
+                        "whenUnsatisfiable": "ScheduleAnyway",
+                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                    }
+                ]
+            },
+            {
+                "celery": {
+                    "topologySpreadConstraints": [
+                        {
+                            "maxSkew": 1,
+                            "topologyKey": "foo",
+                            "whenUnsatisfiable": "ScheduleAnyway",
+                            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                        }
+                    ]
+                }
+            },
+            {
+                "topologySpreadConstraints": [
+                    {
+                        "maxSkew": 2,
+                        "topologyKey": "not-me",
+                        "whenUnsatisfiable": "ScheduleAnyway",
+                        "labelSelector": {"matchLabels": {"airflow": "test"}},
+                    }
+                ],
+                "celery": {
+                    "topologySpreadConstraints": [
+                        {
+                            "maxSkew": 1,
+                            "topologyKey": "foo",
+                            "whenUnsatisfiable": "ScheduleAnyway",
+                            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                        }
+                    ]
+                },
+            },
+        ],
+    )
+    def test_topology_spread_constraints(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.topologySpreadConstraints", docs[0]) == [
             {
                 "maxSkew": 1,
                 "topologyKey": "foo",
@@ -643,14 +767,6 @@ class TestWorker:
                 "labelSelector": {"matchLabels": {"tier": "airflow"}},
             }
         ]
-        docs = render_chart(
-            values={"workers": {"topologySpreadConstraints": expected_topology_spread_constraints}},
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert expected_topology_spread_constraints == jmespath.search(
-            "spec.template.spec.topologySpreadConstraints", docs[0]
-        )
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -940,19 +1056,24 @@ class TestWorker:
         docs = render_chart(
             values={
                 "workers": {
-                    "extraInitContainers": [
-                        {
-                            "name": "test-init-container",
-                            "image": "test-registry/test-repo:test-tag",
-                            "restartPolicy": "Always",
-                        }
-                    ]
+                    "celery": {
+                        "extraInitContainers": [
+                            {
+                                "name": "test-init-container",
+                                "image": "test-registry/test-repo:test-tag",
+                                "restartPolicy": "Always",
+                            }
+                        ]
+                    }
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.initContainers[1].restartPolicy", docs[0]) == "Always"
+        # [1:] -> Skipping wait-for-airflow-migrations init container
+        assert jmespath.search("spec.template.spec.initContainers[1:] | [*].restartPolicy", docs[0]) == [
+            "Always"
+        ]
 
     @pytest.mark.parametrize(
         ("log_values", "expected_volume"),

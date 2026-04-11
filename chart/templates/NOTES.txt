@@ -709,6 +709,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (empty .Values.workers.extraInitContainers) }}
+
+ DEPRECATION WARNING:
+    `workers.extraInitContainers` has been renamed to `workers.celery.extraInitContainers`/`workers.kubernetes.extraInitContainers`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (empty .Values.workers.runtimeClassName) }}
 
  DEPRECATION WARNING:
@@ -729,6 +737,22 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `workers.affinity` has been renamed to `workers.celery.affinity`/`workers.kubernetes.affinity`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.tolerations) }}
+
+ DEPRECATION WARNING:
+    `workers.tolerations` has been renamed to `workers.celery.tolerations`/`workers.kubernetes.tolerations`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.topologySpreadConstraints) }}
+
+ DEPRECATION WARNING:
+    `workers.topologySpreadConstraints` has been renamed to `workers.celery.topologySpreadConstraints`/`workers.kubernetes.topologySpreadConstraints`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}

@@ -2301,7 +2301,7 @@
                     }
                 },
                 "extraInitContainers": {
-                    "description": "Add additional init containers into Airflow Celery workers and pods created with pod-template-file (templated).",
+                    "description": "Add additional init containers into Airflow Celery workers and pods created with pod-template-file (templated) (deprecated, use ``workers.celery.extraInitContainers`` and/or ``workers.kubernetes.extraInitContainers`` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2317,7 +2317,7 @@
                     }
                 },
                 "extraVolumes": {
-                    "description": "Additional volumes attached to the Airflow Celery workers and pods created with pod-template-file.",
+                    "description": "Additional volumes attached to the Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.extraVolumes`` and/or ``workers.kubernetes.extraVolumes`` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2363,7 +2363,7 @@
                     "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
                 },
                 "tolerations": {
-                    "description": "Specify Tolerations for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify Tolerations for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.tolerations`` and/or ``workers.kubernetes.tolerations`` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2372,7 +2372,7 @@
                     }
                 },
                 "topologySpreadConstraints": {
-                    "description": "Specify topology spread constraints for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify topology spread constraints for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.topologySpreadConstraints`` and/or ``workers.kubernetes.topologySpreadConstraints`` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -3388,6 +3388,22 @@
                                 "$ref": "#/definitions/io.k8s.api.core.v1.Container"
                             }
                         },
+                        "extraInitContainers": {
+                            "description": "Add additional init containers into Airflow Celery workers (templated).",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                            }
+                        },
+                        "extraVolumes": {
+                            "description": "Additional volumes attached to the Airflow Celery workers.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
+                            }
+                        },
                         "extraPorts": {
                             "description": "Expose additional ports of Airflow Celery worker container.",
                             "type": "array",
@@ -3425,6 +3441,24 @@
                             "type": "object",
                             "default": {},
                             "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
+                        },
+                        "tolerations": {
+                            "description": "Specify Tolerations for Airflow Celery worker pods.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                            }
+                        },
+                        "topologySpreadConstraints": {
+                            "description": "Specify topology spread constraints for Airflow Celery worker pods.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                            }
                         },
                         "hostAliases": {
                             "description": "Specify HostAliases for Airflow Celery worker pods.",
@@ -3886,6 +3920,22 @@
                                 "$ref": "#/definitions/io.k8s.api.core.v1.Container"
                             }
                         },
+                        "extraInitContainers": {
+                            "description": "Add additional init containers into pods created with pod-template-file (templated).",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                            }
+                        },
+                        "extraVolumes": {
+                            "description": "Additional volumes attached to the pods created with pod-template-file.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
+                            }
+                        },
                         "nodeSelector": {
                             "description": "Select certain nodes for pods created with pod-template-file.",
                             "type": "object",
@@ -3915,6 +3965,24 @@
                             "type": "object",
                             "default": {},
                             "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
+                        },
+                        "tolerations": {
+                            "description": "Specify Tolerations for pods created with pod-template-file.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                            }
+                        },
+                        "topologySpreadConstraints": {
+                            "description": "Specify topology spread constraints for pods created with pod-template-file.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                            }
                         },
                         "hostAliases": {
                             "description": "Specify HostAliases for pods created with pod-template-file.",
@@ -10839,6 +10907,15 @@
                         "null"
                     ],
                     "default": 1,
+                    "x-docsSection": "Kubernetes"
+                },
+                "ttlSecondsAfterFinished": {
+                    "description": "The number of seconds after a finished Job is eligible to be automatically deleted.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": null,
                     "x-docsSection": "Kubernetes"
                 }
             }

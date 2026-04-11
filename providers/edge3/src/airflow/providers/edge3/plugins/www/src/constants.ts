@@ -69,4 +69,16 @@ export const bulkWorkerDeleteEligibleStates = new Set<EdgeWorkerState>([
   "offline maintenance",
 ]);
 
+export const bulkWorkerMaintenanceEnterEligibleStates = new Set<EdgeWorkerState>([
+  "idle",
+  "running",
+]);
+
+export const bulkWorkerMaintenanceExitEligibleStates = new Set<EdgeWorkerState>([
+  "maintenance pending",
+  "maintenance mode",
+  "maintenance request",
+  "offline maintenance",
+]);
+
 export const bulkWorkerActionBatchSize = 10;
