@@ -209,7 +209,7 @@ Generating Airflow core Issue
 
 You can use Breeze to generate a Airflow core issue when you release new airflow.
 
-.. image:: ./images/output_release-management_generate-issue-content-providers.svg
+.. image:: ./images/output_release-management_generate-issue-content-core.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-core.svg
   :width: 100%
   :alt: Breeze generate-issue-content-core
@@ -416,7 +416,7 @@ Generating helm chart Issue
 
 You can use Breeze to generate a helm chart issue when you release new helm chart.
 
-.. image:: ./images/output_release-management_generate-issue-content-providers.svg
+.. image:: ./images/output_release-management_generate-issue-content-helm-chart.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-helm-chart.svg
   :width: 100%
   :alt: Breeze generate-issue-content-helm-chart
