@@ -28,7 +28,7 @@ from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
 class TestGetFlaskAppLazyInit:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.get_auth_manager")
-    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.create_app")
+    @patch("airflow.providers.fab.www.app.create_app")
     def test_get_flask_app_lazy_init(self, mock_create_app, mock_get_auth_manager):
         """Test that _get_flask_app lazily initializes the flask app if it's None."""
         mock_fab_auth_manager = MagicMock(spec=FabAuthManager)
@@ -54,7 +54,7 @@ class TestGetFlaskAppLazyInit:
         mock_create_app.assert_not_called()
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.get_auth_manager")
-    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.create_app")
+    @patch("airflow.providers.fab.www.app.create_app")
     def test_get_flask_app_lazy_init_error(self, mock_create_app, mock_get_auth_manager):
         """Test that _get_flask_app raises HTTPException if create_app fails."""
         mock_fab_auth_manager = MagicMock(spec=FabAuthManager)
