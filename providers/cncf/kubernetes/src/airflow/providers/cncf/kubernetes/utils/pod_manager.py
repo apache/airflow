@@ -476,10 +476,7 @@ class PodManager(LoggingMixin):
                 formatted_message = (
                     f"[{container_name}] {message}" if container_name_log_prefix_enabled else message
                 )
-            if level == logging.INFO:
-                self.log.info("%s", formatted_message)
-            else:
-                self.log.log(level, "%s", formatted_message)
+            self.log.log(level, formatted_message)
 
     def fetch_container_logs(
         self,
@@ -1200,7 +1197,8 @@ class AsyncPodManager(LoggingMixin):
                             if is_log_group_marker(message_to_log):
                                 print(message_to_log)
                             else:
-                                self.log.info("[%s] %s", container_name, message_to_log)
+                                level = _parse_log_level(message_to_log)
+                                self.log.log(level, "[%s] %s", container_name, message_to_log)
                         message_to_log = message
                 elif message_to_log:  # continuation of the previous log line
                     message_to_log = f"{message_to_log}\n{message}"
@@ -1210,5 +1208,6 @@ class AsyncPodManager(LoggingMixin):
                 if is_log_group_marker(message_to_log):
                     print(message_to_log)
                 else:
-                    self.log.info("[%s] %s", container_name, message_to_log)
+                    level = _parse_log_level(message_to_log)
+                    self.log.log(level, "[%s] %s", container_name, message_to_log)
         return now  # Return the current time as the last log time to ensure logs from the current second are read in the next fetch.

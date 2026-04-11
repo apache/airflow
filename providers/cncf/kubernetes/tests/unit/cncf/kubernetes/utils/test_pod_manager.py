@@ -1515,17 +1515,17 @@ class TestAsyncPodManager:
                 async_hook=mock_async_hook,
                 callbacks=[],
             )
-            with mock.patch.object(async_pod_manager.log, "info") as mock_log_info:
+            with mock.patch.object(async_pod_manager.log, "log") as mock_log:
                 result = await async_pod_manager.fetch_container_logs_before_current_sec(
                     pod=pod, container_name=container_name, since_time=since_time
                 )
                 assert result == now
 
                 for expected in expected_log_messages:
-                    mock_log_info.assert_any_call("[%s] %s", container_name, expected)
+                    mock_log.assert_any_call(logging.INFO, "[%s] %s", container_name, expected)
                 for not_expected in not_expected_log_messages:
-                    unexpected_call = mock.call("[%s] %s", container_name, not_expected)
-                    assert unexpected_call not in mock_log_info.mock_calls
+                    unexpected_call = mock.call(logging.INFO, "[%s] %s", container_name, not_expected)
+                    assert unexpected_call not in mock_log.mock_calls
 
     @pytest.mark.asyncio
     async def test_fetch_container_logs_before_current_sec_error_handling(self):
