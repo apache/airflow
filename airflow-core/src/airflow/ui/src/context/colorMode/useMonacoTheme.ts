@@ -29,7 +29,7 @@ let themesRegistered = false;
 // Convert any CSS color (including modern color spaces like OKLCH that Chakra
 // UI uses) to a #rrggbb string that Monaco's `defineTheme` accepts. culori
 // handles parsing and gamut mapping; we fall back to black for unset or
-// unparseable values so Monaco never sees an invalid color.
+// unparsable values so Monaco never sees an invalid color.
 const toHex = (cssVar: string): string => {
   const value = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
 
