@@ -56,7 +56,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
         caller: str = "DatabricksExecutionTrigger",
     ) -> None:
         super().__init__()
-        validate_deferrable_databricks_retry_args(retry_args, owner=self.__class__.__name__)
+        validate_deferrable_databricks_retry_args(retry_args, owner=caller)
         self.run_id = run_id
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
@@ -153,7 +153,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
         caller: str = "DatabricksSQLStatementExecutionTrigger",
     ) -> None:
         super().__init__()
-        validate_deferrable_databricks_retry_args(retry_args, owner=self.__class__.__name__)
+        validate_deferrable_databricks_retry_args(retry_args, owner=caller)
         self.statement_id = statement_id
         self.databricks_conn_id = databricks_conn_id
         self.end_time = end_time

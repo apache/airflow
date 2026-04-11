@@ -17,22 +17,22 @@
 # under the License.
 from __future__ import annotations
 
-import time
 from unittest import mock
 
 import pytest
 
 from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
-from airflow.providers.databricks.tests.unit.databricks._retry_test_utils import (
-    UNSUPPORTED_RETRY_ARGS,
-    assert_invalid_retry_args_raises,
-)
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
     DatabricksSQLStatementExecutionTrigger,
 )
 from airflow.triggers.base import TriggerEvent
+
+from unit.databricks._retry_test_utils import (
+    UNSUPPORTED_RETRY_ARGS,
+    assert_invalid_retry_args_raises,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -46,6 +46,7 @@ RETRY_DELAY = 10
 RETRY_LIMIT = 3
 RUN_ID = 1
 STATEMENT_ID = "statement_id"
+STATEMENT_END_TIME = 9999999999.0
 TASK_RUN_ID1 = 11
 TASK_RUN_ID1_KEY = "first_task"
 TASK_RUN_ID2 = 22
@@ -137,7 +138,7 @@ TRIGGER_INIT_CASES = [
         {
             "statement_id": STATEMENT_ID,
             "databricks_conn_id": DEFAULT_CONN_ID,
-            "end_time": time.time() + 60,
+            "end_time": 1234567890.0,
         },
         id="sql_statement_trigger",
     ),
@@ -311,7 +312,7 @@ class TestDatabricksExecutionTrigger:
 class TestDatabricksSQLStatementExecutionTrigger:
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
-        self.end_time = time.time() + 60
+        self.end_time = STATEMENT_END_TIME
         create_connection_without_db(
             Connection(
                 conn_id=DEFAULT_CONN_ID,

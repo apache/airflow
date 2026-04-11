@@ -24,11 +24,12 @@ import pytest
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.databricks.hooks.databricks import SQLStatementState
 from airflow.providers.databricks.sensors.databricks import DatabricksSQLStatementsSensor
-from airflow.providers.databricks.tests.unit.databricks._retry_test_utils import (
+from airflow.providers.databricks.triggers.databricks import DatabricksSQLStatementExecutionTrigger
+
+from unit.databricks._retry_test_utils import (
     UNSUPPORTED_RETRY_ARGS,
     assert_invalid_retry_args_raises,
 )
-from airflow.providers.databricks.triggers.databricks import DatabricksSQLStatementExecutionTrigger
 
 DEFAULT_CONN_ID = "databricks_default"
 STATEMENT = "select * from test.test;"

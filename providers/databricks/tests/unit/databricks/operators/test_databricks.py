@@ -45,15 +45,16 @@ from airflow.providers.databricks.operators.databricks import (
     DatabricksTaskBaseOperator,
     DatabricksTaskOperator,
 )
-from airflow.providers.databricks.tests.unit.databricks._retry_test_utils import (
-    UNSUPPORTED_RETRY_ARGS,
-    assert_invalid_retry_args_raises,
-)
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
     DatabricksSQLStatementExecutionTrigger,
 )
 from airflow.providers.databricks.utils import databricks as utils
+
+from unit.databricks._retry_test_utils import (
+    UNSUPPORTED_RETRY_ARGS,
+    assert_invalid_retry_args_raises,
+)
 
 DATE = "2017-04-20"
 TASK_ID = "databricks-operator"

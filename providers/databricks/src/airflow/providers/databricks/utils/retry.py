@@ -16,20 +16,22 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from airflow.sdk.serde import serialize as serde_serialize
 
 
-def validate_deferrable_databricks_retry_args(retry_args: dict[Any, Any] | None, *, owner: str) -> None:
+def validate_deferrable_databricks_retry_args(retry_args: Mapping[str, Any] | None, *, owner: str) -> None:
     """Validate retry args that need to cross the trigger serialization boundary."""
     if retry_args is None:
         return
 
     try:
         serde_serialize(retry_args)
-    except (AttributeError, RecursionError, TypeError) as err:
+    except (AttributeError, RecursionError, TypeError, ValueError) as err:
         raise ValueError(
-            f"{owner} does not support non-serializable databricks_retry_args when deferrable=True. "
+            f"{owner} does not support non-serializable retry_args/databricks_retry_args "
+            "when deferrable=True. "
             "Use JSON-serializable values, remove callable retry strategies, or disable deferrable mode."
         ) from err
