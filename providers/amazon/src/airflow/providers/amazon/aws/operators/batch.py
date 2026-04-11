@@ -259,13 +259,12 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
 
         self.job_id = validated_event["job_id"]
 
-        # Fetch logs and persist links if awslogs_enabled, otherwise just persist links
+        # Fetch logs if awslogs_enabled (links were already persisted before deferring)
         if self.awslogs_enabled:
-            # monitor_job() handles link persistence, log fetching, and success check
+            # monitor_job() handles log fetching and success check
             self.monitor_job(context)
         else:
-            # Persist operator links and check job success
-            self._persist_links(context)
+            # Links already persisted before deferring, just check job success
             self.hook.check_job_success(self.job_id)
 
         self.log.info("Job completed successfully for job_id: %s", self.job_id)
@@ -356,17 +355,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
             raise AirflowException("AWS Batch job - job_id was not found")
 
         # Fetch job description (needed for return value and link persistence)
-        try:
-            job_desc = job_description or self.hook.get_job_description(self.job_id)
-        except KeyError:
-            self.log.warning("AWS Batch job (%s) description not available", self.job_id)
-            return {}
-
-        # Check if we can persist links (requires task_instance in context)
-        task_instance = context.get("task_instance") if context else None
-        if not task_instance:
-            self.log.debug("Skipping link persistence: task_instance not available in context")
-            return job_desc
+        job_desc = job_description or self.hook.get_job_description(job_id=self.job_id)
 
         try:
             job_definition_arn = job_desc["jobDefinition"]
