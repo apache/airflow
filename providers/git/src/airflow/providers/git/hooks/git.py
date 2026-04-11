@@ -195,7 +195,7 @@ class GitHook(BaseHook):
             yield
             return
 
-        raw_username = getattr(self, "username", None) or "git"
+        raw_username = self.user_name or "git"
         username = shlex.quote(raw_username)
         password = shlex.quote(self.auth_token)
 

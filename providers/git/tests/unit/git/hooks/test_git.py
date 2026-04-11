@@ -431,3 +431,24 @@ class TestGitHook:
                 assert "#!/bin/sh" in content
         # The askpass script should be cleaned up after exiting the context
         assert not os.path.exists(askpass_path)
+
+    def test_token_askpass_uses_connection_login(self, create_connection_without_db):
+        username = "token_user"
+        create_connection_without_db(
+            Connection(
+                conn_id="my_git_conn_https_with_login",
+                host=AIRFLOW_HTTPS_URL,
+                login=username,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+            )
+        )
+        hook = GitHook(git_conn_id="my_git_conn_https_with_login")
+
+        with hook.configure_hook_env():
+            askpass_path = hook.env["GIT_ASKPASS"]
+            with open(askpass_path) as file:
+                content = file.read()
+
+        assert f"*Username*) echo {shlex.quote(username)} ;;" in content
+        assert f"*Password*) echo {shlex.quote(ACCESS_TOKEN)} ;;" in content
