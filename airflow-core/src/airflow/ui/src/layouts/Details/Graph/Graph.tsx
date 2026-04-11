@@ -78,17 +78,17 @@ export const Graph = () => {
 
   const hasActiveFilter = includeUpstream || includeDownstream;
 
-  const durationParam = searchParams.get(SearchParamsKeys.DURATION_GTE);
-  const mapIndexParam = searchParams.get(SearchParamsKeys.MAP_INDEX);
+  const durationParam = searchParams.get(SearchParamsKeys.GRAPH_DURATION_GTE);
+  const mapIndexParam = searchParams.get(SearchParamsKeys.GRAPH_MAP_INDEX);
   const durationVal = durationParam === null ? Number.NaN : Number(durationParam);
   const mapIndexVal = mapIndexParam === null ? Number.NaN : Number(mapIndexParam);
 
   const graphFilters: GraphFilterValues = {
     durationThreshold: Number.isNaN(durationVal) ? undefined : durationVal,
     mapIndex: Number.isNaN(mapIndexVal) ? undefined : mapIndexVal,
-    selectedOperators: searchParams.getAll(SearchParamsKeys.OPERATOR),
-    selectedStates: searchParams.getAll(SearchParamsKeys.TASK_STATE),
-    selectedTaskGroups: searchParams.getAll(SearchParamsKeys.TASK_GROUP),
+    selectedOperators: searchParams.getAll(SearchParamsKeys.GRAPH_OPERATOR),
+    selectedStates: searchParams.getAll(SearchParamsKeys.GRAPH_TASK_STATE),
+    selectedTaskGroups: searchParams.getAll(SearchParamsKeys.GRAPH_TASK_GROUP),
   };
 
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens

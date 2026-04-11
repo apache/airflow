@@ -54,15 +54,13 @@ export const GroupsProvider = ({ children, dagId }: Props) => {
     { enabled: Boolean(dagId) && selectedVersion !== undefined },
   );
 
-  useEffect(() => {
-    const { allGroupIds: observedGroupIds } = flattenGraphNodes(structure.nodes);
+  const { allGroupIds: observedGroupIds, allOperators } = flattenGraphNodes(structure.nodes);
 
+  useEffect(() => {
     if (JSON.stringify(observedGroupIds) !== JSON.stringify(allGroupIdsRef.current)) {
       setAllGroupIds(observedGroupIds);
     }
-  }, [structure.nodes, setAllGroupIds]);
-
-  const { allOperators } = flattenGraphNodes(structure.nodes);
+  }, [observedGroupIds, setAllGroupIds]);
 
   const debouncedSetOpenGroupIds = useDebouncedCallback((newGroupIds: Array<string>) => {
     setOpenGroupIds(newGroupIds);

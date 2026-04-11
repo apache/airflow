@@ -48,11 +48,11 @@ export const GraphTaskFilters = () => {
 
   const { allGroupIds: allTaskGroups, allOperators } = useGroups();
 
-  const selectedOperators = searchParams.getAll(SearchParamsKeys.OPERATOR);
-  const selectedTaskGroups = searchParams.getAll(SearchParamsKeys.TASK_GROUP);
-  const selectedStates = searchParams.getAll(SearchParamsKeys.TASK_STATE);
-  const mapIndexParam = searchParams.get(SearchParamsKeys.MAP_INDEX) ?? "";
-  const durationGteParam = searchParams.get(SearchParamsKeys.DURATION_GTE) ?? "";
+  const selectedOperators = searchParams.getAll(SearchParamsKeys.GRAPH_OPERATOR);
+  const selectedTaskGroups = searchParams.getAll(SearchParamsKeys.GRAPH_TASK_GROUP);
+  const selectedStates = searchParams.getAll(SearchParamsKeys.GRAPH_TASK_STATE);
+  const mapIndexParam = searchParams.get(SearchParamsKeys.GRAPH_MAP_INDEX) ?? "";
+  const durationGteParam = searchParams.get(SearchParamsKeys.GRAPH_DURATION_GTE) ?? "";
 
   const hasActiveFilters =
     selectedOperators.length > 0 ||
@@ -83,11 +83,11 @@ export const GraphTaskFilters = () => {
 
   const clearAllFilters = () => {
     [
-      SearchParamsKeys.OPERATOR,
-      SearchParamsKeys.TASK_GROUP,
-      SearchParamsKeys.TASK_STATE,
-      SearchParamsKeys.MAP_INDEX,
-      SearchParamsKeys.DURATION_GTE,
+      SearchParamsKeys.GRAPH_OPERATOR,
+      SearchParamsKeys.GRAPH_TASK_GROUP,
+      SearchParamsKeys.GRAPH_TASK_STATE,
+      SearchParamsKeys.GRAPH_MAP_INDEX,
+      SearchParamsKeys.GRAPH_DURATION_GTE,
     ].forEach((key) => searchParams.delete(key));
     setSearchParams(searchParams);
   };
@@ -129,7 +129,7 @@ export const GraphTaskFilters = () => {
                 <Text fontSize="xs">{translate("tasks:selectOperator")}</Text>
                 <AttrSelectFilterMulti
                   displayPrefix={undefined}
-                  handleSelect={handleMultiChange(SearchParamsKeys.OPERATOR)}
+                  handleSelect={handleMultiChange(SearchParamsKeys.GRAPH_OPERATOR)}
                   placeholderText={translate("tasks:selectOperator")}
                   selectedValues={selectedOperators}
                   values={allOperators}
@@ -142,7 +142,7 @@ export const GraphTaskFilters = () => {
                 <Text fontSize="xs">{translate("dag:panel.graphFilters.selectTaskGroup")}</Text>
                 <AttrSelectFilterMulti
                   displayPrefix={undefined}
-                  handleSelect={handleMultiChange(SearchParamsKeys.TASK_GROUP)}
+                  handleSelect={handleMultiChange(SearchParamsKeys.GRAPH_TASK_GROUP)}
                   placeholderText={translate("dag:panel.graphFilters.selectTaskGroup")}
                   selectedValues={selectedTaskGroups}
                   values={allTaskGroups}
@@ -157,7 +157,7 @@ export const GraphTaskFilters = () => {
                   <Select.Root
                     collection={taskInstanceStateOptions}
                     multiple
-                    onValueChange={({ value }) => handleMultiChange(SearchParamsKeys.TASK_STATE)(value)}
+                    onValueChange={({ value }) => handleMultiChange(SearchParamsKeys.GRAPH_TASK_STATE)(value)}
                     value={selectedStates}
                   >
                     <Select.Trigger colorPalette="brand" minW="max-content">
@@ -183,7 +183,7 @@ export const GraphTaskFilters = () => {
                   <Text fontSize="xs">{translate("dag:panel.graphFilters.mapIndex")}</Text>
                   <NumberInputRoot
                     min={0}
-                    onValueChange={handleNumberChange(SearchParamsKeys.MAP_INDEX, (num) => num >= 0)}
+                    onValueChange={handleNumberChange(SearchParamsKeys.GRAPH_MAP_INDEX, (num) => num >= 0)}
                     size="sm"
                     value={mapIndexParam}
                     w="100%"
@@ -195,7 +195,7 @@ export const GraphTaskFilters = () => {
                   <Text fontSize="xs">{translate("dag:panel.graphFilters.durationGte")}</Text>
                   <NumberInputRoot
                     min={0}
-                    onValueChange={handleNumberChange(SearchParamsKeys.DURATION_GTE, (num) => num > 0)}
+                    onValueChange={handleNumberChange(SearchParamsKeys.GRAPH_DURATION_GTE, (num) => num > 0)}
                     size="sm"
                     step={0.1}
                     value={durationGteParam}
