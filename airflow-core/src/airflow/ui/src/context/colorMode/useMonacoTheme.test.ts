@@ -18,7 +18,7 @@
  */
 import type { Monaco } from "@monaco-editor/react";
 import { renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // `useColorMode` is the only dependency of the hook we want to test. We mock
 // it with a mutable return so individual tests can drive light/dark behaviour.
@@ -42,29 +42,25 @@ const createFakeMonaco = () => {
   return { defineTheme, monaco: { editor: { defineTheme } } as unknown as Monaco };
 };
 
-// happy-dom does not implement Canvas2D rendering, so the hook's `getContext`
-// call would return null and short-circuit before registering themes. We stub
-// it with the minimal surface the hook needs: the draw/clear methods and a
-// `getImageData` that returns arbitrary RGB bytes (the exact hex values are
-// irrelevant to these tests — we only care that theme registration happens).
-const stubCanvasContext = () => {
-  const fakeContext = {
-    clearRect: vi.fn(),
-    fillRect: vi.fn(),
-    fillStyle: "",
-    getImageData: vi.fn(() => ({ data: new Uint8ClampedArray([0, 0, 0, 255]) })),
-  };
-
-  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
-    fakeContext as unknown as CanvasRenderingContext2D,
-  );
+// happy-dom does not resolve Chakra's CSS custom properties, so the hook's
+// `getPropertyValue` calls would return empty strings. Stub it to return a
+// parseable value — culori accepts plain hex, so the exact string doesn't
+// matter as long as it's a valid CSS color the parser recognizes.
+const stubComputedStyle = () => {
+  vi.spyOn(globalThis, "getComputedStyle").mockReturnValue({
+    getPropertyValue: () => "#abcdef",
+  } as unknown as CSSStyleDeclaration);
 };
 
 describe("useMonacoTheme", () => {
   beforeEach(() => {
     vi.resetModules();
     colorModeMock.mockReturnValue({ colorMode: "light" });
-    stubCanvasContext();
+    stubComputedStyle();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("returns the airflow-light theme name when color mode is light", async () => {

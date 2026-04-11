@@ -17,6 +17,7 @@
  * under the License.
  */
 import type { Monaco } from "@monaco-editor/react";
+import { formatHex, parse } from "culori";
 
 import { useColorMode } from "./useColorMode";
 
@@ -26,43 +27,19 @@ const DARK_THEME_NAME = "airflow-dark";
 let themesRegistered = false;
 
 // Convert any CSS color (including modern color spaces like OKLCH that Chakra
-// UI uses) to a #rrggbb string that Monaco's `defineTheme` accepts.
-//
-// We rasterize a single pixel and read back its sRGB bytes via `getImageData`.
-// `ctx.fillStyle` readback does NOT work for this: starting in Chrome 111, it
-// preserves the original OKLCH string instead of converting to hex, which
-// Monaco would silently ignore.
-const cssVarToHex = (ctx: CanvasRenderingContext2D, cssVar: string): string => {
+// UI uses) to a #rrggbb string that Monaco's `defineTheme` accepts. culori
+// handles parsing and gamut mapping; we fall back to black for unset or
+// unparseable values so Monaco never sees an invalid color.
+const toHex = (cssVar: string): string => {
   const value = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
 
-  if (value === "") {
-    return "#000000";
-  }
-
-  ctx.fillStyle = value;
-  ctx.clearRect(0, 0, 1, 1);
-  ctx.fillRect(0, 0, 1, 1);
-  const [red, green, blue] = ctx.getImageData(0, 0, 1, 1).data;
-
-  return `#${[red, green, blue].map((channel) => (channel ?? 0).toString(16).padStart(2, "0")).join("")}`;
+  return formatHex(parse(value)) ?? "#000000";
 };
 
 const defineAirflowMonacoThemes = (monaco: Monaco) => {
   if (themesRegistered) {
     return;
   }
-
-  const canvas = document.createElement("canvas");
-
-  canvas.width = 1;
-  canvas.height = 1;
-  const ctx = canvas.getContext("2d");
-
-  if (!ctx) {
-    return;
-  }
-
-  const toHex = (cssVar: string) => cssVarToHex(ctx, cssVar);
 
   monaco.editor.defineTheme(LIGHT_THEME_NAME, {
     base: "vs",
