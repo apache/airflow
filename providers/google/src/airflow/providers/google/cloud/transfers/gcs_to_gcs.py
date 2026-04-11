@@ -99,9 +99,10 @@ class GCSToGCSOperator(BaseOperator):
     :param retain_until_time: (Optional) A datetime specifying until when the destination
         objects should be retained. Requires the destination bucket to have object retention
         enabled. The retention is applied after each object is copied/moved.
+        If tzinfo has not been set, UTC will be assumed.
     :param retention_mode: (Optional) The retention mode for destination objects.
-        Can be ``"Locked"`` or ``"Unlocked"``. Only used when ``retain_until_time`` is set.
-        Defaults to ``"Unlocked"`` if not specified.
+        Must be ``"Locked"`` or ``"Unlocked"``. Defaults to ``"Unlocked"`` when
+        ``retain_until_time`` is set. Cannot be provided without ``retain_until_time``.
 
     :Example:
 

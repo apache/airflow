@@ -495,6 +495,27 @@ class TestGCSHook:
                 destination_object=destination_object,
             )
 
+    def test_rewrite_retention_mode_without_retain_until_time(self):
+        with pytest.raises(ValueError, match="retention_mode cannot be set without retain_until_time."):
+            self.gcs_hook.rewrite(
+                source_bucket="test-source-bucket",
+                source_object="test-source-object",
+                destination_bucket="test-dest-bucket",
+                destination_object="test-dest-object",
+                retention_mode="Locked",
+            )
+
+    def test_rewrite_invalid_retention_mode(self):
+        with pytest.raises(ValueError, match="retention_mode must be 'Locked' or 'Unlocked'"):
+            self.gcs_hook.rewrite(
+                source_bucket="test-source-bucket",
+                source_object="test-source-object",
+                destination_bucket="test-dest-bucket",
+                destination_object="test-dest-object",
+                retain_until_time=datetime(2027, 1, 1),
+                retention_mode="Invalid",
+            )
+
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_rewrite_exposes_lineage(self, mock_service, hook_lineage_collector):
         source_bucket_name = "test-source-bucket"
