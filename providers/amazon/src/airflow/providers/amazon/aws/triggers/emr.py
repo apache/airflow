@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING
 
 from asgiref.sync import sync_to_async
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
@@ -320,8 +319,6 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
                     self.job_id,
                 )
             raise
-        except AirflowException as e:
-            yield TriggerEvent({"status": "error", "message": str(e), self.return_key: self.return_value})
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e), self.return_key: self.return_value})
 

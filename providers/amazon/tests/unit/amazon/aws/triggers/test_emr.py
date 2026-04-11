@@ -158,20 +158,6 @@ class TestEmrContainerTrigger:
             "cancel_on_kill": True,
         }
 
-    def test_serialization_includes_cancel_on_kill(self):
-        """Test that cancel_on_kill=True is correctly serialized."""
-        trigger = EmrContainerTrigger(
-            virtual_cluster_id="test_cluster",
-            job_id="test_job",
-            waiter_delay=30,
-            waiter_max_attempts=60,
-            aws_conn_id="aws_default",
-            cancel_on_kill=True,
-        )
-        classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrContainerTrigger"
-        assert kwargs["cancel_on_kill"] is True
-
     def test_serialization_cancel_on_kill_false(self):
         """Test that cancel_on_kill=False is correctly serialized."""
         trigger = EmrContainerTrigger(
