@@ -192,6 +192,8 @@ custom bash/python providers).
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-beam         | ``pip install 'apache-airflow[apache-beam]'``       | Apache Beam operators & hooks                  |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache-datafusion   | ``pip install 'apache-airflow[apache-datafusion]'`` | Apache DataFusion provider package             |
++---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-cassandra    | ``pip install 'apache-airflow[apache-cassandra]'``  | Cassandra related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-drill        | ``pip install 'apache-airflow[apache-drill]'``      | Drill related operators & hooks                |
