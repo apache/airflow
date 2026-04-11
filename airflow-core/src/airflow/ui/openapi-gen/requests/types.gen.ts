@@ -1977,6 +1977,7 @@ export type DeadlineResponse = {
     created_at: string;
     dag_id: string;
     dag_run_id: string;
+    alert_id?: string | null;
     alert_name?: string | null;
 };
 

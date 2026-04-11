@@ -2367,6 +2367,12 @@ components:
         dag_run_id:
           type: string
           title: Dag Run Id
+        alert_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Alert Id
         alert_name:
           anyOf:
           - type: string

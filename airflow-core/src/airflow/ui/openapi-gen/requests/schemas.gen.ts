@@ -8066,6 +8066,18 @@ export const $DeadlineResponse = {
             type: 'string',
             title: 'Dag Run Id'
         },
+        alert_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Alert Id'
+        },
         alert_name: {
             anyOf: [
                 {

@@ -35,6 +35,7 @@ class DeadlineResponse(BaseModel):
     created_at: datetime
     dag_id: str = Field(validation_alias=AliasPath("dagrun", "dag_id"))
     dag_run_id: str = Field(validation_alias=AliasPath("dagrun", "run_id"))
+    alert_id: UUID | None = Field(validation_alias="deadline_alert_id", default=None)
     alert_name: str | None = Field(validation_alias=AliasPath("deadline_alert", "name"), default=None)
 
 
