@@ -45,4 +45,19 @@ describe("Test SearchBar", () => {
 
     expect((input as HTMLInputElement).value).toBe("");
   });
+it("Updates input when defaultValue prop changes", async () => {
+    const { rerender } = render(
+      <SearchBar defaultValue="initial" onChange={vi.fn()} placeholder="Search Dags" />,
+      { wrapper: Wrapper },
+    );
+
+    const input = screen.getByTestId("search-dags");
+    expect((input as HTMLInputElement).value).toBe("initial");
+
+    rerender(
+      <SearchBar defaultValue="updated" onChange={vi.fn()} placeholder="Search Dags" />,
+    );
+
+    await waitFor(() => expect((input as HTMLInputElement).value).toBe("updated"));
+  });
 });

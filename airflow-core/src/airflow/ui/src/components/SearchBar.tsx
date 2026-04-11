@@ -17,7 +17,7 @@
  * under the License.
  */
 import { CloseButton, Input, InputGroup, Kbd, type InputGroupProps } from "@chakra-ui/react";
-import { useState, useRef, type ChangeEvent } from "react";
+import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiSearch } from "react-icons/fi";
@@ -39,11 +39,14 @@ export const SearchBar = ({
   hotkeyDisabled = false,
   onChange,
   placeholder,
-  ...props
+  ...props                                                                                                                                 
 }: Props) => {
   const handleSearchChange = useDebouncedCallback((val: string) => onChange(val), debounceDelay);
   const searchRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState(defaultValue);
+  useEffect(() => {
+  setValue(defaultValue);
+}, [defaultValue]);
   const metaKey = getMetaKey();
   const { t: translate } = useTranslation(["dags"]);
   const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
