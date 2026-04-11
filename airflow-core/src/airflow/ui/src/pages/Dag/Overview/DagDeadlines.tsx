@@ -113,6 +113,8 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
   if (
     !isPendingLoading &&
     !isMissedLoading &&
+    pendingError === null &&
+    missedError === null &&
     pendingDeadlines.length === 0 &&
     missedDeadlines.length === 0
   ) {

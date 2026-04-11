@@ -149,7 +149,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
             ? [
                 {
                   label: translate("dag:deadlineStatus.label"),
-                  value: <DeadlineStatus dagId={dagId} dagRunId={dagRunId} />,
+                  value: <DeadlineStatus dagId={dagId} dagRunId={dagRunId} endDate={dagRun.end_date} />,
                 },
               ]
             : []),

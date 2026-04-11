@@ -69,7 +69,7 @@ export const DeadlineAlertsBadge = ({ dagId }: { readonly dagId: string }) => {
       <Popover.Trigger asChild>
         <Button color="fg.info" size="xs" variant="outline">
           <FiClock />
-          {translate("deadlineAlerts.count", { count: alerts.length })}
+          {translate("deadlineAlerts.count", { count: data?.total_entries ?? alerts.length })}
         </Button>
       </Popover.Trigger>
       <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} maxWidth="360px" width="fit-content">

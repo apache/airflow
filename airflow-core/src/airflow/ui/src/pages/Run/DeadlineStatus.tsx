@@ -24,11 +24,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiCheck, FiClock } from "react-icons/fi";
 
-import {
-  useDagRunServiceGetDagRun,
-  useDeadlinesServiceGetDagDeadlineAlerts,
-  useDeadlinesServiceGetDeadlines,
-} from "openapi/queries";
+import { useDeadlinesServiceGetDagDeadlineAlerts, useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 
@@ -40,9 +36,10 @@ dayjs.extend(relativeTime);
 type DeadlineStatusProps = {
   readonly dagId: string;
   readonly dagRunId: string;
+  readonly endDate: string | null;
 };
 
-export const DeadlineStatus = ({ dagId, dagRunId }: DeadlineStatusProps) => {
+export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps) => {
   const { t: translate } = useTranslation("dag");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -59,8 +56,6 @@ export const DeadlineStatus = ({ dagId, dagRunId }: DeadlineStatusProps) => {
     limit: 100,
   });
 
-  const { data: runData, isLoading: isLoadingRun } = useDagRunServiceGetDagRun({ dagId, dagRunId });
-
   const alertMap = new Map<string, DeadlineAlertResponse>();
 
   for (const alert of alertData?.deadline_alerts ?? []) {
@@ -69,7 +64,7 @@ export const DeadlineStatus = ({ dagId, dagRunId }: DeadlineStatusProps) => {
     }
   }
 
-  if (isLoadingDeadlines || isLoadingAlerts || isLoadingRun) {
+  if (isLoadingDeadlines || isLoadingAlerts) {
     return undefined;
   }
 
@@ -96,7 +91,7 @@ export const DeadlineStatus = ({ dagId, dagRunId }: DeadlineStatusProps) => {
 
   const totalEntries = deadlineData?.total_entries ?? 0;
   const extraCount = totalEntries - deadlines.length;
-  const runEndDate = runData?.end_date ?? undefined;
+  const runEndDate = endDate ?? undefined;
 
   return (
     <>
