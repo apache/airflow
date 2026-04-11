@@ -59,7 +59,7 @@ def _get_flask_app():
 
                     auth_manager.flask_app = create_app(enable_plugins=False)
                 except Exception:
-                    log.error("Failed to lazily initialize Flask app context for FabAuthManager", exc_info=True)
+                    log.exception("Failed to lazily initialize Flask app context for FabAuthManager")
                     raise HTTPException(
                         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                         detail="Failed to initialize Flask app context. Check logs for details.",
