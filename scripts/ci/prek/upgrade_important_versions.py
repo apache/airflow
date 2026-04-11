@@ -42,7 +42,13 @@ from enum import Enum
 from pathlib import Path
 
 import requests
-from common_prek_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_ROOT_PATH, console, retrieve_gh_token
+from common_prek_utils import (
+    AIRFLOW_CORE_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
+    console,
+    read_default_python_major_minor_version_for_images,
+    retrieve_gh_token,
+)
 from packaging.version import Version
 
 DOCKER_IMAGES_EXAMPLE_DIR_PATH = AIRFLOW_ROOT_PATH / "docker-stack-docs" / "docker-examples"
@@ -490,7 +496,7 @@ UPGRADE_OPENAPI_GENERATOR: bool = get_env_bool("UPGRADE_OPENAPI_GENERATOR")
 UPGRADE_SPHINX_AIRFLOW_THEME: bool = get_env_bool("UPGRADE_SPHINX_AIRFLOW_THEME")
 
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
-DEFAULT_PROD_IMAGE_PYTHON_VERSION = "3.12"
+DEFAULT_PROD_IMAGE_PYTHON_VERSION = read_default_python_major_minor_version_for_images()
 
 
 def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_total_length: bool = True) -> str:

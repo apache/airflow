@@ -16,14 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useUiServiceDeleteWorker, useUiServiceRequestWorkerShutdown } from "openapi/queries";
+import {
+  useUiServiceDeleteWorker,
+  useUiServiceExitWorkerMaintenance,
+  useUiServiceRequestWorkerMaintenance,
+  useUiServiceRequestWorkerShutdown,
+} from "openapi/queries";
 import type { Worker } from "openapi/requests/types.gen";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { toaster } from "src/components/ui";
 import {
   bulkWorkerActionBatchSize,
   bulkWorkerDeleteEligibleStates,
+  bulkWorkerMaintenanceEnterEligibleStates,
+  bulkWorkerMaintenanceExitEligibleStates,
   bulkWorkerShutdownEligibleStates,
 } from "src/constants";
 
@@ -99,9 +106,13 @@ export const useBulkWorkerActions = ({
 }: UseBulkWorkerActionsProps) => {
   const [isBulkDeletePending, setIsBulkDeletePending] = useState(false);
   const [isBulkShutdownPending, setIsBulkShutdownPending] = useState(false);
+  const [isBulkMaintenanceEnterPending, setIsBulkMaintenanceEnterPending] = useState(false);
+  const [isBulkMaintenanceExitPending, setIsBulkMaintenanceExitPending] = useState(false);
 
   const shutdownMutation = useUiServiceRequestWorkerShutdown();
   const deleteMutation = useUiServiceDeleteWorker();
+  const maintenanceEnterMutation = useUiServiceRequestWorkerMaintenance();
+  const maintenanceExitMutation = useUiServiceExitWorkerMaintenance();
 
   const shutdownWorkers = useMemo(
     () => selectedWorkers.filter((worker) => bulkWorkerShutdownEligibleStates.has(worker.state)),
@@ -111,8 +122,16 @@ export const useBulkWorkerActions = ({
     () => selectedWorkers.filter((worker) => bulkWorkerDeleteEligibleStates.has(worker.state)),
     [selectedWorkers],
   );
+  const maintenanceEnterWorkers = useMemo(
+    () => selectedWorkers.filter((worker) => bulkWorkerMaintenanceEnterEligibleStates.has(worker.state)),
+    [selectedWorkers],
+  );
+  const maintenanceExitWorkers = useMemo(
+    () => selectedWorkers.filter((worker) => bulkWorkerMaintenanceExitEligibleStates.has(worker.state)),
+    [selectedWorkers],
+  );
 
-  const handleBulkAction = async ({
+  const handleBulkAction = useCallback(async ({
     failureTitle,
     setPending,
     successToast,
@@ -144,9 +163,9 @@ export const useBulkWorkerActions = ({
     } finally {
       setPending(false);
     }
-  };
+  }, [onClearSelection, onOperations]);
 
-  const handleBulkShutdown = async (): Promise<void> => {
+  const handleBulkShutdown = useCallback(async (): Promise<void> => {
     await handleBulkAction({
       failureTitle: "Bulk Shutdown Partially Failed",
       setPending: setIsBulkShutdownPending,
@@ -158,9 +177,9 @@ export const useBulkWorkerActions = ({
       workers: shutdownWorkers,
       workerMutation: (worker) => shutdownMutation.mutateAsync({ workerName: worker.worker_name }),
     });
-  };
+  }, [handleBulkAction, shutdownMutation, shutdownWorkers]);
 
-  const handleBulkDelete = async (): Promise<void> => {
+  const handleBulkDelete = useCallback(async (): Promise<void> => {
     await handleBulkAction({
       failureTitle: "Bulk Delete Partially Failed",
       setPending: setIsBulkDeletePending,
@@ -172,14 +191,52 @@ export const useBulkWorkerActions = ({
       workers: deleteWorkers,
       workerMutation: (worker) => deleteMutation.mutateAsync({ workerName: worker.worker_name }),
     });
-  };
+  }, [deleteWorkers, deleteMutation, handleBulkAction]);
+
+  const handleBulkMaintenanceEnter = useCallback(async (comment: string): Promise<void> => {
+    await handleBulkAction({
+      failureTitle: "Bulk Maintenance Enter Partially Failed",
+      setPending: setIsBulkMaintenanceEnterPending,
+      successToast: (successCount) => ({
+        description: `Maintenance mode requested for ${successCount} worker(s).`,
+        title: "Bulk Maintenance Enter Requested",
+        type: "success",
+      }),
+      workers: maintenanceEnterWorkers,
+      workerMutation: (worker) =>
+        maintenanceEnterMutation.mutateAsync({
+          requestBody: { maintenance_comment: comment },
+          workerName: worker.worker_name,
+        }),
+    });
+  }, [handleBulkAction, maintenanceEnterMutation, maintenanceEnterWorkers]);
+
+  const handleBulkMaintenanceExit = useCallback(async (): Promise<void> => {
+    await handleBulkAction({
+      failureTitle: "Bulk Maintenance Exit Partially Failed",
+      setPending: setIsBulkMaintenanceExitPending,
+      successToast: (successCount) => ({
+        description: `${successCount} worker(s) requested to exit maintenance mode.`,
+        title: "Bulk Maintenance Exit Requested",
+        type: "success",
+      }),
+      workers: maintenanceExitWorkers,
+      workerMutation: (worker) => maintenanceExitMutation.mutateAsync({ workerName: worker.worker_name }),
+    });
+  }, [handleBulkAction, maintenanceExitMutation, maintenanceExitWorkers]);
 
   return {
     deleteWorkers,
     handleBulkDelete,
+    handleBulkMaintenanceEnter,
+    handleBulkMaintenanceExit,
     handleBulkShutdown,
     isBulkDeletePending,
+    isBulkMaintenanceEnterPending,
+    isBulkMaintenanceExitPending,
     isBulkShutdownPending,
+    maintenanceEnterWorkers,
+    maintenanceExitWorkers,
     shutdownWorkers,
   };
 };

@@ -14,33 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from datetime import datetime
+import pytest
 
-from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.utils.state import TaskInstanceState
+from airflow.providers.common.ai.plugins.hitl_review import HITLReviewPlugin
 
-
-class GanttTaskInstance(BaseModel):
-    """Task instance data for Gantt chart."""
-
-    task_id: str
-    task_display_name: str
-    try_number: int
-    state: TaskInstanceState | None
-    scheduled_dttm: datetime | None
-    queued_dttm: datetime | None
-    start_date: datetime | None
-    end_date: datetime | None
-    is_group: bool = False
-    is_mapped: bool = False
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 
-class GanttResponse(BaseModel):
-    """Response for Gantt chart endpoint."""
+def test_hitl_review_plugin_registration_matches_airflow_version():
+    if AIRFLOW_V_3_1_PLUS:
+        assert len(HITLReviewPlugin.fastapi_apps) == 1
+        assert len(HITLReviewPlugin.react_apps) == 1
+    else:
+        assert HITLReviewPlugin.fastapi_apps == []
+        assert HITLReviewPlugin.react_apps == []
 
-    dag_id: str
-    run_id: str
-    task_instances: list[GanttTaskInstance]
+
+@pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Requires Airflow 3.1+")
+def test_hitl_review_plugin_registers_expected_app_names():
+    assert HITLReviewPlugin.fastapi_apps[0]["name"] == "hitl-review"
+    assert HITLReviewPlugin.react_apps[0]["name"] == "HITL Review"
