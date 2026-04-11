@@ -17,36 +17,12 @@
 
 from __future__ import annotations
 
-import logging
-import mimetypes
-from pathlib import Path
-from types import SimpleNamespace
-from typing import Any
+from typing import Annotated, Any
 from urllib.parse import urlparse
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
-from airflow.models.taskinstance import TaskInstance as TI
-from airflow.models.xcom import XComModel
 from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.common.ai.utils.hitl_review import (
-    XCOM_AGENT_OUTPUT_PREFIX,
-    XCOM_AGENT_SESSION,
-    XCOM_HUMAN_ACTION,
-    XCOM_HUMAN_FEEDBACK_PREFIX,
-    AgentSessionData,
-    HITLReviewResponse,
-    HumanActionData,
-    HumanFeedbackRequest,
-    SessionStatus,
-)
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
-from airflow.utils.session import create_session
-from airflow.utils.state import TaskInstanceState
-
-log = logging.getLogger(__name__)
 
 _PLUGIN_PREFIX = "/hitl-review"
 
@@ -78,152 +54,166 @@ def _get_bundle_url() -> str:
     return path
 
 
-def _get_session():
-    with create_session(scoped=False) as session:
-        yield session
-
-
-def _read_xcom(session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, key: str):
-    """Read a single XCom value from the database."""
-    row = session.scalars(
-        XComModel.get_many(
-            run_id=run_id,
-            key=key,
-            dag_ids=dag_id,
-            task_ids=task_id,
-            map_indexes=map_index,
-            limit=1,
-        )
-    ).first()
-    if row is None:
-        return None
-    return XComModel.deserialize_value(row)
-
-
-def _read_xcom_by_prefix(
-    session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, prefix: str
-) -> dict[int, Any]:
-    """Read all iteration-keyed XCom entries matching *prefix* (e.g. ``airflow_hitl_review_agent_output_``)."""
-    query = select(XComModel.key, XComModel.value).where(
-        XComModel.dag_id == dag_id,
-        XComModel.run_id == run_id,
-        XComModel.task_id == task_id,
-        XComModel.map_index == map_index,
-        XComModel.key.like(f"{prefix}%"),
-    )
-    result: dict[int, Any] = {}
-    for key, value in session.execute(query).all():
-        suffix = key[len(prefix) :]
-        if suffix.isdigit():
-            # deserialize_value expects an object with a .value attribute;
-            # wrap the raw column value so we can reuse the standard deserialization path.
-            row = SimpleNamespace(value=value)
-            result[int(suffix)] = XComModel.deserialize_value(row)
-    return result
-
-
-def _write_xcom(
-    session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, key: str, value
-):
-    """Write data to db."""
-    XComModel.set(
-        key=key,
-        value=value,
-        dag_id=dag_id,
-        task_id=task_id,
-        run_id=run_id,
-        map_index=map_index,
-        session=session,
-    )
-
-
-_RUNNING_TI_STATES = frozenset(
-    {
-        TaskInstanceState.RUNNING,
-        TaskInstanceState.DEFERRED,
-        TaskInstanceState.UP_FOR_RETRY,
-        TaskInstanceState.QUEUED,
-        TaskInstanceState.SCHEDULED,
-    }
-)
-
-
-def _is_task_completed(
-    session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1
-) -> bool:
-    """Return True if the task instance is no longer running."""
-    state = session.scalar(
-        select(TI.state).where(
-            TI.dag_id == dag_id,
-            TI.run_id == run_id,
-            TI.task_id == task_id,
-            TI.map_index == map_index,
-        )
-    )
-    if state is None:
-        return True
-    return state not in _RUNNING_TI_STATES
-
-
-def _build_session_response(
-    session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1
-) -> HITLReviewResponse | None:
-    """Build `HITLReviewResponse` from XCom entries."""
-    raw = _read_xcom(
-        session,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-        key=XCOM_AGENT_SESSION,
-    )
-    if raw is None:
-        return None
-    sess_data = AgentSessionData.model_validate(raw)
-    outputs = _read_xcom_by_prefix(
-        session,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-        prefix=XCOM_AGENT_OUTPUT_PREFIX,
-    )
-    human_responses = _read_xcom_by_prefix(
-        session,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-        prefix=XCOM_HUMAN_FEEDBACK_PREFIX,
-    )
-    completed = _is_task_completed(
-        session,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-    )
-    return HITLReviewResponse.from_xcom(
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        session=sess_data,
-        outputs=outputs,
-        human_entries=human_responses,
-        task_completed=completed,
-    )
-
-
 if AIRFLOW_V_3_1_PLUS:
-    from typing import Annotated
+    import mimetypes
+    from pathlib import Path
+    from types import SimpleNamespace
 
     from fastapi import Depends, FastAPI, HTTPException, Query
     from fastapi.staticfiles import StaticFiles
+    from sqlalchemy import select
+    from sqlalchemy.orm import Session
 
     from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
     from airflow.api_fastapi.core_api.security import requires_access_dag
+    from airflow.models.taskinstance import TaskInstance as TI
+    from airflow.models.xcom import XComModel
+    from airflow.providers.common.ai.utils.hitl_review import (
+        XCOM_AGENT_OUTPUT_PREFIX,
+        XCOM_AGENT_SESSION,
+        XCOM_HUMAN_ACTION,
+        XCOM_HUMAN_FEEDBACK_PREFIX,
+        AgentSessionData,
+        HITLReviewResponse,
+        HumanActionData,
+        HumanFeedbackRequest,
+        SessionStatus,
+    )
+    from airflow.utils.session import create_session
+    from airflow.utils.state import TaskInstanceState
+
+    def _get_session():
+        with create_session(scoped=False) as session:
+            yield session
 
     SessionDep = Annotated[Session, Depends(_get_session)]
+
+    def _read_xcom(
+        session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, key: str
+    ):
+        """Read a single XCom value from the database."""
+        row = session.scalars(
+            XComModel.get_many(
+                run_id=run_id,
+                key=key,
+                dag_ids=dag_id,
+                task_ids=task_id,
+                map_indexes=map_index,
+                limit=1,
+            )
+        ).first()
+        if row is None:
+            return None
+        return XComModel.deserialize_value(row)
+
+    def _read_xcom_by_prefix(
+        session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, prefix: str
+    ) -> dict[int, Any]:
+        """Read all iteration-keyed XCom entries matching *prefix* (e.g. ``airflow_hitl_review_agent_output_``)."""
+        query = select(XComModel.key, XComModel.value).where(
+            XComModel.dag_id == dag_id,
+            XComModel.run_id == run_id,
+            XComModel.task_id == task_id,
+            XComModel.map_index == map_index,
+            XComModel.key.like(f"{prefix}%"),
+        )
+        result: dict[int, Any] = {}
+        for key, value in session.execute(query).all():
+            suffix = key[len(prefix) :]
+            if suffix.isdigit():
+                # deserialize_value expects an object with a .value attribute;
+                # wrap the raw column value so we can reuse the standard deserialization path.
+                row = SimpleNamespace(value=value)
+                result[int(suffix)] = XComModel.deserialize_value(row)
+        return result
+
+    def _write_xcom(
+        session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, key: str, value
+    ):
+        """Write data to db."""
+        XComModel.set(
+            key=key,
+            value=value,
+            dag_id=dag_id,
+            task_id=task_id,
+            run_id=run_id,
+            map_index=map_index,
+            session=session,
+        )
+
+    _RUNNING_TI_STATES = frozenset(
+        {
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.DEFERRED,
+            TaskInstanceState.UP_FOR_RETRY,
+            TaskInstanceState.QUEUED,
+            TaskInstanceState.SCHEDULED,
+        }
+    )
+
+    def _is_task_completed(
+        session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1
+    ) -> bool:
+        """Return True if the task instance is no longer running."""
+        state = session.scalar(
+            select(TI.state).where(
+                TI.dag_id == dag_id,
+                TI.run_id == run_id,
+                TI.task_id == task_id,
+                TI.map_index == map_index,
+            )
+        )
+        if state is None:
+            return True
+        return state not in _RUNNING_TI_STATES
+
+    def _build_session_response(
+        session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1
+    ) -> HITLReviewResponse | None:
+        """Build `HITLReviewResponse` from XCom entries."""
+        raw = _read_xcom(
+            session,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            key=XCOM_AGENT_SESSION,
+        )
+        if raw is None:
+            return None
+        sess_data = AgentSessionData.model_validate(raw)
+        outputs = _read_xcom_by_prefix(
+            session,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            prefix=XCOM_AGENT_OUTPUT_PREFIX,
+        )
+        human_responses = _read_xcom_by_prefix(
+            session,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            prefix=XCOM_HUMAN_FEEDBACK_PREFIX,
+        )
+        completed = _is_task_completed(
+            session,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+        )
+        return HITLReviewResponse.from_xcom(
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            session=sess_data,
+            outputs=outputs,
+            human_entries=human_responses,
+            task_completed=completed,
+        )
 
     def _get_map_index(q: str = Query("-1", alias="map_index")) -> int:
         """Parse map_index query; use -1 when placeholder unreplaced (e.g. ``{MAP_INDEX}``) or invalid."""
