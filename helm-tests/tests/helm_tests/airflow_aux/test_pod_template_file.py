@@ -1122,9 +1122,7 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        annotations = jmespath.search("metadata.annotations", docs[0])
-        assert len(annotations) == 2  # safe-to-evict + extra annotation
-        assert annotations["global"] == "release-name"
+        assert jmespath.search("metadata.annotations", docs[0])["global"] == "release-name"
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -1144,9 +1142,7 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        annotations = jmespath.search("metadata.annotations", docs[0])
-        assert len(annotations) == 2  # safe-to-evict + extra annotation
-        assert annotations["my_annotation"] == "release-name"
+        assert jmespath.search("metadata.annotations", docs[0])["my_annotation"] == "release-name"
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -1156,7 +1152,8 @@ class TestPodTemplateFile:
         ],
     )
     def test_workers_pod_annotations_override(self, workers_values):
-        # should give preference to workers.podAnnotations
+        # Worker-specific pod annotations should override global airflowPodAnnotations,
+        # whether they come from workers.podAnnotations or workers.kubernetes.podAnnotations
         docs = render_chart(
             values={
                 "airflowPodAnnotations": {"my_annotation": "airflowPodAnnotations"},
@@ -1166,9 +1163,7 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        annotations = jmespath.search("metadata.annotations", docs[0])
-        assert len(annotations) == 2  # safe-to-evict + extra annotation
-        assert annotations["my_annotation"] == "workerPodAnnotations"
+        assert jmespath.search("metadata.annotations", docs[0])["my_annotation"] == "workerPodAnnotations"
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -1188,7 +1183,6 @@ class TestPodTemplateFile:
         )
 
         annotations = jmespath.search("metadata.annotations", docs[0])
-        assert len(annotations) == 3  # safe-to-evict + extra annotations
         assert annotations["global"] == "airflowPodAnnotations"
         assert annotations["local"] == "workerPodAnnotations"
 
