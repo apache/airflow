@@ -29,6 +29,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper
+from typing import Any
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
@@ -118,19 +119,35 @@ GLOBAL_CONSTANTS_PATH = (
 )
 
 
+def _read_global_constants_assignment(name: str) -> Any:
+    """Read a top-level assignment from global_constants.py."""
+    tree = ast.parse(GLOBAL_CONSTANTS_PATH.read_text())
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == name:
+                    return ast.literal_eval(node.value)
+    raise RuntimeError(f"{name} not found in global_constants.py")
+
+
 def read_allowed_kubernetes_versions() -> list[str]:
     """Parse ALLOWED_KUBERNETES_VERSIONS from global_constants.py (single source of truth).
 
     Returns versions without the ``v`` prefix, e.g. ``["1.30.13", "1.31.12", ...]``.
     """
-    tree = ast.parse(GLOBAL_CONSTANTS_PATH.read_text())
-    for node in tree.body:
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == "ALLOWED_KUBERNETES_VERSIONS":
-                    versions: list[str] = ast.literal_eval(node.value)
-                    return [v.lstrip("v") for v in versions]
-    raise RuntimeError("ALLOWED_KUBERNETES_VERSIONS not found in global_constants.py")
+    versions: list[str] = _read_global_constants_assignment("ALLOWED_KUBERNETES_VERSIONS")
+    return [v.lstrip("v") for v in versions]
+
+
+def read_default_python_major_minor_version_for_images() -> str:
+    """Parse DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES from global_constants.py."""
+    value = _read_global_constants_assignment("DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES")
+    if not isinstance(value, str):
+        raise RuntimeError(
+            "DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES in global_constants.py "
+            f"must be a string, got {type(value).__name__}"
+        )
+    return value
 
 
 def pre_process_mypy_files(files: list[str]) -> list[str]:

@@ -2923,6 +2923,27 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "tolerations": [
+                        {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ],
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "tolerations": [
+                                {
+                                    "key": "dynamic-pods",
+                                    "operator": "Equal",
+                                    "value": "true",
+                                    "effect": "NoSchedule",
+                                }
+                            ],
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_tolerations(self, workers_values):
@@ -2962,6 +2983,32 @@ class TestWorkerSets:
                 ],
                 "celery": {
                     "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "topologySpreadConstraints": [
+                                {
+                                    "maxSkew": 1,
+                                    "topologyKey": "foo",
+                                    "whenUnsatisfiable": "ScheduleAnyway",
+                                    "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                                }
+                            ],
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "topologySpreadConstraints": [
+                        {
+                            "maxSkew": 1,
+                            "topologyKey": "not-me",
+                            "whenUnsatisfiable": "ScheduleAnyway",
+                            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                        }
+                    ],
                     "sets": [
                         {
                             "name": "set1",

@@ -1105,7 +1105,13 @@ workers:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
 
+  # (deprecated, use `workers.celery.tolerations` and/or `workers.kubernetes.tolerations` instead)
   tolerations: []
+
+  # (deprecated, use
+  #   `workers.celery.topologySpreadConstraints` and/or
+  #   `workers.kubernetes.topologySpreadConstraints`
+  # instead)
   topologySpreadConstraints: []
 
   # hostAliases to use in Airflow Celery worker pods and pods created with pod-template-file
@@ -1492,6 +1498,10 @@ workers:
     #        topologyKey: kubernetes.io/hostname
     #      weight: 100
 
+    tolerations: []
+
+    topologySpreadConstraints: []
+
     # hostAliases to use in Airflow Celery worker pods
     # See:
     # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
@@ -1659,6 +1669,10 @@ workers:
     priorityClassName: ~
 
     affinity: {}
+
+    tolerations: []
+
+    topologySpreadConstraints: []
 
     # hostAliases to use in pods created with pod-template-file
     # See:
@@ -3937,6 +3951,9 @@ databaseCleanup:
   # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.
   failedJobsHistoryLimit: 1
   successfulJobsHistoryLimit: 1
+
+  # Time to live (in seconds) for Jobs created by this CronJob after they finish.
+  ttlSecondsAfterFinished: ~
 
 # Configuration for postgresql subchart
 # Uses bitnamilegacy images to avoid Bitnami licensing restrictions
