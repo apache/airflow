@@ -195,8 +195,19 @@ class GitHook(BaseHook):
             yield
             return
 
+        raw_username = getattr(self, "username", None) or "git"
+        username = shlex.quote(raw_username)
+        password = shlex.quote(self.auth_token)
+
         with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=True) as askpass_script:
-            askpass_script.write(f"#!/bin/sh\necho {shlex.quote(self.auth_token)}\n")
+            script_content = f"""#!/bin/sh
+case "$1" in
+    *Username*) echo {username} ;;
+    *Password*) echo {password} ;;
+    *) exit 1 ;;
+esac
+"""
+            askpass_script.write(script_content)
             askpass_script.flush()
             os.chmod(askpass_script.name, stat.S_IRWXU)
 
