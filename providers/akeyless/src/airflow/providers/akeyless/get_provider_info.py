@@ -25,7 +25,7 @@ def get_provider_info():
             {
                 "integration-name": "Akeyless",
                 "external-doc-url": "https://docs.akeyless.io/",
-                "tags": ["security", "secrets"],
+                "tags": ["software"],
             }
         ],
         "hooks": [

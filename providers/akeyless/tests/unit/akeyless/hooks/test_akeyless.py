@@ -176,3 +176,32 @@ class TestAkeylessHook:
         hook = AkeylessHook()
         hook.delete_item("/path/to/delete")
         api.delete_item.assert_called_once()
+
+    @patch(
+        f"{HOOK_MODULE}.AkeylessHook.get_connection",
+        return_value=_make_connection(extra='{"access_type": "invalid_type"}'),
+    )
+    @patch(f"{HOOK_MODULE}.akeyless")
+    def test_invalid_access_type_raises(self, mock_sdk, mock_conn):
+        import pytest
+
+        from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
+
+        hook = AkeylessHook()
+        with pytest.raises(ValueError, match="Unsupported access_type"):
+            hook.authenticate()
+
+    @patch(f"{HOOK_MODULE}.AkeylessHook.get_connection", return_value=_make_connection())
+    @patch(f"{HOOK_MODULE}.akeyless")
+    def test_get_rotated_secret_passes_list(self, mock_sdk, mock_conn):
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        res = MagicMock()
+        res.to_dict.return_value = {"value": {"user": "rotated"}}
+        api.get_rotated_secret_value.return_value = res
+        from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
+
+        hook = AkeylessHook()
+        hook.get_rotated_secret_value("/rotated/creds")
+        call_args = api.get_rotated_secret_value.call_args[0][0]
+        assert call_args.names == ["/rotated/creds"]

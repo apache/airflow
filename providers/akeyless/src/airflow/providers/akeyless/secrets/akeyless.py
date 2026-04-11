@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import time
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -29,6 +30,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
+
+_SUPPORTED_BACKEND_AUTH_TYPES = ("api_key", "uid")
+_DEFAULT_TOKEN_TTL = 600  # 10 minutes
 
 
 class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
@@ -51,6 +55,10 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
 
     Secrets are looked up by joining ``<base_path>/<key>``.
 
+    Only ``api_key`` and ``uid`` authentication types are supported in the
+    secrets backend.  For cloud-based authentication (``aws_iam``, ``gcp``,
+    ``azure_ad``) or other advanced methods, use ``AkeylessHook`` directly.
+
     :param connections_path: Akeyless path prefix for Connections (None to disable).
     :param variables_path: Akeyless path prefix for Variables (None to disable).
     :param config_path: Akeyless path prefix for Config (None to disable).
@@ -58,7 +66,8 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
     :param api_url: Akeyless API endpoint.
     :param access_id: Access ID.
     :param access_key: Access Key (for ``api_key`` auth).
-    :param access_type: Auth type (default ``api_key``).
+    :param access_type: Auth type (``api_key`` or ``uid``).
+    :param token_ttl: Seconds to cache the API token before refreshing (default 600).
     """
 
     def __init__(
@@ -71,9 +80,16 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
         access_id: str | None = None,
         access_key: str | None = None,
         access_type: str = "api_key",
+        token_ttl: int = _DEFAULT_TOKEN_TTL,
         **kwargs: Any,
     ) -> None:
         super().__init__()
+        if access_type not in _SUPPORTED_BACKEND_AUTH_TYPES:
+            raise ValueError(
+                f"Unsupported access_type {access_type!r} for AkeylessBackend. "
+                f"Must be one of: {', '.join(_SUPPORTED_BACKEND_AUTH_TYPES)}. "
+                "For other auth methods, use AkeylessHook directly."
+            )
         self.connections_path = connections_path.rstrip("/") if connections_path else None
         self.variables_path = variables_path.rstrip("/") if variables_path else None
         self.config_path = config_path.rstrip("/") if config_path else None
@@ -83,19 +99,29 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
         self._access_key = access_key
         self._access_type = access_type
         self._extra = kwargs
+        self._token_ttl = token_ttl
+        self._cached_token: str | None = None
+        self._token_expiry: float = 0.0
 
     @cached_property
     def _client(self) -> akeyless.V2Api:
         return akeyless.V2Api(akeyless.ApiClient(akeyless.Configuration(host=self._api_url)))
 
     def _authenticate(self) -> str:
-        """Return an API token via ``akeyless.Auth``."""
+        """Return an API token, reusing a cached value when still valid."""
+        now = time.monotonic()
+        if self._cached_token and now < self._token_expiry:
+            return self._cached_token
+
         if self._access_type == "uid":
-            return self._extra["uid_token"]
-        body = akeyless.Auth(access_id=self._access_id, access_key=self._access_key)
-        if self._access_type != "api_key":
-            body.access_type = self._access_type
-        return self._client.auth(body).token
+            token = self._extra["uid_token"]
+        else:
+            body = akeyless.Auth(access_id=self._access_id, access_key=self._access_key)
+            token = self._client.auth(body).token
+
+        self._cached_token = token
+        self._token_expiry = now + self._token_ttl
+        return token
 
     def _get_secret(self, base_path: str | None, key: str) -> str | None:
         if base_path is None:

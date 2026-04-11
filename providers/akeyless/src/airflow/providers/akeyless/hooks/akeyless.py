@@ -80,6 +80,11 @@ class AkeylessHook(BaseHook):
         """
         access_type = self._extra.get("access_type", "api_key")
 
+        if access_type not in VALID_AUTH_TYPES:
+            raise ValueError(
+                f"Unsupported access_type {access_type!r}. Must be one of: {', '.join(VALID_AUTH_TYPES)}"
+            )
+
         if access_type == "uid":
             return self._extra["uid_token"]
 
@@ -104,7 +109,14 @@ class AkeylessHook(BaseHook):
         return self.client.auth(body).token
 
     def _get_cloud_id(self, access_type: str) -> str:
-        from akeyless_cloud_id import CloudId
+        try:
+            from akeyless_cloud_id import CloudId
+        except ImportError:
+            raise ImportError(
+                "`akeyless_cloud_id` is required for aws_iam, gcp, and azure_ad "
+                "authentication. Install it with: "
+                "pip install apache-airflow-providers-akeyless[cloud_id]"
+            )
 
         cid = CloudId()
         if access_type == "aws_iam":
@@ -168,7 +180,7 @@ class AkeylessHook(BaseHook):
     def get_rotated_secret_value(self, name: str) -> dict[str, Any]:
         """Retrieve a rotated secret value."""
         token = self.authenticate()
-        res = self.client.get_rotated_secret_value(akeyless.GetRotatedSecretValue(names=name, token=token))
+        res = self.client.get_rotated_secret_value(akeyless.GetRotatedSecretValue(names=[name], token=token))
         return res.to_dict() if hasattr(res, "to_dict") else dict(res)
 
     # ------------------------------------------------------------------

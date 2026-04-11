@@ -21,6 +21,8 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 BACKEND_MODULE = "airflow.providers.akeyless.secrets.akeyless"
 
 
@@ -178,3 +180,17 @@ class TestAkeylessBackend:
         backend = _backend(variables_path="/vars", sep="-")
         val = backend.get_variable("key")
         assert val == "val"
+
+    def test_unsupported_access_type_raises(self):
+        with pytest.raises(ValueError, match="Unsupported access_type"):
+            _backend(access_type="aws_iam")
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_token_caching(self, mock_sdk):
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="cached-token")
+        api.get_secret_value.return_value = {"/airflow/variables/a": "v1"}
+        backend = _backend()
+        backend.get_variable("a")
+        backend.get_variable("a")
+        assert api.auth.call_count == 1
