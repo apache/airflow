@@ -115,4 +115,4 @@ def test_migration_stairway(stairway_db) -> None:
             # Step 3: re-apply so the next iteration starts from the right state.
             upgradedb(to_revision=revision_id)
         except Exception as e:
-            pytest.fail(f"Stairway test failed at revision {revision_id!r}: {e}")
+            raise AssertionError(f"Stairway test failed at revision {revision_id!r}") from e
