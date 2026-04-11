@@ -223,9 +223,8 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
                 raise AirflowException("AWS Batch job - job_id was not found")
 
             # Persist operator links before deferring so they're available in the UI
-            self._persist_links(context)
-
-            job = self.hook.get_job_description(self.job_id)
+            # Skip CloudWatch logs (not available yet) and reuse job description to reduce API calls
+            job = self._persist_links(context, skip_cloudwatch=True)
             job_status = job.get("status")
             if job_status == self.hook.SUCCESS_STATE:
                 self.log.info("Job completed.")
@@ -260,12 +259,14 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
 
         self.job_id = validated_event["job_id"]
 
-        # Persist operator links for UI
-        self._persist_links(context)
-
-        # Fetch logs if awslogs_enabled
+        # Fetch logs and persist links if awslogs_enabled, otherwise just persist links
         if self.awslogs_enabled:
-            self.monitor_job(context)  # fetch logs, no need to return
+            # monitor_job() handles link persistence, log fetching, and success check
+            self.monitor_job(context)
+        else:
+            # Persist operator links and check job success
+            self._persist_links(context)
+            self.hook.check_job_success(self.job_id)
 
         self.log.info("Job completed successfully for job_id: %s", self.job_id)
         return self.job_id
@@ -336,19 +337,38 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
             job_id=self.job_id,
         )
 
-    def _persist_links(self, context: Context):
+    def _persist_links(
+        self, context: Context, skip_cloudwatch: bool = False, job_description: dict | None = None
+    ) -> dict:
         """
         Persist operator links for UI display.
 
         This method retrieves job details and persists the operator links
         (job definition, job queue, CloudWatch logs) as XCom values so they
         can be rendered in the Airflow UI.
+
+        :param context: Task context
+        :param skip_cloudwatch: If True, skip fetching CloudWatch logs (useful before deferring)
+        :param job_description: Optional pre-fetched job description to avoid redundant API calls
+        :return: Job description dict
         """
         if not self.job_id:
             raise AirflowException("AWS Batch job - job_id was not found")
 
+        # Fetch job description (needed for return value and link persistence)
         try:
-            job_desc = self.hook.get_job_description(self.job_id)
+            job_desc = job_description or self.hook.get_job_description(self.job_id)
+        except KeyError:
+            self.log.warning("AWS Batch job (%s) description not available", self.job_id)
+            return {}
+
+        # Check if we can persist links (requires task_instance in context)
+        task_instance = context.get("task_instance") if context else None
+        if not task_instance:
+            self.log.debug("Skipping link persistence: task_instance not available in context")
+            return job_desc
+
+        try:
             job_definition_arn = job_desc["jobDefinition"]
             job_queue_arn = job_desc["jobQueue"]
             self.log.info(
@@ -376,32 +396,31 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
             )
 
         # Persist CloudWatch logs link if available
-        awslogs = []
-        try:
-            awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
-        except AirflowException as ae:
-            # CloudWatch logs may not be available immediately after job submission
-            self.log.info("CloudWatch logs not yet available for Batch job: %s", ae)
+        if not skip_cloudwatch:
+            awslogs = []
+            try:
+                awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
+            except AirflowException as ae:
+                self.log.warning(
+                    "Unable to retrieve CloudWatch log information for AWS Batch job (%s): %s",
+                    self.job_id,
+                    ae,
+                )
 
-        if awslogs:
-            self.log.info("AWS Batch job (%s) CloudWatch Events details found.", self.job_id)
-            if len(awslogs) > 1:
-                self.log.warning("Multiple log streams found. Linking to the first one in the UI.")
+            if awslogs:
+                self.log.info("AWS Batch job (%s) CloudWatch Events details found.", self.job_id)
+                if len(awslogs) > 1:
+                    self.log.warning("Multiple log streams found. Linking to the first one in the UI.")
 
-            CloudWatchEventsLink.persist(
-                context=context,
-                operator=self,
-                region_name=self.hook.conn_region_name,
-                aws_partition=self.hook.conn_partition,
-                **awslogs[0],
-            )
-        else:
-            # Persist placeholder to prevent "XCom not found" warnings
-            # CloudWatch logs will be updated when job completes
-            context["task_instance"].xcom_push(
-                key="cloudwatch_events",
-                value=None,
-            )
+                CloudWatchEventsLink.persist(
+                    context=context,
+                    operator=self,
+                    region_name=self.hook.conn_region_name,
+                    aws_partition=self.hook.conn_partition,
+                    **awslogs[0],
+                )
+
+        return job_desc
 
     def monitor_job(self, context: Context):
         """
@@ -413,8 +432,8 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         if not self.job_id:
             raise AirflowException("AWS Batch job - job_id was not found")
 
-        # Persist operator links
-        self._persist_links(context)
+        # Persist job definition and queue links (skip CloudWatch - not available yet)
+        self._persist_links(context, skip_cloudwatch=True)
 
         if self.awslogs_enabled:
             if self.waiters:
@@ -427,7 +446,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
             else:
                 self.hook.wait_for_job(self.job_id)
 
-        # Log all CloudWatch log stream links for user reference
+        # After job completes, fetch and persist CloudWatch logs once
         try:
             awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
             if awslogs:
@@ -437,6 +456,15 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
                 link_builder = CloudWatchEventsLink()
                 for log in awslogs:
                     self.log.info(link_builder.format_link(**log))
+
+                # Persist the first log stream as the UI link
+                CloudWatchEventsLink.persist(
+                    context=context,
+                    operator=self,
+                    region_name=self.hook.conn_region_name,
+                    aws_partition=self.hook.conn_partition,
+                    **awslogs[0],
+                )
         except AirflowException as ae:
             self.log.warning("Cannot determine where to find the AWS logs for this Batch job: %s", ae)
 
