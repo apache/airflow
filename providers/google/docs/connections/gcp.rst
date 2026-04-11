@@ -128,14 +128,9 @@ Quota Project ID (optional)
     and Google Cloud's default behavior applies. Must be a valid GCP project ID (lowercase
     letters, digits, hyphens, 6-30 characters, starting with a letter).
 
-    .. note::
+    .. note:: If using anonymous credentials, quota project logic is ignored.
 
-        If using anonymous credentials, quota project logic is ignored.
-
-    .. warning::
-
-        Ensure the service account has permission to use the specified quota project.
-        Invalid or unauthorized quota project IDs will result in an error.
+    .. warning:: Ensure the service account has permission to use the specified quota project; an invalid or unauthorized project ID will result in an API error.
 
 Number of Retries
     Integer, number of times to retry with randomized
@@ -360,7 +355,7 @@ example:
 .. code-block:: bash
 
   export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='{
-    "conn_type": "google-cloud-platform",
+    "conn_type": "google_cloud_platform",
     "extra": {
       "quota_project_id": "your-billing-project-id"
     }

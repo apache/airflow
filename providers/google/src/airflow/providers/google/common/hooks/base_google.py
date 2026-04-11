@@ -124,6 +124,9 @@ def is_refresh_credentials_exception(exception: Exception) -> bool:
     return False
 
 
+_GCP_PROJECT_ID_PATTERN = re.compile(r"^[a-z][a-z0-9\-]{4,28}[a-z0-9]$")
+
+
 def is_valid_gcp_project_id(project_id: str) -> bool:
     """
     Validate a Google Cloud Project ID format.
@@ -138,8 +141,7 @@ def is_valid_gcp_project_id(project_id: str) -> bool:
     :param project_id: The project ID string to validate.
     :return: True if the project ID is valid, False otherwise.
     """
-    pattern = re.compile(r"^[a-z][a-z0-9\-]{4,28}[a-z0-9]$")
-    return bool(pattern.match(project_id))
+    return bool(_GCP_PROJECT_ID_PATTERN.match(project_id))
 
 
 class retry_if_temporary_quota(tenacity.retry_if_exception):
