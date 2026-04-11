@@ -2998,6 +2998,32 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "topologySpreadConstraints": [
+                        {
+                            "maxSkew": 1,
+                            "topologyKey": "not-me",
+                            "whenUnsatisfiable": "ScheduleAnyway",
+                            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                        }
+                    ],
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "topologySpreadConstraints": [
+                                {
+                                    "maxSkew": 1,
+                                    "topologyKey": "foo",
+                                    "whenUnsatisfiable": "ScheduleAnyway",
+                                    "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                                }
+                            ],
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_topology_spread_constraints(self, workers_values):

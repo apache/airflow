@@ -1108,6 +1108,10 @@ workers:
   # (deprecated, use `workers.celery.tolerations` and/or `workers.kubernetes.tolerations` instead)
   tolerations: []
 
+  # (deprecated, use
+  #   `workers.celery.topologySpreadConstraints` and/or
+  #   `workers.kubernetes.topologySpreadConstraints`
+  # instead)
   topologySpreadConstraints: []
 
   # hostAliases to use in Airflow Celery worker pods and pods created with pod-template-file
@@ -1496,6 +1500,8 @@ workers:
 
     tolerations: []
 
+    topologySpreadConstraints: []
+
     # hostAliases to use in Airflow Celery worker pods
     # See:
     # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
@@ -1665,6 +1671,8 @@ workers:
     affinity: {}
 
     tolerations: []
+
+    topologySpreadConstraints: []
 
     # hostAliases to use in pods created with pod-template-file
     # See:

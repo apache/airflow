@@ -749,6 +749,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (empty .Values.workers.topologySpreadConstraints) }}
+
+ DEPRECATION WARNING:
+    `workers.topologySpreadConstraints` has been renamed to `workers.celery.topologySpreadConstraints`/`workers.kubernetes.topologySpreadConstraints`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (empty .Values.workers.nodeSelector) }}
 
  DEPRECATION WARNING:
