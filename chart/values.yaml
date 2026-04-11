@@ -1127,6 +1127,7 @@ workers:
   #   - "test.hostname.two"
 
   # Annotations for the Airflow Celery worker resource
+  # (deprecated, use `workers.celery.annotations` instead)
   annotations: {}
 
   # Pod annotations for the Airflow Celery workers and pods created with pod-template-file (templated)
@@ -1512,6 +1513,9 @@ workers:
     # - ip: "127.0.0.3"
     #   hostnames:
     #   - "test.hostname.two"
+
+    # Annotations for the Airflow Celery worker resource
+    annotations: {}
 
     # Configuration of wait-for-airflow-migration init container for Airflow Celery workers
     waitForMigrations:

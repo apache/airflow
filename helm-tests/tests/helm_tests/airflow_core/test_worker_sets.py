@@ -3093,6 +3093,13 @@ class TestWorkerSets:
                     "sets": [{"name": "set1", "annotations": {"test": "echo"}}],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "annotations": {"echo": "test"},
+                    "sets": [{"name": "set1", "annotations": {"test": "echo"}}],
+                },
+            },
         ],
     )
     def test_overwrite_annotations(self, workers_values):

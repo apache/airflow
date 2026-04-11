@@ -2403,7 +2403,7 @@
                     ]
                 },
                 "annotations": {
-                    "description": "Annotations to add to the Airflow Celery worker deployment.",
+                    "description": "Annotations to add to the Airflow Celery worker deployment (deprecated, use ``workers.celery.annotations`` instead).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -3481,6 +3481,14 @@
                                     ]
                                 }
                             ]
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to the Airflow Celery worker deployment.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         },
                         "waitForMigrations": {
                             "description": "Configuration of wait-for-airflow-migration init container for Airflow Celery workers.",
