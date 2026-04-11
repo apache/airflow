@@ -19,8 +19,13 @@ from __future__ import annotations
 import asyncio
 import warnings
 from collections.abc import AsyncIterator
+from contextlib import suppress
+from dataclasses import dataclass
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
+
+from kubernetes.client.rest import ApiException as SyncApiException
+from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
@@ -30,6 +35,32 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from kubernetes.client import V1Job
+
+
+WaitOutcome = Literal["ready", "job_done", "pod_missing"]
+XComExtractOutcome = Literal["success", "missing", "error", "timeout"]
+K8S_API_EXCEPTIONS = (SyncApiException, AsyncApiException)
+MIN_POST_JOB_XCOM_TIMEOUT = 0.1
+
+
+@dataclass(frozen=True, slots=True)
+class PodXComAttempt:
+    """Outcome of a single best-effort XCom extraction attempt for one pod."""
+
+    pod_name: str
+    outcome: XComExtractOutcome
+    result: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PostJobXComSummary:
+    """Aggregated counters for post-job best-effort XCom extraction attempts."""
+
+    total: int
+    succeeded: int
+    skipped_missing: int
+    timed_out: int
+    failed_other: int
 
 
 class KubernetesJobTrigger(BaseTrigger):
@@ -83,6 +114,8 @@ class KubernetesJobTrigger(BaseTrigger):
         self.pod_namespace = pod_namespace
         self.base_container_name = base_container_name
         self.kubernetes_conn_id = kubernetes_conn_id
+        if poll_interval <= 0:
+            raise ValueError("Invalid value for poll_interval. Expected value greater than 0")
         self.poll_interval = poll_interval
         self.cluster_context = cluster_context
         self.config_file = config_file
@@ -121,24 +154,28 @@ class KubernetesJobTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current job status and yield a TriggerEvent."""
-        if self.do_xcom_push:
-            xcom_results = []
-            for pod_name in self.pod_names:
-                pod = await self.hook.get_pod(name=pod_name, namespace=self.pod_namespace)
-                await self.hook.wait_until_container_complete(
-                    name=pod_name, namespace=self.pod_namespace, container_name=self.base_container_name
+        xcom_results: list[str] | None = None
+
+        job_task = asyncio.create_task(
+            self.hook.wait_until_job_complete(
+                name=self.job_name,
+                namespace=self.job_namespace,
+                poll_interval=self.poll_interval,
+            )
+        )
+        try:
+            if self.do_xcom_push:
+                xcom_results = await self._collect_xcom_results(
+                    job_task=job_task,
                 )
-                self.log.info("Checking if xcom sidecar container is started.")
-                await self.hook.wait_until_container_started(
-                    name=pod_name,
-                    namespace=self.pod_namespace,
-                    container_name=PodDefaults.SIDECAR_CONTAINER_NAME,
-                )
-                self.log.info("Extracting result from xcom sidecar container.")
-                loop = asyncio.get_running_loop()
-                xcom_result = await loop.run_in_executor(None, self.pod_manager.extract_xcom, pod)
-                xcom_results.append(xcom_result)
-        job: V1Job = await self.hook.wait_until_job_complete(name=self.job_name, namespace=self.job_namespace)
+
+            job: V1Job = await job_task
+        finally:
+            if not job_task.done():
+                job_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await job_task
+
         job_dict = job.to_dict()
         error_message = self.hook.is_job_failed(job=job)
         yield TriggerEvent(
@@ -155,6 +192,207 @@ class KubernetesJobTrigger(BaseTrigger):
                 "xcom_result": xcom_results if self.do_xcom_push else None,
             }
         )
+
+    async def _wait_until_container_state_or_job_done(
+        self,
+        pod_name: str,
+        container_name: str,
+        wait_method: Any,
+        job_task: asyncio.Task[V1Job],
+        state_label: str,
+    ) -> WaitOutcome:
+        wait_task = asyncio.create_task(
+            wait_method(
+                name=pod_name,
+                namespace=self.pod_namespace,
+                container_name=container_name,
+                poll_interval=self.poll_interval,
+            )
+        )
+
+        try:
+            while not wait_task.done() and not job_task.done():
+                # This timeout controls how frequently we re-check "job done vs container state" and does
+                # not enforce container-level readiness timeout.
+                await asyncio.wait(
+                    {wait_task, job_task},
+                    timeout=self.poll_interval,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+
+            if wait_task.done():
+                try:
+                    await wait_task
+                    return "ready"
+                except K8S_API_EXCEPTIONS as err:
+                    if self._is_not_found_error(err):
+                        self.log.info(
+                            "Pod '%s' no longer exists while waiting for container '%s' state '%s'; skipping.",
+                            pod_name,
+                            container_name,
+                            state_label,
+                        )
+                        return "pod_missing"
+                    raise
+
+            self.log.info(
+                "Job '%s' finished before pod '%s' container '%s' reached state '%s'; stopping XCom wait.",
+                self.job_name,
+                pod_name,
+                container_name,
+                state_label,
+            )
+            return "job_done"
+        finally:
+            if not wait_task.done():
+                wait_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await wait_task
+
+    async def _collect_xcom_results(
+        self,
+        job_task: asyncio.Task[V1Job],
+    ) -> list[str]:
+        pre_job_results, post_job_pod_names = await self._collect_xcom_until_job_done(job_task=job_task)
+        if not post_job_pod_names:
+            return pre_job_results
+
+        attempts = await self._collect_xcom_after_job_done_best_effort(
+            pod_names=post_job_pod_names,
+        )
+        summary = self._summarize_post_job_attempts(attempts)
+        self.log.info(
+            "Best-effort XCom collection summary after job completion: "
+            "total=%d, succeeded=%d, skipped_missing=%d, timed_out=%d, failed_other=%d",
+            summary.total,
+            summary.succeeded,
+            summary.skipped_missing,
+            summary.timed_out,
+            summary.failed_other,
+        )
+        # Only successful extraction attempts carry a concrete XCom payload.
+        pre_job_results.extend(attempt.result for attempt in attempts if attempt.result is not None)
+        return pre_job_results
+
+    async def _collect_xcom_until_job_done(
+        self,
+        job_task: asyncio.Task[V1Job],
+    ) -> tuple[list[str], list[str]]:
+        xcom_results: list[str] = []
+        post_job_pod_names: list[str] = []
+
+        for pod_index, pod_name in enumerate(self.pod_names):
+            try:
+                pod = await self.hook.get_pod(name=pod_name, namespace=self.pod_namespace)
+            except K8S_API_EXCEPTIONS as err:
+                if self._is_not_found_error(err):
+                    self.log.info("Pod '%s' no longer exists; skipping XCom extraction.", pod_name)
+                    continue
+                raise
+
+            completion_outcome = await self._wait_until_container_state_or_job_done(
+                pod_name=pod_name,
+                container_name=self.base_container_name,
+                wait_method=self.hook.wait_until_container_complete,
+                job_task=job_task,
+                state_label="completed",
+            )
+            if completion_outcome == "job_done":
+                post_job_pod_names = self.pod_names[pod_index:]
+                break
+            if completion_outcome == "pod_missing":
+                continue
+
+            self.log.info("Checking if xcom sidecar container is started.")
+            sidecar_outcome = await self._wait_until_container_state_or_job_done(
+                pod_name=pod_name,
+                container_name=PodDefaults.SIDECAR_CONTAINER_NAME,
+                wait_method=self.hook.wait_until_container_started,
+                job_task=job_task,
+                state_label="running",
+            )
+            if sidecar_outcome == "job_done":
+                post_job_pod_names = self.pod_names[pod_index:]
+                break
+            if sidecar_outcome == "pod_missing":
+                continue
+
+            self.log.info("Extracting result from xcom sidecar container.")
+            loop = asyncio.get_running_loop()
+            xcom_results.append(await loop.run_in_executor(None, self.pod_manager.extract_xcom, pod))
+
+        return xcom_results, post_job_pod_names
+
+    async def _collect_xcom_after_job_done_best_effort(
+        self,
+        pod_names: list[str],
+    ) -> list[PodXComAttempt]:
+        if not pod_names:
+            return []
+
+        # Post-job extraction is best-effort: bound each pod attempt so stale pods cannot block trigger
+        # completion. Keep a small floor so tiny poll intervals do not cause immediate timeout.
+        per_pod_timeout = max(self.poll_interval, MIN_POST_JOB_XCOM_TIMEOUT)
+        max_concurrency = min(5, len(pod_names))
+        semaphore = asyncio.Semaphore(max_concurrency)
+
+        self.log.info(
+            "Job is done; collecting XCom best-effort for %d pod(s) with per-pod timeout %.2f seconds and max concurrency %d.",
+            len(pod_names),
+            per_pod_timeout,
+            max_concurrency,
+        )
+
+        async def extract_one_pod(pod_name: str) -> PodXComAttempt:
+            async with semaphore:
+                try:
+                    return await asyncio.wait_for(
+                        self._extract_xcom_for_pod_best_effort(pod_name=pod_name),
+                        timeout=per_pod_timeout,
+                    )
+                except asyncio.TimeoutError:
+                    self.log.warning(
+                        "Timed out extracting XCom from pod '%s' after job completion; skipping.",
+                        pod_name,
+                    )
+                    return PodXComAttempt(pod_name=pod_name, outcome="timeout")
+
+        return await asyncio.gather(*(extract_one_pod(pod_name) for pod_name in pod_names))
+
+    async def _extract_xcom_for_pod_best_effort(self, pod_name: str) -> PodXComAttempt:
+        try:
+            pod = await self.hook.get_pod(name=pod_name, namespace=self.pod_namespace)
+        except K8S_API_EXCEPTIONS as err:
+            if self._is_not_found_error(err):
+                self.log.info("Pod '%s' no longer exists; skipping XCom extraction.", pod_name)
+                return PodXComAttempt(pod_name=pod_name, outcome="missing")
+            raise
+
+        self.log.info("Extracting result from xcom sidecar container (best-effort).")
+        loop = asyncio.get_running_loop()
+        try:
+            result = await loop.run_in_executor(None, self.pod_manager.extract_xcom, pod)
+            return PodXComAttempt(pod_name=pod_name, outcome="success", result=result)
+        except Exception as err:
+            if self._is_not_found_error(err):
+                self.log.info("Pod '%s' no longer exists during XCom extraction; skipping.", pod_name)
+                return PodXComAttempt(pod_name=pod_name, outcome="missing")
+            self.log.warning("Unable to extract XCom from pod '%s': %r. Skipping.", pod_name, err)
+            return PodXComAttempt(pod_name=pod_name, outcome="error")
+
+    @staticmethod
+    def _summarize_post_job_attempts(attempts: list[PodXComAttempt]) -> PostJobXComSummary:
+        return PostJobXComSummary(
+            total=len(attempts),
+            succeeded=sum(1 for attempt in attempts if attempt.outcome == "success"),
+            skipped_missing=sum(1 for attempt in attempts if attempt.outcome == "missing"),
+            timed_out=sum(1 for attempt in attempts if attempt.outcome == "timeout"),
+            failed_other=sum(1 for attempt in attempts if attempt.outcome == "error"),
+        )
+
+    @staticmethod
+    def _is_not_found_error(err: Exception) -> bool:
+        return getattr(err, "status", None) == 404
 
     @cached_property
     def hook(self) -> AsyncKubernetesHook:

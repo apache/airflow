@@ -57,6 +57,22 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 ON_KILL_PROPAGATION_POLICY = "Foreground"
 
 
+def _build_execute_complete_event(
+    *,
+    job,
+    get_logs: bool,
+    xcom_result: list[str] | None,
+    pod_names: list[str] | None = None,
+) -> dict:
+    return {
+        "job": job,
+        "status": "success",
+        "pod_names": pod_names if get_logs else None,
+        "pod_namespace": POD_NAMESPACE if get_logs else None,
+        "xcom_result": xcom_result,
+    }
+
+
 def create_context(task, persist_to_db=False, map_index=None):
     if task.has_dag():
         dag = task.dag
@@ -816,21 +832,12 @@ class TestKubernetesJobOperator:
         mock_ti = mock.MagicMock()
         context = {"ti": mock_ti}
         mock_job = mock.MagicMock()
-        event = {
-            "job": mock_job,
-            "status": "success",
-            "pod_names": [
-                POD_NAME,
-            ]
-            if get_logs
-            else None,
-            "pod_namespace": POD_NAMESPACE if get_logs else None,
-            "xcom_result": [
-                TEST_XCOM_RESULT,
-            ]
-            if do_xcom_push
-            else None,
-        }
+        event = _build_execute_complete_event(
+            job=mock_job,
+            get_logs=get_logs,
+            pod_names=[POD_NAME],
+            xcom_result=[TEST_XCOM_RESULT] if do_xcom_push else None,
+        )
 
         KubernetesJobOperator(
             task_id="test_task_id", get_logs=get_logs, do_xcom_push=do_xcom_push
@@ -842,6 +849,35 @@ class TestKubernetesJobOperator:
             mocked_write_logs.assert_called_once()
         else:
             mocked_write_logs.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("unwrap_single", "expected_result"),
+        [
+            (False, [{"result": "test-xcom-result"}]),
+            (True, {"result": "test-xcom-result"}),
+        ],
+    )
+    def test_execute_complete_supports_partial_xcom_results(self, unwrap_single, expected_result):
+        """Regression test for #64867."""
+        mock_ti = mock.MagicMock()
+        context = {"ti": mock_ti}
+        mock_job = mock.MagicMock()
+        event = _build_execute_complete_event(
+            job=mock_job,
+            get_logs=False,
+            # In #64867 trigger can return fewer XCom payloads than pods from initial snapshot.
+            xcom_result=[TEST_XCOM_RESULT],
+        )
+
+        result = KubernetesJobOperator(
+            task_id="test_task_id",
+            get_logs=False,
+            do_xcom_push=True,
+            unwrap_single=unwrap_single,
+        ).execute_complete(context=context, event=event)
+
+        mock_ti.xcom_push.assert_called_once_with(key="job", value=mock_job)
+        assert result == expected_result
 
     @pytest.mark.non_db_test_override
     def test_execute_complete_fail(self):
