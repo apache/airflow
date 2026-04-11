@@ -5244,8 +5244,11 @@
                                 }
                             },
                             "team_name": {
-                                "description": "Team name for the dag bundle.",
-                                "type": "string"
+                                "description": "Team name for the Dag bundle.",
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
                             }
                         }
                     }
