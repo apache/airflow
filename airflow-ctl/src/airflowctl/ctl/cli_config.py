@@ -34,6 +34,7 @@ from typing import Any, NamedTuple
 
 import httpx
 import rich
+import yaml
 
 import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
@@ -190,6 +191,14 @@ def string_lower_type(val):
     if not val:
         return
     return val.strip().lower()
+
+
+def _load_help_texts_yaml() -> dict[str, dict[str, str]]:
+    """Load the help texts yaml for the auto-generated commands."""
+    help_texts_path = Path(__file__).parent / "help_texts.yaml"
+    with open(help_texts_path) as yaml_file:
+        help_texts = yaml.safe_load(yaml_file)
+    return help_texts
 
 
 # Common Positional Arguments
@@ -368,6 +377,7 @@ class CommandFactory:
     output_command_list: list[str]
     exclude_operation_names: list[str]
     exclude_method_names: list[str]
+    help_texts: dict[str, dict[str, str]]
 
     def __init__(self, file_path: str | Path | None = None):
         self.datamodels_extended_map = {}
@@ -376,6 +386,7 @@ class CommandFactory:
         self.args_map = {}
         self.commands_map = {}
         self.group_commands_list = []
+        self.help_texts = _load_help_texts_yaml()
         self.file_path = inspect.getfile(BaseOperations) if file_path is None else file_path
         # Excluded Lists are in Class Level for further usage and avoid searching them
         # Exclude parameters that are not needed for CLI from datamodels
@@ -718,12 +729,15 @@ class CommandFactory:
         for operation in self.operations:
             operation_name = operation["name"]
             operation_group_name = operation["parent"].name
+            help_text = self.help_texts.get(operation_group_name.replace("Operations", "").lower(), {}).get(
+                operation_name.replace("_", "-")
+            )
             if operation_group_name not in self.commands_map:
                 self.commands_map[operation_group_name] = []
             self.commands_map[operation_group_name].append(
                 ActionCommand(
                     name=operation["name"].replace("_", "-"),
-                    help=f"Perform {operation_name} operation",
+                    help=help_text,
                     func=self.func_map[(operation_name, operation_group_name)],
                     args=self.args_map[(operation_name, operation_group_name)],
                 )

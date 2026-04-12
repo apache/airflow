@@ -554,3 +554,22 @@ class TestCliConfigMethods:
 
         # Should return params unchanged for other datamodels
         assert result == params, "Params should be unchanged for non-TriggerDAGRunPostBody datamodels"
+
+    @pytest.mark.parametrize(
+        ("group_name", "subcommand_name", "expected_help"),
+        [
+            ("assets", "get", "Retrieve an asset by its ID"),
+            ("connections", "get", "Retrieve a connection by its ID"),
+        ],
+    )
+    def test_help_texts_used_for_auto_generated_commands(self, group_name, subcommand_name, expected_help):
+        """Test that help texts from YAML are used for auto-generated commands."""
+        command_factory = CommandFactory()
+        for group_command in command_factory.group_commands:
+            if group_command.name == group_name:
+                for subcommand in group_command.subcommands:
+                    if subcommand.name == subcommand_name:
+                        assert subcommand.help == expected_help, (
+                            "Help message should match the help_text.yaml"
+                        )
+                        return
