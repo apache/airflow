@@ -120,7 +120,7 @@ spec:
         {{- end }}
         {{- include "standard_airflow_environment" . | indent 6}}
         {{- include "custom_airflow_environment" . | indent 6 }}
-        {{- include "container_extra_envs" (list . .Values.workers.env) | indent 6 }}
+        {{- include "container_extra_envs" (list . (.Values.workers.kubernetes.env | default .Values.workers.env)) | indent 6 }}
       image: {{ template "pod_template_image" . }}
       imagePullPolicy: {{ .Values.images.pod_template.pullPolicy }}
       securityContext: {{ $containerSecurityContext | nindent 8 }}

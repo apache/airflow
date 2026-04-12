@@ -2719,7 +2719,7 @@
                     }
                 },
                 "env": {
-                    "description": "Add additional env vars to the Airflow Celery workers and pods created with pod-template-file.",
+                    "description": "Add additional env vars to the Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.env`` and/or ``workers.kubernetes.env`` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -3877,6 +3877,63 @@
                                 }
                             }
                         },
+                        "env": {
+                            "description": "Add additional env vars to the Airflow Celery workers.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    },
+                                    "valueFrom": {
+                                        "type": "object",
+                                        "properties": {
+                                            "configMapKeyRef": {
+                                                "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                                "description": "Selects a key of a ConfigMap."
+                                            },
+                                            "secretKeyRef": {
+                                                "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                                "description": "Selects a key of a secret in the pod's namespace"
+                                            }
+                                        },
+                                        "anyOf": [
+                                            {
+                                                "required": [
+                                                    "configMapKeyRef"
+                                                ]
+                                            },
+                                            {
+                                                "required": [
+                                                    "secretKeyRef"
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ],
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "value"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "valueFrom"
+                                        ]
+                                    }
+                                ],
+                                "additionalProperties": false
+                            }
+                        },
                         "volumeClaimTemplates": {
                             "description": "Specify additional volume claim template for Airflow Celery workers.",
                             "type": "array",
@@ -4363,6 +4420,63 @@
                             "default": {},
                             "additionalProperties": {
                                 "type": "string"
+                            }
+                        },
+                        "env": {
+                            "description": "Add additional env vars to the pods created with pod-template-file.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    },
+                                    "valueFrom": {
+                                        "type": "object",
+                                        "properties": {
+                                            "configMapKeyRef": {
+                                                "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                                "description": "Selects a key of a ConfigMap."
+                                            },
+                                            "secretKeyRef": {
+                                                "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                                "description": "Selects a key of a secret in the pod's namespace"
+                                            }
+                                        },
+                                        "anyOf": [
+                                            {
+                                                "required": [
+                                                    "configMapKeyRef"
+                                                ]
+                                            },
+                                            {
+                                                "required": [
+                                                    "secretKeyRef"
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ],
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "value"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "valueFrom"
+                                        ]
+                                    }
+                                ],
+                                "additionalProperties": false
                             }
                         },
                         "schedulerName": {
