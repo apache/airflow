@@ -287,10 +287,10 @@ class GitDagBundle(BaseDagBundle):
 
     def _fetch_bare_repo(self):
         refspecs = ["+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*"]
-        cm = nullcontext()
+        ssh_env_cm = nullcontext()
         if self.hook and (cmd := self.hook.env.get("GIT_SSH_COMMAND")):
-            cm = self.bare_repo.git.custom_environment(GIT_SSH_COMMAND=cmd)
-        with cm:
+            ssh_env_cm = self.bare_repo.git.custom_environment(GIT_SSH_COMMAND=cmd)
+        with ssh_env_cm:
             self.bare_repo.remotes.origin.fetch(refspecs)
             self.bare_repo.close()
 
@@ -300,10 +300,10 @@ class GitDagBundle(BaseDagBundle):
         reraise=True,
     )
     def _fetch_submodules(self) -> None:
-        cm = nullcontext()
+        ssh_env_cm = nullcontext()
         if self.hook and (cmd := self.hook.env.get("GIT_SSH_COMMAND")):
-            cm = self.repo.git.custom_environment(GIT_SSH_COMMAND=cmd)
-        with cm:
+            ssh_env_cm = self.repo.git.custom_environment(GIT_SSH_COMMAND=cmd)
+        with ssh_env_cm:
             self._log.info("Initializing and updating submodules", repo_path=self.repo_path)
             self.repo.git.submodule("sync", "--recursive")
             self.repo.git.submodule("update", "--init", "--recursive", "--jobs", "1")
