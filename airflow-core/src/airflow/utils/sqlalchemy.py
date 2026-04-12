@@ -78,7 +78,7 @@ class JsonContains(ColumnElement):
 
 @compiles(JsonContains, "postgresql")
 def _pg_json_contains(element, compiler, **kw):
-    from sqlalchemy import bindparam, cast, literal
+    from sqlalchemy import cast, literal
 
     col = cast(element.column, JSONB)
     param = literal(json.dumps(element.kv_dict)).cast(JSONB)
@@ -88,9 +88,8 @@ def _pg_json_contains(element, compiler, **kw):
 
 @compiles(JsonContains, "mysql")
 def _mysql_json_contains(element, compiler, **kw):
-    from sqlalchemy import bindparam, func, literal
+    from sqlalchemy import bindparam, func
 
-    col = compiler.process(element.column, **kw)
     param = bindparam(None, json.dumps(element.kv_dict), expanding=False)
     expr = func.JSON_CONTAINS(element.column, param)
     return compiler.process(expr == 1, **kw)
@@ -98,7 +97,7 @@ def _mysql_json_contains(element, compiler, **kw):
 
 @compiles(JsonContains)
 def _default_json_contains(element, compiler, **kw):
-    from sqlalchemy import and_, bindparam, func, literal
+    from sqlalchemy import and_, func, literal
 
     clauses = []
     for k, v in element.kv_dict.items():

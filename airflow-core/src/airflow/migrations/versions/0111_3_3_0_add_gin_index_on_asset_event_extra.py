@@ -45,7 +45,7 @@ def upgrade():
         op.execute(
             text(
                 "CREATE INDEX IF NOT EXISTS idx_asset_event_extra_gin "
-                "ON asset_event USING GIN (extra jsonb_ops)"
+                "ON asset_event USING GIN ((extra::jsonb) jsonb_ops)"
             )
         )
 

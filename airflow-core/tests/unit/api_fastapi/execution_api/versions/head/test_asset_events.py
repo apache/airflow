@@ -584,7 +584,7 @@ class TestGetAssetEventByAssetExtraFilter:
     def test_filter_by_extra_key_value(self, client):
         response = client.get(
             "/execution/asset-events/by-asset",
-            params=[("name", "test_asset"), ("extra", "region=us")],
+            params=[("name", "test_asset"), ("uri", "s3://bucket/key"), ("extra", "region=us")],
         )
         assert response.status_code == 200
         data = response.json()
@@ -595,7 +595,7 @@ class TestGetAssetEventByAssetExtraFilter:
     def test_filter_by_extra_env(self, client):
         response = client.get(
             "/execution/asset-events/by-asset",
-            params=[("name", "test_asset"), ("extra", "env=prod")],
+            params=[("name", "test_asset"), ("uri", "s3://bucket/key"), ("extra", "env=prod")],
         )
         assert response.status_code == 200
         data = response.json()
@@ -605,7 +605,7 @@ class TestGetAssetEventByAssetExtraFilter:
     def test_no_extra_filter_returns_all(self, client):
         response = client.get(
             "/execution/asset-events/by-asset",
-            params={"name": "test_asset"},
+            params={"name": "test_asset", "uri": "s3://bucket/key"},
         )
         assert response.status_code == 200
         assert len(response.json()["asset_events"]) == 3
@@ -614,7 +614,7 @@ class TestGetAssetEventByAssetExtraFilter:
     def test_filter_nonexistent_key(self, client):
         response = client.get(
             "/execution/asset-events/by-asset",
-            params=[("name", "test_asset"), ("extra", "missing=val")],
+            params=[("name", "test_asset"), ("uri", "s3://bucket/key"), ("extra", "missing=val")],
         )
         assert response.status_code == 200
         assert len(response.json()["asset_events"]) == 0
@@ -632,7 +632,7 @@ class TestGetAssetEventByAssetExtraFilter:
     def test_filter_multiple_extra_keys(self, client, extra_params, expected_count):
         response = client.get(
             "/execution/asset-events/by-asset",
-            params=[("name", "test_asset"), *extra_params],
+            params=[("name", "test_asset"), ("uri", "s3://bucket/key"), *extra_params],
         )
         assert response.status_code == 200
         assert len(response.json()["asset_events"]) == expected_count
