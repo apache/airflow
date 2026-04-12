@@ -481,8 +481,10 @@ def update_dag_parsing_results_in_db(
                 SerializedDAG.bulk_write_to_db(
                     bundle_name, bundle_version, dags, parse_duration, session=session
                 )
-                # Bulk prefetch metadata for all DAGs to avoid per-DAG queries in write_dag.
-                # This replaces 3 SELECTs per DAG with 2 queries total.
+                # Bulk prefetch metadata for all DAGs to avoid the standard per-DAG
+                # metadata lookups in write_dag. This replaces the update-interval,
+                # hash, and version queries with 2 bulk queries total; DAGs with
+                # deadlines may still do an additional lookup for deadline UUID reuse.
                 prefetched_metadata = SerializedDagModel._prefetch_dag_write_metadata(
                     [dag.dag_id for dag in dags], session=session
                 )
