@@ -920,6 +920,66 @@ class TestGitDagBundle:
             # Verify Repo was called twice (failed attempt + failed retry)
             assert mock_repo_class.call_count == 2
 
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_fetch_submodules_uses_custom_environment_when_git_ssh_command_set(
+        self, mock_githook_class
+    ):
+        """GIT_SSH_COMMAND from hook.env is passed to custom_environment; submodule runs inside that context."""
+        expected_ssh_cmd = (
+            "ssh -i /path/key -o IdentitiesOnly=yes -o UserKnownHostsFile=/path/known_hosts"
+        )
+        mock_hook = mock_githook_class.return_value
+        mock_hook.repo_url = "git@github.com:apache/airflow.git"
+        mock_hook.env = {"GIT_SSH_COMMAND": expected_ssh_cmd}
+
+        mock_repo = mock.MagicMock()
+        ssh_ctx = mock.MagicMock()
+        mock_repo.git.custom_environment.return_value = ssh_ctx
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            version="123456",
+            submodules=True,
+        )
+        bundle.repo = mock_repo
+
+        bundle._fetch_submodules()
+
+        mock_repo.git.custom_environment.assert_called_once_with(GIT_SSH_COMMAND=expected_ssh_cmd)
+        ssh_ctx.__enter__.assert_called_once()
+        ssh_ctx.__exit__.assert_called_once()
+        mock_repo.git.submodule.assert_has_calls(
+            [mock.call("sync", "--recursive"), mock.call("update", "--init", "--recursive", "--jobs", "1")]
+        )
+        assert mock_repo.git.mock_calls[0] == mock.call.custom_environment(GIT_SSH_COMMAND=expected_ssh_cmd)
+        assert mock_repo.git.mock_calls[1] == mock.call.submodule("sync", "--recursive")
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_fetch_submodules_skips_custom_environment_without_git_ssh_command(self, mock_githook_class):
+        """When hook.env has no GIT_SSH_COMMAND, submodule update does not use custom_environment."""
+        mock_hook = mock_githook_class.return_value
+        mock_hook.repo_url = "git@github.com:apache/airflow.git"
+        mock_hook.env = {}
+
+        mock_repo = mock.MagicMock()
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            version="123456",
+            submodules=True,
+        )
+        bundle.repo = mock_repo
+
+        bundle._fetch_submodules()
+
+        mock_repo.git.custom_environment.assert_not_called()
+        mock_repo.git.submodule.assert_has_calls(
+            [mock.call("sync", "--recursive"), mock.call("update", "--init", "--recursive", "--jobs", "1")]
+        )
+
     @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
     @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
