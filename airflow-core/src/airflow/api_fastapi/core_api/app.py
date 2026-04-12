@@ -167,6 +167,7 @@ def init_error_handlers(app: FastAPI) -> None:
 def init_middlewares(app: FastAPI) -> None:
     from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
     from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
+    from airflow.api_fastapi.common.response_header_dedup import ResponseHeaderDedupMiddleware
 
     app.add_middleware(JWTRefreshMiddleware)
     if conf.getboolean("core", "simple_auth_manager_all_admins"):
@@ -178,6 +179,8 @@ def init_middlewares(app: FastAPI) -> None:
     # the full end-to-end duration including compression time.
     # See https://github.com/apache/airflow/issues/60165
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
+    # ResponseHeaderDedupMiddleware removes duplicate headers (e.g., Date headers from both uvicorn and Flask)
+    app.add_middleware(ResponseHeaderDedupMiddleware)
     # HttpAccessLogMiddleware must be outermost (added last) so it times the full
     # request lifecycle including all inner middleware.
     app.add_middleware(HttpAccessLogMiddleware)
