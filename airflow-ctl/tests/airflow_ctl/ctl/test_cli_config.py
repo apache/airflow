@@ -21,8 +21,10 @@ import argparse
 from argparse import BooleanOptionalAction
 from textwrap import dedent
 
+import httpx
 import pytest
 
+from airflowctl.api.operations import ServerResponseError
 from airflowctl.ctl.cli_config import (
     ARG_AUTH_TOKEN,
     ActionCommand,
@@ -31,6 +33,13 @@ from airflowctl.ctl.cli_config import (
     GroupCommand,
     add_auth_token_to_all_commands,
     merge_commands,
+    safe_call_command,
+)
+from airflowctl.exceptions import (
+    AirflowCtlConnectionException,
+    AirflowCtlCredentialNotFoundException,
+    AirflowCtlKeyringException,
+    AirflowCtlNotFoundException,
 )
 
 
@@ -319,6 +328,63 @@ class TestCommandFactory:
 
 
 class TestCliConfigMethods:
+    @pytest.mark.parametrize(
+        "raised_exception",
+        [
+            AirflowCtlCredentialNotFoundException("missing credentials"),
+            AirflowCtlConnectionException("connection failed"),
+            AirflowCtlKeyringException("keyring failure"),
+            AirflowCtlNotFoundException("resource not found"),
+        ],
+        ids=["credential-not-found", "connection-error", "keyring-error", "not-found"],
+    )
+    def test_safe_call_command_exits_non_zero_for_airflowctl_exceptions(self, raised_exception):
+        def raise_error(_args):
+            raise raised_exception
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+
+    @pytest.mark.parametrize(
+        "raised_exception",
+        [
+            httpx.RemoteProtocolError("remote protocol error"),
+            httpx.ReadError("read error"),
+        ],
+        ids=["remote-protocol-error", "read-error"],
+    )
+    def test_safe_call_command_exits_non_zero_for_httpx_protocol_errors(self, raised_exception):
+        def raise_error(_args):
+            raise raised_exception
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+
+    def test_safe_call_command_exits_non_zero_for_httpx_read_timeout(self):
+        def raise_error(_args):
+            raise httpx.ReadTimeout("timed out")
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+
+    def test_safe_call_command_exits_non_zero_for_server_response_error(self):
+        request = httpx.Request("GET", "http://localhost:8080/api/v2/dags")
+        response = httpx.Response(500, request=request, json={"detail": "boom"})
+
+        def raise_error(_args):
+            raise ServerResponseError("server error", request=request, response=response)
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+
     def test_add_to_parser_drops_type_for_boolean_optional_action(self):
         """Test add_to_parser removes type for BooleanOptionalAction."""
         parser = argparse.ArgumentParser()
