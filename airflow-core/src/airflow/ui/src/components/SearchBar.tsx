@@ -48,10 +48,8 @@ export const SearchBar = ({
   const { t: translate } = useTranslation(["dags"]);
 
   useEffect(() => {
-    if (defaultValue !== value) {
-      setValue(defaultValue);
-    }
-  }, [defaultValue, value]);
+    setValue(defaultValue);
+  }, [defaultValue]);
 
   const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     setValue(event.target.value);
