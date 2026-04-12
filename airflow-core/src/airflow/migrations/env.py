@@ -28,6 +28,11 @@ from airflow import models, settings
 from airflow.utils.db import compare_server_default, compare_type
 
 
+_POSTGRES_ONLY_INDEXES = frozenset({
+    "idx_asset_event_extra_gin",
+})
+
+
 def include_object(_, name, type_, *args):
     """Filter objects for autogenerating revisions."""
     # Ignore the sqlite_sequence table, which is an internal SQLite construct
@@ -35,6 +40,10 @@ def include_object(_, name, type_, *args):
         return False
     # Only create migrations for objects that are in the target metadata
     if type_ == "table" and name not in target_metadata.tables:
+        return False
+    # Indexes created by raw SQL in migrations (e.g. Postgres GIN) are not
+    # represented in the SQLAlchemy model; hide them from autogenerate.
+    if type_ == "index" and name in _POSTGRES_ONLY_INDEXES:
         return False
     return True
 
