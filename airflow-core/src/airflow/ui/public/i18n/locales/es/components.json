@@ -92,7 +92,10 @@
     "taskCount_many": "{{count}} Tareas",
     "taskCount_one": "{{count}} Tarea",
     "taskCount_other": "{{count}} Tareas",
-    "taskGroup": "Grupo de Tareas"
+    "taskGroup": "Grupo de Tareas",
+    "triggerDagRun": "Ejecutar DAG de disparador",
+    "triggerNodeAriaLabel": "Nodo de disparo",
+    "triggerNodeIcon": "Disparador"
   },
   "limitedList": "+{{count}} más",
   "limitedList.allItems": "Todos los {{count}} elementos:",

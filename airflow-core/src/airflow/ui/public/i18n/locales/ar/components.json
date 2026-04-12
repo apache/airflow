@@ -121,7 +121,10 @@
     "taskCount_other": "{{count}} مهمة",
     "taskCount_two": "مهمتان",
     "taskCount_zero": "لا يوجد أي مهمة",
-    "taskGroup": "مجموعة المهام"
+    "taskGroup": "مجموعة المهام",
+    "triggerDagRun": "تشغيل DAG",
+    "triggerNodeAriaLabel": "عقدة التشغيل",
+    "triggerNodeIcon": "التشغيل"
   },
   "limitedList": "+{{count}} المزيد",
   "limitedList.allItems": "جميع العناصر {{count}}:",

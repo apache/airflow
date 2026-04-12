@@ -92,7 +92,9 @@
     "taskCount_one": "{{count}} Task",
     "taskCount_other": "{{count}} Tasks",
     "taskGroup": "Task Group",
-    "triggerDagRun": "TriggerDagRunOperator"
+    "triggerDagRun": "Trigger DAG Run",
+    "triggerNodeAriaLabel": "Trigger node",
+    "triggerNodeIcon": "Trigger"
   },
   "limitedList": "+{{count}} more",
   "limitedList.allItems": "All {{count}} items:",

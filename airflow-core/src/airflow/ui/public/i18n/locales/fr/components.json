@@ -92,7 +92,10 @@
     "taskCount_many": "{{count}} tâches",
     "taskCount_one": "{{count}} tâche",
     "taskCount_other": "{{count}} tâches",
-    "taskGroup": "Groupe de tâches"
+    "taskGroup": "Groupe de tâches",
+    "triggerDagRun": "Déclencher l'exécution du DAG",
+    "triggerNodeAriaLabel": "Nœud de déclenchement",
+    "triggerNodeIcon": "Déclencheur"
   },
   "limitedList": "+{{count}} supplémentaires",
   "limitedList.allItems": "Tous les {{count}} éléments :",

@@ -91,7 +91,10 @@
     "otherDagRuns": "+ 其他 Dag 执行",
     "taskCount_one": "1 个任务",
     "taskCount_other": "{{count}} 个任务",
-    "taskGroup": "任务分组"
+    "taskGroup": "任务分组",
+    "triggerDagRun": "触发DAG运行",
+    "triggerNodeAriaLabel": "触发节点",
+    "triggerNodeIcon": "触发"
   },
   "limitedList": "+ 其他 {{count}} 项",
   "limitedList.allItems": "所有 {{count}} 项：",

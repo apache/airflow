@@ -93,7 +93,10 @@
     "otherDagRuns": "+Andere Dag Runs",
     "taskCount_one": "{{count}} Task",
     "taskCount_other": "{{count}} Tasks",
-    "taskGroup": "Task Group"
+    "taskGroup": "Task Group",
+    "triggerDagRun": "Trigger DAG Run",
+    "triggerNodeAriaLabel": "Trigger node",
+    "triggerNodeIcon": "Trigger"
   },
   "limitedList": "+{{count}} meer",
   "limitedList.allItems": "Alle {{count}} items:",

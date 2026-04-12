@@ -91,7 +91,10 @@
     "otherDagRuns": "+다른 Dag 실행",
     "taskCount_one": "{{count}}개 작업",
     "taskCount_other": "{{count}}개 작업",
-    "taskGroup": "작업 그룹"
+    "taskGroup": "작업 그룹",
+    "triggerDagRun": "DAG 실행 트리거",
+    "triggerNodeAriaLabel": "트리거 노드",
+    "triggerNodeIcon": "트리거"
   },
   "limitedList": "+{{count}}개 더 보기",
   "limitedList.allItems": "모든 {{count}}개 항목:",

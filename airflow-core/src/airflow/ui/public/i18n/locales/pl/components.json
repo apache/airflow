@@ -107,7 +107,10 @@
     "taskCount_many": "{{count}} Zadań",
     "taskCount_one": "{{count}} Zadanie",
     "taskCount_other": "{{count}} Zadań",
-    "taskGroup": "Grupa zadań"
+    "taskGroup": "Grupa zadań",
+    "triggerDagRun": "Wyzwól uruchomienie DAG",
+    "triggerNodeAriaLabel": "Węzeł wyzwalacza",
+    "triggerNodeIcon": "Wyzwalacz"
   },
   "limitedList": "+{{count}} więcej",
   "limitedList.allItems": "Wszystkie {{count}} elementy:",
