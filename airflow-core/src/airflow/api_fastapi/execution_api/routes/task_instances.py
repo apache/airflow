@@ -183,7 +183,7 @@ def ti_run(
             .order_by(TaskReschedule.id.asc())
             .limit(1)
         )
-        if first_reschedule_start_date:
+        if first_reschedule_start_date is not None:
             data["start_date"] = first_reschedule_start_date
             log.debug("Restored start_date from TaskReschedule for rescheduled task")
 
