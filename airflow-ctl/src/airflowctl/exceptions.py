@@ -48,7 +48,3 @@ class AirflowCtlKeyringException(AirflowCtlException):
 
 class AirflowCtlValidationFailedException(AirflowCtlException):
     """Raise when a validation error occurs while performing an operation."""
-
-
-class AirflowCtlValidationFailedException(AirflowCtlException):
-    """Raise when a validation error occurs while performing an operation."""
