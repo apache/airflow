@@ -287,6 +287,36 @@ class TestCommandFactory:
                         assert arg.kwargs["default"] == test_arg[1]["default"]
                         assert arg.kwargs["type"] == test_arg[1]["type"]
 
+    def test_command_factory_optional_bool_uses_boolean_optional_action(self):
+        """Optional bool parameters should support --flag and --no-flag forms."""
+        temp_file = "test_command.py"
+        self._save_temp_operations_py(
+            temp_file=temp_file,
+            file_content="""
+                class JobsOperations(BaseOperations):
+                    def list(self, is_alive: bool | None = None) -> JobCollectionResponse | ServerResponseError:
+                        self.response = self.client.get("jobs")
+                        return JobCollectionResponse.model_validate_json(self.response.content)
+            """,
+        )
+
+        command_factory = CommandFactory(file_path=temp_file)
+        generated_group_commands = command_factory.group_commands
+
+        jobs_list_args = []
+        for generated_group_command in generated_group_commands:
+            if generated_group_command.name != "jobs":
+                continue
+            for sub_command in generated_group_command.subcommands:
+                if sub_command.name == "list":
+                    jobs_list_args = list(sub_command.args)
+                    break
+
+        is_alive_arg = next(arg for arg in jobs_list_args if arg.flags == ("--is-alive",))
+        assert is_alive_arg.kwargs["action"] == BooleanOptionalAction
+        assert is_alive_arg.kwargs["default"] is None
+        assert is_alive_arg.kwargs["type"] is bool
+
 
 class TestCliConfigMethods:
     def test_add_to_parser_drops_type_for_boolean_optional_action(self):

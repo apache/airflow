@@ -578,14 +578,15 @@ class CommandFactory:
             for parameter in operation.get("parameters"):
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
-                        is_bool = parameter_type == "bool"
+                        base_parameter_type = parameter_type.replace(" | None", "").strip()
+                        is_bool = base_parameter_type == "bool"
                         args.append(
                             self._create_arg(
                                 arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
                                 arg_type=self._python_type_from_string(parameter_type),
                                 arg_action=argparse.BooleanOptionalAction if is_bool else None,
                                 arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
-                                arg_default=False if is_bool else None,
+                                arg_default=None,
                             )
                         )
                     else:
