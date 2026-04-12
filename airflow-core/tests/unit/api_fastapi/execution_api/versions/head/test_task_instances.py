@@ -73,7 +73,19 @@ DEFAULT_RENDERED_MAP_INDEX = "test rendered map index"
 
 
 def _where_column_keys(statement) -> set[str]:
-    return {criterion.left.key for criterion in statement._where_criteria}
+    whereclause = getattr(statement, "whereclause", None)
+    if whereclause is None:
+        return set()
+
+    keys: set[str] = set()
+    stack = [whereclause]
+    while stack:
+        clause = stack.pop()
+        left = getattr(clause, "left", None)
+        if getattr(left, "key", None) is not None:
+            keys.add(left.key)
+        stack.extend(clause.get_children())
+    return keys
 
 
 def _is_task_instance_update(statement) -> bool:
@@ -81,7 +93,7 @@ def _is_task_instance_update(statement) -> bool:
 
 
 def _is_select_for_update(statement) -> bool:
-    return getattr(statement, "is_select", False) and getattr(statement, "_for_update_arg", None) is not None
+    return getattr(statement, "is_select", False) and "FOR UPDATE" in str(statement.compile()).upper()
 
 
 def _create_asset_aliases(session, num: int = 2) -> None:
