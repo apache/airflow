@@ -65,10 +65,31 @@ class CacheStore:
         return data
 
     def save(self, github_repository: str, key: str, data: dict) -> None:
-        """Save *data* as JSON. Automatically adds ``cached_at`` when TTL is configured."""
+        """Save *data* as JSON. Automatically adds ``cached_at`` when TTL is configured.
+
+        Uses atomic write (temp file + os.replace) to avoid corrupt reads when
+        multiple threads write the same key concurrently.
+        """
+        import os
+        import tempfile
+
         if self._ttl_seconds:
+            # time.time() is intentional here: monotonic clocks reset across process
+            # restarts, so wall-clock time is the only option for persistent TTLs.
             data = {**data, "cached_at": time.time()}
-        self._file(github_repository, key).write_text(json.dumps(data, indent=2))
+        target = self._file(github_repository, key)
+        fd, tmp_path = tempfile.mkstemp(dir=target.parent, suffix=".tmp")
+        closed = False
+        try:
+            os.write(fd, json.dumps(data, indent=2).encode())
+            os.close(fd)
+            closed = True
+            os.replace(tmp_path, target)
+        except BaseException:
+            if not closed:
+                os.close(fd)
+            Path(tmp_path).unlink(missing_ok=True)
+            raise
 
 
 # Concrete cache stores — one per domain
@@ -77,6 +98,7 @@ classification_cache = CacheStore("classification_cache")
 triage_cache = CacheStore("triage_cache")
 status_cache = CacheStore("status_cache", ttl_seconds=4 * 3600)
 stats_interaction_cache = CacheStore("stats_interaction_cache")
+author_cache = CacheStore("author_cache", ttl_seconds=7 * 24 * 3600)
 
 
 # Convenience functions for common cache operations
@@ -140,6 +162,23 @@ def get_cached_status(github_repository: str, cache_key: str) -> Any:
 
 def save_status_cache(github_repository: str, cache_key: str, payload: dict | list) -> None:
     status_cache.save(github_repository, cache_key, {"payload": payload})
+
+
+def get_cached_author_profile(github_repository: str, login: str) -> dict | None:
+    """Load a cached author profile. Returns None if missing or expired (7-day TTL).
+
+    Strips the internal ``cached_at`` field so callers get the same shape
+    regardless of whether the profile came from disk or the API.
+    """
+    data = author_cache.get(github_repository, f"author_{login}")
+    if data is not None:
+        data.pop("cached_at", None)
+    return data
+
+
+def save_author_profile(github_repository: str, login: str, profile: dict) -> None:
+    """Persist an author profile to disk."""
+    author_cache.save(github_repository, f"author_{login}", profile)
 
 
 # PR-keyed caches that store head_sha and should be validated on startup
