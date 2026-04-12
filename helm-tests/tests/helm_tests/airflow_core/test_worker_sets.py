@@ -3167,6 +3167,13 @@ class TestWorkerSets:
                 "labels": {"echo": "test"},
                 "celery": {"enableDefault": False, "sets": [{"name": "set1", "labels": {"test": "echo"}}]},
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "labels": {"echo": "test"},
+                    "sets": [{"name": "set1", "labels": {"test": "echo"}}],
+                },
+            },
         ],
     )
     def test_overwrite_labels(self, workers_values):
