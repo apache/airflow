@@ -53,6 +53,7 @@ from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
@@ -269,7 +270,6 @@ def _serialize_dag_capturing_errors(
     We can't place them directly in import_errors, as this may be retried, and work the next time
     """
     from airflow.models.dagcode import DagCode
-    from airflow.models.serialized_dag import SerializedDagModel
 
     # Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
     MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint(
@@ -466,8 +466,6 @@ def update_dag_parsing_results_in_db(
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors
     # In case of failures, provide_session handles rollback
-    from airflow.models.serialized_dag import SerializedDagModel
-
     for attempt in run_with_db_retries(logger=log):
         with attempt:
             serialize_errors = []
