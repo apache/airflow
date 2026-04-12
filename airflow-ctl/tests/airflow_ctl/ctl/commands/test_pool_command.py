@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import re
 from unittest import mock
 
 import pytest
@@ -30,6 +31,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionPoolBody,
 )
 from airflowctl.ctl.commands import pool_command
+from airflowctl.exceptions import AirflowCtlValidationFailedException
 
 
 @pytest.fixture
@@ -61,7 +63,10 @@ class TestPoolImportCommand:
         """Test import with invalid pool configuration."""
         invalid_pool = tmp_path / "invalid_pool.json"
         invalid_pool.write_text(json.dumps([{"invalid": "config"}]))
-        with pytest.raises(SystemExit, match="Invalid pool configuration: {'invalid': 'config'}"):
+        with pytest.raises(
+            AirflowCtlValidationFailedException,
+            match=re.escape("Pool '<unknown>': Missing required field(s): Name, Slots"),
+        ):
             pool_command.import_(mock.MagicMock(file=invalid_pool, action_on_existing_key="fail"))
 
     def test_import_success(self, mock_client, tmp_path, capsys):
