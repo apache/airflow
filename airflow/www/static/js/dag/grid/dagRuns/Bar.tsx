@@ -125,6 +125,7 @@ const DagRunBar = ({
           placement="top"
           openDelay={hoverDelay}
           maxW="md"
+          zIndex="tooltip"
         >
           <Flex
             width="10px"
@@ -159,7 +160,7 @@ const DagRunBar = ({
           top="0"
           left="8px"
           spacing={0}
-          zIndex={0}
+          zIndex={2}
           width={0}
         >
           <Text

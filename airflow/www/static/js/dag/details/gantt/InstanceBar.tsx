@@ -97,6 +97,7 @@ const InstanceBar = ({
       portalProps={{ containerRef }}
       placement="top"
       openDelay={hoverDelay}
+      zIndex="tooltip"
     >
       <Flex
         position="absolute"
