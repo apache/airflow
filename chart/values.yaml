@@ -1142,33 +1142,43 @@ workers:
   labels: {}
 
   # Log groomer configuration for Airflow Celery workers
+  # (deprecated, use `workers.celery.logGroomerSidecar` instead)
   logGroomerSidecar:
     # Whether to deploy the Airflow Celery worker log groomer sidecar
+    # (deprecated, use `workers.celery.logGroomerSidecar.enabled` instead)
     enabled: true
 
     # Command to use when running the Airflow Celery worker log groomer sidecar (templated)
+    # (deprecated, use `workers.celery.logGroomerSidecar.command` instead)
     command: ~
 
     # Args to use when running the Airflow Celery worker log groomer sidecar (templated)
+    # (deprecated, use `workers.celery.logGroomerSidecar.args` instead)
     args: ["bash", "/clean-logs"]
 
     # Number of days to retain logs
+    # (deprecated, use `workers.celery.logGroomerSidecar.retentionDays` instead)
     retentionDays: 15
 
     # Number of minutes to retain logs.
     # This can be used for finer granularity than days.
-    # Total retention is retentionDays + retentionMinutes.
+    # Total retention is `retentionDays` + `retentionMinutes`.
+    # (deprecated, use `workers.celery.logGroomerSidecar.retentionMinutes` instead)
     retentionMinutes: 0
 
     # Frequency to attempt to groom logs (in minutes)
+    # (deprecated, use `workers.celery.logGroomerSidecar.frequencyMinutes` instead)
     frequencyMinutes: 15
 
     # Max size of logs in bytes. 0 = disabled
+    # (deprecated, use `workers.celery.logGroomerSidecar.maxSizeBytes` instead)
     maxSizeBytes: 0
 
-    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if `maxSizeBytes` is set.
+    # (deprecated, use `workers.celery.logGroomerSidecar.maxSizePercent` instead)
     maxSizePercent: 0
 
+    # (deprecated, use `workers.celery.logGroomerSidecar.resources` instead)
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1177,11 +1187,18 @@ workers:
     #   cpu: 100m
     #   memory: 128Mi
 
-    # Detailed default security context for logGroomerSidecar for container level
+    # Detailed default security context for `logGroomerSidecar` for container level
+    # (deprecated, use `workers.celery.logGroomerSidecar.securityContexts` instead)
     securityContexts:
+      # (deprecated, use `workers.celery.logGroomerSidecar.securityContexts.container` instead)
       container: {}
 
+    # (deprecated, use `workers.celery.logGroomerSidecar.env` instead)
     env: []
+
+    # Container level lifecycle hooks
+    # (deprecated, use `workers.celery.logGroomerSidecar.containerLifecycleHooks` instead)
+    containerLifecycleHooks: {}
 
   # Configuration of wait-for-airflow-migration init container for Airflow Celery workers
   # (deprecated, use `workers.celery.waitForMigrations` instead)
@@ -1532,6 +1549,51 @@ workers:
 
     # Pod annotations for the Airflow Celery workers (templated)
     podAnnotations: {}
+
+    # Log groomer configuration for Airflow Celery workers
+    logGroomerSidecar:
+      # Whether to deploy the Airflow Celery worker log groomer sidecar
+      enabled: ~
+
+      # Command to use when running the Airflow Celery worker log groomer sidecar (templated)
+      command: ~
+
+      # Args to use when running the Airflow Celery worker log groomer sidecar (templated)
+      args: []
+
+      # Number of days to retain logs
+      retentionDays: ~
+
+      # Number of minutes to retain logs.
+      # This can be used for finer granularity than days.
+      # Total retention is `retentionDays` + `retentionMinutes`.
+      retentionMinutes: ~
+
+      # Frequency to attempt to groom logs (in minutes)
+      frequencyMinutes: ~
+
+      # Max size of logs in bytes. 0 = disabled
+      maxSizeBytes: ~
+
+      # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if `maxSizeBytes` is set.
+      maxSizePercent: ~
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for `logGroomerSidecar` for container level
+      securityContexts:
+        container: {}
+
+      env: []
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
 
     # Configuration of wait-for-airflow-migration init container for Airflow Celery workers
     waitForMigrations:
@@ -1911,7 +1973,7 @@ scheduler:
     # Max size of logs in bytes. 0 = disabled
     maxSizeBytes: 0
 
-    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if `maxSizeBytes` is set.
     maxSizePercent: 0
 
     resources: {}
@@ -1922,7 +1984,7 @@ scheduler:
     #   cpu: 100m
     #   memory: 128Mi
 
-    # Detailed default security context for logGroomerSidecar for container level
+    # Detailed default security context for `logGroomerSidecar` for container level
     securityContexts:
       container: {}
 
@@ -2845,7 +2907,7 @@ triggerer:
     #   cpu: 100m
     #   memory: 128Mi
 
-    # Detailed default security context for logGroomerSidecar for container level
+    # Detailed default security context for `logGroomerSidecar` for container level
     securityContexts:
       container: {}
 

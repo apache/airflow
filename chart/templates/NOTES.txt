@@ -829,6 +829,102 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not .Values.workers.logGroomerSidecar.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.enabled` has been renamed to `workers.celery.logGroomerSidecar.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.logGroomerSidecar.command) }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.command` has been renamed to `workers.celery.logGroomerSidecar.command`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (.Values.workers.logGroomerSidecar.args | toJson) (list "bash" "/clean-logs" | toJson) }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.args` has been renamed to `workers.celery.logGroomerSidecar.args`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.logGroomerSidecar.retentionDays) 15 }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.retentionDays` has been renamed to `workers.celery.logGroomerSidecar.retentionDays`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.logGroomerSidecar.retentionMinutes) 0 }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.retentionMinutes` has been renamed to `workers.celery.logGroomerSidecar.retentionMinutes`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.logGroomerSidecar.frequencyMinutes) 15 }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.frequencyMinutes` has been renamed to `workers.celery.logGroomerSidecar.frequencyMinutes`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.logGroomerSidecar.maxSizeBytes) 0 }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.maxSizeBytes` has been renamed to `workers.celery.logGroomerSidecar.maxSizeBytes`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.logGroomerSidecar.maxSizePercent) 0 }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.maxSizePercent` has been renamed to `workers.celery.logGroomerSidecar.maxSizePercent`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.logGroomerSidecar.resources) }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.resources` has been renamed to `workers.celery.logGroomerSidecar.resources`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.logGroomerSidecar.securityContexts.container) }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.securityContexts.container` has been renamed to `workers.celery.logGroomerSidecar.securityContexts.container`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.logGroomerSidecar.env) }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.env` has been renamed to `workers.celery.logGroomerSidecar.env`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.logGroomerSidecar.containerLifecycleHooks) }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.containerLifecycleHooks` has been renamed to `workers.celery.logGroomerSidecar.containerLifecycleHooks`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not .Values.workers.waitForMigrations.enabled }}
 
  DEPRECATION WARNING:

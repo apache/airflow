@@ -2436,8 +2436,150 @@
                     }
                 },
                 "logGroomerSidecar": {
-                    "$ref": "#/definitions/logGroomerConfigType",
-                    "description": "Configuration for Airflow Celery worker log groomer sidecar"
+                    "description": "Configuration for Airflow Celery worker log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar`` instead).",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Whether to deploy the Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.enabled`` instead).",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "command": {
+                            "description": "Command to use when running the Airflow log groomer sidecar (templated) (deprecated, use ``workers.celery.logGroomerSidecar.command`` instead).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
+                        "args": {
+                            "description": "Args to use when running the Airflow log groomer sidecar (templated) (deprecated, use ``workers.celery.logGroomerSidecar.args`` instead).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "bash",
+                                "/clean-logs"
+                            ]
+                        },
+                        "retentionDays": {
+                            "description": "Number of days to retain the logs when running the Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.retentionDays`` instead). Total retention time is ``retentionDays`` + ``retentionMinutes``.",
+                            "type": "integer",
+                            "default": 15
+                        },
+                        "retentionMinutes": {
+                            "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.retentionMinutes`` instead). Total retention time is ``retentionDays`` + ``retentionMinutes``.",
+                            "type": "integer",
+                            "default": 0
+                        },
+                        "frequencyMinutes": {
+                            "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.frequencyMinutes`` instead).",
+                            "type": "integer",
+                            "default": 15
+                        },
+                        "maxSizeBytes": {
+                            "description": "Max size of logs directory in bytes (deprecated, use ``workers.celery.logGroomerSidecar.maxSizeBytes`` instead). When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled.",
+                            "type": "integer",
+                            "default": 0,
+                            "minimum": 0
+                        },
+                        "maxSizePercent": {
+                            "description": "Max size of logs as a percentage of total disk space (deprecated, use ``workers.celery.logGroomerSidecar.maxSizePercent`` instead). When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if ``maxSizeBytes`` is set.",
+                            "type": "integer",
+                            "default": 0,
+                            "minimum": 0,
+                            "maximum": 100
+                        },
+                        "env": {
+                            "description": "Add additional env vars to log groomer sidecar container (templated) (deprecated, use ``workers.celery.logGroomerSidecar.env`` instead).",
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                            },
+                            "type": "array",
+                            "default": [],
+                            "x-kubernetes-patch-merge-key": "name",
+                            "x-kubernetes-patch-strategy": "merge"
+                        },
+                        "resources": {
+                            "description": "Resources for Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.resources`` instead).",
+                            "type": "object",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
+                                }
+                            ],
+                            "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "containerLifecycleHooks": {
+                            "description": "Container Lifecycle Hooks definition for the log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.containerLifecycleHooks`` instead). If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "postStart": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
+                                    },
+                                    "preStop": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.securityContexts`` instead). If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "container": {
+                                    "description": "Container security context definition for the log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.securityContexts.container`` instead).",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
                 },
                 "securityContext": {
                     "description": "Security context for the Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.securityContexts`` and/or ``workers.kubernetes.securityContexts`` instead). If not set, the values from `securityContext` will be used.",
@@ -3504,6 +3646,167 @@
                             "default": {},
                             "additionalProperties": {
                                 "type": "string"
+                            }
+                        },
+                        "logGroomerSidecar": {
+                            "description": "Configuration for Airflow Celery worker log groomer sidecar.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Whether to deploy the Airflow log groomer sidecar.",
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "command": {
+                                    "description": "Command to use when running the Airflow log groomer sidecar (templated).",
+                                    "type": [
+                                        "array",
+                                        "null"
+                                    ],
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "default": null
+                                },
+                                "args": {
+                                    "description": "Args to use when running the Airflow log groomer sidecar (templated).",
+                                    "type": [
+                                        "array",
+                                        "null"
+                                    ],
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "default": []
+                                },
+                                "retentionDays": {
+                                    "description": "Number of days to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "retentionMinutes": {
+                                    "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "frequencyMinutes": {
+                                    "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "maxSizeBytes": {
+                                    "description": "Max size of logs directory in bytes. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null,
+                                    "minimum": 0
+                                },
+                                "maxSizePercent": {
+                                    "description": "Max size of logs as a percentage of total disk space. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if ``maxSizeBytes`` is set.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null,
+                                    "minimum": 0,
+                                    "maximum": 100
+                                },
+                                "env": {
+                                    "description": "Add additional env vars to log groomer sidecar container (templated).",
+                                    "items": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                                    },
+                                    "type": "array",
+                                    "default": [],
+                                    "x-kubernetes-patch-merge-key": "name",
+                                    "x-kubernetes-patch-strategy": "merge"
+                                },
+                                "resources": {
+                                    "description": "Resources for Airflow log groomer sidecar.",
+                                    "type": "object",
+                                    "default": {},
+                                    "examples": [
+                                        {
+                                            "limits": {
+                                                "cpu": "100m",
+                                                "memory": "128Mi"
+                                            },
+                                            "requests": {
+                                                "cpu": "100m",
+                                                "memory": "128Mi"
+                                            }
+                                        }
+                                    ],
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                                },
+                                "containerLifecycleHooks": {
+                                    "description": "Container Lifecycle Hooks definition for the log groomer sidecar. If not set, the values from ``workers.containerLifecycleHooks`` will be used.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "postStart": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo postStart handler > /usr/share/message"
+                                                    ]
+                                                }
+                                            },
+                                            "preStop": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo preStop handler > /usr/share/message"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                "securityContexts": {
+                                    "description": "Security context definition for the log groomer sidecar. If not set, the values from ``workers.securityContexts`` will be used.",
+                                    "type": "object",
+                                    "x-docsSection": "Kubernetes",
+                                    "properties": {
+                                        "container": {
+                                            "description": "Container security context definition for the log groomer sidecar.",
+                                            "type": "object",
+                                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                            "default": {},
+                                            "x-docsSection": "Kubernetes",
+                                            "examples": [
+                                                {
+                                                    "allowPrivilegeEscalation": false,
+                                                    "capabilities": {
+                                                        "drop": [
+                                                            "ALL"
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
                             }
                         },
                         "waitForMigrations": {
@@ -14698,12 +15001,12 @@
                     ]
                 },
                 "retentionDays": {
-                    "description": "Number of days to retain the logs when running the Airflow log groomer sidecar. Total retention time is retentionDays + retentionMinutes.",
+                    "description": "Number of days to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                     "type": "integer",
                     "default": 15
                 },
                 "retentionMinutes": {
-                    "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar. Total retention time is retentionDays + retentionMinutes.",
+                    "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                     "type": "integer",
                     "default": 0
                 },
@@ -14719,7 +15022,7 @@
                     "minimum": 0
                 },
                 "maxSizePercent": {
-                    "description": "Max size of logs as a percentage of total disk space. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if maxSizeBytes is set.",
+                    "description": "Max size of logs as a percentage of total disk space. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if ``maxSizeBytes`` is set.",
                     "type": "integer",
                     "default": 0,
                     "minimum": 0,
