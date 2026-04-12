@@ -86,8 +86,8 @@ spec:
         {{- if .Values.volumeMounts }}
           {{- toYaml .Values.volumeMounts | nindent 8 }}
         {{- end }}
-        {{- if .Values.workers.extraVolumeMounts }}
-          {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 8 }}
+        {{- if or .Values.workers.extraVolumeMounts .Values.workers.kubernetes.extraVolumeMounts }}
+          {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumeMounts | default .Values.workers.extraVolumeMounts)) . | nindent 8 }}
         {{- end }}
         {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
           {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
@@ -145,8 +145,8 @@ spec:
         {{- if .Values.volumeMounts }}
           {{- toYaml .Values.volumeMounts | nindent 8 }}
         {{- end }}
-        {{- if .Values.workers.extraVolumeMounts }}
-          {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 8 }}
+        {{- if or .Values.workers.extraVolumeMounts .Values.workers.kubernetes.extraVolumeMounts }}
+          {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumeMounts | default .Values.workers.extraVolumeMounts)) . | nindent 8 }}
         {{- end }}
         {{- if .Values.kerberos.enabled }}
         - name: kerberos-keytab
@@ -192,8 +192,8 @@ spec:
         {{- if .Values.volumeMounts }}
           {{- toYaml .Values.volumeMounts | nindent 8 }}
         {{- end }}
-        {{- if .Values.workers.extraVolumeMounts }}
-          {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 8 }}
+        {{- if or .Values.workers.extraVolumeMounts .Values.workers.kubernetes.extraVolumeMounts }}
+          {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumeMounts | default .Values.workers.extraVolumeMounts)) . | nindent 8 }}
         {{- end }}
         {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
           {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}

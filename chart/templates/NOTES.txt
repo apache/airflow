@@ -717,6 +717,22 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (empty .Values.workers.extraVolumes) }}
+
+ DEPRECATION WARNING:
+    `workers.extraVolumes` has been renamed to `workers.celery.extraVolumes`/`workers.kubernetes.extraVolumes`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.extraVolumeMounts) }}
+
+ DEPRECATION WARNING:
+    `workers.extraVolumeMounts` has been renamed to `workers.celery.extraVolumeMounts`/`workers.kubernetes.extraVolumeMounts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (empty .Values.workers.runtimeClassName) }}
 
  DEPRECATION WARNING:

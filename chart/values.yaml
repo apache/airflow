@@ -1072,6 +1072,10 @@ workers:
 
   # Additional volume mounts attached to the Airflow Celery workers
   # and pods created with pod-template-file
+  # (deprecated, use
+  #   `workers.celery.extraVolumeMounts` and/or
+  #   `workers.kubernetes.extraVolumeMounts`
+  # instead)
   extraVolumeMounts: []
   # Mount additional volumes into workers pods. It can be templated like in the following example:
   #  extraVolumeMounts:
@@ -1479,6 +1483,14 @@ workers:
     #         defaultMode: 0640
     #         optional: true
 
+    # Additional volume mounts attached to the Airflow Celery workers
+    extraVolumeMounts: []
+    # Mount additional volumes into workers pods. It can be templated like in the following example:
+    #  extraVolumeMounts:
+    #    - name: my-templated-extra-volume
+    #      mountPath: "{{ .Values.my_custom_path }}"
+    #      readOnly: true
+
     # Expose additional ports of Airflow Celery workers. These can be used for additional metric collection.
     extraPorts: []
 
@@ -1668,6 +1680,14 @@ workers:
     #         secretName: '{{ include "my_secret_template" . }}'
     #         defaultMode: 0640
     #         optional: true
+
+    # Additional volume mounts attached to the pods created with pod-template-file
+    extraVolumeMounts: []
+    # Mount additional volumes into workers pods. It can be templated like in the following example:
+    #  extraVolumeMounts:
+    #    - name: my-templated-extra-volume
+    #      mountPath: "{{ .Values.my_custom_path }}"
+    #      readOnly: true
 
     # Select certain nodes for pods created with pod-template-file
     nodeSelector: {}
