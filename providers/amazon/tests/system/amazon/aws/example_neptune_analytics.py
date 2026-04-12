@@ -208,7 +208,7 @@ with DAG(
     # [START howto_operator_neptune_analytics_create_private_endpoint]
     create_endpoint = NeptuneCreatePrivateGraphEndpointOperator(
         task_id="create_endpoint",
-        graph_identifier="{{ ti.xcom_pull(task_ids='create_graph)['graph_id']}}",
+        graph_identifier="{{ ti.xcom_pull(task_ids='create_graph')['graph_id']}}",
         wait_for_completion=True,
     )
     # [END howto_operator_neptune_analytics_create_private_endpoint]
@@ -317,7 +317,10 @@ with DAG(
         create_role,
         # TEST BODY: Create graph, import data, then delete
         create_graph,
+        create_endpoint,
         start_import,
+        cancel_import,
+        delete_endpoint,
         delete_graph,
         # TEST BODY: Create graph with import, then delete
         create_graph_with_import,
