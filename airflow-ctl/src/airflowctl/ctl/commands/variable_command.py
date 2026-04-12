@@ -29,6 +29,8 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionVariableBody,
     VariableBody,
 )
+from airflowctl.exceptions import AirflowCtlValidationFailedException
+from airflowctl.utils.validation import check_required_fields, format_missing_fields_message
 
 
 @provide_api_client(kind=ClientKind.CLI)
@@ -53,6 +55,19 @@ def import_(args, api_client=NEW_API_CLIENT) -> list[str]:
         value, description = v, None
         if isinstance(v, dict) and "value" in v:
             value, description = v["value"], v.get("description")
+
+        # Build the variable data for validation
+        var_data = {
+            "key": k,
+            "value": value,
+            "description": description,
+        }
+
+        # Validate required fields
+        missing_fields = check_required_fields(VariableBody, var_data)
+        if missing_fields:
+            msg = format_missing_fields_message(VariableBody, missing_fields)
+            raise AirflowCtlValidationFailedException(f"Variable '{k}': {msg}")
 
         vars_to_update.append(
             VariableBody(

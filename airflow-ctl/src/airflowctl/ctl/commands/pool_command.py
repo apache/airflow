@@ -32,6 +32,8 @@ from airflowctl.api.datamodels.generated import (
     PoolBody,
 )
 from airflowctl.ctl.console_formatting import AirflowConsole
+from airflowctl.exceptions import AirflowCtlValidationFailedException
+from airflowctl.utils.validation import check_required_fields, format_missing_fields_message
 
 
 @provide_api_client(kind=ClientKind.CLI)
@@ -96,8 +98,15 @@ def _import_helper(api_client: Client, filepath: Path, action_on_existence: Bulk
 
     pools_to_update = []
     for pool_config in pools_json:
-        if not isinstance(pool_config, dict) or "name" not in pool_config or "slots" not in pool_config:
+        if not isinstance(pool_config, dict):
             raise SystemExit(f"Invalid pool configuration: {pool_config}")
+
+        # Validate required fields
+        missing_fields = check_required_fields(PoolBody, pool_config)
+        if missing_fields:
+            pool_name = pool_config.get("name", "<unknown>")
+            msg = format_missing_fields_message(PoolBody, missing_fields)
+            raise AirflowCtlValidationFailedException(f"Pool '{pool_name}': {msg}")
 
         pools_to_update.append(
             PoolBody(

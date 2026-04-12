@@ -46,8 +46,10 @@ from airflowctl.exceptions import (
     AirflowCtlCredentialNotFoundException,
     AirflowCtlKeyringException,
     AirflowCtlNotFoundException,
+    AirflowCtlValidationFailedException,
 )
 from airflowctl.utils.module_loading import import_string
+from airflowctl.utils.validation import check_required_fields, format_missing_fields_message
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
 
@@ -80,6 +82,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
         AirflowCtlConnectionException,
         AirflowCtlKeyringException,
         AirflowCtlNotFoundException,
+        AirflowCtlValidationFailedException,
     ) as e:
         rich.print(f"command failed due to {e}")
         sys.exit(1)
@@ -719,6 +722,11 @@ class CommandFactory:
 
             if datamodel:
                 if datamodel_param_name:
+                    # Validate required fields before creating datamodel
+                    missing_fields = check_required_fields(datamodel, method_params[datamodel_param_name])
+                    if missing_fields:
+                        msg = format_missing_fields_message(datamodel, missing_fields)
+                        raise AirflowCtlValidationFailedException(msg)
                     # Apply datamodel-specific defaults (e.g., logical_date for TriggerDAGRunPostBody)
                     method_params[datamodel_param_name] = self._apply_datamodel_defaults(
                         datamodel, method_params[datamodel_param_name]
@@ -727,6 +735,11 @@ class CommandFactory:
                         method_params[datamodel_param_name]
                     )
                 else:
+                    # Validate required fields before creating datamodel
+                    missing_fields = check_required_fields(datamodel, method_params)
+                    if missing_fields:
+                        msg = format_missing_fields_message(datamodel, missing_fields)
+                        raise AirflowCtlValidationFailedException(msg)
                     method_params = datamodel.model_validate(method_params)
                 method_output = operation_method_object(**method_params)
             else:

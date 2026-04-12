@@ -29,6 +29,8 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionConnectionBody,
     ConnectionBody,
 )
+from airflowctl.exceptions import AirflowCtlValidationFailedException
+from airflowctl.utils.validation import check_required_fields, format_missing_fields_message
 
 
 @provide_api_client(kind=ClientKind.CLI)
@@ -46,6 +48,22 @@ def import_(args, api_client=NEW_API_CLIENT) -> None:
         except Exception as e:
             raise SystemExit(f"Error reading connections file {args.file}: {e}")
     try:
+        # Validate each connection has required fields
+        for k, v in connections_json.items():
+            conn_data = {
+                "connection_id": k,
+                "conn_type": v.get("conn_type"),
+                "host": v.get("host"),
+                "login": v.get("login"),
+                "password": v.get("password"),
+                "port": v.get("port"),
+                "extra": v.get("extra"),
+                "description": v.get("description", ""),
+            }
+            missing_fields = check_required_fields(ConnectionBody, conn_data)
+            if missing_fields:
+                msg = format_missing_fields_message(ConnectionBody, missing_fields)
+                raise AirflowCtlValidationFailedException(f"Connection '{k}': {msg}")
         connections_data = {
             k: ConnectionBody(
                 connection_id=k,

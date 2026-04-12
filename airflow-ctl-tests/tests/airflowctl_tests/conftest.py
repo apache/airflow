@@ -118,7 +118,16 @@ def api_token():
 def run_command():
     """Fixture that provides a helper to run airflowctl commands."""
 
-    def _run_command(command: str, env_vars: dict, skip_login: bool = False) -> str:
+    def _run_command(
+        command: str,
+        env_vars: dict,
+        skip_login: bool = False,
+        expect_failure: bool = False,
+        expected_error_pattern: str | None = None,
+    ) -> str:
+        import os
+        from subprocess import PIPE, STDOUT, Popen
+
         host_envs = os.environ.copy()
         host_envs.update(env_vars)
 
@@ -159,28 +168,45 @@ def run_command():
         else:
             stdout_result = stdout_result.strip()
 
-        # Check for non-zero exit code
-        assert proc.returncode == 0, (
-            f"❌ Command '{command_from_config}' exited with code {proc.returncode}\nOutput:\n{stdout_result}"
-        )
+        # Check for expected failure or success
+        if expect_failure:
+            assert proc.returncode != 0, (
+                f"❌ Command '{command_from_config}' was expected to fail but exited with code 0\nOutput:\n{stdout_result}"
+            )
+            if expected_error_pattern:
+                assert expected_error_pattern in stdout_result, (
+                    f"❌ Expected error pattern '{expected_error_pattern}' not found in output for command '{command_from_config}'\n"
+                    f"Output:\n{stdout_result}"
+                )
+                console.print(
+                    f"[green]✅ Command failed as expected with error pattern '{expected_error_pattern}'"
+                )
+        else:
+            # Check for non-zero exit code
+            assert proc.returncode == 0, (
+                f"❌ Command '{command_from_config}' exited with code {proc.returncode}\nOutput:\n{stdout_result}"
+            )
 
-        # Error patterns to detect failures that might otherwise slip through
-        # Please ensure it is aligning with airflowctl.api.client.get_json_error
-        error_patterns = [
-            "Server error",
-            "command error",
-            "unrecognized arguments",
-            "invalid choice",
-            "Traceback (most recent call last):",
-        ]
-        matched_error = next((error for error in error_patterns if error in stdout_result), None)
-        assert not matched_error, (
-            f"❌ Output contained unexpected text for command '{command_from_config}'\n"
-            f"Matched error pattern: {matched_error}\n"
-            f"Output:\n{stdout_result}"
-        )
+            # Error patterns to detect failures that might otherwise slip through
+            # Please ensure it is aligning with airflowctl.api.client.get_json_error
+            error_patterns = [
+                "Server error",
+                "command error",
+                "unrecognized arguments",
+                "invalid choice",
+                "Traceback (most recent call last):",
+            ]
+            matched_error = next((error for error in error_patterns if error in stdout_result), None)
+            assert not matched_error, (
+                f"❌ Output contained unexpected text for command '{command_from_config}'\n"
+                f"Matched error pattern: {matched_error}\n"
+                f"Output:\n{stdout_result}"
+            )
 
-        console.print(f"[green]✅ Output did not contain unexpected text for command '{command_from_config}'")
+            console.print(
+                f"[green]✅ Output did not contain unexpected text for command '{command_from_config}'"
+            )
+
         console.print(f"[cyan]Result:\n{stdout_result}\n")
         proc.kill()
 
