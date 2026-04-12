@@ -417,26 +417,27 @@ class TestPatchPool(TestPoolsEndpoint):
         assert response.json() == expected_response
         check_last_log(session, dag_id=None, event="patch_pool", logical_date=None)
 
+    @conf_vars({("core", "multi_team"): "False"})
     def test_patch_pool_rejects_team_name_when_multi_team_disabled(self, test_client):
         self.create_pools()
-        with conf_vars({("core", "multi_team"): "False"}):
-            response = test_client.patch(
-                f"/pools/{POOL2_NAME}",
-                json={
-                    "name": POOL2_NAME,
-                    "slots": POOL2_SLOT,
-                    "include_deferred": POOL2_INCLUDE_DEFERRED,
-                    "team_name": "test",
-                },
-            )
+        response = test_client.patch(
+            f"/pools/{POOL2_NAME}",
+            json={
+                "name": POOL2_NAME,
+                "slots": POOL2_SLOT,
+                "include_deferred": POOL2_INCLUDE_DEFERRED,
+                "team_name": "test_team",
+            },
+        )
         assert response.status_code == 422
         assert (
-            response.json()["detail"][0]["msg"]
-            == "Value error, team_name cannot be set when multi_team mode is disabled"
+            "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            in response.json()["detail"][0]["msg"]
         )
 
 
 class TestPostPool(TestPoolsEndpoint):
+    @conf_vars({("core", "multi_team"): "True"})
     @pytest.mark.parametrize(
         ("body", "expected_status_code", "expected_response"),
         [
@@ -503,8 +504,7 @@ class TestPostPool(TestPoolsEndpoint):
         self.create_pools()
         n_pools = session.scalar(select(func.count()).select_from(Pool))
 
-        with conf_vars({("core", "multi_team"): "True"}):
-            response = test_client.post("/pools", json=body)
+        response = test_client.post("/pools", json=body)
 
         assert response.status_code == expected_status_code
         assert response.json() == expected_response
@@ -544,20 +544,20 @@ class TestPostPool(TestPoolsEndpoint):
         )
         assert response.status_code == 422
 
+    @conf_vars({("core", "multi_team"): "False"})
     def test_post_pool_rejects_team_name_when_multi_team_disabled(self, test_client):
-        with conf_vars({("core", "multi_team"): "False"}):
-            response = test_client.post(
-                "/pools",
-                json={
-                    "name": "bad_team_pool",
-                    "slots": 1,
-                    "team_name": "test",
-                },
-            )
+        response = test_client.post(
+            "/pools",
+            json={
+                "name": "bad_team_pool",
+                "slots": 1,
+                "team_name": "test_team",
+            },
+        )
         assert response.status_code == 422
         assert (
-            response.json()["detail"][0]["msg"]
-            == "Value error, team_name cannot be set when multi_team mode is disabled"
+            "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            in response.json()["detail"][0]["msg"]
         )
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -627,6 +627,7 @@ class TestPostPool(TestPoolsEndpoint):
 
 
 class TestBulkPools(TestPoolsEndpoint):
+    @conf_vars({("core", "multi_team"): "True"})
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
         ("actions", "expected_results"),
@@ -1083,8 +1084,7 @@ class TestBulkPools(TestPoolsEndpoint):
     def test_bulk_pools(self, test_client, actions, expected_results, session):
         self.create_pools()
 
-        with conf_vars({("core", "multi_team"): "True"}):
-            response = test_client.patch("/pools", json=actions)
+        response = test_client.patch("/pools", json=actions)
 
         response_data = response.json()
         for key, value in expected_results.items():
@@ -1145,3 +1145,54 @@ class TestBulkPools(TestPoolsEndpoint):
             },
         )
         assert response.status_code == 403
+
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_bulk_rejects_team_name_when_multi_team_is_disabled(self, test_client):
+        actions = {
+            "actions": [
+                {
+                    "action": "create",
+                    "entities": [
+                        {
+                            "name": "pool_1",
+                            "slots": 1,
+                            "description": "description",
+                        },
+                        {
+                            "name": "pool_2",
+                            "slots": 2,
+                            "description": "description_2",
+                            "team_name": "test_team",
+                        },
+                    ],
+                },
+                {
+                    "action": "update",
+                    "entities": [
+                        {
+                            "name": "pool_3",
+                            "slots": 3,
+                            "description": "updated_description",
+                            "team_name": "test_team",
+                        },
+                        {
+                            "name": "pool_4",
+                            "slots": 4,
+                            "description": "updated_description_2",
+                        },
+                    ],
+                },
+            ]
+        }
+        response = test_client.patch("/pools", json=actions)
+        assert response.status_code == 422
+        detail = response.json()["detail"]
+
+        assert all(
+            "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            in err["msg"]
+            for err in detail
+        ), f"Unexpected errors in detail: {detail}"
+
+        expected_error_names = {err["input"]["name"] for err in detail}
+        assert sorted(expected_error_names) == ["pool_2", "pool_3"]

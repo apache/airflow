@@ -64,7 +64,9 @@ class VariableBody(StrictBaseModel):
     @model_validator(mode="after")
     def validate_team_name(self) -> VariableBody:
         if self.team_name is not None and not conf.getboolean("core", "multi_team"):
-            raise ValueError("team_name cannot be set when multi_team mode is disabled")
+            raise ValueError(
+                "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            )
         return self
 
 

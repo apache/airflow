@@ -287,16 +287,16 @@ class TestPostConnection(TestConnectionEndpoint):
         assert len(connection) == 1
         _check_last_log(session, dag_id=None, event="post_connection", logical_date=None)
 
+    @conf_vars({("core", "multi_team"): "True"})
     def test_post_should_respond_201_with_team(self, test_client, session, testing_team):
-        with conf_vars({("core", "multi_team"): "True"}):
-            response = test_client.post(
-                "/connections",
-                json={
-                    "connection_id": TEST_CONN_ID,
-                    "conn_type": TEST_CONN_TYPE,
-                    "team_name": testing_team.name,
-                },
-            )
+        response = test_client.post(
+            "/connections",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "team_name": testing_team.name,
+            },
+        )
         assert response.status_code == 201
         assert response.json() == {
             "connection_id": TEST_CONN_ID,
@@ -344,20 +344,20 @@ class TestPostConnection(TestConnectionEndpoint):
             ]
         }
 
-    def test_post_rejects_team_name_when_multi_team_disabled(self, test_client, testing_team):
-        with conf_vars({("core", "multi_team"): "False"}):
-            response = test_client.post(
-                "/connections",
-                json={
-                    "connection_id": TEST_CONN_ID_2,
-                    "conn_type": TEST_CONN_TYPE_2,
-                    "team_name": testing_team.name,
-                },
-            )
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_post_rejects_team_name_when_multi_team_disabled(self, test_client):
+        response = test_client.post(
+            "/connections",
+            json={
+                "connection_id": TEST_CONN_ID_2,
+                "conn_type": TEST_CONN_TYPE_2,
+                "team_name": "test_team",
+            },
+        )
         assert response.status_code == 422
         assert (
-            response.json()["detail"][0]["msg"]
-            == "Value error, team_name cannot be set when multi_team mode is disabled"
+            "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            in response.json()["detail"][0]["msg"]
         )
 
     @pytest.mark.parametrize(
@@ -624,14 +624,14 @@ class TestPatchConnection(TestConnectionEndpoint):
 
         assert response.json() == expected_result
 
+    @conf_vars({("core", "multi_team"): "True"})
     def test_patch_with_team_should_respond_200(self, test_client, testing_team, session):
         self.create_connection()
 
-        with conf_vars({("core", "multi_team"): "True"}):
-            response = test_client.patch(
-                f"/connections/{TEST_CONN_ID}",
-                json={"connection_id": TEST_CONN_ID, "conn_type": "new_type", "team_name": testing_team.name},
-            )
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={"connection_id": TEST_CONN_ID, "conn_type": "new_type", "team_name": testing_team.name},
+        )
         assert response.status_code == 200
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None)
 
@@ -989,22 +989,21 @@ class TestPatchConnection(TestConnectionEndpoint):
         )
         assert response.status_code == 422
 
-    def test_patch_rejects_team_name_when_multi_team_disabled(self, test_client, testing_team):
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_patch_rejects_team_name_when_multi_team_disabled(self, test_client):
         self.create_connection()
-
-        with conf_vars({("core", "multi_team"): "False"}):
-            response = test_client.patch(
-                f"/connections/{TEST_CONN_ID_2}",
-                json={
-                    "connection_id": TEST_CONN_ID_2,
-                    "conn_type": "new_type",
-                    "team_name": testing_team.name,
-                },
-            )
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID_2}",
+            json={
+                "connection_id": TEST_CONN_ID_2,
+                "conn_type": "new_type",
+                "team_name": "test_team",
+            },
+        )
         assert response.status_code == 422
         assert (
-            response.json()["detail"][0]["msg"]
-            == "Value error, team_name cannot be set when multi_team mode is disabled"
+            "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            in response.json()["detail"][0]["msg"]
         )
 
 
@@ -1656,6 +1655,57 @@ class TestBulkConnections(TestConnectionEndpoint):
             service.handle_bulk_delete(request.actions[0], results)
 
         assert sorted(results.success) == [TEST_CONN_ID, TEST_CONN_ID_2]
+
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_bulk_rejects_team_name_when_multi_team_is_disabled(self, test_client):
+        actions = {
+            "actions": [
+                {
+                    "action": "create",
+                    "entities": [
+                        {
+                            "connection_id": "test_conn_id_1",
+                            "conn_type": TEST_CONN_TYPE,
+                            "description": "description",
+                        },
+                        {
+                            "connection_id": "test_conn_id_2",
+                            "conn_type": TEST_CONN_TYPE_2,
+                            "description": "description_2",
+                            "team_name": "test_team",
+                        },
+                    ],
+                },
+                {
+                    "action": "update",
+                    "entities": [
+                        {
+                            "connection_id": "test_conn_id_3",
+                            "conn_type": TEST_CONN_TYPE,
+                            "description": "updated_description",
+                            "team_name": "test_team",
+                        },
+                        {
+                            "connection_id": "test_conn_id_4",
+                            "conn_type": TEST_CONN_TYPE_2,
+                            "description": "updated_description_2",
+                        },
+                    ],
+                },
+            ]
+        }
+        response = test_client.patch("/connections", json=actions)
+        assert response.status_code == 422
+        detail = response.json()["detail"]
+
+        assert all(
+            "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            in err["msg"]
+            for err in detail
+        ), f"Unexpected errors in detail: {detail}"
+
+        expected_error_conn_ids = {err["input"]["connection_id"] for err in detail}
+        assert sorted(expected_error_conn_ids) == ["test_conn_id_2", "test_conn_id_3"]
 
 
 class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
