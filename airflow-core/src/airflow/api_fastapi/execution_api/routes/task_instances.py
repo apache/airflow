@@ -697,7 +697,9 @@ def ti_heartbeat(
 
     # Hot path: in the common case the TI is still running on the same host and pid,
     # so we can update last_heartbeat_at directly without first taking a row lock.
-    fast_path_result = session.execute(
+    fast_path_result = cast(
+        "CursorResult[Any]",
+        session.execute(
         update(TI)
         .where(
             TI.id == task_instance_id,
@@ -707,12 +709,13 @@ def ti_heartbeat(
         )
         .values(last_heartbeat_at=timezone.utcnow())
         .execution_options(synchronize_session=False)
+        ),
     )
-    if fast_path_result.rowcount:
+    if fast_path_result.rowcount is not None and fast_path_result.rowcount > 0:
         log.debug("Heartbeat updated via fast path")
         return
 
-    log.info("Heartbeat fast path missed; falling back to diagnostic checks")
+    log.debug("Heartbeat fast path missed; falling back to diagnostic checks")
 
     old = select(TI.state, TI.hostname, TI.pid).where(TI.id == task_instance_id).with_for_update()
 
