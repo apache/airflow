@@ -207,6 +207,7 @@ const ConnectionForm = ({
             defaultValue={["standardFields"]}
             mb={4}
             mt={4}
+            overflow="visible"
             size="lg"
             variant="enclosed"
           >
