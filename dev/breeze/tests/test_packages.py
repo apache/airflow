@@ -35,6 +35,7 @@ from airflow_breeze.utils.packages import (
     get_dist_package_name_prefix,
     get_long_package_name,
     get_min_airflow_version,
+    get_not_ready_provider_ids,
     get_pip_package_name,
     get_provider_details,
     get_provider_info_dict,
@@ -114,6 +115,11 @@ def test_get_provider_requirements():
 def test_get_removed_providers():
     # Modify it every time we schedule provider for removal or remove it
     assert get_removed_provider_ids() == []
+
+
+def test_get_not_ready_provider_ids():
+    # Modify it every time we add/release the first version of a provider
+    assert get_not_ready_provider_ids() == ["apache.datafusion"]
 
 
 def test_get_suspended_provider_ids():
