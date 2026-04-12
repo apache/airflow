@@ -133,7 +133,7 @@ def build_skills_json(skills: list[dict[str, str]]) -> dict:
         "skills": [
             {
                 "workflow": s["workflow"],
-                "host": s.get("host", ""),
+                "host": s.get("host", s.get("local", "")),
                 "breeze": s.get("breeze", ""),
                 "fallback_condition": s.get("fallback", s.get("fallback_condition", "never")),
             }

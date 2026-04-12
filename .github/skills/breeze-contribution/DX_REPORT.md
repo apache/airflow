@@ -69,4 +69,4 @@ Run drift check:
 
 Run full test suite:
     python3 -m pytest scripts/ci/prek/test_breeze_agent_skills.py -v
-    Expected: 20 passed
+    Expected: all tests pass

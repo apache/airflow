@@ -759,7 +759,7 @@ All Tests are inside ./tests directory.
    :context: host
    :local: uv run --project {distribution_folder} pytest {test_path} -xvs
    :breeze: pytest {test_path} -xvs
-   :prereqs: run-static-checks
+   :prereqs: static-checks
    :fallback: missing_system_deps
    :description: Run targeted tests local-first, fall back to Breeze if missing system deps
 

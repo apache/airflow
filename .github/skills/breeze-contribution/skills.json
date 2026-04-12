@@ -5,13 +5,13 @@
   "skills": [
     {
       "workflow": "static-checks",
-      "host": "",
+      "host": "prek",
       "breeze": "prek",
       "fallback_condition": "never"
     },
     {
       "workflow": "run-tests",
-      "host": "",
+      "host": "uv run --project {distribution_folder} pytest {test_path} -xvs",
       "breeze": "pytest {test_path} -xvs",
       "fallback_condition": "missing_system_deps"
     }
