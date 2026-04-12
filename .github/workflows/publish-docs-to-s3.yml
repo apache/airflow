@@ -185,6 +185,9 @@ jobs:
     timeout-minutes: 150
     name: "Build documentation"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -193,6 +196,8 @@ jobs:
       VERBOSE: "true"
       EXTRA_BUILD_OPTIONS: ${{ needs.build-info.outputs.extra-build-options }}
       APPLY_COMMITS: ${{ inputs.apply-commits || '' }}
+      PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
+      DOCKER_CACHE: "registry"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -211,9 +216,10 @@ jobs:
         run: ./current-version/scripts/ci/move_docker_to_mnt.sh
       - name: "Copy the version retrieval script"
         run: cp ./current-version/scripts/ci/docs/store_stable_versions.py /tmp/store_stable_versions.py
-      # We are checking repo for both - breeze and docs from the ref provided as input
-      # This will take longer as we need to rebuild CI image and it will not use cache
-      # but it will build the CI image from the version of Airflow that is used to check out things
+      # We check out repo for both - breeze and docs from the ref provided as input, so the CI
+      # image is built from the version of Airflow matching the docs. The build uses the
+      # registry buildx cache pushed by the last "main" Test workflow so that layer rebuilds
+      # are avoided whenever the ref is close enough to main for the cache to apply.
       - name: "Checkout ${{ inputs.ref }} "
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
@@ -241,14 +247,20 @@ jobs:
         uses: ./.github/actions/breeze
         with:
           python-version: "${{ needs.build-info.outputs.default-python-version }}"
+      - name: "Login to ghcr.io"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${ACTOR}" --password-stdin
       - name: "Building image from the ${{ inputs.ref }} reference"
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
           INCLUDE_COMMITS: ${{ startsWith(inputs.ref, 'providers') && 'true' || 'false' }}
-        # if the regular breeze ci-image build fails, we will try to build the image using docker buildx
-        # This is needed for the case when we are building an old image which tries to use main as
-        # a cache and it fails because the main branch has changed and does not have the same pyproject.toml
-        # Structure as the one we are trying to build.
+        # The regular `breeze ci-image build` path uses the registry cache pushed by the last
+        # successful "main" Test workflow (DOCKER_CACHE=registry, --cache-from=<main>:cache-<platform>),
+        # which is the fast path for builds from main or main-like refs. When building from an old
+        # ref whose pyproject.toml has diverged from main, reusing the main cache can fail the build,
+        # so we fall back to a plain buildx build with no cache-from.
         run: >
           breeze ci-image build ||
           docker buildx build --load --builder default --progress=auto --pull
@@ -256,7 +268,7 @@ jobs:
           --build-arg AIRFLOW_USE_UV=true
           --build-arg BUILD_PROGRESS=auto --build-arg INSTALL_MYSQL_CLIENT_TYPE=mariadb
           --build-arg VERSION_SUFFIX_FOR_PYPI=dev0
-          -t ghcr.io/apache/airflow/main/ci/python3.9:latest --target main .
+          -t "ghcr.io/apache/airflow/main/ci/python${PYTHON_MAJOR_MINOR_VERSION}:latest" --target main .
           -f Dockerfile.ci --platform linux/amd64
       - name: "Restore docs inventory cache"
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
