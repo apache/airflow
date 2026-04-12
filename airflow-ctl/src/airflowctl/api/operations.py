@@ -646,10 +646,20 @@ class JobsOperations(BaseOperations):
     """Job operations."""
 
     def list(
-        self, job_type: str, hostname: str, is_alive: bool
+        self,
+        job_type: str | None = None,
+        hostname: str | None = None,
+        is_alive: bool | None = None,
     ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
-        params = {"job_type": job_type, "hostname": hostname, "is_alive": is_alive}
+        params: dict[str, Any] = {}
+        if job_type:
+            params["job_type"] = job_type
+        if hostname:
+            params["hostname"] = hostname
+        if is_alive is not None:
+            params["is_alive"] = is_alive
+
         return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params)
 
 

@@ -20,24 +20,22 @@
 # requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
+#   "pyyaml>=6.0.3",
 # ]
 # ///
 """
-Check that all airflowctl CLI commands have integration test coverage by comparing  commands from operations.py against test_commands in conftest.py.
+Check that auto-generated airflowctl CLI commands have corresponding help texts in the help_texts.yaml file.
 """
 
 from __future__ import annotations
 
-import re
 import sys
 
+import yaml
 from common_prek_utils import AIRFLOW_ROOT_PATH, console, parse_operations
 
 OPERATIONS_FILE = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / "api" / "operations.py"
-CTL_TESTS_FILE = (
-    AIRFLOW_ROOT_PATH / "airflow-ctl-tests" / "tests" / "airflowctl_tests" / "test_airflowctl_commands.py"
-)
-
+HELP_TEXTS_FILE = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / "ctl" / "help_texts.yaml"
 # Operations excluded from CLI (see cli_config.py)
 EXCLUDED_OPERATION_CLASSES = {"BaseOperations", "LoginOperations", "VersionOperations"}
 EXCLUDED_METHODS = {
@@ -49,45 +47,12 @@ EXCLUDED_METHODS = {
     "export",
 }
 
-EXCLUDED_COMMANDS = {
-    "assets delete-dag-queued-events",
-    "assets delete-queued-event",
-    "assets delete-queued-events",
-    "assets get-by-alias",
-    "assets get-dag-queued-event",
-    "assets get-dag-queued-events",
-    "assets get-queued-events",
-    "assets list-by-alias",
-    "assets materialize",
-    "backfill cancel",
-    "backfill create",
-    "backfill create-dry-run",
-    "backfill get",
-    "backfill pause",
-    "backfill unpause",
-    "connections create-defaults",
-    "connections test",
-    "dags delete",
-    "dags get-import-error",
-    "dags get-tags",
-}
 
-
-def parse_tested_commands() -> set[str]:
-    tested: set[str] = set()
-
-    with open(CTL_TESTS_FILE) as f:
-        content = f.read()
-
-    # Match command patterns like "assets list", "dags list-import-errors", etc.
-    # Also handles f-strings like f"dagrun get..." or f'dagrun get...'
-    pattern = r'f?["\']([a-z]+(?:-[a-z]+)*\s+[a-z]+(?:-[a-z]+)*)'
-    for match in re.findall(pattern, content):
-        parts = match.split()
-        if len(parts) >= 2:
-            tested.add(f"{parts[0]} {parts[1]}")
-
-    return tested
+def load_help_texts_yaml() -> dict:
+    """Load the help texts yaml for the auto-generated commands."""
+    with open(HELP_TEXTS_FILE) as yaml_file:
+        help_texts = yaml.safe_load(yaml_file)
+    return help_texts
 
 
 def main():
@@ -96,29 +61,25 @@ def main():
         exclude_operation_classes=EXCLUDED_OPERATION_CLASSES,
         exclude_methods=EXCLUDED_METHODS,
     )
-    tested = parse_tested_commands()
-
+    help_texts = load_help_texts_yaml()
     missing = []
     for group, subcommands in sorted(available.items()):
         for subcommand in sorted(subcommands):
-            cmd = f"{group} {subcommand}"
-            if cmd not in tested and cmd not in EXCLUDED_COMMANDS:
-                missing.append(cmd)
+            help_text = help_texts.get(group, {}).get(subcommand)
+            if help_text is None:
+                missing.append(f"{group} {subcommand}")
 
     if missing:
-        console.print("[red]ERROR: Commands not covered by integration tests:[/]")
+        console.print("[red]ERROR: Commands do not have help texts:[/]")
         for cmd in missing:
             console.print(f"  [red]- {cmd}[/]")
         console.print()
-        console.print("[yellow]Fix by either:[/]")
-        console.print(f"1. Add test to {CTL_TESTS_FILE}")
-        console.print(f"2. Add to EXCLUDED_COMMANDS in {__file__}")
+        console.print("[yellow]Fix by:[/]")
+        console.print(f"Adding help texts to {HELP_TEXTS_FILE}")
         sys.exit(1)
 
     total = sum(len(cmds) for cmds in available.values())
-    console.print(
-        f"[green]All {total} CLI commands covered ({len(tested)} tested, {len(EXCLUDED_COMMANDS)} excluded)[/]"
-    )
+    console.print(f"[green]All {total} CLI help texts are covered [/]")
     sys.exit(0)
 
 
