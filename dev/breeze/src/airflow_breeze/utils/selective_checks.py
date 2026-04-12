@@ -302,6 +302,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^chart/templates/.*",
             r"^providers/.*/src/.*",
             r"^providers/.*/tests/.*",
+            r"^shared/.*\.py$",
             r"^task-sdk/src/.*",
             r"^task-sdk/tests/.*",
             r"^devel-common/src/.*",
