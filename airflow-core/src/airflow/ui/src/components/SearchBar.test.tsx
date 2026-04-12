@@ -84,9 +84,12 @@ describe("Test SearchBar", () => {
 
   it("syncs input value when defaultValue changes", async () => {
     const onChange = vi.fn();
-    const { rerender } = render(<SearchBar defaultValue="initial-search" onChange={onChange} placeholder="Search Dags" />, {
-      wrapper: Wrapper,
-    });
+    const { rerender } = render(
+      <SearchBar defaultValue="initial-search" onChange={onChange} placeholder="Search Dags" />,
+      {
+        wrapper: Wrapper,
+      },
+    );
     const input = screen.getByTestId("search-dags");
 
     expect((input as HTMLInputElement).value).toBe("initial-search");
@@ -98,9 +101,12 @@ describe("Test SearchBar", () => {
 
   it("does not override local typing when defaultValue rerenders unchanged", () => {
     const onChange = vi.fn();
-    const { rerender } = render(<SearchBar defaultValue="initial" onChange={onChange} placeholder="Search Dags" />, {
-      wrapper: Wrapper,
-    });
+    const { rerender } = render(
+      <SearchBar defaultValue="initial" onChange={onChange} placeholder="Search Dags" />,
+      {
+        wrapper: Wrapper,
+      },
+    );
     const input = screen.getByTestId("search-dags");
 
     fireEvent.change(input, { target: { value: "user-typing" } });
