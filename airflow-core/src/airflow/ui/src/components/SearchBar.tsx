@@ -51,7 +51,7 @@ export const SearchBar = ({
     if (defaultValue !== value) {
       setValue(defaultValue);
     }
-  }, [defaultValue]);
+  }, [defaultValue, value]);
 
   const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     setValue(event.target.value);
