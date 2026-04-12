@@ -169,7 +169,7 @@ from rich.console import Console
 
 console = Console(color_system="standard", width=200)
 
-DML_KEYWORDS = ("UPDATE ", "INSERT ", "DELETE ")
+DML_KEYWORDS = ("UPDATE", "INSERT", "DELETE")
 
 
 def _get_noqa_codes(line: str) -> set[str]:
@@ -183,14 +183,14 @@ def _get_noqa_codes(line: str) -> set[str]:
 def _is_dml_string(node: ast.expr) -> bool:
     """Check if an AST expression is a string literal starting with a DML keyword."""
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        stripped = node.value.strip().upper()
-        return any(stripped.startswith(kw) for kw in DML_KEYWORDS)
+        parts = node.value.strip().upper().split(None, 1)
+        return len(parts) > 1 and parts[0] in DML_KEYWORDS
     # f-strings: check the first string fragment
     if isinstance(node, ast.JoinedStr):
         for value in node.values:
             if isinstance(value, ast.Constant) and isinstance(value.value, str):
-                stripped = value.value.strip().upper()
-                if any(stripped.startswith(kw) for kw in DML_KEYWORDS):
+                parts = value.value.strip().upper().split(None, 1)
+                if len(parts) > 1 and parts[0] in DML_KEYWORDS:
                     return True
                 break  # only the leading fragment matters
     return False
