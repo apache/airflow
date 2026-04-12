@@ -266,7 +266,7 @@ class NeptuneImportTaskCancelledTrigger(AwsBaseWaiterTrigger):
             failure_message="Import task cancellation failed",
             status_message="Status of import task is",
             status_queries=["status"],
-            return_key="task_identifier",
+            return_key="import_task_id",
             return_value=task_identifier,
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,

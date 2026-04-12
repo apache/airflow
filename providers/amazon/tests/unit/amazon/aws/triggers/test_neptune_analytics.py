@@ -24,6 +24,7 @@ from botocore.exceptions import WaiterError
 
 from airflow.providers.amazon.aws.triggers.neptune_analytics import (
     NeptuneGraphAvailableTrigger,
+    NeptuneGraphDeletedTrigger,
     NeptuneGraphPrivateEndpointAvailableTrigger,
     NeptuneGraphPrivateEndpointDeletedTrigger,
     NeptuneImportTaskCancelledTrigger,
@@ -292,3 +293,51 @@ class TestNeptuneImportTaskCancelledTrigger:
         assert resp.payload["status"] == "error"
         assert resp.payload["task_identifier"] == TASK_ID
         assert "Import task cancellation failed" in resp.payload["message"]
+
+
+class TestNeptuneGraphDeletedTrigger:
+    def test_serialization(self):
+        """
+        Asserts that the NeptuneGraphDeletedTrigger correctly serializes its arguments
+        and classpath.
+        """
+        trigger = NeptuneGraphDeletedTrigger(graph_id=GRAPH_ID)
+        classpath, kwargs = trigger.serialize()
+        assert (
+            classpath == "airflow.providers.amazon.aws.triggers.neptune_analytics.NeptuneGraphDeletedTrigger"
+        )
+        assert "graph_id" in kwargs
+        assert kwargs["graph_id"] == GRAPH_ID
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune_analytics.NeptuneAnalyticsHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune_analytics.NeptuneAnalyticsHook.get_async_conn")
+    async def test_run_success(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.return_value.__aenter__.return_value = "DELETED"
+        mock_get_waiter().wait = AsyncMock()
+        trigger = NeptuneGraphDeletedTrigger(graph_id=GRAPH_ID)
+        generator = trigger.run()
+        resp = await generator.asend(None)
+
+        assert resp == TriggerEvent({"status": "success", "graph_id": GRAPH_ID})
+        assert mock_get_waiter().wait.call_count == 1
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune_analytics.NeptuneAnalyticsHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune_analytics.NeptuneAnalyticsHook.get_async_conn")
+    async def test_run_failure(self, mock_async_conn, mock_get_waiter):
+        wait_mock = AsyncMock()
+        wait_mock.side_effect = WaiterError(
+            name="graph_deleted",
+            reason='Waiter encountered a terminal failure state: For expression "status" we matched expected path: "FAILED"',
+            last_response={"status": "FAILED", "graphIdentifier": GRAPH_ID},
+        )
+        mock_get_waiter.return_value.wait = wait_mock
+
+        trigger = NeptuneGraphDeletedTrigger(graph_id=GRAPH_ID)
+        generator = trigger.run()
+        resp = await generator.asend(None)
+
+        assert resp.payload["status"] == "error"
+        assert resp.payload["graph_id"] == GRAPH_ID
+        assert "Failed to delete Neptune graph" in resp.payload["message"]

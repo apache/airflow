@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.neptune_analytics import NeptuneAnalyticsHook
 from airflow.providers.amazon.aws.links.ec2 import VpcEndpointLink
 from airflow.providers.amazon.aws.links.neptune_analytics import NeptuneGraphLink, NeptuneImportTaskLink
@@ -36,7 +35,7 @@ from airflow.providers.amazon.aws.triggers.neptune_analytics import (
     NeptuneImportTaskCompleteTrigger,
 )
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -75,7 +74,7 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
-    :return: dictionary with Neptune graph id and vpc id
+    :return: dictionary with Neptune graph id
     """
 
     aws_hook_class = NeptuneAnalyticsHook
@@ -181,7 +180,7 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         return {"graph_id": self.graph_id}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
-        self.log.info("Neptune graph % complete", self.graph_id)
+        self.log.info("Neptune graph %s complete", self.graph_id)
 
         return {"graph_id": self.graph_id}
 
@@ -320,6 +319,9 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
         vpc_endpoint_id = self._get_graph_endpoint_id()
+        status = event["status"]
+        if status.lower() != "success":
+            raise AirflowException("Endpoint failed to create")
 
         return {"vpc_endpoint_id": vpc_endpoint_id, "graph_id": self.graph_identifier, "vpc_id": self.vpc_id}
 
@@ -411,10 +413,12 @@ class NeptuneDeletePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         vpc_endpoint_id = ""
 
-        if event and event.get("status") == "success":
+        if event and event.get("status").lower() == "success":
             vpc_endpoint_id = event.get("endpoint_id", "Unknown")
 
             self.log.info("Endpoint id %s deleted", vpc_endpoint_id)
+        else:
+            raise AirflowException("Endpoint failed to delete.")
 
 
 class NeptuneDeleteGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
@@ -718,7 +722,7 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
         return {"graph_id": self.graph_id}
 
     def defer_wait_for_task(
-        self, import_task_id: str, context: Context, event: dict[str, Any] | None = None
+        self, context: Context, event: dict[str, Any] | None = None, import_task_id: str | None = None
     ) -> None:
         """Defers for import task completion."""
         self.log.info("Deferring for import task %s completion", import_task_id)
