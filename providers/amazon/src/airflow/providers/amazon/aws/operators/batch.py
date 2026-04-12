@@ -395,6 +395,9 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         if not self.do_xcom_push:
             return
 
+        if not context or "ti" not in context:
+            return
+
         try:
             awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
         except AirflowException as ae:
@@ -442,8 +445,9 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
             else:
                 self.hook.wait_for_job(self.job_id)
 
-        # After job completes, persist CloudWatch logs
-        self._persist_cloudwatch_link(context)
+        # After job completes, persist CloudWatch logs when log integration is enabled
+        if self.awslogs_enabled:
+            self._persist_cloudwatch_link(context)
 
         self.hook.check_job_success(self.job_id)
         self.log.info("AWS Batch job (%s) succeeded", self.job_id)
