@@ -580,6 +580,8 @@ apiSecretKeySecretName: ~
 #    api-secret-key: <base64_encoded_api_secret_key>
 
 # Secret key used to encode and decode JWTs: '[api_auth] jwt_secret' in airflow.cfg
+# Note: It is not advised to use in production as during helm upgrade it will be changed
+# which can cause dag failures during component rollouts
 jwtSecret: ~
 
 # Add custom annotations to the JWT secret

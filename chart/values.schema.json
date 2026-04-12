@@ -1617,7 +1617,7 @@
             "default": null
         },
         "jwtSecret": {
-            "description": "Secret key used to encode and decode JWTs to authenticate to public and private APIs (can only be set during install, not upgrade).",
+            "description": "Secret key used to encode and decode JWTs to authenticate to public and private APIs. Note: It is not recommended to use in production as during helm upgrade it will be changed which can cause dag failures during component rollover.",
             "type": [
                 "string",
                 "null"
