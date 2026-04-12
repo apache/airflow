@@ -203,5 +203,4 @@ class TestAkeylessHook:
 
         hook = AkeylessHook()
         hook.get_rotated_secret_value("/rotated/creds")
-        call_args = api.get_rotated_secret_value.call_args[0][0]
-        assert call_args.names == ["/rotated/creds"]
+        mock_sdk.GetRotatedSecretValue.assert_called_once_with(names=["/rotated/creds"], token="t")
