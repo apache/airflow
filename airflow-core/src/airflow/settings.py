@@ -434,6 +434,12 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         # Skip DB initialization in unit tests, if DB tests are skipped
         Session = SkipDBTestsSession
         engine = None
+
+        # Ensure all models are imported so SQLAlchemy can resolve string-based relationships in tests.
+        from airflow.models import import_all_models
+
+        import_all_models()
+
         return
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     engine_args = prepare_engine_args(disable_connection_pool, pool_class)
