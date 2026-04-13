@@ -149,8 +149,12 @@ class TestLogout(TestAuthEndpoint):
 
         assert response.status_code == 307
         cookies = response.headers.get_list("set-cookie")
-        token_cookie = next(c for c in cookies if f"{COOKIE_NAME_JWT_TOKEN}=" in c)
+        token_cookie = next(c for c in cookies if f"{COOKIE_NAME_JWT_TOKEN}=" in c and f"Path={SUBPATH}" in c)
         assert f"Path={SUBPATH}" in token_cookie
+        # Stale root-path cookie must also be cleared
+        assert any(
+            f"{COOKIE_NAME_JWT_TOKEN}=" in c and "Path=/" in c and f"Path={SUBPATH}" not in c for c in cookies
+        )
 
 
 class TestLogoutTokenRevocation:
