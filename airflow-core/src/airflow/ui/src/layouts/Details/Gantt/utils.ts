@@ -19,7 +19,7 @@
 
 /* eslint-disable max-lines -- Gantt transform, time range, links, and axis ticks share one module */
 import dayjs from "dayjs";
-import type { Location, To } from "react-router-dom";
+import type { To } from "react-router-dom";
 
 import type { GridRunsResponse, LightGridTaskInstanceSummary, TaskInstanceState } from "openapi/requests";
 import type { GanttTaskInstance } from "openapi/requests/types.gen";
@@ -46,10 +46,17 @@ export type GanttDataItem = {
 type GanttSegmentLinkParams = {
   dagId: string;
   item: GanttDataItem;
-  location: Location;
   /** Precomputed map from taskId → max try number; build once with `buildMaxTryByTaskId`. */
   maxTryByTaskId: Map<string, number>;
+  /** `location.pathname` — hoisted out of the segment loop so it is read once per render. */
+  pathname: string;
   runId: string;
+  /**
+   * Pre-parsed copy of `location.search` — pass `new URLSearchParams(location.search)` built
+   * once per render. `getGanttSegmentTo` clones it internally before mutating, so the caller's
+   * instance is never modified.
+   */
+  searchParams: URLSearchParams;
 };
 
 type TransformGanttDataParams = {
@@ -127,9 +134,17 @@ export const transformGanttData = ({
             const startMs = startDate === null ? undefined : dayjs(startDate).valueOf();
             const queuedMs = queuedDttm === null ? undefined : dayjs(queuedDttm).valueOf();
             const scheduledMs = scheduledDttm === null ? undefined : dayjs(scheduledDttm).valueOf();
+
+            // Whether each pre-execution segment will actually be rendered (gap >= 1 s).
+            // The same predicate drives both segment creation and tooltip field inclusion.
+            const willShowScheduled =
+              scheduledMs !== undefined && (startMs === undefined || startMs - scheduledMs >= 1000);
+            const willShowQueued =
+              queuedMs !== undefined && (startMs === undefined || startMs - queuedMs >= 1000);
+
             const tryWhenForTooltip = {
-              queued_when: queuedDttm,
-              scheduled_when: scheduledDttm,
+              ...(willShowScheduled ? { scheduled_when: scheduledDttm } : {}),
+              ...(willShowQueued ? { queued_when: queuedDttm } : {}),
             };
 
             let endMs: number;
@@ -142,8 +157,8 @@ export const transformGanttData = ({
               endMs = dayjs(endDate).valueOf();
             }
 
-            // Scheduled segment: scheduled_dttm → queued_dttm, start_date, or now while still scheduled
-            if (scheduledMs !== undefined) {
+            // Scheduled segment: skip when the gap to start_date is less than 1 s (not worth rendering).
+            if (willShowScheduled) {
               const scheduledEndMs =
                 queuedMs ?? startMs ?? (hasTaskRunning || tryRow.state === "scheduled" ? Date.now() : endMs);
 
@@ -161,8 +176,8 @@ export const transformGanttData = ({
               }
             }
 
-            // Queue segment: queued_dttm → start_date (or now while queued without start)
-            if (queuedMs !== undefined) {
+            // Queue segment: skip when the gap to start_date is less than 1 s (not worth rendering).
+            if (willShowQueued) {
               const queueEndMs = startMs ?? (hasTaskRunning ? Date.now() : endMs);
 
               if (queueEndMs > queuedMs) {
@@ -278,9 +293,10 @@ export const buildMaxTryByTaskId = (ganttItems: Array<GanttDataItem>): Map<strin
 export const getGanttSegmentTo = ({
   dagId,
   item,
-  location,
   maxTryByTaskId,
+  pathname,
   runId,
+  searchParams: baseSearchParams,
 }: GanttSegmentLinkParams): To | undefined => {
   if (!runId) {
     return undefined;
@@ -288,8 +304,8 @@ export const getGanttSegmentTo = ({
 
   const { isGroup, isMapped, taskId, tryNumber } = item;
 
-  const pathname = buildTaskInstanceUrl({
-    currentPathname: location.pathname,
+  const segmentPathname = buildTaskInstanceUrl({
+    currentPathname: pathname,
     dagId,
     isGroup: Boolean(isGroup),
     isMapped: Boolean(isMapped),
@@ -297,7 +313,8 @@ export const getGanttSegmentTo = ({
     taskId,
   });
 
-  const searchParams = new URLSearchParams(location.search);
+  // Clone the pre-parsed params so mutations don't leak across segments.
+  const searchParams = new URLSearchParams(baseSearchParams);
   const maxTryForTask = maxTryByTaskId.get(taskId) ?? 1;
   const isOlderTry = tryNumber !== undefined && tryNumber < maxTryForTask;
 
@@ -308,7 +325,7 @@ export const getGanttSegmentTo = ({
   }
 
   return {
-    pathname,
+    pathname: segmentPathname,
     search: searchParams.toString(),
   };
 };

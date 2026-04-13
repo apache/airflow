@@ -52,6 +52,7 @@ import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import { Tooltip } from "src/components/ui";
 import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
+import type { DagView } from "src/constants/dagView";
 import { dependenciesKey, directionKey } from "src/constants/localStorage";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOptions";
@@ -63,8 +64,6 @@ import { RunTypeLegend } from "./Grid/RunTypeLegend";
 import { TaskStreamFilter } from "./TaskStreamFilter";
 import { ToggleGroups } from "./ToggleGroups";
 import { VersionIndicatorSelect } from "./VersionIndicatorSelect";
-
-type DagView = "gantt" | "graph" | "grid";
 
 type Props = {
   readonly dagRunStateFilter: DagRunState | undefined;

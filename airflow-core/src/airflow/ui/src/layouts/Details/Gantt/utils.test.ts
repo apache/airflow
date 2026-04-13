@@ -1,5 +1,7 @@
 /* eslint-disable max-lines */
 
+/* eslint-disable unicorn/no-null */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -125,16 +127,11 @@ describe("transformGanttData", () => {
     const result = transformGanttData({
       allTries: [
         {
-          // eslint-disable-next-line unicorn/no-null
           end_date: null,
           is_mapped: false,
-          // eslint-disable-next-line unicorn/no-null
           queued_dttm: null,
-          // eslint-disable-next-line unicorn/no-null
           scheduled_dttm: null,
-          // eslint-disable-next-line unicorn/no-null
           start_date: null,
-          // eslint-disable-next-line unicorn/no-null
           state: null,
           task_display_name: "task_1",
           task_id: "task_1",
@@ -153,12 +150,9 @@ describe("transformGanttData", () => {
     const result = transformGanttData({
       allTries: [
         {
-          // eslint-disable-next-line unicorn/no-null
           end_date: null,
           is_mapped: false,
-          // eslint-disable-next-line unicorn/no-null
           queued_dttm: null,
-          // eslint-disable-next-line unicorn/no-null
           scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "running",
@@ -184,13 +178,9 @@ describe("transformGanttData", () => {
       flatNodes: [{ depth: 0, id: "group_1", is_mapped: false, isGroup: true, label: "group_1" }],
       gridSummaries: [
         {
-          // eslint-disable-next-line unicorn/no-null
           child_states: null,
-          // eslint-disable-next-line unicorn/no-null
           max_end_date: null,
-          // eslint-disable-next-line unicorn/no-null
           min_start_date: null,
-          // eslint-disable-next-line unicorn/no-null
           state: null,
           task_display_name: "group_1",
           task_id: "group_1",
@@ -207,9 +197,7 @@ describe("transformGanttData", () => {
         {
           end_date: "2024-03-14T10:05:00+00:00",
           is_mapped: false,
-          // eslint-disable-next-line unicorn/no-null
           queued_dttm: null,
-          // eslint-disable-next-line unicorn/no-null
           scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "success",
@@ -260,7 +248,6 @@ describe("transformGanttData", () => {
           end_date: "2024-03-14T10:05:00+00:00",
           is_mapped: false,
           queued_dttm: "2024-03-14T09:59:00+00:00",
-          // eslint-disable-next-line unicorn/no-null
           scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "success",
@@ -284,9 +271,7 @@ describe("transformGanttData", () => {
         {
           end_date: "2024-03-14T10:05:00+00:00",
           is_mapped: false,
-          // eslint-disable-next-line unicorn/no-null
           queued_dttm: null,
-          // eslint-disable-next-line unicorn/no-null
           scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "success",
@@ -309,9 +294,7 @@ describe("transformGanttData", () => {
         {
           end_date: "2024-03-14T10:05:00+00:00",
           is_mapped: false,
-          // eslint-disable-next-line unicorn/no-null
           queued_dttm: null,
-          // eslint-disable-next-line unicorn/no-null
           scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "failed",
@@ -322,9 +305,7 @@ describe("transformGanttData", () => {
         {
           end_date: "2024-03-14T09:55:00+00:00",
           is_mapped: false,
-          // eslint-disable-next-line unicorn/no-null
           queued_dttm: null,
-          // eslint-disable-next-line unicorn/no-null
           scheduled_dttm: null,
           start_date: "2024-03-14T09:50:00+00:00",
           state: "failed",
@@ -340,5 +321,38 @@ describe("transformGanttData", () => {
     expect(result).toHaveLength(2);
     expect(result[0]?.tryNumber).toBe(1);
     expect(result[1]?.tryNumber).toBe(2);
+  });
+
+  it("suppresses scheduled and queued bars when their gap to start_date is less than 1 second", () => {
+    const flatNodes = [{ depth: 0, id: "task_1", is_mapped: false, label: "task_1" }];
+    const baseArgs = {
+      end_date: "2024-03-14T10:05:00+00:00",
+      is_mapped: false,
+      start_date: "2024-03-14T10:00:00+00:00",
+      state: "success" as const,
+      task_display_name: "task_1",
+      task_id: "task_1",
+      try_number: 1,
+    };
+
+    // scheduled_dttm 500 ms before start — below the 1 s threshold
+    const scheduledResult = transformGanttData({
+      allTries: [{ ...baseArgs, queued_dttm: null, scheduled_dttm: "2024-03-14T09:59:59.500+00:00" }],
+      flatNodes,
+      gridSummaries: [],
+    });
+
+    expect(scheduledResult).toHaveLength(1);
+    expect(scheduledResult[0]?.state).toBe("success");
+
+    // queued_dttm 800 ms before start — below the 1 s threshold
+    const queuedResult = transformGanttData({
+      allTries: [{ ...baseArgs, queued_dttm: "2024-03-14T09:59:59.200+00:00", scheduled_dttm: null }],
+      flatNodes,
+      gridSummaries: [],
+    });
+
+    expect(queuedResult).toHaveLength(1);
+    expect(queuedResult[0]?.state).toBe("success");
   });
 });

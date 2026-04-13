@@ -45,7 +45,10 @@ import {
   gridSummariesToTaskIdMap,
 } from "./utils";
 
-const MIN_BAR_WIDTH_PX = 10;
+/** Size of the state icon rendered inside each Gantt bar (px). The minimum bar width is derived
+ *  from this value so the icon is never clipped when a task has a very short duration. */
+const GANTT_STATE_ICON_SIZE_PX = 10;
+const MIN_BAR_WIDTH_PX = GANTT_STATE_ICON_SIZE_PX;
 
 /** Short mark above the axis bottom border, aligned with each timestamp. */
 const GANTT_AXIS_TICK_HEIGHT_PX = 6;
@@ -159,6 +162,11 @@ export const GanttTimeline = ({
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
+
+  // Hoist out of the per-segment render loop — location.pathname and location.search are
+  // constant within a single render, so parsing them once avoids O(segments) string parsing.
+  const { pathname, search } = location;
+  const baseSearchParams = new URLSearchParams(search);
 
   const segmentLayout = (segment: GanttDataItem) => {
     const leftPct = ((segment.x[0] - minMs) / spanMs) * 100;
@@ -306,9 +314,10 @@ export const GanttTimeline = ({
                     const to = getGanttSegmentTo({
                       dagId,
                       item: segment,
-                      location,
                       maxTryByTaskId,
+                      pathname,
                       runId,
+                      searchParams: baseSearchParams,
                     });
                     const tooltipInstance = toTooltipSummary(segment, node, gridSummary);
                     const prevSegment = segIndex > 0 ? segments[segIndex - 1] : undefined;
@@ -364,7 +373,7 @@ export const GanttTimeline = ({
                               variant="solid"
                               w="100%"
                             >
-                              <StateIcon size={10} state={segment.state} />
+                              <StateIcon size={GANTT_STATE_ICON_SIZE_PX} state={segment.state} />
                             </Badge>
                           </Link>
                         </Box>

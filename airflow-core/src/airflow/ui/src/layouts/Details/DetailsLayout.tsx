@@ -43,6 +43,7 @@ import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
 import { Tooltip } from "src/components/ui/Tooltip";
+import type { DagView } from "src/constants/dagView";
 import {
   dagRunsLimitKey,
   dagRunStateFilterKey,
@@ -103,10 +104,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">(DEFAULT_DAG_VIEW_KEY, "grid");
   const panelGroupRef = useRef<ImperativePanelGroupHandle | null>(null);
-  const [dagView, setDagView] = useLocalStorage<"gantt" | "graph" | "grid">(
-    dagViewKey(dagId),
-    defaultDagView,
-  );
+  const [dagView, setDagView] = useLocalStorage<DagView>(dagViewKey(dagId), defaultDagView);
   const [limit, setLimit] = useLocalStorage(dagRunsLimitKey(dagId), 10);
   const [runAfterGte, setRunAfterGte] = useLocalStorage<string | undefined>(runAfterGteKey(dagId), undefined);
   const [runAfterLte, setRunAfterLte] = useLocalStorage<string | undefined>(runAfterLteKey(dagId), undefined);
