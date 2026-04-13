@@ -47,6 +47,7 @@ import msgspec
 import psutil
 import structlog
 from pydantic import BaseModel, TypeAdapter
+from structlog._output import WRITE_LOCKS
 
 from airflow.sdk._shared.logging.structlog import reconfigure_logger
 from airflow.sdk.api.client import Client, ServerResponseError
@@ -2328,6 +2329,7 @@ def supervise_task(
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()
+                WRITE_LOCKS.pop(log_file_descriptor)
             provider = trace.get_tracer_provider()
             if hasattr(provider, "force_flush"):
                 provider.force_flush(timeout_millis=5000)  # upper bound, not a fixed wait
