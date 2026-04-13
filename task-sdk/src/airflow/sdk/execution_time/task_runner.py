@@ -2080,6 +2080,51 @@ def flush_spans():
             provider.force_flush(timeout_millis=timeout_millis)
 
 
+def _resolve_locale_entrypoint(startup_details: StartupDetails, log: Logger) -> Callable[[], None] | None:
+    """
+    Check provider-registered task coordinators for a locale-specific entrypoint.
+
+    If a coordinator claims this task (e.g. a Java coordinator for JVM-based
+    tasks), return a no-arg callable that bridges fd 0 to the locale
+    subprocess.  Otherwise return ``None`` to fall through to the standard
+    Python execution path.
+    """
+    import functools
+
+    from airflow._shared.module_loading import import_string
+    from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+
+    # TODO: Route based on a ``language`` field on the TaskInstance model
+    # once it is exposed via the Execution API.  For now, we iterate over
+    # all registered coordinators and let each decide via its own matching
+    # logic (e.g. checking the bundle type or task metadata).
+    for coordinator_path in ProvidersManagerTaskRuntime().task_coordinators:
+        try:
+            coordinator_cls = import_string(coordinator_path)
+        except Exception:
+            log.exception("Failed to import task coordinator", path=coordinator_path)
+            continue
+
+        if not hasattr(coordinator_cls, "entrypoint"):
+            continue
+
+        log.debug(
+            "Resolved locale-specific entrypoint for task",
+            coordinator=coordinator_path,
+            task_id=startup_details.ti.task_id,
+        )
+        return functools.partial(
+            coordinator_cls.entrypoint,
+            what=startup_details.ti,
+            # dag_rel_path=startup_details.dag_rel_path, #TODO: Not sure why we get `.` for dag_rel_path, mock as expected path for now
+            dag_rel_path="/files/java-bundle/lib/example.jar",
+            bundle_info=startup_details.bundle_info,
+            startup_details=startup_details,
+        )
+
+    return None
+
+
 @flush_spans()
 def main():
     log = structlog.get_logger(logger_name="task")
