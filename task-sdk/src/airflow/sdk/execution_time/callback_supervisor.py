@@ -175,11 +175,11 @@ class CallbackSubprocess(WatchedSubprocess):
                     bundle.initialize()
                     if (bundle_path := str(bundle.path)) not in sys.path:
                         sys.path.append(bundle_path)
-                        log.debug(
+                        _log.debug(
                             "Added bundle path to sys.path", bundle_name=bundle_info.name, path=bundle_path
                         )
                 except Exception:
-                    log.warning(
+                    _log.warning(
                         "Failed to initialize DAG bundle for callback",
                         bundle_name=bundle_info.name,
                         exc_info=True,
