@@ -21,11 +21,13 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import select
 
+from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.models import Trigger
 from airflow.models.callback import (
     Callback,
     CallbackFetchMethod,
     CallbackState,
+    DagProcessorCallback,
     ExecutorCallback,
     TriggererCallback,
     _accepts_context,
@@ -210,7 +212,26 @@ class TestExecutorCallback:
         assert callback.state == CallbackState.QUEUED
 
 
-# Note: class DagProcessorCallback is tested in airflow-core/tests/unit/dag_processing/test_manager.py
+class TestDagProcessorCallback:
+    def test_polymorphic_serde(self, session):
+        callback_request = DagCallbackRequest(
+            dag_id="test_start_date_scheduling",
+            bundle_name="testing",
+            bundle_version=None,
+            filepath="test_on_failure_callback_dag.py",
+            is_failure_callback=True,
+            run_id="123",
+        )
+        callback = DagProcessorCallback(priority_weight=11, callback=callback_request)
+        session.add(callback)
+        session.commit()
+
+        retrieved = session.scalar(select(Callback).where(Callback.id == callback.id))
+        assert isinstance(retrieved, DagProcessorCallback)
+        assert retrieved.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE
+        assert retrieved.bundle_name == "testing"
+        assert retrieved.priority_weight == 11
+        assert retrieved.state is None
 
 
 class TestAcceptsContext:

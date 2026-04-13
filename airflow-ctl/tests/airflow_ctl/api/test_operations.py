@@ -79,6 +79,10 @@ from airflowctl.api.datamodels.generated import (
     ImportErrorResponse,
     JobCollectionResponse,
     JobResponse,
+    PluginCollectionResponse,
+    PluginImportErrorCollectionResponse,
+    PluginImportErrorResponse,
+    PluginResponse,
     PoolBody,
     PoolCollectionResponse,
     PoolResponse,
@@ -225,6 +229,16 @@ class TestBaseOperations:
         # Verify limit is sent on both the first and second request
         for call in mock_client.get.call_args_list:
             assert call.kwargs["params"]["limit"] == 2
+
+    @pytest.mark.parametrize("limit", [0, -1])
+    def test_execute_list_rejects_non_positive_limit(self, limit):
+        mock_client = Mock()
+        base_operation = BaseOperations(client=mock_client)
+
+        with pytest.raises(ValueError, match="limit must be a positive integer"):
+            base_operation.execute_list(path="hello", data_model=HelloCollectionResponse, limit=limit)
+
+        mock_client.get.assert_not_called()
 
 
 class TestAssetsOperations:
@@ -1064,42 +1078,61 @@ class TestDagRunOperations:
         )
         assert response == self.dag_run_collection_response
 
-    def test_list_all_dags(self):
-        """Test listing dag runs for all DAGs using default dag_id='~'."""
+    @pytest.mark.parametrize(
+        (
+            "dag_id_input",
+            "state",
+            "limit",
+            "start_date",
+            "end_date",
+            "expected_path_suffix",
+            "expected_params_subset",
+        ),
+        [
+            # Test --limit with various values and configurations (covers CLI --limit flag)
+            ("dag1", "queued", 5, None, None, "dag1", {"state": "queued", "limit": "5"}),
+            (None, "running", 1, None, None, "~", {"state": "running", "limit": "1"}),
+            (
+                "example_dag",
+                "success",
+                10,
+                None,
+                None,
+                "example_dag",
+                {"state": "success", "limit": "10"},
+            ),
+            ("dag2", "failed", 0, None, None, "dag2", {"state": "failed", "limit": "0"}),
+        ],
+        ids=["limit-5", "all-dags-limit-1", "string-state-limit-10", "limit-zero"],
+    )
+    def test_list_with_various_limits(
+        self,
+        dag_id_input: str | None,
+        state: str | DagRunState,
+        limit: int,
+        start_date: datetime.datetime | None,
+        end_date: datetime.datetime | None,
+        expected_path_suffix: str,
+        expected_params_subset: dict,
+    ) -> None:
+        """Test listing dag runs with various limit values (especially --limit flag)."""
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            # When dag_id is "~", it should query all DAGs
-            assert request.url.path == "/api/v2/dags/~/dagRuns"
-            return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
-
-        client = make_api_client(transport=httpx.MockTransport(handle_request))
-        # Call without specifying dag_id - should use default "~"
-        response = client.dag_runs.list(
-            start_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
-            end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
-            state="running",
-            limit=1,
-        )
-        assert response == self.dag_run_collection_response
-
-    def test_list_with_optional_parameters(self):
-        """Test listing dag runs with only some optional parameters."""
-
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/api/v2/dags/dag1/dagRuns"
-            # Verify that only state and limit are in query params
+            assert request.url.path.endswith(f"/dags/{expected_path_suffix}/dagRuns")
             params = dict(request.url.params)
-            assert "state" in params
-            assert params["state"] == "queued"
-            assert "limit" in params
-            assert params["limit"] == "5"
-            # start_date and end_date should not be present
-            assert "start_date" not in params
-            assert "end_date" not in params
+            for key, value in expected_params_subset.items():
+                assert key in params
+                assert str(params[key]) == str(value)
             return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dag_runs.list(state="queued", limit=5, dag_id="dag1")
+        response = client.dag_runs.list(
+            state=state,
+            limit=limit,
+            start_date=start_date,
+            end_date=end_date,
+            dag_id=dag_id_input,
+        )
         assert response == self.dag_run_collection_response
 
 
@@ -1125,6 +1158,11 @@ class TestJobsOperations:
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/jobs"
+            params = dict(request.url.params)
+            assert params["job_type"] == "job_type"
+            assert params["hostname"] == "hostname"
+            assert params["is_alive"] == "true"
+            assert params["limit"] == "50"
             return httpx.Response(200, json=json.loads(self.job_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -1133,6 +1171,32 @@ class TestJobsOperations:
             hostname="hostname",
             is_alive=True,
         )
+        assert response == self.job_collection_response
+
+    @pytest.mark.parametrize(
+        ("job_type", "hostname", "is_alive", "expected_subset"),
+        [
+            (None, None, None, {}),
+            ("scheduler", None, None, {"job_type": "scheduler"}),
+            (None, "host-a", None, {"hostname": "host-a"}),
+            (None, None, False, {"is_alive": "false"}),
+        ],
+    )
+    def test_list_omits_empty_filters(self, job_type, hostname, is_alive, expected_subset):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/jobs"
+            params = dict(request.url.params)
+            assert params["limit"] == "50"
+            for key, value in expected_subset.items():
+                assert params[key] == value
+
+            assert ("job_type" in params) is ("job_type" in expected_subset)
+            assert ("hostname" in params) is ("hostname" in expected_subset)
+            assert ("is_alive" in params) is ("is_alive" in expected_subset)
+            return httpx.Response(200, json=json.loads(self.job_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.jobs.list(job_type=job_type, hostname=hostname, is_alive=is_alive)
         assert response == self.job_collection_response
 
 
@@ -1703,3 +1767,53 @@ class TestXComOperations:
             map_index=self.map_index,
         )
         assert response == self.key
+
+
+class TestPluginsOperations:
+    plugin_response = PluginResponse(
+        name="test-plugin",
+        macros=[],
+        flask_blueprints=[],
+        fastapi_apps=[],
+        fastapi_root_middlewares=[],
+        external_views=[],
+        react_apps=[],
+        appbuilder_views=[],
+        appbuilder_menu_items=[],
+        global_operator_extra_links=[],
+        operator_extra_links=[],
+        source="test-source",
+        listeners=[],
+        timetables=[],
+    )
+    plugin_collection_response = PluginCollectionResponse(plugins=[plugin_response], total_entries=1)
+    plugin_import_error_response = PluginImportErrorResponse(
+        source="plugins/test_plugin.py", error="something went wrong"
+    )
+    plugin_import_error_collection_response = PluginImportErrorCollectionResponse(
+        import_errors=[plugin_import_error_response], total_entries=1
+    )
+
+    def test_list(self):
+        """Test listing plugins"""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == ("/api/v2/plugins")
+            return httpx.Response(200, json=json.loads(self.plugin_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.plugins.list()
+        assert response == self.plugin_collection_response
+
+    def test_list_import_errors(self):
+        """Test listing plugin import errors"""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/plugins/importErrors"
+            return httpx.Response(
+                200, json=json.loads(self.plugin_import_error_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.plugins.list_import_errors()
+        assert response == self.plugin_import_error_collection_response

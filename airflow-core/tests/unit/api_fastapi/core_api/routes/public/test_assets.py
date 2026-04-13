@@ -1408,6 +1408,59 @@ class TestPostAssetMaterialize(TestAssets):
             "note": None,
         }
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_with_partition_key(self, test_client):
+        partition_key = "2026-03-23"
+        response = test_client.post("/assets/1/materialize", json={"partition_key": partition_key})
+        assert response.status_code == 200
+        assert response.json()["partition_key"] == partition_key
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_with_trigger_fields(self, test_client):
+        payload = {
+            "conf": {"foo": "bar"},
+            "dag_run_id": "asset_materialization_run_1",
+            "data_interval_end": "2026-03-24T00:00:00Z",
+            "data_interval_start": "2026-03-23T00:00:00Z",
+            "logical_date": "2026-03-23T00:00:00Z",
+            "note": "created from asset page",
+            "partition_key": "2026-03-23",
+        }
+        response = test_client.post("/assets/1/materialize", json=payload)
+
+        assert response.status_code == 200
+        assert response.json()["conf"] == {"foo": "bar"}
+        assert response.json()["dag_run_id"] == "asset_materialization_run_1"
+        assert response.json()["data_interval_start"] == "2026-03-23T00:00:00Z"
+        assert response.json()["data_interval_end"] == "2026-03-24T00:00:00Z"
+        assert response.json()["logical_date"] == "2026-03-23T00:00:00Z"
+        assert response.json()["note"] == "created from asset page"
+        assert response.json()["partition_key"] == "2026-03-23"
+        assert response.json()["run_type"] == "asset_materialization"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_with_trigger_fields_without_dag_run_id(self, test_client):
+        payload = {
+            "conf": {"foo": "bar"},
+            # "dag_run_id": "asset_materialization_run_1",
+            "data_interval_end": "2026-03-24T00:00:00Z",
+            "data_interval_start": "2026-03-23T00:00:00Z",
+            "logical_date": "2026-03-23T00:00:00Z",
+            "note": "created from asset page",
+            "partition_key": "2026-03-23",
+        }
+        response = test_client.post("/assets/1/materialize", json=payload)
+
+        assert response.status_code == 200
+        assert response.json()["conf"] == {"foo": "bar"}
+        assert response.json()["dag_run_id"].startswith("asset_materialization__")
+        assert response.json()["data_interval_start"] == "2026-03-23T00:00:00Z"
+        assert response.json()["data_interval_end"] == "2026-03-24T00:00:00Z"
+        assert response.json()["logical_date"] == "2026-03-23T00:00:00Z"
+        assert response.json()["note"] == "created from asset page"
+        assert response.json()["partition_key"] == "2026-03-23"
+        assert response.json()["run_type"] == "asset_materialization"
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post("/assets/2/materialize")
         assert response.status_code == 401

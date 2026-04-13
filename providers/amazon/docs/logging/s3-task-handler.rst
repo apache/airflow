@@ -98,7 +98,7 @@ We are  using the existing ``serviceAccount`` hence ``create: false`` with exist
       serviceAccount:
         create: false
         name: airflow-sa
-        # Annotations are automatically added by **Step1** to serviceAccount. So, you dont need to mention the annotations. We have added this for information purpose
+        # Annotations are automatically added by **Step1** to serviceAccount. So, you don't need to mention the annotations. We have added this for information purpose
         annotations:
           eks.amazonaws.com/role-arn: <ENTER_IAM_ROLE_ARN_CREATED_BY_EKSCTL_COMMAND>
 
@@ -106,7 +106,7 @@ We are  using the existing ``serviceAccount`` hence ``create: false`` with exist
       serviceAccount:
         create: false
         name: airflow-sa
-        # Annotations are automatically added by **Step1** to serviceAccount. So, you dont need to mention the annotations. We have added this for information purpose
+        # Annotations are automatically added by **Step1** to serviceAccount. So, you don't need to mention the annotations. We have added this for information purpose
         annotations:
           eks.amazonaws.com/role-arn: <ENTER_IAM_ROLE_ARN_CREATED_BY_EKSCTL_COMMAND
 

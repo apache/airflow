@@ -81,7 +81,13 @@ const TaskInstanceTooltip = ({ children, positioning, taskInstance, tooltip, ...
                     {translate("endDate")}: <Time datetime={taskInstance.end_date} />
                   </Text>
                   <Text>
-                    {translate("duration")}: {renderDuration(taskInstance.duration)}
+                    {translate("duration")}:{" "}
+                    {taskInstance.state === "running" || taskInstance.state === "deferred"
+                      ? getDuration(
+                          taskInstance.start_date,
+                          taskInstance.end_date ?? new Date().toISOString(),
+                        )
+                      : renderDuration(taskInstance.duration)}
                   </Text>
                 </>
               ) : undefined}

@@ -22,7 +22,7 @@ requires = [
     "packaging==26.0",
     "pathspec==1.0.4",
     "pluggy==1.6.0",
-    "tomli==2.4.0; python_version < '3.11'",
+    "tomli==2.4.1; python_version < '3.11'",
     "trove-classifiers==2026.1.14.14",
 ]
 build-backend = "hatchling.build"
@@ -33,7 +33,7 @@ description = "Development tools for Apache Airflow"
 classifiers = [
     "Private :: Do Not Upload",
 ]
-requires-python = ">=3.10,!=3.14"
+requires-python = ">=3.10,!=3.15"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]

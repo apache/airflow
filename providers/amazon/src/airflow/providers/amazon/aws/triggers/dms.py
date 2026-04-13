@@ -129,7 +129,7 @@ class DmsReplicationCompleteTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             failure_message="Replication failed to complete.",
             status_message="Status replication is",
-            status_queries=["Replications[0].Status"],
+            status_queries=["Replications[0].Status", "Replications[0].FailureMessages"],
             return_key="replication_config_arn",
             return_value=replication_config_arn,
             aws_conn_id=aws_conn_id,

@@ -708,7 +708,7 @@ class DataflowHook(GoogleBaseHook):
 
         if on_new_job_id_callback:
             warnings.warn(
-                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
+                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
@@ -885,7 +885,7 @@ class DataflowHook(GoogleBaseHook):
 
         if on_new_job_id_callback:
             warnings.warn(
-                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
+                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
@@ -1067,7 +1067,7 @@ class DataflowHook(GoogleBaseHook):
         if variables:
             warnings.warn(
                 "The variables parameter has been deprecated. You should pass project_id using "
-                "the project_id parameter.",
+                "the project_id parameter. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=4,
             )
@@ -1076,7 +1076,7 @@ class DataflowHook(GoogleBaseHook):
             location = DEFAULT_DATAFLOW_LOCATION
             warnings.warn(
                 "The location argument will be become mandatory in future versions, "
-                f"currently, it defaults to {DEFAULT_DATAFLOW_LOCATION}, please set the location explicitly.",
+                f"currently, it defaults to {DEFAULT_DATAFLOW_LOCATION}, please set the location explicitly. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=4,
             )

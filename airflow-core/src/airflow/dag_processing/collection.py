@@ -136,7 +136,6 @@ def _get_latest_runs_stmt(dag_id: str) -> Select:
 
 def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
     """Build a select statement to retrieve the last partitioned run for each Dag."""
-    # todo: AIP-76 we should add a partition date field
     latest_run_id = (
         select(DagRun.id)
         .where(
@@ -149,7 +148,11 @@ def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
             ),
             DagRun.partition_key.is_not(None),
         )
-        .order_by(DagRun.id.desc())  # todo: AIP-76 add partition date and sort by it here
+        .order_by(
+            DagRun.partition_date.is_(None),
+            DagRun.partition_date.desc(),
+            DagRun.run_after.desc(),
+        )
         .limit(1)
         .scalar_subquery()
     )
@@ -186,7 +189,7 @@ class _RunInfo(NamedTuple):
             log.info("Getting latest run for partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt_partitioned(dag_id=dag.dag_id))
         else:
-            log.info("Getting latest run for non-partitioned Gag", dag_id=dag.dag_id)
+            log.info("Getting latest run for non-partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt(dag_id=dag.dag_id))
         if latest_run:
             log.info(
@@ -1098,7 +1101,8 @@ class AssetModelOperation(NamedTuple):
                 asset_model.watchers = [
                     watcher
                     for watcher in asset_model.watchers
-                    if BaseEventTrigger.hash(watcher.trigger.classpath, watcher.trigger.kwargs)
+                    if watcher.trigger is not None
+                    and BaseEventTrigger.hash(watcher.trigger.classpath, watcher.trigger.kwargs)
                     not in trigger_hashes
                 ]
 

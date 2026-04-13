@@ -103,6 +103,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
     jobs_success: Mapped[int] = mapped_column(Integer, default=0)
     jobs_failed: Mapped[int] = mapped_column(Integer, default=0)
     sysinfo: Mapped[str | None] = mapped_column(String(256))
+    team_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     concurrency: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     def __init__(
@@ -113,6 +114,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
         first_online: datetime | None = None,
         last_update: datetime | None = None,
         maintenance_comment: str | None = None,
+        team_name: str | None = None,
     ):
         self.worker_name = worker_name
         self.state = EdgeWorkerState(state)
@@ -120,6 +122,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
         self.first_online = first_online or timezone.utcnow()
         self.last_update = last_update
         self.maintenance_comment = maintenance_comment
+        self.team_name = team_name
         super().__init__()
 
     @property
@@ -257,10 +260,16 @@ def reset_metrics(worker_name: str) -> None:
     )
 
 
+def get_query_filter_by_worker_name(worker_name: str):
+    return select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+
+
 @providers_configuration_loaded
 @provide_session
 def _fetch_edge_hosts_from_db(
-    hostname: str | None = None, states: list | None = None, session: Session = NEW_SESSION
+    hostname: str | None = None,
+    states: list | None = None,
+    session: Session = NEW_SESSION,
 ) -> Sequence[EdgeWorkerModel]:
     query = select(EdgeWorkerModel)
     if states:
@@ -282,8 +291,8 @@ def request_maintenance(
     worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION
 ) -> None:
     """Write maintenance request to the db."""
-    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-    worker: EdgeWorkerModel | None = session.scalar(query)
+    query = get_query_filter_by_worker_name(worker_name=worker_name)
+    worker = session.scalar(query)
     if not worker:
         raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
     worker.state = EdgeWorkerState.MAINTENANCE_REQUEST
@@ -293,7 +302,7 @@ def request_maintenance(
 @provide_session
 def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Write maintenance exit to the db."""
-    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
         raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
@@ -304,7 +313,7 @@ def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
 @provide_session
 def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Remove a worker that is offline or just gone from DB."""
-    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
         raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
@@ -325,7 +334,7 @@ def change_maintenance_comment(
     worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION
 ) -> None:
     """Write maintenance comment in the db."""
-    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
         raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
@@ -345,7 +354,7 @@ def change_maintenance_comment(
 @provide_session
 def request_shutdown(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Request to shutdown the edge worker."""
-    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
         raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
@@ -360,7 +369,7 @@ def request_shutdown(worker_name: str, session: Session = NEW_SESSION) -> None:
 @provide_session
 def add_worker_queues(worker_name: str, queues: list[str], session: Session = NEW_SESSION) -> None:
     """Add queues to an edge worker."""
-    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
         raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
@@ -378,7 +387,7 @@ def add_worker_queues(worker_name: str, queues: list[str], session: Session = NE
 @provide_session
 def remove_worker_queues(worker_name: str, queues: list[str], session: Session = NEW_SESSION) -> None:
     """Remove queues from an edge worker."""
-    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
         raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")

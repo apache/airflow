@@ -29,6 +29,7 @@ from airflow.exceptions import (
     AirflowException,
     AirflowFileParseException,
     ConnectionNotUnique,
+    FileSyntaxError,
     VariableNotUnique,
 )
 from airflow.models import Variable
@@ -85,6 +86,12 @@ class TestFileParsers:
         with mock_local_file(content):
             with pytest.raises(AirflowFileParseException, match=re.escape(expected_message)):
                 local_filesystem.load_variables("a.yaml")
+
+
+class TestFileSyntaxError:
+    def test_str(self):
+        error = FileSyntaxError(line_no=10, message="Invalid line format")
+        assert str(error) == "Invalid line format. Line number: 10,"
 
 
 class TestLoadVariables:

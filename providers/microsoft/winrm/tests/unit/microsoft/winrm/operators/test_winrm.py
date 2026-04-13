@@ -142,3 +142,57 @@ class TestWinRMOperator:
             "stdout": ["aGVsbG8="],
         }
         assert result == "aGVsbG8="
+
+    @mock.patch("airflow.providers.microsoft.winrm.operators.winrm.WinRMHook")
+    @mock.patch("airflow.providers.microsoft.winrm.triggers.winrm.WinRMHook")
+    def test_execute_deferrable_with_utf16le_output(self, mock_operator_hook, mock_trigger_hook):
+        # Simulate a command that produces UTF-16-LE encoded output (e.g., PowerShell)
+        mock_hook_instance = MagicMock(spec=WinRMHook)
+        mock_hook_instance.ssh_conn_id = "winrm_default"
+        mock_operator_hook.return_value = mock_hook_instance
+        mock_trigger_hook.return_value = mock_hook_instance
+        mock_conn = MagicMock()
+        mock_hook_instance.get_async_conn = AsyncMock(return_value=mock_conn)
+        mock_hook_instance.get_conn.return_value = mock_conn
+
+        original_text = "Hello, 世界"
+        original_bytes = original_text.encode("utf-16-le")
+        mock_hook_instance.get_command_output.return_value = (original_bytes, b"", 0, True)
+        mock_hook_instance.run_command.return_value = (
+            "043E496C-A9E5-4284-AFCC-78A90E2BCB65",
+            "E4C36903-E59F-43AB-9374-ABA87509F46D",
+        )
+
+        operator = WinRMOperator(
+            task_id="test_task",
+            winrm_hook=mock_hook_instance,
+            command="dir",
+            deferrable=True,
+            output_encoding="utf-16-le",
+        )
+
+        result, events = execute_operator(operator)
+
+        assert len(events) == 1
+        assert isinstance(events[0], TriggerEvent)
+
+        # Expect the trigger payload to contain ASCII base64 of the raw bytes
+        expected_b64 = b64encode(original_bytes).decode("ascii")
+        assert events[0].payload == {
+            "command_id": "E4C36903-E59F-43AB-9374-ABA87509F46D",
+            "return_code": 0,
+            "shell_id": "043E496C-A9E5-4284-AFCC-78A90E2BCB65",
+            "status": "success",
+            "stderr": [],
+            "stdout": [expected_b64],
+        }
+
+        # Operator should return the same ASCII base64 string
+        assert result == expected_b64
+
+        # Ensure the hook's log_output was called with the decoded bytes and the configured encoding
+        assert mock_hook_instance.log_output.called
+        logged_args, logged_kwargs = mock_hook_instance.log_output.call_args
+        assert logged_args[0] == original_bytes
+        assert logged_args[0].decode("utf-16-le") == original_text
+        assert logged_kwargs.get("output_encoding") == "utf-16-le"

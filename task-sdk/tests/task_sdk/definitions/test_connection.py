@@ -391,6 +391,15 @@ class TestConnectionFromUri:
         # uri should not exist as an attribute (it's init-only)
         assert not hasattr(conn, "uri")
 
+    def test_connection_constructor_with_uri_keeps_extra_serialized(self):
+        """Test Connection(uri=...) keeps extra as a JSON string."""
+        conn = Connection(conn_id="test_conn", uri="mysql://user:pass@host:3306/db?charset=utf8&timeout=30")
+
+        assert json.loads(conn.extra) == {"charset": "utf8", "timeout": "30"}
+        assert conn.extra_dejson == {"charset": "utf8", "timeout": "30"}
+        assert conn.to_dict()["extra"] == {"charset": "utf8", "timeout": "30"}
+        assert json.loads(conn.as_json())["extra"] == {"charset": "utf8", "timeout": "30"}
+
     def test_from_uri_roundtrip(self):
         """Test that from_uri and get_uri are inverse operations."""
         original_uri = "postgres://user:pass@host:5432/db?param1=value1&param2=value2"

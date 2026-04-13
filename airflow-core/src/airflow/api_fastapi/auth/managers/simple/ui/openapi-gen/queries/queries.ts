@@ -1,24 +1,32 @@
-// generated with @7nohe/openapi-react-query-codegen@2.0.0
-import { type Options } from "@hey-api/client-axios";
+// generated with @7nohe/openapi-react-query-codegen@2.1.0
 import { useMutation, UseMutationOptions, useQuery, UseQueryOptions } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 
-import { createToken, createTokenAllAdmins, createTokenCli, loginAllAdmins } from "../requests/services.gen";
+import type { Options } from "../requests/sdk.gen";
+import { createToken, createTokenAllAdmins, createTokenCli, loginAllAdmins } from "../requests/sdk.gen";
 import {
+  CreateTokenAllAdminsData,
   CreateTokenAllAdminsError,
   CreateTokenCliData,
   CreateTokenCliError,
   CreateTokenData,
   CreateTokenError,
+  LoginAllAdminsData,
+  LoginAllAdminsError,
 } from "../requests/types.gen";
 import * as Common from "./common";
 
+/**
+ * Create Token All Admins
+ *
+ * Create a token with no credentials only if ``simple_auth_manager_all_admins`` is True.
+ */
 export const useCreateTokenAllAdmins = <
   TData = Common.CreateTokenAllAdminsDefaultResponse,
   TError = AxiosError<CreateTokenAllAdminsError>,
   TQueryKey extends Array<unknown> = unknown[],
 >(
-  clientOptions: Options<unknown, true> = {},
+  clientOptions: Options<CreateTokenAllAdminsData, true> = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
@@ -28,12 +36,17 @@ export const useCreateTokenAllAdmins = <
       createTokenAllAdmins({ ...clientOptions }).then((response) => response.data as TData) as TData,
     ...options,
   });
+/**
+ * Login All Admins
+ *
+ * Login the user with no credentials.
+ */
 export const useLoginAllAdmins = <
   TData = Common.LoginAllAdminsDefaultResponse,
   TError = AxiosError<LoginAllAdminsError>,
   TQueryKey extends Array<unknown> = unknown[],
 >(
-  clientOptions: Options<unknown, true> = {},
+  clientOptions: Options<LoginAllAdminsData, true> = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
@@ -42,6 +55,11 @@ export const useLoginAllAdmins = <
     queryFn: () => loginAllAdmins({ ...clientOptions }).then((response) => response.data as TData) as TData,
     ...options,
   });
+/**
+ * Create Token
+ *
+ * Authenticate the user.
+ */
 export const useCreateToken = <
   TData = Common.CreateTokenMutationResult,
   TError = AxiosError<CreateTokenError>,
@@ -59,6 +77,11 @@ export const useCreateToken = <
     mutationFn: (clientOptions) => createToken(clientOptions) as unknown as Promise<TData>,
     ...options,
   });
+/**
+ * Create Token Cli
+ *
+ * Authenticate the user for the CLI.
+ */
 export const useCreateTokenCli = <
   TData = Common.CreateTokenCliMutationResult,
   TError = AxiosError<CreateTokenCliError>,

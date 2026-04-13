@@ -21,7 +21,8 @@ Slack API Operators
 Introduction
 ------------
 
-`Slack API <https://api.slack.com/>`__ operators can post text messages or send files to specified Slack channel(s).
+`Slack API <https://api.slack.com/>`__ operators can post text messages, send files to specified Slack channel(s),
+or fetch conversation message history.
 
 SlackAPIPostOperator
 --------------------
@@ -93,3 +94,20 @@ Or by directly providing file contents
     :language: python
     :start-after: [START slack_api_file_operator_content_howto_guide]
     :end-before: [END slack_api_file_operator_content_howto_guide]
+
+
+SlackAPIConversationsHistoryOperator
+------------------------------------
+
+Use the :class:`~airflow.providers.slack.operators.slack.SlackAPIConversationsHistoryOperator` to call
+`conversations.history <https://api.slack.com/methods/conversations.history>`__ and retrieve messages from a channel.
+Your Slack app needs a history scope for the conversation type (for example **channels:history** for public channels).
+
+Using the Operator
+^^^^^^^^^^^^^^^^^^
+
+.. exampleinclude:: /../../slack/tests/system/slack/example_slack.py
+    :language: python
+    :dedent: 4
+    :start-after: [START slack_api_conversations_history_operator_howto_guide]
+    :end-before: [END slack_api_conversations_history_operator_howto_guide]

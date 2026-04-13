@@ -33,6 +33,7 @@ from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     BaseOperator,
     BaseOperatorLink,
+    conf,
 )
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -40,6 +41,8 @@ if TYPE_CHECKING:
     from pydantic_ai import Agent
     from pydantic_ai.toolsets.abstract import AbstractToolset
 
+    from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
+    from airflow.providers.common.ai.durable.storage import DurableStorage
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
 
@@ -64,8 +67,6 @@ class HITLReviewLink(BaseOperatorLink):
         if not getattr(operator, "enable_hitl_review", False):
             return ""
         from urllib.parse import urlparse
-
-        from airflow.configuration import conf
 
         base_url = conf.get("api", "base_url", fallback="/")
         if base_url.startswith(("http://", "https://")):
@@ -101,6 +102,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         arguments at DEBUG level. Set to ``False`` to disable.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+    :param durable: When ``True``, enables step-level caching of model
+        responses and tool results for durable execution.  On retry, cached
+        steps are replayed instead of re-executing.  Default ``False``.
+        Requires ``[common.ai] durable_cache_path`` to be set.
 
     **HITL Review parameters** (requires the ``hitl_review`` plugin):
 
@@ -142,6 +147,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         toolsets: list[AbstractToolset] | None = None,
         enable_tool_logging: bool = True,
         agent_params: dict[str, Any] | None = None,
+        durable: bool = False,
         # Agent feedback parameters
         enable_hitl_review: bool = False,
         max_hitl_iterations: int = 5,
@@ -159,6 +165,11 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.toolsets = toolsets
         self.enable_tool_logging = enable_tool_logging
         self.agent_params = agent_params or {}
+
+        self.durable = durable
+
+        if durable and enable_hitl_review:
+            raise ValueError("durable=True and enable_hitl_review=True cannot be used together.")
 
         self.enable_hitl_review = enable_hitl_review
         self.max_hitl_iterations = max_hitl_iterations
@@ -182,20 +193,84 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         """Build and return a pydantic-ai Agent from the operator's config."""
         extra_kwargs = dict(self.agent_params)
         if self.toolsets:
+            toolsets = self.toolsets
+            if self.durable and self._durable_storage is not None and self._durable_counter is not None:
+                toolsets = self._build_durable_toolsets(
+                    toolsets, self._durable_storage, self._durable_counter
+                )
             if self.enable_tool_logging:
-                extra_kwargs["toolsets"] = wrap_toolsets_for_logging(self.toolsets, self.log)
-            else:
-                extra_kwargs["toolsets"] = self.toolsets
+                toolsets = wrap_toolsets_for_logging(toolsets, self.log)
+            extra_kwargs["toolsets"] = toolsets
         return self.llm_hook.create_agent(
             output_type=self.output_type,
             instructions=self.system_prompt,
             **extra_kwargs,
         )
 
+    def _build_durable_toolsets(
+        self, toolsets: list[AbstractToolset], storage: DurableStorage, counter: DurableStepCounter
+    ) -> list[AbstractToolset]:
+        """Wrap each toolset with CachingToolset for durable execution."""
+        from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
+
+        return [CachingToolset(wrapped=ts, storage=storage, counter=counter) for ts in toolsets]
+
     def execute(self, context: Context) -> Any:
+        self._durable_storage = None
+        self._durable_counter = None
+
+        if self.durable:
+            from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
+            from airflow.providers.common.ai.durable.storage import DurableStorage
+
+            ti = context["task_instance"]
+            self._durable_storage = DurableStorage(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=ti.run_id,
+                map_index=ti.map_index if ti.map_index is not None else -1,
+            )
+            self._durable_counter = DurableStepCounter()
+
         agent = self._build_agent()
-        result = agent.run_sync(self.prompt)
+
+        storage = self._durable_storage
+        counter = self._durable_counter
+        if self.durable and storage is not None and counter is not None:
+            from pydantic_ai.models import infer_model
+
+            from airflow.providers.common.ai.durable.caching_model import CachingModel
+
+            if agent.model is None:
+                raise ValueError("Agent model must be set when durable=True")
+            resolved_model = infer_model(agent.model)
+            caching_model = CachingModel(resolved_model, storage=storage, counter=counter)
+            with agent.override(model=caching_model):
+                result = agent.run_sync(self.prompt)
+        else:
+            result = agent.run_sync(self.prompt)
+
         log_run_summary(self.log, result)
+
+        if self._durable_counter is not None:
+            c = self._durable_counter
+            replayed = c.replayed_model + c.replayed_tool
+            cached = c.cached_model + c.cached_tool
+            if replayed:
+                self.log.info(
+                    "Durable: replayed %d cached steps (%d model, %d tool), "
+                    "executed %d new steps (%d model, %d tool)",
+                    replayed,
+                    c.replayed_model,
+                    c.replayed_tool,
+                    cached,
+                    c.cached_model,
+                    c.cached_tool,
+                )
+
+        if self._durable_storage is not None:
+            self._durable_storage.cleanup()
+
         output = result.output
 
         if self.enable_hitl_review:

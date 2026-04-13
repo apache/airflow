@@ -32,7 +32,7 @@ from airflow.models.variable import Variable
 
 async def has_variable_access(
     request: Request,
-    variable_key: str = Path(),
+    variable_key: Annotated[str, Path(min_length=1)],
     token=CurrentTIToken,
 ):
     """Check if the task has access to the variable."""
@@ -63,12 +63,10 @@ log = logging.getLogger(__name__)
     },
 )
 def get_variable(
-    variable_key: str, team_name: Annotated[str | None, Depends(get_team_name_dep)]
+    variable_key: Annotated[str, Path(min_length=1)],
+    team_name: Annotated[str | None, Depends(get_team_name_dep)],
 ) -> VariableResponse:
     """Get an Airflow Variable."""
-    if not variable_key:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not Found")
-
     try:
         variable_value = Variable.get(variable_key, team_name=team_name)
     except KeyError:
@@ -92,12 +90,11 @@ def get_variable(
     },
 )
 def put_variable(
-    variable_key: str, body: VariablePostBody, team_name: Annotated[str | None, Depends(get_team_name_dep)]
+    variable_key: Annotated[str, Path(min_length=1)],
+    body: VariablePostBody,
+    team_name: Annotated[str | None, Depends(get_team_name_dep)],
 ):
     """Set an Airflow Variable."""
-    if not variable_key:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not Found")
-
     Variable.set(key=variable_key, value=body.value, description=body.description, team_name=team_name)
     return {"message": "Variable successfully set"}
 
@@ -110,9 +107,9 @@ def put_variable(
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
     },
 )
-def delete_variable(variable_key: str, team_name: Annotated[str | None, Depends(get_team_name_dep)]):
+def delete_variable(
+    variable_key: Annotated[str, Path(min_length=1)],
+    team_name: Annotated[str | None, Depends(get_team_name_dep)],
+):
     """Delete an Airflow Variable."""
-    if not variable_key:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not Found")
-
     Variable.delete(key=variable_key, team_name=team_name)

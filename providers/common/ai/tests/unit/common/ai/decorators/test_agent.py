@@ -137,3 +137,22 @@ class TestAgentDecoratedOperator:
         result = op.execute(context={})
 
         assert result == {"text": "Great results"}
+
+    def test_durable_kwarg_passes_through_to_operator(self):
+        """durable=True is forwarded to AgentOperator via **kwargs."""
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=lambda: "prompt",
+            llm_conn_id="my_llm",
+            durable=True,
+        )
+        assert op.durable is True
+
+    def test_durable_default_false_through_decorator(self):
+        """durable defaults to False when not specified."""
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=lambda: "prompt",
+            llm_conn_id="my_llm",
+        )
+        assert op.durable is False

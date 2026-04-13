@@ -18,7 +18,7 @@
  */
 import { Box, Code, VStack, IconButton } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { type JSX, useLayoutEffect, useRef } from "react";
+import { type JSX, useLayoutEffect, useRef, useCallback, useEffect } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
@@ -36,6 +36,9 @@ export type TaskLogContentProps = {
   readonly parsedLogs: Array<JSX.Element | string | undefined>;
   readonly wrap: boolean;
 };
+
+// How close to the bottom (in px) before we consider the user "at the bottom"
+const SCROLL_BOTTOM_THRESHOLD = 100;
 
 const ScrollToButton = ({
   direction,
@@ -83,6 +86,12 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
   const hash = location.hash.replace("#", "");
   const parentRef = useRef<HTMLDivElement | null>(null);
 
+  // Track whether user is at the bottom so we don't hijack their scroll position
+  // if they scrolled up to read something
+  const isAtBottomRef = useRef<boolean>(true);
+  // Track previous log count to detect new lines arriving
+  const prevLogCountRef = useRef<number>(0);
+
   const rowVirtualizer = useVirtualizer({
     count: parsedLogs.length,
     estimateSize: () => 20,
@@ -93,6 +102,44 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
   const contentHeight = rowVirtualizer.getTotalSize();
   const containerHeight = rowVirtualizer.scrollElement?.clientHeight ?? 0;
   const showScrollButtons = parsedLogs.length > 1 && contentHeight > containerHeight;
+
+  // Check if user is near the bottom on scroll
+  const handleScroll = useCallback(() => {
+    const el = parentRef.current;
+
+    if (!el) {
+      return;
+    }
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+
+    isAtBottomRef.current = distanceFromBottom <= SCROLL_BOTTOM_THRESHOLD;
+  }, []);
+
+  useEffect(() => {
+    const el = parentRef.current;
+
+    el?.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => el?.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
+
+  // Auto-scroll to bottom when:
+  // 1. Logs first load (prevLogCount was 0)
+  // 2. New lines arrive AND user was already at the bottom
+  useLayoutEffect(() => {
+    if (parsedLogs.length === 0) {
+      return;
+    }
+
+    const isFirstLoad = prevLogCountRef.current === 0;
+    const hasNewLines = parsedLogs.length > prevLogCountRef.current;
+
+    if ((isFirstLoad || (hasNewLines && isAtBottomRef.current)) && !location.hash) {
+      rowVirtualizer.scrollToIndex(parsedLogs.length - 1, { align: "end" });
+    }
+
+    prevLogCountRef.current = parsedLogs.length;
+  }, [parsedLogs.length, rowVirtualizer]);
 
   useLayoutEffect(() => {
     if (location.hash && !isLoading) {
@@ -112,8 +159,10 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
     }
 
     if (to === "top") {
+      isAtBottomRef.current = false;
       scrollToTop({ element: el, virtualizer: rowVirtualizer });
     } else {
+      isAtBottomRef.current = true;
       scrollToBottom({ element: el, virtualizer: rowVirtualizer });
     }
   };

@@ -37,6 +37,7 @@ import (
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1client"
 	"github.com/apache/airflow/go-sdk/pkg/bundles/shared"
+	"github.com/apache/airflow/go-sdk/pkg/config"
 	"github.com/apache/airflow/go-sdk/pkg/edgeapi"
 	"github.com/apache/airflow/go-sdk/pkg/logging"
 	logserver "github.com/apache/airflow/go-sdk/pkg/logging/server"
@@ -69,8 +70,6 @@ var (
 )
 
 func Run(ctx context.Context) error {
-	apiURL := viper.GetString("edge.api_url")
-
 	hostname := viper.GetString("edge.hostname")
 
 	if hostname == "" {
@@ -80,10 +79,14 @@ func Run(ctx context.Context) error {
 			return err
 		}
 	}
+	var conf config.WorkerConfig
+	err := viper.Unmarshal(&conf)
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	w, err := NewWorker(hostname, apiURL, viper.GetString("api_auth.secret_key"),
-		viper.GetStringSlice("queues"),
-	)
+	w, err := NewWorker(conf)
+	w.logger.Info("Config", "config", conf)
 	if err != nil {
 		return err
 	}
@@ -106,13 +109,10 @@ func configOrDefault[T cast.Basic](key string, fallback T) T {
 	return cast.To[T](x)
 }
 
-func NewWorker(
-	hostname string,
-	apiURL string,
-	apiJWTSecretKey string,
-	queues []string,
-) (*worker, error) {
-	client, err := edgeapi.NewClient(apiURL, edgeapi.WithEdgeAPIJWTKey([]byte(apiJWTSecretKey)))
+func NewWorker(conf config.WorkerConfig) (*worker, error) {
+	client, err := edgeapi.NewClient(conf.ApiURL,
+		edgeapi.WithEdgeAPIJWTKey([]byte(conf.ApiJWTSecretKey), conf.Issuer),
+		edgeapi.WithRetry(conf.ClientConfig))
 	if err != nil {
 		return nil, err
 	}
@@ -121,10 +121,10 @@ func NewWorker(
 
 	var airflowVer, edgeVer, concurrency, freeConcurrency, goVer edgeapi.WorkerStateBody_Sysinfo_AdditionalProperties
 	airflowVer.FromWorkerStateBodySysinfo0(edgeapi.WorkerStateBodySysinfo0(
-		configOrDefault("edge.airflow_version", "3.1.0"),
+		configOrDefault("edge.airflow_version", "3.2.0"),
 	))
 	edgeVer.FromWorkerStateBodySysinfo0(edgeapi.WorkerStateBodySysinfo0(
-		configOrDefault("edge.provider_version", "1.3.1"),
+		configOrDefault("edge.provider_version", "3.2.0"),
 	))
 	concurrency.FromWorkerStateBodySysinfo1(edgeapi.WorkerStateBodySysinfo1(maxConcurrency))
 	freeConcurrency.FromWorkerStateBodySysinfo1(edgeapi.WorkerStateBodySysinfo1(maxConcurrency))
@@ -140,8 +140,8 @@ func NewWorker(
 	w := &worker{
 		Discovery: shared.NewDiscovery(viper.GetString("bundles.folder"), nil),
 
-		hostname:        hostname,
-		queues:          queues,
+		hostname:        conf.Hostname,
+		queues:          conf.Queues,
 		client:          client,
 		sysInfo:         sysInfo,
 		logger:          slog.Default().With("logger", "edge.worker"),
@@ -149,7 +149,7 @@ func NewWorker(
 		activeWorkloads: map[uuid.UUID]bundlev1.ExecuteTaskWorkload{},
 	}
 
-	w.logger.Info("Starting Go Edge worker", "queues", queues)
+	w.logger.Info("Starting Go Edge worker", "queues", conf.Queues)
 
 	w.freeConcurrency.Store(maxConcurrency)
 

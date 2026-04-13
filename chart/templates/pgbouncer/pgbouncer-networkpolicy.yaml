@@ -25,8 +25,7 @@
   {{- $kedaEnabled = or .Values.workers.celery.keda.enabled (and (not (has .Values.workers.celery.keda.enabled (list true false))) .Values.workers.keda.enabled) }}
 {{- end }}
 {{- $workersKedaEnabled := and $kedaEnabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
-{{- $triggererEnabled := .Values.triggerer.enabled }}
-{{- $triggererKedaEnabled := and $triggererEnabled .Values.triggerer.keda.enabled }}
+{{- $triggererKedaEnabled := and .Values.triggerer.enabled .Values.triggerer.keda.enabled }}
 {{- if and .Values.pgbouncer.enabled .Values.networkPolicies.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -38,7 +37,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values.pgbouncer.labels) }}
+    {{- if or .Values.labels .Values.pgbouncer.labels }}
       {{- mustMerge .Values.pgbouncer.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
@@ -55,18 +54,18 @@ spec:
         matchLabels:
           tier: airflow
           release: {{ .Release.Name }}
-    {{- if or $workersKedaEnabled  $triggererKedaEnabled }}
-    {{- if and $workersKedaEnabled (.Values.workers.celery.keda.namespaceLabels | default .Values.workers.keda.namespaceLabels) }}
+    {{- if or $workersKedaEnabled $triggererKedaEnabled }}
+      {{- if and $workersKedaEnabled (.Values.workers.celery.keda.namespaceLabels | default .Values.workers.keda.namespaceLabels) }}
     - namespaceSelector:
        matchLabels: {{- toYaml (.Values.workers.celery.keda.namespaceLabels | default .Values.workers.keda.namespaceLabels) | nindent 10 }}
       podSelector:
-    {{- else if and $triggererEnabled .Values.triggerer.keda.namespaceLabels }}
+      {{- else if and .Values.triggerer.enabled .Values.triggerer.keda.namespaceLabels }}
     - namespaceSelector:
         matchLabels: {{- toYaml .Values.triggerer.keda.namespaceLabels | nindent 10 }}
       podSelector:
-    {{- else }}
+      {{- else }}
     - podSelector:
-    {{- end }}
+      {{- end }}
         matchLabels:
           app: keda-operator
     {{- end }}

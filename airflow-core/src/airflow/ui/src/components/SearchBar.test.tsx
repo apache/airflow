@@ -16,16 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
 
 import { SearchBar } from "./SearchBar";
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("Test SearchBar", () => {
   it("Renders and clear button works", async () => {
-    render(<SearchBar defaultValue="" onChange={vi.fn()} placeholder="Search Dags" />, {
+    const onChange = vi.fn();
+
+    render(<SearchBar defaultValue="" onChange={onChange} placeholder="Search Dags" />, {
       wrapper: Wrapper,
     });
 
@@ -44,5 +50,35 @@ describe("Test SearchBar", () => {
     fireEvent.click(clearButton);
 
     expect((input as HTMLInputElement).value).toBe("");
+    expect(onChange).toHaveBeenCalledWith("");
+  });
+
+  it("cancels pending debounced changes when clearing", () => {
+    vi.useFakeTimers();
+
+    const onChange = vi.fn();
+
+    render(<SearchBar defaultValue="" onChange={onChange} placeholder="Search Dags" />, {
+      wrapper: Wrapper,
+    });
+
+    const input = screen.getByTestId("search-dags");
+
+    fireEvent.change(input, { target: { value: "air" } });
+
+    expect((input as HTMLInputElement).value).toBe("air");
+    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("clear-search"));
+
+    expect((input as HTMLInputElement).value).toBe("");
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenNthCalledWith(1, "");
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(onChange).toHaveBeenCalledTimes(1);
   });
 });

@@ -29,6 +29,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper
+from typing import Any
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
@@ -118,19 +119,35 @@ GLOBAL_CONSTANTS_PATH = (
 )
 
 
+def _read_global_constants_assignment(name: str) -> Any:
+    """Read a top-level assignment from global_constants.py."""
+    tree = ast.parse(GLOBAL_CONSTANTS_PATH.read_text())
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == name:
+                    return ast.literal_eval(node.value)
+    raise RuntimeError(f"{name} not found in global_constants.py")
+
+
 def read_allowed_kubernetes_versions() -> list[str]:
     """Parse ALLOWED_KUBERNETES_VERSIONS from global_constants.py (single source of truth).
 
     Returns versions without the ``v`` prefix, e.g. ``["1.30.13", "1.31.12", ...]``.
     """
-    tree = ast.parse(GLOBAL_CONSTANTS_PATH.read_text())
-    for node in tree.body:
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == "ALLOWED_KUBERNETES_VERSIONS":
-                    versions: list[str] = ast.literal_eval(node.value)
-                    return [v.lstrip("v") for v in versions]
-    raise RuntimeError("ALLOWED_KUBERNETES_VERSIONS not found in global_constants.py")
+    versions: list[str] = _read_global_constants_assignment("ALLOWED_KUBERNETES_VERSIONS")
+    return [v.lstrip("v") for v in versions]
+
+
+def read_default_python_major_minor_version_for_images() -> str:
+    """Parse DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES from global_constants.py."""
+    value = _read_global_constants_assignment("DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES")
+    if not isinstance(value, str):
+        raise RuntimeError(
+            "DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES in global_constants.py "
+            f"must be a string, got {type(value).__name__}"
+        )
+    return value
 
 
 def pre_process_mypy_files(files: list[str]) -> list[str]:
@@ -451,6 +468,35 @@ def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]
     return imports
 
 
+def get_remote_for_main() -> str:
+    """
+    Return the remote name to use when fetching main.
+    Prefers the remote that points to apache/airflow; otherwise uses origin.
+    """
+    result = subprocess.run(
+        ["git", "remote", "-v"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return "origin"
+
+    apache_remote = None
+    origin_remote = None
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 2:
+            name, url = parts[0], parts[1]
+            if "apache/airflow" in url:
+                apache_remote = name
+                break
+            if name == "origin":
+                origin_remote = name
+
+    return apache_remote or origin_remote or "origin"
+
+
 def retrieve_gh_token(*, token: str | None = None, description: str, scopes: str) -> str:
     if token:
         return token
@@ -473,3 +519,31 @@ def retrieve_gh_token(*, token: str | None = None, description: str, scopes: str
         )
         sys.exit(1)
     return token
+
+
+def parse_operations(
+    operations_file: Path, exclude_operation_classes: set, exclude_methods: set
+) -> dict[str, list[str]]:
+    """Parse airflowctl operations file and return a mapping of CLI group names to subcommands."""
+    commands: dict[str, list[str]] = {}
+
+    with open(operations_file) as f:
+        tree = ast.parse(f.read(), filename=str(operations_file))
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name.endswith("Operations"):
+            if node.name in exclude_operation_classes:
+                continue
+
+            group_name = node.name.replace("Operations", "").lower()
+            commands[group_name] = []
+
+            for child in node.body:
+                if isinstance(child, ast.FunctionDef):
+                    method_name = child.name
+                    if method_name in exclude_methods or method_name.startswith("_"):
+                        continue
+                    subcommand = method_name.replace("_", "-")
+                    commands[group_name].append(subcommand)
+
+    return commands

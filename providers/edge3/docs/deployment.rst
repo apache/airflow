@@ -106,7 +106,11 @@ run on the central Airflow instance:
     airflow db migrate
 
 To kick off a worker, you need to setup Airflow and kick off the worker
-subcommand
+subcommand.
+
+If your Airflow deployment uses Multi-Team mode, assign the worker to its team with
+the ``--team-name`` option so it only picks up jobs for that team. See
+:ref:`edge_executor:multi_team` for setup details and security considerations.
 
 .. code-block:: bash
 
@@ -125,6 +129,12 @@ subcommand
 
     2025-09-27T12:28:33.171525Z [info     ] No new job to process
 
+
+To start a worker assigned to a specific team:
+
+.. code-block:: bash
+
+    airflow edge worker --team-name team_a -q remote,wisconsin_site
 
 You can also start this worker in the background by running
 it as a daemonized process. Additionally, you can redirect stdout
@@ -245,3 +255,6 @@ instance. The commands are:
 - ``airflow edge add-worker-queues``: Add queues to an edge worker
 - ``airflow edge remove-worker-queues``: Remove queues from an edge worker
 - ``airflow edge set-worker-concurrency``: Set the concurrency of a running remote edge worker
+
+Workers are identified by hostname. See the :doc:`cli-ref` for the full list of
+arguments.

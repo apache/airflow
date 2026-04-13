@@ -236,11 +236,9 @@ class TestElasticsearchSQLHook:
         es_connection = ESConnection(host="localhost", port=9200)
         response = es_connection.execute_sql("SELECT * FROM hollywood.actors")
         mock_es_sql_client.query.assert_called_once_with(
-            body={
-                "fetch_size": 1000,
-                "field_multi_value_leniency": False,
-                "query": "SELECT * FROM hollywood.actors",
-            }
+            fetch_size=1000,
+            field_multi_value_leniency=False,
+            query="SELECT * FROM hollywood.actors",
         )
 
         assert response == RESPONSE_WITHOUT_CURSOR

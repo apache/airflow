@@ -34,24 +34,25 @@ from airflow.sdk import (
     AssetAll,
     AssetAny,
     AssetOrTimeSchedule,
+    ChainMapper,
     CronDataIntervalTimetable,
     CronTriggerTimetable,
-    DailyMapper,
     DeltaDataIntervalTimetable,
     DeltaTriggerTimetable,
     EventsTimetable,
     IdentityMapper,
-    MonthlyMapper,
     MultipleCronTriggerTimetable,
     PartitionMapper,
     ProductMapper,
-    QuarterlyMapper,
-    WeeklyMapper,
-    YearlyMapper,
+    StartOfDayMapper,
+    StartOfMonthMapper,
+    StartOfQuarterMapper,
+    StartOfWeekMapper,
+    StartOfYearMapper,
 )
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
-from airflow.sdk.definitions.partition_mappers.temporal import HourlyMapper
+from airflow.sdk.definitions.partition_mappers.temporal import StartOfHourMapper
 from airflow.sdk.definitions.timetables.assets import (
     AssetTriggeredTimetable,
     PartitionedAssetTimetable,
@@ -161,6 +162,14 @@ def encode_trigger(trigger: BaseEventTrigger | dict):
     if isinstance(trigger, dict):
         classpath = trigger["classpath"]
         kwargs = trigger["kwargs"]
+        # unwrap any kwargs that are themselves serialized objects, to avoid double-serialization in the trigger's own serialize() method.
+        unwrapped = {}
+        for k, v in kwargs.items():
+            if isinstance(v, dict) and Encoding.TYPE in v:
+                unwrapped[k] = BaseSerialization.deserialize(v)
+            else:
+                unwrapped[k] = v
+        kwargs = unwrapped
     else:
         classpath, kwargs = trigger.serialize()
     return {
@@ -392,15 +401,16 @@ class _Serializer:
         }
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
-        IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
-        HourlyMapper: "airflow.partition_mappers.temporal.HourlyMapper",
-        DailyMapper: "airflow.partition_mappers.temporal.DailyMapper",
-        WeeklyMapper: "airflow.partition_mappers.temporal.WeeklyMapper",
-        MonthlyMapper: "airflow.partition_mappers.temporal.MonthlyMapper",
-        QuarterlyMapper: "airflow.partition_mappers.temporal.QuarterlyMapper",
-        YearlyMapper: "airflow.partition_mappers.temporal.YearlyMapper",
-        ProductMapper: "airflow.partition_mappers.product.ProductMapper",
         AllowedKeyMapper: "airflow.partition_mappers.allowed_key.AllowedKeyMapper",
+        ChainMapper: "airflow.partition_mappers.chain.ChainMapper",
+        IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
+        ProductMapper: "airflow.partition_mappers.product.ProductMapper",
+        StartOfDayMapper: "airflow.partition_mappers.temporal.StartOfDayMapper",
+        StartOfHourMapper: "airflow.partition_mappers.temporal.StartOfHourMapper",
+        StartOfMonthMapper: "airflow.partition_mappers.temporal.StartOfMonthMapper",
+        StartOfQuarterMapper: "airflow.partition_mappers.temporal.StartOfQuarterMapper",
+        StartOfWeekMapper: "airflow.partition_mappers.temporal.StartOfWeekMapper",
+        StartOfYearMapper: "airflow.partition_mappers.temporal.StartOfYearMapper",
     }
 
     @functools.singledispatchmethod
@@ -412,23 +422,27 @@ class _Serializer:
         return partition_mapper.serialize()
 
     @serialize_partition_mapper.register
+    def _(self, partition_mapper: ChainMapper) -> dict[str, Any]:
+        return {"mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers]}
+
+    @serialize_partition_mapper.register
     def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
         return {}
 
-    @serialize_partition_mapper.register(HourlyMapper)
-    @serialize_partition_mapper.register(DailyMapper)
-    @serialize_partition_mapper.register(WeeklyMapper)
-    @serialize_partition_mapper.register(MonthlyMapper)
-    @serialize_partition_mapper.register(QuarterlyMapper)
-    @serialize_partition_mapper.register(YearlyMapper)
+    @serialize_partition_mapper.register(StartOfHourMapper)
+    @serialize_partition_mapper.register(StartOfDayMapper)
+    @serialize_partition_mapper.register(StartOfWeekMapper)
+    @serialize_partition_mapper.register(StartOfMonthMapper)
+    @serialize_partition_mapper.register(StartOfQuarterMapper)
+    @serialize_partition_mapper.register(StartOfYearMapper)
     def _(
         self,
-        partition_mapper: HourlyMapper
-        | DailyMapper
-        | WeeklyMapper
-        | MonthlyMapper
-        | QuarterlyMapper
-        | YearlyMapper,
+        partition_mapper: StartOfHourMapper
+        | StartOfDayMapper
+        | StartOfWeekMapper
+        | StartOfMonthMapper
+        | StartOfQuarterMapper
+        | StartOfYearMapper,
     ) -> dict[str, Any]:
         return {
             "input_format": partition_mapper.input_format,

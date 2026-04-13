@@ -151,17 +151,12 @@ class Connection:
         if uri is None:
             self.__attrs_init__(conn_id=conn_id, **kwargs)  # type: ignore[attr-defined]
         else:
-            self.__dict__.update(self.from_uri(uri, conn_id=conn_id).to_dict(validate=False))
+            self.__dict__.update(attrs.asdict(self.from_uri(uri, conn_id=conn_id), recurse=False))
 
     def get_uri(self) -> str:
         """Generate and return connection in URI format."""
         from urllib.parse import parse_qsl
 
-        if self.conn_type and "_" in self.conn_type:
-            log.warning(
-                "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
-                self.conn_type,
-            )
         if self.conn_type:
             uri = f"{self.conn_type.lower().replace('_', '-')}://"
         else:

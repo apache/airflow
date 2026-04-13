@@ -20,11 +20,10 @@ import { Box } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import { useParams } from "react-router-dom";
 
-import type { GridRunsResponse } from "openapi/requests";
+import type { GridRunsResponse, GridTISummaries } from "openapi/requests";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { useHover } from "src/context/hover";
-import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
 import { GridTI } from "./GridTI";
 import { DagVersionIndicator } from "./VersionIndicator";
@@ -35,6 +34,7 @@ type Props = {
   readonly onCellClick?: () => void;
   readonly run: GridRunsResponse;
   readonly showVersionIndicatorMode?: VersionIndicatorOptions;
+  readonly tiSummaries?: GridTISummaries;
   readonly virtualItems?: Array<VirtualItem>;
 };
 
@@ -45,23 +45,18 @@ export const TaskInstancesColumn = ({
   onCellClick,
   run,
   showVersionIndicatorMode,
+  tiSummaries,
   virtualItems,
 }: Props) => {
   const { dagId = "", runId } = useParams();
   const isSelected = runId === run.run_id;
-  const { data: gridTISummaries } = useGridTiSummaries({
-    dagId,
-    isSelected,
-    runId: run.run_id,
-    state: run.state,
-  });
+
   const { hoveredRunId, setHoveredRunId } = useHover();
 
   const itemsToRender =
     virtualItems ?? nodes.map((_, index) => ({ index, size: ROW_HEIGHT, start: index * ROW_HEIGHT }));
 
-  const taskInstances = gridTISummaries?.task_instances ?? [];
-
+  const taskInstances = tiSummaries?.task_instances ?? [];
   const taskInstanceMap = new Map<string, LightGridTaskInstanceSummary>();
 
   for (const ti of taskInstances) {

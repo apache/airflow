@@ -27,8 +27,8 @@ from typing import TYPE_CHECKING, Any
 from google.genai.errors import ClientError
 from google.genai.types import BatchJob
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.google.cloud.hooks.gen_ai import (
     BatchJobStatus,
     GenAIGeminiAPIHook,

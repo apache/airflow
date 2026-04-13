@@ -43,6 +43,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.facebook.ads.hooks.ads.FacebookAdsReportingHook",
+                "hook-name": "Facebook Ads",
                 "connection-type": "facebook_social",
             }
         ],

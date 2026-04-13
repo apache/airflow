@@ -37,6 +37,7 @@ from airflow_breeze.commands.common_options import (
     option_answer,
     option_dry_run,
     option_github_repository,
+    option_github_token,
     option_verbose,
 )
 from airflow_breeze.global_constants import (
@@ -536,6 +537,13 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     is_flag=True,
 )
 @click.option(
+    "--draft/--no-draft",
+    default=False,
+    show_default=True,
+    help="Create the PR as a draft (useful for scheduled CI runs where a human undrafts to trigger CI)",
+    is_flag=True,
+)
+@click.option(
     "--switch-to-base/--no-switch-to-base",
     default=None,
     help="Automatically switch to the base branch if not already on it (if not specified, will ask)",
@@ -561,12 +569,6 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     help="Run prek autoupdate to update hook revisions",
 )
 @click.option(
-    "--pin-versions/--no-pin-versions",
-    default=True,
-    show_default=True,
-    help="Run pin-versions to pin CI dependency versions",
-)
-@click.option(
     "--update-chart-dependencies/--no-update-chart-dependencies",
     default=True,
     show_default=True,
@@ -590,21 +592,23 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     show_default=True,
     help="Sync K8s JSON schemas to airflow-site",
 )
+@option_github_token
 @option_answer
 @option_verbose
 @option_dry_run
 def upgrade(
     target_branch: str,
     create_pr: bool | None,
+    draft: bool,
     switch_to_base: bool | None,
     airflow_site: Path,
     force_k8s_schema_sync: bool,
     autoupdate: bool,
-    pin_versions: bool,
     update_chart_dependencies: bool,
     upgrade_important_versions: bool,
     update_uv_lock: bool,
     k8s_schema_sync: bool,
+    github_token: str | None,
 ):
     # Validate target_branch pattern
     target_branch_pattern = re.compile(r"^(main|v\d+-\d+-test)$")
@@ -759,31 +763,33 @@ def upgrade(
 
     console_print("[info]Running upgrade of important CI environment.[/]")
 
-    # Get GitHub token from gh CLI and set it in environment copy
-    gh_token_result = run_command(
-        ["gh", "auth", "token"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    # Resolve GitHub token: prefer --github-token / GITHUB_TOKEN env var, fall back to gh CLI
+    if not github_token:
+        gh_token_result = run_command(
+            ["gh", "auth", "token"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if gh_token_result.returncode == 0 and gh_token_result.stdout.strip():
+            github_token = gh_token_result.stdout.strip()
 
     # Create a copy of the environment to pass to commands
     command_env = os.environ.copy()
 
-    if gh_token_result.returncode == 0 and gh_token_result.stdout.strip():
-        github_token = gh_token_result.stdout.strip()
+    if github_token:
         command_env["GITHUB_TOKEN"] = github_token
-        console_print("[success]GitHub token retrieved from gh CLI and set in environment.[/]")
+        console_print("[success]GitHub token set in environment.[/]")
     else:
         console_print(
-            "[warning]Could not retrieve GitHub token from gh CLI. "
+            "[warning]Could not retrieve GitHub token from --github-token or gh CLI. "
             "Commands may fail if they require authentication.[/]"
         )
 
-    # Define all upgrade commands to run (all run with check=False to continue on errors)
+    # All upgrade commands run locally with check=False to continue on errors.
+    # The uv lock --upgrade step must run last so it can incorporate changes from the other steps.
     upgrade_commands: list[tuple[str, str]] = [
         ("autoupdate", "prek autoupdate --cooldown-days 4 --freeze"),
-        ("pin-versions", "prek --all-files --verbose --stage manual pin-versions"),
         (
             "update-chart-dependencies",
             "prek --all-files --show-diff-on-failure --color always --verbose --stage manual update-chart-dependencies",
@@ -794,18 +800,18 @@ def upgrade(
         ),
         (
             "update-uv-lock",
-            "prek --all-files --show-diff-on-failure --color always --verbose update-uv-lock --stage manual",
+            "uv lock --upgrade",
         ),
     ]
+
     step_enabled = {
         "autoupdate": autoupdate,
-        "pin-versions": pin_versions,
         "update-chart-dependencies": update_chart_dependencies,
         "upgrade-important-versions": upgrade_important_versions,
         "update-uv-lock": update_uv_lock,
     }
 
-    # Execute enabled upgrade commands with the environment containing GitHub token
+    # Execute upgrade commands
     for step_name, command in upgrade_commands:
         if step_enabled[step_name]:
             run_command(command.split(), check=False, env=command_env)
@@ -830,12 +836,8 @@ def upgrade(
         should_create_pr = user_confirm("Do you want to create a PR with the upgrade changes?") == Answer.YES
 
     if should_create_pr:
-        # Get current HEAD commit hash for unique branch name
-        head_result = run_command(
-            ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=False
-        )
-        commit_hash = head_result.stdout.strip() if head_result.returncode == 0 else "unknown"
-        branch_name = f"ci-upgrade-{commit_hash}"
+        # Use a stable branch name based on target branch so scheduled runs can reuse/update the same PR
+        branch_name = f"ci-upgrade-{target_branch}"
 
         # Check if branch already exists and delete it
         branch_check = run_command(
@@ -847,7 +849,23 @@ def upgrade(
 
         run_command(["git", "checkout", "-b", branch_name])
         run_command(["git", "add", "."])
-        run_command(["git", "commit", "-m", "CI: Upgrade important CI environment"])
+        try:
+            run_command(
+                ["git", "commit", "--message", f"[{target_branch}] CI: Upgrade important CI environment"]
+            )
+        except subprocess.CalledProcessError:
+            console_print("[info]Commit failed, assume some auto-fixes might have been made...[/]")
+            run_command(["git", "add", "."])
+            run_command(
+                [
+                    "git",
+                    "commit",
+                    # postpone pre-commit checks to CI, not to fail in automation if e.g. mypy changes force code checks
+                    "--no-verify",
+                    "--message",
+                    f"[{target_branch}] CI: Upgrade important CI environment",
+                ]
+            )
 
         # Push the branch to origin (use detected origin or fallback to 'origin')
         push_remote = origin_remote_name if origin_remote_name else "origin"
@@ -877,12 +895,62 @@ def upgrade(
             head_ref = branch_name
             console_print("[warning]Could not determine fork repository. Using branch name only.[/]")
 
-        pr_result = run_command(
+        pr_title = f"[{target_branch}] Upgrade important CI environment"
+        pr_body = "This PR upgrades important dependencies of the CI environment."
+
+        # Check if there's already an open PR for this branch
+        existing_pr_result = run_command(
             [
                 "gh",
                 "pr",
+                "list",
+                "--repo",
+                "apache/airflow",
+                "--head",
+                head_ref,
+                "--base",
+                target_branch,
+                "--state",
+                "open",
+                "--json",
+                "number,url",
+                "--jq",
+                ".[0]",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=command_env,
+        )
+
+        existing_pr = existing_pr_result.stdout.strip() if existing_pr_result.returncode == 0 else ""
+
+        if existing_pr and existing_pr != "null" and existing_pr != "":
+            console_print(f"[success]Existing PR found and updated with force push: {existing_pr}[/]")
+            if draft:
+                # Convert back to draft so a human must undraft to trigger CI
+                run_command(
+                    [
+                        "gh",
+                        "pr",
+                        "ready",
+                        "--repo",
+                        "apache/airflow",
+                        "--undo",
+                        head_ref,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    env=command_env,
+                )
+                console_print("[info]Existing PR converted back to draft.[/]")
+        else:
+            # Create a new PR
+            gh_create_cmd = [
+                "gh",
+                "pr",
                 "create",
-                "-w",
                 "--repo",
                 "apache/airflow",
                 "--head",
@@ -890,20 +958,25 @@ def upgrade(
                 "--base",
                 target_branch,
                 "--title",
-                f"[{target_branch}] Upgrade important CI environment",
+                pr_title,
                 "--body",
-                "This PR upgrades important dependencies of the CI environment.",
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-            env=command_env,
-        )
-        if pr_result.returncode != 0:
-            console_print(f"[error]Failed to create PR:\n{pr_result.stdout}\n{pr_result.stderr}[/]")
-            sys.exit(1)
-        pr_url = pr_result.stdout.strip() if pr_result.returncode == 0 else ""
-        console_print(f"[success]PR created successfully: {pr_url}.[/]")
+                pr_body,
+            ]
+            if draft:
+                gh_create_cmd.append("--draft")
+
+            pr_result = run_command(
+                gh_create_cmd,
+                capture_output=True,
+                text=True,
+                check=False,
+                env=command_env,
+            )
+            if pr_result.returncode != 0:
+                console_print(f"[error]Failed to create PR:\n{pr_result.stdout}\n{pr_result.stderr}[/]")
+                sys.exit(1)
+            pr_url = pr_result.stdout.strip() if pr_result.returncode == 0 else ""
+            console_print(f"[success]PR created successfully: {pr_url}.[/]")
 
         # Switch back to appropriate branch and delete the temporary branch
         console_print(f"[info]Cleaning up temporary branch {branch_name}...[/]")

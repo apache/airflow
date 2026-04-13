@@ -26,6 +26,11 @@ from airflow.providers.pinecone.hooks.pinecone import PineconeHook
 
 if TYPE_CHECKING:
     from pinecone import Vector
+    from pinecone.db_data.types import (
+        VectorTuple,
+        VectorTupleWithMetadata,
+        VectorTypedDict,
+    )
 
     from airflow.sdk import Context
 
@@ -54,7 +59,10 @@ class PineconeIngestOperator(BaseOperator):
         *,
         conn_id: str = PineconeHook.default_conn_name,
         index_name: str,
-        input_vectors: list[Vector] | list[tuple] | list[dict],
+        input_vectors: list[Vector]
+        | list[VectorTuple]
+        | list[VectorTupleWithMetadata]
+        | list[VectorTypedDict],
         namespace: str = "",
         batch_size: int | None = None,
         upsert_kwargs: dict | None = None,

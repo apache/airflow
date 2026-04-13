@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from airflow.sdk.types import DagRunProtocol, Operator
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DagRunInfo, DataInterval
+    from airflow.triggers.base import StartTriggerArgs
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
 
@@ -380,6 +381,12 @@ def pytest_addoption(parser: pytest.Parser):
         help="Disable internal capture warnings.",
     )
     group.addoption(
+        "--load-config",
+        action="store",
+        dest="load_config",
+        help="[DANGER] Load an airflow config file instead of test environment defaults [DANGER]",
+    )
+    group.addoption(
         "--warning-output-path",
         action="store",
         dest="warning_output_path",
@@ -408,6 +415,19 @@ def initialize_airflow_tests(request):
     airflow_home = os.environ.get("AIRFLOW_HOME") or os.path.join(home, "airflow")
 
     print(f"Home of the user: {home}\nAirflow home {airflow_home}")
+
+    if request.config.option.load_config:
+        from airflow.configuration import AIRFLOW_CONFIG, conf, load_standard_airflow_configuration
+
+        saved_af_conf = AIRFLOW_CONFIG
+        AIRFLOW_CONFIG = request.config.option.load_config
+        try:
+            load_standard_airflow_configuration(conf)
+        except:
+            raise
+        finally:
+            AIRFLOW_CONFIG = saved_af_conf
+        conf.validate()
 
     if not skip_db_tests and not request.config.option.no_db_init:
         _initialize_airflow_db(request.config.option.db_init, airflow_home)
@@ -635,37 +655,6 @@ def skip_quarantined_test(item):
         )
 
 
-def skip_db_test(item):
-    if next(item.iter_markers(name="db_test"), None):
-        if next(item.iter_markers(name="non_db_test_override"), None):
-            # non_db_test can override the db_test set for example on module or class level
-            return
-        pytest.skip(
-            f"The test is skipped as it is DB test and --skip-db-tests is flag is passed to pytest. {item}"
-        )
-    if next(item.iter_markers(name="backend"), None):
-        # also automatically skip tests marked with `backend` marker as they are implicitly
-        # db tests
-        pytest.skip(
-            f"The test is skipped as it is DB test and --skip-db-tests is flag is passed to pytest. {item}"
-        )
-
-
-def only_run_db_test(item):
-    if next(item.iter_markers(name="db_test"), None) and not next(
-        item.iter_markers(name="non_db_test_override"), None
-    ):
-        # non_db_test at individual level can override the db_test set for example on module or class level
-        return
-    if next(item.iter_markers(name="backend"), None):
-        # Also do not skip the tests marked with `backend` marker - as it is implicitly a db test
-        return
-    pytest.skip(
-        f"The test is skipped as it is not a DB tests "
-        f"and --run-db-tests-only flag is passed to pytest. {item}"
-    )
-
-
 def skip_if_integration_disabled(marker, item):
     integration_name = marker.args[0]
     environment_variable_name = "INTEGRATION_" + integration_name.upper()
@@ -712,6 +701,43 @@ def skip_if_credential_file_missing(item):
             pytest.skip(f"The test requires credential file {credential_path}: {item}")
 
 
+def _is_db_test(item) -> bool:
+    """Check if a test item should be treated as a DB test."""
+    if next(item.iter_markers(name="db_test"), None):
+        if next(item.iter_markers(name="non_db_test_override"), None):
+            return False
+        return True
+    if next(item.iter_markers(name="backend"), None):
+        return True
+    return False
+
+
+def pytest_collection_modifyitems(config, items):
+    """Deselect DB/non-DB tests early so pytest-xdist workers never receive them.
+
+    Previously these tests were skipped at runtime via pytest_runtest_setup, which
+    still required every xdist worker to import the test modules. With thousands of
+    DB tests being skipped in non-DB runs, this caused excessive memory usage — enough
+    to OOM on Python 3.14 CI runners. Deselecting during collection avoids distributing
+    these items to workers entirely.
+    """
+    if not skip_db_tests and not run_db_tests_only:
+        return
+
+    selected = []
+    deselected = []
+    for item in items:
+        is_db = _is_db_test(item)
+        if (skip_db_tests and is_db) or (run_db_tests_only and not is_db):
+            deselected.append(item)
+        else:
+            selected.append(item)
+
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+        items[:] = selected
+
+
 def pytest_runtest_setup(item):
     selected_integrations_list = item.config.option.integration
 
@@ -737,10 +763,6 @@ def pytest_runtest_setup(item):
         skip_long_running_test(item)
     if not include_quarantined:
         skip_quarantined_test(item)
-    if skip_db_tests:
-        skip_db_test(item)
-    if run_db_tests_only:
-        only_run_db_test(item)
     skip_if_credential_file_missing(item)
 
 
@@ -922,7 +944,11 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 class DAGProxy(lazy_object_proxy.Proxy):
                     """Wrapper to make test patterns work with serialized dag."""
 
-                    task = factory.dag.task  # Expose the @dag.task decorator.
+                    @property
+                    def task(self):
+                        # Forward explicitly so Proxy binding does not leak the proxy
+                        # instance into the decorator callable on Python 3.14.
+                        return factory.dag.task
 
                     # When adding a task to the dag, automatically re-serialize.
                     def add_task(self, task):
@@ -1558,6 +1584,9 @@ def create_task_instance(
         hostname=None,
         pid=None,
         last_heartbeat_at=None,
+        task: Operator | None = None,
+        start_from_trigger: bool = False,
+        start_trigger_args: StartTriggerArgs | None = None,
         **kwargs,
     ) -> TaskInstance:
         timezone = _import_timezone()
@@ -1566,26 +1595,33 @@ def create_task_instance(
         if logical_date is NOTSET:
             # For now: default to having a logical date if None is not explicitly passed.
             logical_date = timezone.utcnow()
-        with dag_maker(dag_id, **kwargs):
+        with dag_maker(dag_id, **kwargs) as dag:
             op_kwargs = {}
             op_kwargs["task_display_name"] = task_display_name
-            task = EmptyOperator(
-                task_id=task_id,
-                max_active_tis_per_dag=max_active_tis_per_dag,
-                max_active_tis_per_dagrun=max_active_tis_per_dagrun,
-                executor_config=executor_config or {},
-                on_success_callback=on_success_callback,
-                on_execute_callback=on_execute_callback,
-                on_failure_callback=on_failure_callback,
-                on_retry_callback=on_retry_callback,
-                on_skipped_callback=on_skipped_callback,
-                inlets=inlets,
-                outlets=outlets,
-                email=email,
-                pool=pool,
-                trigger_rule=trigger_rule,
-                **op_kwargs,
-            )
+            if not task:
+                task = EmptyOperator(
+                    task_id=task_id,
+                    max_active_tis_per_dag=max_active_tis_per_dag,
+                    max_active_tis_per_dagrun=max_active_tis_per_dagrun,
+                    executor_config=executor_config or {},
+                    on_success_callback=on_success_callback,
+                    on_execute_callback=on_execute_callback,
+                    on_failure_callback=on_failure_callback,
+                    on_retry_callback=on_retry_callback,
+                    on_skipped_callback=on_skipped_callback,
+                    inlets=inlets,
+                    outlets=outlets,
+                    email=email,
+                    pool=pool,
+                    trigger_rule=trigger_rule,
+                    **op_kwargs,
+                )
+            else:
+                task_id = task.task_id
+                task.dag = dag
+            task.start_from_trigger = start_from_trigger
+            task.start_trigger_args = start_trigger_args
+
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
                 "logical_date": logical_date,

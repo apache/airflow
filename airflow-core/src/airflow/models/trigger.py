@@ -32,7 +32,6 @@ from sqlalchemy.sql.functions import coalesce
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import AssetManager
 from airflow.configuration import conf
-from airflow.models import Callback
 from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
@@ -210,6 +209,8 @@ class Trigger(Base):
     @provide_session
     def fetch_trigger_ids_with_non_task_associations(cls, session: Session = NEW_SESSION) -> set[str]:
         """Fetch all trigger IDs actively associated with non-task entities like assets and callbacks."""
+        from airflow.models.callback import Callback
+
         query = select(AssetWatcherModel.trigger_id).union_all(
             select(Callback.trigger_id).where(Callback.trigger_id.is_not(None))
         )
@@ -408,6 +409,8 @@ class Trigger(Base):
         :param queues: The optional set of trigger queues to filter triggers by.
         :param session: The database session.
         """
+        from airflow.models.callback import Callback
+
         result: list[Row[Any]] = []
 
         # Add triggers associated to callbacks first, then tasks, then assets
@@ -477,13 +480,15 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
 
         next_kwargs = BaseSerialization.deserialize(next_kwargs_raw)
 
-    # Add event to the plain dict, then serialize everything together. This ensures that the event is properly
-    # nested inside __var__ in the final serde serialized structure.
+    # Add event to the plain dict, then serialize everything together so nested
+    # non-primitive values get proper serde encoding.
     if TYPE_CHECKING:
         assert isinstance(next_kwargs, dict)
     next_kwargs["event"] = event.payload
 
-    # re-serialize the entire dict using serde to ensure consistent structure
+    # Re-serialize using serde. The Execution API version converter
+    # (ModifyDeferredTaskKwargsToJsonValue) handles converting this to
+    # BaseSerialization format when serving old workers.
     task_instance.next_kwargs = serialize(next_kwargs)
 
     # Remove ourselves as its trigger

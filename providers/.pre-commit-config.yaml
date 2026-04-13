@@ -240,6 +240,14 @@ repos:
         language: python
         files: ^.*/src/airflow/providers/.*version_compat.*\.py$
         require_serial: true
+      - id: check-conf-import-in-providers
+        name: Check conf is imported from compat SDK in providers
+        entry: ../scripts/ci/prek/check_conf_import_in_providers.py
+        language: python
+        types: [python]
+        files: ^.*/src/airflow/providers/.*\.py$
+        exclude: ^.*/common/compat/sdk\.py$
+        require_serial: false
       - id: provider-version-compat
         name: Check for correct version_compat imports in providers
         entry: ../scripts/ci/prek/check_provider_version_compat.py

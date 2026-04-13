@@ -73,6 +73,7 @@ TEST_COMPOSER_DAG_CONF = {"test-key": "test-value"}
 
 COMPOSER_STRING = "airflow.providers.google.cloud.operators.cloud_composer.{}"
 COMPOSER_TRIGGERS_STRING = "airflow.providers.google.cloud.triggers.cloud_composer.{}"
+TEST_COMPOSER_AIRFLOW_VERSION = 1
 
 
 class TestCloudComposerCreateEnvironmentOperator:
@@ -409,5 +410,6 @@ class TestCloudComposerTriggerDAGRunOperator:
             composer_airflow_uri=mock_hook.return_value.get_environment.return_value.config.airflow_uri,
             composer_dag_id=TEST_COMPOSER_DAG_ID,
             composer_dag_conf=TEST_COMPOSER_DAG_CONF,
+            composer_airflow_version=TEST_COMPOSER_AIRFLOW_VERSION,
             timeout=TEST_TIMEOUT,
         )

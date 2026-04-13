@@ -538,13 +538,11 @@ class TestGKEKubernetesAsyncHook:
 
         get_conn_mock.assert_called_once_with()
         read_namespaced_pod_log.assert_called_with(
-            _preload_content=False,
             name=POD_NAME,
             namespace=POD_NAMESPACE,
             follow=False,
             timestamps=True,
-            container=None,
-            since_seconds=None,
+            _preload_content=False,
         )
         assert "Test string #1" in logs
         assert "Test string #2" in logs

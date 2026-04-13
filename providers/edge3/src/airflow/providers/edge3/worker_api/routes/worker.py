@@ -173,7 +173,9 @@ def register(
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
-        worker = EdgeWorkerModel(worker_name=worker_name, state=body.state, queues=body.queues)
+        worker = EdgeWorkerModel(
+            worker_name=worker_name, state=body.state, queues=body.queues, team_name=body.team_name
+        )
     else:
         # Prevent duplicate workers unless the existing worker is in offline or unknown state
         allowed_states_for_reuse = {
@@ -194,6 +196,7 @@ def register(
     worker.queues = body.queues
     worker.sysinfo = json.dumps(body.sysinfo)
     worker.last_update = timezone.utcnow()
+    worker.team_name = body.team_name
     session.add(worker)
     return WorkerRegistrationReturn(last_update=worker.last_update)
 

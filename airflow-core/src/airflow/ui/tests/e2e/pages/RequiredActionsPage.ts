@@ -38,14 +38,10 @@ export class RequiredActionsPage extends BasePage {
   }
 
   public async getActionsTableRowCount(): Promise<number> {
-    const rows = this.page.locator("table tbody tr");
+    const rows = this.actionsTable.locator("tbody").getByRole("row");
     const isTableVisible = await this.actionsTable.isVisible();
 
-    if (!isTableVisible) {
-      return 0;
-    }
-
-    return rows.count();
+    return isTableVisible ? rows.count() : 0;
   }
 
   public async isEmptyStateDisplayed(): Promise<boolean> {
@@ -77,13 +73,12 @@ export class RequiredActionsPage extends BasePage {
 
     await button.click();
     await responsePromise;
-    await this.page.waitForTimeout(10_000);
   }
 
   private async clickOnTaskInGrid(dagRunId: string, taskId: string): Promise<void> {
-    const taskLocator = this.page.locator(`[id="grid-${dagRunId}-${taskId}"]`);
+    const taskLocator = this.page.getByTestId(`grid-${dagRunId}-${taskId}`);
 
-    await expect(taskLocator).toBeVisible({ timeout: 30_000 });
+    await expect(taskLocator).toBeVisible({ timeout: 5000 });
     await taskLocator.click();
   }
 
@@ -96,11 +91,11 @@ export class RequiredActionsPage extends BasePage {
     await requiredActionLink.click();
 
     const buttonName = approve ? "Approve" : "Reject";
-    const actionButton = this.page.locator(`[data-testid="hitl-option-${buttonName}"]`);
+    const actionButton = this.page.getByTestId(`hitl-option-${buttonName}`);
 
-    await expect(actionButton).toBeVisible({ timeout: 10_000 });
+    await expect(actionButton).toBeVisible({ timeout: 30_000 });
 
-    const informationInput = this.page.locator("#element_information");
+    const informationInput = this.page.getByRole("textbox");
 
     if (await informationInput.isVisible()) {
       await informationInput.fill("Approved by test");
@@ -109,7 +104,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(actionButton).toBeEnabled({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(actionButton);
 
-    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.safeGoto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "valid_input_and_options" });
   }
 
@@ -121,12 +116,12 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const branchButton = this.page.locator('[data-testid="hitl-option-task_1"]');
+    const branchButton = this.page.getByTestId("hitl-option-task_1");
 
-    await expect(branchButton).toBeVisible({ timeout: 10_000 });
+    await expect(branchButton).toBeVisible({ timeout: 30_000 });
     await this.clickButtonAndWaitForHITLResponse(branchButton);
 
-    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.safeGoto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "choose_a_branch_to_run" });
   }
 
@@ -138,9 +133,9 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const informationInput = this.page.locator("#element_information");
+    const informationInput = this.page.getByRole("textbox");
 
-    await expect(informationInput).toBeVisible({ timeout: 10_000 });
+    await expect(informationInput).toBeVisible({ timeout: 30_000 });
     await informationInput.fill("test");
 
     const okButton = this.page.getByRole("button", { name: "OK" });
@@ -148,7 +143,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(okButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(okButton);
 
-    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.safeGoto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "wait_for_input" });
   }
 
@@ -160,7 +155,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const multiSelectContainer = this.page.locator("#element_chosen_options").locator("..");
+    const multiSelectContainer = this.page.getByRole("combobox", { name: /select one or multiple values/i });
 
     await expect(multiSelectContainer).toBeVisible({ timeout: 30_000 });
     await multiSelectContainer.click();
@@ -174,7 +169,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(respondButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(respondButton);
 
-    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.safeGoto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "wait_for_multiple_options" });
   }
 
@@ -186,12 +181,12 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const optionButton = this.page.locator('[data-testid="hitl-option-option 1"]');
+    const optionButton = this.page.getByTestId("hitl-option-option 1");
 
-    await expect(optionButton).toBeVisible({ timeout: 10_000 });
+    await expect(optionButton).toBeVisible({ timeout: 30_000 });
     await this.clickButtonAndWaitForHITLResponse(optionButton);
 
-    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.safeGoto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "wait_for_option" });
   }
 
@@ -204,13 +199,13 @@ export class RequiredActionsPage extends BasePage {
       throw new Error("Failed to trigger DAG - dagRunId is null");
     }
 
-    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.safeGoto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForDagRunState("Running");
 
     await this.waitForTaskState(dagRunId, {
       expectedState: "Success",
       taskId: "wait_for_default_option",
-      timeout: 30_000,
+      timeout: 60_000,
     });
 
     await this.handleWaitForInputTask(dagId, dagRunId);
@@ -229,7 +224,7 @@ export class RequiredActionsPage extends BasePage {
   }
 
   private async verifyFinalTaskStates(dagId: string, dagRunId: string, approved: boolean): Promise<void> {
-    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.safeGoto(`/dags/${dagId}/runs/${dagRunId}`);
 
     if (approved) {
       await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "task_1" });
@@ -256,7 +251,7 @@ export class RequiredActionsPage extends BasePage {
       const detailsPanel = this.page.locator("#details-panel");
       const stateBadge = detailsPanel.getByTestId("state-badge").first();
 
-      await expect(stateBadge).toContainText(expectedState, { timeout: 60_000 });
+      await expect(stateBadge).toContainText(expectedState, { timeout: 5000 });
     }).toPass({ timeout: 180_000 });
   }
 
@@ -272,7 +267,7 @@ export class RequiredActionsPage extends BasePage {
       const detailsPanel = this.page.locator("#details-panel");
       const stateBadge = detailsPanel.getByTestId("state-badge").first();
 
-      await expect(stateBadge).toContainText(options.expectedState, { timeout: 60_000 });
+      await expect(stateBadge).toContainText(options.expectedState, { timeout: 5000 });
     }).toPass({ timeout: options.timeout ?? 120_000 });
   }
 }

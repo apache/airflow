@@ -55,7 +55,19 @@ def check_for_package_extras() -> str:
     return "dev"
 
 
-def uv_install_requirements() -> int:
+def get_dependency_groups(pyproject_toml_path: Path) -> list[str]:
+    """
+    Get the dependency groups from pyproject.toml
+    """
+    try:
+        import tomllib
+    except ImportError:
+        import tomli as tomllib  # type: ignore[no-redef]
+    airflow_core_toml_dict = tomllib.loads(pyproject_toml_path.read_text())
+    return airflow_core_toml_dict["dependency-groups"].keys()
+
+
+def uv_install_requirements(airflow_pyproject_toml_file: Path) -> int:
     """
     install the requirements of the current python version.
     return 0 if success, anything else is an error.
@@ -87,7 +99,12 @@ system packages. It's easier to install extras one-by-one as needed.
 
 """
     )
-    extra_param = [x for extra in extras.split(",") for x in ("--group", extra)]
+    dependency_groups = get_dependency_groups(airflow_pyproject_toml_file)
+    extra_param = [
+        flag
+        for extra in extras.split(",")
+        for flag in (["--group", extra] if extra in dependency_groups else ["--extra", extra])
+    ]
     uv_install_command = ["uv", "sync"] + extra_param
     quoted_command = " ".join([shlex.quote(parameter) for parameter in uv_install_command])
     print()
@@ -139,7 +156,8 @@ def main():
 
     clean_up_airflow_home(airflow_home_dir)
 
-    return_code = uv_install_requirements()
+    airflow_pyproject_toml_file = airflow_sources / "pyproject.toml"
+    return_code = uv_install_requirements(airflow_pyproject_toml_file)
 
     if return_code != 0:
         print(

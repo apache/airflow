@@ -197,7 +197,9 @@ class ExternalTaskSensor(BaseSensorOperator):
     ):
         super().__init__(**kwargs)
 
-        self.allowed_states = list(allowed_states) if allowed_states else [TaskInstanceState.SUCCESS.value]
+        self.allowed_states: list[str] = (
+            list(allowed_states) if allowed_states else [TaskInstanceState.SUCCESS.value]
+        )
         self.skipped_states = list(skipped_states) if skipped_states else []
         self.failed_states = list(failed_states) if failed_states else []
 
@@ -457,6 +459,13 @@ class ExternalTaskSensor(BaseSensorOperator):
                     method_name="execute_complete",
                 )
             else:
+                # TODO: Remove this block when Airflow 2 support is dropped
+                if self.check_existence and not self._has_checked_existence:
+                    from airflow.utils.session import create_session
+
+                    with create_session() as session:
+                        self._check_for_existence(session=session)
+
                 self.defer(
                     timeout=datetime.timedelta(seconds=timeout_value) if timeout_value else None,
                     trigger=WorkflowTrigger(

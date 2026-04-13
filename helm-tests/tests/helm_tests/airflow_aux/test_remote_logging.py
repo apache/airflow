@@ -28,8 +28,8 @@ OS_SECRET_TEMPLATE = "templates/secrets/opensearch-secret.yaml"
 SCHEDULER_DEPLOYMENT_TEMPLATE = "templates/scheduler/scheduler-deployment.yaml"
 CONFIGMAP_TEMPLATE = "templates/configmaps/configmap.yaml"
 
-CORE_CFG_REGEX = re.compile(r"\[core]\n.*?\n\n", flags=re.RegexFlag.DOTALL)
-LOGGING_CFG_REGEX = re.compile(r"\[logging]\n.*?\n\n", flags=re.RegexFlag.DOTALL)
+CORE_CFG_REGEX = re.compile(r"\[core]\n.*?\n\[", flags=re.RegexFlag.DOTALL)
+LOGGING_CFG_REGEX = re.compile(r"\[logging]\n.*?\n\[", flags=re.RegexFlag.DOTALL)
 
 
 class TestElasticsearchConfig:

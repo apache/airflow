@@ -26,7 +26,7 @@ import shutil
 import sys
 import time
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from operator import attrgetter
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -41,18 +41,19 @@ from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
 
 import airflow.logging_config as alc
-from airflow.configuration import conf
 from airflow.models.dagrun import DagRun
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
-from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow._shared.module_loading import import_string
+    from airflow.sdk import timezone
 else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
     from airflow.utils.module_loading import import_string  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
@@ -79,7 +80,61 @@ LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # not exist, the task handler should use the log_id_template attribute instead.
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 
-TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger"]
+TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger", "error_detail", "message", "levelname"]
+
+
+def _deduplicate_fields(fields: Iterable[str]) -> list[str]:
+    """Return non-empty field names in order without duplicates."""
+    return list(dict.fromkeys(field for field in fields if field))
+
+
+def _format_error_detail(error_detail: Any) -> str | None:
+    """Render the structured ``error_detail`` written by the Airflow 3 supervisor as a traceback string."""
+    if not error_detail:
+        return None
+    if not isinstance(error_detail, list):
+        return str(error_detail)
+
+    lines: list[str] = ["Traceback (most recent call last):"]
+    for exc_info in error_detail:
+        if not isinstance(exc_info, dict):
+            lines.append(str(exc_info))
+            continue
+        if exc_info.get("is_cause"):
+            lines.append("\nThe above exception was the direct cause of the following exception:\n")
+            lines.append("Traceback (most recent call last):")
+        for frame in exc_info.get("frames", []):
+            lines.append(
+                f'  File "{frame.get("filename", "<unknown>")}", line {frame.get("lineno", "?")}, in {frame.get("name", "<unknown>")}'
+            )
+        exc_type = exc_info.get("exc_type", "")
+        exc_value = exc_info.get("exc_value", "")
+        if exc_type:
+            lines.append(f"{exc_type}: {exc_value}" if exc_value else exc_type)
+    return "\n".join(lines)
+
+
+def _build_log_fields(hit_dict: dict[str, Any]) -> dict[str, Any]:
+    """Filter an ES hit to ``TASK_LOG_FIELDS`` and ensure compatibility with StructuredLogMessage."""
+    fields = {k: v for k, v in hit_dict.items() if k.lower() in TASK_LOG_FIELDS or k == "@timestamp"}
+
+    # Map @timestamp to timestamp
+    if "@timestamp" in fields and "timestamp" not in fields:
+        fields["timestamp"] = fields.pop("@timestamp")
+
+    # Map levelname to level
+    if "levelname" in fields and "level" not in fields:
+        fields["level"] = fields.pop("levelname")
+
+    # Airflow 3 StructuredLogMessage requires 'event'
+    if "event" not in fields:
+        fields["event"] = fields.pop("message", "")
+
+    # Clean up error_detail if it's empty
+    if "error_detail" in fields and not fields["error_detail"]:
+        fields.pop("error_detail")
+    return fields
+
 
 VALID_ES_CONFIG_KEYS = set(inspect.signature(elasticsearch.Elasticsearch.__init__).parameters.keys())
 # Remove `self` from the valid set of kwargs
@@ -269,6 +324,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def _read_grouped_logs(self):
         return True
 
+    def _get_es_source_includes(self) -> list[str]:
+        extra_fields = self.json_fields if self.json_format and not AIRFLOW_V_3_0_PLUS else []
+        return self.io._get_source_includes(extra_fields=extra_fields)
+
     def _read(
         self, ti: TaskInstance, try_number: int, metadata: LogMetadata | None = None
     ) -> tuple[EsLogMsgType, LogMetadata]:
@@ -290,7 +349,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         offset = metadata["offset"]
         log_id = _render_log_id(self.log_id_template, ti, try_number)
-        response = self.io._es_read(log_id, offset, ti)
+        response = self.io._es_read(log_id, offset, ti, source_includes=self._get_es_source_includes())
         # TODO: Can we skip group logs by host ?
         if response is not None and response.hits:
             logs_by_host = self.io._group_logs_by_host(response)
@@ -356,9 +415,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
                 # Flatten all hits, filter to only desired fields, and construct StructuredLogMessage objects
                 message = header + [
-                    StructuredLogMessage(
-                        **{k: v for k, v in hit.to_dict().items() if k.lower() in TASK_LOG_FIELDS}
-                    )
+                    StructuredLogMessage(**_build_log_fields(hit.to_dict()))
                     for hits in logs_by_host.values()
                     for hit in hits
                 ]
@@ -582,6 +639,12 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
 
+    def _get_source_includes(self, extra_fields: Iterable[str] = ()) -> list[str]:
+        """Return the Elasticsearch source fields to include when reading task logs."""
+        return _deduplicate_fields(
+            ["@timestamp", *TASK_LOG_FIELDS, self.host_field, self.offset_field, *extra_fields]
+        )
+
     def upload(self, path: os.PathLike | str, ti: RuntimeTI):
         """Write the log to ElasticSearch."""
         path = Path(path)
@@ -646,7 +709,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
         self.log.info("Reading log %s from Elasticsearch", log_id)
         offset = 0
-        response = self._es_read(log_id, offset, ti)
+        response = self._es_read(log_id, offset, ti, source_includes=self._get_source_includes())
         if response is not None and response.hits:
             logs_by_host = self._group_logs_by_host(response)
         else:
@@ -668,12 +731,19 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         # Structured log messages
         for hits in logs_by_host.values():
             for hit in hits:
-                filtered = {k: v for k, v in hit.to_dict().items() if k.lower() in TASK_LOG_FIELDS}
+                filtered = _build_log_fields(hit.to_dict())
                 message.append(json.dumps(filtered))
 
         return header, message
 
-    def _es_read(self, log_id: str, offset: int | str, ti: RuntimeTI) -> ElasticSearchResponse | None:
+    def _es_read(
+        self,
+        log_id: str,
+        offset: int | str,
+        ti: RuntimeTI,
+        *,
+        source_includes: Iterable[str] | None = None,
+    ) -> ElasticSearchResponse | None:
         """
         Return the logs matching log_id in Elasticsearch and next offset or ''.
 
@@ -683,6 +753,9 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         :meta private:
         """
+        source_includes = _deduplicate_fields(
+            self._get_source_includes() if source_includes is None else source_includes
+        )
         query: dict[Any, Any] = {
             "bool": {
                 "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
@@ -692,25 +765,26 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         index_patterns = self._get_index_patterns(ti)
         try:
-            max_log_line = self.client.count(index=index_patterns, query=query)["count"]
-        except NotFoundError as e:
+            res = self.client.search(
+                index=index_patterns,
+                query=query,
+                sort=[self.offset_field],
+                size=self.MAX_LINE_PER_PAGE,
+                from_=self.MAX_LINE_PER_PAGE * self.PAGE,
+                source_includes=source_includes,
+            )
+        except NotFoundError:
             self.log.exception("The target index pattern %s does not exist", index_patterns)
-            raise e
+            raise
+        except Exception:
+            self.log.exception("Could not read log with log_id: %s", log_id)
+            return None
 
-        if max_log_line != 0:
-            try:
-                res = self.client.search(
-                    index=index_patterns,
-                    query=query,
-                    sort=[self.offset_field],
-                    size=self.MAX_LINE_PER_PAGE,
-                    from_=self.MAX_LINE_PER_PAGE * self.PAGE,
-                )
-                return ElasticSearchResponse(self, res)
-            except Exception as err:
-                self.log.exception("Could not read log with log_id: %s. Exception: %s", log_id, err)
+        # Short-circuit on empty hits to avoid constructing ElasticSearchResponse unnecessarily.
+        if not res.get("hits", {}).get("hits"):
+            return None
 
-        return None
+        return ElasticSearchResponse(self, res)
 
     def _get_index_patterns(self, ti: RuntimeTI | None) -> str:
         """

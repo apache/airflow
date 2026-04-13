@@ -30,7 +30,7 @@ import sys
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone as dt_timezone
 from operator import attrgetter
 from random import randint
 from textwrap import dedent
@@ -63,7 +63,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TaskInstanceState,
 )
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time import task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
@@ -71,6 +71,7 @@ from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     ConnectionResult,
     CreateHITLDetailPayload,
+    DagResult,
     DagRunResult,
     DagRunStateResult,
     DeferTask,
@@ -83,6 +84,7 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
+    GetDag,
     GetDagRun,
     GetDagRunState,
     GetDRCount,
@@ -729,40 +731,6 @@ class TestWatchedSubprocess:
             "task_instance_id": str(ti.id),
         } in captured_logs
 
-    def test_supervisor_handles_already_running_task(self):
-        """Test that Supervisor prevents starting a Task Instance that is already running."""
-        ti = TaskInstance(
-            id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
-        )
-
-        # Mock API Server response indicating the TI is already running
-        # The API Server would return a 409 Conflict status code if the TI is not
-        # in a "queued" state.
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path == f"/task-instances/{ti.id}/run":
-                return httpx.Response(
-                    409,
-                    json={
-                        "reason": "invalid_state",
-                        "message": "TI was not in a state where it could be marked as running",
-                        "previous_state": "running",
-                    },
-                )
-
-            return httpx.Response(status_code=204)
-
-        client = make_client(transport=httpx.MockTransport(handle_request))
-
-        with pytest.raises(ServerResponseError, match="Server returned error") as err:
-            ActivitySubprocess.start(dag_rel_path=os.devnull, bundle_info=FAKE_BUNDLE, what=ti, client=client)
-
-        assert err.value.response.status_code == 409
-        assert err.value.detail == {
-            "reason": "invalid_state",
-            "message": "TI was not in a state where it could be marked as running",
-            "previous_state": "running",
-        }
-
     @pytest.mark.parametrize("captured_logs", [logging.ERROR], indirect=True, ids=["log_level=error"])
     def test_state_conflict_on_heartbeat(self, captured_logs, monkeypatch, mocker, make_ti_context_dict):
         """
@@ -862,6 +830,40 @@ class TestWatchedSubprocess:
                 "loc": mocker.ANY,
             },
         ]
+
+    def test_start_raises_task_already_running_and_kills_subprocess(self):
+        """Test that ActivitySubprocess.start() raises TaskAlreadyRunningError and kills the child
+        when the API returns 409 with previous_state='running'."""
+        ti_id = uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/run":
+                return httpx.Response(
+                    409,
+                    json={
+                        "detail": {
+                            "reason": "invalid_state",
+                            "message": "TI was not in a state where it could be marked as running",
+                            "previous_state": "running",
+                        }
+                    },
+                )
+            return httpx.Response(status_code=204)
+
+        def subprocess_main():
+            # Ensure we follow the "protocol" and get the startup message before we do anything
+            CommsDecoder()._get_response()
+
+        with pytest.raises(TaskAlreadyRunningError, match="already running"):
+            ActivitySubprocess.start(
+                dag_rel_path=os.devnull,
+                bundle_info=FAKE_BUNDLE,
+                what=TaskInstance(
+                    id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+                ),
+                client=make_client(transport=httpx.MockTransport(handle_request)),
+                target=subprocess_main,
+            )
 
     @pytest.mark.parametrize("captured_logs", [logging.WARNING], indirect=True)
     def test_heartbeat_failures_handling(self, monkeypatch, mocker, captured_logs, time_machine):
@@ -1577,8 +1579,8 @@ REQUEST_TEST_CASES = [
                 "test_key",
                 '{"key": "test_key", "value": {"key2": "value2"}}',
                 None,
-                None,
             ),
+            kwargs={"dag_result": False, "mapped_length": None},
             response=OKResponse(ok=True),
         ),
         test_id="set_xcom",
@@ -1601,8 +1603,8 @@ REQUEST_TEST_CASES = [
                 "test_key",
                 '{"key": "test_key", "value": {"key2": "value2"}}',
                 2,
-                None,
             ),
+            kwargs={"dag_result": False, "mapped_length": None},
             response=OKResponse(ok=True),
         ),
         test_id="set_xcom_with_map_index",
@@ -1626,11 +1628,35 @@ REQUEST_TEST_CASES = [
                 "test_key",
                 '{"key": "test_key", "value": {"key2": "value2"}}',
                 2,
-                3,
             ),
+            kwargs={"dag_result": False, "mapped_length": 3},
             response=OKResponse(ok=True),
         ),
         test_id="set_xcom_with_map_index_and_mapped_length",
+    ),
+    RequestTestCase(
+        message=SetXCom(
+            dag_id="test_dag",
+            run_id="test_run",
+            task_id="test_task",
+            key="test_key",
+            value='{"key": "test_key", "value": {"key2": "value2"}}',
+            dag_result=True,
+        ),
+        client_mock=ClientMock(
+            method_path="xcoms.set",
+            args=(
+                "test_dag",
+                "test_run",
+                "test_task",
+                "test_key",
+                '{"key": "test_key", "value": {"key2": "value2"}}',
+                None,
+            ),
+            kwargs={"dag_result": True, "mapped_length": None},
+            response=OKResponse(ok=True),
+        ),
+        test_id="set_xcom_with_dag_result",
     ),
     RequestTestCase(
         message=DeleteXCom(
@@ -2498,6 +2524,37 @@ REQUEST_TEST_CASES = [
             "type": "TaskBreadcrumbsResult",
         },
         test_id="get_task_breadcrumbs",
+    ),
+    RequestTestCase(
+        message=GetDag(dag_id="test_dag"),
+        expected_body={
+            "dag_id": "test_dag",
+            "is_paused": False,
+            "bundle_name": "dags-folder",
+            "bundle_version": "bundle-version",
+            "relative_fileloc": "dags/example.py",
+            "owners": "owner_1",
+            "tags": ["a_tag", "z_tag"],
+            "next_dagrun": datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+            "type": "DagResult",
+        },
+        client_mock=ClientMock(
+            method_path="dags.get",
+            kwargs={
+                "dag_id": "test_dag",
+            },
+            response=DagResult(
+                dag_id="test_dag",
+                is_paused=False,
+                bundle_name="dags-folder",
+                bundle_version="bundle-version",
+                relative_fileloc="dags/example.py",
+                owners="owner_1",
+                tags=["a_tag", "z_tag"],
+                next_dagrun=datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+            ),
+        ),
+        test_id="get_dag",
     ),
 ]
 

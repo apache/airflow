@@ -209,6 +209,11 @@ class TestOtelIntegration:
         # during scheduler handoff (see https://github.com/apache/airflow/issues/61070).
         wait_for_otel_collector(otel_host, otel_port)
 
+        # The pytest plugin strips AIRFLOW__*__* env vars (including the JWT secret set
+        # by Breeze). Both the scheduler and api-server subprocesses must share the same
+        # secret; otherwise each generates its own random key and token verification fails.
+        os.environ["AIRFLOW__API_AUTH__JWT_SECRET"] = "test-secret-key-for-testing"
+        os.environ["AIRFLOW__API_AUTH__JWT_ISSUER"] = "airflow"
         os.environ["AIRFLOW__TRACES__OTEL_ON"] = "True"
         os.environ["OTEL_EXPORTER_OTLP_PROTOCOL"] = "http/protobuf"
         os.environ["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = "http://breeze-otel-collector:4318/v1/traces"
@@ -503,9 +508,10 @@ class TestOtelIntegration:
 
         nested = get_span_hierarchy()
         assert nested == {
-            "sub_span1": "task_run.task1",
-            "task_run.task1": "dag_run.otel_test_dag",
             "dag_run.otel_test_dag": None,
+            "sub_span1": "worker.task1",
+            "task_run.task1": "dag_run.otel_test_dag",
+            "worker.task1": "task_run.task1",
         }
 
     def start_scheduler(self, capture_output: bool = False):

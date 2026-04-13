@@ -30,6 +30,7 @@
   - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
   - [Convert commits to changelog entries and bump provider versions](#convert-commits-to-changelog-entries-and-bump-provider-versions)
   - [Update versions of dependent providers to the next version](#update-versions-of-dependent-providers-to-the-next-version)
+  - [Create a PR with the changes](#create-a-pr-with-the-changes)
   - [Apply incremental changes and merge the PR](#apply-incremental-changes-and-merge-the-pr)
   - [(Optional) Apply template updates](#optional-apply-template-updates)
   - [Build Provider distributions for SVN apache upload](#build-provider-distributions-for-svn-apache-upload)
@@ -232,6 +233,22 @@ removed.
 
 ```shell script
 breeze release-management update-providers-next-version
+```
+
+## Create a PR with the changes
+
+Make sure to set labels: `allow provider dependency bump` and `skip common compat check` to the PR,
+so that the PR is not blocked by selective checks.
+
+You can do it for example this way:
+
+```shell script
+gh pr create \
+  --title "Prepare providers release ${RELEASE_DATE}" \
+  --label "allow provider dependency bump" \
+  --label "skip common compat check" \
+  --body "Prepare providers release ${RELEASE_DATE}" \
+  --web
 ```
 
 ## Apply incremental changes and merge the PR
@@ -583,7 +600,11 @@ email.
 export VOTE_DURATION_IN_HOURS=72
 export IS_SHORTEN_VOTE=$([ $VOTE_DURATION_IN_HOURS -ge 72 ] && echo "false" || echo "true")
 export SHORTEN_VOTE_TEXT="This is a shortened ($VOTE_DURATION_IN_HOURS hours vote) as agreed by policy set it https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm"
-export VOTE_END_TIME=$(LANG=en_US.UTF-8 TZ=UTC date -v+"${VOTE_DURATION_IN_HOURS}"H "+%B %d, %Y %H:%M %p")
+if [ "$OS" = "Darwin" ]; then  # MacOS (BSD date)
+  export VOTE_END_TIME=$(date -u -v "+${VOTE_DURATION_IN_HOURS}H" -v "+10M" +'%Y-%m-%d %H:%M')
+else  # Linux
+  export VOTE_END_TIME=$(date --utc -d "now + $VOTE_DURATION_IN_HOURS hours + 10 minutes" +'%Y-%m-%d %H:%M')
+fi
 export RELEASE_MANAGER_NAME="RELEASE_MANAGER_NAME_HERE"
 export GITHUB_ISSUE_LINK="LINK_TO_GITHUB_ISSUE"
 ```
@@ -843,10 +864,10 @@ Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (un
 You can run this command to do it for you (including checksum verification for your own security):
 
 ```shell script
-# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz.sha512
-wget -q https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz -O /tmp/apache-rat-0.17-bin.tar.gz
-echo "32848673dc4fb639c33ad85172dfa9d7a4441a0144e407771c9f7eb6a9a0b7a9b557b9722af968500fae84a6e60775449d538e36e342f786f20945b1645294a0  /tmp/apache-rat-0.17-bin.tar.gz" | sha512sum -c -
-tar -xzf /tmp/apache-rat-0.17-bin.tar.gz -C /tmp
+# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz.sha512
+wget -q https://archive.apache.org/dist/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz -O /tmp/apache-rat-0.18-bin.tar.gz
+echo "315b16536526838237c42b5e6b613d29adc77e25a6e44a866b2b7f8b162e03d3629d49c9faea86ceb864a36b2c42838b8ce43d6f2db544e961f2259e242748f4  /tmp/apache-rat-0.18-bin.tar.gz" | sha512sum -c -
+tar -xzf /tmp/apache-rat-0.18-bin.tar.gz -C /tmp
 ```
 
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
@@ -859,13 +880,13 @@ Run the check:
 
 ```shell script
 cp ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-providers-src/.rat-excludes
-java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-providers-src/.rat-excludes /tmp/apache-airflow-providers-src/ | grep -E "! |INFO: "
+java -jar /tmp/apache-rat-0.18/apache-rat-0.18.jar --input-exclude-file /tmp/apache-airflow-providers-src/.rat-excludes /tmp/apache-airflow-providers-src/ | grep -E "! |INFO: "
 ```
 
 You should see no files reported as Unknown or with wrong licence and summary of the check similar to:
 
 ```
-INFO: Apache Creadur RAT 0.17 (Apache Software Foundation)
+INFO: Apache Creadur RAT 0.18 (Apache Software Foundation)
 INFO: Excluding patterns: .git-blame-ignore-revs, .github/*, .git ...
 INFO: Excluding MISC collection.
 INFO: Excluding HIDDEN_DIR collection.

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import logging
 import shutil
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urlsplit
@@ -32,6 +33,8 @@ if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
     from typing_extensions import Self
     from upath.types import JoinablePathLike
+
+log = logging.getLogger(__name__)
 
 
 class _TrackingFileWrapper:
@@ -116,6 +119,13 @@ class ObjectStoragePath(ProxyUPath):
         # to the underlying fsspec filesystem, which doesn't understand it
         self._conn_id = storage_options.pop("conn_id", None)
         super().__init__(*args, protocol=protocol, **storage_options)
+        # ProxyUPath delegates all operations to self.__wrapped__, which was
+        # constructed with empty storage_options (conn_id stripped above).
+        # Pre-populating __wrapped__._fs_cached with the Airflow-authenticated
+        # filesystem fixes every delegated method (exists, mkdir, iterdir, glob,
+        # walk, rename, read_bytes, write_bytes, …) in one place rather than
+        # requiring individual overrides for each one.
+        self._inject_authenticated_fs(self.__wrapped__)
 
     @classmethod_or_method  # type: ignore[arg-type]
     def _from_upath(cls_or_self, upath, /):
@@ -127,7 +137,35 @@ class ObjectStoragePath(ProxyUPath):
         obj = object.__new__(cls)
         obj.__wrapped__ = upath
         obj._conn_id = getattr(cls_or_self, "_conn_id", None) if is_instance else None
+        # If the wrapped UPath has not yet had its fs cached (e.g. when _from_upath is
+        # called as a classmethod with a fresh UPath), inject the authenticated fs now.
+        # Child UPaths produced by __wrapped__ operations (iterdir, glob, etc.) already
+        # inherit _fs_cached from the parent UPath, so the hasattr check is a no-op for them.
+        if not hasattr(upath, "_fs_cached"):
+            obj._inject_authenticated_fs(upath)
         return obj
+
+    def _inject_authenticated_fs(self, wrapped: UPath) -> None:
+        """
+        Inject the Airflow-authenticated filesystem into wrapped._fs_cached.
+
+        This ensures that all ProxyUPath-delegated operations use the connection-aware
+        filesystem rather than an unauthenticated one constructed from empty storage_options.
+        Failures are logged at DEBUG level and silently skipped so that construction always
+        succeeds — errors will surface naturally at first use of the path.
+        """
+        if self._conn_id is None:
+            return
+        try:
+            wrapped._fs_cached = attach(wrapped.protocol or "file", self._conn_id).fs
+        except Exception:
+            log.debug(
+                "Could not pre-populate authenticated filesystem for %r (conn_id=%r); "
+                "operations will attempt lazy resolution at first use.",
+                self,
+                self._conn_id,
+                exc_info=True,
+            )
 
     @property
     def conn_id(self) -> str | None:

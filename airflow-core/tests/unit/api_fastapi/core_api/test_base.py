@@ -41,6 +41,16 @@ class SampleModel(StrictBaseModel):
 SampleModelPartial = make_partial_model(SampleModel)
 
 
+class ModelWithFieldAttributes(StrictBaseModel):
+    """Model with alias, title, and description to test full attribute preservation."""
+
+    name: str = Field(alias="user_name", title="User Name", description="The user's full name")
+    age: int = Field(ge=0, le=150, title="Age", description="Age in years")
+
+
+ModelWithFieldAttributesPartial = make_partial_model(ModelWithFieldAttributes)
+
+
 class TestMakePartialModel:
     def test_all_fields_become_optional(self):
         instance = SampleModelPartial()
@@ -76,3 +86,23 @@ class TestMakePartialModel:
 
     def test_partial_model_name(self):
         assert SampleModelPartial.__name__ == "SampleModelPartial"
+
+    def test_field_alias_preserved(self):
+        instance = ModelWithFieldAttributesPartial(user_name="Alice")
+        assert instance.name == "Alice"
+
+    def test_field_title_and_description_preserved(self):
+        name_field = ModelWithFieldAttributesPartial.model_fields["name"]
+        assert name_field.alias == "user_name"
+        assert name_field.title == "User Name"
+        assert name_field.description == "The user's full name"
+
+        age_field = ModelWithFieldAttributesPartial.model_fields["age"]
+        assert age_field.title == "Age"
+        assert age_field.description == "Age in years"
+
+    def test_field_ge_le_constraints_preserved(self):
+        with pytest.raises(ValidationError):
+            ModelWithFieldAttributesPartial(age=-1)
+        with pytest.raises(ValidationError):
+            ModelWithFieldAttributesPartial(age=200)

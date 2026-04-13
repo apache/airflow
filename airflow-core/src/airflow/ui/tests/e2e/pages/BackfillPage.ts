@@ -375,13 +375,17 @@ export class BackfillPage extends BasePage {
   }
 
   public async navigateToBackfillsTab(dagName: string): Promise<void> {
-    await this.navigateTo(BackfillPage.getBackfillsUrl(dagName));
-    await expect(this.backfillsTable).toBeVisible({ timeout: 15_000 });
+    await expect(async () => {
+      await this.navigateTo(BackfillPage.getBackfillsUrl(dagName));
+      await expect(this.backfillsTable).toBeVisible({ timeout: 5000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async navigateToDagDetail(dagName: string): Promise<void> {
-    await this.navigateTo(BackfillPage.getDagDetailUrl(dagName));
-    await expect(this.triggerButton).toBeVisible({ timeout: 15_000 });
+    await expect(async () => {
+      await this.navigateTo(BackfillPage.getDagDetailUrl(dagName));
+      await expect(this.triggerButton).toBeVisible({ timeout: 5000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async openBackfillDialog(): Promise<void> {
@@ -439,7 +443,11 @@ export class BackfillPage extends BasePage {
   public async selectReprocessBehavior(behavior: ReprocessBehaviorApi): Promise<void> {
     const label = REPROCESS_API_TO_UI[behavior];
 
-    await this.page.locator("label").getByText(label, { exact: true }).click({ timeout: 5000 });
+    await this.page
+      .getByRole("radiogroup", { name: "Reprocess Behavior" })
+      .locator("label")
+      .filter({ hasText: label })
+      .click({ timeout: 10_000 });
   }
 
   public async toggleColumn(columnName: string): Promise<void> {

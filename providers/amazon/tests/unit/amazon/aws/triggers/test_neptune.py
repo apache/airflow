@@ -27,7 +27,6 @@ from airflow.providers.amazon.aws.triggers.neptune import (
     NeptuneClusterInstancesAvailableTrigger,
     NeptuneClusterStoppedTrigger,
 )
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
 
 CLUSTER_ID = "test-cluster"
@@ -125,5 +124,6 @@ class TestNeptuneClusterInstancesAvailableTrigger:
             db_cluster_id=CLUSTER_ID, waiter_delay=1, waiter_max_attempts=2
         )
 
-        with pytest.raises(AirflowException):
-            await trigger.run().asend(None)
+        event = await trigger.run().asend(None)
+        assert event.payload["status"] == "error"
+        assert "message" in event.payload

@@ -415,8 +415,8 @@ class TestAirflowCommon:
             ],
         )
         expected_vars = [
-            "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW_HOME",
+            "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__CELERY__BROKER_URL",
         ]
@@ -442,8 +442,8 @@ class TestAirflowCommon:
         # JWT secret is only injected into scheduler (and api-server); not into workers,
         # webserver, triggerer, dag-processor (security: no JWT where not needed).
         expected_vars_with_jwt = [
-            "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW_HOME",
+            "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API__SECRET_KEY",
@@ -451,8 +451,8 @@ class TestAirflowCommon:
             "AIRFLOW__CELERY__BROKER_URL",
         ]
         expected_vars_no_jwt = [
-            "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW_HOME",
+            "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API__SECRET_KEY",
@@ -491,7 +491,15 @@ class TestAirflowCommon:
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", doc)
 
-    def test_priority_class_name(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"priorityClassName": "low-priority-worker"},
+            {"celery": {"priorityClassName": "low-priority-worker"}},
+            {"priorityClassName": "test", "celery": {"priorityClassName": "low-priority-worker"}},
+        ],
+    )
+    def test_priority_class_name(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor,KubernetesExecutor",
@@ -502,7 +510,7 @@ class TestAirflowCommon:
                 "triggerer": {"priorityClassName": "low-priority-triggerer"},
                 "dagProcessor": {"priorityClassName": "low-priority-dag-processor"},
                 "webserver": {"priorityClassName": "low-priority-webserver"},
-                "workers": {"priorityClassName": "low-priority-worker"},
+                "workers": workers_values,
                 "cleanup": {"enabled": True, "priorityClassName": "low-priority-airflow-cleanup-pods"},
                 "databaseCleanup": {"enabled": True, "priorityClassName": "low-priority-database-cleanup"},
                 "migrateDatabaseJob": {"priorityClassName": "low-priority-run-airflow-migrations"},

@@ -90,6 +90,29 @@ class XComCreateBody(StrictBaseModel):
     value: Any
     map_index: int = -1
 
+    @field_validator("value")
+    @classmethod
+    def _check_forbidden_keys(cls, value: Any) -> Any:
+        """Recursively check for forbidden deserialization keys in user-provided XCom data."""
+        from airflow._shared.serialization import FORBIDDEN_XCOM_KEYS
+
+        def _walk_forbidden_keys(obj: Any, path: str = "value") -> None:
+            if isinstance(obj, dict):
+                found = FORBIDDEN_XCOM_KEYS & obj.keys()
+                if found:
+                    raise ValueError(
+                        f"XCom {path} contains reserved serialization keys: {', '.join(sorted(found))}. "
+                        f"These keys are reserved for internal use."
+                    )
+                for k, v in obj.items():
+                    _walk_forbidden_keys(v, f"{path}.{k}")
+            elif isinstance(obj, (list, tuple)):
+                for i, item in enumerate(obj):
+                    _walk_forbidden_keys(item, f"{path}[{i}]")
+
+        _walk_forbidden_keys(value)
+        return value
+
 
 class XComUpdateBody(StrictBaseModel):
     """Payload serializer for updating an XCom entry."""

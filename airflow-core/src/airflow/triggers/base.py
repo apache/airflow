@@ -21,7 +21,7 @@ import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import structlog
 from pydantic import (
@@ -32,10 +32,23 @@ from pydantic import (
     model_serializer,
 )
 
+from airflow.sdk.definitions._internal.templater import Templater
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(logger_name=__name__)
+
+if TYPE_CHECKING:
+    from typing import TypeAlias
+
+    import jinja2
+
+    from airflow.models.mappedoperator import MappedOperator
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk.definitions.context import Context
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 
 @dataclass
@@ -49,7 +62,7 @@ class StartTriggerArgs:
     timeout: timedelta | None = None
 
 
-class BaseTrigger(abc.ABC, LoggingMixin):
+class BaseTrigger(abc.ABC, Templater, LoggingMixin):
     """
     Base class for all triggers.
 
@@ -66,14 +79,75 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     supports_triggerer_queue: bool = True
 
     def __init__(self, **kwargs):
+        super().__init__()
         # these values are set by triggerer when preparing to run the instance
         # when run, they are injected into logger record.
-        self.task_instance = None
+        self._task_instance = None
         self.trigger_id = None
+        self.template_fields = ()
+        self.template_ext = ()
+        self.task_id = None
 
     def _set_context(self, context):
         """Part of LoggingMixin and used mainly for configuration of task logging; not used for triggers."""
-        raise NotImplementedError
+        pass
+
+    @property
+    def task(self) -> Operator | None:
+        # We must check if the TaskInstance is the generated Pydantic one or the RuntimeTaskInstance
+        if self.task_instance and hasattr(self.task_instance, "task"):
+            return self.task_instance.task
+        return None
+
+    @property
+    def task_instance(self) -> TaskInstance:
+        return self._task_instance
+
+    @task_instance.setter
+    def task_instance(self, value: TaskInstance | None) -> None:
+        self._task_instance = value
+        if self.task_instance:
+            self.task_id = self.task_instance.task_id
+        if self.task:
+            self.template_ext = self.task.template_ext
+            # Only keep operator template_fields that are also keys in
+            # start_trigger_args.trigger_kwargs *and* exist on the trigger.
+            # Using the full operator template_fields would cause
+            # AttributeError when the trigger does not have attributes with
+            # the same names as the operator (e.g. "bash_command").
+            #
+            # When start_trigger_args is None (normal defer path), the triggerer
+            # does not build a template context, so render_template_fields is
+            # never called and empty template_fields is safe.
+            start_trigger_args = getattr(self.task, "start_trigger_args", None)
+            trigger_kwarg_keys = (
+                set((start_trigger_args.trigger_kwargs or {}).keys()) if start_trigger_args else set()
+            )
+            if trigger_kwarg_keys:
+                self.template_fields = tuple(
+                    f for f in self.task.template_fields if f in trigger_kwarg_keys and hasattr(self, f)
+                )
+            else:
+                self.template_fields = ()
+
+    def render_template_fields(
+        self,
+        context: Context,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> None:
+        """
+        Template all attributes listed in *self.template_fields*.
+
+        This mutates the attributes in-place and is irreversible.
+
+        :param context: Context dict with values to apply on content.
+        :param jinja_env: Jinja's environment to use for rendering.
+        """
+        if not jinja_env:
+            jinja_env = self.get_template_env()
+        # self.template_fields is already filtered (in the task_instance setter) to only
+        # include fields present in start_trigger_args.trigger_kwargs and on this trigger.
+        self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
     @abc.abstractmethod
     def serialize(self) -> tuple[str, dict[str, Any]]:

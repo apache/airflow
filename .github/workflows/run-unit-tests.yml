@@ -203,7 +203,9 @@ jobs:
         uses: ./.github/actions/migration_tests
         with:
           python-version: ${{ matrix.python-version }}
-        if: inputs.run-migration-tests == 'true' && inputs.test-group == 'core'
+        # Any new python version should be disabled below via `&& matrix.python-version != '3.xx'` until the first
+        # Airflow version that supports it is released - otherwise there's nothing to migrate back to.
+        if: inputs.run-migration-tests == 'true' && inputs.test-group == 'core' && matrix.python-version != '3.14'
       - name: >
           ${{ inputs.test-group }}:${{ inputs.test-scope }} Tests ${{ inputs.test-name }} ${{ matrix.backend-version }}
           Py${{ matrix.python-version }}:${{ env.PARALLEL_TEST_TYPES }}

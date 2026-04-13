@@ -89,7 +89,7 @@ Joining Issue Triage Team
 '''''''''''''''''''''''''
 
 Joining the team is only by invitation from PMC member. Another PMC member should approve a PR where the triager is added.
-Note: the numbers of people in the triage team is limited by ASF. See `list <https://github.com/apache/airflow/blob/main/.asf.yaml#L143>`_
+Note: the numbers of people in the triage team is limited by ASF. See `list <https://github.com/apache/airflow/blob/main/.asf.yaml>`_ (``github.collaborators``).
 
 Removal from Issue Triage Team
 ''''''''''''''''''''''''''''''

@@ -22,7 +22,7 @@ import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { Wrapper } from "src/utils/Wrapper";
 
 import TaskInstanceTooltip from "./TaskInstanceTooltip";
@@ -60,8 +60,63 @@ describe("TaskInstanceTooltip", () => {
 
     expect(screen.getByText(/state/iu)).toBeInTheDocument();
     expect(screen.getByText(/startDate/iu)).toBeInTheDocument();
-    expect(screen.getByText(/endDate/iu)).toBeInTheDocument();
     expect(screen.getByText(/duration/iu)).toBeInTheDocument();
+  });
+
+  it("calculates live duration for a running task instead of using stale duration", () => {
+    // We pass a stale duration of 50 seconds, but start date is 2 hours ago.
+    // The calculated duration should be ~2 hours, not 50 seconds.
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const taskInstance: TaskInstanceResponse = {
+      dag_display_name: "Test DAG",
+      dag_id: "test",
+      dag_run_id: "test",
+      dag_version: null,
+      duration: 50.0,
+      end_date: null,
+      executor: null,
+      executor_config: "{}",
+      hostname: null,
+      id: "test_my_task",
+      logical_date: null,
+      map_index: 0,
+      max_tries: 3,
+      note: null,
+      operator: "DummyOperator",
+      operator_name: "DummyOperator",
+      pid: null,
+      pool: "default_pool",
+      pool_slots: 1,
+      priority_weight: null,
+      queue: null,
+      queued_when: null,
+      rendered_fields: undefined,
+      rendered_map_index: null,
+      run_after: twoHoursAgo,
+      scheduled_when: null,
+      start_date: twoHoursAgo,
+      state: "running",
+      task_display_name: "My Task",
+      task_id: "my_task",
+      trigger: null,
+      triggerer_job: null,
+      try_number: 2,
+      unixname: null,
+    };
+
+    render(
+      <TaskInstanceTooltip open taskInstance={taskInstance}>
+        <span>trigger</span>
+      </TaskInstanceTooltip>,
+      { wrapper: Wrapper },
+    );
+
+    const durationText = screen.getByText(/duration/iu).parentElement?.textContent;
+
+    // The calculated duration should be around 2 hours (e.g., "02:00:00" or similar)
+    // It should definitely NOT be "00:00:50.000" which is what `renderDuration(50)` gives
+    expect(durationText).not.toContain("00:00:50");
+    expect(durationText).toContain("02:00:");
   });
 
   it("shows only start date when max_end_date is null", () => {

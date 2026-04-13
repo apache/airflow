@@ -47,6 +47,7 @@ type DagRunRow = { row: { original: DAGRunResponse } };
 const {
   BUNDLE_VERSION: BUNDLE_VERSION_PARAM,
   CONF_CONTAINS: CONF_CONTAINS_PARAM,
+  CONSUMING_ASSET_PATTERN: CONSUMING_ASSET_PATTERN_PARAM,
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
   DAG_VERSION: DAG_VERSION_PARAM,
   DURATION_GTE: DURATION_GTE_PARAM,
@@ -214,6 +215,7 @@ export const DagRuns = () => {
   const filteredTriggeringUserNamePattern = searchParams.get(TRIGGERING_USER_NAME_PATTERN_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
+  const filteredConsumingAsset = searchParams.get(CONSUMING_ASSET_PATTERN_PARAM);
   const bundleVersion = searchParams.get(BUNDLE_VERSION_PARAM);
   const startDateGte = searchParams.get(START_DATE_GTE_PARAM);
   const startDateLte = searchParams.get(START_DATE_LTE_PARAM);
@@ -234,6 +236,7 @@ export const DagRuns = () => {
     {
       bundleVersion: bundleVersion ?? undefined,
       confContains: confContains !== null && confContains !== "" ? confContains : undefined,
+      consumingAssetPattern: filteredConsumingAsset ?? undefined,
       dagId: dagId ?? "~",
       dagIdPattern: filteredDagIdPattern ?? undefined,
       dagVersion:

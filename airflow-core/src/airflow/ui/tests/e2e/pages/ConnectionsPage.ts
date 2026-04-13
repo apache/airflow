@@ -215,7 +215,7 @@ export class ConnectionsPage extends BasePage {
 
       await expect(selectCombobox).toBeEnabled({ timeout: 25_000 });
 
-      await selectCombobox.click({ timeout: 3000 });
+      await selectCombobox.click({ timeout: 10_000 });
 
       // Wait for options to appear and click the matching option
       const option = this.page.getByRole("option", { name: new RegExp(details.conn_type, "i") }).first();

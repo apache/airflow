@@ -45,6 +45,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
+    DagResponse,
     DagRun,
     DagRunStateResponse,
     DagRunType,
@@ -75,7 +76,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceSliceResponse,
 )
 from airflow.sdk.configuration import conf
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
     DRCount,
@@ -215,7 +216,18 @@ class TaskInstanceOperations:
         """Tell the API server that this TI has started running."""
         body = TIEnterRunningPayload(pid=pid, hostname=get_hostname(), unixname=getuser(), start_date=when)
 
-        resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())
+        try:
+            resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.CONFLICT:
+                detail = e.detail
+                if (
+                    isinstance(detail, dict)
+                    and detail.get("reason") == "invalid_state"
+                    and detail.get("previous_state") == "running"
+                ):
+                    raise TaskAlreadyRunningError(f"Task instance {id} is already running") from e
+            raise
         return TIRunContext.model_validate_json(resp.read())
 
     def finish(self, id: uuid.UUID, state: TerminalStateNonSuccess, when: datetime, rendered_map_index):
@@ -517,14 +529,18 @@ class XComOperations:
         key: str,
         value,
         map_index: int | None = None,
+        *,
+        dag_result: bool = False,
         mapped_length: int | None = None,
     ) -> OKResponse:
         """Set a XCom value via the API server."""
         # TODO: check if we need to use map_index as params in the uri
         # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
-        params = {}
+        params: dict[str, Any] = {}
+        if dag_result:
+            params["dag_result"] = dag_result
         if map_index is not None and map_index >= 0:
-            params = {"map_index": map_index}
+            params["map_index"] = map_index
         if mapped_length is not None and mapped_length >= 0:
             params["mapped_length"] = mapped_length
         self.client.post(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params, json=value)
@@ -542,9 +558,10 @@ class XComOperations:
         map_index: int | None = None,
     ) -> OKResponse:
         """Delete a XCom with given key via the API server."""
-        params = {}
         if map_index is not None and map_index >= 0:
             params = {"map_index": map_index}
+        else:
+            params = {}
         self.client.delete(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
@@ -770,6 +787,18 @@ class DagRunOperations:
             params["state"] = state
         resp = self.client.get("dag-runs/previous", params=params)
         return PreviousDagRunResult(dag_run=resp.json())
+
+
+class DagsOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, dag_id: str) -> DagResponse:
+        """Get a DAG via the API server."""
+        resp = self.client.get(f"dags/{dag_id}")
+        return DagResponse.model_validate_json(resp.read())
 
 
 class HITLOperations:
@@ -1012,10 +1041,16 @@ class Client(httpx.Client):
         """Operations related to HITL Responses."""
         return HITLOperations(self)
 
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def dags(self) -> DagsOperations:
+        """Operations related to DAGs."""
+        return DagsOperations(self)
+
 
 # This is only used for parsing. ServerResponseError is raised instead
 class _ErrorBody(BaseModel):
-    detail: list[RemoteValidationError] | str
+    detail: list[RemoteValidationError] | dict[str, Any] | str
 
     def __repr__(self):
         return repr(self.detail)
@@ -1049,6 +1084,9 @@ class ServerResponseError(httpx.HTTPStatusError):
             if isinstance(body.detail, list):
                 detail = body.detail
                 msg = "Remote server returned validation error"
+            elif isinstance(body.detail, dict):
+                detail = body.detail
+                msg = "Server returned error"
             else:
                 msg = body.detail or "Un-parseable error"
         except Exception:

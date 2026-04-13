@@ -104,7 +104,8 @@ PIP package                                 Version required
 ``pyarrow``                                 ``>=16.1.0``
 ``numpy``                                   ``>=1.22.4; python_version < "3.11"``
 ``numpy``                                   ``>=1.23.2; python_version < "3.12" and python_version >= "3.11"``
-``numpy``                                   ``>=1.26.0; python_version >= "3.12"``
+``numpy``                                   ``>=1.26.0; python_version >= "3.12" and python_version < "3.14"``
+``numpy``                                   ``>=2.4.3; python_version >= "3.14"``
 ==========================================  ==================================================================
 
 Cross provider package dependencies

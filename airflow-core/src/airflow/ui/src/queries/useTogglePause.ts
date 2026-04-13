@@ -27,7 +27,7 @@ import {
   useDagServiceGetDagsUiKey,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
 } from "openapi/queries";
-import { toaster } from "src/components/ui";
+import { createErrorToaster } from "src/utils";
 
 export const useTogglePause = ({ dagId }: { dagId: string }) => {
   const queryClient = useQueryClient();
@@ -45,12 +45,8 @@ export const useTogglePause = ({ dagId }: { dagId: string }) => {
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
   };
 
-  const onError = (error: Error) => {
-    toaster.create({
-      description: error.message,
-      title: translate("error.title"),
-      type: "error",
-    });
+  const onError = (error: unknown) => {
+    createErrorToaster(error, { titleKey: "common:error.title" }, translate);
   };
 
   return useDagServicePatchDag({
