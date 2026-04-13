@@ -40,6 +40,7 @@ jobs:
         run: pip install "uv==${UV_VERSION}"
       - name: "Verify release calendar"
         run: uv run dev/verify_release_calendar.py
+      # yamllint disable rule:line-length
       - name: "Notify Slack on failure"
         if: failure()
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95
@@ -64,5 +65,8 @@ jobs:
                     the Confluence release wiki and the Google
                     Calendar entries.
 
-                    <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View
-                    failed run>
+                    • <https://cwiki.apache.org/confluence/display/AIRFLOW/Release+Plan|Release Plan wiki>
+
+                    • <https://calendar.google.com/calendar/u/0?cid=Y19kZTIxNGU5MmRmM2I3NTk3NzljYjY1ZjNlNDllNTYyNzk2YzYxMjZlNzUwMGNmYTdlNTI0YmY3ODE4NmQ4YjVlQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20|Release Calendar>
+
+                    • <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View failed run>
