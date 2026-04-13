@@ -700,15 +700,15 @@ def ti_heartbeat(
     fast_path_result = cast(
         "CursorResult[Any]",
         session.execute(
-        update(TI)
-        .where(
-            TI.id == task_instance_id,
-            TI.state == TaskInstanceState.RUNNING,
-            TI.hostname == ti_payload.hostname,
-            TI.pid == ti_payload.pid,
-        )
-        .values(last_heartbeat_at=timezone.utcnow())
-        .execution_options(synchronize_session=False)
+            update(TI)
+            .where(
+                TI.id == task_instance_id,
+                TI.state == TaskInstanceState.RUNNING,
+                TI.hostname == ti_payload.hostname,
+                TI.pid == ti_payload.pid,
+            )
+            .values(last_heartbeat_at=timezone.utcnow())
+            .execution_options(synchronize_session=False)
         ),
     )
     if fast_path_result.rowcount is not None and fast_path_result.rowcount > 0:
