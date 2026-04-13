@@ -50,3 +50,12 @@ repos:
           (?x)
           ^src/airflowctl/api/operations\.py$|
           ^docs/images/command_hashes.txt$
+      - id: check-airflowctl-help-texts
+        name: Check airflowctl CLI commands have help texts
+        entry: ../scripts/ci/prek/check_airflowctl_help_texts.py
+        language: python
+        pass_filenames: false
+        files:
+          (?x)
+          ^src/airflowctl/api/operations\.py$|
+          ^src/airflowctl/ctl/help_texts\.yaml$

@@ -767,7 +767,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "2.11.1",
-        "remove-providers": "common.messaging edge3 fab git keycloak informatica common.ai",
+        "remove-providers": "common.messaging edge3 fab git keycloak informatica common.ai opensearch",
         "run-unit-tests": "true",
     },
     {
@@ -782,13 +782,19 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
         "remove-providers": "",
         "run-unit-tests": "true",
     },
+    {
+        "python-version": "3.10",
+        "airflow-version": "3.2.0",
+        "remove-providers": "",
+        "run-unit-tests": "true",
+    },
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.10": "3.10.20",
     "3.11": "3.11.15",
     "3.12": "3.12.13",
-    "3.13": "3.13.12",
+    "3.13": "3.13.13",
     "3.14": "3.14.3",
 }
 

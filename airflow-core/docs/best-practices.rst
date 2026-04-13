@@ -1098,8 +1098,10 @@ The benefits of using those operators are:
   environment is optimized for the case where you have multiple similar, but different environments.
 * The dependencies can be pre-vetted by the admins and your security team, no unexpected, new code will
   be added dynamically. This is good for both, security and stability.
-* Complete isolation between tasks. They cannot influence one another in other ways than using standard
-  Airflow XCom mechanisms.
+* Strong process-level isolation between tasks. Tasks run in separate containers/pods and cannot
+  influence one another at the process or filesystem level. They can still interact through standard
+  Airflow mechanisms (XComs, connections, variables) via the Execution API. See
+  :doc:`/security/security_model` for the full isolation model.
 
 The drawbacks:
 

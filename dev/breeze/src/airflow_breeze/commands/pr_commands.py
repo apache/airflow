@@ -58,11 +58,13 @@ from airflow_breeze.utils.custom_param_types import HiddenChoiceWithCompletion, 
 from airflow_breeze.utils.pr_cache import (
     classification_cache as _classification_cache,
     get_cached_assessment as _get_cached_assessment,
+    get_cached_author_profile as _get_cached_author_profile,
     get_cached_classification as _get_cached_classification,
     get_cached_review as _get_cached_review,
     get_cached_status as _get_cached_status,
     review_cache as _review_cache,
     save_assessment_cache as _save_assessment_cache,
+    save_author_profile as _save_author_profile,
     save_classification_cache as _save_classification_cache,
     save_review_cache as _save_review_cache,
     save_status_cache as _save_status_cache,
@@ -210,10 +212,12 @@ def _cached_assess_pr(
     pr_body: str,
     check_status_summary: str,
     llm_model: str,
+    diff_text: str | None = None,
 ) -> PRAssessment:
     """Run assess_pr with caching keyed by PR number + commit hash.
 
     Returns cached PRAssessment when the commit hash matches, avoiding redundant LLM calls.
+    When *diff_text* is provided, generates directed review questions from it.
     """
     from airflow_breeze.utils.github import PRAssessment, Violation
     from airflow_breeze.utils.llm_utils import assess_pr
@@ -243,6 +247,16 @@ def _cached_assess_pr(
         result._from_cache = True  # type: ignore[attr-defined]
         return result
 
+    # Generate directed review questions from the diff if available.
+    # In the TUI, diff_text is passed when the diff has been fetched by the
+    # background executor before the LLM submission. In the non-TUI flow,
+    # it is passed explicitly during sequential review.
+    review_questions: list[str] | None = None
+    if diff_text:
+        from airflow_breeze.utils.pr_vault import generate_review_questions
+
+        review_questions = generate_review_questions(diff_text, pr_body) or None
+
     t_start = time.monotonic()
     last_err: Exception | None = None
     attempts_made = 0
@@ -255,6 +269,7 @@ def _cached_assess_pr(
                 pr_body=pr_body,
                 check_status_summary=check_status_summary,
                 llm_model=llm_model,
+                review_questions=review_questions,
             )
             if not result.error:
                 break
@@ -1016,7 +1031,14 @@ def _fetch_check_status_counts(token: str, github_repository: str, head_sha: str
     """Fetch counts of checks by status for a commit. Returns a dict like {"SUCCESS": 5, "FAILURE": 2, ...}.
 
     Also includes an "IN_PROGRESS" key for checks still running.
+    Tries the local vault first; falls back to the GitHub API.
     """
+    from airflow_breeze.utils.pr_vault import load_check_status, save_check_status
+
+    cached = load_check_status(github_repository, head_sha)
+    if cached is not None:
+        return cached
+
     owner, repo = github_repository.split("/", 1)
     counts: dict[str, int] = {}
     cursor: str | None = None
@@ -1052,6 +1074,10 @@ def _fetch_check_status_counts(token: str, github_repository: str, head_sha: str
         if not page_info.get("hasNextPage"):
             break
         cursor = page_info.get("endCursor")
+
+    # Persist to vault for reuse (same SHA = same results)
+    if counts:
+        save_check_status(github_repository, head_sha, counts)
 
     return counts
 
@@ -1788,6 +1814,11 @@ def _fetch_prs_graphql(
             )
         )
 
+    # Persist fetched PRs to vault for reuse across sessions
+    from airflow_breeze.utils.pr_vault import save_prs_batch
+
+    save_prs_batch(github_repository, prs)
+
     return prs, has_next_page, end_cursor, search_data["issueCount"]
 
 
@@ -1828,7 +1859,44 @@ def _fetch_single_pr_graphql(token: str, github_repository: str, pr_number: int)
     )
 
 
+def _load_pr_from_vault(github_repository: str, pr_number: int) -> PRData | None:
+    """Try to load a PR from the vault. Returns None on miss or expired TTL.
+
+    The returned PRData has ``unresolved_threads=[]``, ``review_decisions=[]``,
+    and ``has_collaborator_review=False``. These are backfilled by
+    ``_enrich_candidate_details`` which runs during triage/review regardless
+    of whether the PR came from vault or the API.
+    """
+    from airflow_breeze.utils.pr_vault import load_pr
+
+    data = load_pr(github_repository, pr_number)
+    if data is None:
+        return None
+    return PRData(
+        number=data["number"],
+        title=data["title"],
+        body=data.get("body", ""),
+        url=data["url"],
+        created_at=data["created_at"],
+        updated_at=data["updated_at"],
+        node_id=data.get("node_id", ""),
+        author_login=data["author_login"],
+        author_association=data.get("author_association", "NONE"),
+        head_sha=data["head_sha"],
+        base_ref=data.get("base_ref", "main"),
+        check_summary=data.get("check_summary", ""),
+        checks_state=data.get("checks_state", "UNKNOWN"),
+        failed_checks=data.get("failed_checks", []),
+        commits_behind=data.get("commits_behind", 0),
+        is_draft=data.get("is_draft", False),
+        mergeable=data.get("mergeable", "UNKNOWN"),
+        labels=data.get("labels", []),
+        unresolved_threads=[],
+    )
+
+
 _author_profile_cache: dict[str, dict] = {}
+_author_profile_lock = threading.Lock()
 
 
 def _compute_author_scoring(
@@ -1904,10 +1972,18 @@ def _compute_author_scoring(
 def _fetch_author_profile(token: str, login: str, github_repository: str) -> dict:
     """Fetch author profile info via GraphQL: account age, PR counts, contributed repos.
 
-    Results are cached per login so the same author is only queried once.
+    Results are cached in memory (per session) and on disk (across sessions, 7-day TTL).
+    Thread-safe: uses a lock to avoid redundant API calls from concurrent workers.
     """
-    if login in _author_profile_cache:
-        return _author_profile_cache[login]
+    with _author_profile_lock:
+        if login in _author_profile_cache:
+            return _author_profile_cache[login]
+
+        # Try disk cache before hitting the API
+        disk_profile = _get_cached_author_profile(github_repository, login)
+        if disk_profile:
+            _author_profile_cache[login] = disk_profile
+            return disk_profile
 
     repo_prefix = f"repo:{github_repository} type:pr author:{login}"
     global_prefix = f"type:pr author:{login}"
@@ -1939,7 +2015,8 @@ def _fetch_author_profile(token: str, login: str, github_repository: str) -> dic
             "contributed_repos": [],
             "contributed_repos_total": 0,
         }
-        _author_profile_cache[login] = profile
+        with _author_profile_lock:
+            _author_profile_cache[login] = profile
         return profile
     user_data = data.get("user") or {}
     created_at = user_data.get("createdAt", "unknown")
@@ -1989,7 +2066,12 @@ def _fetch_author_profile(token: str, login: str, github_repository: str) -> dic
             contrib_total,
         ),
     }
-    _author_profile_cache[login] = profile
+    with _author_profile_lock:
+        _author_profile_cache[login] = profile
+
+    # Persist to disk for reuse across sessions
+    _save_author_profile(github_repository, login, profile)
+
     return profile
 
 
@@ -5276,6 +5358,7 @@ def _run_tui_triage(
                                     pr_body=cur_pr.body,
                                     check_status_summary=cur_pr.check_summary,
                                     llm_model=llm_model,
+                                    diff_text=diff_cache.get(cur_pr.number),
                                 )
                             ctx.llm_future_to_pr[fut] = cur_pr
                             # Keep as PASSING with LLM in progress
@@ -7885,7 +7968,14 @@ def _find_workflow_runs_by_status(
     """Find workflow runs with a given status for a commit SHA.
 
     Common statuses: ``action_required``, ``in_progress``, ``queued``.
+    Tries the local vault first (10-minute TTL); falls back to the GitHub REST API.
     """
+    from airflow_breeze.utils.pr_vault import load_workflow_runs, save_workflow_runs
+
+    cached = load_workflow_runs(github_repository, head_sha, status)
+    if cached is not None:
+        return cached
+
     import requests
 
     url = f"https://api.github.com/repos/{github_repository}/actions/runs"
@@ -7900,7 +7990,10 @@ def _find_workflow_runs_by_status(
         return []
     if response.status_code != 200:
         return []
-    return response.json().get("workflow_runs", [])
+    runs = response.json().get("workflow_runs", [])
+
+    save_workflow_runs(github_repository, head_sha, status, runs)
+    return runs
 
 
 def _find_pending_workflow_runs(token: str, github_repository: str, head_sha: str) -> list[dict]:
@@ -9985,9 +10078,15 @@ def _fetch_initial_prs(
     _initial_review_requested_user: str | None = None if review_mode else review_requested_user
 
     if pr_number:
-        if not quiet:
-            console_print(f"[info]Fetching PR #{pr_number} via GraphQL...[/]")
-        all_prs = [_fetch_single_pr_graphql(token, github_repository, pr_number)]
+        cached = _load_pr_from_vault(github_repository, pr_number)
+        if cached is not None:
+            if not quiet:
+                console_print(f"[info]Loaded PR #{pr_number} from vault cache.[/]")
+            all_prs = [cached]
+        else:
+            if not quiet:
+                console_print(f"[info]Fetching PR #{pr_number} via GraphQL...[/]")
+            all_prs = [_fetch_single_pr_graphql(token, github_repository, pr_number)]
         total_matching_prs = 1
     elif len(review_requested_users) > 1 and not review_mode:
         if not quiet:
