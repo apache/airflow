@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-airflowctl 0.1.4 (2026-XX-XX)
+airflowctl 0.1.4 (2026-04-13)
 -----------------------------
 
 Significant Changes
