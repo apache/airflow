@@ -361,6 +361,158 @@ class TestServiceAccountAnnotations:
             assert k in obj["metadata"]["annotations"]
             assert v == obj["metadata"]["annotations"][k]
 
+    @pytest.mark.parametrize(
+        ("values_key", "show_only"),
+        [
+            ("scheduler", "templates/scheduler/scheduler-serviceaccount.yaml"),
+            ("triggerer", "templates/triggerer/triggerer-serviceaccount.yaml"),
+        ],
+    )
+    def test_tpl_rendered_annotations_airflow_2(self, values_key, show_only):
+        """Test SA annotations support tpl rendering for Airflow 2.x components."""
+        k8s_objects = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                values_key: {
+                    "serviceAccount": {
+                        "annotations": {
+                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-sa@project.iam",
+                        },
+                    },
+                },
+            },
+            show_only=[show_only],
+        )
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["metadata"]["annotations"]
+        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-sa@project.iam"
+
+    def test_tpl_rendered_multiple_annotations(self):
+        """Test that multiple annotations render correctly with tpl."""
+        k8s_objects = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "scheduler": {
+                    "serviceAccount": {
+                        "annotations": {
+                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-sa@project.iam",
+                            "another-annotation": "{{ .Release.Name }}-other",
+                            "plain-annotation": "no-template",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-serviceaccount.yaml"],
+        )
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["metadata"]["annotations"]
+        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-sa@project.iam"
+        assert annotations["another-annotation"] == "release-name-other"
+        assert annotations["plain-annotation"] == "no-template"
+
+    def test_tpl_rendered_annotations_pgbouncer(self):
+        """Test pgbouncer SA annotations support tpl rendering."""
+        k8s_objects = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "pgbouncer": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "annotations": {
+                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-sa@project.iam",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-serviceaccount.yaml"],
+        )
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["metadata"]["annotations"]
+        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-sa@project.iam"
+
+    @pytest.mark.parametrize(
+        ("values_key", "show_only"),
+        [
+            ("dagProcessor", "templates/dag-processor/dag-processor-serviceaccount.yaml"),
+            ("apiServer", "templates/api-server/api-server-serviceaccount.yaml"),
+        ],
+    )
+    def test_tpl_rendered_annotations_airflow_3(self, values_key, show_only):
+        """Test SA annotations support tpl rendering for Airflow 3.x components."""
+        k8s_objects = render_chart(
+            values={
+                values_key: {
+                    "serviceAccount": {
+                        "annotations": {
+                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-sa@project.iam",
+                        },
+                    },
+                },
+            },
+            show_only=[show_only],
+        )
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["metadata"]["annotations"]
+        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-sa@project.iam"
+
+    def test_tpl_rendered_annotations_celery_worker(self):
+        """Test Celery worker SA annotations support tpl rendering."""
+        k8s_objects = render_chart(
+            values={
+                "workers": {
+                    "celery": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-worker@project.iam",
+                            },
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["metadata"]["annotations"]
+        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-worker@project.iam"
+
+    def test_tpl_rendered_annotations_kubernetes_worker(self):
+        """Test KubernetesExecutor worker SA annotations support tpl rendering."""
+        k8s_objects = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": {
+                    "serviceAccount": {
+                        "annotations": {
+                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-worker@project.iam",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["metadata"]["annotations"]
+        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-worker@project.iam"
+
+    def test_tpl_rendered_annotations_webserver(self):
+        """Test webserver SA annotations support tpl rendering (Airflow 2.x only)."""
+        k8s_objects = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "webserver": {
+                    "serviceAccount": {
+                        "annotations": {
+                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-web@project.iam",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/webserver/webserver-serviceaccount.yaml"],
+        )
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["metadata"]["annotations"]
+        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-web@project.iam"
+
     def test_annotations_on_webserver(self):
         """Test annotations are added on webserver for Airflow 2"""
         k8s_objects = render_chart(

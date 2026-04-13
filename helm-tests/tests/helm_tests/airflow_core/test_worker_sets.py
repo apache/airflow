@@ -2614,6 +2614,20 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "extraVolumeMounts": [{"name": "test", "mountPath": "/opt"}],
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "extraVolumeMounts": [
+                                {"name": "test-volume-mount-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                            ],
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_extra_volume_mounts(self, workers_values):
@@ -2624,10 +2638,10 @@ class TestWorkerSets:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[0].volumeMounts[0]", docs[0]) == {
-            "name": "test-volume-mount-airflow",
-            "mountPath": "/opt/test",
-        }
+        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+        assert {"name": "test-volume-mount-airflow", "mountPath": "/opt/test"} in volume_mounts
+        assert {"name": "test", "mountPath": "/opt"} not in volume_mounts
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -3153,6 +3167,13 @@ class TestWorkerSets:
                 "labels": {"echo": "test"},
                 "celery": {"enableDefault": False, "sets": [{"name": "set1", "labels": {"test": "echo"}}]},
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "labels": {"echo": "test"},
+                    "sets": [{"name": "set1", "labels": {"test": "echo"}}],
+                },
+            },
         ],
     )
     def test_overwrite_labels(self, workers_values):
@@ -3338,6 +3359,13 @@ class TestWorkerSets:
                 "env": [{"name": "TEST", "value": "test"}],
                 "celery": {
                     "enableDefault": False,
+                    "sets": [{"name": "set1", "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}],
+                },
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "env": [{"name": "TEST", "value": "test"}],
                     "sets": [{"name": "set1", "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}],
                 },
             },

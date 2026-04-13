@@ -738,6 +738,13 @@ class TestBaseChartTest:
             == "postgresql://postgres:postgres@overrideName:5432/postgres?sslmode=disable"
         )
 
+    def test_jwt_secret_has_recommended_length(self):
+        doc = render_chart(
+            show_only=["templates/secrets/jwt-secret.yaml"],
+        )[0]
+
+        assert len(base64.b64decode(doc["data"]["jwt-secret"]).decode("utf-8")) >= 64
+
     def test_priority_classes(self):
         pc = [
             {"name": "class1", "preemptionPolicy": "PreemptLowerPriority", "value": 1000},
