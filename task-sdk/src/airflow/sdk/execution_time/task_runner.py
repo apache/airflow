@@ -2082,7 +2082,7 @@ def flush_spans():
 
 def _resolve_locale_entrypoint(startup_details: StartupDetails, log: Logger) -> Callable[[], None] | None:
     """
-    Check provider-registered task coordinators for a locale-specific entrypoint.
+    Check provider-registered process coordinators for a locale-specific entrypoint.
 
     If a coordinator claims this task (e.g. a Java coordinator for JVM-based
     tasks), return a no-arg callable that bridges fd 0 to the locale
@@ -2098,14 +2098,14 @@ def _resolve_locale_entrypoint(startup_details: StartupDetails, log: Logger) -> 
     # once it is exposed via the Execution API.  For now, we iterate over
     # all registered coordinators and let each decide via its own matching
     # logic (e.g. checking the bundle type or task metadata).
-    for coordinator_path in ProvidersManagerTaskRuntime().task_coordinators:
+    for coordinator_path in ProvidersManagerTaskRuntime().process_coordinators:
         try:
             coordinator_cls = import_string(coordinator_path)
         except Exception:
-            log.exception("Failed to import task coordinator", path=coordinator_path)
+            log.exception("Failed to import process coordinator", path=coordinator_path)
             continue
 
-        if not hasattr(coordinator_cls, "entrypoint"):
+        if not hasattr(coordinator_cls, "run_task_execution"):
             continue
 
         log.debug(
@@ -2114,7 +2114,7 @@ def _resolve_locale_entrypoint(startup_details: StartupDetails, log: Logger) -> 
             task_id=startup_details.ti.task_id,
         )
         return functools.partial(
-            coordinator_cls.entrypoint,
+            coordinator_cls.run_task_execution,
             what=startup_details.ti,
             # dag_rel_path=startup_details.dag_rel_path, #TODO: Not sure why we get `.` for dag_rel_path, mock as expected path for now
             dag_rel_path="/files/java-bundle/lib/example.jar",

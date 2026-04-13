@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,32 +17,27 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.languages.java.dag_file_processors import JavaDagFileProcessor
+from airflow.providers.languages.java.coordinator import JavaLocaleCoordinator
 from airflow.providers.languages.java.get_provider_info import get_provider_info
-from airflow.providers.languages.java.task_coordinators import JavaTaskCoordinator
 
 
 def test_get_provider_info_exposes_java_runtime_components():
     assert get_provider_info() == {
         "package-name": "apache-airflow-providers-languages-java",
         "name": "Languages: Java",
-        "description": "Java language support for Apache Airflow task coordinators and DAG file processors.\n",
+        "description": "Java language support for Apache Airflow process coordinators.\n",
         "integrations": [
             {
                 "integration-name": "Java",
                 "external-doc-url": "https://openjdk.org/",
-                "tags": ["language", "java"],
+                "tags": ["software"],
             }
         ],
-        "task-coordinators": [
-            "airflow.providers.languages.java.task_coordinators.JavaTaskCoordinator",
-        ],
-        "dag-file-processors": [
-            "airflow.providers.languages.java.dag_file_processors.JavaDagFileProcessor",
+        "process-coordinators": [
+            "airflow.providers.languages.java.coordinator.JavaLocaleCoordinator",
         ],
     }
 
 
 def test_java_provider_entrypoints_are_importable():
-    assert JavaTaskCoordinator.language == "java"
-    assert JavaDagFileProcessor.language == "java"
+    assert JavaLocaleCoordinator.locale_name == "java"

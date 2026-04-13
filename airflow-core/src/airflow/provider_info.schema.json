@@ -447,16 +447,9 @@
                 }
             }
         },
-        "task-coordinators": {
+        "process-coordinators": {
             "type": "array",
-            "description": "Task Coordinator class names",
-            "items": {
-                "type": "string"
-            }
-        },
-        "dag-file-processors": {
-            "type": "array",
-            "description": "Dag File Processor class names",
+            "description": "Process Coordinator class names (BaseLocaleCoordinator subclasses)",
             "items": {
                 "type": "string"
             }
