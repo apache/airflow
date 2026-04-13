@@ -26,7 +26,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 
 from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_failed,
@@ -36,7 +36,7 @@ from airflow.api.common.mark_tasks import (
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
-from airflow.api_fastapi.common.db.common import SessionDep, _get_session, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.db.dag_runs import (
     attach_dag_versions_to_runs,
     eager_load_dag_run_for_list,
@@ -539,7 +539,7 @@ def trigger_dag_run(
 def wait_dag_run_until_finished(
     dag_id: str,
     dag_run_id: str,
-    session: Annotated[Session, Depends(_get_session)],
+    session: SessionDep,
     user: GetUserDep,
     interval: Annotated[float, Query(gt=0.0, description="Seconds to wait between dag run state checks")],
     result_task_ids: Annotated[

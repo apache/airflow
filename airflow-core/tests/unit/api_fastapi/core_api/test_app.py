@@ -52,6 +52,15 @@ class TestStreamingEndpointSessionScope:
         executes.  This causes the generator to silently reopen the session via
         autobegin, and the resulting connection is never returned to the pool.
         """
+        # These endpoints mention StreamingResponse but only use the session
+        # *before* streaming begins — the generator does not capture it.
+        # Function scope is correct for them: close the session early rather
+        # than hold it open for the entire (potentially long) stream.
+        allowed = {
+            "airflow.api_fastapi.core_api.routes.public.log.get_log",
+            "airflow.api_fastapi.core_api.routes.public.dag_run.wait_dag_run_until_finished",
+        }
+
         app = create_app()
         violations = []
         for route in _get_all_api_routes(app):
@@ -66,6 +75,9 @@ class TestStreamingEndpointSessionScope:
                 except (OSError, TypeError):
                     pass
             if not returns_streaming:
+                continue
+            fqn = f"{route.endpoint.__module__}.{route.endpoint.__qualname__}"
+            if fqn in allowed:
                 continue
             for param_name, hint in hints.items():
                 if param_name == "return":
