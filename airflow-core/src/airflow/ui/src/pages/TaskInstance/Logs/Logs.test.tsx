@@ -354,38 +354,35 @@ describe("Task log search", () => {
     await waitFor(() => expect(screen.getByText(/starting attempt 1 of 3/iu)).toBeInTheDocument());
   }, 10_000);
 
-  it("Has sequential line numbers with no gaps or duplicates", async () => {
+  it("skips group markers when assigning line numbers", async () => {
     render(
       <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/generate"]} />,
     );
 
     await waitForLogs();
 
-    // Expand all groups so their content lines are in the DOM
+    const expectRenderedLineNumber = async (pattern: RegExp, expectedLineNumber: number) => {
+      const row = (await screen.findByText(pattern)).closest('[data-testid^="virtualized-item-"]');
+
+      expect(row).not.toBeNull();
+
+      const anchor = row?.querySelector<HTMLAnchorElement>("a[id]");
+
+      expect(anchor).not.toBeNull();
+
+      expect(Number(anchor?.id)).toBe(expectedLineNumber);
+    };
+
     const summaryPre = screen.getByTestId("summary-Pre task execution logs");
 
     fireEvent.click(summaryPre);
-    await waitFor(() => expect(screen.getByText(/starting attempt 1 of 3/iu)).toBeVisible());
 
-    const summaryPost = screen.getByTestId("summary-Post task execution logs");
+    const summaryDependency = await screen.findByTestId("summary-Dependency check details");
 
-    fireEvent.click(summaryPost);
-    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeVisible());
+    fireEvent.click(summaryDependency);
 
-    // Collect all rendered line number links within the log component
-    const logContainer = screen.getByTestId("virtual-scroll-container");
-    const lineNumbers = [...logContainer.querySelectorAll<HTMLAnchorElement>("a[id]")]
-      .map((el) => parseInt(el.id, 10))
-      .filter((num) => !isNaN(num))
-      .sort((numA, numB) => numA - numB);
-
-    expect(lineNumbers.length).toBeGreaterThan(0);
-    expect(lineNumbers[0]).toBe(0);
-    expect(new Set(lineNumbers).size).toBe(lineNumbers.length);
-
-    // No gaps
-    lineNumbers.forEach((num, idx) => {
-      expect(num).toBe(idx);
-    });
+    await expectRenderedLineNumber(/dep_context=non-requeueable/iu, 0);
+    await expectRenderedLineNumber(/dep_context=requeueable/iu, 1);
+    await expectRenderedLineNumber(/starting attempt 1 of 3/iu, 2);
   }, 10_000);
 });
