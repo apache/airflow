@@ -52,6 +52,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
     from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+    from airflow.sdk.execution_time.comms import StartupDetails
 
 
 def _start_server() -> socket.socket:
@@ -61,6 +62,26 @@ def _start_server() -> socket.socket:
     server.setblocking(True)
     server.listen(1)
     return server
+
+
+def _send_startup_details(locale_comm: socket.socket, startup_details: StartupDetails) -> None:
+    """
+    Re-encode and send the ``StartupDetails`` frame to the locale subprocess.
+
+    In the task execution flow, ``task_runner.main()`` consumes the
+    ``StartupDetails`` message from fd 0 (to determine routing) before
+    delegating to the locale coordinator.  This function re-serializes
+    the message and writes it to the locale subprocess's comm socket so
+    the subprocess receives it as if it came directly from the supervisor.
+    """
+    from airflow.sdk.execution_time.comms import _ResponseFrame
+
+    # Use mode="json" so that datetime, UUID, and other complex Python
+    # types are serialized as plain strings/numbers in msgpack — avoiding
+    # msgpack extension types (e.g. Timestamp) that non-Python decoders
+    # may not support.
+    frame = _ResponseFrame(id=0, body=startup_details.model_dump(mode="json"))
+    locale_comm.sendall(frame.as_bytes())
 
 
 def _bridge(
@@ -90,7 +111,10 @@ def _bridge(
         make_raw_forwarder,
         service_selector,
     )
-    from airflow.sdk.execution_time.supervisor import process_log_messages_from_subprocess
+    from airflow.sdk.execution_time.supervisor import (
+        forward_to_log,
+        process_log_messages_from_subprocess,
+    )
 
     sel = selectors.DefaultSelector()
 
@@ -104,18 +128,25 @@ def _bridge(
     sel.register(supervisor_comm, selectors.EVENT_READ, make_raw_forwarder(locale_comm, on_close))
     sel.register(locale_comm, selectors.EVENT_READ, make_raw_forwarder(supervisor_comm, on_close))
 
-    # Logs: line-buffered JSON -> structlog, using the same log processor
-    # as WatchedSubprocess (handles level mapping, timestamp parsing, and
-    # exception extraction).
+    # TCP logs channel: line-buffered JSON from the locale SDK's LogSender,
+    # processed with the same handler as WatchedSubprocess (level mapping,
+    # timestamp parsing, exception extraction).
     sel.register(
         locale_logs,
         selectors.EVENT_READ,
         make_buffered_socket_reader(process_log_messages_from_subprocess(target_loggers), on_close),
     )
+    # stderr: plain-text output from the locale process's logging framework
+    # (e.g. SLF4J simple logger).  Use forward_to_log which handles raw
+    # text lines, not process_log_messages_from_subprocess which expects JSON.
+    import logging
+
     sel.register(
         locale_stderr,
         selectors.EVENT_READ,
-        make_buffered_socket_reader(process_log_messages_from_subprocess(target_loggers), on_close),
+        make_buffered_socket_reader(
+            forward_to_log(target_loggers, logger="task.stderr", level=logging.ERROR), on_close
+        ),
     )
 
     # Event loop -- runs until the subprocess exits and all sockets are drained.
@@ -161,6 +192,7 @@ class BaseLocaleCoordinator:
         what: TaskInstance
         dag_rel_path: str | os.PathLike[str]
         bundle_info: BundleInfo
+        startup_details: StartupDetails
         mode: str = "task-execution"
 
     @classmethod
@@ -224,13 +256,19 @@ class BaseLocaleCoordinator:
 
     @classmethod
     def run_task_execution(
-        cls, *, what: TaskInstance, dag_rel_path: str | os.PathLike[str], bundle_info: BundleInfo
+        cls,
+        *,
+        what: TaskInstance,
+        dag_rel_path: str | os.PathLike[str],
+        bundle_info: BundleInfo,
+        startup_details: StartupDetails,
     ) -> None:
         cls._locale_subprocess_entrypoint(
             cls.TaskExecutionInfo(
                 what=what,
                 dag_rel_path=dag_rel_path,
                 bundle_info=bundle_info,
+                startup_details=startup_details,
             )
         )
 
@@ -315,6 +353,13 @@ class BaseLocaleCoordinator:
         locale_logs, _ = logs_server.accept()
         comm_server.close()
         logs_server.close()
+
+        # For task execution the supervisor already sent ``StartupDetails``
+        # on fd 0 and ``task_runner.main()`` consumed it before delegating
+        # here.  Re-encode and forward it to the locale subprocess so it
+        # knows which task to execute.
+        if isinstance(entrypoint_info, cls.TaskExecutionInfo):
+            _send_startup_details(locale_comm, entrypoint_info.startup_details)
 
         # fd 0 is the bidirectional comms socket to the supervisor.
         supervisor_comm = socket.socket(fileno=os.dup(0))
