@@ -894,15 +894,42 @@ If you pass ``--tag`` fag, the distribution will create a source tarball release
   :width: 100%
   :alt: Breeze release-management prepare-airflow-ctl-distributions
 
-Generating airflow-ctl issue
-""""""""""""""""""""""""""""
+Generating airflowctl changelog
+""""""""""""""""""""""""""""""""
 
-You can use Breeze to generate an airflow-ctl issue when you release new airflow-ctl.
+You can generate the RST changelog for an airflowctl release and have it automatically prepended to
+``airflow-ctl/RELEASE_NOTES.rst``. The command reads the git log between two refs filtered to the
+``airflow-ctl/`` directory, fetches PR metadata from GitHub, and categorises each PR by title prefix.
+
+.. code-block:: bash
+
+     breeze release-management generate-airflowctl-changelog --previous-release "airflow-ctl/0.1.3" --version "0.1.4"
+
+``--current-release`` defaults to ``HEAD`` so you do not need to create the tag first. Pass
+``--output-file -`` to print to stdout instead of modifying ``RELEASE_NOTES.rst``.
+
+.. image:: ./images/output_release-management_generate-airflowctl-changelog.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-airflowctl-changelog.svg
+  :width: 100%
+  :alt: Breeze release-management generate-airflowctl-changelog
+
+Generating airflowctl testing issue
+""""""""""""""""""""""""""""""""""""
+
+You can generate the GitHub issue body that asks contributors to test an airflowctl RC. The issue
+lists every PR merged in the ``airflow-ctl/`` directory between the two release refs, with a checkbox
+and PR author mention for each one.
+
+.. code-block:: bash
+
+     breeze release-management generate-issue-content-airflow-ctl --previous-release "airflow-ctl/0.1.3" --version "0.1.4" --version-suffix "rc1"
+
+Pass ``--create-issue`` to be prompted to create the issue automatically via the GitHub CLI.
 
 .. image:: ./images/output_release-management_generate-issue-content-airflow-ctl.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-airflow-ctl.svg
   :width: 100%
-  :alt: Breeze generate-issue-content-airflow-ctl
+  :alt: Breeze release-management generate-issue-content-airflow-ctl
 
 Publishing the documentation to S3
 """"""""""""""""""""""""""""""""""

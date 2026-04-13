@@ -2742,6 +2742,7 @@ def get_git_log_command(
     to_commit: str | None = None,
     is_helm_chart: bool = True,
     is_airflow_ctl: bool = False,
+    subdir: str | None = None,
 ) -> list[str]:
     git_cmd = [
         "git",
@@ -2753,7 +2754,9 @@ def get_git_log_command(
         git_cmd.append(f"{from_commit}...{to_commit}")
     elif from_commit:
         git_cmd.append(from_commit)
-    if is_helm_chart:
+    if subdir:
+        git_cmd.extend(["--", subdir])
+    elif is_helm_chart:
         git_cmd.extend(["--", "chart/"])
     elif is_airflow_ctl:
         git_cmd.extend(["--", "airflow-ctl/"])
@@ -2798,6 +2801,7 @@ def get_changes(
     current_release: str,
     is_helm_chart: bool = False,
     is_airflow_ctl: bool = False,
+    subdir: str | None = None,
 ) -> list[Change]:
     print(MY_DIR_PATH, SOURCE_DIR_PATH)
     change_strings = subprocess.check_output(
@@ -2807,6 +2811,7 @@ def get_changes(
             to_commit=current_release,
             is_helm_chart=is_helm_chart,
             is_airflow_ctl=is_airflow_ctl,
+            subdir=subdir,
         ),
         cwd=SOURCE_DIR_PATH,
         text=True,
@@ -2980,8 +2985,110 @@ def generate_issue_content_core(
     )
 
 
+def _get_github_token(github_token: str) -> str:
+    """Return github_token as-is, or fall back to ``gh auth token``."""
+    if github_token:
+        return github_token
+    result = run_command(
+        ["gh", "auth", "token"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        return result.stdout.strip()
+    return github_token
+
+
+def _get_airflowctl_prs(
+    verbose: bool,
+    previous_release: str,
+    current_release: str,
+    excluded_pr_list: str,
+) -> list[int]:
+    """Return deduplicated, filtered PR numbers from git log over airflow-ctl/."""
+    if not previous_release or previous_release.endswith("/"):
+        console_print(
+            f"[red]Invalid --previous-release value: {previous_release!r}. "
+            "Looks like an environment variable is unset. "
+            "Expected a full git ref such as 'airflow-ctl/0.1.3'.[/]"
+        )
+        sys.exit(1)
+    changes = get_changes(verbose, previous_release, current_release, subdir="airflow-ctl/")
+    change_prs = [change.pr for change in changes]
+    excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")] if excluded_pr_list else []
+    return [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
+
+
+def _build_changelog_content(
+    version: str,
+    prs: list[int],
+    pr_titles: dict[int, str],
+) -> str:
+    """Categorise PRs and build RST changelog section (no license header)."""
+    significant: list[str] = []
+    bug_fixes: list[str] = []
+    improvements: list[str] = []
+    misc: list[str] = []
+
+    for pr_number in prs:
+        if pr_number not in pr_titles:
+            continue
+        title = pr_titles[pr_number]
+        entry = f"{title} (#{pr_number})"
+        lower = title.lower()
+        if lower.startswith(("feat", "add", "allow")):
+            significant.append(entry)
+        elif lower.startswith("fix"):
+            bug_fixes.append(entry)
+        elif lower.startswith(("ci:", "build", "upgrade")):
+            misc.append(entry)
+        else:
+            improvements.append(entry)
+
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    header = f"airflowctl {version} ({date_str})"
+    underline = "-" * len(header)
+
+    lines: list[str] = [header, underline, ""]
+
+    def append_section(section_title: str, entries: list[str]) -> None:
+        if not entries:
+            return
+        lines.append(section_title)
+        lines.append("^" * len(section_title))
+        lines.append("")
+        for entry in entries:
+            lines.append(f"- {entry}")
+        lines.append("")
+
+    append_section("Significant Changes", significant)
+    append_section("Bug Fixes", bug_fixes)
+    append_section("Improvements", improvements)
+    append_section("Miscellaneous", misc)
+
+    return "\n".join(lines)
+
+
+def _prepend_changelog_to_release_notes(release_notes_path: Path, new_section: str) -> None:
+    """Insert *new_section* before the first version heading in RELEASE_NOTES.rst."""
+    existing = release_notes_path.read_text()
+    file_lines = existing.splitlines(keepends=True)
+
+    insert_at = len(file_lines)  # fallback: append at end
+    for i, line in enumerate(file_lines):
+        if line.startswith("airflowctl "):
+            insert_at = i
+            break
+
+    injected = new_section.rstrip("\n") + "\n\n\n"
+    file_lines.insert(insert_at, injected)
+    release_notes_path.write_text("".join(file_lines))
+
+
 @release_management_group.command(
-    name="generate-issue-content-airflow-ctl", help="Generates content for issue to test airflow-ctl release."
+    name="generate-issue-content-airflow-ctl",
+    help="Generates content for GitHub issue to test the airflowctl release candidate.",
 )
 @click.option(
     "--github-token",
@@ -2989,47 +3096,257 @@ def generate_issue_content_core(
     help=textwrap.dedent(
         """
       GitHub token used to authenticate.
-      You can set omit it if you have GITHUB_TOKEN env variable set.
+      You can omit it if you have GITHUB_TOKEN env variable set.
       Can be generated with:
-      https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""
+      https://github.com/settings/tokens/new?description=Read%20issues&scopes=repo:status"""
     ),
 )
 @click.option(
     "--previous-release",
     type=str,
-    help="commit reference (for example hash or tag) of the previous release.",
+    help="Git ref (tag or hash) of the previous release. Example: airflow-ctl/0.1.3",
     required=True,
 )
 @click.option(
     "--current-release",
     type=str,
-    help="commit reference (for example hash or tag) of the current release.",
+    default="HEAD",
+    show_default=True,
+    help="Git ref for the end of the range. Defaults to HEAD (pre-tagging).",
+)
+@click.option(
+    "--version",
+    type=str,
+    help="Version string for the release being prepared. Example: 0.1.4",
     required=True,
 )
-@click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
+@click.option(
+    "--version-suffix",
+    type=str,
+    default="rc1",
+    show_default=True,
+    help="RC suffix appended to the version. Example: rc1",
+)
+@click.option("--excluded-pr-list", type=str, help="Comma-separated list of PRs to exclude from the issue.")
 @click.option(
     "--limit-pr-count",
     type=int,
     default=None,
-    help="Limit PR count processes (useful for testing small subset of PRs).",
+    help="Limit PR count processed (useful for testing with a small subset of PRs).",
+)
+@click.option(
+    "--create-issue",
+    is_flag=True,
+    help="Interactively prompt to create the GitHub issue after generating content.",
 )
 @option_verbose
 def generate_issue_content_airflow_ctl(
     github_token: str,
     previous_release: str,
     current_release: str,
+    version: str,
+    version_suffix: str,
     excluded_pr_list: str,
     limit_pr_count: int | None,
+    create_issue: bool,
 ):
-    generate_issue_content(
-        github_token,
-        previous_release,
-        current_release,
-        excluded_pr_list,
-        limit_pr_count,
-        is_helm_chart=False,
-        is_airflow_ctl=True,
+    from github import Github, Issue, PullRequest, UnknownObjectException
+
+    PullRequestOrIssue = PullRequest.PullRequest | Issue.Issue
+    verbose = get_verbose()
+
+    version_rc = f"{version}{version_suffix}"
+    prs = _get_airflowctl_prs(verbose, previous_release, current_release, excluded_pr_list)
+    github_token = _get_github_token(github_token)
+
+    g = Github(github_token)
+    repo = g.get_repo("apache/airflow")
+    pull_requests: dict[int, PullRequestOrIssue] = {}
+    users: dict[int, set[str]] = defaultdict(lambda: set())
+    count_prs = limit_pr_count or len(prs)
+
+    with Progress(console=get_console()) as progress:
+        task = progress.add_task(f"Retrieving {count_prs} PRs ", total=count_prs)
+        for pr_number in prs[:count_prs]:
+            progress.console.print(
+                f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
+            )
+            try:
+                pr: PullRequestOrIssue = repo.get_pull(pr_number)
+            except UnknownObjectException:
+                try:
+                    pr = repo.get_issue(pr_number)
+                except UnknownObjectException:
+                    progress.console.print(f"[red]The PR #{pr_number} could not be found[/]")
+                    progress.advance(task)
+                    continue
+
+            if pr.user.login == "dependabot[bot]":
+                progress.console.print(f"[yellow]Skipping PR #{pr_number} as it was created by dependabot[/]")
+                progress.advance(task)
+                continue
+
+            pull_requests[pr_number] = pr
+            if not pr.user.login.endswith("[bot]"):
+                users[pr_number].add(pr.user.login)
+            progress.advance(task)
+
+    pr_list = sorted(pull_requests.keys())
+    user_logins: dict[int, str] = {pr: " ".join(f"@{u}" for u in uu) for pr, uu in users.items()}
+    all_users: set[str] = set()
+    for user_list in users.values():
+        all_users.update(user_list)
+    all_user_logins = " ".join(f"@{u}" for u in sorted(all_users))
+
+    link = f"https://pypi.org/project/apache-airflow-ctl/{version_rc}/"
+    content = render_template(
+        template_name="AIRFLOWCTL_ISSUE",
+        context={
+            "link": link,
+            "link_text": version_rc,
+            "pr_list": pr_list,
+            "pull_requests": pull_requests,
+            "users": users,
+            "user_logins": user_logins,
+            "all_user_logins": all_user_logins,
+        },
+        autoescape=False,
+        keep_trailing_newline=True,
     )
+
+    console_print()
+    console_print("[green]Below you can find the issue content to ask contributors to test airflowctl![/]")
+    console_print()
+    console_print(
+        f"Issue title: [warning]Status of testing airflowctl {version_rc} "
+        f"prepared on {datetime.now():%B %d, %Y}[/]"
+    )
+    console_print()
+    syntax = Syntax(content, "markdown", theme="ansi_dark")
+    console_print(syntax)
+
+    if create_issue:
+        given_answer = user_confirm("Should I create the GitHub issue?")
+        if given_answer == Answer.YES:
+            res = run_command(
+                [
+                    "gh",
+                    "issue",
+                    "create",
+                    "-t",
+                    f"Status of testing airflowctl {version_rc} prepared on {datetime.now():%B %d, %Y}",
+                    "-b",
+                    content,
+                    "-l",
+                    "testing status,kind:meta",
+                    "-w",
+                ],
+                check=False,
+            )
+            if res.returncode != 0:
+                console_print(
+                    "Failed to create issue. If the error is about 'too long URL' you have "
+                    "to create the issue manually by copy&pasting the above output."
+                )
+                sys.exit(1)
+
+
+AIRFLOWCTL_RELEASE_NOTES = Path(SOURCE_DIR_PATH) / "airflow-ctl" / "RELEASE_NOTES.rst"
+
+
+@release_management_group.command(
+    name="generate-airflowctl-changelog",
+    help="Generates RST changelog for the airflowctl release and prepends it to RELEASE_NOTES.rst.",
+)
+@click.option(
+    "--github-token",
+    envvar="GITHUB_TOKEN",
+    help=textwrap.dedent(
+        """
+      GitHub token used to authenticate.
+      You can omit it if you have GITHUB_TOKEN env variable set.
+      Can be generated with:
+      https://github.com/settings/tokens/new?description=Read%20issues&scopes=repo:status"""
+    ),
+)
+@click.option(
+    "--previous-release",
+    type=str,
+    help="Git ref (tag or hash) of the previous release. Example: airflow-ctl/0.1.3",
+    required=True,
+)
+@click.option(
+    "--current-release",
+    type=str,
+    default="HEAD",
+    show_default=True,
+    help="Git ref for the end of the range. Defaults to HEAD (pre-tagging).",
+)
+@click.option(
+    "--version",
+    type=str,
+    help="Version string for the release being prepared. Example: 0.1.4",
+    required=True,
+)
+@click.option("--excluded-pr-list", type=str, help="Comma-separated list of PRs to exclude.")
+@click.option(
+    "--output-file",
+    type=click.Path(),
+    default=None,
+    help=(
+        "Write the RST section to this file instead of prepending to "
+        "airflow-ctl/RELEASE_NOTES.rst. Use '-' to print to stdout."
+    ),
+)
+@option_verbose
+def generate_airflowctl_changelog(
+    github_token: str,
+    previous_release: str,
+    current_release: str,
+    version: str,
+    excluded_pr_list: str,
+    output_file: str | None,
+):
+    from github import Github, UnknownObjectException
+
+    verbose = get_verbose()
+
+    prs = _get_airflowctl_prs(verbose, previous_release, current_release, excluded_pr_list)
+    github_token = _get_github_token(github_token)
+
+    g = Github(github_token)
+    repo = g.get_repo("apache/airflow")
+
+    pr_titles: dict[int, str] = {}
+    with Progress(console=get_console()) as progress:
+        task = progress.add_task(f"Retrieving {len(prs)} PRs ", total=len(prs))
+        for pr_number in prs:
+            progress.console.print(
+                f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
+            )
+            try:
+                pr = repo.get_pull(pr_number)
+                pr_titles[pr_number] = pr.title
+            except UnknownObjectException:
+                try:
+                    issue = repo.get_issue(pr_number)
+                    pr_titles[pr_number] = issue.title
+                except UnknownObjectException:
+                    progress.console.print(f"[red]The PR #{pr_number} could not be found[/]")
+            progress.advance(task)
+
+    content = _build_changelog_content(version, prs, pr_titles)
+
+    if output_file == "-":
+        print(content)
+    elif output_file:
+        Path(output_file).write_text(content + "\n")
+        console_print(f"[green]Changelog written to {output_file}[/]")
+    else:
+        _prepend_changelog_to_release_notes(AIRFLOWCTL_RELEASE_NOTES, content)
+        console_print(f"[green]Changelog for {version} prepended to {AIRFLOWCTL_RELEASE_NOTES}[/]")
+    syntax = Syntax(content, "rst", theme="ansi_dark")
+    console_print(syntax)
 
 
 @release_management_group.command(
