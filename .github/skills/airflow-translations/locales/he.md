@@ -7,7 +7,7 @@
 **Preferred variant:** Modern Hebrew (he), consistent with existing translations in `airflow-core/src/airflow/ui/public/i18n/locales/he/`
 
 This file contains locale-specific guidelines so AI translation agents produce
-new Hebrew strings that stay 100% consistent with the existing translations.
+new Hebrew strings that stay fully consistent with the existing translations.
 
 ## 1. Core Airflow Terminology
 
