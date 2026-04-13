@@ -159,5 +159,39 @@ class TestJWTRefreshMiddleware:
         call_next = AsyncMock(return_value=Response())
         response = await middleware.dispatch(mock_request, call_next)
 
-        set_cookie_headers = response.headers.get("set-cookie", "")
-        assert "Path=/team-a/" in set_cookie_headers
+        set_cookie_headers = response.headers.getlist("set-cookie")
+        assert any("Path=/team-a/" in h for h in set_cookie_headers)
+        # Stale root-path cookie must also be cleared
+        assert any(
+            "Path=/" in h and "Path=/team-a/" not in h and "Max-Age=0" in h for h in set_cookie_headers
+        )
+
+    @patch("airflow.api_fastapi.auth.middlewares.refresh_token.get_cookie_path", return_value="/team-a/")
+    @patch.object(
+        JWTRefreshMiddleware,
+        "_refresh_user",
+        side_effect=HTTPException(status_code=403, detail="Invalid JWT token"),
+    )
+    @patch("airflow.api_fastapi.auth.middlewares.refresh_token.conf")
+    @pytest.mark.asyncio
+    async def test_dispatch_invalid_token_clears_root_cookie(
+        self,
+        mock_conf,
+        mock_refresh_user,
+        mock_cookie_path,
+        middleware,
+        mock_request,
+    ):
+        """When a stale _token exists at root path, clearing must target both the subpath and root."""
+        mock_request.cookies = {COOKIE_NAME_JWT_TOKEN: "stale_root_token"}
+        mock_conf.get.return_value = ""
+
+        call_next = AsyncMock(return_value=Response(status_code=401))
+        response = await middleware.dispatch(mock_request, call_next)
+
+        set_cookie_headers = response.headers.getlist("set-cookie")
+        # Expect two delete cookies: one at the subpath and one at root "/"
+        assert any("Path=/team-a/" in h and "Max-Age=0" in h for h in set_cookie_headers)
+        assert any(
+            "Path=/" in h and "Path=/team-a/" not in h and "Max-Age=0" in h for h in set_cookie_headers
+        )
