@@ -82,7 +82,7 @@ def _where_column_keys(statement) -> set[str]:
     while stack:
         clause = stack.pop()
         left = getattr(clause, "left", None)
-        if getattr(left, "key", None) is not None:
+        if left is not None and getattr(left, "key", None) is not None:
             keys.add(left.key)
         stack.extend(clause.get_children())
     return keys
