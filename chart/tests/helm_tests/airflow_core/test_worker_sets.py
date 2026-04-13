@@ -51,7 +51,7 @@ class TestWorkerSets:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("[*].metadata.name", docs) == ['test-worker']
+        assert jmespath.search("[*].metadata.name", docs) == ["test-worker"]
 
     @pytest.mark.parametrize(
         ("enable_default", "expected"),
