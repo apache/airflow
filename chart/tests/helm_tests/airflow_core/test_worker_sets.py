@@ -37,7 +37,7 @@ class TestWorkerSets:
 
         assert objects_number == len(docs)
 
-    def test_create_worker_with_sets_empty(self):
+    def test_empty_worker_sets_renders_only_default_worker(self):
         docs = render_chart(
             name="test",
             values={
