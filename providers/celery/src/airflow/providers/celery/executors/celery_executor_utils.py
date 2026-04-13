@@ -205,7 +205,7 @@ def on_celery_worker_ready(*args, **kwargs):
 @app.task(name="execute_workload")
 def execute_workload(input: str) -> None:
     if not AIRFLOW_V_3_2_PLUS:
-        raise RuntimeError("BaseExecutor.run_workload() requires Airflow 3.2+.")
+        return _execute_workload_pre_3_2(input)
 
     from celery.exceptions import Ignore
     from pydantic import TypeAdapter
@@ -221,6 +221,54 @@ def execute_workload(input: str) -> None:
 
     try:
         BaseExecutor.run_workload(workload)
+    except Exception as e:
+        if AIRFLOW_V_3_1_9_PLUS:
+            from airflow.sdk.exceptions import TaskAlreadyRunningError
+
+            if isinstance(e, TaskAlreadyRunningError):
+                log.info("[%s] Task already running elsewhere, ignoring redelivered message", celery_task_id)
+                # Raise Ignore() so Celery does not record a FAILURE result for this duplicate
+                # delivery. Without this, the broker redelivering the message (e.g. after a
+                # visibility timeout) would cause Celery to mark the task as failed, even though
+                # the original worker is still executing it successfully.
+                raise Ignore()
+        raise
+
+
+def _execute_workload_pre_3_2(input: str) -> None:
+    """Fallback for Airflow < 3.2 which lacks BaseExecutor.run_workload()."""
+    from celery.exceptions import Ignore
+    from pydantic import TypeAdapter
+
+    from airflow.executors import workloads
+    from airflow.sdk.execution_time.supervisor import supervise
+
+    decoder = TypeAdapter[workloads.All](workloads.All)
+    workload = decoder.validate_json(input)
+
+    celery_task_id = app.current_task.request.id
+
+    log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
+
+    base_url = conf.get("api", "base_url", fallback="/")
+    # If it's a relative URL, use localhost:8080 as the default.
+    if base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
+    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+
+    try:
+        if isinstance(workload, workloads.ExecuteTask):
+            supervise(
+                # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+                ti=workload.ti,  # type: ignore[arg-type]
+                dag_rel_path=workload.dag_rel_path,
+                bundle_info=workload.bundle_info,
+                token=workload.token,
+                server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
+                log_path=workload.log_path,
+            )
+        else:
+            raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
     except Exception as e:
         if AIRFLOW_V_3_1_9_PLUS:
             from airflow.sdk.exceptions import TaskAlreadyRunningError
