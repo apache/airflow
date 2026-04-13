@@ -465,14 +465,14 @@ def get_grid_ti_summaries_stream(
 
     The serialized Dag structure is loaded once and reused for all runs that
     share the same ``dag_version_id``, avoiding repeated deserialization.
-
-    Each iteration opens and closes its own DB session so the connection is
-    released between yields.  This prevents a slow client from holding a
-    database connection open for the entire stream duration.
-    See https://github.com/apache/airflow/issues/65010.
     """
 
     def _generate() -> Generator[str, None, None]:
+        # Each iteration opens and closes its own DB session so the connection is
+        # released between yields.  This prevents a slow client from holding a
+        # database connection open for the entire stream duration.
+        # See https://github.com/apache/airflow/issues/65010.
+
         serdag_cache: dict[Any, SerializedDagModel | None] = {}
         for run_id in run_ids or []:
             with create_session(scoped=False) as session:
