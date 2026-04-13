@@ -20,10 +20,15 @@
 from __future__ import annotations
 
 import email
+import os
 import zipfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from airflow.sdk.execution_time.coordinator import BaseLocaleCoordinator
+
+if TYPE_CHECKING:
+    from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
 
 
 def find_main_class(jar_path: Path) -> str:
@@ -57,6 +62,32 @@ class JavaLocaleCoordinator(BaseLocaleCoordinator):
         # SDK, logging libraries, etc.) are separate JARs that live alongside
         # it.  Using ``<dir>/*`` lets the JVM load every JAR in the directory.
         classpath = f"{bundle_path}/*"
+        return [
+            "java",
+            "-classpath",
+            classpath,
+            find_main_class(jar_path),
+            f"--comm={comm_addr}",
+            f"--logs={logs_addr}",
+        ]
+
+    @classmethod
+    def task_execution_locale_cmd(
+        cls,
+        *,
+        what: TaskInstance,
+        dag_rel_path: str | os.PathLike[str],
+        bundle_info: BundleInfo,
+        comm_addr: str,
+        logs_addr: str,
+    ) -> list[str]:
+        """Build the ``java`` command for executing a task in a JAR bundle."""
+        jar_path = Path(dag_rel_path)
+        # Java bundles are typically thin JARs: the main JAR only contains
+        # the bundle's own classes while its dependencies (the Airflow Java
+        # SDK, logging libraries, etc.) are separate JARs that live alongside
+        # it.  Using ``<dir>/*`` lets the JVM load every JAR in the directory.
+        classpath = f"{jar_path.parent}/*"
         return [
             "java",
             "-classpath",
