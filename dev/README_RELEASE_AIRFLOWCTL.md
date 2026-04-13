@@ -394,22 +394,7 @@ list and stable links should be updated, also Fastly cache will be invalidated.
 Generate the GitHub issue body that asks contributors to test the RC:
 
 ```shell script
-breeze release-management generate-issue-content-airflow-ctl --previous-release "airflow-ctl/${PREVIOUS_VERSION}" --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
-```
-
-`--current-release` defaults to `HEAD` so you do not need to tag first.
-The command prints the Markdown issue body to the console. Pass `--create-issue` to be
-prompted to create the issue automatically via the GitHub CLI:
-
-```shell script
-breeze release-management generate-issue-content-airflow-ctl --previous-release "airflow-ctl/${PREVIOUS_VERSION}" --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}" --create-issue
-```
-
-The generated issue lists every PR merged in the `airflow-ctl/` directory between the two
-release tags and mentions the PR author so they can confirm testing.  The issue title will be:
-
-```
-Status of testing airflowctl <VERSION><VERSION_SUFFIX> prepared on <DATE>
+breeze release-management generate-issue-content-airflow-ctl --previous-release "airflow-ctl/${PREVIOUS_VERSION}" --current-release "airflow-ctl/${VERSION_RC}"
 ```
 
 ## Prepare voting email for airflow-ctl release candidate

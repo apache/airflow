@@ -381,11 +381,8 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-token",
                 "--previous-release",
                 "--current-release",
-                "--version",
-                "--version-suffix",
                 "--excluded-pr-list",
                 "--limit-pr-count",
-                "--create-issue",
             ],
         }
     ],
