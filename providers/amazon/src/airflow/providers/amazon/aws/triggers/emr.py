@@ -236,8 +236,11 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
             run_ids=[self.task_instance.run_id],
             map_index=self.task_instance.map_index,
         )
+        task_instance_key = self.task_instance.task_id
+        if self.task_instance.map_index >= 0:
+            task_instance_key = f"{self.task_instance.task_id}_{self.task_instance.map_index}"
         try:
-            task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+            task_state = task_states_response[self.task_instance.run_id][task_instance_key]
         except (KeyError, TypeError) as e:
             raise ValueError(
                 f"TaskInstance with dag_id: {self.task_instance.dag_id}, "
