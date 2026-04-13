@@ -1,0 +1,72 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: "Scheduled verify release calendar"
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    # Daily at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  UV_VERSION: "0.11.3"  # Keep this comment to allow automatic replacement of uv version
+jobs:
+  verify-release-calendar:
+    name: "Verify release calendar"
+    runs-on: ["ubuntu-22.04"]
+    timeout-minutes: 10
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: "Install uv"
+        run: pip install "uv==${UV_VERSION}"
+      - name: "Verify release calendar"
+        run: uv run dev/verify_release_calendar.py
+      # yamllint disable rule:line-length
+      - name: "Notify Slack on failure"
+        if: failure()
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: "release-management"
+            text: >-
+              :warning: Release calendar verification failed.
+              See:
+              ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            blocks:
+              - type: section
+                text:
+                  type: mrkdwn
+                  text: >-
+                    :warning: *Release calendar verification failed*
+
+                    The scheduled `verify_release_calendar.py` check
+                    failed. Please review and fix the mismatch between
+                    the Confluence release wiki and the Google
+                    Calendar entries.
+
+                    • <https://cwiki.apache.org/confluence/display/AIRFLOW/Release+Plan|Release Plan wiki>
+
+                    • <https://calendar.google.com/calendar/u/0?cid=Y19kZTIxNGU5MmRmM2I3NTk3NzljYjY1ZjNlNDllNTYyNzk2YzYxMjZlNzUwMGNmYTdlNTI0YmY3ODE4NmQ4YjVlQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20|Release Calendar>
+
+                    • <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View failed run>
