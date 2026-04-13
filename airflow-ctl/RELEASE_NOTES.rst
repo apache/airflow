@@ -15,6 +15,43 @@
     specific language governing permissions and limitations
     under the License.
 
+airflowctl 0.1.4 (2026-XX-XX)
+-----------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+- Added support for operator-level DagRunType handling (#63733)
+- Introduced a plugins command to make it easier to discover and manage plugins (#64935)
+- Enabled direct execution of airflowctl via ``uvx`` for improved usability (#64406)
+- Added YAML-based help text support for auto-generated CLI commands (#65073)
+
+Bug Fixes
+^^^^^^^^^
+
+- Fixed serialization issue where ``dag_run_conf`` could not be null in BackfillResponse (#63259)
+- Resolved issues with boolean flag handling on Python 3.14 (#63587)
+- Fixed airflowctl version command prompting unnecessarily for keyring credentials (#63772)
+- Corrected DAG run list limit handling (#64071)
+- Fixed asset materialization to correctly use DAG form (#64211)
+- Ensured variable import correctly handles falsy values (#64362)
+- Fixed silent process failures during connection import (#64416)
+- Resolved infinite loop when ``limit < 0`` in list operations (#64582)
+- Fixed incorrect auth status reporting for environments with ``.json`` in their names (#64677)
+- Addressed ruff linting issues in client-py (#64868)
+- Improved CLI error handling and exit codes for failed commands (#65052)
+- Updated default behavior of ``is_alive`` in jobs list command (#65065)
+
+Improvements
+^^^^^^^^^^^^
+
+- Added official support for Python 3.14 (#63520)
+- Updated documentation to reflect Python 3.14 compatibility (#63950)
+- Improved task instance management by allowing bulk clear/mark success/fail/delete operations (#64141)
+- Improved fallback logic in CLI execution paths (#64586)
+- Strengthened security by preventing path traversal via ``AIRFLOW_CLI_ENVIRONMENT`` (#64618)
+- Streamlined static checks by running mypy as part of regular prek validation (#64780)
+
 airflowctl 0.1.3 (2026-03-09)
 -----------------------------
 
