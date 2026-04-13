@@ -55,15 +55,25 @@ skip_fork_mp_start = pytest.mark.skipif(
 )
 
 
-def _make_mock_task_workload():
-    """Create a MagicMock that passes isinstance checks for ExecuteTask and has required attributes."""
-    task_workload = mock.MagicMock(spec=workloads.ExecuteTask)
-    task_workload.ti = mock.MagicMock(spec=TaskInstanceDTO)
-    task_workload.dag_rel_path = "some/path"
-    task_workload.bundle_info = mock.MagicMock(spec=BundleInfo)
-    task_workload.token = "test_token"
-    task_workload.log_path = None
-    return task_workload
+def _make_task_workload():
+    """Create a minimal ExecuteTask workload for tests."""
+    return workloads.ExecuteTask(
+        ti=TaskInstanceDTO(
+            id=uuid7(),
+            dag_version_id=uuid7(),
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+        ),
+        dag_rel_path="some/path",
+        bundle_info=BundleInfo(name="test_bundle"),
+        token="test_token",
+        log_path=None,
+    )
 
 
 class TestLocalExecutor:
@@ -279,9 +289,7 @@ class TestLocalExecutor:
 
         with conf_vars(conf_values):
             team_conf = ExecutorConf(team_name=None)
-            BaseExecutor.run_workload(
-                _make_mock_task_workload(), server=_get_execution_api_server_url(team_conf)
-            )
+            BaseExecutor.run_workload(_make_task_workload(), server=_get_execution_api_server_url(team_conf))
 
             mock_run_workload.assert_called_once()
             assert mock_run_workload.call_args.kwargs["server"] == expected_server
@@ -310,7 +318,7 @@ class TestLocalExecutor:
                 # Test team-specific config
                 team_conf = ExecutorConf(team_name=team_name)
                 BaseExecutor.run_workload(
-                    _make_mock_task_workload(), server=_get_execution_api_server_url(team_conf)
+                    _make_task_workload(), server=_get_execution_api_server_url(team_conf)
                 )
 
                 # Verify team-specific server URL was used
@@ -322,7 +330,7 @@ class TestLocalExecutor:
                 # Test global config (no team)
                 global_conf = ExecutorConf(team_name=None)
                 BaseExecutor.run_workload(
-                    _make_mock_task_workload(), server=_get_execution_api_server_url(global_conf)
+                    _make_task_workload(), server=_get_execution_api_server_url(global_conf)
                 )
 
                 # Verify default server URL was used
