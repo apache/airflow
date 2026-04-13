@@ -18,8 +18,29 @@
 
 from __future__ import annotations
 
+import os
+from typing import TYPE_CHECKING
+
+from airflow.providers.languages.java.coordinator import JavaLocaleCoordinator
+
+if TYPE_CHECKING:
+    from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+    from airflow.sdk.execution_time.comms import StartupDetails
+
 
 class JavaTaskCoordinator:
     """Placeholder task coordinator entry point for Java workloads."""
 
     language = "java"
+
+    @staticmethod
+    def entrypoint(
+        what: TaskInstance,
+        dag_rel_path: str | os.PathLike[str],
+        bundle_info: BundleInfo,
+        startup_details: StartupDetails,
+    ) -> None:
+        """Bridge fd 0 (supervisor comms) to a Java subprocess over TCP."""
+        JavaLocaleCoordinator.run_task_execution(
+            what=what, dag_rel_path=dag_rel_path, bundle_info=bundle_info, startup_details=startup_details
+        )
