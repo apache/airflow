@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import email
 import os
 import zipfile
@@ -41,9 +42,16 @@ def find_main_class(jar_path: Path) -> str:
 
 
 class JavaLocaleCoordinator(BaseLocaleCoordinator):
-    """Coordinator that launches a JVM subprocess for DAG parsing."""
+    """Coordinator that launches a JVM subprocess for DAG parsing and task execution."""
 
     locale_name = "java"
+
+    @classmethod
+    def can_handle_dag_file(cls, bundle_name: str, path: str | os.PathLike[str]) -> bool:
+        """Return ``True`` when *path* is a JAR with a ``Main-Class`` manifest entry."""
+        with contextlib.suppress(FileNotFoundError):
+            return find_main_class(Path(path)) is not None
+        return False
 
     @classmethod
     def dag_parsing_locale_cmd(

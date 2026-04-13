@@ -58,7 +58,7 @@ The Languages: Java provider registers Java-specific task coordinator and DAG fi
 apache-airflow-providers-languages-java package
 ------------------------------------------------------
 
-Java language support for Apache Airflow task coordinators and DAG file processors.
+Java language support for Apache Airflow process coordinators.
 
 
 Release: 0.1.0
