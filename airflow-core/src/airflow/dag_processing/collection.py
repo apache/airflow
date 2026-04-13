@@ -53,6 +53,7 @@ from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
@@ -75,6 +76,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.dagwarning import DagWarning
+    from airflow.models.serialized_dag import DagWriteMetadata
     from airflow.typing_compat import Self, Unpack
 
     AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
@@ -256,7 +258,11 @@ def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, se
 
 
 def _serialize_dag_capturing_errors(
-    dag: LazyDeserializedDAG, bundle_name, session: Session, bundle_version: str | None
+    dag: LazyDeserializedDAG,
+    bundle_name,
+    session: Session,
+    bundle_version: str | None,
+    _prefetched: DagWriteMetadata | None = None,
 ):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
@@ -264,7 +270,6 @@ def _serialize_dag_capturing_errors(
     We can't place them directly in import_errors, as this may be retried, and work the next time
     """
     from airflow.models.dagcode import DagCode
-    from airflow.models.serialized_dag import SerializedDagModel
 
     # Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
     MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint(
@@ -279,10 +284,11 @@ def _serialize_dag_capturing_errors(
             bundle_version=bundle_version,
             min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
+            _prefetched=_prefetched,
         )
         if not dag_was_updated:
             # Check and update DagCode
-            DagCode.update_source_code(dag.dag_id, dag.fileloc)
+            DagCode.update_source_code(dag.dag_id, dag.fileloc, session=session)
         if "FabAuthManager" in conf.get("core", "auth_manager"):
             _sync_dag_perms(dag, session=session)
 
@@ -473,6 +479,13 @@ def update_dag_parsing_results_in_db(
                 SerializedDAG.bulk_write_to_db(
                     bundle_name, bundle_version, dags, parse_duration, session=session
                 )
+                # Bulk prefetch metadata for all DAGs to avoid the standard per-DAG
+                # metadata lookups in write_dag. This replaces the update-interval,
+                # hash, and version queries with 2 bulk queries total; DAGs with
+                # deadlines may still do an additional lookup for deadline UUID reuse.
+                prefetched_metadata = SerializedDagModel._prefetch_dag_write_metadata(
+                    [dag.dag_id for dag in dags], session=session
+                )
                 # Write Serialized DAGs to DB, capturing errors
                 for dag in dags:
                     serialize_errors.extend(
@@ -481,6 +494,7 @@ def update_dag_parsing_results_in_db(
                             bundle_name=bundle_name,
                             bundle_version=bundle_version,
                             session=session,
+                            _prefetched=prefetched_metadata.get(dag.dag_id),
                         )
                     )
             except OperationalError:
@@ -526,6 +540,7 @@ class DagModelOperation(NamedTuple):
                 .options(joinedload(DagModel.schedule_asset_references))
                 .options(joinedload(DagModel.schedule_asset_alias_references))
                 .options(joinedload(DagModel.task_outlet_asset_references))
+                .options(joinedload(DagModel.dag_owner_links))
             ),
             of=DagModel,
             session=session,
