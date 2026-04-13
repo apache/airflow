@@ -161,51 +161,6 @@ ToDagProcessor = Annotated[
 ]
 
 
-class BaseDagFileProcessor:
-    """
-    Base class for provider-contributed DAG file processors.
-
-    Providers register subclasses in their ``provider.yaml`` under ``dag-file-processors``.
-    When :class:`DagFileProcessorProcess` starts, it checks all registered processors
-    via :meth:`can_handle`; the first match's :meth:`entrypoint` is used as the subprocess
-    target instead of the default ``_parse_file_entrypoint``.
-
-    The ``entrypoint`` runs inside a forked child process.  After the fork,
-    fd 0 is a bidirectional socket connected to the supervisor (the same channel
-    that ``_parse_file_entrypoint`` uses via :class:`CommsDecoder`).  The entrypoint
-    can bridge this socket to an external process (e.g. a Java subprocess over TCP)
-    without needing ``CommsDecoder`` at all — just forward raw bytes between fd 0
-    and the external process's socket.
-
-    The supervisor will send a :class:`DagFileParseRequest` on fd 0 after the fork
-    and expects a :class:`DagFileParsingResult` back on the same channel.
-    """
-
-    def __init__(
-        self,
-        *,
-        target_bundle_name: str,
-    ):
-        # We will only store dag_bundle_name but not dag_bundle_path here because it's DagBundle's responsibility to manage the path
-        self.target_bundle_name = target_bundle_name
-
-    def can_handle(self, bundle_name: str, path: str | os.PathLike[str]) -> bool:
-        """Return ``True`` if this processor should handle the given file."""
-        # The Airflow Core DagFileProcessorProcess will pass the bundle_name to see
-        return self.target_bundle_name == bundle_name
-
-    @staticmethod
-    def entrypoint(path: str, bundle_name: str, bundle_path: str) -> None:
-        """
-        Entry point called in the forked child process.
-
-        :param path: Absolute path to the file to process.
-        :param bundle_name: Name of the DAG bundle.
-        :param bundle_path: Root path of the DAG bundle.
-        """
-        raise NotImplementedError
-
-
 def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> None:
     """
     Pre-import Airflow modules found in the given file.
