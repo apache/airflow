@@ -1721,6 +1721,11 @@ export const useGridServiceGetGridRunsSuspense = <TData = Common.GridServiceGetG
 *
 * The serialized Dag structure is loaded once and reused for all runs that
 * share the same ``dag_version_id``, avoiding repeated deserialization.
+*
+* Each iteration opens and closes its own DB session so the connection is
+* released between yields.  This prevents a slow client from holding a
+* database connection open for the entire stream duration.
+* See https://github.com/apache/airflow/issues/65010.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.runIds
