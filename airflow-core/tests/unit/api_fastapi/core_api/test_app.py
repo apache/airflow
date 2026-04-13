@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import typing
 
 import pytest
@@ -58,7 +59,13 @@ class TestStreamingEndpointSessionScope:
                 hints = typing.get_type_hints(route.endpoint, include_extras=True)
             except Exception:
                 continue
-            if hints.get("return") is not StreamingResponse:
+            returns_streaming = hints.get("return") is StreamingResponse
+            if not returns_streaming:
+                try:
+                    returns_streaming = "StreamingResponse" in inspect.getsource(route.endpoint)
+                except (OSError, TypeError):
+                    pass
+            if not returns_streaming:
                 continue
             for param_name, hint in hints.items():
                 if param_name == "return":
