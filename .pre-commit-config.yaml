@@ -448,7 +448,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.8']
+        additional_dependencies: ['ruff==0.15.9']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -977,6 +977,12 @@ repos:
         language: python
         pass_filenames: true
         files: \.py$
+      - id: check-no-new-airflow-exceptions
+        name: Check that no new raise AirflowException usages are added
+        entry: ./scripts/ci/prek/check_new_airflow_exception_usage.py
+        language: python
+        pass_filenames: true
+        files: ^(airflow-core|airflow-ctl|task-sdk|providers|shared)/.*\.py$
       - id: bandit
         name: bandit
         description: "Bandit is a tool for finding common security issues in Python code"
@@ -1014,39 +1020,23 @@ repos:
           ^uv\.lock$
         pass_filenames: false
         require_serial: true
-        ## ADD MOST PREK HOOK ABOVE THAT LINE
-        # The below prek hooks are those requiring CI image to be built
-        ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
       - id: mypy-dev
-        stages: ['pre-push']
         name: Run mypy for dev
         language: python
-        entry: ./scripts/ci/prek/mypy.py
-        files: ^dev/.*\.py$|^scripts/.*\.py$
-        require_serial: true
-      - id: mypy-dev
-        stages: ['manual']
-        name: Run mypy for dev (manual)
-        language: python
-        entry: ./scripts/ci/prek/mypy_folder.py dev scripts
+        entry: ./scripts/ci/prek/mypy_local_folder.py dev scripts
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
       - id: mypy-devel-common
-        stages: ['pre-push']
         name: Run mypy for devel-common
         language: python
-        entry: ./scripts/ci/prek/mypy.py
-        files: ^devel-common/.*\.py$
-        require_serial: true
-      - id: mypy-devel-common
-        stages: ['manual']
-        name: Run mypy for devel-common (manual)
-        language: python
-        entry: ./scripts/ci/prek/mypy_folder.py devel-common
+        entry: ./scripts/ci/prek/mypy_local_folder.py devel-common
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
+      ## ADD MOST PREK HOOK ABOVE THAT LINE
+      # The below prek hooks are those requiring CI image to be built
+      ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
       - id: check-template-fields-valid
         name: Check templated fields mapped in operators/sensors
         language: python
@@ -1086,17 +1076,3 @@ repos:
         language: python
         files: .*test.*\.py$
         pass_filenames: true
-        # This is a manual hook, run by `breeze ci upgrade` - upgrading all dependencies inside the
-        # Breeze CI image - which allows checking all dependencies for all providers.
-        # ALWAYS keep it at the end so that it can take into account all the other hook's changes.
-      - id: update-uv-lock
-        stages: ['manual']
-        name: Update uv.lock (manual)
-        entry: breeze run uv lock --upgrade
-        language: system
-        files: >
-          (?x)
-          (^|/)pyproject\.toml$|
-          ^uv\.lock$
-        pass_filenames: false
-        require_serial: true

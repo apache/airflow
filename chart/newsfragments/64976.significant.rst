@@ -1,0 +1,1 @@
+``workers.tolerations`` field is now deprecated in favor of ``workers.celery.tolerations`` and ``workers.kubernetes.tolerations``. Please update your configuration accordingly.

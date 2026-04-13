@@ -40,6 +40,8 @@ class TableauJobStatusSensor(BaseSensorOperator):
     :param site_id: The id of the site where the workbook belongs to.
     :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
         containing the credentials to authenticate to the Tableau Server.
+    :param max_status_retries: How often to rerun get_job_status in case
+        of an error or cancellation, to account for transient errors.
     """
 
     template_fields: Sequence[str] = ("job_id",)
@@ -50,16 +52,22 @@ class TableauJobStatusSensor(BaseSensorOperator):
         job_id: str,
         site_id: str | None = None,
         tableau_conn_id: str = "tableau_default",
+        max_status_retries: int = 0,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.tableau_conn_id = tableau_conn_id
         self.job_id = job_id
         self.site_id = site_id
+        self.max_status_retries = max_status_retries
+        self._retry_attempts = 0
 
     def poke(self, context: Context) -> bool:
         """
         Pokes until the job has successfully finished.
+
+        When max_status_retries is set, the Sensor will retry
+        in case of a TableauJobFinishCode.ERROR, TableauJobFinishCode.CANCELED before raising an Error.
 
         :param context: The task context during execution.
         :return: True if it succeeded and False if not.
@@ -69,6 +77,10 @@ class TableauJobStatusSensor(BaseSensorOperator):
             self.log.info("Current finishCode is %s (%s)", finish_code.name, finish_code.value)
 
             if finish_code in (TableauJobFinishCode.ERROR, TableauJobFinishCode.CANCELED):
+                if self._retry_attempts < self.max_status_retries:
+                    self.log.info("Retrying to get the job status")
+                    self._retry_attempts += 1
+                    return False
                 message = "The Tableau Refresh Workbook Job failed!"
                 raise TableauJobFailedException(message)
 

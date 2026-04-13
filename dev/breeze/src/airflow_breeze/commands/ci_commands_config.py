@@ -74,6 +74,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--target-branch",
                 "--create-pr",
+                "--draft",
                 "--switch-to-base",
                 "--airflow-site",
                 "--force-k8s-schema-sync",
