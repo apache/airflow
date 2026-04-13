@@ -244,24 +244,24 @@ class TestProvidersManagerRuntime:
             pm.already_initialized_provider_configs
 
     @patch("airflow.sdk.providers_manager_runtime.import_string")
-    def test_task_coordinators(self, mock_import_string):
+    def test_process_coordinators(self, mock_import_string):
         mock_import_string.return_value = object()
         providers_manager = ProvidersManagerTaskRuntime()
         providers_manager._provider_dict["apache-airflow-providers-languages-java"] = ProviderInfo(
             version="0.0.1",
             data={
-                "task-coordinators": [
-                    "airflow.providers.languages.java.task_coordinators.ZCoordinator",
-                    "airflow.providers.languages.java.task_coordinators.ACoordinator",
-                    "airflow.providers.languages.java.task_coordinators.ZCoordinator",
+                "process-coordinators": [
+                    "airflow.providers.languages.java.coordinator.ZCoordinator",
+                    "airflow.providers.languages.java.coordinator.ACoordinator",
+                    "airflow.providers.languages.java.coordinator.ZCoordinator",
                 ]
             },
         )
 
         with patch.object(providers_manager, "initialize_providers_list"):
-            assert providers_manager.task_coordinators == [
-                "airflow.providers.languages.java.task_coordinators.ACoordinator",
-                "airflow.providers.languages.java.task_coordinators.ZCoordinator",
+            assert providers_manager.process_coordinators == [
+                "airflow.providers.languages.java.coordinator.ACoordinator",
+                "airflow.providers.languages.java.coordinator.ZCoordinator",
             ]
 
     def test_initialize_provider_configs_can_reload_sdk_conf(self):
