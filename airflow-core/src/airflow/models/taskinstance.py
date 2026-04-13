@@ -794,6 +794,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             select(TaskInstance)
             .options(lazyload(TaskInstance.dag_run))  # lazy load dag run to avoid locking it
             .filter_by(
+                dag_id=dag_id,
                 run_id=run_id,
                 task_id=task_id,
                 map_index=map_index,

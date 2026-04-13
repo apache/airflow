@@ -50,6 +50,14 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
 {{- end }}
 
+{{- define "airflow.tplDict" -}}
+  {{- $rendered := dict -}}
+  {{- range $key, $value := .values }}
+    {{- $_ := set $rendered $key (tpl (toString $value) $.context) -}}
+  {{- end }}
+  {{- toYaml $rendered -}}
+{{- end }}
+
 {{/* Standard Airflow environment variables */}}
 {{- define "standard_airflow_environment" }}
   # Hard Coded Airflow Envs
@@ -497,8 +505,8 @@ If release name contains chart name it will be used as a full name.
 {{ $pgMetadataHost := .Values.data.metadataConnection.host | default (printf "%s-%s.%s" .Release.Name "postgresql" .Release.Namespace) }}
 {{ $pgResultBackendHost := $resultBackendConnection.host | default (printf "%s-%s.%s" .Release.Name "postgresql" .Release.Namespace) }}
 [databases]
-{{ .Release.Name }}-metadata = host={{ $pgMetadataHost }} dbname={{ .Values.data.metadataConnection.db }} port={{ .Values.data.metadataConnection.port }} pool_size={{ .Values.pgbouncer.metadataPoolSize }} {{ .Values.pgbouncer.extraIniMetadata | default "" }}
-{{ .Release.Name }}-result-backend = host={{ $pgResultBackendHost }} dbname={{ $resultBackendConnection.db }} port={{ $resultBackendConnection.port }} pool_size={{ .Values.pgbouncer.resultBackendPoolSize }} {{ .Values.pgbouncer.extraIniResultBackend | default "" }}
+{{ .Release.Name }}-metadata = host={{ $pgMetadataHost }} dbname={{ tpl .Values.data.metadataConnection.db . }} port={{ .Values.data.metadataConnection.port }} pool_size={{ .Values.pgbouncer.metadataPoolSize }} {{ .Values.pgbouncer.extraIniMetadata | default "" }}
+{{ .Release.Name }}-result-backend = host={{ $pgResultBackendHost }} dbname={{ tpl $resultBackendConnection.db . }} port={{ $resultBackendConnection.port }} pool_size={{ .Values.pgbouncer.resultBackendPoolSize }} {{ .Values.pgbouncer.extraIniResultBackend | default "" }}
 
 [pgbouncer]
 pool_mode = transaction
@@ -506,7 +514,7 @@ listen_port = {{ .Values.ports.pgbouncer }}
 listen_addr = *
 auth_type = {{ .Values.pgbouncer.auth_type }}
 auth_file = {{ .Values.pgbouncer.auth_file }}
-stats_users = {{ .Values.data.metadataConnection.user }}
+stats_users = {{ tpl .Values.data.metadataConnection.user . }}
 ignore_startup_parameters = extra_float_digits
 max_client_conn = {{ .Values.pgbouncer.maxClientConn }}
 verbose = {{ .Values.pgbouncer.verbose }}
@@ -533,8 +541,8 @@ server_tls_key_file = /etc/pgbouncer/server.key
 
 {{ define "pgbouncer_users" }}
 {{- $resultBackendConnection := .Values.data.resultBackendConnection | default .Values.data.metadataConnection }}
-{{ .Values.data.metadataConnection.user | quote }} {{ .Values.data.metadataConnection.pass | quote }}
-{{ $resultBackendConnection.user | quote }} {{ $resultBackendConnection.pass | quote }}
+{{ tpl .Values.data.metadataConnection.user . | quote }} {{ .Values.data.metadataConnection.pass | quote }}
+{{ tpl $resultBackendConnection.user . | quote }} {{ $resultBackendConnection.pass | quote }}
 {{- end }}
 
 {{- define "airflow_logs" -}}
@@ -599,7 +607,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "airflow_webserver_config_configmap_name" -}}
-  {{- default (printf "%s-webserver-config" (include "airflow.fullname" .)) .Values.webserver.webserverConfigConfigMapName }}
+  {{- if .Values.webserver.webserverConfigConfigMapName }}
+    {{- tpl .Values.webserver.webserverConfigConfigMapName . }}
+  {{- else }}
+    {{- printf "%s-webserver-config" (include "airflow.fullname" .) }}
+  {{- end }}
 {{- end }}
 
 {{- define "airflow_webserver_config_mount" -}}
@@ -610,7 +622,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "airflow_api_server_config_configmap_name" -}}
-  {{- default (printf "%s-api-server-config" (include "airflow.fullname" .)) .Values.apiServer.apiServerConfigConfigMapName }}
+  {{- if .Values.apiServer.apiServerConfigConfigMapName }}
+    {{- tpl .Values.apiServer.apiServerConfigConfigMapName . }}
+  {{- else }}
+    {{- printf "%s-api-server-config" (include "airflow.fullname" .) }}
+  {{- end }}
 {{- end }}
 
 {{- define "airflow_api_server_config_mount" -}}

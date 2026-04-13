@@ -131,27 +131,6 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
-    "breeze k8s configure-k8s-cluster": [
-        {
-            "name": "Configure cluster flags",
-            "options": [
-                "--python",
-                "--kubernetes-version",
-            ],
-        },
-        {
-            "name": "Parallel options",
-            "options": [
-                "--run-in-parallel",
-                "--parallelism",
-                "--python-versions",
-                "--kubernetes-versions",
-                "--skip-cleanup",
-                "--debug-resources",
-                "--include-success-outputs",
-            ],
-        },
-    ],
     "breeze k8s deploy-airflow": [
         {
             "name": "Airflow deploy flags",
