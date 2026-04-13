@@ -61,7 +61,12 @@ class TestExecutorLoader:
         ],
     )
     def test_should_support_executor_from_core(self, executor_name):
-        with conf_vars({("core", "executor"): executor_name}):
+        with conf_vars(
+            {
+                ("core", "executor"): executor_name,
+                ("celery", "SSL_ACTIVE"): "False",
+            }
+        ):
             executor = executor_loader.ExecutorLoader.get_default_executor()
             assert executor is not None
             assert executor_name == executor.__class__.__name__
@@ -319,7 +324,7 @@ class TestExecutorLoader:
     def test_init_executors(self):
         from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 
-        with conf_vars({("core", "executor"): "CeleryExecutor"}):
+        with conf_vars({("core", "executor"): "CeleryExecutor", ("celery", "SSL_ACTIVE"): "False"}):
             executors = executor_loader.ExecutorLoader.init_executors()
             executor_name = executor_loader.ExecutorLoader.get_default_executor_name()
             assert len(executors) == 1
