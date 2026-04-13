@@ -448,7 +448,7 @@ class ProvidersManager(LoggingMixin):
         )
         # Set of plugins contained in providers
         self._plugins_set: set[PluginInfo] = set()
-        self._dag_file_processors: list[str] = []
+        self._process_coordinators: list[str] = []
         self._init_airflow_core_hooks()
 
         self._runtime_manager = None
@@ -626,11 +626,11 @@ class ProvidersManager(LoggingMixin):
         self.initialize_providers_list()
         self._discover_config()
 
-    @provider_info_cache("dag_file_processors")
-    def initialize_providers_dag_file_processors(self):
-        """Lazy initialization of providers dag file processors."""
+    @provider_info_cache("process_coordinators")
+    def initialize_providers_process_coordinators(self):
+        """Lazy initialization of providers process coordinators."""
         self.initialize_providers_list()
-        self._discover_dag_file_processors()
+        self._discover_process_coordinators()
 
     @provider_info_cache("plugins")
     def initialize_providers_plugins(self):
@@ -1287,13 +1287,13 @@ class ProvidersManager(LoggingMixin):
             if provider.data.get("config"):
                 self._provider_configs[provider_package] = provider.data.get("config")  # type: ignore[assignment]
 
-    def _discover_dag_file_processors(self) -> None:
-        """Retrieve all dag file processors defined in the providers."""
+    def _discover_process_coordinators(self) -> None:
+        """Retrieve all process coordinators defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
-            for dag_file_processor_class_path in provider.data.get("dag-file-processors", []):
-                if _correctness_check(provider_package, dag_file_processor_class_path, provider):
-                    self._dag_file_processors.append(dag_file_processor_class_path)
-        self._dag_file_processors = sorted(set(self._dag_file_processors))
+            for coordinator_class_path in provider.data.get("process-coordinators", []):
+                if _correctness_check(provider_package, coordinator_class_path, provider):
+                    self._process_coordinators.append(coordinator_class_path)
+        self._process_coordinators = sorted(set(self._process_coordinators))
 
     def _discover_plugins(self) -> None:
         """Retrieve all plugins defined in the providers."""
@@ -1493,10 +1493,10 @@ class ProvidersManager(LoggingMixin):
         return sorted(self._db_manager_class_name_set)
 
     @property
-    def dag_file_processors(self) -> list[str]:
-        """Returns dag file processor class paths available in providers."""
-        self.initialize_providers_dag_file_processors()
-        return self._dag_file_processors
+    def process_coordinators(self) -> list[str]:
+        """Returns process coordinator class paths available in providers."""
+        self.initialize_providers_process_coordinators()
+        return self._process_coordinators
 
     @property
     def filesystem_module_names(self) -> list[str]:
@@ -1569,7 +1569,7 @@ class ProvidersManager(LoggingMixin):
         self._trigger_info_set.clear()
         self._notification_info_set.clear()
         self._plugins_set.clear()
-        self._dag_file_processors.clear()
+        self._process_coordinators.clear()
         self._cli_command_functions_set.clear()
         self._cli_command_provider_name_set.clear()
 

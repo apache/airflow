@@ -169,9 +169,14 @@ class BaseLocaleCoordinator:
     """
     Base coordinator for locale-specific DAG file processing and task execution.
 
+    Providers register subclasses in their ``provider.yaml`` under
+    ``process-coordinators``.  Both :class:`ProvidersManager` (airflow-core)
+    and :class:`ProvidersManagerTaskRuntime` (task-sdk) discover registered
+    coordinators through this single extension point.
+
     Subclasses represent a specific language runtime (Java, Go, etc.) and
-    only need to implement :meth:`dag_parsing_locale_cmd` and
-    :meth:`task_execution_locale_cmd` to return the subprocess command.
+    only need to implement :meth:`can_handle_dag_file`,
+    :meth:`dag_parsing_locale_cmd` and :meth:`task_execution_locale_cmd`.
     The base class owns the entire bridge lifecycle: TCP servers,
     subprocess management, selector-based I/O loop, and cleanup.
     """
@@ -194,6 +199,19 @@ class BaseLocaleCoordinator:
         bundle_info: BundleInfo
         startup_details: StartupDetails
         mode: str = "task-execution"
+
+    @classmethod
+    def can_handle_dag_file(cls, bundle_name: str, path: str | os.PathLike[str]) -> bool:
+        """
+        Return ``True`` if this coordinator should handle DAG-file parsing for *path*.
+
+        Called by :meth:`DagFileProcessorProcess._resolve_processor_target` to
+        decide whether to delegate parsing to this coordinator's
+        :meth:`run_dag_parsing` instead of the default Python entrypoint.
+
+        The default implementation returns ``False``; subclasses must override.
+        """
+        return False
 
     @classmethod
     def dag_parsing_locale_cmd(
