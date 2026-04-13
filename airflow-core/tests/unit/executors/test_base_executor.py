@@ -411,6 +411,23 @@ def test_repr():
 class TestExecutorConf:
     """Test ExecutorConf shim class that provides team-specific configuration access."""
 
+    @pytest.fixture(autouse=True)
+    def _restore_conf(self):
+        """Restore conf state after each test to prevent config leaks."""
+        from airflow.configuration import conf
+
+        original_sections = {s: dict(conf.items(s)) for s in conf.sections()}
+        yield
+        for section in list(conf.sections()):
+            if section not in original_sections:
+                conf.remove_section(section)
+            else:
+                for key in list(conf.options(section)):
+                    if key not in original_sections.get(section, {}):
+                        conf.remove_option(section, key)
+                    elif conf.get(section, key) != original_sections[section].get(key):
+                        conf.set(section, key, original_sections[section][key])
+
     def test_executor_conf_get(self):
         """Test ExecutorConf.get() passes team_name to underlying conf.get()."""
         from airflow.configuration import conf
