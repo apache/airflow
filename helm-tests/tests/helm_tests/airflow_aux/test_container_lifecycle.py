@@ -265,25 +265,78 @@ class TestContainerLifecycleHooks:
 
     # Test container lifecycle hooks for log-groomer-sidecar main container
     @pytest.mark.parametrize("hook_type", ["preStop", "postStart"])
-    def test_log_groomer_sidecar_container_setting(self, hook_type):
+    def test_log_groomer_sidecar_container_setting_scheduler(self, hook_type):
         docs = render_chart(
             name=RELEASE_NAME,
             values={
                 "scheduler": {
                     "logGroomerSidecar": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}}
                 },
-                "workers": {
-                    "logGroomerSidecar": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}}
-                },
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
+            ],
+        )
+
+        assert (
+            jmespath.search(f"spec.template.spec.containers[1].lifecycle.{hook_type}", docs[0])
+            == LIFECYCLE_PARSED
+        )
+
+    @pytest.mark.parametrize(
+        ("workers_values", "expected"),
+        [
+            (
+                {"logGroomerSidecar": {"containerLifecycleHooks": {"preStop": LIFECYCLE_TEMPLATE}}},
+                {"preStop": LIFECYCLE_PARSED},
+            ),
+            (
+                {"logGroomerSidecar": {"containerLifecycleHooks": {"postStart": LIFECYCLE_TEMPLATE}}},
+                {"postStart": LIFECYCLE_PARSED},
+            ),
+            (
+                {
+                    "celery": {
+                        "logGroomerSidecar": {"containerLifecycleHooks": {"preStop": LIFECYCLE_TEMPLATE}}
+                    }
+                },
+                {"preStop": LIFECYCLE_PARSED},
+            ),
+            (
+                {
+                    "celery": {
+                        "logGroomerSidecar": {"containerLifecycleHooks": {"postStart": LIFECYCLE_TEMPLATE}}
+                    }
+                },
+                {"postStart": LIFECYCLE_PARSED},
+            ),
+            (
+                {
+                    "logGroomerSidecar": {"containerLifecycleHooks": {"postStart": LIFECYCLE_TEMPLATE}},
+                    "celery": {
+                        "logGroomerSidecar": {"containerLifecycleHooks": {"preStop": LIFECYCLE_TEMPLATE}}
+                    },
+                },
+                {"preStop": LIFECYCLE_PARSED},
+            ),
+            (
+                {
+                    "logGroomerSidecar": {"containerLifecycleHooks": {"preStop": LIFECYCLE_TEMPLATE}},
+                    "celery": {
+                        "logGroomerSidecar": {"containerLifecycleHooks": {"postStart": LIFECYCLE_TEMPLATE}}
+                    },
+                },
+                {"postStart": LIFECYCLE_PARSED},
+            ),
+        ],
+    )
+    def test_log_groomer_sidecar_container_setting(self, workers_values, expected):
+        docs = render_chart(
+            name=RELEASE_NAME,
+            values={"workers": workers_values},
+            show_only=[
                 "templates/workers/worker-deployment.yaml",
             ],
         )
 
-        for doc in docs:
-            assert (
-                jmespath.search(f"spec.template.spec.containers[1].lifecycle.{hook_type}", doc)
-                == LIFECYCLE_PARSED
-            )
+        assert jmespath.search("spec.template.spec.containers[1].lifecycle", docs[0]) == expected
