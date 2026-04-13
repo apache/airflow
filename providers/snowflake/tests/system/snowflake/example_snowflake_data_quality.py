@@ -68,7 +68,6 @@ DAG_ID = "example_snowflake_data_quality"
 with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    default_args={"snowflake_conn_id": SNOWFLAKE_CONN_ID},
     tags=["example"],
     schedule="@once",
     catchup=False,
@@ -88,6 +87,7 @@ with DAG(
     # [START howto_operator_snowflake_check]
     snowflake_check = SnowflakeCheckOperator(
         task_id="snowflake_check",
+        snowflake_conn_id=SNOWFLAKE_CONN_ID,
         sql=f"SELECT COUNT(*) FROM {SNOWFLAKE_DATA_QUALITY_TABLE}",
     )
     # [END howto_operator_snowflake_check]
@@ -95,6 +95,7 @@ with DAG(
     # [START howto_operator_snowflake_value_check]
     snowflake_value_check = SnowflakeValueCheckOperator(
         task_id="snowflake_value_check",
+        snowflake_conn_id=SNOWFLAKE_CONN_ID,
         sql=f"SELECT COUNT(*) FROM {SNOWFLAKE_DATA_QUALITY_TABLE}",
         pass_value=6,
         tolerance=0.0,
@@ -104,6 +105,7 @@ with DAG(
     # [START howto_operator_snowflake_interval_check]
     snowflake_interval_check = SnowflakeIntervalCheckOperator(
         task_id="snowflake_interval_check",
+        snowflake_conn_id=SNOWFLAKE_CONN_ID,
         table=SNOWFLAKE_DATA_QUALITY_TABLE,
         metrics_thresholds={"COUNT(*)": 1.5, "SUM(amount)": 1.5},
         date_filter_column="ds",
