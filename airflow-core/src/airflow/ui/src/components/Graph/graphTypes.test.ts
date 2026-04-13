@@ -16,26 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { AliasNode } from "./AliasNode";
-import { AssetConditionNode } from "./AssetConditionNode";
-import { AssetNode } from "./AssetNode";
-import { DagNode } from "./DagNode";
+
+import { describe, expect, it } from "vitest";
+
 import { DefaultNode } from "./DefaultNode";
-import Edge from "./Edge";
-import { JoinNode } from "./JoinNode";
-import { TaskNode } from "./TaskNode";
+import { nodeTypes } from "./graphTypes";
 
-export const nodeTypes = {
-  asset: AssetNode,
-  "asset-alias": AliasNode,
-  "asset-condition": AssetConditionNode,
-  "asset-name-ref": DefaultNode,
-  "asset-uri-ref": DefaultNode,
-  dag: DagNode,
-  join: JoinNode,
-  sensor: DefaultNode,
-  task: TaskNode,
-  trigger: DefaultNode,
-};
-
-export const edgeTypes = { custom: Edge };
+describe("graphTypes", () => {
+  it("registers sensor and trigger node types", () => {
+    expect(nodeTypes.sensor).toBe(DefaultNode);
+    expect(nodeTypes.trigger).toBe(DefaultNode);
+  });
+});
