@@ -150,7 +150,7 @@ providers/arangodb/src/airflow/providers/arangodb/hooks/arangodb.py::9
 providers/arangodb/src/airflow/providers/arangodb/operators/arangodb.py::1
 providers/atlassian/jira/src/airflow/providers/atlassian/jira/hooks/jira.py::1
 providers/celery/src/airflow/providers/celery/executors/celery_executor_utils.py::2
-providers/celery/src/airflow/providers/celery/executors/default_celery.py::5
+providers/celery/src/airflow/providers/celery/executors/default_celery.py::2
 providers/celery/tests/integration/celery/test_celery_executor.py::2
 providers/cloudant/src/airflow/providers/cloudant/hooks/cloudant.py::2
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/backcompat/backwards_compat_converters.py::3

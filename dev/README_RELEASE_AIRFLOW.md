@@ -1599,6 +1599,12 @@ According to the policy above, if we have to release clients:
     - [Python client](https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PYTHON_CLIENT.md)
     - [Go client](https://github.com/apache/airflow-client-go/blob/main/dev/README_RELEASE_CLIENT.md)
 
+### Remove dependabot workflows for previous minor release
+
+In case you release a new minor version, you should remove the dependabot workflow for the previous minor
+version to avoid confusion and unnecessary updates. For example, if you release 3.3.0,
+you should remove the dependabot workflows for v3-2-test from `.github/workflows/dependabot.yml`
+
 # Additional processes
 
 Those processes are related to the release of Airflow but should be run in exceptional situations.
