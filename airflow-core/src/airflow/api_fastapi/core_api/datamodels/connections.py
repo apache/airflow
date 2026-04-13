@@ -61,7 +61,7 @@ class ConnectionResponse(BaseModel):
             return json.dumps(redacted_dict)
         except json.JSONDecodeError:
             # Do not return un-redacted extra because this could cause sensitive information to be exposed.
-            # This code path should never been hit as ``Connection._validate_extra`` makes sure that ``extra`` is
+            # This code path should never be hit as ``Connection._validate_extra`` makes sure that ``extra`` is
             # always a valid JSON string (if truthy). We add this safeguard just in case and to make the coupling
             # explicit.
             raise ValueError(
