@@ -332,6 +332,7 @@ export const GanttTimeline = ({
 
                     return (
                       <TaskInstanceTooltip
+                        disabled={touchesNext}
                         key={`${segment.taskId}-${segment.tryNumber ?? 0}-${segment.x[0]}`}
                         openDelay={500}
                         positioning={{

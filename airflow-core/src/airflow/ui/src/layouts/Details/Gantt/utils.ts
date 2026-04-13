@@ -137,10 +137,13 @@ export const transformGanttData = ({
 
             // Whether each pre-execution segment will actually be rendered (gap >= 1 s).
             // The same predicate drives both segment creation and tooltip field inclusion.
-            const willShowScheduled =
-              scheduledMs !== undefined && (startMs === undefined || startMs - scheduledMs >= 1000);
             const willShowQueued =
               queuedMs !== undefined && (startMs === undefined || startMs - queuedMs >= 1000);
+            const willShowScheduled =
+              scheduledMs !== undefined &&
+              (startMs === undefined ||
+                (!willShowQueued && startMs - scheduledMs >= 1000) ||
+                (willShowQueued && queuedMs - scheduledMs >= 1000));
 
             const tryWhenForTooltip = {
               ...(willShowScheduled ? { scheduled_when: scheduledDttm } : {}),
