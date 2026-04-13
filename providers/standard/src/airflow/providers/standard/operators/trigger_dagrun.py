@@ -315,7 +315,7 @@ class TriggerDagRunOperator(BaseOperator):
     def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
         try:
             unsupported_parameters = []
-            for attr, default_value in self.attributes_not_suppported_in_airflow_2.items():
+            for attr, default_value in self.attributes_not_supported_in_airflow_2.items():
                 value = getattr(self, attr, default_value)
                 if value is not default_value:
                     unsupported_parameters.append(attr)
