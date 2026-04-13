@@ -616,7 +616,7 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
 
         if validated_event["status"] == "success":
             return validated_event["job_id"]
-        job_id = validated_event.get("job_id") or self.job_id
+        job_id = validated_event.get("job_id")
         if job_id:
             self.log.info("Cancelling EMR container job %s", job_id)
             try:
