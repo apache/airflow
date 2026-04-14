@@ -3088,7 +3088,7 @@ export type PatchTaskInstanceByMapIndexResponse = TaskInstanceCollectionResponse
 
 export type GetTaskInstancesData = {
     /**
-     * Cursor for keyset-based pagination (mutually exclusive with offset). Pass an empty string for the first page, then use ``next_cursor`` from the response.
+     * Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
      */
     cursor?: string | null;
     dagId: string;

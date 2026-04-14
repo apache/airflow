@@ -6539,7 +6539,12 @@ paths:
         from the response).
 
         When `cursor` is provided, `offset` is ignored and `total_entries` is not
-        returned.'
+        returned.
+
+        ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor``
+        is ``null``
+
+        on the first page.'
       operationId: get_task_instances
       security:
       - OAuth2PasswordBearer: []
@@ -6564,13 +6569,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Cursor for keyset-based pagination (mutually exclusive with
-            offset). Pass an empty string for the first page, then use ``next_cursor``
-            from the response.
+          description: Cursor for keyset-based pagination. Pass an empty string for
+            the first page, then use ``next_cursor`` from the response. When ``cursor``
+            is provided, ``offset`` is ignored.
           title: Cursor
-        description: Cursor for keyset-based pagination (mutually exclusive with offset).
-          Pass an empty string for the first page, then use ``next_cursor`` from the
-          response.
+        description: Cursor for keyset-based pagination. Pass an empty string for
+          the first page, then use ``next_cursor`` from the response. When ``cursor``
+          is provided, ``offset`` is ignored.
       - name: task_id
         in: query
         required: false

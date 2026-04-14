@@ -1734,7 +1734,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200, response.json()
         body = response.json()
         assert body["next_cursor"] is not None
-        assert body["previous_cursor"] is not None
+        assert body["previous_cursor"] is None
         assert body["total_entries"] is None
         assert len(body["task_instances"]) == 3
 
@@ -1760,14 +1760,14 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         next_cursor = body1["next_cursor"]
         assert next_cursor is not None
 
-        # Second page using next_cursor from first page
+        # Second (last) page using next_cursor from first page — only 2 TIs remain
         response2 = test_client.get(
             "/dags/~/dagRuns/~/taskInstances",
             params={"limit": 100, "cursor": next_cursor, "order_by": ["map_index"]},
         )
         assert response2.status_code == 200
         body2 = response2.json()
-        assert body2["next_cursor"] is not None
+        assert body2["next_cursor"] is None
         assert body2["previous_cursor"] is not None
         assert body2["total_entries"] is None
 
@@ -1799,6 +1799,36 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 break
 
         assert len(all_ids) == len(set(all_ids)), "Cursor pages should not have overlapping items"
+
+    def test_cursor_pagination_cursors_null_at_boundaries(self, test_client, session):
+        """previous_cursor is null on the first page; next_cursor is null on the last page."""
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(5)
+            ],
+            dag_id=dag_id,
+        )
+        # Page 1 (first page): previous_cursor must be null, next_cursor set
+        r1 = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances",
+            params={"limit": 3, "order_by": ["map_index"], "cursor": ""},
+        )
+        assert r1.status_code == 200
+        b1 = r1.json()
+        assert b1["previous_cursor"] is None, "First page should have no previous_cursor"
+        assert b1["next_cursor"] is not None, "First page should have next_cursor when more rows exist"
+
+        # Page 2 (last page): next_cursor must be null, previous_cursor set
+        r2 = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances",
+            params={"limit": 100, "cursor": b1["next_cursor"], "order_by": ["map_index"]},
+        )
+        assert r2.status_code == 200
+        b2 = r2.json()
+        assert b2["next_cursor"] is None, "Last page should have no next_cursor"
+        assert b2["previous_cursor"] is not None, "Last page should have previous_cursor"
 
     def test_cursor_pagination_invalid_token(self, test_client, session):
         """Invalid cursor token returns 400."""

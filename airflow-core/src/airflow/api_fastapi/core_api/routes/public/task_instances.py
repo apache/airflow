@@ -474,8 +474,9 @@ def get_task_instances(
     session: SessionDep,
     cursor: str | None = Query(
         None,
-        description="Cursor for keyset-based pagination (mutually exclusive with offset). "
-        "Pass an empty string for the first page, then use ``next_cursor`` from the response.",
+        description="Cursor for keyset-based pagination. "
+        "Pass an empty string for the first page, then use ``next_cursor`` from the response. "
+        "When ``cursor`` is provided, ``offset`` is ignored.",
     ),
 ) -> TaskInstanceCollectionResponse:
     """
@@ -490,6 +491,8 @@ def get_task_instances(
 
     **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
     When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
+    ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
+    on the first page.
     """
     use_cursor = cursor is not None
     dag_run = None
@@ -540,15 +543,25 @@ def get_task_instances(
     ]
 
     if use_cursor:
-        task_instance_select = apply_filters_to_select(statement=query, filters=[*filters, order_by, limit])
+        # Fetch one extra row so we can detect whether a next page exists.
+        page_limit = cast(
+            "int", limit.value
+        )  # LimitFilter value is guaranteed to be set of the default value of QueryLimit
+        cursor_limit = LimitFilter().set_value(page_limit + 1)
+        task_instance_select = apply_filters_to_select(
+            statement=query, filters=[*filters, order_by, cursor_limit]
+        )
         if cursor:
             task_instance_select = apply_cursor_filter(task_instance_select, cursor, order_by)
 
-        task_instances = list(session.scalars(task_instance_select))
+        fetched = list(session.scalars(task_instance_select))
+        has_next = len(fetched) > page_limit
+        task_instances = fetched[:page_limit]
+
         return TaskInstanceCollectionResponse(
             task_instances=task_instances,
-            next_cursor=encode_cursor(task_instances[-1], order_by) if task_instances else None,
-            previous_cursor=encode_cursor(task_instances[0], order_by) if task_instances else None,
+            next_cursor=encode_cursor(task_instances[-1], order_by) if has_next and task_instances else None,
+            previous_cursor=encode_cursor(task_instances[0], order_by) if cursor and task_instances else None,
         )
 
     task_instance_select, total_entries = paginated_select(

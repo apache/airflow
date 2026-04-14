@@ -85,7 +85,7 @@ def _coerce_value(column: ColumnElement, value: Any) -> Any:
         try:
             return uuid_mod.UUID(value)
         except ValueError:
-            return value
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid cursor token")
     return value
 
 
