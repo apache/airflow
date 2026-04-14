@@ -201,6 +201,8 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                       <Gantt
                         dagRunState={dagRunStateFilter}
                         limit={limit}
+                        runAfterGte={runAfterGte}
+                        runAfterLte={runAfterLte}
                         runType={runTypeFilter}
                         triggeringUser={triggeringUserFilter}
                       />

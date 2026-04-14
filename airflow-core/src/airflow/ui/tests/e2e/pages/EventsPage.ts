@@ -32,17 +32,17 @@ export class EventsPage extends BasePage {
 
   public constructor(page: Page) {
     super(page);
-    this.eventsPageTitle = page.locator('h2:has-text("Audit Log")');
-    this.eventsTable = page.locator('[data-testid="table-list"]');
-    this.eventColumn = this.eventsTable.locator('th:has-text("Event")');
-    this.extraColumn = this.eventsTable.locator('th:has-text("Extra")');
+    this.eventsPageTitle = page.getByRole("heading", { level: 2, name: "Audit Log" });
+    this.eventsTable = page.getByTestId("table-list");
+    this.eventColumn = this.eventsTable.getByRole("columnheader").filter({ hasText: "Event" });
+    this.extraColumn = this.eventsTable.getByRole("columnheader").filter({ hasText: "Extra" });
     this.filterBar = page
       .locator("div")
-      .filter({ has: page.locator('button:has-text("Filter")') })
+      .filter({ has: page.getByTestId("add-filter-button") })
       .first();
-    this.ownerColumn = this.eventsTable.locator('th:has-text("User")');
-    this.tableRows = this.eventsTable.locator("tbody tr");
-    this.whenColumn = this.eventsTable.locator('th:has-text("When")');
+    this.ownerColumn = this.eventsTable.getByRole("columnheader").filter({ hasText: "User" });
+    this.tableRows = this.eventsTable.locator("tbody").getByRole("row");
+    this.whenColumn = this.eventsTable.getByRole("columnheader").filter({ hasText: "When" });
   }
 
   public static getEventsUrl(dagId: string): string {
@@ -50,15 +50,15 @@ export class EventsPage extends BasePage {
   }
 
   public async addFilter(filterName: string): Promise<void> {
-    const filterButton = this.page.locator('button:has-text("Filter")');
+    const filterButton = this.page.getByTestId("add-filter-button");
 
     await filterButton.click();
 
-    const filterMenu = this.page.locator('[role="menu"][data-state="open"]');
+    const filterMenu = this.page.getByRole("menu");
 
-    await filterMenu.waitFor({ state: "visible", timeout: 5000 });
+    await expect(filterMenu).toBeVisible({ timeout: 10_000 });
 
-    const menuItem = filterMenu.locator(`[role="menuitem"]:has-text("${filterName}")`);
+    const menuItem = filterMenu.getByRole("menuitem", { name: filterName });
 
     await menuItem.click();
   }
@@ -106,7 +106,7 @@ export class EventsPage extends BasePage {
   }
 
   public getFilterPill(filterLabel: string): Locator {
-    return this.page.locator(`button:has-text("${filterLabel}:")`);
+    return this.page.getByRole("button", { name: `${filterLabel}:` });
   }
 
   public async getTableRowCount(): Promise<number> {
@@ -119,64 +119,53 @@ export class EventsPage extends BasePage {
   }
 
   public async navigateToAuditLog(dagId: string): Promise<void> {
-    await this.page.goto(EventsPage.getEventsUrl(dagId), {
-      timeout: 30_000,
-      waitUntil: "domcontentloaded",
-    });
+    await expect(async () => {
+      await this.safeGoto(EventsPage.getEventsUrl(dagId), {
+        timeout: 10_000,
+        waitUntil: "domcontentloaded",
+      });
+      await this.eventsTable.waitFor({ state: "visible", timeout: 5000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
     await this.waitForTableLoad();
   }
 
   public async setFilterValue(filterLabel: string, value: string): Promise<void> {
     const filterPill = this.getFilterPill(filterLabel);
 
-    if ((await filterPill.count()) > 0) {
+    if (await filterPill.isVisible()) {
       await filterPill.click();
     }
 
-    // Wait for input to appear and fill it
-    const filterInput = this.page.locator(`input[placeholder*="${filterLabel}" i], input`).last();
+    const filterInput = this.page
+      .locator("div")
+      .filter({ has: this.page.getByText(`${filterLabel}:`) })
+      .locator("input")
+      .first();
 
-    await filterInput.waitFor({ state: "visible", timeout: 5000 });
+    await expect(filterInput).toBeVisible({ timeout: 10_000 });
     await filterInput.fill(value);
     await filterInput.press("Enter");
     await this.waitForTableLoad();
   }
 
   public async verifyLogEntriesWithData(): Promise<void> {
-    const rows = await this.getEventLogRows();
+    await expect(this.tableRows).not.toHaveCount(0);
 
-    if (rows.length === 0) {
-      throw new Error("No log entries found");
-    }
-
-    const [firstRow] = rows;
-
-    if (!firstRow) {
-      throw new Error("First row is undefined");
-    }
-
+    const firstRow = this.tableRows.first();
     const whenCell = await this.getCellByColumnName(firstRow, "When");
     const eventCell = await this.getCellByColumnName(firstRow, "Event");
     const userCell = await this.getCellByColumnName(firstRow, "User");
 
-    const whenText = await whenCell.textContent();
-    const eventText = await eventCell.textContent();
-    const userText = await userCell.textContent();
-
-    expect(whenText?.trim()).toBeTruthy();
-    expect(eventText?.trim()).toBeTruthy();
-    expect(userText?.trim()).toBeTruthy();
+    await expect(whenCell).toHaveText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/);
+    await expect(eventCell).toHaveText(/[a-z][_a-z]*/);
+    await expect(userCell).toHaveText(/\w+/);
   }
 
   public async verifyTableColumns(): Promise<void> {
-    const headers = await this.eventsTable.locator("thead th").allTextContents();
-    const expectedColumns = ["When", "Event", "User", "Extra"];
-
-    for (const col of expectedColumns) {
-      if (!headers.some((h) => h.toLowerCase().includes(col.toLowerCase()))) {
-        throw new Error(`Expected column "${col}" not found in headers: ${headers.join(", ")}`);
-      }
-    }
+    await expect(this.whenColumn).toBeVisible();
+    await expect(this.eventColumn).toBeVisible();
+    await expect(this.ownerColumn).toBeVisible();
+    await expect(this.extraColumn).toBeVisible();
   }
 
   public async waitForEventsTable(): Promise<void> {
@@ -187,44 +176,20 @@ export class EventsPage extends BasePage {
    * Wait for table to finish loading
    */
   public async waitForTableLoad(): Promise<void> {
-    await this.eventsTable.waitFor({ state: "visible", timeout: 60_000 });
+    await expect(this.eventsTable).toBeVisible({ timeout: 60_000 });
 
-    await this.page.waitForFunction(
-      () => {
-        const table = document.querySelector('[data-testid="table-list"]');
+    const skeleton = this.eventsTable.locator('[data-testid="skeleton"]');
 
-        if (!table) {
-          return false;
-        }
+    await expect(skeleton).toHaveCount(0, { timeout: 60_000 });
 
-        const skeletons = table.querySelectorAll('[data-scope="skeleton"]');
+    const noDataMessage = this.page.getByText(/no.*events.*found/iu);
 
-        if (skeletons.length > 0) {
-          return false;
-        }
+    await expect(async () => {
+      const rowCount = await this.tableRows.count();
 
-        const rows = table.querySelectorAll("tbody tr");
-
-        for (const row of rows) {
-          const cells = row.querySelectorAll("td");
-          let hasContent = false;
-
-          for (const cell of cells) {
-            if (cell.textContent && cell.textContent.trim().length > 0) {
-              hasContent = true;
-              break;
-            }
-          }
-
-          if (!hasContent) {
-            return false;
-          }
-        }
-
-        return true;
-      },
-      undefined,
-      { timeout: 60_000 },
-    );
+      await (rowCount > 0
+        ? expect(this.tableRows.first().locator("td").first()).toHaveText(/.+/)
+        : expect(noDataMessage).toBeVisible());
+    }).toPass({ timeout: 60_000 });
   }
 }

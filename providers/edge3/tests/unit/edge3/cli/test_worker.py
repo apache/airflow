@@ -34,9 +34,9 @@ from yarl import URL
 
 from airflow.cli import cli_parser
 from airflow.providers.common.compat.sdk import timezone
-from airflow.providers.edge3.cli import edge_command, worker as worker_module
+from airflow.providers.edge3.cli import edge_command
 from airflow.providers.edge3.cli.dataclasses import Job
-from airflow.providers.edge3.cli.worker import EdgeWorker, _execution_api_server_url
+from airflow.providers.edge3.cli.worker import EdgeWorker
 from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerModel,
     EdgeWorkerState,
@@ -107,6 +107,11 @@ class TestEdgeWorker:
                 self.parser = cli_parser.get_parser()
 
     @pytest.fixture
+    def cli_worker_with_team(self, tmp_path: Path) -> EdgeWorker:
+        test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8, team_name="team_a")
+        return test_worker
+
+    @pytest.fixture
     def mock_joblist(self, tmp_path: Path) -> list[Job]:
         logfile = tmp_path / "file.log"
         logfile.touch()
@@ -130,7 +135,7 @@ class TestEdgeWorker:
 
     @pytest.fixture
     def worker_with_job(self, tmp_path: Path, mock_joblist: list[Job]) -> EdgeWorker:
-        test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8, 5, 5)
+        test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
         EdgeWorker.jobs = mock_joblist
         return test_worker
 
@@ -142,6 +147,13 @@ class TestEdgeWorker:
             queues=["default"],
         )
         return test_edgeworker
+
+    def test_worker_with_team_name(self, cli_worker_with_team: EdgeWorker):
+        assert cli_worker_with_team.team_name == "team_a"
+
+    def test_worker_without_team_name(self, tmp_path: Path):
+        worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
+        assert worker.team_name is None
 
     @pytest.mark.parametrize(
         ("configs", "expected_url"),
@@ -171,24 +183,21 @@ class TestEdgeWorker:
         self,
         configs,
         expected_url,
+        tmp_path,
     ):
         with conf_vars(configs):
-            _execution_api_server_url.cache_clear()
-            url = _execution_api_server_url()
+            test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
+            url = test_worker._execution_api_server_url
             assert url == expected_url
 
-    @patch(
-        "airflow.providers.edge3.cli.worker._execution_api_server_url",
-        return_value="https://mock-execution-api",
-    )
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @pytest.mark.asyncio
     async def test_supervise_launch(
         self,
         mock_supervise,
-        mock_execution_api_url,
         worker_with_job: EdgeWorker,
     ):
+        worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
         edge_job = worker_with_job.jobs.pop().edge_job
         q = mock.MagicMock()
         result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
@@ -196,16 +205,11 @@ class TestEdgeWorker:
         assert result == 0
         q.put.assert_not_called()
 
-    @patch(
-        "airflow.providers.edge3.cli.worker._execution_api_server_url",
-        return_value="https://mock-execution-api",
-    )
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @pytest.mark.asyncio
     async def test_supervise_launch_fail(
         self,
         mock_supervise,
-        mock_execution_api_url,
         worker_with_job: EdgeWorker,
     ):
         mock_supervise.side_effect = Exception("Supervise failed")
@@ -268,6 +272,8 @@ class TestEdgeWorker:
         await worker_with_job.fetch_and_run_job()
 
         mock_jobs_fetch.assert_called_once()
+        fetch_args = mock_jobs_fetch.call_args
+        assert fetch_args.args[3] is None  # team_name should be None
         mock_launch_job.assert_called_once()
         assert mock_jobs_set_state.call_count == 2
         mock_push_log_chunks.assert_called_once()
@@ -349,11 +355,13 @@ class TestEdgeWorker:
 
     @time_machine.travel(datetime.now(), tick=False)
     @patch("airflow.providers.edge3.cli.worker.logs_push")
-    @patch.object(worker_module, "push_log_chunk_size", 4)
     @pytest.mark.asyncio
     async def test_check_running_jobs_log_push_chunks(self, mock_logs_push, worker_with_job: EdgeWorker):
+        worker_with_job.push_log_chunk_size = 4
+
         job = EdgeWorker.jobs[0]
         job.logfile.write_bytes("log1log2ülog3".encode("latin-1"))
+
         with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             await worker_with_job._push_logs_in_chunks(job)
         assert len(EdgeWorker.jobs) == 1
@@ -401,6 +409,7 @@ class TestEdgeWorker:
         with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             await worker_with_job.heartbeat()
         assert mock_set_state.call_args.args[1] == expected_state
+        assert mock_set_state.call_args.kwargs.get("team_name") is None
         queue_list = worker_with_job.queues or []
         assert len(queue_list) == 2
         assert "queue1" in (queue_list)
@@ -486,6 +495,8 @@ class TestEdgeWorker:
         await worker_with_job.start()
 
         mock_register.assert_called_once()
+        register_args = mock_register.call_args.args
+        assert register_args[4] is None  # team_name should be None
         mock_loop.assert_called_once()
         assert mock_set_state.call_count == 1
 

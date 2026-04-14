@@ -20,8 +20,7 @@
 ################################
 ## Airflow Flower NetworkPolicy
 #################################
-{{- if .Values.flower.enabled }}
-{{- if and .Values.networkPolicies.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+{{- if and .Values.flower.enabled .Values.networkPolicies.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
 {{- $from := or .Values.flower.networkPolicy.ingress.from .Values.flower.extraNetworkPolicies }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -33,7 +32,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values.flower.labels) }}
+    {{- if or .Values.labels .Values.flower.labels }}
       {{- mustMerge .Values.flower.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
@@ -55,5 +54,4 @@ spec:
           {{- end }}
       {{- end }}
   {{- end }}
-{{- end }}
 {{- end }}

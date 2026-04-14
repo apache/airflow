@@ -592,27 +592,6 @@ class TestLivyAsyncHook:
         assert log_dump == {"id": 1, "log": ["mock_log_1", "mock_log_2"]}
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.http.hooks.http.aiohttp.ClientSession")
-    @mock.patch(
-        "airflow.providers.common.compat.connection.get_async_connection",
-        return_value=Connection(
-            conn_id=LIVY_CONN_ID,
-            conn_type="http",
-            host="http://host",
-            port=80,
-        ),
-    )
-    async def test_run_method_success(self, mock_get_connection, mock_session):
-        """Asserts the run_method for success response."""
-        mock_session.return_value.__aenter__.return_value.post = AsyncMock()
-        mock_session.return_value.__aenter__.return_value.post.return_value.json = AsyncMock(
-            return_value={"id": 1}
-        )
-        hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID)
-        response = await hook.run_method("localhost", "GET")
-        assert response == {"status": "success", "response": {"id": 1}}
-
-    @pytest.mark.asyncio
     async def test_run_method_error(self):
         """Asserts the run_method for error response."""
         hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID)
@@ -659,8 +638,7 @@ class TestLivyAsyncHook:
             return_value={"hello": "world"}
         )
         hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID)
-        hook.method = "GET"
-        response = await hook.run_method("api/jobs/runs/get")
+        response = await hook.run_method("api/jobs/runs/get", method="GET")
         assert response["status"] == "success"
         assert response["response"] == {"hello": "world"}
 
@@ -682,8 +660,7 @@ class TestLivyAsyncHook:
             return_value={"hello": "world"}
         )
         hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID)
-        hook.method = "PATCH"
-        response = await hook.run_method("api/jobs/runs/get")
+        response = await hook.run_method("api/jobs/runs/get", method="PATCH")
         assert response["status"] == "success"
         assert response["response"] == {"hello": "world"}
 

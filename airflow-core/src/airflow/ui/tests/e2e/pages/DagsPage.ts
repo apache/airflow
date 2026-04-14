@@ -58,9 +58,9 @@ export class DagsPage extends BasePage {
     this.stateElement = page.getByTestId("dag-run-state");
     this.searchBox = page.getByRole("textbox", { name: /search/i });
     this.searchInput = page.getByPlaceholder("Search DAGs");
-    this.operatorFilter = page.getByRole("combobox").filter({ hasText: /operator/i });
-    this.triggerRuleFilter = page.getByRole("combobox").filter({ hasText: /trigger/i });
-    this.retriesFilter = page.getByRole("combobox").filter({ hasText: /retr/i });
+    this.operatorFilter = page.getByTestId("operator-filter");
+    this.triggerRuleFilter = page.getByTestId("trigger-rule-filter");
+    this.retriesFilter = page.getByTestId("retries-filter");
     // View toggle buttons
     this.cardViewButton = page.getByRole("button", { name: "Show card view" });
     this.tableViewButton = page.getByRole("button", { name: "Show table view" });
@@ -268,13 +268,15 @@ export class DagsPage extends BasePage {
   }
 
   public async navigateToDagTasks(dagId: string): Promise<void> {
-    await this.page.goto(`/dags/${dagId}/tasks`);
-    await expect(
-      this.page
-        .locator("th")
-        .filter({ hasText: /^Operator$/ })
-        .first(),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(async () => {
+      await this.safeGoto(`/dags/${dagId}/tasks`);
+      await expect(
+        this.page
+          .locator("th")
+          .filter({ hasText: /^Operator$/ })
+          .first(),
+      ).toBeVisible({ timeout: 30_000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   /**
@@ -341,8 +343,10 @@ export class DagsPage extends BasePage {
    * Trigger a Dag run
    */
   public async triggerDag(dagName: string): Promise<string | null> {
-    await this.navigateToDagDetail(dagName);
-    await expect(this.triggerButton).toBeVisible({ timeout: 10_000 });
+    await expect(async () => {
+      await this.navigateToDagDetail(dagName);
+      await expect(this.triggerButton).toBeVisible({ timeout: 5000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
     await this.triggerButton.click();
 
     return this.handleTriggerDialog();
@@ -359,12 +363,10 @@ export class DagsPage extends BasePage {
    * Navigate to details tab and verify Dag details are displayed correctly
    */
   public async verifyDagDetails(dagName: string): Promise<void> {
-    // Navigate directly to the details URL
-    await this.page.goto(`/dags/${dagName}/details`, { waitUntil: "domcontentloaded" });
-
-    // Use getByRole to precisely target the heading element
-    // This avoids "strict mode violation" from matching breadcrumbs, file paths, etc.
-    await expect(this.page.getByRole("heading", { name: dagName })).toBeVisible({ timeout: 30_000 });
+    await expect(async () => {
+      await this.safeGoto(`/dags/${dagName}/details`, { waitUntil: "domcontentloaded" });
+      await expect(this.page.getByRole("heading", { name: dagName })).toBeVisible({ timeout: 30_000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   /**
@@ -389,7 +391,7 @@ export class DagsPage extends BasePage {
       return;
     }
 
-    await this.page.goto(DagsPage.getDagRunDetailsUrl(dagName, dagRunId), {
+    await this.safeGoto(DagsPage.getDagRunDetailsUrl(dagName, dagRunId), {
       timeout: 15_000,
       waitUntil: "domcontentloaded",
     });

@@ -739,6 +739,22 @@ class TestHttpAsyncHook:
                 await hook.run(session=session, endpoint="non_existent_endpoint", data=json)
 
     @pytest.mark.asyncio
+    async def test_async_get_request(self):
+        """Test api call asynchronously for POST request."""
+        hook = HttpAsyncHook()
+
+        with aioresponses() as m:
+            m.get(
+                "http://test:8080/v1/test",
+                status=200,
+                payload='{"status":{"status": 200}}',
+                reason="OK",
+            )
+            async with hook.session(method="GET") as session:
+                resp = await session.run(endpoint="v1/test")
+                assert resp.status == 200
+
+    @pytest.mark.asyncio
     async def test_async_post_request(self):
         """Test api call asynchronously for POST request."""
         hook = HttpAsyncHook()

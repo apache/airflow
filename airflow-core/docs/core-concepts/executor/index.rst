@@ -312,6 +312,7 @@ The following methods must be overridden at minimum to have your executor suppor
 
 * ``sync``: Sync will get called periodically during executor heartbeats. Implement this method to update the state of the tasks which the executor knows about. Optionally, attempting to execute queued tasks that have been received from the scheduler.
 * ``execute_async``: Executes a *workload* asynchronously. This method is called (after a few layers) during executor heartbeat which is run periodically by the scheduler. In practice, this method often just enqueues tasks into an internal or external queue of tasks to be run (e.g. ``KubernetesExecutor``). But can also execute the tasks directly as well (e.g. ``LocalExecutor``). This will depend on the executor.
+* ``_process_workloads``: Processes a list of workloads that have been queued via ``queue_workload``. This method is called during executor heartbeat and defines how the executor handles the execution of workloads (e.g., queuing them to workers, submitting to external systems, etc.).
 
 
 Optional Interface Methods to Implement

@@ -268,7 +268,7 @@ class TestLocalExecutor:
 
         with conf_vars(conf_values):
             team_conf = ExecutorConf(team_name=None)
-            _execute_work(log=mock.ANY, workload=mock.MagicMock(), team_conf=team_conf)
+            _execute_work(log=mock.MagicMock(), workload=mock.MagicMock(), team_conf=team_conf)
 
             mock_supervise.assert_called_with(
                 ti=mock.ANY,
@@ -277,6 +277,7 @@ class TestLocalExecutor:
                 token=mock.ANY,
                 server=expected_server,
                 log_path=mock.ANY,
+                subprocess_logs_to_stdout=True,
             )
 
     @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
@@ -303,7 +304,7 @@ class TestLocalExecutor:
             with conf_vars(config_overrides):
                 # Test team-specific config
                 team_conf = ExecutorConf(team_name=team_name)
-                _execute_work(log=mock.ANY, workload=mock.MagicMock(), team_conf=team_conf)
+                _execute_work(log=mock.MagicMock(), workload=mock.MagicMock(), team_conf=team_conf)
 
                 # Verify team-specific server URL was used
                 assert mock_supervise.call_count == 1
@@ -314,7 +315,7 @@ class TestLocalExecutor:
 
                 # Test global config (no team)
                 global_conf = ExecutorConf(team_name=None)
-                _execute_work(log=mock.ANY, workload=mock.MagicMock(), team_conf=global_conf)
+                _execute_work(log=mock.MagicMock(), workload=mock.MagicMock(), team_conf=global_conf)
 
                 # Verify default server URL was used
                 assert mock_supervise.call_count == 1

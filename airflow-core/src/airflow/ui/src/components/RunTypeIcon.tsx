@@ -18,6 +18,7 @@
  */
 import type { IconBaseProps } from "react-icons";
 import { HiDatabase } from "react-icons/hi";
+import { HiLightningBolt } from "react-icons/hi";
 import { MdPlayArrow, MdOutlineSchedule } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
 
@@ -41,6 +42,8 @@ export const RunTypeIcon = ({ runType, ...rest }: Props) => {
       return <RiArrowGoBackFill style={iconStyle} {...rest} />;
     case "manual":
       return <MdPlayArrow style={iconStyle} {...rest} />;
+    case "operator_triggered":
+      return <HiLightningBolt style={iconStyle} {...rest} />;
     case "scheduled":
       return <MdOutlineSchedule style={iconStyle} {...rest} />;
     default:

@@ -216,7 +216,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 # always be in the return type union
                 return resp  # type: ignore[return-value]
 
-        return self._get_response()
+            return self._get_response()
 
     async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """
@@ -838,6 +838,7 @@ class SetXCom(BaseModel):
     run_id: str
     task_id: str
     map_index: int | None = None
+    dag_result: bool = False
     mapped_length: int | None = None
     type: Literal["SetXCom"] = "SetXCom"
 

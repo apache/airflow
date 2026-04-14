@@ -206,14 +206,14 @@ class GCSToGCSOperator(BaseOperator):
         self.source_bucket = source_bucket
         if source_object and WILDCARD in source_object:
             warnings.warn(
-                "Usage of wildcard (*) in 'source_object' is deprecated, utilize 'match_glob' instead",
+                "Usage of wildcard (*) in 'source_object' is deprecated, utilize 'match_glob' instead. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         self.source_object = source_object
         if source_objects and any(WILDCARD in obj for obj in source_objects):
             warnings.warn(
-                "Usage of wildcard (*) in 'source_objects' is deprecated, utilize 'match_glob' instead",
+                "Usage of wildcard (*) in 'source_objects' is deprecated, utilize 'match_glob' instead. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
@@ -222,7 +222,7 @@ class GCSToGCSOperator(BaseOperator):
         self.destination_object = destination_object
         if delimiter:
             warnings.warn(
-                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead",
+                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )

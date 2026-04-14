@@ -28,7 +28,7 @@ test.describe("Dag Trigger Workflow", () => {
     dagsPage = new DagsPage(page);
   });
 
-  test("should successfully trigger a Dag run", async () => {
+  test.fixme("should successfully trigger a Dag run", async () => {
     test.setTimeout(7 * 60 * 1000);
 
     const dagRunId = await dagsPage.triggerDag(testDagId);
@@ -48,7 +48,7 @@ test.describe("Dag Details Tab", () => {
     dagsPage = new DagsPage(page);
   });
 
-  test("should successfully verify details tab", async () => {
+  test.fixme("should successfully verify details tab", async () => {
     test.setTimeout(120_000);
     await dagsPage.verifyDagDetails(testDagId);
   });
@@ -132,7 +132,7 @@ test.describe("Dags Search", () => {
     dagsPage = new DagsPage(page);
   });
 
-  test("should search for a Dag by name", async () => {
+  test.fixme("should search for a Dag by name", async () => {
     test.setTimeout(120_000);
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();

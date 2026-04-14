@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-04-13"
+API_VERSION: Final[str] = "2026-04-06"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -143,6 +143,7 @@ class DagRunType(str, Enum):
     BACKFILL = "backfill"
     SCHEDULED = "scheduled"
     MANUAL = "manual"
+    OPERATOR_TRIGGERED = "operator_triggered"
     ASSET_TRIGGERED = "asset_triggered"
     ASSET_MATERIALIZATION = "asset_materialization"
 

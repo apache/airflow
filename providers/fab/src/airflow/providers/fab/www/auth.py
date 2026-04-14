@@ -39,7 +39,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.www.utils import get_fab_auth_manager
 from airflow.utils.net import get_hostname
 

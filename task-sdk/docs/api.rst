@@ -201,19 +201,21 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.PartitionMapper
 
+.. autoapiclass:: airflow.sdk.ChainMapper
+
 .. autoapiclass:: airflow.sdk.IdentityMapper
 
-.. autoapiclass:: airflow.sdk.ToHourlyMapper
+.. autoapiclass:: airflow.sdk.StartOfHourMapper
 
-.. autoapiclass:: airflow.sdk.ToDailyMapper
+.. autoapiclass:: airflow.sdk.StartOfDayMapper
 
-.. autoapiclass:: airflow.sdk.ToWeeklyMapper
+.. autoapiclass:: airflow.sdk.StartOfWeekMapper
 
-.. autoapiclass:: airflow.sdk.ToMonthlyMapper
+.. autoapiclass:: airflow.sdk.StartOfMonthMapper
 
-.. autoapiclass:: airflow.sdk.ToQuarterlyMapper
+.. autoapiclass:: airflow.sdk.StartOfQuarterMapper
 
-.. autoapiclass:: airflow.sdk.ToYearlyMapper
+.. autoapiclass:: airflow.sdk.StartOfYearMapper
 
 .. autoapiclass:: airflow.sdk.ProductMapper
 
@@ -222,6 +224,13 @@ Partition Mapper
 I/O Helpers
 -----------
 .. autoapiclass:: airflow.sdk.ObjectStoragePath
+
+Lineage
+-------
+The ``lineage`` module is available as part of the Task SDK. It provides the public hook lineage
+collector interfaces used to capture and retrieve asset lineage metadata during task execution.
+
+.. autoapimodule:: airflow.sdk.lineage
 
 Execution Time Components
 -------------------------

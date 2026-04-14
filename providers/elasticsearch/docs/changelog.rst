@@ -27,6 +27,50 @@
 Changelog
 ---------
 
+6.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``ElasticsearchTaskHandler: Request only required source fields for task logs (#64562)``
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+* ``Optimize 'ElasticsearchTaskHandler' by removing redundant 'count()' call before 'search()' (#64372)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document expected Elasticsearch document schema for external log shippers (#64363)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: refactor unit test of elasticsearch (#64200)``
+
+6.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Elasticsearch / opensearch logging exception details are missing in task log tab (#63739)``
+* ``Fix conf import to common.compat in 'ElasticsearchTaskHandler' (#64118)``
+* ``Remove self parameter from resolve_nested (#64146)``
+
+Misc
+~~~~
+
+* ``Support elasticsearch 9 (#64070)``
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Enable Elasticsearch provider integration tests in CI (#62942)``
+
 6.5.0
 .....
 

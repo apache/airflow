@@ -77,7 +77,8 @@ GEMINI_XCOM_API_KEY = "{{ task_instance.xcom_pull('get_gemini_api_key') }}"
 LOCAL_FILE_NAME = "gemini_batch_requests.jsonl"
 LOCAL_EMBEDDINGS_FILE_NAME = "gemini_batch_embeddings_requests.jsonl"
 UPLOAD_FILE_PATH = str(Path(__file__).parent / "resources" / LOCAL_FILE_NAME)
-PATH_TO_SAVE_RESULTS = str(Path(__file__).parent / "resources")
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
+PATH_TO_SAVE_RESULTS = "gcs/data" if IS_COMPOSER else str(Path(__file__).parent / "resources")
 UPLOAD_EMBEDDINGS_FILE_PATH = str(Path(__file__).parent / "resources" / LOCAL_EMBEDDINGS_FILE_NAME)
 
 UPLOADED_FILE_NAME = (
@@ -372,5 +373,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

@@ -28,6 +28,7 @@ import {
   useTaskInstanceServiceGetHitlDetailsKey,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
+import { createErrorToaster } from "src/utils";
 
 type DeleteTaskInstanceParams = {
   dagId: string;
@@ -47,12 +48,15 @@ export const useDeleteTaskInstance = ({
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation(["common", "dags"]);
 
-  const onError = (error: Error) => {
-    toaster.create({
-      description: error.message,
-      title: translate("dags:runAndTaskActions.delete.error", { type: translate("taskInstance_one") }),
-      type: "error",
-    });
+  const onError = (error: unknown) => {
+    createErrorToaster(
+      error,
+      {
+        params: { type: translate("taskInstance_one") },
+        titleKey: "dags:runAndTaskActions.delete.error",
+      },
+      translate,
+    );
   };
 
   const onSuccess = async () => {

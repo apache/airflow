@@ -26,6 +26,7 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useConfig } from "src/queries/useConfig";
 import { useDagTagsInfinite } from "src/queries/useDagTagsInfinite";
 
+import { useTagFilter } from "../useTagFilter";
 import { FavoriteFilter } from "./FavoriteFilter";
 import { PausedFilter } from "./PausedFilter";
 import { RequiredActionFilter } from "./RequiredActionFilter";
@@ -38,8 +39,6 @@ const {
   NEEDS_REVIEW: NEEDS_REVIEW_PARAM,
   OFFSET: OFFSET_PARAM,
   PAUSED: PAUSED_PARAM,
-  TAGS: TAGS_PARAM,
-  TAGS_MATCH_MODE: TAGS_MATCH_MODE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 type StateValue = "all" | "failed" | "queued" | "running" | "success";
@@ -59,13 +58,12 @@ const toBooleanFilterValue = (
 
 export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { selectedTags, setSelectedTags, setTagFilterMode, tagFilterMode } = useTagFilter();
 
   const showPaused = searchParams.get(PAUSED_PARAM);
   const showFavorites = searchParams.get(FAVORITE_PARAM);
   const needsReview = searchParams.get(NEEDS_REVIEW_PARAM);
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
-  const selectedTags = searchParams.getAll(TAGS_PARAM);
-  const tagFilterMode = searchParams.get(TAGS_MATCH_MODE_PARAM) ?? "any";
 
   const [pattern, setPattern] = useState("");
 
@@ -135,22 +133,11 @@ export const DagsFilters = () => {
       value: string;
     }>,
   ) => {
-    searchParams.delete(TAGS_PARAM);
-    tags.forEach(({ value }) => {
-      searchParams.append(TAGS_PARAM, value);
-    });
-    if (tags.length < 2) {
-      searchParams.delete(TAGS_MATCH_MODE_PARAM);
-    }
-    searchParams.delete(OFFSET_PARAM);
-    setSearchParams(searchParams);
+    setSelectedTags(tags.map(({ value }) => value));
   };
 
   const handleTagModeChange = ({ checked }: { checked: boolean }) => {
-    const mode = checked ? "all" : "any";
-
-    searchParams.set(TAGS_MATCH_MODE_PARAM, mode);
-    setSearchParams(searchParams);
+    setTagFilterMode(checked ? "all" : "any");
   };
 
   const stateValue = toStateValue(state);

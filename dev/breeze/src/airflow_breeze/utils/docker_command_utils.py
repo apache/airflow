@@ -23,6 +23,7 @@ import json
 import os
 import platform
 import re
+import shlex
 import subprocess
 import sys
 from functools import lru_cache
@@ -96,6 +97,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("docker-tests", "/opt/airflow/docker-tests"),
     ("docs", "/opt/airflow/docs"),
     ("generated", "/opt/airflow/generated"),
+    ("go-sdk", "/opt/airflow/go-sdk"),
     ("helm-tests", "/opt/airflow/helm-tests"),
     ("kubernetes-tests", "/opt/airflow/kubernetes-tests"),
     ("logs", "/root/airflow/logs"),
@@ -185,6 +187,7 @@ def check_docker_is_running():
             "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
         )
         if response.stderr:
+            console_print(f"\n[warning]Command attempted:[/]\n{shlex.join(response.args)}")
             console_print(f"\n[warning]Docker error output:[/]\n{response.stderr.strip()}")
         if os.environ.get("CODESPACES", "").lower() == "true":
             console_print(

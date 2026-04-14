@@ -30,6 +30,8 @@ class GanttTaskInstance(BaseModel):
     task_display_name: str
     try_number: int
     state: TaskInstanceState | None
+    scheduled_dttm: datetime | None
+    queued_dttm: datetime | None
     start_date: datetime | None
     end_date: datetime | None
     is_group: bool = False

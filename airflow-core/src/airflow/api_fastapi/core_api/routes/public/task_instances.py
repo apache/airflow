@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Annotated, Literal, cast
 
 import structlog
@@ -637,10 +638,6 @@ def get_task_instances_batch(
         limit=limit,
         session=session,
     )
-    task_instance_select = task_instance_select.options(
-        joinedload(TI.rendered_task_instance_fields),
-    )
-
     task_instances = session.scalars(task_instance_select)
 
     return TaskInstanceCollectionResponse(
@@ -721,6 +718,7 @@ def post_clear_task_instances(
     dag_bag: DagBagDep,
     body: ClearTaskInstancesBody,
     session: SessionDep,
+    user: GetUserDep,
 ) -> TaskInstanceCollectionResponse:
     """Clear task instances."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
@@ -801,6 +799,7 @@ def post_clear_task_instances(
             *((t, m) for t, m in mapped_tasks_tuples if t not in normal_task_ids),
         ]
 
+    task_instances: Sequence[TI]
     if dag_run_id is not None and not (past or future):
         # Use run_id-based clearing when we have a specific dag_run_id and not using past/future
         task_instances = dag.clear(
@@ -837,6 +836,28 @@ def post_clear_task_instances(
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
 
+        if body.note is not None:
+            _patch_task_instance_note(
+                task_instance_body=body,
+                tis=task_instances,
+                user=user,
+            )
+
+    # Eagerly load rendered_task_instance_fields for serialization (lazy='raise' prevents lazy access).
+    # dag.clear() returns TIs without this relationship loaded; re-query with joinedload.
+    # populate_existing=True ensures the joinedload updates TIs already in the identity map.
+    if task_instances:
+        task_instances = (
+            session.scalars(
+                select(TI)
+                .options(joinedload(TI.rendered_task_instance_fields))
+                .where(TI.id.in_([ti.id for ti in task_instances]))
+                .execution_options(populate_existing=True)
+            )
+            .unique()
+            .all()
+        )
+
     return TaskInstanceCollectionResponse(
         task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],
         total_entries=len(task_instances),
@@ -870,6 +891,7 @@ def patch_task_instance_dry_run(
     update_mask: list[str] | None = Query(None),
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance dry_run mode."""
+    tis: Sequence[TI]
     dag, tis, data = _patch_ti_validate_request(
         dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask
     )
@@ -889,6 +911,21 @@ def patch_task_instance_dry_run(
                 session=session,
             )
             or []
+        )
+
+    # Eagerly load rendered_task_instance_fields for serialization (lazy='raise' prevents lazy access).
+    # dag.set_task_instance_state() may return TIs without this relationship loaded.
+    # populate_existing=True ensures the joinedload updates TIs already in the identity map.
+    if tis:
+        tis = (
+            session.scalars(
+                select(TI)
+                .options(joinedload(TI.rendered_task_instance_fields))
+                .where(TI.id.in_([ti.id for ti in tis]))
+                .execution_options(populate_existing=True)
+            )
+            .unique()
+            .all()
         )
 
     return TaskInstanceCollectionResponse(

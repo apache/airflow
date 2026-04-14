@@ -185,3 +185,47 @@ Here's an example of re-routing tasks that are on their second (or greater) retr
         :end-before: [END example_task_mutation_hook]
 
 Note that since priority weight is determined dynamically using weight rules, you cannot alter the ``priority_weight`` of a task instance within the mutation hook.
+
+
+Metadata Engine Hooks
+---------------------
+
+In addition to cluster policies, ``airflow_local_settings.py`` can override how Airflow creates its metadata
+database engines. This is useful when you need per-connection logic that cannot be expressed through static
+configuration — for example, injecting short-lived JWT tokens or IAM credentials via a SQLAlchemy
+``do_connect`` event handler.
+
+Two functions can be overridden:
+
+* ``create_metadata_engine(sql_alchemy_conn, *, engine_args, connect_args) -> Engine`` — called by
+  ``configure_orm()`` to create the synchronous metadata engine.
+* ``create_async_metadata_engine(sql_alchemy_conn_async, *, connect_args) -> AsyncEngine`` — called by
+  ``_configure_async_session()`` to create the asynchronous metadata engine.
+
+The default implementations call ``sqlalchemy.create_engine`` / ``sqlalchemy.ext.asyncio.create_async_engine``
+with the same arguments Airflow has always used, so there is **no behavioral change** unless you provide an
+override.
+
+Example: registering a ``do_connect`` handler that refreshes a JWT token before every new physical connection:
+
+.. code-block:: python
+
+    # airflow_local_settings.py
+    from sqlalchemy import create_engine, event
+
+
+    def _refresh_jwt(dbapi_connection, connection_record):
+        """Called before every physical connection (including after pool recycle)."""
+        token = my_token_provider.get_token()
+        dbapi_connection.execute(f"SET SESSION AUTHORIZATION '{token}'")
+
+
+    def create_metadata_engine(sql_alchemy_conn, *, engine_args, connect_args):
+        engine = create_engine(
+            sql_alchemy_conn,
+            connect_args=connect_args,
+            **engine_args,
+            future=True,
+        )
+        event.listen(engine, "do_connect", _refresh_jwt)
+        return engine

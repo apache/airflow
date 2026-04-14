@@ -28,9 +28,9 @@ from sqlalchemy.engine.url import make_url
 
 from airflow import settings
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.logging_config import configure_logging
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_8_PLUS
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.fab.www.extensions.init_jinja_globals import init_jinja_globals
@@ -59,6 +59,14 @@ def create_app(enable_plugins: bool):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
     flask_app = Flask(__name__)
+
+    @flask_app.after_request
+    def remove_duplicate_date_header(response):
+        # Remove the application-level Date header so the ASGI/WSGI server
+        # can emit a single Date header for the final response.
+        response.headers.pop("Date", None)
+        return response
+
     flask_app.secret_key = conf.get("api", "SECRET_KEY")
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False

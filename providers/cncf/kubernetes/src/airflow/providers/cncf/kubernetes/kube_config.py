@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.providers.common.compat.sdk import conf
 from airflow.settings import AIRFLOW_HOME
 
 if TYPE_CHECKING:
@@ -49,7 +49,7 @@ class KubeConfig:
         self.airflow_home = AIRFLOW_HOME
         self.dags_folder = self._conf.get(self.core_section, "dags_folder")
         self.parallelism = self._conf.getint(self.core_section, "parallelism")
-        self.pod_template_file = self._conf.get(self.kubernetes_section, "pod_template_file", fallback=None)
+        self.pod_template_file = self._conf.get(self.kubernetes_section, "pod_template_file", fallback="")
 
         self.delete_worker_pods = self._conf.getboolean(self.kubernetes_section, "delete_worker_pods")
         self.delete_worker_pods_on_failure = self._conf.getboolean(
@@ -103,7 +103,6 @@ class KubeConfig:
         self.executor_namespace: str = (
             self._conf.get(self.kubernetes_section, "namespace", fallback="default") or "default"
         )
-
         self.kube_client_request_args = self._conf.getjson(
             self.kubernetes_section, "kube_client_request_args", fallback={}
         )

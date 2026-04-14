@@ -65,7 +65,7 @@ export const DocsButton = ({
       </Menu.Trigger>
       <Menu.Content>
         {links
-          .filter((link) => !(!showAPIDocs && link.href === "/docs"))
+          .filter((link) => !(!showAPIDocs && link.key === "restApiReference"))
           .map((link) => (
             <Menu.Item asChild key={link.key} value={translate(`docs.${link.key}`)}>
               <Link

@@ -98,6 +98,17 @@ class TestMwaaDagRunSuccessSensor:
         with pytest.raises(AirflowException, match=f".*{state}.*"):
             MwaaDagRunSensor(**SENSOR_DAG_RUN_KWARGS, **SENSOR_STATE_KWARGS).poke({})
 
+    def test_execute_complete_error(self):
+        sensor = MwaaDagRunSensor(**SENSOR_DAG_RUN_KWARGS, **SENSOR_STATE_KWARGS)
+        error_event = {"status": "error", "message": "DAG run failed", "dag_run_id": "test_run"}
+        with pytest.raises(AirflowException, match="Error in MWAA DAG run"):
+            sensor.execute_complete({}, error_event)
+
+    def test_execute_complete_success(self):
+        sensor = MwaaDagRunSensor(**SENSOR_DAG_RUN_KWARGS, **SENSOR_STATE_KWARGS)
+        success_event = {"status": "success", "dag_run_id": "test_run"}
+        sensor.execute_complete({}, success_event)  # should not raise
+
 
 class TestMwaaTaskSuccessSensor:
     def test_init_success(self):
@@ -137,3 +148,14 @@ class TestMwaaTaskSuccessSensor:
         mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": state}}
         with pytest.raises(AirflowException, match=f".*{state}.*"):
             MwaaTaskSensor(**SENSOR_TASK_KWARGS, **SENSOR_STATE_KWARGS).poke({})
+
+    def test_execute_complete_error(self):
+        sensor = MwaaTaskSensor(**SENSOR_TASK_KWARGS, **SENSOR_STATE_KWARGS)
+        error_event = {"status": "error", "message": "Task failed", "task_id": "test_task"}
+        with pytest.raises(AirflowException, match="Error in MWAA task"):
+            sensor.execute_complete({}, error_event)
+
+    def test_execute_complete_success(self):
+        sensor = MwaaTaskSensor(**SENSOR_TASK_KWARGS, **SENSOR_STATE_KWARGS)
+        success_event = {"status": "success", "task_id": "test_task"}
+        sensor.execute_complete({}, success_event)  # should not raise

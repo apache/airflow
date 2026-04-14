@@ -20,8 +20,7 @@
 ################################
 ## Airflow Webserver Ingress
 #################################
-{{- if and .Values.webserver.enabled (semverCompare "<3.0.0" .Values.airflowVersion) }}
-{{- if or .Values.ingress.web.enabled .Values.ingress.enabled }}
+{{- if and .Values.webserver.enabled (or .Values.ingress.web.enabled .Values.ingress.enabled) (semverCompare "<3.0.0" .Values.airflowVersion) }}
 {{- $fullname := (include "airflow.fullname" .) }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -33,7 +32,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values.webserver.labels) }}
+    {{- if or .Values.labels .Values.webserver.labels }}
       {{- mustMerge .Values.webserver.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
   {{- with .Values.ingress.web.annotations }}
@@ -43,21 +42,17 @@ spec:
   {{- if and .Values.ingress.web.hosts (.Values.ingress.web.hosts | first | kindIs "string" | not) }}
   {{- $anyTlsHosts := false -}}
   {{- range .Values.ingress.web.hosts }}
-  {{- if .tls }}
-  {{- if .tls.enabled }}
+  {{- if and .tls .tls.enabled }}
   {{- $anyTlsHosts = true -}}
-  {{- end }}
   {{- end }}
   {{- end }}
   {{- if $anyTlsHosts }}
   tls:
   {{- range .Values.ingress.web.hosts }}
-  {{- if .tls }}
-  {{- if .tls.enabled }}
+  {{- if and .tls .tls.enabled }}
     - hosts:
         - {{ tpl .name $ | quote }}
       secretName: {{ .tls.secretName }}
-  {{- end }}
   {{- end }}
   {{- end }}
   {{- end }}
@@ -111,5 +106,4 @@ spec:
   {{- if .Values.ingress.web.ingressClassName }}
   ingressClassName: {{ .Values.ingress.web.ingressClassName }}
   {{- end }}
-{{- end }}
 {{- end }}

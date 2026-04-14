@@ -18,9 +18,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from airflow._shared.timezones.timezone import make_aware, parse_timezone
 from airflow.partition_mappers.base import PartitionMapper
+
+if TYPE_CHECKING:
+    from pendulum import FixedTimezone, Timezone
 
 
 class _BaseTemporalMapper(PartitionMapper, ABC):
@@ -30,14 +34,23 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
 
     def __init__(
         self,
+        *,
+        timezone: str | Timezone | FixedTimezone = "UTC",
         input_format: str = "%Y-%m-%dT%H:%M:%S",
         output_format: str | None = None,
     ):
         self.input_format = input_format
         self.output_format = output_format or self.default_output_format
+        if isinstance(timezone, str):
+            timezone = parse_timezone(timezone)
+        self._timezone = timezone
 
     def to_downstream(self, key: str) -> str:
         dt = datetime.strptime(key, self.input_format)
+        if dt.tzinfo is None:
+            dt = make_aware(dt, self._timezone)
+        else:
+            dt = dt.astimezone(self._timezone)
         normalized = self.normalize(dt)
         return self.format(normalized)
 
@@ -50,7 +63,10 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
         return dt.strftime(self.output_format)
 
     def serialize(self) -> dict[str, Any]:
+        from airflow.serialization.encoders import encode_timezone
+
         return {
+            "timezone": encode_timezone(self._timezone),
             "input_format": self.input_format,
             "output_format": self.output_format,
         }
@@ -58,12 +74,13 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
         return cls(
+            timezone=parse_timezone(data.get("timezone", "UTC")),
             input_format=data["input_format"],
             output_format=data["output_format"],
         )
 
 
-class ToHourlyMapper(_BaseTemporalMapper):
+class StartOfHourMapper(_BaseTemporalMapper):
     """Map a time-based partition key to hour."""
 
     default_output_format = "%Y-%m-%dT%H"
@@ -72,7 +89,7 @@ class ToHourlyMapper(_BaseTemporalMapper):
         return dt.replace(minute=0, second=0, microsecond=0)
 
 
-class ToDailyMapper(_BaseTemporalMapper):
+class StartOfDayMapper(_BaseTemporalMapper):
     """Map a time-based partition key to day."""
 
     default_output_format = "%Y-%m-%d"
@@ -81,7 +98,7 @@ class ToDailyMapper(_BaseTemporalMapper):
         return dt.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-class ToWeeklyMapper(_BaseTemporalMapper):
+class StartOfWeekMapper(_BaseTemporalMapper):
     """Map a time-based partition key to week."""
 
     default_output_format = "%Y-%m-%d (W%V)"
@@ -91,7 +108,7 @@ class ToWeeklyMapper(_BaseTemporalMapper):
         return start.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-class ToMonthlyMapper(_BaseTemporalMapper):
+class StartOfMonthMapper(_BaseTemporalMapper):
     """Map a time-based partition key to month."""
 
     default_output_format = "%Y-%m"
@@ -106,7 +123,7 @@ class ToMonthlyMapper(_BaseTemporalMapper):
         )
 
 
-class ToQuarterlyMapper(_BaseTemporalMapper):
+class StartOfQuarterMapper(_BaseTemporalMapper):
     """Map a time-based partition key to quarter."""
 
     default_output_format = "%Y-Q{quarter}"
@@ -128,7 +145,7 @@ class ToQuarterlyMapper(_BaseTemporalMapper):
         return dt.strftime(self.output_format).format(quarter=quarter)
 
 
-class ToYearlyMapper(_BaseTemporalMapper):
+class StartOfYearMapper(_BaseTemporalMapper):
     """Map a time-based partition key to year."""
 
     default_output_format = "%Y"

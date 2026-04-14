@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError
@@ -23,10 +24,13 @@ from botocore.exceptions import ClientError
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
+from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
 
 if TYPE_CHECKING:
+    from pendulum import DateTime
+
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
@@ -87,6 +91,132 @@ class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
                 yield TriggerEvent({"status": "failed"})
             else:
                 yield TriggerEvent({"status": "success"})
+
+
+class EksPodTrigger(KubernetesPodTrigger):
+    """
+    KubernetesPodTrigger for EKS that generates fresh kubeconfig with new credentials.
+
+    When ``EksPodOperator`` defers, the kubeconfig stored in ``config_dict`` contains
+    an exec command that references a temporary credentials file. That file is cleaned
+    up when the operator's context managers exit (on deferral). By the time the trigger
+    runs — whether in a real triggerer process or inline via ``dag.test()`` — the file
+    is gone.
+
+    This trigger solves the problem by regenerating the kubeconfig with fresh AWS
+    credentials before executing. The temporary files are kept alive for the entire
+    duration of the trigger's ``run()`` method.
+
+    :param eks_cluster_name: The name of the Amazon EKS Cluster.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region: Which AWS region the connection should use.
+    """
+
+    def __init__(
+        self,
+        *,
+        eks_cluster_name: str,
+        aws_conn_id: str | None = None,
+        region: str | None = None,
+        pod_name: str,
+        pod_namespace: str,
+        trigger_start_time: datetime.datetime,
+        base_container_name: str,
+        kubernetes_conn_id: str | None = None,
+        connection_extras: dict | None = None,
+        poll_interval: float = 2,
+        cluster_context: str | None = None,
+        config_dict: dict | None = None,
+        in_cluster: bool | None = None,
+        get_logs: bool = True,
+        startup_timeout: int = 120,
+        startup_check_interval: float = 5,
+        schedule_timeout: int = 120,
+        on_finish_action: str = "delete_pod",
+        on_kill_action: str = "delete_pod",
+        termination_grace_period: int | None = None,
+        last_log_time: DateTime | None = None,
+        logging_interval: int | None = None,
+        trigger_kwargs: dict | None = None,
+    ):
+        super().__init__(
+            pod_name=pod_name,
+            pod_namespace=pod_namespace,
+            trigger_start_time=trigger_start_time,
+            base_container_name=base_container_name,
+            kubernetes_conn_id=kubernetes_conn_id,
+            connection_extras=connection_extras,
+            poll_interval=poll_interval,
+            cluster_context=cluster_context,
+            config_dict=config_dict,
+            in_cluster=in_cluster,
+            get_logs=get_logs,
+            startup_timeout=startup_timeout,
+            startup_check_interval=startup_check_interval,
+            schedule_timeout=schedule_timeout,
+            on_finish_action=on_finish_action,
+            on_kill_action=on_kill_action,
+            termination_grace_period=termination_grace_period,
+            last_log_time=last_log_time,
+            logging_interval=logging_interval,
+            trigger_kwargs=trigger_kwargs,
+        )
+        self.eks_cluster_name = eks_cluster_name
+        self._aws_conn_id = aws_conn_id
+        self.region = region
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize EksPodTrigger arguments and classpath."""
+        _, kwargs = super().serialize()
+        kwargs["eks_cluster_name"] = self.eks_cluster_name
+        kwargs["aws_conn_id"] = self._aws_conn_id
+        kwargs["region"] = self.region
+        return (
+            "airflow.providers.amazon.aws.triggers.eks.EksPodTrigger",
+            kwargs,
+        )
+
+    async def run(self):
+        """Generate fresh kubeconfig, then delegate to the parent trigger."""
+        from airflow.utils import yaml
+
+        eks_hook = EksHook(
+            aws_conn_id=self._aws_conn_id,
+            region_name=self.region,
+        )
+        session = eks_hook.get_session()
+        credentials_obj = session.get_credentials()
+        if credentials_obj is None:
+            raise RuntimeError(
+                "Unable to retrieve AWS credentials for EKS trigger. "
+                "Credentials may have expired or not been configured."
+            )
+        credentials = credentials_obj.get_frozen_credentials()
+
+        # Create fresh credential and kubeconfig files.  The context managers
+        # keep the temp files alive for the entire duration of the trigger.
+        with eks_hook._secure_credential_context(
+            credentials.access_key, credentials.secret_key, credentials.token
+        ) as credentials_file:
+            with eks_hook.generate_config_file(
+                eks_cluster_name=self.eks_cluster_name,
+                pod_namespace=self.pod_namespace,
+                credentials_file=credentials_file,
+            ) as config_file_path:
+                # Reading a small local temp file created by the context manager above.
+                # Blocking I/O is acceptable here as the file is tiny and local.
+                from pathlib import Path
+
+                self.config_dict = yaml.safe_load(
+                    Path(config_file_path).read_text()  # noqa: ASYNC240
+                )
+
+                # Invalidate any previously cached hook so the new config_dict
+                # is picked up when the parent creates the AsyncKubernetesHook.
+                self.__dict__.pop("hook", None)
+
+                async for event in super().run():
+                    yield event
 
 
 class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):

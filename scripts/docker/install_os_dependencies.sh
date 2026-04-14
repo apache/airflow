@@ -28,6 +28,8 @@ fi
 AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
 PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
+RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
+RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
 
 if [[ "${1}" == "runtime" ]]; then
@@ -365,12 +367,25 @@ function install_python() {
     if [[ "${PYTHON_LTO:-true}" == "true" ]]; then
         lto_option="--with-lto"
     fi
-    ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
-        --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
-            --enable-shared ${lto_option}
-    make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
-        "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python
-    make -s -j "$(nproc)" install
+    local build_log
+    build_log=$(mktemp)
+    echo "Building Python ${AIRFLOW_PYTHON_VERSION} from source..."
+    if ! (
+        ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
+            --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
+                --enable-shared ${lto_option} && \
+        make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
+            "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python && \
+        make -s -j "$(nproc)" install
+    ) > "${build_log}" 2>&1; then
+        echo
+        echo "ERROR! Python build failed. Build output:"
+        echo
+        cat "${build_log}"
+        rm -f "${build_log}"
+        exit 1
+    fi
+    rm -f "${build_log}"
     cd /
     rm -rf /usr/src/python
     find /usr/python -depth \
@@ -384,6 +399,33 @@ function install_python() {
 function install_golang() {
     curl "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
+}
+
+function install_rustup() {
+    local arch
+    arch="$(dpkg --print-architecture)"
+    declare -A rustup_targets=(
+        [amd64]="x86_64-unknown-linux-gnu"
+        [arm64]="aarch64-unknown-linux-gnu"
+    )
+    declare -A rustup_sha256s=(
+        # https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/{target}/rustup-init.sha256
+        [amd64]="4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10"
+        [arm64]="9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792"
+    )
+    local target="${rustup_targets[${arch}]}"
+    local rustup_sha256="${rustup_sha256s[${arch}]}"
+    if [[ -z "${target}" ]]; then
+        echo "Unsupported architecture for rustup: ${arch}"
+        exit 1
+    fi
+    curl --proto '=https' --tlsv1.2 -sSf \
+        "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${target}/rustup-init" \
+        -o /tmp/rustup-init
+    echo "${rustup_sha256}  /tmp/rustup-init" | sha256sum --check
+    chmod +x /tmp/rustup-init
+    /tmp/rustup-init -y --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
+    rm -f /tmp/rustup-init
 }
 
 function apt_clean() {
@@ -401,6 +443,7 @@ else
     install_debian_dev_dependencies
     install_python
     install_additional_dev_dependencies
+    install_rustup
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
         install_golang
     fi

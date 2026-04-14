@@ -84,6 +84,9 @@ def _get_task_instance_with_hitl_detail(
     try_number: int | None = None,
 ) -> TI | TIH:
     def _query(orm_object: Base) -> TI | TIH | None:
+        options = [joinedload(orm_object.hitl_detail)]
+        if orm_object is TI:
+            options.append(joinedload(TI.rendered_task_instance_fields))
         query = (
             select(orm_object)
             .where(
@@ -92,7 +95,7 @@ def _get_task_instance_with_hitl_detail(
                 orm_object.task_id == task_id,
                 orm_object.map_index == map_index,
             )
-            .options(joinedload(orm_object.hitl_detail))
+            .options(*options)
         )
 
         if try_number is not None:
@@ -213,7 +216,7 @@ def get_hitl_detail(
         map_index=map_index,
         try_number=None,
     )
-    return task_instance.hitl_detail
+    return HITLDetail.model_validate(task_instance.hitl_detail)
 
 
 @task_instances_hitl_router.get(
@@ -304,6 +307,7 @@ def get_hitl_details(
                 joinedload(TI.dag_run).joinedload(DagRun.dag_model),
                 joinedload(TI.task_instance_note),
                 joinedload(TI.dag_version).joinedload(DagVersion.bundle),
+                joinedload(TI.rendered_task_instance_fields),
             ),
         )
     )

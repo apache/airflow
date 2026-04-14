@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from airflow.sdk.types import DagRunProtocol, Operator
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DagRunInfo, DataInterval
+    from airflow.triggers.base import StartTriggerArgs
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
 
@@ -380,6 +381,12 @@ def pytest_addoption(parser: pytest.Parser):
         help="Disable internal capture warnings.",
     )
     group.addoption(
+        "--load-config",
+        action="store",
+        dest="load_config",
+        help="[DANGER] Load an airflow config file instead of test environment defaults [DANGER]",
+    )
+    group.addoption(
         "--warning-output-path",
         action="store",
         dest="warning_output_path",
@@ -408,6 +415,19 @@ def initialize_airflow_tests(request):
     airflow_home = os.environ.get("AIRFLOW_HOME") or os.path.join(home, "airflow")
 
     print(f"Home of the user: {home}\nAirflow home {airflow_home}")
+
+    if request.config.option.load_config:
+        from airflow.configuration import AIRFLOW_CONFIG, conf, load_standard_airflow_configuration
+
+        saved_af_conf = AIRFLOW_CONFIG
+        AIRFLOW_CONFIG = request.config.option.load_config
+        try:
+            load_standard_airflow_configuration(conf)
+        except:
+            raise
+        finally:
+            AIRFLOW_CONFIG = saved_af_conf
+        conf.validate()
 
     if not skip_db_tests and not request.config.option.no_db_init:
         _initialize_airflow_db(request.config.option.db_init, airflow_home)
@@ -1564,6 +1584,9 @@ def create_task_instance(
         hostname=None,
         pid=None,
         last_heartbeat_at=None,
+        task: Operator | None = None,
+        start_from_trigger: bool = False,
+        start_trigger_args: StartTriggerArgs | None = None,
         **kwargs,
     ) -> TaskInstance:
         timezone = _import_timezone()
@@ -1572,26 +1595,33 @@ def create_task_instance(
         if logical_date is NOTSET:
             # For now: default to having a logical date if None is not explicitly passed.
             logical_date = timezone.utcnow()
-        with dag_maker(dag_id, **kwargs):
+        with dag_maker(dag_id, **kwargs) as dag:
             op_kwargs = {}
             op_kwargs["task_display_name"] = task_display_name
-            task = EmptyOperator(
-                task_id=task_id,
-                max_active_tis_per_dag=max_active_tis_per_dag,
-                max_active_tis_per_dagrun=max_active_tis_per_dagrun,
-                executor_config=executor_config or {},
-                on_success_callback=on_success_callback,
-                on_execute_callback=on_execute_callback,
-                on_failure_callback=on_failure_callback,
-                on_retry_callback=on_retry_callback,
-                on_skipped_callback=on_skipped_callback,
-                inlets=inlets,
-                outlets=outlets,
-                email=email,
-                pool=pool,
-                trigger_rule=trigger_rule,
-                **op_kwargs,
-            )
+            if not task:
+                task = EmptyOperator(
+                    task_id=task_id,
+                    max_active_tis_per_dag=max_active_tis_per_dag,
+                    max_active_tis_per_dagrun=max_active_tis_per_dagrun,
+                    executor_config=executor_config or {},
+                    on_success_callback=on_success_callback,
+                    on_execute_callback=on_execute_callback,
+                    on_failure_callback=on_failure_callback,
+                    on_retry_callback=on_retry_callback,
+                    on_skipped_callback=on_skipped_callback,
+                    inlets=inlets,
+                    outlets=outlets,
+                    email=email,
+                    pool=pool,
+                    trigger_rule=trigger_rule,
+                    **op_kwargs,
+                )
+            else:
+                task_id = task.task_id
+                task.dag = dag
+            task.start_from_trigger = start_from_trigger
+            task.start_trigger_args = start_trigger_args
+
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
                 "logical_date": logical_date,

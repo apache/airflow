@@ -212,8 +212,12 @@ class TestEdgeDBManager:
 
         assert "3.0.0" in _REVISION_HEADS_MAP
         assert _REVISION_HEADS_MAP["3.0.0"] == "9d34dfc2de06"
+
         assert "3.2.0" in _REVISION_HEADS_MAP
         assert _REVISION_HEADS_MAP["3.2.0"] == "8c275b6fbaa8"
+
+        assert "3.4.0" in _REVISION_HEADS_MAP
+        assert _REVISION_HEADS_MAP["3.4.0"] == "a09c3ee8e1d3"
 
     def test_initdb_stamps_and_upgrades_when_tables_exist_without_version(self, session):
         """Test that initdb runs incremental migrations when tables exist but alembic version table does not."""
@@ -244,8 +248,9 @@ class TestEdgeDBManager:
             version = conn.execute(text("SELECT version_num FROM alembic_version_edge3")).scalar()
             columns = {col["name"] for col in inspect(conn).get_columns("edge_worker")}
 
-        assert version == "8c275b6fbaa8"
+        assert version == "a09c3ee8e1d3"
         assert "concurrency" in columns
+        assert "team_name" in columns
 
     def test_migration_adds_concurrency_column(self, session):
         """Test that upgrading from 3.0.0 actually adds the concurrency column."""
@@ -281,6 +286,7 @@ class TestEdgeDBManager:
             columns = {col["name"] for col in inspector.get_columns("edge_worker")}
 
         assert "concurrency" in columns, "Migration 0002 should have added the concurrency column"
+        assert "team_name" in columns, "Migration 0003 should have added the team_name column"
 
     def test_drop_tables_handles_missing_tables(self, session):
         """Test that drop_tables handles missing tables gracefully."""

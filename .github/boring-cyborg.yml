@@ -303,6 +303,9 @@ labelPRBasedOnFilePath:
   provider:vertica:
     - providers/vertica/**
 
+  provider:vespa:
+    - providers/vespa/**
+
   provider:weaviate:
     - providers/weaviate/**
 
@@ -344,23 +347,18 @@ labelPRBasedOnFilePath:
     - .rat-excludes
     - .readthedocs.yml
 
-  # This should be copy of the "area:dev-tools" above and should be updated when
-  # we switch maintenance branch
-  backport-to-v3-1-test:
+  # This should be copy of the "area:dev-tools" above minus contributing docs and some files that should
+  # only make sense in main - it should be updated when we switch maintenance branch
+  backport-to-v3-2-test:
     - scripts/**/*
     - dev/**/*
     - .github/**/*
     - Dockerfile.ci
-    - CONTRIBUTING.rst
-    - contributing-docs/**/*
     - yamllint-config.yml
-    - .asf.yaml
-    - .bash_completion
     - .dockerignore
     - .hadolint.yaml
     - .pre-commit-config.yaml
     - .rat-excludes
-    - .readthedocs.yml
 
   kind:documentation:
     - airflow-core/docs/**/*
@@ -580,7 +578,7 @@ labelerFlags:
 firstPRWelcomeComment: >
   Congratulations on your first Pull Request and welcome to the Apache Airflow community!
   If you have any issues or are unsure about any anything please check our
-  Contributors' Guide (https://github.com/apache/airflow/blob/main/contributing-docs/README.rst)
+  [Contributors' Guide](https://github.com/apache/airflow/blob/main/contributing-docs/README.rst)
 
   Here are some useful points:
 

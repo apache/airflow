@@ -260,11 +260,11 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "26.0.1"
-AIRFLOW_UV_VERSION = "0.10.10"
+AIRFLOW_UV_VERSION = "0.11.3"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.46"
 RICH_VERSION = "14.3.3"
-PREK_VERSION = "0.3.6"
+PREK_VERSION = "0.3.8"
 HATCH_VERSION = "1.16.5"
 PYYAML_VERSION = "6.0.3"
 
@@ -2741,6 +2741,7 @@ def get_git_log_command(
     from_commit: str | None = None,
     to_commit: str | None = None,
     is_helm_chart: bool = True,
+    is_airflow_ctl: bool = False,
 ) -> list[str]:
     git_cmd = [
         "git",
@@ -2754,6 +2755,8 @@ def get_git_log_command(
         git_cmd.append(from_commit)
     if is_helm_chart:
         git_cmd.extend(["--", "chart/"])
+    elif is_airflow_ctl:
+        git_cmd.extend(["--", "airflow-ctl/"])
     else:
         git_cmd.extend(["--", "."])
     if verbose:
@@ -2794,6 +2797,7 @@ def get_changes(
     previous_release: str,
     current_release: str,
     is_helm_chart: bool = False,
+    is_airflow_ctl: bool = False,
 ) -> list[Change]:
     print(MY_DIR_PATH, SOURCE_DIR_PATH)
     change_strings = subprocess.check_output(
@@ -2802,6 +2806,7 @@ def get_changes(
             from_commit=previous_release,
             to_commit=current_release,
             is_helm_chart=is_helm_chart,
+            is_airflow_ctl=is_airflow_ctl,
         ),
         cwd=SOURCE_DIR_PATH,
         text=True,
@@ -2835,12 +2840,17 @@ def print_issue_content(
     linked_issues,
     users: dict[int, set[str]],
     is_helm_chart: bool = False,
+    is_airflow_ctl: bool = False,
 ):
     link = f"https://pypi.org/project/apache-airflow/{current_release}/"
     link_text = f"Apache Airflow RC {current_release}"
     if is_helm_chart:
         link = f"https://dist.apache.org/repos/dist/dev/airflow/{current_release}"
         link_text = f"Apache Airflow Helm Chart {current_release.split('/')[-1]}"
+    elif is_airflow_ctl:
+        link = f"https://pypi.org/project/apache-airflow-ctl/{current_release.split('/')[-1]}/"
+        link_text = f"Apache Airflow CTL RC {current_release.split('/')[-1]}"
+
     # Only include PRs that have corresponding user data to avoid KeyError in template
     pr_list = sorted([pr for pr in pull_requests.keys() if pr in users])
     user_logins: dict[int, str] = {pr: " ".join(f"@{u}" for u in uu) for pr, uu in users.items()}
@@ -2967,6 +2977,58 @@ def generate_issue_content_core(
         excluded_pr_list,
         limit_pr_count,
         is_helm_chart=False,
+    )
+
+
+@release_management_group.command(
+    name="generate-issue-content-airflow-ctl", help="Generates content for issue to test airflow-ctl release."
+)
+@click.option(
+    "--github-token",
+    envvar="GITHUB_TOKEN",
+    help=textwrap.dedent(
+        """
+      GitHub token used to authenticate.
+      You can set omit it if you have GITHUB_TOKEN env variable set.
+      Can be generated with:
+      https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""
+    ),
+)
+@click.option(
+    "--previous-release",
+    type=str,
+    help="commit reference (for example hash or tag) of the previous release.",
+    required=True,
+)
+@click.option(
+    "--current-release",
+    type=str,
+    help="commit reference (for example hash or tag) of the current release.",
+    required=True,
+)
+@click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
+@click.option(
+    "--limit-pr-count",
+    type=int,
+    default=None,
+    help="Limit PR count processes (useful for testing small subset of PRs).",
+)
+@option_verbose
+def generate_issue_content_airflow_ctl(
+    github_token: str,
+    previous_release: str,
+    current_release: str,
+    excluded_pr_list: str,
+    limit_pr_count: int | None,
+):
+    generate_issue_content(
+        github_token,
+        previous_release,
+        current_release,
+        excluded_pr_list,
+        limit_pr_count,
+        is_helm_chart=False,
+        is_airflow_ctl=True,
     )
 
 
@@ -3363,7 +3425,7 @@ SOURCE_API_YAML_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 )
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v2.yaml"
-OPENAPI_GENERATOR_CLI_VER = "7.20.0"
+OPENAPI_GENERATOR_CLI_VER = "7.21.0"
 
 GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
     Path("airflow_client") / "client",
@@ -3826,26 +3888,21 @@ def prepare_helm_chart_tarball(
     values_content = yaml.safe_load(VALUES_YAML_FILE.read_text())
     airflow_version_in_values = values_content["airflowVersion"]
     default_airflow_tag_in_values = values_content["defaultAirflowTag"]
+    from packaging.version import Version
 
-    # Check if this is an RC version and replace documentation links with staging URLs
-    is_rc_version = version_suffix and "rc" in version_suffix.lower()
-    if is_rc_version:
+    if Version(version_in_chart).is_prerelease:
         console_print(
-            f"[info]RC version detected ({version_suffix}). Replacing documentation links with staging URLs.[/]"
+            f"[error]Version in Chart.yaml ({version_in_chart}) is a pre-release version. "
+            f"It should be final. Please remove the pre-release suffix commit and merge.[/]"
         )
-        # Replace production URLs with staging URLs for RC versions
-        chart_yaml_file_content = chart_yaml_file_content.replace(
-            "https://airflow.apache.org/", "https://airflow.staged.apache.org/"
-        )
-        console_print("[success]Documentation links updated to staging environment for RC version.[/]")
+        sys.exit(1)
     if ignore_version_check:
         if not version:
             version = version_in_chart
     else:
-        if not version or not version_suffix:
+        if not version:
             console_print(
-                "[error]You need to provide --version and --version-suffix parameter unless you "
-                "use --ignore-version-check[/]"
+                "[error]You need to provide --version parameter unless you use --ignore-version-check[/]"
             )
             sys.exit(1)
     console_print(f"[info]Airflow version in values.yaml: {airflow_version_in_values}[/]")
@@ -3860,13 +3917,10 @@ def prepare_helm_chart_tarball(
     updating = False
     if version_in_chart != version:
         console_print(
-            f"[warning]Version in chart.yaml ({version_in_chart}) does not match the version "
-            f"passed as parameter ({version}). Updating[/]"
+            f"[error]Version in chart.yaml ({version_in_chart}) does not match the version "
+            f"passed as parameter ({version}). Quitting[/]"
         )
-        updating = True
-        chart_yaml_file_content = chart_yaml_file_content.replace(
-            f"version: {version_in_chart}", f"version: {version}"
-        )
+        sys.exit(1)
     else:
         console_print(f"[success]Version in chart.yaml is good: {version}[/]")
     if airflow_version_in_values != airflow_version_in_chart:
@@ -3967,15 +4021,9 @@ def prepare_helm_chart_tarball(
     envvar="SIGN_EMAIL",
     default="",
 )
-@click.option(
-    "--version-suffix",
-    help="Version suffix used to determine if RC version. For RC versions, documentation links will be replaced with staging URLs.",
-    default="",
-    envvar="VERSION_SUFFIX",
-)
 @option_dry_run
 @option_verbose
-def prepare_helm_chart_package(sign_email: str, version_suffix: str):
+def prepare_helm_chart_package(sign_email: str):
     import yaml
 
     from airflow_breeze.utils.kubernetes_utils import (
@@ -3984,96 +4032,71 @@ def prepare_helm_chart_package(sign_email: str, version_suffix: str):
         sync_virtualenv,
     )
 
-    # Check if this is an RC version and temporarily replace documentation links
-    chart_yaml_backup = None
-    is_rc_version = version_suffix and "rc" in version_suffix.lower()
-
-    if is_rc_version:
+    chart_yaml_dict = yaml.safe_load(CHART_YAML_FILE.read_text())
+    version = chart_yaml_dict["version"]
+    result = sync_virtualenv(force_venv_setup=False)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+    make_sure_helm_installed()
+    console_print(f"[info]Packaging the chart for Helm Chart {version}[/]")
+    k8s_env = os.environ.copy()
+    k8s_env["PATH"] = str(K8S_BIN_BASE_PATH) + os.pathsep + k8s_env["PATH"]
+    # Tar on modern unix options requires --wildcards parameter to work with globs
+    # See https://github.com/technosophos/helm-gpg/issues/1
+    k8s_env["TAR_OPTIONS"] = "--wildcards"
+    archive_name = f"airflow-{version}.tgz"
+    OUT_PATH.mkdir(parents=True, exist_ok=True)
+    result = run_command(
+        cmd=["helm", "package", "chart", "--dependency-update", "--destination", OUT_PATH.as_posix()],
+        env=k8s_env,
+        check=False,
+    )
+    if result.returncode != 0:
+        console_print("[error]Error packaging the chart[/]")
+        sys.exit(result.returncode)
+    AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
+    final_archive = AIRFLOW_DIST_PATH / archive_name
+    final_archive.unlink(missing_ok=True)
+    source_archive = OUT_PATH / archive_name
+    result = repack_deterministically(
+        source_archive=source_archive,
+        dest_archive=final_archive,
+        prepend_path=None,
+        timestamp=get_source_date_epoch(CHART_DIR),
+    )
+    if result.returncode != 0:
         console_print(
-            f"[info]RC version detected ({version_suffix}). Temporarily replacing documentation links with staging URLs for packaging.[/]"
+            f"[error]Error repackaging package for Helm Chart from {source_archive} to {final_archive}[/]"
         )
-        # Backup original content
-        chart_yaml_backup = CHART_YAML_FILE.read_text()
-        # Replace production URLs with staging URLs for RC versions
-        chart_yaml_content = chart_yaml_backup.replace(
-            "https://airflow.apache.org/", "https://airflow.staged.apache.org/"
-        )
-        CHART_YAML_FILE.write_text(chart_yaml_content)
-        console_print(
-            "[success]Documentation links temporarily updated to staging environment for RC version packaging.[/]"
-        )
-
-    try:
-        chart_yaml_dict = yaml.safe_load(CHART_YAML_FILE.read_text())
-        version = chart_yaml_dict["version"]
-        result = sync_virtualenv(force_venv_setup=False)
-        if result.returncode != 0:
-            sys.exit(result.returncode)
-        make_sure_helm_installed()
-        console_print(f"[info]Packaging the chart for Helm Chart {version}[/]")
-        k8s_env = os.environ.copy()
-        k8s_env["PATH"] = str(K8S_BIN_BASE_PATH) + os.pathsep + k8s_env["PATH"]
-        # Tar on modern unix options requires --wildcards parameter to work with globs
-        # See https://github.com/technosophos/helm-gpg/issues/1
-        k8s_env["TAR_OPTIONS"] = "--wildcards"
-        archive_name = f"airflow-{version}.tgz"
-        OUT_PATH.mkdir(parents=True, exist_ok=True)
+        sys.exit(result.returncode)
+    else:
+        console_print(f"[success]Package created in {final_archive}[/]")
+    if sign_email:
+        console_print(f"[info]Signing the package with {sign_email}[/]")
+        prov_file = final_archive.with_suffix(".tgz.prov")
+        if prov_file.exists():
+            console_print(f"[warning]Removing existing {prov_file}[/]")
+            prov_file.unlink()
         result = run_command(
-            cmd=["helm", "package", "chart", "--dependency-update", "--destination", OUT_PATH.as_posix()],
+            cmd=["helm", "gpg", "sign", "-u", sign_email, archive_name],
+            cwd=AIRFLOW_DIST_PATH.as_posix(),
             env=k8s_env,
             check=False,
         )
         if result.returncode != 0:
-            console_print("[error]Error packaging the chart[/]")
+            console_print("[error]Error signing the chart[/]")
             sys.exit(result.returncode)
-        AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
-        final_archive = AIRFLOW_DIST_PATH / archive_name
-        final_archive.unlink(missing_ok=True)
-        source_archive = OUT_PATH / archive_name
-        result = repack_deterministically(
-            source_archive=source_archive,
-            dest_archive=final_archive,
-            prepend_path=None,
-            timestamp=get_source_date_epoch(CHART_DIR),
+        result = run_command(
+            cmd=["helm", "gpg", "verify", archive_name],
+            cwd=AIRFLOW_DIST_PATH.as_posix(),
+            env=k8s_env,
+            check=False,
         )
         if result.returncode != 0:
-            console_print(
-                f"[error]Error repackaging package for Helm Chart from {source_archive} to {final_archive}[/]"
-            )
+            console_print("[error]Error signing the chart[/]")
             sys.exit(result.returncode)
         else:
-            console_print(f"[success]Package created in {final_archive}[/]")
-        if sign_email:
-            console_print(f"[info]Signing the package with {sign_email}[/]")
-            prov_file = final_archive.with_suffix(".tgz.prov")
-            if prov_file.exists():
-                console_print(f"[warning]Removing existing {prov_file}[/]")
-                prov_file.unlink()
-            result = run_command(
-                cmd=["helm", "gpg", "sign", "-u", sign_email, archive_name],
-                cwd=AIRFLOW_DIST_PATH.as_posix(),
-                env=k8s_env,
-                check=False,
-            )
-            if result.returncode != 0:
-                console_print("[error]Error signing the chart[/]")
-                sys.exit(result.returncode)
-            result = run_command(
-                cmd=["helm", "gpg", "verify", archive_name],
-                cwd=AIRFLOW_DIST_PATH.as_posix(),
-                env=k8s_env,
-                check=False,
-            )
-            if result.returncode != 0:
-                console_print("[error]Error signing the chart[/]")
-                sys.exit(result.returncode)
-            else:
-                console_print(f"[success]Chart signed - the {prov_file} file created.[/]")
-    finally:
-        # Restore original Chart.yaml content if it was modified for RC version
-        if is_rc_version and chart_yaml_backup:
-            CHART_YAML_FILE.write_text(chart_yaml_backup)
-            console_print("[info]Restored original Chart.yaml content after packaging.[/]")
+            console_print(f"[success]Chart signed - the {prov_file} file created.[/]")
 
 
 def generate_issue_content(
@@ -4083,6 +4106,7 @@ def generate_issue_content(
     excluded_pr_list: str,
     limit_pr_count: int | None,
     is_helm_chart: bool,
+    is_airflow_ctl: bool = False,
 ):
     from github import Github, Issue, PullRequest, UnknownObjectException
 
@@ -4092,7 +4116,7 @@ def generate_issue_content(
     previous = previous_release
     current = current_release
 
-    changes = get_changes(verbose, previous, current, is_helm_chart)
+    changes = get_changes(verbose, previous, current, is_helm_chart, is_airflow_ctl)
     change_prs = [change.pr for change in changes]
     if excluded_pr_list:
         excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
@@ -4177,7 +4201,7 @@ def generate_issue_content(
                 users[pr_number].add(linked_issue.user.login)
             progress.advance(task)
 
-    print_issue_content(current, pull_requests, linked_issues, users, is_helm_chart)
+    print_issue_content(current, pull_requests, linked_issues, users, is_helm_chart, is_airflow_ctl)
 
 
 @release_management_group.command(name="publish-docs-to-s3", help="Publishes docs to S3.")
@@ -4292,6 +4316,13 @@ def publish_docs_to_s3(
     default=False,
     help="Show explanations for outdated packages.",
 )
+@click.option(
+    "--cooldown-days",
+    type=int,
+    default=4,
+    show_default=True,
+    help="Ignore package versions released within this many days (cooldown period).",
+)
 @option_github_token
 @option_github_repository
 @option_verbose
@@ -4302,6 +4333,7 @@ def version_check(
     diff_mode,
     package: tuple[str],
     explain_why: bool,
+    cooldown_days: int,
     github_token: str,
     github_repository: str,
     builder: str,
@@ -4327,6 +4359,7 @@ def version_check(
         explain_why=explain_why,
         github_token=github_token,
         github_repository=github_repository,
+        cooldown_days=cooldown_days,
     )
 
 

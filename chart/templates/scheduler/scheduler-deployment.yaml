@@ -21,12 +21,10 @@
 ## Airflow Scheduler Deployment/StatefulSet
 #################################
 {{- if .Values.scheduler.enabled }}
-# Are we using a local executor?
 {{- $local := contains "Local" .Values.executor }}
 # Is persistence enabled on the _workers_?
 # This is important because in $local mode, the scheduler assumes the role of the worker
 {{- $persistence := or .Values.workers.celery.persistence.enabled (and (not (has .Values.workers.celery.persistence.enabled (list true false))) .Values.workers.persistence.enabled) }}
-# If we're using a StatefulSet
 {{- $stateful := and $local $persistence }}
 # We can skip DAGs mounts on scheduler if dagProcessor is enabled, except with $local mode
 {{- $dagProcessorEnabled := .Values.dagProcessor.enabled }}
@@ -34,7 +32,6 @@
   {{ $dagProcessorEnabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 {{- end }}
 {{- $localOrDagProcessorDisabled := or (not $dagProcessorEnabled) $local }}
-# If we're using elasticsearch or opensearch logging
 {{- $remoteLogging := or .Values.elasticsearch.enabled .Values.opensearch.enabled }}
 {{- $nodeSelector := or .Values.scheduler.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.scheduler.affinity .Values.affinity }}
@@ -92,7 +89,7 @@ spec:
         tier: airflow
         component: scheduler
         release: {{ .Release.Name }}
-        {{- if or (.Values.labels) (.Values.scheduler.labels) }}
+        {{- if or .Values.labels .Values.scheduler.labels }}
           {{- mustMerge .Values.scheduler.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
@@ -187,7 +184,6 @@ spec:
           {{- tpl (toYaml .Values.scheduler.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
-        # Always run the main scheduler container.
         - name: scheduler
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
@@ -284,6 +280,8 @@ spec:
           args: {{- tpl (toYaml .Values.scheduler.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
           env:
+            - name: AIRFLOW_HOME
+              value: "{{ .Values.airflowHome }}"
           {{- if .Values.scheduler.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
@@ -304,8 +302,6 @@ spec:
             - name: AIRFLOW__LOG_MAX_SIZE_PERCENT
               value: "{{ .Values.scheduler.logGroomerSidecar.maxSizePercent }}"
           {{- end }}
-            - name: AIRFLOW_HOME
-              value: "{{ .Values.airflowHome }}"
           {{- if .Values.scheduler.logGroomerSidecar.env }}
               {{- tpl (toYaml .Values.scheduler.logGroomerSidecar.env) $ | nindent 12 }}
           {{- end }}

@@ -28,8 +28,8 @@ from airflow.cli.cli_config import (
     lazy_load_command,
     positive_int,
 )
-from airflow.configuration import conf
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
     import argparse

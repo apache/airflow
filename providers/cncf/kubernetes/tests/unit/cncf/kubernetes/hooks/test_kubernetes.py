@@ -1186,8 +1186,6 @@ class TestAsyncKubernetesHook:
         mock_list_namespaced_event.assert_called_once_with(
             field_selector=f"involvedObject.name={POD_NAME}",
             namespace=NAMESPACE,
-            resource_version=None,
-            resource_version_match=None,
         )
         assert result == mock_events
 

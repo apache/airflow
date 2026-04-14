@@ -539,7 +539,7 @@ class TestDbApiHook:
         statement = "SQL"
         caplog.clear()
         self.db_hook_no_log_sql.run(statement)
-        assert len(caplog.messages) in [1, 2]
+        assert "Rows affected: 0" in caplog.text
 
     def test_run_with_handler(self):
         sql = "SQL"

@@ -38,7 +38,8 @@ class AnalyticsOperator(BaseOperator):
 
     :param datasource_configs: List of datasource configurations to register.
     :param queries: List of SQL queries to execute.
-    :param max_rows_check: Maximum number of rows allowed in query results. Queries exceeding this will be skipped.
+    :param max_rows_check: Maximum number of rows returned per query. Queries exceeding this return
+        only the first N rows with a warning.
     :param engine: Optional DataFusion engine instance.
     :param result_output_format: List of output formats for results. Supported: 'tabulate', 'json'. Default is 'tabulate'.
     """
@@ -89,7 +90,7 @@ class AnalyticsOperator(BaseOperator):
 
         # TODO make it parallel as there is no dependency between queries
         for query in self.queries:
-            result_dict = self._df_engine.execute_query(query)
+            result_dict = self._df_engine.execute_query(query, max_rows=self.max_rows_check)
             results.append({"query": query, "data": result_dict})
 
         match self.result_output_format:
@@ -100,20 +101,6 @@ class AnalyticsOperator(BaseOperator):
             case _:
                 raise ValueError(f"Unsupported output format: {self.result_output_format}")
 
-    def _is_result_too_large(self, result_dict: dict[str, Any]) -> tuple[bool, int]:
-        """Check if a result exceeds the max_rows_check limit."""
-        if not result_dict:
-            return False, 0
-        num_rows = len(next(iter(result_dict.values())))
-        max_rows_exceeded = num_rows > self.max_rows_check
-        if max_rows_exceeded:
-            self.log.warning(
-                "Query returned %s rows, exceeding max_rows_check (%s). Skipping result output as large datasets are unsuitable for return.",
-                num_rows,
-                self.max_rows_check,
-            )
-        return max_rows_exceeded, num_rows
-
     def _build_tabulate_output(self, query_results: list[dict[str, Any]]) -> str:
         from tabulate import tabulate
 
@@ -121,15 +108,7 @@ class AnalyticsOperator(BaseOperator):
         for item in query_results:
             query = item["query"]
             result_dict = item["data"]
-            too_large, row_count = self._is_result_too_large(result_dict)
-
-            if too_large:
-                output_parts.append(
-                    f"\n### Results: {query}\n\n"
-                    f"**Skipped**: {row_count} rows exceed max_rows_check ({self.max_rows_check})\n\n"
-                    f"{'-' * 40}\n"
-                )
-                continue
+            row_count = len(next(iter(result_dict.values()))) if result_dict else 0
 
             table_str = tabulate(
                 self._get_rows(result_dict, row_count),
@@ -151,18 +130,7 @@ class AnalyticsOperator(BaseOperator):
         for item in query_results:
             query = item["query"]
             result_dict = item["data"]
-            max_rows_exceeded, row_count = self._is_result_too_large(result_dict)
-
-            if max_rows_exceeded:
-                json_results.append(
-                    {
-                        "query": query,
-                        "status": "skipped_too_large",
-                        "row_count": row_count,
-                        "max_allowed": self.max_rows_check,
-                    }
-                )
-                continue
+            row_count = len(next(iter(result_dict.values()))) if result_dict else 0
 
             json_results.append(
                 {

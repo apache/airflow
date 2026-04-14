@@ -158,9 +158,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     #
     os.environ["FERNET_KEY"] = generate_fernet_key_string()
 
-    # If we are using the image from ghcr.io/apache/airflow/main we do not pull
+    # If we are using the image from ghcr.io/apache/airflow we do not pull
     # as it is already available and loaded using prepare_breeze_and_image step in workflow
-    pull = False if DOCKER_IMAGE.startswith("ghcr.io/apache/airflow/main/") else True
+    pull = False if DOCKER_IMAGE.startswith("ghcr.io/apache/airflow/") else True
 
     try:
         console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")

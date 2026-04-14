@@ -233,6 +233,9 @@ def _get_ti(
     ti.refresh_from_task(task, pool_override=pool)
 
     ti.dag_model  # we must ensure dag model is loaded eagerly for bundle info
+    # eagerly load consumed_asset_events for template rendering (needed for triggering_asset_events context)
+    if ti.dag_run is not None:
+        _ = ti.dag_run.consumed_asset_events
 
     return ti, dr_created
 

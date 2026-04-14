@@ -22,6 +22,7 @@ from typing import Annotated
 
 from fastapi import Depends, status
 from sqlalchemy import and_, func, select
+from sqlalchemy.orm import defaultload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
@@ -219,6 +220,9 @@ def get_dags(
                 HITLDetail,
             )
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
+            .options(
+                defaultload(HITLDetail.task_instance).joinedload(TaskInstance.rendered_task_instance_fields)
+            )
             .where(
                 HITLDetail.responded_at.is_(None),
                 TaskInstance.state == TaskInstanceState.DEFERRED,

@@ -43,12 +43,7 @@ except ImportError:
 
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.cli.cli_config import CLICommand
-
-try:
-    from airflow.providers.common.compat.sdk import AirflowException, conf
-except ModuleNotFoundError:
-    from airflow.configuration import conf
-    from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.keycloak.auth_manager.cache import single_flight
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,

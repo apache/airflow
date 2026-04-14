@@ -57,7 +57,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const downstream = selectedOptions.includes("downstream");
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
 
-  const [note, setNote] = useState<string>("");
+  const [note, setNote] = useState<string | null>(null);
 
   const { data: dagDetails } = useDagServiceGetDagDetails({
     dagId,
@@ -186,6 +186,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
                     include_future: future,
                     include_past: past,
                     include_upstream: upstream,
+                    ...(note === null ? {} : { note }),
                     only_failed: onlyFailed,
                     run_on_latest_version: runOnLatestVersion,
                     task_ids: groupTaskIds,

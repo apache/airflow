@@ -283,6 +283,30 @@ class TestCliTasks:
         assert 'echo "2016-01-01"' in output
         assert 'echo "2016-01-08"' in output
 
+    @pytest.mark.db_test
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_task_render_handles_detached_dagrun(self, dag_maker, session):
+        """Test that task_render handles DagRun with unloaded consumed_asset_events relationship."""
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DagRunPydantic
+
+        with dag_maker(dag_id="test_detached", session=session):
+            pass
+
+        dr = dag_maker.create_dagrun()
+        session.commit()
+        # Detach: this would cause DetachedInstanceError before fix
+        session.expunge(dr)
+
+        # This should not raise DetachedInstanceError
+        pydantic_dr = DagRunPydantic.model_validate(dr)
+        assert pydantic_dr.consumed_asset_events == []
+        assert pydantic_dr.note is None
+
+        args = self.parser.parse_args(["tasks", "render", "tutorial", "templated", "2016-01-01"])
+
+        with redirect_stdout(io.StringIO()):
+            task_command.task_render(args)
+
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_mapped_task_render(self):
         """

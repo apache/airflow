@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
@@ -127,8 +128,24 @@ class TestGCSDeleteObjectsOperator:
         mock_hook.return_value.list.assert_not_called()
         mock_hook.return_value.delete.assert_has_calls(
             calls=[
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0]),
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1]),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0], ignore_error=False),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1], ignore_error=False),
+            ],
+            any_order=True,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_delete_objects_with_ignore_error(self, mock_hook):
+        operator = GCSDeleteObjectsOperator(
+            task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=MOCK_FILES[0:2], ignore_error=True
+        )
+
+        operator.execute(None)
+        mock_hook.return_value.list.assert_not_called()
+        mock_hook.return_value.delete.assert_has_calls(
+            calls=[
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0], ignore_error=True),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1], ignore_error=True),
             ],
             any_order=True,
         )
@@ -150,8 +167,8 @@ class TestGCSDeleteObjectsOperator:
         mock_hook.return_value.list.assert_called_once_with(bucket_name=TEST_BUCKET, prefix=PREFIX)
         mock_hook.return_value.delete.assert_has_calls(
             calls=[
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1]),
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2]),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1], ignore_error=False),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2], ignore_error=False),
             ],
             any_order=True,
         )
@@ -165,10 +182,10 @@ class TestGCSDeleteObjectsOperator:
         mock_hook.return_value.list.assert_called_once_with(bucket_name=TEST_BUCKET, prefix="")
         mock_hook.return_value.delete.assert_has_calls(
             calls=[
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0]),
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1]),
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2]),
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[3]),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0], ignore_error=False),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1], ignore_error=False),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2], ignore_error=False),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[3], ignore_error=False),
             ],
             any_order=True,
         )
@@ -665,13 +682,15 @@ class TestGCSTimeSpanFileTransformOperator:
             (0, True),
             (1, False),
             (2, False),
+            (10, False),
         ],
     )
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.ThreadPoolExecutor", wraps=ThreadPoolExecutor)
     @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_parallel_download_worker_behavior(
-        self, mock_hook, mock_subprocess, mock_tempdir, workers, should_raise
+        self, mock_hook, mock_subprocess, mock_tempdir, mock_executor, workers, should_raise
     ):
         timespan_start = datetime(2015, 2, 1, tzinfo=timezone.utc)
         timespan_end = timespan_start + timedelta(hours=1)
@@ -729,12 +748,17 @@ class TestGCSTimeSpanFileTransformOperator:
 
         assert mock_blob.download_to_filename.call_count == 2
 
+        expected_workers = min(workers, 2)
+        mock_executor.assert_any_call(max_workers=expected_workers)
+
     @pytest.mark.parametrize("continue_on_fail", [False, True])
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.as_completed")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.ThreadPoolExecutor")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_parallel_download_failure_behavior(
-        self, mock_hook, mock_subprocess, mock_tempdir, continue_on_fail
+        self, mock_hook, mock_subprocess, mock_tempdir, mock_executor, mock_as_completed, continue_on_fail
     ):
         timespan_start = datetime(2015, 2, 1, tzinfo=timezone.utc)
         timespan_end = timespan_start + timedelta(hours=1)
@@ -748,11 +772,28 @@ class TestGCSTimeSpanFileTransformOperator:
         }
 
         mock_tempdir.return_value.__enter__.side_effect = ["source", "destination"]
-        mock_hook.return_value.list_by_timespan.return_value = ["file1"]
 
-        mock_client, mock_bucket, mock_blob = self._setup_gcs_client_chain(mock_hook)
+        mock_hook.return_value.list_by_timespan.return_value = ["file1", "file2"]
 
-        mock_blob.download_to_filename.side_effect = GoogleCloudError("fail")
+        self._setup_gcs_client_chain(mock_hook)
+
+        failing_future = mock.Mock()
+        failing_future.result.side_effect = GoogleCloudError("fail")
+        failing_future.cancel = mock.Mock()
+
+        other_future = mock.Mock()
+        other_future.result.return_value = None
+        other_future.cancel = mock.Mock()
+
+        mock_executor.return_value.__enter__.return_value.submit.side_effect = [
+            failing_future,
+            other_future,
+        ]
+
+        # Force deterministic completion order for futures
+        # Note: this does not reflect true as_completed behaviour but allows
+        # us to validate cancellation logic.
+        mock_as_completed.side_effect = lambda futures: list(futures.keys())
 
         mock_proc = mock.MagicMock()
         mock_proc.returncode = 0
@@ -782,19 +823,23 @@ class TestGCSTimeSpanFileTransformOperator:
             with pytest.raises(GoogleCloudError):
                 op.execute(context=context)
 
+            other_future.cancel.assert_called()
+
     @pytest.mark.parametrize(
         ("workers", "should_raise"),
         [
             (0, True),
             (1, False),
             (2, False),
+            (10, False),
         ],
     )
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.ThreadPoolExecutor", wraps=ThreadPoolExecutor)
     @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_parallel_upload_worker_behavior(
-        self, mock_hook, mock_subprocess, mock_tempdir, workers, should_raise
+        self, mock_hook, mock_subprocess, mock_tempdir, mock_executor, workers, should_raise
     ):
         timespan_start = datetime(2015, 2, 1, tzinfo=timezone.utc)
         timespan_end = timespan_start + timedelta(hours=1)
@@ -861,12 +906,17 @@ class TestGCSTimeSpanFileTransformOperator:
 
         assert mock_blob.upload_from_filename.call_count == 2
 
+        expected_workers = min(workers, 2)
+        mock_executor.assert_any_call(max_workers=expected_workers)
+
     @pytest.mark.parametrize("continue_on_fail", [False, True])
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.as_completed")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.ThreadPoolExecutor")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_parallel_upload_failure_behavior(
-        self, mock_hook, mock_subprocess, mock_tempdir, continue_on_fail
+        self, mock_hook, mock_subprocess, mock_tempdir, mock_executor, mock_as_completed, continue_on_fail
     ):
         timespan_start = datetime(2015, 2, 1, tzinfo=timezone.utc)
         timespan_end = timespan_start + timedelta(hours=1)
@@ -891,9 +941,25 @@ class TestGCSTimeSpanFileTransformOperator:
         mock_subprocess.PIPE = "pipe"
         mock_subprocess.STDOUT = "stdout"
 
-        mock_client, mock_bucket, mock_blob = self._setup_gcs_client_chain(mock_hook)
+        self._setup_gcs_client_chain(mock_hook)
 
-        mock_blob.upload_from_filename.side_effect = GoogleCloudError("fail")
+        failing_future = mock.Mock()
+        failing_future.result.side_effect = GoogleCloudError("fail")
+        failing_future.cancel = mock.Mock()
+
+        other_future = mock.Mock()
+        other_future.result.return_value = None
+        other_future.cancel = mock.Mock()
+
+        mock_executor.return_value.__enter__.return_value.submit.side_effect = [
+            failing_future,
+            other_future,
+        ]
+
+        # Force deterministic completion order for futures
+        # Note: this does not reflect true as_completed behaviour but allows
+        # us to validate cancellation logic.
+        mock_as_completed.side_effect = lambda futures: list(futures.keys())
 
         op = GCSTimeSpanFileTransformOperator(
             task_id="test",
@@ -912,13 +978,18 @@ class TestGCSTimeSpanFileTransformOperator:
             mock.patch.object(Path, "glob") as path_glob,
             mock.patch.object(Path, "is_file", return_value=True),
         ):
-            path_glob.return_value.__iter__.return_value = [Path("destination/a.txt")]
+            path_glob.return_value.__iter__.return_value = [
+                Path("destination/a.txt"),
+                Path("destination/b.txt"),
+            ]
 
             if continue_on_fail:
                 op.execute(context=context)
             else:
                 with pytest.raises(GoogleCloudError):
                     op.execute(context=context)
+
+                other_future.cancel.assert_called()
 
 
 class TestGCSDeleteBucketOperator:

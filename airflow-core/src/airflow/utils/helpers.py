@@ -61,6 +61,10 @@ def validate_key(k: str, max_length: int = 250):
             f"The key {k!r} has to be made of alphanumeric characters, dashes, "
             f"dots and underscores exclusively"
         )
+    if ".." in k and not conf.getboolean("core", "allow_double_dot_in_ids", fallback=False):
+        raise AirflowException(
+            f"The key {k!r} must not contain consecutive dots ('..') to prevent path traversal"
+        )
 
 
 def ask_yesno(question: str, default: bool | None = None, output_fn=print) -> bool:

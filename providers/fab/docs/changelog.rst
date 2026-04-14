@@ -20,6 +20,73 @@
 Changelog
 ---------
 
+3.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add authlib as optional oauth extra in fab provider (#64457)``
+* ``Prevent AppBuilder re-initialization race in FastAPI login (#64151) (#64418)``
+
+Misc
+~~~~
+
+* ``Remove dependabot alarms in fab provider npm dependencies (#64789)``
+* ``Add 4-day cooldown for pnpm dependency resolution (#64337)``
+* ``Fix dependabot alarms in FAB provider (#64369)``
+* ``Fix NPM security issues in FAB provider (#64308)``
+* ``chore(deps-dev): bump eslint (#64171)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``CI: Upgrade important CI environment (#64451)``
+   * ``Compat sdk conf follow-up: Celery, Common AI, FAB, Edge3 (#64292)``
+   * ``[main] Upgrade important CI environment (#64239)``
+   * ``Add 4-day cooldown for uv dependency resolution (#64249)``
+
+3.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add order_by parameter to GET /permissions for pagination consistency (#63418)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 403 from roles endpoint despite admin rights (#64097)``
+* ``Fix dependabot alarms for Flatted in Fab (#63956)``
+* ``Fix race condition in FabAuthManager when workers concurrently create permissions, roles, and resources (#63842)``
+* ``Pass role name string to delete_role instead of Role object (#63337)``
+* ``Recover from first idle MySQL disconnect in token auth (#62919)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Fix mypy errors in kubernetes, fab, google, and amazon providers (#63947)``
+* ``Remove various upper version bounds in the FAB provider (#63868)``
+* ``Bump webpack-cli (#63892)``
+* ``Add marshmallow to fab provider dependencies (#63896)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#63743)``
+* ``Re-introducing '--use-migration-files' and fix inconsistences between ORM/migration files (#62234)``
+* ``Fix dependabot warning regarding flatten lib - providers (#63586)``
+* ``Bump eslint (#63361)``
+* ``Bump babel-loader (#63283)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#64111)``
+* ``UpdateConfImports (#64165)``
+
+Doc-only
+~~~~~~~~
+
+* ``Generate ERD diagrams at doc build time instead of committing them (#63402)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 3.5.0
 .....
 

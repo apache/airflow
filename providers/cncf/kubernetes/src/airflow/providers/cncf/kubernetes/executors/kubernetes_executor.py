@@ -31,7 +31,7 @@ import multiprocessing
 import time
 from collections import Counter, defaultdict
 from contextlib import suppress
-from datetime import datetime
+from datetime import datetime, timedelta
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
 
@@ -39,7 +39,6 @@ from deprecated import deprecated
 from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
@@ -53,7 +52,7 @@ from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import Stats
+from airflow.providers.common.compat.sdk import Stats, conf
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -116,6 +115,7 @@ class KubernetesExecutor(BaseExecutor):
             "kubernetes_executor", "task_publish_max_retries", fallback=0
         )
         self.completed: set[KubernetesResults] = set()
+        self.create_pods_after: datetime | None = None
 
     def _list_pods(self, query_kwargs):
         query_kwargs["header_params"] = {
@@ -313,6 +313,12 @@ class KubernetesExecutor(BaseExecutor):
 
         from kubernetes.client.rest import ApiException
 
+        if self.create_pods_after and self.create_pods_after > datetime.now():
+            self.log.warning("Skipping pod creation due to kubernetes rate limit")
+            return
+
+        self.create_pods_after = None
+
         with contextlib.suppress(Empty):
             for _ in range(self.kube_config.worker_pods_creation_batch_size):
                 task = self.task_queue.get_nowait()
@@ -339,15 +345,21 @@ class KubernetesExecutor(BaseExecutor):
                         # Use the body directly as the message instead.
                         body = {"message": e.body}
 
+                    headers = e.headers or {}
                     retries = self.task_publish_retries[key]
                     # In case of exceeded quota or conflict errors, requeue the task as per the task_publish_max_retries
+                    # In case of a rate limit, wait and do not create new pods for "Retry-After" seconds
+                    can_retry_publish = (
+                        self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries
+                    )
                     message = body.get("message", "")
                     if (
                         (str(e.status) == "403" and "exceeded quota" in message)
                         or (str(e.status) == "409" and "object has been modified" in message)
                         or (str(e.status) == "410" and "too old resource version" in message)
                         or str(e.status) == "500"
-                    ) and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries):
+                        or str(e.status) == "429"
+                    ) and can_retry_publish:
                         self.log.warning(
                             "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
                             self.task_publish_retries[key] + 1,
@@ -356,8 +368,20 @@ class KubernetesExecutor(BaseExecutor):
                             e.reason,
                             message,
                         )
+
                         self.task_queue.put(task)
                         self.task_publish_retries[key] = retries + 1
+
+                        if str(e.status) == "429":
+                            self.create_pods_after = datetime.now() + timedelta(
+                                seconds=int(headers.get("Retry-After", "0"))
+                            )
+                            self.log.warning(
+                                "Got rate limit from k8s api, skipping pod creation until %s",
+                                self.create_pods_after,
+                            )
+                            # stop pod creation to stop api requests
+                            break
                     else:
                         self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
                         key = task.key

@@ -116,6 +116,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.1.0": "cc92b33c6709",
     "3.1.8": "509b94a1042d",
     "3.2.0": "1d6611b6ab7c",
+    "3.3.0": "a4c2d171ae18",
 }
 
 # Prefix used to identify tables holding data moved during migration.
@@ -151,15 +152,24 @@ def timeout_with_traceback(seconds, message="Operation timed out"):
         raise TimeoutException(message)
 
     # Set the signal handler
-    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(seconds)
+    timeout_supported = False
+    try:
+        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(seconds)
+        timeout_supported = True
+    except (AttributeError, ValueError):
+        log.warning(
+            "timeout_with_traceback requires signal.SIGALRM and the main thread. "
+            "Proceeding without a timeout."
+        )
 
     try:
         yield
     finally:
-        # Cancel the alarm and restore the old handler
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, old_handler)
+        if timeout_supported:
+            # Cancel the alarm and restore the old handler
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
 
 
 @provide_session

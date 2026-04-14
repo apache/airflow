@@ -168,6 +168,7 @@ class ClearTaskInstancesBody(StrictBaseModel):
         "clearing the task instances.",
     )
     prevent_running_task: bool = False
+    note: Annotated[str, StringConstraints(max_length=1000)] | None = None
 
     @model_validator(mode="before")
     @classmethod

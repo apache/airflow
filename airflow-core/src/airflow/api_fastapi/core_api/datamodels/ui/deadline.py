@@ -33,6 +33,8 @@ class DeadlineResponse(BaseModel):
     deadline_time: datetime
     missed: bool
     created_at: datetime
+    dag_id: str = Field(validation_alias=AliasPath("dagrun", "dag_id"))
+    dag_run_id: str = Field(validation_alias=AliasPath("dagrun", "run_id"))
     alert_name: str | None = Field(validation_alias=AliasPath("deadline_alert", "name"), default=None)
     alert_description: str | None = Field(
         validation_alias=AliasPath("deadline_alert", "description"), default=None
@@ -43,4 +45,22 @@ class DeadlineCollectionResponse(BaseModel):
     """Deadline Collection serializer for responses."""
 
     deadlines: Iterable[DeadlineResponse]
+    total_entries: int
+
+
+class DeadlineAlertResponse(BaseModel):
+    """DeadlineAlert serializer for responses."""
+
+    id: UUID
+    name: str | None = None
+    description: str | None = None
+    reference_type: str = Field(validation_alias=AliasPath("reference", "reference_type"))
+    interval: float = Field(description="Interval in seconds between deadline evaluations.")
+    created_at: datetime
+
+
+class DeadlineAlertCollectionResponse(BaseModel):
+    """DeadlineAlert Collection serializer for responses."""
+
+    deadline_alerts: Iterable[DeadlineAlertResponse]
     total_entries: int

@@ -54,3 +54,31 @@ export const jobStateOptions = createListCollection<{
     })),
   ],
 });
+
+export const bulkWorkerShutdownEligibleStates = new Set<EdgeWorkerState>([
+  "idle",
+  "running",
+  "maintenance pending",
+  "maintenance mode",
+  "maintenance request",
+]);
+
+export const bulkWorkerDeleteEligibleStates = new Set<EdgeWorkerState>([
+  "offline",
+  "unknown",
+  "offline maintenance",
+]);
+
+export const bulkWorkerMaintenanceEnterEligibleStates = new Set<EdgeWorkerState>([
+  "idle",
+  "running",
+]);
+
+export const bulkWorkerMaintenanceExitEligibleStates = new Set<EdgeWorkerState>([
+  "maintenance pending",
+  "maintenance mode",
+  "maintenance request",
+  "offline maintenance",
+]);
+
+export const bulkWorkerActionBatchSize = 10;

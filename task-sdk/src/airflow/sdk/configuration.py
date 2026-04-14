@@ -125,12 +125,24 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         *args,
         **kwargs,
     ):
+        # Imported lazily to preserve the module-level lazy ``conf`` initialization and avoid a
+        # configuration/providers_manager_runtime import cycle.
+        from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+
         # Read Core's config.yml (Phase 1: shared config.yml)
-        configuration_description = retrieve_configuration_description()
+        _configuration_description = retrieve_configuration_description()
         # Create default values parser
-        _default_values = create_default_config_parser(configuration_description)
-        super().__init__(configuration_description, _default_values, *args, **kwargs)
-        self.configuration_description = configuration_description
+        _default_values = create_default_config_parser(_configuration_description)
+        super().__init__(
+            _configuration_description,
+            _default_values,
+            ProvidersManagerTaskRuntime,
+            create_default_config_parser,
+            _default_config_file_path("provider_config_fallback_defaults.cfg"),
+            *args,
+            **kwargs,
+        )
+        self._configuration_description = _configuration_description
         self._default_values = _default_values
         self._suppress_future_warnings = False
 
@@ -144,6 +156,11 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
 
         if default_config is not None:
             self._update_defaults_from_string(default_config)
+
+    def _get_custom_secret_backend(self, worker_mode: bool | None = None) -> Any | None:
+        return super()._get_custom_secret_backend(
+            worker_mode=worker_mode if worker_mode is not None else True
+        )
 
     def expand_all_configuration_values(self):
         """Expand all configuration values using SDK-specific expansion variables."""

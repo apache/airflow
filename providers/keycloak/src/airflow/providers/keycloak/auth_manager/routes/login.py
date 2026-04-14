@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import secrets
 from typing import cast
 from urllib.parse import quote, urljoin
 
@@ -53,6 +54,7 @@ log = logging.getLogger(__name__)
 login_router = AirflowRouter(tags=["KeycloakAuthManagerLogin"])
 
 COOKIE_NAME_ID_TOKEN = "_id_token"
+COOKIE_NAME_OAUTH_STATE = "_oauth_state"
 
 
 @login_router.get("/login")
@@ -60,8 +62,15 @@ def login(request: Request) -> RedirectResponse:
     """Initiate the authentication."""
     client = KeycloakAuthManager.get_keycloak_client()
     redirect_uri = request.url_for("login_callback")
-    auth_url = client.auth_url(redirect_uri=str(redirect_uri), scope="openid")
-    return RedirectResponse(auth_url)
+    state = secrets.token_urlsafe(32)
+    auth_url = client.auth_url(redirect_uri=str(redirect_uri), scope="openid", state=state)
+    response = RedirectResponse(auth_url)
+    secure = bool(conf.get("api", "ssl_cert", fallback=""))
+    cookie_path = get_cookie_path()
+    response.set_cookie(
+        COOKIE_NAME_OAUTH_STATE, state, max_age=300, path=cookie_path, httponly=True, secure=secure
+    )
+    return response
 
 
 @login_router.get("/login_callback")
@@ -70,6 +79,10 @@ def login_callback(request: Request):
     code = request.query_params.get("code")
     if not code:
         return HTMLResponse("Missing code", status_code=400)
+    state_q = request.query_params.get("state", "")
+    state_c = request.cookies.get(COOKIE_NAME_OAUTH_STATE, "")
+    if not state_q or not state_c or not secrets.compare_digest(state_q, state_c):
+        return HTMLResponse("Invalid OAuth state parameter", status_code=403)
 
     client = KeycloakAuthManager.get_keycloak_client()
     redirect_uri = request.url_for("login_callback")

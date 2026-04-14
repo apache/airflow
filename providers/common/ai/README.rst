@@ -23,38 +23,79 @@
 
 Package ``apache-airflow-providers-common-ai``
 
-Release: ``0.0.1``
+Release: ``0.1.0``
 
 
-``Common AI Provider``
+AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
 
 Provider package
 ----------------
 
-This is a provider package for ``common-ai`` provider. All classes for this provider package
+This is a provider package for ``common.ai`` provider. All classes for this provider package
 are in ``airflow.providers.common.ai`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.0.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.1.0/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-common-ai``
 
-The package supports the following python versions: 3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=3.0.0``
-==================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=3.0.0``
+``apache-airflow-providers-common-compat``  ``>=1.14.1``
+``apache-airflow-providers-standard``       ``>=1.12.1``
+``pydantic-ai-slim``                        ``>=1.34.0``
+==========================================  ==================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified providers in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-common-ai[common.compat]
+
+
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
+`apache-airflow-providers-standard <https://airflow.apache.org/docs/apache-airflow-providers-standard>`_            ``standard``
+==================================================================================================================  =================
+
+Optional dependencies
+----------------------
+
+==============  =============================================================================================
+Extra           Dependencies
+==============  =============================================================================================
+``anthropic``   ``pydantic-ai-slim[anthropic]``
+``bedrock``     ``pydantic-ai-slim[bedrock]``
+``google``      ``pydantic-ai-slim[google]``
+``openai``      ``pydantic-ai-slim[openai]``
+``mcp``         ``pydantic-ai-slim[mcp]``
+``avro``        ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
+``parquet``     ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
+``sql``         ``apache-airflow-providers-common-sql``, ``sqlglot>=30.0.0``
+``common.sql``  ``apache-airflow-providers-common-sql``
+==============  =============================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.0.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.1.0/changelog.html>`_.

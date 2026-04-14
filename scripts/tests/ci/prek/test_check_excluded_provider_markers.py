@@ -19,42 +19,42 @@ from __future__ import annotations
 import pytest
 from check_excluded_provider_markers import _check_dependency
 
-EXCLUDED = {
-    "apache-airflow-providers-amazon": ["3.14"],
-    "apache-airflow-providers-google": ["3.14"],
-}
-
 
 class TestCheckDependency:
+    EXCLUDED = {
+        "apache-airflow-providers-amazon": ["3.14"],
+        "apache-airflow-providers-google": ["3.14"],
+    }
+
     def test_no_error_when_marker_present(self):
         dep = 'apache-airflow-providers-amazon>=9.0.0; python_version !="3.14"'
-        assert _check_dependency(dep, EXCLUDED) == []
+        assert _check_dependency(dep, self.EXCLUDED) == []
 
     def test_error_when_marker_missing(self):
         dep = "apache-airflow-providers-amazon>=9.0.0"
-        errors = _check_dependency(dep, EXCLUDED)
+        errors = _check_dependency(dep, self.EXCLUDED)
         assert len(errors) == 1
         assert '!="3.14"' in errors[0]
 
     def test_error_when_no_marker_with_extras(self):
         dep = "apache-airflow-providers-amazon[aiobotocore]>=9.6.0"
-        errors = _check_dependency(dep, EXCLUDED)
+        errors = _check_dependency(dep, self.EXCLUDED)
         assert len(errors) == 1
 
     def test_no_error_with_extras_and_marker(self):
         dep = 'apache-airflow-providers-amazon[aiobotocore]>=9.6.0; python_version !="3.14"'
-        assert _check_dependency(dep, EXCLUDED) == []
+        assert _check_dependency(dep, self.EXCLUDED) == []
 
     def test_no_error_for_non_excluded_provider(self):
         dep = "apache-airflow-providers-celery>=1.0.0"
-        assert _check_dependency(dep, EXCLUDED) == []
+        assert _check_dependency(dep, self.EXCLUDED) == []
 
     def test_no_error_for_non_provider_dependency(self):
         dep = "requests>=2.28"
-        assert _check_dependency(dep, EXCLUDED) == []
+        assert _check_dependency(dep, self.EXCLUDED) == []
 
     def test_invalid_requirement_ignored(self):
-        assert _check_dependency("not a valid requirement!!!", EXCLUDED) == []
+        assert _check_dependency("not a valid requirement!!!", self.EXCLUDED) == []
 
     @pytest.mark.parametrize(
         "excluded_versions",

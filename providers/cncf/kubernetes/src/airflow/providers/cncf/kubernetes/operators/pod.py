@@ -41,7 +41,6 @@ from kubernetes.client.exceptions import ApiException
 from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
 
-from airflow.configuration import conf
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     convert_affinity,
@@ -80,7 +79,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
-from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, TaskDeferred
+from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, TaskDeferred, conf
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseHook, BaseOperator
@@ -101,6 +100,8 @@ if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.hooks.kubernetes import PodOperatorHookProtocol
     from airflow.providers.cncf.kubernetes.secret import Secret
     from airflow.sdk import Context
+
+log = logging.getLogger(__name__)
 
 alphanum_lower = string.ascii_lowercase + string.digits
 
@@ -185,6 +186,7 @@ class KubernetesPodOperator(BaseOperator):
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
+    :param runtime_class_name: The name of the RuntimeClass to use for all containers in the pod.
     :param node_selector: A dict containing a group of scheduling rules. (templated)
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
@@ -324,6 +326,7 @@ class KubernetesPodOperator(BaseOperator):
         container_resources: k8s.V1ResourceRequirements | None = None,
         affinity: k8s.V1Affinity | None = None,
         config_file: str | None = None,
+        runtime_class_name: str | None = None,
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
@@ -405,6 +408,7 @@ class KubernetesPodOperator(BaseOperator):
         self.init_container_logs = init_container_logs
         self.container_logs = container_logs or self.base_container_name
         self.image_pull_policy = image_pull_policy
+        self.runtime_class_name = runtime_class_name
         self.node_selector = node_selector or {}
         self.annotations = annotations or {}
         self.affinity = convert_affinity(affinity) if affinity else {}
@@ -969,7 +973,14 @@ class KubernetesPodOperator(BaseOperator):
 
             if event["status"] in ("error", "failed", "timeout", "success"):
                 if self.get_logs:
-                    self._write_logs(self.pod, follow=follow, since_time=last_log_time)
+                    try:
+                        self._write_logs(self.pod, follow=follow, since_time=last_log_time)
+                    except (HTTPError, ApiException) as e:
+                        self.log.warning(
+                            "Reading of logs interrupted with error %r. "
+                            "Set log level to DEBUG for traceback.",
+                            e if not isinstance(e, ApiException) else e.reason,
+                        )
 
                 for callback in self.callbacks:
                     callback.on_pod_completion(
@@ -1032,32 +1043,32 @@ class KubernetesPodOperator(BaseOperator):
                 result=result,
             )
 
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_exponential(max=15),
+        retry=tenacity.retry_if_exception_type((HTTPError, ApiException)),
+        before_sleep=tenacity.before_sleep_log(log, logging.WARNING),
+        reraise=True,
+    )
     def _write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
-        try:
-            since_seconds = (
-                math.ceil((datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds())
-                if since_time
-                else None
-            )
-            logs = self.client.read_namespaced_pod_log(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-                container=self.base_container_name,
-                follow=follow,
-                timestamps=False,
-                since_seconds=since_seconds,
-                _preload_content=False,
-            )
-            for raw_line in logs:
-                line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
-                if line:
-                    self.log.info("[%s] logs: %s", self.base_container_name, line)
-        except (HTTPError, ApiException) as e:
-            self.log.warning(
-                "Reading of logs interrupted with error %r; will retry. "
-                "Set log level to DEBUG for traceback.",
-                e if not isinstance(e, ApiException) else e.reason,
-            )
+        since_seconds = (
+            math.ceil((datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds())
+            if since_time
+            else None
+        )
+        logs = self.client.read_namespaced_pod_log(
+            name=pod.metadata.name,
+            namespace=pod.metadata.namespace,
+            container=self.base_container_name,
+            follow=follow,
+            timestamps=False,
+            since_seconds=since_seconds,
+            _preload_content=False,
+        )
+        for raw_line in logs:
+            line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
+            if line:
+                self.log.info("[%s] logs: %s", self.base_container_name, line)
 
     def post_complete_action(
         self, *, pod: k8s.V1Pod, remote_pod: k8s.V1Pod, context: Context, result: dict | None, **kwargs
@@ -1352,6 +1363,7 @@ class KubernetesPodOperator(BaseOperator):
                 annotations=self.annotations,
             ),
             spec=k8s.V1PodSpec(
+                runtime_class_name=self.runtime_class_name,
                 node_selector=self.node_selector,
                 affinity=self.affinity,
                 tolerations=self.tolerations,
