@@ -1221,7 +1221,10 @@ class DagFileProcessorManager(LoggingMixin):
         if self.log.isEnabledFor(logging.DEBUG):
             for path, processor in self._processors.items():
                 self.log.debug(
-                    "File path %s is still being processed (started: %s)", path, processor.start_time
+                    "File path %s is still being processed (started at: %.2f, duration: %.2fs)",
+                    path,
+                    processor.start_time,
+                    time.monotonic() - processor.start_time,
                 )
 
             self.log.debug(
