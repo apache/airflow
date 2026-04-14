@@ -256,6 +256,7 @@ def example_llm_survey_scheduled():
     the run frequency.
 
     Prerequisites:
+
     - HTTP connection ``airflow_website`` pointing at ``https://airflow.apache.org``.
     - Set ``SMTP_CONN_ID`` and ``NOTIFY_EMAIL`` environment variables to enable
       email delivery of results; otherwise results are logged to the task log.
