@@ -521,3 +521,210 @@ class TestGetAssetEventByAssetAlias:
                 },
             ]
         }
+
+
+class TestGetAssetEventByAssetExtraFilter:
+    @pytest.fixture
+    def test_events_with_extra(self, session):
+        asset = AssetModel(
+            id=1,
+            name="test_asset",
+            uri="s3://bucket/key",
+            group="asset",
+            extra={},
+            created_at=DEFAULT_DATE,
+            updated_at=DEFAULT_DATE,
+        )
+        asset_active = AssetActive.for_asset(asset)
+        session.add_all([asset, asset_active])
+        session.flush()
+
+        events = [
+            AssetEvent(
+                id=1,
+                asset_id=1,
+                extra={"region": "us", "env": "prod"},
+                source_dag_id="d1",
+                source_task_id="t1",
+                source_run_id="r1",
+                source_map_index=-1,
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                id=2,
+                asset_id=1,
+                extra={"region": "eu", "env": "prod"},
+                source_dag_id="d1",
+                source_task_id="t1",
+                source_run_id="r2",
+                source_map_index=-1,
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                id=3,
+                asset_id=1,
+                extra={"region": "us", "env": "staging"},
+                source_dag_id="d1",
+                source_task_id="t1",
+                source_run_id="r3",
+                source_map_index=-1,
+                timestamp=DEFAULT_DATE,
+            ),
+        ]
+        session.add_all(events)
+        session.commit()
+        yield events
+        for e in events:
+            session.delete(e)
+        session.delete(asset_active)
+        session.delete(asset)
+        session.commit()
+
+    @pytest.mark.usefixtures("test_events_with_extra")
+    def test_filter_by_extra_key_value(self, client):
+        response = client.get(
+            "/execution/asset-events/by-asset",
+            params=[("name", "test_asset"), ("uri", "s3://bucket/key"), ("extra", "region=us")],
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["asset_events"]) == 2
+        assert all(e["extra"]["region"] == "us" for e in data["asset_events"])
+
+    @pytest.mark.usefixtures("test_events_with_extra")
+    def test_filter_by_extra_env(self, client):
+        response = client.get(
+            "/execution/asset-events/by-asset",
+            params=[("name", "test_asset"), ("uri", "s3://bucket/key"), ("extra", "env=prod")],
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["asset_events"]) == 2
+
+    @pytest.mark.usefixtures("test_events_with_extra")
+    def test_no_extra_filter_returns_all(self, client):
+        response = client.get(
+            "/execution/asset-events/by-asset",
+            params={"name": "test_asset", "uri": "s3://bucket/key"},
+        )
+        assert response.status_code == 200
+        assert len(response.json()["asset_events"]) == 3
+
+    @pytest.mark.usefixtures("test_events_with_extra")
+    def test_filter_nonexistent_key(self, client):
+        response = client.get(
+            "/execution/asset-events/by-asset",
+            params=[("name", "test_asset"), ("uri", "s3://bucket/key"), ("extra", "missing=val")],
+        )
+        assert response.status_code == 200
+        assert len(response.json()["asset_events"]) == 0
+
+    @pytest.mark.usefixtures("test_events_with_extra")
+    @pytest.mark.parametrize(
+        ("extra_params", "expected_count"),
+        [
+            ([("extra", "region=us"), ("extra", "env=prod")], 1),
+            ([("extra", "region=eu"), ("extra", "env=prod")], 1),
+            ([("extra", "region=us"), ("extra", "env=staging")], 1),
+            ([("extra", "region=eu"), ("extra", "env=staging")], 0),
+        ],
+    )
+    def test_filter_multiple_extra_keys(self, client, extra_params, expected_count):
+        response = client.get(
+            "/execution/asset-events/by-asset",
+            params=[("name", "test_asset"), ("uri", "s3://bucket/key"), *extra_params],
+        )
+        assert response.status_code == 200
+        assert len(response.json()["asset_events"]) == expected_count
+
+
+class TestGetAssetEventByAssetAliasExtraFilter:
+    @pytest.fixture
+    def test_alias_events_with_extra(self, session):
+        asset = AssetModel(
+            id=1,
+            name="test_asset",
+            uri="s3://bucket/key",
+            group="asset",
+            extra={},
+            created_at=DEFAULT_DATE,
+            updated_at=DEFAULT_DATE,
+        )
+        asset_active = AssetActive.for_asset(asset)
+        session.add_all([asset, asset_active])
+        session.flush()
+
+        events = [
+            AssetEvent(
+                id=1,
+                asset_id=1,
+                extra={"tier": "gold", "region": "us"},
+                source_dag_id="d1",
+                source_task_id="t1",
+                source_run_id="r1",
+                source_map_index=-1,
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                id=2,
+                asset_id=1,
+                extra={"tier": "silver", "region": "eu"},
+                source_dag_id="d1",
+                source_task_id="t1",
+                source_run_id="r2",
+                source_map_index=-1,
+                timestamp=DEFAULT_DATE,
+            ),
+        ]
+        session.add_all(events)
+        session.flush()
+
+        alias = AssetAliasModel(id=1, name="test_alias")
+        alias.asset_events = events
+        alias.assets.append(asset)
+        session.add(alias)
+        session.commit()
+        yield events
+        session.delete(alias)
+        for e in events:
+            session.delete(e)
+        session.delete(asset_active)
+        session.delete(asset)
+        session.commit()
+
+    @pytest.mark.usefixtures("test_alias_events_with_extra")
+    def test_filter_by_extra_key_value(self, client):
+        response = client.get(
+            "/execution/asset-events/by-asset-alias",
+            params=[("name", "test_alias"), ("extra", "tier=gold")],
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["asset_events"]) == 1
+        assert data["asset_events"][0]["extra"]["tier"] == "gold"
+
+    @pytest.mark.usefixtures("test_alias_events_with_extra")
+    def test_no_extra_filter_returns_all(self, client):
+        response = client.get(
+            "/execution/asset-events/by-asset-alias",
+            params={"name": "test_alias"},
+        )
+        assert response.status_code == 200
+        assert len(response.json()["asset_events"]) == 2
+
+    @pytest.mark.usefixtures("test_alias_events_with_extra")
+    @pytest.mark.parametrize(
+        ("extra_params", "expected_count"),
+        [
+            ([("extra", "tier=gold"), ("extra", "region=us")], 1),
+            ([("extra", "tier=gold"), ("extra", "region=eu")], 0),
+            ([("extra", "tier=silver"), ("extra", "region=eu")], 1),
+        ],
+    )
+    def test_filter_multiple_extra_keys(self, client, extra_params, expected_count):
+        response = client.get(
+            "/execution/asset-events/by-asset-alias",
+            params=[("name", "test_alias"), *extra_params],
+        )
+        assert response.status_code == 200
+        assert len(response.json()["asset_events"]) == expected_count

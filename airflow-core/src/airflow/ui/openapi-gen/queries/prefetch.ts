@@ -68,6 +68,7 @@ export const prefetchUseAssetServiceGetAssetAlias = (queryClient: QueryClient, {
 * @param data.sourceRunId
 * @param data.sourceMapIndex
 * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.extra Filter by JSON key-value pairs. Repeat for multiple conditions (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).
 * @param data.timestampGte
 * @param data.timestampGt
 * @param data.timestampLte
@@ -75,8 +76,9 @@ export const prefetchUseAssetServiceGetAssetAlias = (queryClient: QueryClient, {
 * @returns AssetEventCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, { assetId, limit, namePattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
+export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, { assetId, extra, limit, namePattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
   assetId?: number;
+  extra?: string[];
   limit?: number;
   namePattern?: string;
   offset?: number;
@@ -89,7 +91,7 @@ export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, 
   timestampGte?: string;
   timestampLt?: string;
   timestampLte?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, limit, namePattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }), queryFn: () => AssetService.getAssetEvents({ assetId, limit, namePattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, extra, limit, namePattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }), queryFn: () => AssetService.getAssetEvents({ assetId, extra, limit, namePattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }) });
 /**
 * Get Asset Queued Events
 * Get queued asset events for an asset.

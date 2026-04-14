@@ -109,6 +109,7 @@ export class AssetService {
      * @param data.sourceRunId
      * @param data.sourceMapIndex
      * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.extra Filter by JSON key-value pairs. Repeat for multiple conditions (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).
      * @param data.timestampGte
      * @param data.timestampGt
      * @param data.timestampLte
@@ -130,6 +131,7 @@ export class AssetService {
                 source_run_id: data.sourceRunId,
                 source_map_index: data.sourceMapIndex,
                 name_pattern: data.namePattern,
+                extra: data.extra,
                 timestamp_gte: data.timestampGte,
                 timestamp_gt: data.timestampGt,
                 timestamp_lte: data.timestampLte,

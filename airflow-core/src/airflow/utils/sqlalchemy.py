@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import datetime
+import json
 import logging
 from collections.abc import Generator
 from typing import TYPE_CHECKING
@@ -27,7 +28,9 @@ from typing import TYPE_CHECKING
 from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.types import JSON, Text, TypeDecorator
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql.expression import ColumnElement
+from sqlalchemy.types import JSON, NullType, Text, TypeDecorator
 
 from airflow._shared.timezones.timezone import make_naive, utc
 from airflow.configuration import conf
@@ -40,7 +43,6 @@ if TYPE_CHECKING:
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
-    from sqlalchemy.sql.elements import ColumnElement
     from sqlalchemy.types import TypeEngine
 
     from airflow.typing_compat import Self
@@ -54,6 +56,56 @@ def get_dialect_name(session: Session) -> str | None:
     if (bind := session.get_bind()) is None:
         raise ValueError("No bind/engine is associated with the provided Session")
     return getattr(bind.dialect, "name", None)
+
+
+class JsonContains(ColumnElement):
+    """
+    Dialect-aware JSON containment check.
+
+    Compiles to ``@>`` on PostgreSQL (GIN-indexable), ``JSON_CONTAINS`` on
+    MySQL, and per-key ``json_extract`` comparisons on SQLite.
+
+    All dialects use bound parameters to avoid SQL injection.
+    """
+
+    inherit_cache = False
+    type = NullType()
+
+    def __init__(self, column, kv_dict: dict[str, str]):
+        self.column = column
+        self.kv_dict = kv_dict
+
+
+@compiles(JsonContains, "postgresql")
+def _pg_json_contains(element, compiler, **kw):
+    from sqlalchemy import cast, literal
+
+    col = cast(element.column, JSONB)
+    param = literal(json.dumps(element.kv_dict)).cast(JSONB)
+    expr = col.contains(param)
+    return compiler.process(expr, **kw)
+
+
+@compiles(JsonContains, "mysql")
+def _mysql_json_contains(element, compiler, **kw):
+    from sqlalchemy import bindparam, func
+
+    param = bindparam(None, json.dumps(element.kv_dict), expanding=False)
+    expr = func.JSON_CONTAINS(element.column, param)
+    return compiler.process(expr == 1, **kw)
+
+
+@compiles(JsonContains)
+def _default_json_contains(element, compiler, **kw):
+    from sqlalchemy import and_, func, literal
+
+    clauses = []
+    for k, v in element.kv_dict.items():
+        path = f"$.{k}"
+        clauses.append(func.json_extract(element.column, literal(path)) == literal(v))
+    if len(clauses) == 1:
+        return compiler.process(clauses[0], **kw)
+    return compiler.process(and_(*clauses), **kw)
 
 
 class UtcDateTime(TypeDecorator):
