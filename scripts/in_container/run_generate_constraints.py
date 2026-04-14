@@ -358,9 +358,13 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     #
     # Current exclusions:
     #
-    # * no exclusions
+    # * pyarrow>=22.0.0 on Python 3.14 — older pyarrow releases have no prebuilt wheels for
+    #   Python 3.14 and uv falls back to building from source, which fails. pyarrow 22.0.0 is
+    #   the first release shipping cp314 wheels.
     #
-    additional_constraints_for_highest_resolution: list[str] = []
+    additional_constraints_for_highest_resolution: list[str] = [
+        "pyarrow>=22.0.0; python_version >= '3.14'",
+    ]
 
     result = run_command(
         cmd=[
