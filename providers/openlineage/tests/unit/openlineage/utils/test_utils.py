@@ -2265,7 +2265,7 @@ class TestDagInfoAirflow2:
             dag_id="dag_id",
             start_date=datetime.datetime(2024, 6, 1),
             schedule=DatasetOrTimeSchedule(
-                timetable=CronTriggerTimetable("*/4 3 * * *", timezone="UTC"),
+                timetable=CronTriggerTimetable("*/4 3 * * *", timezone="UTC", run_immediately=True),
                 datasets=((Asset("uri1", extra={"a": 1}) | Asset("uri2")) & (Asset("uri3") | Asset("uri4"))),
             ),
         )
@@ -2590,7 +2590,7 @@ class TestDagInfoAirflow3:
             dag_id="dag_id",
             start_date=datetime.datetime(2024, 6, 1),
             schedule=AssetOrTimeSchedule(
-                timetable=CronTriggerTimetable("*/4 3 * * *", timezone="UTC"),
+                timetable=CronTriggerTimetable("*/4 3 * * *", timezone="UTC", run_immediately=True),
                 assets=((Asset("uri1", extra={"a": 1}) | Asset("uri2")) & (Asset("uri3") | Asset("uri4"))),
             ),
         )

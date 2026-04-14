@@ -514,7 +514,7 @@ def test_serialize_timetable_with_dataset_or_time_schedule():
         dag_id="test",
         start_date=datetime.datetime(2025, 1, 1),
         schedule=AssetOrTimeSchedule(
-            timetable=CronTriggerTimetable("0 0 * 3 *", timezone="UTC"),
+            timetable=CronTriggerTimetable("0 0 * 3 *", timezone="UTC", run_immediately=True),
             assets=(Asset("ds1", extra={"some_extra": 1}) | Asset("ds2"))
             & (Asset("ds3") | Asset("ds4", extra={"another_extra": 345})),
         ),
