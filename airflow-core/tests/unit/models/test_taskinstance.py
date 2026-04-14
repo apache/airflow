@@ -3655,3 +3655,146 @@ def test_clear_task_instances_resets_context_carrier(dag_maker, session):
 
     assert ti.context_carrier["traceparent"] != original_ti_traceparent
     assert dag_run.context_carrier["traceparent"] != original_dr_traceparent
+
+
+class TestClearExternalTaskMarkerDependencies:
+    """Tests for clear_external_task_marker_dependencies."""
+
+    def test_clears_external_dag_tasks(self, dag_maker, session):
+        """Test that clearing an ExternalTaskMarker clears the referenced task in the external DAG."""
+        from airflow.models.dagbag import DBDagBag
+        from airflow.models.taskinstance import clear_external_task_marker_dependencies
+        from airflow.providers.standard.sensors.external_task import ExternalTaskMarker
+
+        # Create the parent DAG with an ExternalTaskMarker
+        with dag_maker("parent_dag", session=session):
+            EmptyOperator(task_id="upstream_task")
+            ExternalTaskMarker(
+                task_id="marker_task",
+                external_dag_id="child_dag",
+                external_task_id="child_sensor",
+            )
+        parent_dr = dag_maker.create_dagrun()
+
+        # Create the child DAG
+        with dag_maker("child_dag", session=session):
+            EmptyOperator(task_id="child_sensor")
+            EmptyOperator(task_id="child_downstream")
+        child_dr = dag_maker.create_dagrun()
+
+        # Set all TIs to success
+        for ti in parent_dr.task_instances:
+            ti.state = TaskInstanceState.SUCCESS
+        for ti in child_dr.task_instances:
+            ti.state = TaskInstanceState.SUCCESS
+        session.flush()
+
+        # Get the marker TI
+        marker_ti = parent_dr.get_task_instance("marker_task", session=session)
+
+        dag_bag = DBDagBag(load_op_links=False)
+
+        # Call the function
+        external_tis = clear_external_task_marker_dependencies(
+            tis=[marker_ti],
+            dag_bag=dag_bag,
+            session=session,
+        )
+
+        # Verify external tasks were cleared
+        assert len(external_tis) > 0
+        cleared_keys = {(ti.dag_id, ti.task_id) for ti in external_tis}
+        assert ("child_dag", "child_sensor") in cleared_keys
+
+    def test_skips_non_marker_tasks(self, dag_maker, session):
+        """Test that non-ExternalTaskMarker tasks are ignored."""
+        from airflow.models.dagbag import DBDagBag
+        from airflow.models.taskinstance import clear_external_task_marker_dependencies
+
+        with dag_maker("regular_dag", session=session):
+            EmptyOperator(task_id="regular_task")
+        dr = dag_maker.create_dagrun()
+
+        ti = dr.get_task_instance("regular_task", session=session)
+        ti.state = TaskInstanceState.SUCCESS
+        session.flush()
+
+        dag_bag = DBDagBag(load_op_links=False)
+
+        external_tis = clear_external_task_marker_dependencies(
+            tis=[ti],
+            dag_bag=dag_bag,
+            session=session,
+        )
+
+        assert external_tis == []
+
+    def test_handles_missing_external_dag(self, dag_maker, session):
+        """Test that a missing external DAG is handled gracefully."""
+        from airflow.models.dagbag import DBDagBag
+        from airflow.models.taskinstance import clear_external_task_marker_dependencies
+        from airflow.providers.standard.sensors.external_task import ExternalTaskMarker
+
+        with dag_maker("parent_dag_missing", session=session):
+            ExternalTaskMarker(
+                task_id="marker_task",
+                external_dag_id="nonexistent_dag",
+                external_task_id="nonexistent_task",
+            )
+        dr = dag_maker.create_dagrun()
+
+        ti = dr.get_task_instance("marker_task", session=session)
+        ti.state = TaskInstanceState.SUCCESS
+        session.flush()
+
+        dag_bag = DBDagBag(load_op_links=False)
+
+        # Should not raise, just skip
+        external_tis = clear_external_task_marker_dependencies(
+            tis=[ti],
+            dag_bag=dag_bag,
+            session=session,
+        )
+        assert external_tis == []
+
+    def test_respects_recursion_depth(self, session):
+        """Test that recursion_depth limit raises RuntimeError."""
+        from airflow.models.taskinstance import clear_external_task_marker_dependencies
+
+        with pytest.raises(RuntimeError, match="Maximum recursion depth"):
+            clear_external_task_marker_dependencies(
+                tis=[],
+                dag_bag=mock.MagicMock(),
+                session=session,
+                recursion_depth=0,
+            )
+
+    def test_prevents_cycles(self, dag_maker, session):
+        """Test that visited set prevents infinite cycles."""
+        from airflow.models.dagbag import DBDagBag
+        from airflow.models.taskinstance import clear_external_task_marker_dependencies
+        from airflow.providers.standard.sensors.external_task import ExternalTaskMarker
+
+        with dag_maker("cyclic_dag", session=session):
+            ExternalTaskMarker(
+                task_id="marker_back",
+                external_dag_id="cyclic_dag",
+                external_task_id="marker_back",
+            )
+        dr = dag_maker.create_dagrun()
+
+        ti = dr.get_task_instance("marker_back", session=session)
+        ti.state = TaskInstanceState.SUCCESS
+        session.flush()
+
+        dag_bag = DBDagBag(load_op_links=False)
+
+        # Should not loop forever — visited set breaks the cycle
+        external_tis = clear_external_task_marker_dependencies(
+            tis=[ti],
+            dag_bag=dag_bag,
+            session=session,
+        )
+        # The self-referencing marker should be cleared once
+        cleared_keys = {(t.dag_id, t.task_id) for t in external_tis}
+        assert ("cyclic_dag", "marker_back") in cleared_keys
