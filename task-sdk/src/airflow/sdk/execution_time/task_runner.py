@@ -47,6 +47,7 @@ from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
+    BundleInfo,
     DagRun,
     PreviousTIResponse,
     TaskInstance,
@@ -778,12 +779,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 
     bundle_info = what.bundle_info
     bundle_prepare_start = time.monotonic()
-    bundle_instance = DagBundlesManager().get_bundle(
-        name=bundle_info.name,
-        version=bundle_info.version,
-    )
-    bundle_instance.initialize()
-    _verify_bundle_access(bundle_instance, log)
+    bundle_instance = resolve_bundle(bundle_info, log)
     bundle_prepare_ms = int((time.monotonic() - bundle_prepare_start) * 1000)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
@@ -907,6 +903,22 @@ def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
             f"are readable by the impersonated user. "
             f"See: https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/dag-bundles.html"
         )
+
+
+def resolve_bundle(bundle_info: BundleInfo, log: Logger) -> BaseDagBundle:
+    """
+    Resolve, initialize, and verify access to a DAG bundle.
+
+    Used by both the standard Python task execution path and locale
+    coordinators (Java, Go, etc.) to obtain a ready-to-use bundle instance.
+    """
+    bundle_instance = DagBundlesManager().get_bundle(
+        name=bundle_info.name,
+        version=bundle_info.version,
+    )
+    bundle_instance.initialize()
+    _verify_bundle_access(bundle_instance, log)
+    return bundle_instance
 
 
 def get_startup_details() -> StartupDetails:
@@ -1990,8 +2002,7 @@ def _resolve_locale_entrypoint(startup_details: StartupDetails, log: Logger) -> 
         return functools.partial(
             coordinator_cls.run_task_execution,
             what=startup_details.ti,
-            # dag_rel_path=startup_details.dag_rel_path, #TODO: Not sure why we get `.` for dag_rel_path, mock as expected path for now
-            dag_rel_path="/files/java-bundle/lib/example.jar",
+            dag_rel_path=startup_details.dag_rel_path,
             bundle_info=startup_details.bundle_info,
             startup_details=startup_details,
         )
