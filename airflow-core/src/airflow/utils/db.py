@@ -1207,7 +1207,8 @@ def _run_upgradedb(
         # End the read-only transaction from _get_current_revision before
         # external DB manager migrations, which may run DDL that is blocked by
         # open transactions (e.g. CREATE INDEX CONCURRENTLY). The advisory lock
-        # is unaffected: it is session-level and held on a separate connection.
+        # from create_global_lock() is unaffected: it is session-level and held
+        # on a separate connection.
         work_session.rollback()
 
         if current_revision == source_heads[0] and not _SKIP_EXTERNAL_DB_MANAGERS_UPGRADE.get():
