@@ -604,7 +604,7 @@ class TestDagRunOperatorAF2:
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
             dagrun = dag_maker.session.scalar(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID))
-            unsupported_params = ["note"]
+            unsupported_params = ["run_after", "note"]
             assert mock_warning.mock_calls == [
                 mock.call(
                     "The following parameters are not supported in Airflow 2.x and will be ignored: %s",
