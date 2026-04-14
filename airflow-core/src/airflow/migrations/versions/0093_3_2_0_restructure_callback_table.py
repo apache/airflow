@@ -96,3 +96,29 @@ def downgrade():
         batch_op.drop_column("type")
 
     op.rename_table("callback", "callback_request")
+
+    dialect_name = op.get_bind().dialect.name
+    if dialect_name == "postgresql":
+        # PostgreSQL does not always recreate the sequence/default when an integer
+        # column is re-added during batch migrations.
+        op.execute("CREATE SEQUENCE IF NOT EXISTS callback_request_id_seq OWNED BY callback_request.id")
+        op.execute(
+            "SELECT setval('callback_request_id_seq', "
+            "COALESCE((SELECT MAX(id) FROM callback_request), 1), "
+            "(SELECT MAX(id) IS NOT NULL FROM callback_request))"
+        )
+        op.execute(
+            "ALTER TABLE callback_request ALTER COLUMN id SET DEFAULT nextval('callback_request_id_seq')"
+        )
+    elif dialect_name == "mysql":
+        # Restore AUTO_INCREMENT and continue from the current max id.
+        conn = op.get_bind()
+        result = conn.execute(sa.text("SELECT COALESCE(MAX(id), 0) + 1 FROM callback_request"))
+        next_id = result.scalar()
+        op.execute(
+            sa.text(
+                f"ALTER TABLE callback_request "
+                f"MODIFY COLUMN id INTEGER NOT NULL AUTO_INCREMENT, "
+                f"AUTO_INCREMENT = {next_id}"
+            )
+        )
