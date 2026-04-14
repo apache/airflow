@@ -205,16 +205,16 @@ class TestFabAirflowSecurityManagerOverride:
             _perms={("can_read", "DAG")},
         )
         existing_user = Mock(spec=User, roles=[Mock(spec=Role, id=4)], groups=[Mock(spec=Group, id=5)])
-        merged_user = Mock(spec=User, _perms={("can_edit", "DAG")})
+        mock_merged_user = Mock(spec=User, _perms={("can_edit", "DAG")})
         mock_session = Mock(spec=Session)
         mock_session.get.return_value = existing_user
-        mock_session.merge.return_value = merged_user
+        mock_session.merge.return_value = mock_merged_user
 
         with mock.patch.object(EmptySecurityManager, "session", mock_session):
             assert sm.update_user(user)
 
-        assert user._perms is None
-        assert merged_user._perms is None
+        assert user._perms == {("can_read", "DAG")}
+        assert mock_merged_user._perms is None
         mock_session.commit.assert_called_once_with()
 
     @pytest.mark.parametrize(
