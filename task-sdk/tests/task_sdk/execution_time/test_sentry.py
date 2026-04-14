@@ -21,14 +21,13 @@ import datetime
 import importlib
 import sys
 import types
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
 import uuid6
-from structlog.typing import FilteringBoundLogger as Logger
 
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import Context
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk._shared.timezones import timezone
 from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, DagRunType, TaskInstanceState
@@ -36,6 +35,11 @@ from airflow.sdk.execution_time.comms import GetTaskBreadcrumbs, TaskBreadcrumbs
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
 from tests_common.test_utils.config import conf_vars
+
+if TYPE_CHECKING:
+    from structlog.typing import FilteringBoundLogger as Logger
+
+    from airflow.sdk import Context
 
 LOGICAL_DATE = timezone.utcnow()
 SCHEDULE_INTERVAL = datetime.timedelta(days=1)
@@ -123,7 +127,8 @@ class TestSentryHook:
         sentry_sdk = types.ModuleType("sentry_sdk")
         sentry_sdk.init = mock.MagicMock()
         sentry_sdk.integrations = mock.Mock(logging=sentry_sdk_integrations_logging)
-        sentry_sdk.configure_scope = mock.MagicMock()
+        sentry_sdk.isolation_scope = mock.MagicMock()
+        sentry_sdk.get_current_scope = mock.MagicMock()
         sentry_sdk.add_breadcrumb = mock.MagicMock()
         sentry_sdk.capture_exception = mock.MagicMock()
 
@@ -138,8 +143,9 @@ class TestSentryHook:
         yield
         mock_sentry_sdk.integrations.logging.ignore_logger.reset_mock()
         mock_sentry_sdk.init.reset_mock()
-        mock_sentry_sdk.configure_scope.reset_mock()
+        mock_sentry_sdk.get_current_scope.reset_mock()
         mock_sentry_sdk.add_breadcrumb.reset_mock()
+        mock_sentry_sdk.capture_exception.reset_mock()
 
     @pytest.fixture
     def sentry(self, mock_sentry_sdk):
@@ -218,17 +224,15 @@ class TestSentryHook:
         Test adding tags.
         """
         sentry.add_tagging(dag_run=dag_run, task_instance=task_instance)
-        assert mock_sentry_sdk.configure_scope.mock_calls == [
+        assert mock_sentry_sdk.get_current_scope.mock_calls == [
             mock.call.__call__(),
-            mock.call.__call__().__enter__(),
-            mock.call.__call__().__enter__().set_tag("task_id", TASK_ID),
-            mock.call.__call__().__enter__().set_tag("dag_id", DAG_ID),
-            mock.call.__call__().__enter__().set_tag("try_number", TRY_NUMBER),
-            mock.call.__call__().__enter__().set_tag("data_interval_start", DATA_INTERVAL[0]),
-            mock.call.__call__().__enter__().set_tag("data_interval_end", DATA_INTERVAL[1]),
-            mock.call.__call__().__enter__().set_tag("logical_date", LOGICAL_DATE),
-            mock.call.__call__().__enter__().set_tag("operator", OPERATOR),
-            mock.call.__call__().__exit__(None, None, None),
+            mock.call.__call__().set_tag("task_id", TASK_ID),
+            mock.call.__call__().set_tag("dag_id", DAG_ID),
+            mock.call.__call__().set_tag("try_number", TRY_NUMBER),
+            mock.call.__call__().set_tag("data_interval_start", DATA_INTERVAL[0]),
+            mock.call.__call__().set_tag("data_interval_end", DATA_INTERVAL[1]),
+            mock.call.__call__().set_tag("logical_date", LOGICAL_DATE),
+            mock.call.__call__().set_tag("operator", OPERATOR),
         ]
 
     def test_add_breadcrumbs(self, mock_supervisor_comms, mock_sentry_sdk, sentry, task_instance):
@@ -277,25 +281,42 @@ class TestSentryHook:
     @pytest.mark.parametrize(
         ("run_exception_return", "run_raise"),
         (
-                pytest.param(ValueError("This is Run Exception"), False, id="run_with_raise_exception"),
-                pytest.param(None, True, id="run_with_return_exception"),
-                pytest.param(ValueError("This is Run Exception"), True, id="run_with_return_and_raise_exception"),
-                pytest.param(None, False, id="run_without_exception")
-        )
+            pytest.param(ValueError("This is Run Exception"), False, id="run_with_raise_exception"),
+            pytest.param(None, True, id="run_with_return_exception"),
+            pytest.param(None, False, id="run_without_exception"),
+        ),
     )
-    def test_sentry_capture_exception(self, mock_sentry_sdk, task_instance, run_exception_return, run_raise):
+    def test_sentry_capture_exception(
+        self,
+        mock_supervisor_comms,
+        sentry,
+        mock_sentry_sdk,
+        dag_run,
+        task_instance,
+        run_exception_return,
+        run_raise,
+    ):
         """
         Test that sentry_sdk.capture_exception is called on error
         """
-        def run_side_effect(ti: RuntimeTaskInstance, context: Context, log: Logger):
-            if run_raise:
-                raise ValueError("This is Run Exception")
-            return STATE, None, run_exception_return
-
+        mock_supervisor_comms.send.return_value = TaskBreadcrumbsResult.model_construct(
+            breadcrumbs=[TASK_DATA],
+        )
         log = mock.Mock()
 
-        with mock.patch("airflow.sdk.execution_time.task_runner.run", side_effect=run_side_effect) as run:
-            run(task_instance, {}, log)
+        class TestException(Exception): ...
+
+        @sentry.enrich_errors
+        def mocked_run(ti: RuntimeTaskInstance, context: Context, log: Logger):
+            if run_raise:
+                raise TestException("This is Run Exception")
+            return STATE, None, run_exception_return
+
+        if run_raise:
+            with pytest.raises(TestException):
+                mocked_run(task_instance, {"dag_run": dag_run}, log)
+        else:
+            mocked_run(task_instance, {"dag_run": dag_run}, log)
 
         if run_exception_return is not None or run_raise:
             mock_sentry_sdk.capture_exception.assert_called()
