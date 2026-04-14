@@ -110,8 +110,8 @@ def get_airflow_config() -> str:
     """Get path to airflow.cfg file."""
     airflow_config_var = os.environ.get("AIRFLOW_CONFIG")
     if airflow_config_var is None:
-        airflow_home = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
-        return os.path.join(airflow_home, "airflow.cfg")
+        airflow_home: str = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        return os.path.join(expand_env_var(airflow_home), "airflow.cfg")
     return expand_env_var(airflow_config_var)
 
 

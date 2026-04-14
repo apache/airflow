@@ -172,3 +172,15 @@ class TestGetAirflowConfig:
             "os.environ", {"AIRFLOW_CONFIG": "$CUSTOM_DIR/airflow.cfg", "CUSTOM_DIR": "/resolved"}
         ):
             assert get_airflow_config() == "/resolved/airflow.cfg"
+
+    def test_default_fallback_when_airflow_config_not_set(self):
+        """get_airflow_config returns {AIRFLOW_HOME}/airflow.cfg when AIRFLOW_CONFIG is absent."""
+        env = {"AIRFLOW_HOME": "/custom/home"}
+        with mock.patch.dict("os.environ", env, clear=True):
+            assert get_airflow_config() == "/custom/home/airflow.cfg"
+
+    def test_expands_env_var_in_airflow_home_fallback(self):
+        """get_airflow_config expands env vars in AIRFLOW_HOME when AIRFLOW_CONFIG is absent."""
+        env = {"AIRFLOW_HOME": "$CUSTOM_DIR/airflow", "CUSTOM_DIR": "/resolved"}
+        with mock.patch.dict("os.environ", env, clear=True):
+            assert get_airflow_config() == "/resolved/airflow/airflow.cfg"
