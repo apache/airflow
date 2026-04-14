@@ -22,22 +22,14 @@ Both DAGs query the `Airflow Community Survey 2025
 :class:`~airflow.providers.common.ai.operators.llm_sql.LLMSQLQueryOperator`
 and :class:`~airflow.providers.common.sql.operators.analytics.AnalyticsOperator`.
 
-``example_llm_survey_interactive`` (five tasks, manual trigger)
-  Adds human-in-the-loop review at both ends of the pipeline:
+**example_llm_survey_interactive** (five tasks, manual trigger) adds
+human-in-the-loop review at both ends of the pipeline: HITLEntryOperator,
+LLMSQLQueryOperator, AnalyticsOperator, a ``@task`` extraction step, and
+ApprovalOperator.
 
-  1. **HITLEntryOperator** -- human reviews and optionally edits the question.
-  2. **LLMSQLQueryOperator** -- translates the confirmed question into SQL.
-  3. **AnalyticsOperator** -- executes the SQL against the CSV via Apache DataFusion.
-  4. A ``@task`` function -- extracts the data rows from the JSON payload.
-  5. **ApprovalOperator** -- human approves or rejects the query result.
-
-``example_llm_survey_scheduled`` (three tasks, runs on a schedule)
-  Runs a fixed question end-to-end without human review -- suitable for
-  recurring reporting or dashboards:
-
-  1. **LLMSQLQueryOperator** -- translates the question into SQL.
-  2. **AnalyticsOperator** -- executes the SQL against the CSV.
-  3. A ``@task`` function -- extracts the data rows from the JSON payload.
+**example_llm_survey_scheduled** (seven tasks, runs monthly) downloads the CSV,
+validates its schema, generates and executes SQL, then emails or logs the result.
+No human review steps -- suitable for recurring reporting or dashboards.
 
 Before running either DAG:
 
@@ -62,7 +54,7 @@ from airflow.providers.common.sql.config import DataSourceConfig
 from airflow.providers.common.sql.operators.analytics import AnalyticsOperator
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.standard.operators.hitl import ApprovalOperator, HITLEntryOperator
-from airflow.sdk import Param, log
+from airflow.sdk import Param
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -369,7 +361,7 @@ def example_llm_survey_scheduled():
                     html_content=f"<pre>{data}</pre>",
                 )
         else:
-            log.info("Survey analysis result:\n%s", data)
+            print(f"Survey analysis result:\n{data}")
 
     generate_sql >> run_query >> result_data >> send_result(result_data)
 
