@@ -4348,17 +4348,29 @@ class ConnectionModelView(AirflowModelView):
                 )
                 del form.extra
         del extra_json
+        connection_form_widgets = ProvidersManager().connection_form_widgets
         for key, field_name, _ in self._iter_extra_field_names_and_sensitivity():
             if key in form.data and key.startswith("extra__"):
                 conn_type_from_extra_field = key.split("__")[1]
                 if conn_type_from_extra_field == conn_type:
                     value = form.data[key]
-                    # Some extra fields have a default value of False so we need to explicitly check the
-                    # value isn't an empty string.
-                    if value != "":
+                    widget_info = connection_form_widgets.get(key)
+                    is_boolean_field = (
+                        widget_info is not None
+                        and getattr(widget_info.field, "field_class", None) is BooleanField
+                    )
+                    # Only write a dedicated widget value into extras if the user actively set it:
+                    # - For boolean fields: only if True (False is the unchecked default and should
+                    #   not overwrite or delete a key the user put in the raw Extras JSON).
+                    # - For all other fields: only if non-empty string.
+                    # In both cases, if the widget is at its default/empty state, leave any
+                    # existing raw-extras key untouched rather than deleting it.
+                    # See: https://github.com/apache/airflow/issues/57984
+                    if is_boolean_field:
+                        if value:
+                            extra[field_name] = value
+                    elif value != "":
                         extra[field_name] = value
-                    elif field_name in extra:
-                        del extra[field_name]
         if extra.keys():
             sensitive_unchanged_keys = set()
             for key, value in extra.items():

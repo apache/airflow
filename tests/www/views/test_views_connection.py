@@ -342,6 +342,132 @@ def test_process_form_extras_remove(mock_pm_hooks, mock_import_str):
     }
 
 
+
+@mock.patch("airflow.utils.module_loading.import_string")
+@mock.patch("airflow.providers_manager.ProvidersManager.hooks", new_callable=PropertyMock)
+@mock.patch("airflow.providers_manager.ProvidersManager.connection_form_widgets", new_callable=PropertyMock)
+def test_process_form_raw_extras_not_overwritten_by_blank_string_widget(
+    mock_pm_widgets, mock_pm_hooks, mock_import_str
+):
+    """
+    Regression test for https://github.com/apache/airflow/issues/57984
+
+    When a user types a key (e.g. ``account``) directly into the raw Extras JSON field
+    and leaves the corresponding dedicated widget blank, the raw extras value must be
+    preserved. Previously the blank widget value would delete the user-supplied key.
+    """
+    from unittest.mock import MagicMock
+    from wtforms import StringField
+
+    mock_pm_hooks.return_value = {}
+    mock_widget_info = MagicMock()
+    mock_widget_info.field.field_class = StringField
+    mock_pm_widgets.return_value = {"extra__snowflake__account": mock_widget_info}
+
+    mock_form = mock.Mock()
+    mock_form.data = {
+        "conn_type": "snowflake",
+        "conn_id": "snowflake_test",
+        "extra": '{"account": "1234"}',
+        "extra__snowflake__account": "",
+    }
+
+    cmv = ConnectionModelView()
+    cmv._iter_extra_field_names_and_sensitivity = mock.Mock(
+        return_value=[("extra__snowflake__account", "account", False)]
+    )
+    cmv.process_form(form=mock_form, is_created=True)
+
+    result = json.loads(mock_form.extra.data)
+    assert result.get("account") == "1234", (
+        "Raw extras key 'account' should be preserved when the dedicated widget is blank"
+    )
+
+
+@mock.patch("airflow.utils.module_loading.import_string")
+@mock.patch("airflow.providers_manager.ProvidersManager.hooks", new_callable=PropertyMock)
+@mock.patch("airflow.providers_manager.ProvidersManager.connection_form_widgets", new_callable=PropertyMock)
+def test_process_form_boolean_false_widget_does_not_inject_into_raw_extras(
+    mock_pm_widgets, mock_pm_hooks, mock_import_str
+):
+    """
+    Regression test for https://github.com/apache/airflow/issues/57984
+
+    A BooleanField widget that is unchecked (value=False) must not be written into
+    extras, because False is the unchecked default state. Previously saving any
+    Snowflake connection would silently inject {"insecure_mode": false}.
+    """
+    from unittest.mock import MagicMock
+    from wtforms import BooleanField
+
+    mock_pm_hooks.return_value = {}
+    mock_widget_info = MagicMock()
+    mock_widget_info.field.field_class = BooleanField
+    mock_pm_widgets.return_value = {"extra__snowflake__insecure_mode": mock_widget_info}
+
+    mock_form = mock.Mock()
+    mock_form.data = {
+        "conn_type": "snowflake",
+        "conn_id": "snowflake_test",
+        "extra": '{"account": "my-account"}',
+        "extra__snowflake__insecure_mode": False,
+    }
+
+    cmv = ConnectionModelView()
+    cmv._iter_extra_field_names_and_sensitivity = mock.Mock(
+        return_value=[("extra__snowflake__insecure_mode", "insecure_mode", False)]
+    )
+    cmv.process_form(form=mock_form, is_created=True)
+
+    result = json.loads(mock_form.extra.data)
+    assert "insecure_mode" not in result, (
+        "Unchecked BooleanField (False) must not inject 'insecure_mode' into extras"
+    )
+    assert result.get("account") == "my-account", (
+        "Existing raw extras keys must survive when boolean widget is unchecked"
+    )
+
+
+@mock.patch("airflow.utils.module_loading.import_string")
+@mock.patch("airflow.providers_manager.ProvidersManager.hooks", new_callable=PropertyMock)
+@mock.patch("airflow.providers_manager.ProvidersManager.connection_form_widgets", new_callable=PropertyMock)
+def test_process_form_dedicated_widget_wins_when_explicitly_set(
+    mock_pm_widgets, mock_pm_hooks, mock_import_str
+):
+    """
+    Regression test for https://github.com/apache/airflow/issues/57984
+
+    When the user explicitly fills in a dedicated widget AND has the same key in
+    raw Extras JSON, the dedicated widget value should take precedence.
+    """
+    from unittest.mock import MagicMock
+    from wtforms import StringField
+
+    mock_pm_hooks.return_value = {}
+    mock_widget_info = MagicMock()
+    mock_widget_info.field.field_class = StringField
+    mock_pm_widgets.return_value = {"extra__snowflake__account": mock_widget_info}
+
+    mock_form = mock.Mock()
+    mock_form.data = {
+        "conn_type": "snowflake",
+        "conn_id": "snowflake_test",
+        "extra": '{"account": "raw-value"}',
+        "extra__snowflake__account": "widget-value",
+    }
+
+    cmv = ConnectionModelView()
+    cmv._iter_extra_field_names_and_sensitivity = mock.Mock(
+        return_value=[("extra__snowflake__account", "account", False)]
+    )
+    cmv.process_form(form=mock_form, is_created=True)
+
+    result = json.loads(mock_form.extra.data)
+    assert result.get("account") == "widget-value", (
+        "Explicitly-set dedicated widget value must override the same key in raw Extras"
+    )
+
+
 def test_duplicate_connection(admin_client):
     """Test Duplicate multiple connection with suffix"""
     conn1 = Connection(
