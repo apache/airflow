@@ -278,18 +278,18 @@ def _backfill_docker(
             providers_json = _create_isolated_providers_json(
                 provider, package_name, version, backfill_tmp_dir
             )
-            # Container path: /opt/airflow/dev/registry/.backfill_tmp/<filename>
             container_providers_json = f"/opt/airflow/dev/registry/.backfill_tmp/{providers_json.name}"
 
             pip_spec = _build_pip_spec(package_name, extras, version)
             base_spec = f"{package_name}=={version}"
 
             command = (
-                f"pip install --quiet {pip_spec} && "
-                f"python dev/registry/extract_parameters.py "
-                f"--provider '{provider}' --providers-json '{container_providers_json}' && "
-                f"python dev/registry/extract_connections.py "
-                f"--provider '{provider}' --providers-json '{container_providers_json}'"
+                f"cd dev/registry && "
+                f"uv run --with '{pip_spec}' bash -c '"
+                f"python extract_parameters.py "
+                f"--provider {provider} --providers-json {container_providers_json} && "
+                f"python extract_connections.py "
+                f"--provider {provider} --providers-json {container_providers_json}'"
             )
 
             result = execute_command_in_shell(
@@ -302,11 +302,12 @@ def _backfill_docker(
             if result.returncode != 0 and pip_spec != base_spec:
                 click.echo(f"Retrying without extras ({base_spec})...")
                 command_fallback = (
-                    f"pip install --quiet {base_spec} && "
-                    f"python dev/registry/extract_parameters.py "
-                    f"--provider '{provider}' --providers-json '{container_providers_json}' && "
-                    f"python dev/registry/extract_connections.py "
-                    f"--provider '{provider}' --providers-json '{container_providers_json}'"
+                    f"cd dev/registry && "
+                    f"uv run --with '{base_spec}' bash -c '"
+                    f"python extract_parameters.py "
+                    f"--provider {provider} --providers-json {container_providers_json} && "
+                    f"python extract_connections.py "
+                    f"--provider {provider} --providers-json {container_providers_json}'"
                 )
                 result = execute_command_in_shell(
                     shell_params=shell_params,
