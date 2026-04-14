@@ -20,10 +20,9 @@
 Writing logs to Opensearch
 -----------------------------
 
-*Added in provider version 1.5.0*
-
-Only ``apache-airflow-providers-opensearch`` **1.9.0+** is compatible with Airflow 3. Earlier
-provider versions do not work on Airflow 3.x and must not be installed there.
+Only ``apache-airflow-providers-opensearch`` **1.9.0+** is compatible with Airflow 3 for
+viewing task logs in the UI. Earlier provider versions can still be installed on Airflow
+3.x, but the UI will not be able to render task logs from OpenSearch.
 
 Airflow can be configured to read task logs from Opensearch and optionally write logs to stdout in standard or json format. These logs can later be collected and forwarded to the cluster using tools like fluentd, logstash or others.
 
