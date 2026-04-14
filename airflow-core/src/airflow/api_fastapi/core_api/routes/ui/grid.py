@@ -25,10 +25,10 @@ import structlog
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import exists, select
-from sqlalchemy.orm import Session, joinedload, load_only, selectinload
+from sqlalchemy.orm import joinedload, load_only, selectinload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.db.common import SessionDep, _get_session, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
@@ -67,6 +67,7 @@ from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
+from airflow.utils.session import create_session
 
 log = structlog.get_logger(logger_name=__name__)
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
@@ -426,7 +427,6 @@ def _build_ti_summaries(
 )
 def get_grid_ti_summaries_stream(
     dag_id: str,
-    session: Annotated[Session, Depends(_get_session)],
     run_ids: Annotated[list[str] | None, Query()] = None,
 ) -> StreamingResponse:
     """
@@ -441,28 +441,34 @@ def get_grid_ti_summaries_stream(
     """
 
     def _generate() -> Generator[str, None, None]:
+
+        # Each iteration opens and closes its own DB session so the connection is
+        # released between yields.  This prevents a slow client from holding a
+        # database connection open for the entire stream duration.
+        # See https://github.com/apache/airflow/issues/65010.
         serdag_cache: dict = {}
         for run_id in run_ids or []:
-            tis = session.execute(
-                select(
-                    TaskInstance.task_id,
-                    TaskInstance.state,
-                    TaskInstance.dag_version_id,
-                    TaskInstance.start_date,
-                    TaskInstance.end_date,
-                    DagVersion.version_number,
-                )
-                .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
-                .where(TaskInstance.dag_id == dag_id)
-                .where(TaskInstance.run_id == run_id)
-                .order_by(TaskInstance.task_id)
-            ).all()
-            if not tis:
-                continue
-            version_id = tis[0].dag_version_id
-            if version_id not in serdag_cache:
-                serdag_cache[version_id] = _get_serdag(dag_id, version_id, session)
-            summary = _build_ti_summaries(dag_id, run_id, tis, session, serdag=serdag_cache[version_id])
+            with create_session(scoped=False) as session:
+                tis = session.execute(
+                    select(
+                        TaskInstance.task_id,
+                        TaskInstance.state,
+                        TaskInstance.dag_version_id,
+                        TaskInstance.start_date,
+                        TaskInstance.end_date,
+                        DagVersion.version_number,
+                    )
+                    .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
+                    .where(TaskInstance.dag_id == dag_id)
+                    .where(TaskInstance.run_id == run_id)
+                    .order_by(TaskInstance.task_id)
+                ).all()
+                if not tis:
+                    continue
+                version_id = tis[0].dag_version_id
+                if version_id not in serdag_cache:
+                    serdag_cache[version_id] = _get_serdag(dag_id, version_id, session)
+                summary = _build_ti_summaries(dag_id, run_id, tis, session, serdag=serdag_cache[version_id])
             yield GridTISummaries.model_validate(summary).model_dump_json() + "\n"
 
     return StreamingResponse(content=_generate(), media_type="application/x-ndjson")

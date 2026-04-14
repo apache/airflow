@@ -93,9 +93,13 @@ class TestStreamingEndpointSessionScope:
 
         assert not violations, (
             "Streaming endpoints must not use function-scoped dependencies like "
-            "SessionDep.  Use Annotated[Session, Depends(_get_session)] (default "
-            "request scope) instead — function-scoped cleanup runs before the "
-            "response body is streamed, leaking database connections.\n"
+            "SessionDep — function-scoped cleanup runs before the response body "
+            "is streamed, leaking database connections.\n"
+            "Do NOT use Annotated[Session, Depends(_get_session)] or other session dependencies "
+            "either, as this holds the DB connection open for the entire stream "
+            "duration.\n"
+            "Instead, use create_session() inside the generator to open/close a "
+            "connection for each iteration, releasing it between yields.\n"
             + "\n".join(f"  - {v}" for v in violations)
         )
 
