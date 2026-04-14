@@ -60,15 +60,9 @@ from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.compat.sdk import dag, task
 from airflow.providers.common.sql.config import DataSourceConfig
 from airflow.providers.common.sql.operators.analytics import AnalyticsOperator
+from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.standard.operators.hitl import ApprovalOperator, HITLEntryOperator
 from airflow.sdk import Param, log
-
-try:
-    from airflow.providers.http.operators.http import HttpOperator
-
-    _has_http_provider = True
-except ImportError:
-    _has_http_provider = False
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -382,5 +376,4 @@ def example_llm_survey_scheduled():
 
 # [END example_llm_survey_scheduled]
 
-if _has_http_provider:
-    example_llm_survey_scheduled()
+example_llm_survey_scheduled()
