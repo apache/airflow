@@ -53,6 +53,11 @@ repos:
         args:
           - "--maxlevel"
           - "2"
+          # Workaround for https://github.com/thlorenz/doctoc/issues/340 — doctoc v2.4.0
+          # duplicates the "DON'T EDIT THIS SECTION" warning line on every run when the
+          # file has no title between the header comments and the TOC. --notitle makes
+          # the hook skip the inferred-title path entirely, which is what we want.
+          - "--notitle"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: ad1b27d73581aa16cca06fc4a0761fc563ffe8e8  # frozen: v1.5.6
     hooks:
