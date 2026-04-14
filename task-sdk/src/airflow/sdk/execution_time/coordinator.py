@@ -242,7 +242,8 @@ class BaseLocaleCoordinator:
         cls,
         *,
         what: TaskInstance,
-        dag_rel_path: str | os.PathLike[str],
+        dag_file_path: str,
+        bundle_path: str,
         bundle_info: BundleInfo,
         comm_addr: str,
         logs_addr: str,
@@ -251,7 +252,8 @@ class BaseLocaleCoordinator:
         Return the subprocess command for task execution.
 
         :param what: The task instance to execute.
-        :param dag_rel_path: Relative path to the DAG file within the bundle.
+        :param dag_file_path: Absolute path to the DAG file.
+        :param bundle_path: Root path of the DAG bundle.
         :param bundle_info: Bundle metadata.
         :param comm_addr: ``host:port`` the subprocess must connect to
             for the bidirectional msgpack comm channel.
@@ -338,6 +340,11 @@ class BaseLocaleCoordinator:
         # is a real socket compatible with ``make_buffered_socket_reader``.
         child_stderr, read_stderr = socket.socketpair()
 
+        # For task execution, hold a BundleVersionLock for the entire
+        # subprocess lifetime to prevent the bundle version from being
+        # garbage-collected while the locale process is still running.
+        bundle_version_lock: contextlib.AbstractContextManager = contextlib.nullcontext()
+
         if isinstance(entrypoint_info, cls.DagParsingInfo):
             cmd = cls.dag_parsing_locale_cmd(
                 dag_file_path=entrypoint_info.dag_file_path,
@@ -347,42 +354,60 @@ class BaseLocaleCoordinator:
                 logs_addr=logs_addr,
             )
         elif isinstance(entrypoint_info, cls.TaskExecutionInfo):
+            from pathlib import Path
+
+            # import from core now will raise static check error from `check-core-imports` check
+            # We should support ignore label for the above static check
+            # directly commit for now
+            from airflow.dag_processing.bundles.base import BundleVersionLock
+            from airflow.sdk.execution_time.task_runner import resolve_bundle
+
+            bundle_instance = resolve_bundle(entrypoint_info.bundle_info, log)
+            resolved_bundle_path = str(bundle_instance.path)
+            resolved_dag_file_path = os.fspath(Path(bundle_instance.path, entrypoint_info.dag_rel_path))
+
             cmd = cls.task_execution_locale_cmd(
                 what=entrypoint_info.what,
-                dag_rel_path=entrypoint_info.dag_rel_path,
+                dag_file_path=resolved_dag_file_path,
+                bundle_path=resolved_bundle_path,
                 bundle_info=entrypoint_info.bundle_info,
                 comm_addr=comm_addr,
                 logs_addr=logs_addr,
             )
+            bundle_version_lock = BundleVersionLock(
+                bundle_name=entrypoint_info.bundle_info.name,
+                bundle_version=entrypoint_info.bundle_info.version,
+            )
         else:
             raise ValueError(f"Unknown entrypoint_info type: {type(entrypoint_info)}")
 
-        # stdin redirected to /dev/null so the subprocess does not inherit
-        # fd 0 (the comms socket).
-        proc = subprocess.Popen(
-            cmd,
-            stdin=subprocess.DEVNULL,
-            stderr=child_stderr.fileno(),
-        )
-        child_stderr.close()
+        with bundle_version_lock:
+            # stdin redirected to /dev/null so the subprocess does not inherit
+            # fd 0 (the comms socket).
+            proc = subprocess.Popen(
+                cmd,
+                stdin=subprocess.DEVNULL,
+                stderr=child_stderr.fileno(),
+            )
+            child_stderr.close()
 
-        # Wait for the subprocess to connect to both servers.
-        locale_comm, _ = comm_server.accept()
-        locale_logs, _ = logs_server.accept()
-        comm_server.close()
-        logs_server.close()
+            # Wait for the subprocess to connect to both servers.
+            locale_comm, _ = comm_server.accept()
+            locale_logs, _ = logs_server.accept()
+            comm_server.close()
+            logs_server.close()
 
-        # For task execution the supervisor already sent ``StartupDetails``
-        # on fd 0 and ``task_runner.main()`` consumed it before delegating
-        # here.  Re-encode and forward it to the locale subprocess so it
-        # knows which task to execute.
-        if isinstance(entrypoint_info, cls.TaskExecutionInfo):
-            _send_startup_details(locale_comm, entrypoint_info.startup_details)
+            # For task execution the supervisor already sent ``StartupDetails``
+            # on fd 0 and ``task_runner.main()`` consumed it before delegating
+            # here.  Re-encode and forward it to the locale subprocess so it
+            # knows which task to execute.
+            if isinstance(entrypoint_info, cls.TaskExecutionInfo):
+                _send_startup_details(locale_comm, entrypoint_info.startup_details)
 
-        # fd 0 is the bidirectional comms socket to the supervisor.
-        supervisor_comm = socket.socket(fileno=os.dup(0))
+            # fd 0 is the bidirectional comms socket to the supervisor.
+            supervisor_comm = socket.socket(fileno=os.dup(0))
 
-        _bridge(supervisor_comm, locale_comm, locale_logs, read_stderr, proc, log)
+            _bridge(supervisor_comm, locale_comm, locale_logs, read_stderr, proc, log)
 
 
 __all__ = ["BaseLocaleCoordinator"]
