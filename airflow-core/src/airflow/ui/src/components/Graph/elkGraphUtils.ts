@@ -70,14 +70,11 @@ const canvasContext = document.createElement("canvas").getContext("2d");
 const getTextWidth = (text: string, font: string) => {
   if (canvasContext) {
     canvasContext.font = font;
-    const { width } = canvasContext.measureText(text);
 
-    return width > 200 ? width : 200;
+    return Math.max(200, canvasContext.measureText(text).width);
   }
 
-  const length = text.length * 9;
-
-  return length > 200 ? length : 200;
+  return Math.max(200, text.length * 9);
 };
 
 // ---------------------------------------------------------------------------
@@ -135,17 +132,17 @@ export const hasUniformExternalConnectivity = (
     const targetIsChild = childIdSet.has(edge.target_id);
 
     if (!sourceIsChild && targetIsChild) {
-      if (!sourcesPerChild.has(edge.target_id)) {
-        sourcesPerChild.set(edge.target_id, new Set());
-      }
-      sourcesPerChild.get(edge.target_id)?.add(edge.source_id);
+      const existing = sourcesPerChild.get(edge.target_id) ?? new Set<string>();
+
+      existing.add(edge.source_id);
+      sourcesPerChild.set(edge.target_id, existing);
     }
 
     if (sourceIsChild && !targetIsChild) {
-      if (!targetsPerChild.has(edge.source_id)) {
-        targetsPerChild.set(edge.source_id, new Set());
-      }
-      targetsPerChild.get(edge.source_id)?.add(edge.target_id);
+      const existing = targetsPerChild.get(edge.source_id) ?? new Set<string>();
+
+      existing.add(edge.target_id);
+      targetsPerChild.set(edge.source_id, existing);
     }
   }
 
@@ -184,6 +181,42 @@ export const hasUniformExternalConnectivity = (
   }
 
   return true;
+};
+
+// ---------------------------------------------------------------------------
+// Edge rewriting helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Given the current working edge list, drops purely-internal edges, rewrites
+ * crossing edges so both endpoints reference `groupId` instead of a child node,
+ * then deduplicates the result so N rewritten edges collapse to one per
+ * (source, target) pair.
+ */
+const rewriteGroupEdges = (
+  edges: Array<EdgeResponse>,
+  childIdSet: Set<string>,
+  groupId: string,
+): Array<EdgeResponse> => {
+  const seen = new Set<string>();
+
+  return edges
+    .filter((fe) => !(childIdSet.has(fe.source_id) && childIdSet.has(fe.target_id)))
+    .map((fe) => ({
+      ...fe,
+      source_id: childIdSet.has(fe.source_id) ? groupId : fe.source_id,
+      target_id: childIdSet.has(fe.target_id) ? groupId : fe.target_id,
+    }))
+    .filter((fe) => {
+      const key = `${fe.source_id}-${fe.target_id}`;
+
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+
+      return true;
+    });
 };
 
 // ---------------------------------------------------------------------------
@@ -234,28 +267,7 @@ export const generateElkGraph = ({
       // edge (same as a closed group) while keeping the children visible.
       // Checked against unformattedEdges so prior sibling transforms don't interfere.
       if (hasUniformExternalConnectivity(childIdSet, unformattedEdges)) {
-        const seenEdges = new Set<string>();
-
-        filteredEdges = filteredEdges
-          // Drop purely-internal edges (already in a nested group's list or redundant).
-          .filter((fe) => !(childIdSet.has(fe.source_id) && childIdSet.has(fe.target_id)))
-          // Rewrite crossing edges to point at the group node itself.
-          .map((fe) => ({
-            ...fe,
-            source_id: childIdSet.has(fe.source_id) ? node.id : fe.source_id,
-            target_id: childIdSet.has(fe.target_id) ? node.id : fe.target_id,
-          }))
-          // Deduplicate — N rewritten edges collapse to one per (source, target).
-          .filter((fe) => {
-            const edgeKey = `${fe.source_id}-${fe.target_id}`;
-
-            if (seenEdges.has(edgeKey)) {
-              return false;
-            }
-            seenEdges.add(edgeKey);
-
-            return true;
-          });
+        filteredEdges = rewriteGroupEdges(filteredEdges, childIdSet, node.id);
       }
 
       // Extract any remaining internal edges (both endpoints inside this group).
@@ -287,29 +299,10 @@ export const generateElkGraph = ({
       };
     }
 
-    if (!Boolean(isOpen) && node.children !== undefined) {
+    if (!isOpen && node.children !== undefined) {
       // Use a Set for O(1) membership checks — childIds.includes() would be
       // O(n) per edge, turning the filter/map into O(n × E) for large groups.
-      const childIdSet = new Set(childIds);
-      const seenEdges = new Set<string>();
-
-      filteredEdges = filteredEdges
-        .filter((fe) => !(childIdSet.has(fe.source_id) && childIdSet.has(fe.target_id)))
-        .map((fe) => ({
-          ...fe,
-          source_id: childIdSet.has(fe.source_id) ? node.id : fe.source_id,
-          target_id: childIdSet.has(fe.target_id) ? node.id : fe.target_id,
-        }))
-        .filter((fe) => {
-          const edgeKey = `${fe.source_id}-${fe.target_id}`;
-
-          if (seenEdges.has(edgeKey)) {
-            return false;
-          }
-          seenEdges.add(edgeKey);
-
-          return true;
-        });
+      filteredEdges = rewriteGroupEdges(filteredEdges, new Set(childIds), node.id);
     }
 
     const label = `${node.label}${node.is_mapped ? "[1000]" : ""}${node.children ? ` + ${node.children.length} tasks` : ""}`;
