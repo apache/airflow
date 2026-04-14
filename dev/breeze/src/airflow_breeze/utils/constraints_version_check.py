@@ -98,8 +98,13 @@ def count_versions_between(releases: dict[str, Any], current_version: str, lates
     return len(versions_between)
 
 
-def get_status_emoji(constraint_date, latest_date, is_latest_version):
+def get_status_emoji(constraint_date, latest_date, is_latest_version, cooldown_days: int = 0):
     """Determine status emoji based on how outdated the package is.
+
+    The ``cooldown_days`` value shifts the thresholds so that time a package
+    spent in the cooldown window is not counted against its staleness — a
+    package that was released just after the cooldown period should still be
+    reported as "new" rather than immediately as "warning".
 
     All emojis used here (✅, 📢, 🔶, 🚨) are single Python chars with ~2 visual cells,
     so ljust produces consistent alignment without any offset workarounds.
@@ -111,15 +116,17 @@ def get_status_emoji(constraint_date, latest_date, is_latest_version):
     if is_latest_version:
         return "✅ OK".ljust(col_target), "ok"
 
+    new_threshold = 5 + cooldown_days
+    warning_threshold = 30 + cooldown_days
     try:
         constraint_dt = datetime.strptime(constraint_date, "%Y-%m-%d")
         latest_dt = datetime.strptime(latest_date, "%Y-%m-%d")
         days_diff = (latest_dt - constraint_dt).days
 
-        if days_diff <= 5:
-            return "📢 <5d".ljust(col_target), "new"
-        if days_diff <= 30:
-            return "🔶 <30d".ljust(col_target), "warning"
+        if days_diff <= new_threshold:
+            return f"📢 <{new_threshold}d".ljust(col_target), "new"
+        if days_diff <= warning_threshold:
+            return f"🔶 <{warning_threshold}d".ljust(col_target), "warning"
         return f"🚨 >{days_diff}d".ljust(col_target), "critical"
     except Exception:
         return "📢 N/A".ljust(col_target), "new"
@@ -257,6 +264,7 @@ def constraints_version_check(
         skipped_count=skipped_count,
         mode=diff_mode,
         status_counts=status_counts,
+        cooldown_days=cooldown_days,
     )
     if explain_why and explanations:
         print_explanations(explanations)
@@ -333,13 +341,16 @@ def print_table_footer(
     skipped_count: int,
     mode: str,
     status_counts: dict[str, int],
+    cooldown_days: int = 0,
 ):
+    new_threshold = 5 + cooldown_days
+    warning_threshold = 30 + cooldown_days
     console_print(f"[magenta]{'=' * total_width}[/]")
     console_print(f"[bold cyan]\nTotal packages checked:[/] [white]{total_pkgs}[/]")
     console_print(f"  [green]✅ Up to date:[/] [white]{status_counts['ok']}[/]")
-    console_print(f"  [yellow]📢 New (<5d):[/] [white]{status_counts['new']}[/]")
-    console_print(f"  [magenta]🔶 Warning (<30d):[/] [white]{status_counts['warning']}[/]")
-    console_print(f"  [red]🚨 Critical (>30d):[/] [white]{status_counts['critical']}[/]")
+    console_print(f"  [yellow]📢 New (<{new_threshold}d):[/] [white]{status_counts['new']}[/]")
+    console_print(f"  [magenta]🔶 Warning (<{warning_threshold}d):[/] [white]{status_counts['warning']}[/]")
+    console_print(f"  [red]🚨 Critical (>{warning_threshold}d):[/] [white]{status_counts['critical']}[/]")
     console_print(f"[bold yellow]Outdated packages found:[/] [white]{outdated_count}[/]")
     if mode == "diff-constraints":
         console_print(
@@ -436,6 +447,7 @@ def process_packages(
                     format_str=format_str,
                     is_latest_version=is_latest_version,
                     versions_behind_str=versions_behind_str,
+                    cooldown_days=cooldown_days,
                 )
                 status_counts[status_category] += 1
                 if not is_latest_version:
@@ -473,12 +485,14 @@ def print_package_table_row(
     format_str: str,
     is_latest_version: bool,
     versions_behind_str: str,
+    cooldown_days: int = 0,
 ) -> str:
     first_newer_date_str = get_first_newer_release_date_str(releases, pinned_version)
     status, status_category = get_status_emoji(
         first_newer_date_str or constraint_release_date,
         datetime.now().strftime("%Y-%m-%d"),
         is_latest_version,
+        cooldown_days=cooldown_days,
     )
     days_stale_str = get_days_stale(latest_release_date)
     pypi_link = f"https://pypi.org/project/{pkg}/{latest_version}"
