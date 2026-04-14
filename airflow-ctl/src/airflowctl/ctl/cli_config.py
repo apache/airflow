@@ -107,8 +107,76 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
         sys.exit(1)
 
 
+def _inject_flags_for_positionals(argv: list[str], positional_order: list[str]) -> list[str]:
+    """
+    Re-write bare positional values as --flag value pairs before argparse sees them.
+
+    For ``--flag value`` style tokens (no ``=``), the value token is consumed so it is
+    not mistaken for a positional argument.  This mirrors the convention used by argparse
+    itself when reading flag-value pairs from the command line.
+
+    Bare values are mapped to the first unfilled slot in ``positional_order``, left to
+    right.  Flags that are already provided (in any order) are excluded from filling.
+    """
+    result = []
+    filled: set[str] = set()
+    i = 0
+    while i < len(argv):
+        token = argv[i]
+        if token.startswith("-"):
+            flag = token.lstrip("-").split("=")[0].replace("_", "-")
+            if flag in positional_order:
+                filled.add(flag)
+            result.append(token)
+            # Consume the value token for --flag value style (not --flag=value)
+            if "=" not in token and i + 1 < len(argv) and not argv[i + 1].startswith("-"):
+                i += 1
+                result.append(argv[i])
+        else:
+            next_slot = next((p for p in positional_order if p not in filled), None)
+            if next_slot is not None:
+                result.append("--" + next_slot)
+                filled.add(next_slot)
+            result.append(token)
+        i += 1
+    return result
+
+
+def _resolve_positionals(
+    argv: list[str], positional_order_map: dict[tuple[str, str], list[str]]
+) -> list[str]:
+    """
+    Convert bare positional values to --flag value pairs for the detected command.
+
+    Properly skips ``--flag value`` pairs when scanning for the group and subcommand
+    tokens, so global flags like ``--api-token tok`` do not displace the detection.
+    """
+    # Collect bare tokens while skipping the values of --flag value pairs
+    bare_tokens: list[str] = []
+    i = 0
+    while i < len(argv):
+        token = argv[i]
+        if token.startswith("-"):
+            if "=" not in token and i + 1 < len(argv) and not argv[i + 1].startswith("-"):
+                i += 1  # skip the value token
+        else:
+            bare_tokens.append(token)
+        i += 1
+
+    if len(bare_tokens) < 2:
+        return argv
+    group, subcommand = bare_tokens[0], bare_tokens[1]
+    positional_order = positional_order_map.get((group, subcommand), [])
+    if not positional_order:
+        return argv
+    cmd_end = next(i for i, t in enumerate(argv) if not t.startswith("-") and t == subcommand) + 1
+    return argv[:cmd_end] + _inject_flags_for_positionals(argv[cmd_end:], positional_order)
+
+
 class DefaultHelpParser(argparse.ArgumentParser):
     """CustomParser to display help message."""
+
+    positional_order_map: dict[tuple[str, str], list[str]]
 
     def _check_value(self, action, value):
         """Override _check_value and check conditionally added command."""
@@ -118,6 +186,13 @@ class DefaultHelpParser(argparse.ArgumentParser):
         """Override error and use print_help instead of print_usage."""
         self.print_help()
         self.exit(2, f"\n{self.prog} command error: {message}, see help above.\n")
+
+    def parse_args(self, args=None, namespace=None):
+        """Override parse_args to inject flag names for bare positional values."""
+        argv = list(sys.argv[1:]) if args is None else list(args)
+        if hasattr(self, "positional_order_map"):
+            argv = _resolve_positionals(argv, self.positional_order_map)
+        return super().parse_args(argv, namespace)
 
 
 # Used in Arg to enable `None` as a distinct value from "not passed"
@@ -380,6 +455,7 @@ class CommandFactory:
     exclude_operation_names: list[str]
     exclude_method_names: list[str]
     help_texts: dict[str, dict[str, str]]
+    positional_order_map: dict[tuple[str, str], list[str]]
 
     def __init__(self, file_path: str | Path | None = None):
         self.datamodels_extended_map = {}
@@ -388,6 +464,7 @@ class CommandFactory:
         self.args_map = {}
         self.commands_map = {}
         self.group_commands_list = []
+        self.positional_order_map = {}
         self.help_texts = _load_help_texts_yaml()
         self.file_path = inspect.getfile(BaseOperations) if file_path is None else file_path
         # Excluded Lists are in Class Level for further usage and avoid searching them
@@ -522,6 +599,7 @@ class CommandFactory:
         arg_action: argparse.BooleanOptionalAction | None,
         arg_dest: str | None = None,
         arg_default: Any | None = None,
+        arg_required: bool = False,
     ) -> Arg:
         return Arg(
             flags=arg_flags,
@@ -530,6 +608,7 @@ class CommandFactory:
             help=arg_help,
             default=arg_default,
             action=arg_action,
+            **({"required": True} if arg_required else {}),
         )
 
     def _create_arg_for_non_primitive_type(
@@ -546,6 +625,7 @@ class CommandFactory:
             if field in self.excluded_parameters:
                 continue
             self.datamodels_extended_map[parameter_type].append(field)
+            is_required = field_type.is_required()
             if type(field_type.annotation) is type:
                 commands.append(
                     self._create_arg(
@@ -554,6 +634,7 @@ class CommandFactory:
                         arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if field_type.annotation is bool else None,
+                        arg_required=is_required and field_type.annotation is not bool,
                     )
                 )
             else:
@@ -569,6 +650,7 @@ class CommandFactory:
                         arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if annotation is bool else None,
+                        arg_required=is_required and annotation is not bool,
                     )
                 )
         return commands
@@ -577,6 +659,7 @@ class CommandFactory:
         """Create Arg from Operation Method checking for parameters and return types."""
         for operation in self.operations:
             args = []
+            required_params: list[str] = []
             for parameter in operation.get("parameters"):
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
@@ -597,11 +680,21 @@ class CommandFactory:
                                 parameter_type=parameter_type, parameter_key=parameter_key
                             )
                         )
+                        model = getattr(generated_datamodels, parameter_type)
+                        required_params.extend(
+                            self._sanitize_arg_parameter_key(field)
+                            for field, field_info in model.model_fields.items()
+                            if field not in self.excluded_parameters and field_info.is_required()
+                        )
 
             if any(operation.get("name").startswith(cmd) for cmd in self.output_command_list):
                 args.extend([ARG_OUTPUT, ARG_AUTH_ENVIRONMENT])
 
             self.args_map[(operation.get("name"), operation.get("parent").name)] = args
+
+            group = operation["parent"].name.replace("Operations", "").lower()
+            subcommand = operation["name"].replace("_", "-")
+            self.positional_order_map[(group, subcommand)] = required_params
 
     def _apply_datamodel_defaults(self, datamodel: type, params: dict) -> dict:
         """
@@ -737,12 +830,22 @@ class CommandFactory:
             )
             if operation_group_name not in self.commands_map:
                 self.commands_map[operation_group_name] = []
+            group = operation_group_name.replace("Operations", "").lower()
+            subcommand = operation_name.replace("_", "-")
+            positional_order = self.positional_order_map.get((group, subcommand), [])
+            epilog = (
+                f"Positional shorthand: {' '.join(f'<{p}>' for p in positional_order)}\n"
+                f"  Example: airflowctl {group} {subcommand} {' '.join(positional_order)}"
+                if positional_order
+                else None
+            )
             self.commands_map[operation_group_name].append(
                 ActionCommand(
-                    name=operation["name"].replace("_", "-"),
+                    name=subcommand,
                     help=help_text,
                     func=self.func_map[(operation_name, operation_group_name)],
                     args=self.args_map[(operation_name, operation_group_name)],
+                    epilog=epilog,
                 )
             )
 

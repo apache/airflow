@@ -30,7 +30,10 @@ from airflowctl.ctl.cli_config import (
     ActionCommand,
     Arg,
     CommandFactory,
+    DefaultHelpParser,
     GroupCommand,
+    _inject_flags_for_positionals,
+    _resolve_positionals,
     add_auth_token_to_all_commands,
     merge_commands,
     safe_call_command,
@@ -669,3 +672,189 @@ class TestCliConfigMethods:
                             "Help message should match the help_text.yaml"
                         )
                         return
+
+
+class TestInjectFlagsForPositionals:
+    @pytest.mark.parametrize(
+        ("argv", "positional_order", "expected"),
+        [
+            # all positional → all converted to flags
+            (
+                ["my_conn", "http"],
+                ["connection-id", "conn-type"],
+                ["--connection-id", "my_conn", "--conn-type", "http"],
+            ),
+            # all flags already → unchanged
+            (
+                ["--connection-id", "my_conn", "--conn-type", "http"],
+                ["connection-id", "conn-type"],
+                ["--connection-id", "my_conn", "--conn-type", "http"],
+            ),
+            # mixed: first positional, second flag
+            (
+                ["my_conn", "--conn-type", "http"],
+                ["connection-id", "conn-type"],
+                ["--connection-id", "my_conn", "--conn-type", "http"],
+            ),
+            # gap-filling: flag first, then positional fills the remaining unfilled slot
+            (
+                ["--conn-type", "http", "my_conn"],
+                ["connection-id", "conn-type"],
+                ["--conn-type", "http", "--connection-id", "my_conn"],
+            ),
+            # --flag=value style: value embedded, next token still treated as positional
+            (
+                ["--conn-type=http", "my_conn"],
+                ["connection-id", "conn-type"],
+                ["--conn-type=http", "--connection-id", "my_conn"],
+            ),
+            # empty positional_order → argv unchanged
+            (
+                ["my_conn", "http"],
+                [],
+                ["my_conn", "http"],
+            ),
+            # extra optional flags pass through untouched
+            (
+                ["my_conn", "http", "--description", "my desc"],
+                ["connection-id", "conn-type"],
+                ["--connection-id", "my_conn", "--conn-type", "http", "--description", "my desc"],
+            ),
+        ],
+        ids=[
+            "all-positional",
+            "all-flags",
+            "mixed-first-positional",
+            "gap-filling",
+            "flag-equals-value-style",
+            "empty-order",
+            "extra-optional-flags",
+        ],
+    )
+    def test_inject_flags_for_positionals(self, argv, positional_order, expected):
+        assert _inject_flags_for_positionals(argv, positional_order) == expected
+
+
+class TestResolvePositionals:
+    def test_known_command_converts_positionals(self):
+        positional_order_map = {("connections", "create"): ["connection-id", "conn-type"]}
+        argv = ["connections", "create", "my_conn", "http"]
+        result = _resolve_positionals(argv, positional_order_map)
+        assert result == ["connections", "create", "--connection-id", "my_conn", "--conn-type", "http"]
+
+    def test_unknown_command_returns_argv_unchanged(self):
+        positional_order_map = {("connections", "create"): ["connection-id", "conn-type"]}
+        argv = ["connections", "list"]
+        assert _resolve_positionals(argv, positional_order_map) == argv
+
+    def test_fewer_than_two_tokens_returns_argv_unchanged(self):
+        positional_order_map = {("connections", "create"): ["connection-id", "conn-type"]}
+        assert _resolve_positionals(["connections"], positional_order_map) == ["connections"]
+        assert _resolve_positionals([], positional_order_map) == []
+
+    def test_global_flags_before_command_are_preserved(self):
+        positional_order_map = {("connections", "create"): ["connection-id", "conn-type"]}
+        # --api-token tok is consumed as a flag-value pair and preserved as-is
+        argv = ["--api-token", "tok", "connections", "create", "my_conn", "http"]
+        result = _resolve_positionals(argv, positional_order_map)
+        assert result == [
+            "--api-token",
+            "tok",
+            "connections",
+            "create",
+            "--connection-id",
+            "my_conn",
+            "--conn-type",
+            "http",
+        ]
+
+
+class TestPositionalOrderMap:
+    def test_connections_create_has_required_fields(self):
+        factory = CommandFactory()
+        factory.group_commands  # trigger population
+        order = factory.positional_order_map.get(("connections", "create"), [])
+        assert order == ["connection-id", "conn-type"]
+
+    def test_connections_list_has_no_required_fields(self):
+        factory = CommandFactory()
+        factory.group_commands
+        order = factory.positional_order_map.get(("connections", "list"), [])
+        assert order == []
+
+    def test_backfill_create_has_required_fields(self):
+        factory = CommandFactory()
+        factory.group_commands
+        order = factory.positional_order_map.get(("backfill", "create"), [])
+        assert order == ["dag-id", "from-date", "to-date"]
+
+    def test_positional_order_map_populated_for_all_operations(self):
+        factory = CommandFactory()
+        factory.group_commands
+        assert len(factory.positional_order_map) > 0
+
+
+class TestDefaultHelpParserPositionalInjection:
+    def _make_parser(self, positional_order_map: dict) -> DefaultHelpParser:
+        parser = DefaultHelpParser(prog="airflowctl")
+        sub = parser.add_subparsers(dest="group")
+        connections = sub.add_parser("connections")
+        connections_sub = connections.add_subparsers(dest="subcommand")
+        create = connections_sub.add_parser("create")
+        create.add_argument("--connection-id", dest="connection_id")
+        create.add_argument("--conn-type", dest="conn_type")
+        create.add_argument("--description", dest="description")
+        parser.positional_order_map = positional_order_map
+        return parser
+
+    def test_positional_args_are_parsed_as_flags(self):
+        parser = self._make_parser({("connections", "create"): ["connection-id", "conn-type"]})
+        ns = parser.parse_args(["connections", "create", "my_conn", "http"])
+        assert ns.connection_id == "my_conn"
+        assert ns.conn_type == "http"
+
+    def test_flag_style_still_works(self):
+        parser = self._make_parser({("connections", "create"): ["connection-id", "conn-type"]})
+        ns = parser.parse_args(["connections", "create", "--connection-id", "my_conn", "--conn-type", "http"])
+        assert ns.connection_id == "my_conn"
+        assert ns.conn_type == "http"
+
+    def test_mixed_positional_and_flag(self):
+        parser = self._make_parser({("connections", "create"): ["connection-id", "conn-type"]})
+        ns = parser.parse_args(["connections", "create", "my_conn", "--conn-type", "http"])
+        assert ns.connection_id == "my_conn"
+        assert ns.conn_type == "http"
+
+    def test_no_positional_order_map_passes_through(self):
+        parser = DefaultHelpParser(prog="airflowctl")
+        sub = parser.add_subparsers(dest="group")
+        version = sub.add_parser("version")
+        version.add_argument("--remote", action="store_true", default=False)
+        ns = parser.parse_args(["version", "--remote"])
+        assert ns.remote is True
+
+
+class TestEpilogForPositionalCommands:
+    def test_command_with_required_params_has_epilog(self):
+        factory = CommandFactory()
+        factory.group_commands
+        for group in factory.group_commands_list:
+            if group.name == "connections":
+                for sub in group.subcommands:
+                    if sub.name == "create":
+                        assert sub.epilog is not None
+                        assert "connection-id" in sub.epilog
+                        assert "conn-type" in sub.epilog
+                        return
+        pytest.fail("connections create not found")
+
+    def test_command_without_required_params_has_no_epilog(self):
+        factory = CommandFactory()
+        factory.group_commands
+        for group in factory.group_commands_list:
+            if group.name == "connections":
+                for sub in group.subcommands:
+                    if sub.name == "list":
+                        assert sub.epilog is None
+                        return
+        pytest.fail("connections list not found")

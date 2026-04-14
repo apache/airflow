@@ -56,6 +56,8 @@ TEST_COMMANDS = [
     "assets list",
     "assets get --asset-id=1",
     "assets create-event --asset-id=1",
+    # Positional shorthand: asset-id as bare positional arg
+    "assets create-event 1",
     # Backfill commands
     "backfill list",
     # Config commands
@@ -64,15 +66,23 @@ TEST_COMMANDS = [
     "config lint",
     # Connections commands
     "connections create --connection-id=test_con --conn-type=mysql --password=TEST_PASS -o json",
+    # Positional shorthand: connection_id and conn_type as bare positional args
+    "connections create test_con_positional mysql",
+    # Mixed: first required param positional, second as flag
+    "connections create test_con_mixed --conn-type=http --description='mixed style test'",
     "connections list",
     "connections list -o yaml",
     "connections list -o table",
     "connections get --conn-id=test_con",
     "connections get --conn-id=test_con -o json",
     "connections update --connection-id=test_con --conn-type=postgres",
+    # Positional shorthand: connection-id and conn-type as bare positional args
+    "connections update test_con mysql",
     "connections import tests/airflowctl_tests/fixtures/test_connections.json",
     "connections delete --conn-id=test_con",
     "connections delete --conn-id=test_import_conn",
+    "connections delete --conn-id=test_con_positional",
+    "connections delete --conn-id=test_con_mixed",
     # DAGs commands
     "dags list",
     "dags get --dag-id=example_bash_operator",
@@ -103,6 +113,8 @@ TEST_COMMANDS = [
     "jobs list",
     # Pools commands
     "pools create --name=test_pool --slots=5",
+    # Positional shorthand: name and slots as bare positional args
+    "pools create test_pool_positional 5",
     "pools list",
     "pools get --pool-name=test_pool",
     "pools get --pool-name=test_pool -o yaml",
@@ -115,10 +127,14 @@ TEST_COMMANDS = [
     "providers list",
     # Variables commands
     "variables create --key=test_key --value=test_value",
+    # Positional shorthand: key and value as bare positional args
+    "variables create test_key_positional test_value_positional",
     "variables list",
     "variables get --variable-key=test_key",
     "variables get --variable-key=test_key -o table",
     "variables update --key=test_key --value=updated_value",
+    # Positional shorthand: key and value as bare positional args
+    "variables update test_key updated_again",
     "variables import tests/airflowctl_tests/fixtures/test_variables.json",
     "variables delete --variable-key=test_key",
     "variables delete --variable-key=test_import_var",

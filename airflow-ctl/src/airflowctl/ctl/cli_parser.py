@@ -39,6 +39,7 @@ from airflowctl.ctl.cli_config import (
     DefaultHelpParser,
     GroupCommand,
     GroupCommandParser,
+    command_factory,
     core_commands,
 )
 from airflowctl.exceptions import AirflowCtlException
@@ -122,6 +123,8 @@ def get_parser() -> argparse.ArgumentParser:
         _add_command(
             subparsers, GroupCommandParser.from_group_command(sub) if isinstance(sub, GroupCommand) else sub
         )
+
+    parser.positional_order_map = command_factory.positional_order_map
 
     return parser
 
