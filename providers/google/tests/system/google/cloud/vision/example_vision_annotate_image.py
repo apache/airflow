@@ -110,8 +110,7 @@ with DAG(
 
     # [START howto_operator_vision_annotate_image_result]
     annotate_image_result = BashOperator(
-        bash_command="echo {{ task_instance.xcom_pull('annotate_image')"
-        "['logoAnnotations'][0]['description'] }}",
+        bash_command="echo {{ annotate_image.output['logoAnnotations'][0]['description'] }}",
         task_id="annotate_image_result",
     )
     # [END howto_operator_vision_annotate_image_result]
@@ -129,7 +128,7 @@ with DAG(
 
     # [START howto_operator_vision_detect_text_result]
     detect_text_result = BashOperator(
-        bash_command="echo {{ task_instance.xcom_pull('detect_text')['textAnnotations'][0] }}",
+        bash_command="echo {{ detect_text.output['textAnnotations'][0] }}",
         task_id="detect_text_result",
     )
     # [END howto_operator_vision_detect_text_result]
@@ -142,7 +141,7 @@ with DAG(
 
     # [START howto_operator_vision_document_detect_text_result]
     document_detect_text_result = BashOperator(
-        bash_command="echo {{ task_instance.xcom_pull('document_detect_text')['textAnnotations'][0] }}",
+        bash_command="echo {{ document_detect_text.output['textAnnotations'][0] }}",
         task_id="document_detect_text_result",
     )
     # [END howto_operator_vision_document_detect_text_result]
@@ -155,7 +154,7 @@ with DAG(
 
     # [START howto_operator_vision_detect_labels_result]
     detect_labels_result = BashOperator(
-        bash_command="echo {{ task_instance.xcom_pull('detect_labels')['labelAnnotations'][0] }}",
+        bash_command="echo {{ detect_labels.output['labelAnnotations'][0] }}",
         task_id="detect_labels_result",
     )
     # [END howto_operator_vision_detect_labels_result]

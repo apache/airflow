@@ -130,14 +130,14 @@ def _get_actual_models(key) -> dict[str, str]:
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 GEMINI_API_KEY = "api_key"
-MODELS = "{{ task_instance.xcom_pull('get_actual_models') }}"
+MODELS = "{{ get_actual_models.output }}"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "gen_ai_generative_model_dag"
 REGION = "us-central1"
 PROMPT = "In 10 words or less, why is Apache Airflow amazing?"
 CONTENTS = [PROMPT]
-TEXT_EMBEDDING_MODEL = "{{ task_instance.xcom_pull('get_actual_models')['text-embedding'] }}"
-MULTIMODAL_MODEL = "{{ task_instance.xcom_pull('get_actual_models')['multimodal'] }}"
+TEXT_EMBEDDING_MODEL = "{{ get_actual_models.output['text-embedding'] }}"
+MULTIMODAL_MODEL = "{{ get_actual_models.output['multimodal'] }}"
 MEDIA_GCS_PATH = "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
 MIME_TYPE = "image/jpeg"
 TOOLS = [Tool(google_search=GoogleSearch())]
@@ -194,7 +194,7 @@ EXPERIMENT_NAME = f"eval-test-experiment-airflow-operator-{ENV_ID}".replace("_",
 EXPERIMENT_RUN_NAME = f"eval-experiment-airflow-operator-run-{ENV_ID}".replace("_", "-")
 PROMPT_TEMPLATE = "{instruction}. Article: {context}. Summary:"
 
-CACHED_MODEL = "{{ task_instance.xcom_pull('get_actual_models')['cached-model'] }}"
+CACHED_MODEL = "{{ get_actual_models.output['cached-model'] }}"
 CACHED_SYSTEM_INSTRUCTION = """
 You are an expert researcher. You always stick to the facts in the sources provided, and never make up new facts.
 Now look at these research papers, and answer the following questions.

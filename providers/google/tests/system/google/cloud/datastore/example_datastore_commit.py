@@ -121,7 +121,7 @@ with DAG(
     # [START how_to_import_task]
     import_task = CloudDatastoreImportEntitiesOperator(
         task_id="import_task",
-        bucket="{{ task_instance.xcom_pull('export_task')['response']['outputUrl'].split('/')[2] }}",
+        bucket="{{ export_task.output['response']['outputUrl'].split('/')[2] }}",
         file="{{ '/'.join(task_instance.xcom_pull('export_task')['response']['outputUrl'].split('/')[3:]) }}",
         project_id=PROJECT_ID,
     )
@@ -129,21 +129,21 @@ with DAG(
 
     # [START get_operation_state]
     get_operation = CloudDatastoreGetOperationOperator(
-        task_id="get_operation", name="{{ task_instance.xcom_pull('export_task')['name'] }}"
+        task_id="get_operation", name="{{ export_task.output['name'] }}"
     )
     # [END get_operation_state]
 
     # [START delete_operation]
     delete_export_operation = CloudDatastoreDeleteOperationOperator(
         task_id="delete_export_operation",
-        name="{{ task_instance.xcom_pull('export_task')['name'] }}",
+        name="{{ export_task.output['name'] }}",
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END delete_operation]
 
     delete_import_operation = CloudDatastoreDeleteOperationOperator(
         task_id="delete_import_operation",
-        name="{{ task_instance.xcom_pull('import_task')['name'] }}",
+        name="{{ import_task.output['name'] }}",
         trigger_rule=TriggerRule.ALL_DONE,
     )
 

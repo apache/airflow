@@ -422,13 +422,9 @@ with DAG(
         )
 
         task_id = f"example_cloud_sql_query_ssl_{database_type}"
-        ssl_server_cert_path = (
-            f"{{{{ task_instance.xcom_pull('save_ssl_cert_locally_{database_type}')['sslrootcert'] }}}}"
-        )
-        ssl_cert_path = (
-            f"{{{{ task_instance.xcom_pull('save_ssl_cert_locally_{database_type}')['sslcert'] }}}}"
-        )
-        ssl_key_path = f"{{{{ task_instance.xcom_pull('save_ssl_cert_locally_{database_type}')['sslkey'] }}}}"
+        ssl_server_cert_path = f"{{{{ save_ssl_cert_locally_{database_type}.output['sslrootcert'] }}}}"
+        ssl_cert_path = f"{{{{ save_ssl_cert_locally_{database_type}.output['sslcert'] }}}}"
+        ssl_key_path = f"{{{{ save_ssl_cert_locally_{database_type}.output['sslkey'] }}}}"
 
         # [START howto_operator_cloudsql_query_operators_ssl]
         query_task = CloudSQLExecuteQueryOperator(
@@ -442,7 +438,7 @@ with DAG(
         # [END howto_operator_cloudsql_query_operators_ssl]
 
         task_id = f"example_cloud_sql_query_ssl_secret_{database_type}"
-        secret_id = f"{{{{ task_instance.xcom_pull('save_ssl_cert_to_secret_manager_{database_type}') }}}}"
+        secret_id = f"{{{{ save_ssl_cert_to_secret_manager_{database_type}.output }}}}"
 
         # [START howto_operator_cloudsql_query_operators_ssl_secret_id]
         query_task_secret = CloudSQLExecuteQueryOperator(

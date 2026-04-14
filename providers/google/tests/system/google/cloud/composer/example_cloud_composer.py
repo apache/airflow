@@ -61,7 +61,7 @@ except ImportError:
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-PROJECT_NUMBER = "{{ task_instance.xcom_pull('get_project_number') }}"
+PROJECT_NUMBER = "{{ get_project_number.output }}"
 
 DAG_ID = "composer"
 REGION = "us-central1"

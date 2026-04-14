@@ -104,9 +104,9 @@ with DAG(
         task_id="pod_task_xcom_result",
         bash_command="""
         {% if params.airflow_v3 %}
-        echo "{{ task_instance.xcom_pull('pod_task_xcom') }}"
+        echo "{{ pod_task_xcom.output }}"
         {% else %}
-        echo "{{ task_instance.xcom_pull('pod_task_xcom')[0] }}"
+        echo "{{ pod_task_xcom.output[0] }}"
         {% endif %}
         """,
         params={"airflow_v3": AIRFLOW_V_3_0_PLUS},

@@ -77,19 +77,19 @@ with DAG(
     get_job = CloudDLPGetDLPJobOperator(
         task_id="get_job",
         project_id=PROJECT_ID,
-        dlp_job_id="{{ task_instance.xcom_pull('create_job')['name'].split('/')[-1] }}",
+        dlp_job_id="{{ create_job.output['name'].split('/')[-1] }}",
     )
 
     cancel_job = CloudDLPCancelDLPJobOperator(
         task_id="cancel_job",
         project_id=PROJECT_ID,
-        dlp_job_id="{{ task_instance.xcom_pull('create_job')['name'].split('/')[-1] }}",
+        dlp_job_id="{{ create_job.output['name'].split('/')[-1] }}",
     )
 
     delete_job = CloudDLPDeleteDLPJobOperator(
         task_id="delete_job",
         project_id=PROJECT_ID,
-        dlp_job_id="{{ task_instance.xcom_pull('create_job')['name'].split('/')[-1] }}",
+        dlp_job_id="{{ create_job.output['name'].split('/')[-1] }}",
         trigger_rule=TriggerRule.ALL_DONE,
     )
 

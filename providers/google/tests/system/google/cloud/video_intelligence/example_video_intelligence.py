@@ -96,7 +96,7 @@ with DAG(
 
     # [START howto_operator_video_intelligence_detect_labels_result]
     detect_video_label_result = BashOperator(
-        bash_command="echo {{ task_instance.xcom_pull('detect_video_label')"
+        bash_command="echo {{ detect_video_label.output"
         "['annotationResults'][0]['shotLabelAnnotations'][0]['entity']}}",
         task_id="detect_video_label_result",
     )
@@ -115,7 +115,7 @@ with DAG(
 
     # [START howto_operator_video_intelligence_detect_explicit_content_result]
     detect_video_explicit_content_result = BashOperator(
-        bash_command="echo {{ task_instance.xcom_pull('detect_video_explicit_content')"
+        bash_command="echo {{ detect_video_explicit_content.output"
         "['annotationResults'][0]['explicitAnnotation']['frames'][0]}}",
         task_id="detect_video_explicit_content_result",
     )
@@ -134,8 +134,7 @@ with DAG(
 
     # [START howto_operator_video_intelligence_detect_video_shots_result]
     detect_video_shots_result = BashOperator(
-        bash_command="echo {{ task_instance.xcom_pull('detect_video_shots')"
-        "['annotationResults'][0]['shotAnnotations'][0]}}",
+        bash_command="echo {{ detect_video_shots.output['annotationResults'][0]['shotAnnotations'][0]}}",
         task_id="detect_video_shots_result",
     )
     # [END howto_operator_video_intelligence_detect_video_shots_result]

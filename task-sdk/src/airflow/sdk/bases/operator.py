@@ -1441,9 +1441,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             # This is equivalent to
             with DAG(...):
                 generate_content = GenerateContentOperator(task_id="generate_content")
-                send_email = EmailOperator(
-                    ..., html_content="{{ task_instance.xcom_pull('generate_content') }}"
-                )
+                send_email = EmailOperator(..., html_content="{{ generate_content.output }}")
                 generate_content >> send_email
 
         """
