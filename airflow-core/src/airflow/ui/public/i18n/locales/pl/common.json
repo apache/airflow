@@ -34,7 +34,7 @@
   },
   "collapseAllExtra": "Zwiń wszystkie dodatkowe dane JSON",
   "collapseDetailsPanel": "Zwiń panel szczegółów",
-  "consumingAsset": "Konsumujący zasób",
+  "consumingAsset": "Zabierający zasób",
   "createdAssetEvent_few": "Utworzone zdarzenia zasobów",
   "createdAssetEvent_many": "Utworzonych zdarzeń zasobów",
   "createdAssetEvent_one": "Utworzone zdarzenie zasobu",
@@ -327,24 +327,24 @@
   },
   "toaster": {
     "bulkClear": {
-      "error": "Nie udało się wykonać żądania masowego wyczyszczenia {{resourceName}}",
+      "error": "Nie udało się wykonać żądania grupowego wyczyszczenia {{resourceName}}",
       "success": {
         "description": "Pomyślnie wyczyszczono {{count}} {{resourceName}}. Klucze: {{keys}}",
-        "title": "Wysłano żądanie masowego wyczyszczenia {{resourceName}}"
+        "title": "Wysłano żądanie grupowego wyczyszczenia {{resourceName}}"
       }
     },
     "bulkDelete": {
-      "error": "Nie udało się wykonać żądania masowego usunięcia {{resourceName}}",
+      "error": "Nie udało się wykonać żądania grupowego usunięcia {{resourceName}}",
       "success": {
         "description": "Pomyślnie usunięto {{count}} {{resourceName}}. Klucze: {{keys}}",
-        "title": "Wysłano żądanie masowego usunięcia {{resourceName}}"
+        "title": "Wysłano żądanie grupowego usunięcia {{resourceName}}"
       }
     },
     "bulkUpdate": {
-      "error": "Nie udało się wykonać żądania masowej aktualizacji {{resourceName}}",
+      "error": "Nie udało się wykonać żądania grupowej aktualizacji {{resourceName}}",
       "success": {
         "description": "Pomyślnie zaktualizowano {{count}} {{resourceName}}. Klucze: {{keys}}",
-        "title": "Wysłano żądanie masowej aktualizacji {{resourceName}}"
+        "title": "Wysłano żądanie grupowej aktualizacji {{resourceName}}"
       }
     },
     "create": {
