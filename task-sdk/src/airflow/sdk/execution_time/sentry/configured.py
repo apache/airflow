@@ -148,9 +148,9 @@ class ConfiguredSentry(NoopSentry):
                 except Exception as e:
                     sentry_sdk.capture_exception(e)
                     raise
-            _, _, run_error = run_return
-            if run_error:
-                sentry_sdk.capture_exception(run_error)
+                _, _, run_error = run_return
+                if run_error:
+                    sentry_sdk.capture_exception(run_error)
             return run_return
 
         return wrapped_run
