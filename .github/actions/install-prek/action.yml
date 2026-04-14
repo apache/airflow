@@ -22,12 +22,6 @@ inputs:
   python-version:
     description: 'Python version to use'
     default: "3.10"
-  uv-version:
-    description: 'uv version to use'
-    default: "0.11.6"  # Keep this comment to allow automatic replacement of uv version
-  prek-version:
-    description: 'prek version to use'
-    default: "0.3.8"  # Keep this comment to allow automatic replacement of prek version
   save-cache:
     description: "Whether to save prek cache"
     required: true
@@ -37,16 +31,31 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: "Extract uv and prek versions from uv.lock"
+      id: versions
+      shell: bash
+      # The uv.lock format is stable: the line immediately after `name = "<pkg>"`
+      # is `version = "<X.Y.Z>"` for that package.
+      run: |
+        UV_VERSION=$(sed -n '/^name = "uv"$/{n;s/^version = "\(.*\)"$/\1/p;}' uv.lock)
+        PREK_VERSION=$(sed -n '/^name = "prek"$/{n;s/^version = "\(.*\)"$/\1/p;}' uv.lock)
+        if [[ -z "${UV_VERSION}" || -z "${PREK_VERSION}" ]]; then
+          echo "Failed to extract uv (${UV_VERSION}) or prek (${PREK_VERSION}) version from uv.lock" >&2
+          exit 1
+        fi
+        echo "Extracted uv==${UV_VERSION}, prek==${PREK_VERSION}"
+        echo "uv-version=${UV_VERSION}" >> "${GITHUB_OUTPUT}"
+        echo "prek-version=${PREK_VERSION}" >> "${GITHUB_OUTPUT}"
     - name: "Install uv"
       shell: bash
       run: pip install "uv==${UV_VERSION}"
       env:
-        UV_VERSION: ${{ inputs.uv-version }}
+        UV_VERSION: ${{ steps.versions.outputs.uv-version }}
     - name: Install prek
       shell: bash
       env:
-        PREK_VERSION: ${{inputs.prek-version}}
-        UV_VERSION: ${{ inputs.uv-version }}
+        UV_VERSION: ${{ steps.versions.outputs.uv-version }}
+        PREK_VERSION: ${{ steps.versions.outputs.prek-version }}
       run: |
         uv tool install prek==${PREK_VERSION} --with uv==${UV_VERSION}
       working-directory: ${{ github.workspace }}
@@ -64,7 +73,7 @@ runs:
       uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
       with:
         # yamllint disable rule:line-length
-        key: cache-prek-v9-${{ inputs.platform }}-python${{ inputs.python-version }}-uv${{ inputs.uv-version }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
+        key: cache-prek-v9-${{ inputs.platform }}-python${{ inputs.python-version }}-uv${{ steps.versions.outputs.uv-version }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
         path: /tmp/
       id: restore-prek-cache
     - name: "Restore .cache from the tar file"
@@ -113,7 +122,7 @@ runs:
       uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
       with:
         # yamllint disable rule:line-length
-        key: cache-prek-v9-${{ inputs.platform }}-python${{ inputs.python-version }}-uv${{ inputs.uv-version }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
+        key: cache-prek-v9-${{ inputs.platform }}-python${{ inputs.python-version }}-uv${{ steps.versions.outputs.uv-version }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
         path: /tmp/cache-prek.tar.gz
         if-no-files-found: 'error'
         retention-days: '2'

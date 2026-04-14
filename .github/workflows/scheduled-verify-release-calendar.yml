@@ -24,8 +24,6 @@ on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
 permissions:
   contents: read
-env:
-  UV_VERSION: "0.11.3"  # Keep this comment to allow automatic replacement of uv version
 jobs:
   verify-release-calendar:
     name: "Verify release calendar"
@@ -37,7 +35,16 @@ jobs:
         with:
           persist-credentials: false
       - name: "Install uv"
-        run: pip install "uv==${UV_VERSION}"
+        # Extract uv version from uv.lock. The format is stable: the line
+        # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.
+        run: |
+          UV_VERSION=$(sed -n '/^name = "uv"$/{n;s/^version = "\(.*\)"$/\1/p;}' uv.lock)
+          if [[ -z "${UV_VERSION}" ]]; then
+            echo "Failed to extract uv version from uv.lock" >&2
+            exit 1
+          fi
+          echo "Installing uv==${UV_VERSION}"
+          pip install "uv==${UV_VERSION}"
       - name: "Verify release calendar"
         run: uv run dev/verify_release_calendar.py
       # yamllint disable rule:line-length

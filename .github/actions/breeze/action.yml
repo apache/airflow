@@ -22,9 +22,6 @@ inputs:
   python-version:
     description: 'Python version to use'
     default: "3.10"
-  uv-version:
-    description: 'uv version to use'
-    default: "0.11.6"  # Keep this comment to allow automatic replacement of uv version
 outputs:
   host-python-version:
     description: Python version used in host
@@ -38,9 +35,16 @@ runs:
         python-version: ${{ inputs.python-version }}
     - name: "Install uv"
       shell: bash
-      run: pip install "uv==${UV_VERSION}"
-      env:
-        UV_VERSION: ${{ inputs.uv-version }}
+      # Extract uv version from uv.lock. The format is stable: the line
+      # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.
+      run: |
+        UV_VERSION=$(sed -n '/^name = "uv"$/{n;s/^version = "\(.*\)"$/\1/p;}' uv.lock)
+        if [[ -z "${UV_VERSION}" ]]; then
+          echo "Failed to extract uv version from uv.lock" >&2
+          exit 1
+        fi
+        echo "Installing uv==${UV_VERSION}"
+        pip install "uv==${UV_VERSION}"
     # NOTE! Installing Breeze without using cache is FASTER than when using cache - uv is so fast and has
     # so low overhead, that just running upload cache/restore cache is slower than installing it from scratch
     - name: "Install Breeze"
