@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 import tempfile
 import uuid
@@ -33,6 +34,23 @@ from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.docker_command_utils import execute_command_in_shell, fix_ownership_using_docker
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
+
+PROVIDERS_DIR = AIRFLOW_ROOT_PATH / "providers"
+
+
+def _get_suspended_provider_packages() -> list[str]:
+    """Return in-container pip-installable paths for providers with state: suspended."""
+    packages = []
+    for yaml_path in sorted(PROVIDERS_DIR.rglob("provider.yaml")):
+        if "src" in yaml_path.relative_to(PROVIDERS_DIR).parts:
+            continue
+        with open(yaml_path) as f:
+            data = yaml.safe_load(f)
+        if data.get("state") == "suspended":
+            # Use in-container path (providers/ is mounted at /opt/airflow/providers/)
+            rel = yaml_path.parent.relative_to(PROVIDERS_DIR)
+            packages.append(f"/opt/airflow/providers/{rel}")
+    return packages
 
 
 @click.group(cls=BreezeGroup, name="registry", help="Tools for the Airflow Provider Registry")
@@ -65,11 +83,17 @@ def extract_data(python: str, provider: str | None):
 
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
 
+    # Install suspended providers that aren't in the CI image so runtime
+    # discovery (issubclass) can find their classes.
+    suspended_packages = _get_suspended_provider_packages()
+    install_cmd = f"pip install --quiet {' '.join(suspended_packages)} && " if suspended_packages else ""
+
     provider_flag = f" --provider '{provider}'" if provider else ""
     command = (
+        f"{install_cmd}"
         f"python dev/registry/extract_metadata.py{provider_flag} && "
-        "python dev/registry/extract_parameters.py && "
-        "python dev/registry/extract_connections.py"
+        f"python dev/registry/extract_parameters.py{provider_flag} && "
+        f"python dev/registry/extract_connections.py{provider_flag}"
     )
 
     with ci_group("Extracting registry data"):
@@ -108,7 +132,6 @@ def publish_versions(s3_bucket: str, providers_json: str | None):
     _publish_versions(s3_bucket, providers_json_path=providers_path)
 
 
-PROVIDERS_DIR = AIRFLOW_ROOT_PATH / "providers"
 DEV_REGISTRY_DIR = AIRFLOW_ROOT_PATH / "dev" / "registry"
 
 EXTRACT_SCRIPTS = [
@@ -138,7 +161,7 @@ def _read_provider_yaml_info(provider_id: str) -> tuple[str, list[str]]:
     try:
         import tomllib
     except ImportError:
-        import tomli as tomllib
+        import tomli as tomllib  # type: ignore[no-redef]
 
     provider_yaml_path = _find_provider_yaml(provider_id)
     with open(provider_yaml_path) as f:
@@ -220,37 +243,96 @@ def _run_extract_script(
     return result.returncode
 
 
-@registry_group.command(
-    name="backfill",
-    help="Extract runtime parameters and connections for older provider versions. "
-    "Uses 'uv run --with' to install the specific version in a temporary environment "
-    "and runs extract_parameters.py + extract_connections.py. No Docker needed. "
-    "Each version uses an isolated providers.json, so multiple providers can be "
-    "backfilled in parallel from separate terminal sessions.",
-)
-@click.option(
-    "--provider",
-    required=True,
-    help="Provider ID (e.g. 'amazon', 'google', 'microsoft-azure').",
-)
-@click.option(
-    "--version",
-    "versions",
-    required=True,
-    multiple=True,
-    help="Version(s) to extract. Can be specified multiple times: --version 9.21.0 --version 9.20.0",
-)
-@option_verbose
-@option_dry_run
-def backfill(provider: str, versions: tuple[str, ...]):
-    package_name, extras = _read_provider_yaml_info(provider)
+def _backfill_docker(
+    python: str,
+    provider: str,
+    versions: tuple[str, ...],
+    package_name: str,
+    extras: list[str],
+) -> list[str]:
+    """Run parameter/connection extraction inside the Breeze CI container."""
+    failed: list[str] = []
+    unique_project_name = f"breeze-backfill-{uuid.uuid4().hex[:8]}"
 
-    click.echo(f"Provider: {provider} ({package_name})")
-    click.echo(f"Versions: {', '.join(versions)}")
-    if extras:
-        click.echo(f"Extras: {', '.join(extras)}")
-    click.echo()
+    shell_params = ShellParams(
+        python=python,
+        project_name=unique_project_name,
+        quiet=True,
+        skip_environment_initialization=True,
+        extra_args=(),
+    )
 
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+
+    # Place isolated providers.json under dev/registry/ so it's visible inside the container
+    # at /opt/airflow/dev/registry/
+    backfill_tmp_dir = DEV_REGISTRY_DIR / ".backfill_tmp"
+    backfill_tmp_dir.mkdir(exist_ok=True)
+
+    try:
+        for version in versions:
+            click.echo(f"{'=' * 60}")
+            click.echo(f"Extracting {provider} {version} (Docker)")
+            click.echo(f"{'=' * 60}")
+
+            providers_json = _create_isolated_providers_json(
+                provider, package_name, version, backfill_tmp_dir
+            )
+            container_providers_json = f"/opt/airflow/dev/registry/.backfill_tmp/{providers_json.name}"
+
+            pip_spec = _build_pip_spec(package_name, extras, version)
+            base_spec = f"{package_name}=={version}"
+
+            command = (
+                f"cd dev/registry && "
+                f"uv run --with '{pip_spec}' bash -c '"
+                f"python extract_parameters.py "
+                f"--provider {provider} --providers-json {container_providers_json} && "
+                f"python extract_connections.py "
+                f"--provider {provider} --providers-json {container_providers_json}'"
+            )
+
+            result = execute_command_in_shell(
+                shell_params=shell_params,
+                project_name=unique_project_name,
+                command=command,
+                preserve_backend=True,
+            )
+
+            if result.returncode != 0 and pip_spec != base_spec:
+                click.echo(f"Retrying without extras ({base_spec})...")
+                command_fallback = (
+                    f"cd dev/registry && "
+                    f"uv run --with '{base_spec}' bash -c '"
+                    f"python extract_parameters.py "
+                    f"--provider {provider} --providers-json {container_providers_json} && "
+                    f"python extract_connections.py "
+                    f"--provider {provider} --providers-json {container_providers_json}'"
+                )
+                result = execute_command_in_shell(
+                    shell_params=shell_params,
+                    project_name=unique_project_name,
+                    command=command_fallback,
+                    preserve_backend=True,
+                )
+
+            if result.returncode != 0:
+                click.echo(f"WARNING: extraction failed for {version} (exit {result.returncode})")
+                failed.append(f"{version}/docker-extraction")
+    finally:
+        shutil.rmtree(backfill_tmp_dir, ignore_errors=True)
+        fix_ownership_using_docker()
+
+    return failed
+
+
+def _backfill_uv(
+    provider: str,
+    versions: tuple[str, ...],
+    package_name: str,
+    extras: list[str],
+) -> list[str]:
+    """Run parameter/connection extraction via 'uv run --with' on the host."""
     failed: list[str] = []
 
     with tempfile.TemporaryDirectory(prefix=f"backfill-{provider}-") as tmp_dir:
@@ -258,10 +340,9 @@ def backfill(provider: str, versions: tuple[str, ...]):
 
         for version in versions:
             click.echo(f"{'=' * 60}")
-            click.echo(f"Extracting {provider} {version}")
+            click.echo(f"Extracting {provider} {version} (uv)")
             click.echo(f"{'=' * 60}")
 
-            # Each version gets its own isolated providers.json — no shared state
             providers_json = _create_isolated_providers_json(provider, package_name, version, tmp_path)
 
             pip_spec = _build_pip_spec(package_name, extras, version)
@@ -274,6 +355,75 @@ def backfill(provider: str, versions: tuple[str, ...]):
                     click.echo(f"WARNING: {script.name} failed for {version} (exit {returncode})")
                     failed.append(f"{version}/{script.name}")
 
+    return failed
+
+
+@registry_group.command(
+    name="backfill",
+    help="Extract metadata, parameters, and connections for older provider versions. "
+    "Runs extract_versions.py (host, git tags) for metadata.json, then "
+    "extract_parameters.py + extract_connections.py inside the Breeze CI container "
+    "(or via 'uv run --with' with --no-docker). "
+    "Each version uses an isolated providers.json, so "
+    "multiple providers can be backfilled in parallel.",
+)
+@option_python
+@click.option(
+    "--provider",
+    required=True,
+    help="Provider ID (e.g. 'amazon', 'google', 'microsoft-azure').",
+)
+@click.option(
+    "--version",
+    "versions",
+    required=True,
+    multiple=True,
+    help="Version(s) to extract. Can be specified multiple times: --version 9.21.0 --version 9.20.0",
+)
+@click.option(
+    "--use-docker/--no-docker",
+    default=True,
+    help="Run extraction in CI Docker container (default) or via uv on host.",
+)
+@option_verbose
+@option_dry_run
+def backfill(python: str, provider: str, versions: tuple[str, ...], use_docker: bool):
+    package_name, extras = _read_provider_yaml_info(provider)
+
+    click.echo(f"Provider: {provider} ({package_name})")
+    click.echo(f"Versions: {', '.join(versions)}")
+    click.echo(f"Mode: {'Docker' if use_docker else 'uv (host)'}")
+    if extras:
+        click.echo(f"Extras: {', '.join(extras)}")
+    click.echo()
+
+    failed: list[str] = []
+
+    # Step 1: extract_versions.py (host, reads git tags) -> metadata.json
+    click.echo("Step 1: Extracting version metadata from git tags...")
+    for version in versions:
+        versions_cmd = [
+            "uv",
+            "run",
+            "python",
+            str(DEV_REGISTRY_DIR / "extract_versions.py"),
+            "--provider",
+            provider,
+            "--version",
+            version,
+        ]
+        result = run_command(versions_cmd, check=False, cwd=str(AIRFLOW_ROOT_PATH))
+        if result.returncode != 0:
+            click.echo(f"WARNING: extract_versions.py failed for {version} (exit {result.returncode})")
+            failed.append(f"{version}/extract_versions.py")
+
+    # Step 2: extract_parameters.py + extract_connections.py
+    click.echo("\nStep 2: Extracting parameters and connections...")
+    if use_docker:
+        failed.extend(_backfill_docker(python, provider, versions, package_name, extras))
+    else:
+        failed.extend(_backfill_uv(provider, versions, package_name, extras))
+
     click.echo(f"\n{'=' * 60}")
     if failed:
         click.echo(f"Completed with failures: {', '.join(failed)}")
@@ -282,6 +432,7 @@ def backfill(provider: str, versions: tuple[str, ...]):
         click.echo(f"Successfully extracted {len(versions)} version(s) for {provider}")
         click.echo(
             f"\nOutput written to:\n"
+            f"  registry/src/_data/versions/{provider}/<version>/metadata.json\n"
             f"  registry/src/_data/versions/{provider}/<version>/parameters.json\n"
             f"  registry/src/_data/versions/{provider}/<version>/connections.json"
         )
