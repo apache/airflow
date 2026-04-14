@@ -1194,6 +1194,13 @@ def _run_upgradedb(
         with _configured_alembic_environment() as env:
             source_heads = env.script.get_heads()
 
+        # End the read-only transaction from _get_current_revision before
+        # external DB manager migrations, which may run DDL that is blocked by
+        # open transactions (e.g. CREATE INDEX CONCURRENTLY). The advisory lock
+        # from create_global_lock() is unaffected: it is session-level and held
+        # on a separate connection.
+        work_session.rollback()
+
         if current_revision == source_heads[0] and not _SKIP_EXTERNAL_DB_MANAGERS_UPGRADE.get():
             external_db_manager = RunDBManager()
             external_db_manager.upgradedb(work_session, use_migration_files=use_migration_files)
