@@ -621,6 +621,7 @@ class DagModelOperation(NamedTuple):
             dm.timetable_summary = dag.timetable.summary
             dm.timetable_description = dag.timetable.description
             dm.timetable_partitioned = dag.timetable.partitioned
+            dm.timetable_periodic = dag.timetable.periodic
             dm.fail_fast = dag.fail_fast if dag.fail_fast is not None else False
 
             allowed_types = dag.allowed_run_types

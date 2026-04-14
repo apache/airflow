@@ -22,7 +22,6 @@
         "title": "백필 생성됨"
       }
     },
-    "tooltip": "백필에는 일정이 필요합니다.",
     "unpause": "트리거 시 {{dag_display_name}} 일시 중지 해제",
     "validation": {
       "datesRequired": "데이터 구간 시작일과 종료일이 모두 제공되어야 합니다.",

@@ -22,7 +22,6 @@
         "title": "Backfill gegenereerd"
       }
     },
-    "tooltip": "Backfill benodigd een planning",
     "unpause": "Hervat {{dag_display_name}} na een trigger",
     "validation": {
       "datesRequired": "Data interval startdatum en einddatum moeten beide gegeven zijn.",

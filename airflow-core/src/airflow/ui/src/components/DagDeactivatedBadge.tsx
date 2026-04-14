@@ -16,7 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Badge } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
-export * from "./ColorModeProvider";
-export * from "./useColorMode";
-export * from "./useMonacoTheme";
+export const DagDeactivatedBadge = () => {
+  const { t: translate } = useTranslation("dag");
+
+  return <Badge colorPalette="orange">{translate("header.status.deactivated")}</Badge>;
+};
