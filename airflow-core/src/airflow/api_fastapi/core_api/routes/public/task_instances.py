@@ -90,7 +90,11 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
 from airflow.models import Base, DagRun
-from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
+from airflow.models.taskinstance import (
+    TaskInstance as TI,
+    clear_external_task_marker_dependencies,
+    clear_task_instances,
+)
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -835,6 +839,16 @@ def post_clear_task_instances(
             )
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
+
+        # Recursively clear tasks in external DAGs referenced by ExternalTaskMarker
+        if body.include_recursive:
+            external_tis = clear_external_task_marker_dependencies(
+                tis=list(task_instances),
+                dag_bag=dag_bag,
+                session=session,
+                dag_run_state=DagRunState.QUEUED if reset_dag_runs else False,
+            )
+            task_instances = list(task_instances) + external_tis
 
         if body.note is not None:
             _patch_task_instance_note(

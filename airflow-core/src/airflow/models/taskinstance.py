@@ -434,6 +434,141 @@ def clear_task_instances(
     session.flush()
 
 
+def clear_external_task_marker_dependencies(
+    tis: list[TaskInstance],
+    dag_bag: DBDagBag,
+    session: Session,
+    dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
+    visited: set[tuple[str, str, str]] | None = None,
+    recursion_depth: int = 10,
+) -> list[TaskInstance]:
+    """
+    Recursively clear tasks referenced by ExternalTaskMarker instances.
+
+    When clearing tasks, if any of the cleared task instances are backed by an
+    ExternalTaskMarker operator, this function will load the referenced external
+    DAG and clear the corresponding task(s) in that DAG. This process repeats
+    recursively up to ``recursion_depth`` levels.
+
+    :param tis: task instances that were just cleared
+    :param dag_bag: DBDagBag used to load external DAGs
+    :param session: SQLAlchemy session
+    :param dag_run_state: state to set affected DagRuns to
+    :param visited: set of (dag_id, task_id, logical_date) already visited to prevent cycles
+    :param recursion_depth: maximum remaining recursion levels
+    :return: list of additionally cleared task instances from external DAGs
+
+    :meta private:
+    """
+    from airflow.models.dagbag import DBDagBag
+
+    if recursion_depth <= 0:
+        raise RuntimeError(
+            f"Maximum recursion depth {recursion_depth} reached for ExternalTaskMarker. "
+            "This is likely caused by circular dependencies between DAGs."
+        )
+
+    if visited is None:
+        visited = set()
+
+    all_external_tis: list[TaskInstance] = []
+
+    for ti in tis:
+        # Load the serialized DAG for this task instance to check its type
+        dag = dag_bag.get_latest_version_of_dag(ti.dag_id, session=session)
+        if not dag:
+            continue
+
+        if not dag.has_task(ti.task_id):
+            continue
+
+        task = dag.get_task(ti.task_id)
+
+        # Check if this task is an ExternalTaskMarker by its task_type
+        if task.task_type != "ExternalTaskMarker":
+            continue
+
+        external_dag_id = getattr(task, "external_dag_id", None)
+        external_task_id = getattr(task, "external_task_id", None)
+        marker_recursion_depth = getattr(task, "recursion_depth", 10)
+
+        if not external_dag_id or not external_task_id:
+            continue
+
+        # Use the marker's own recursion_depth as the limit, but respect the remaining depth
+        effective_depth = min(marker_recursion_depth, recursion_depth)
+
+        # The logical_date for the external task — use the TI's logical_date
+        logical_date_key = str(ti.logical_date) if ti.logical_date else ""
+        visit_key = (external_dag_id, external_task_id, logical_date_key)
+
+        if visit_key in visited:
+            continue
+        visited.add(visit_key)
+
+        # Load the external DAG
+        external_dag = dag_bag.get_latest_version_of_dag(external_dag_id, session=session)
+        if not external_dag:
+            log.warning(
+                "ExternalTaskMarker on %s.%s references DAG '%s' which does not exist. Skipping.",
+                ti.dag_id,
+                ti.task_id,
+                external_dag_id,
+            )
+            continue
+
+        if not external_dag.has_task(external_task_id):
+            log.warning(
+                "ExternalTaskMarker on %s.%s references task '%s' in DAG '%s' which does not exist. Skipping.",
+                ti.dag_id,
+                ti.task_id,
+                external_task_id,
+                external_dag_id,
+            )
+            continue
+
+        # Find matching task instances in the external DAG
+        # Include the target task and all its downstream tasks
+        external_partial = external_dag.partial_subset(
+            task_ids=[external_task_id],
+            include_downstream=True,
+        )
+
+        external_tis = list(
+            external_dag._get_task_instances(
+                task_ids=list(external_partial.task_dict.keys()),
+                start_date=ti.logical_date,
+                end_date=ti.logical_date,
+                session=session,
+            )
+        )
+
+        if not external_tis:
+            continue
+
+        # Clear the external task instances
+        clear_task_instances(
+            external_tis,
+            session,
+            dag_run_state=dag_run_state,
+        )
+        all_external_tis.extend(external_tis)
+
+        # Recurse into the newly cleared tasks to handle transitive ExternalTaskMarker chains
+        if effective_depth > 1:
+            transitive_tis = clear_external_task_marker_dependencies(
+                tis=external_tis,
+                dag_bag=dag_bag,
+                session=session,
+                dag_run_state=dag_run_state,
+                visited=visited,
+                recursion_depth=effective_depth - 1,
+            )
+            all_external_tis.extend(transitive_tis)
+
+    return all_external_tis
+
+
 def _creator_note(val):
     """Creator for the ``note`` association proxy."""
     if isinstance(val, str):

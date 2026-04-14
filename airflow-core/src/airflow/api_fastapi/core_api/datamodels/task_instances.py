@@ -162,6 +162,11 @@ class ClearTaskInstancesBody(StrictBaseModel):
     include_downstream: bool = False
     include_future: bool = False
     include_past: bool = False
+    include_recursive: bool = Field(
+        default=False,
+        description="If set to true, clearing tasks that are ExternalTaskMarker instances "
+        "will also recursively clear the referenced tasks in external DAGs.",
+    )
     run_on_latest_version: bool = Field(
         default=False,
         description="(Experimental) Run on the latest bundle version of the dag after "
