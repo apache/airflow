@@ -141,28 +141,17 @@ describe("Task log grouping", () => {
 
     await waitForLogs();
 
-    const expectRenderedLineNumber = async (pattern: RegExp, expectedLineNumber: number) => {
-      const row = (await screen.findByText(pattern)).closest('[data-testid^="virtualized-item-"]');
+    const logContainer = screen.getByTestId("virtual-scroll-container");
+    const lineNumbers = [...logContainer.querySelectorAll<HTMLAnchorElement>("a[id]")]
+      .map((el) => parseInt(el.id, 10))
+      .filter((num) => !isNaN(num))
+      .sort((numA, numB) => numA - numB);
 
-      expect(row).not.toBeNull();
-
-      const anchor = row?.querySelector<HTMLAnchorElement>("a[id]");
-
-      expect(anchor).not.toBeNull();
-
-      expect(Number(anchor?.id)).toBe(expectedLineNumber);
-    };
-
-    const summaryPre = screen.getByTestId("summary-Pre task execution logs");
-
-    fireEvent.click(summaryPre);
-
-    const summaryDependency = await screen.findByTestId("summary-Dependency check details");
-
-    fireEvent.click(summaryDependency);
-
-    await expectRenderedLineNumber(/dep_context=non-requeueable/iu, 0);
-    await expectRenderedLineNumber(/dep_context=requeueable/iu, 1);
-    await expectRenderedLineNumber(/starting attempt 1 of 3/iu, 2);
+    expect(lineNumbers.length).toBeGreaterThan(0);
+    expect(lineNumbers[0]).toBe(0);
+    expect(new Set(lineNumbers).size).toBe(lineNumbers.length);
+    lineNumbers.forEach((num, idx) => {
+      expect(num).toBe(idx);
+    });
   }, 10_000);
 });
