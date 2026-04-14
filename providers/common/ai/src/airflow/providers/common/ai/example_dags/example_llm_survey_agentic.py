@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Multi-query synthesis — an agentic survey analysis pattern.
+Multi-query synthesis -- an agentic survey analysis pattern.
 
 Demonstrates how Dynamic Task Mapping turns a multi-dimensional research
 question into a fan-out / fan-in pipeline that is observable, retryable,
@@ -25,8 +25,8 @@ and auditable at each step.
 practitioners who actively use AI tools in their workflow?"*
 
 This question cannot be answered with a single SQL query.  It requires
-querying four independent dimensions — executor type, deployment method,
-cloud provider, and Airflow version — all filtered to respondents who use
+querying four independent dimensions -- executor type, deployment method,
+cloud provider, and Airflow version -- all filtered to respondents who use
 AI tools to write Airflow code.  The results are then synthesized by a
 second LLM call into a single narrative characterization.
 
@@ -44,10 +44,10 @@ second LLM call into a single narrative characterization.
 
 **What this makes visible that an agent harness hides:**
 
-* Each sub-query is a named, logged task instance — not a hidden tool call.
+* Each sub-query is a named, logged task instance -- not a hidden tool call.
 * If the cloud-provider query fails, only that mapped instance retries;
   the other three results are preserved in XCom.
-* The synthesis step's inputs are fully auditable XCom values — not an
+* The synthesis step's inputs are fully auditable XCom values -- not an
   opaque continuation of an LLM reasoning loop.
 
 Before running:
@@ -111,7 +111,7 @@ survey_datasource = DataSourceConfig(
     format="csv",
 )
 
-# Dimension labels — order must match the sub-questions returned by decompose_question.
+# Dimension labels -- order must match the sub-questions returned by decompose_question.
 DIMENSION_KEYS = ["executor", "deployment", "cloud", "airflow_version"]
 
 SYNTHESIS_SYSTEM_PROMPT = (
@@ -127,7 +127,7 @@ SYNTHESIS_SYSTEM_PROMPT = (
 
 
 # [START example_llm_survey_agentic]
-@dag(schedule=None)
+@dag
 def example_llm_survey_agentic():
     """
     Fan-out across four survey dimensions, then synthesize into a single narrative.
@@ -176,7 +176,7 @@ def example_llm_survey_agentic():
 
     # ------------------------------------------------------------------
     # Step 2: Generate SQL for each sub-question in parallel.
-    # LLMSQLQueryOperator is expanded over the sub-question list —
+    # LLMSQLQueryOperator is expanded over the sub-question list --
     # four mapped instances, each translating one natural-language
     # question into validated SQL.
     # ------------------------------------------------------------------
@@ -201,7 +201,7 @@ def example_llm_survey_agentic():
     # ------------------------------------------------------------------
     # Step 4: Execute each SQL against the survey CSV via DataFusion.
     # Four mapped instances run in parallel.  If one fails, only that
-    # instance retries — the other three hold their XCom results.
+    # instance retries -- the other three hold their XCom results.
     # ------------------------------------------------------------------
     run_query = AnalyticsOperator.partial(
         task_id="run_query",
@@ -211,10 +211,10 @@ def example_llm_survey_agentic():
 
     # ------------------------------------------------------------------
     # Step 5: Collect all four JSON results and label them by dimension.
-    # trigger_rule="all_success" ensures synthesis only runs when the
-    # complete picture is available.
+    # The default trigger rule (all_success) ensures synthesis only runs
+    # when the complete picture is available.
     # ------------------------------------------------------------------
-    @task(trigger_rule="all_success")
+    @task
     def collect_results(results: list[str]) -> dict:
         # Airflow preserves index order for mapped task outputs, so zip is safe here:
         # results[i] corresponds to the mapped instance at index i, which matches
@@ -230,7 +230,7 @@ def example_llm_survey_agentic():
 
     # ------------------------------------------------------------------
     # Step 6: Synthesize the four labeled result sets into a narrative.
-    # This is the second LLM call — the first four generated SQL,
+    # This is the second LLM call -- the first four generated SQL,
     # this one interprets the results.  Inputs are fully visible in XCom.
     # ------------------------------------------------------------------
     synthesize_answer = LLMOperator(
