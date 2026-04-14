@@ -30,7 +30,11 @@ from httpx import URL
 
 from airflowctl.api.client import Client, ClientKind, Credentials, _bounded_get_new_password
 from airflowctl.api.operations import ServerResponseError
-from airflowctl.exceptions import AirflowCtlCredentialNotFoundException, AirflowCtlKeyringException
+from airflowctl.exceptions import (
+    AirflowCtlCredentialNotFoundException,
+    AirflowCtlException,
+    AirflowCtlKeyringException,
+)
 
 
 def make_client_w_responses(responses: list[httpx.Response]) -> Client:
@@ -376,3 +380,34 @@ class TestSaveKeyringPatching:
             response = client.get("http://error")
             assert response.status_code == 200
             assert len(responses) == 1
+
+    def test_debug_mode_missing_debug_creds_reports_correct_error(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
+        monkeypatch.setenv("AIRFLOW_CLI_ENVIRONMENT", "TEST_DEBUG")
+
+        config_path = tmp_path / "TEST_DEBUG.json"
+        config_path.write_text(json.dumps({"api_url": "http://localhost:8080"}), encoding="utf-8")
+        # Intentionally do not create debug_creds_TEST_DEBUG.json to simulate a missing file
+
+        creds = Credentials(client_kind=ClientKind.CLI, api_environment="TEST_DEBUG")
+        with pytest.raises(AirflowCtlCredentialNotFoundException, match="Debug credentials file not found"):
+            creds.load()
+
+
+def test_credentials_accepts_safe_env():
+    creds = Credentials(client_kind=ClientKind.CLI, api_environment="prod-us_1")
+    assert creds.api_environment == "prod-us_1"
+
+
+@pytest.mark.parametrize("api_environment", ["../evil", "..\\evil", "a/b", "a\\b"])
+def test_credentials_rejects_unsafe_env_argument(api_environment):
+    with pytest.raises(AirflowCtlException, match="environment"):
+        Credentials(client_kind=ClientKind.CLI, api_environment=api_environment)
+
+
+@pytest.mark.parametrize("api_environment", ["../evil", "..\\evil", "a/b", "a\\b"])
+def test_credentials_rejects_unsafe_env_from_environment_variable(monkeypatch, api_environment):
+    monkeypatch.setenv("AIRFLOW_CLI_ENVIRONMENT", api_environment)
+    with pytest.raises(AirflowCtlException, match="environment"):
+        Credentials(client_kind=ClientKind.CLI)

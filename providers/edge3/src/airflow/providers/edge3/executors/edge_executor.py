@@ -55,7 +55,7 @@ class EdgeExecutor(BaseExecutor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.last_reported_state: dict[TaskInstanceKey, TaskInstanceState] = {}
+        self.last_reported_state: dict[TaskInstanceKey, TaskInstanceState | str] = {}
 
         # Check if self has the ExecutorConf set on the self.conf attribute with all required methods.
         # In Airflow 2.x, ExecutorConf exists but lacks methods like getint, getboolean, getsection, etc.

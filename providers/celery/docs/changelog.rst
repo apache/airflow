@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+3.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Ignore redelivered message for already-running task (#64052)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix amqps:// SSL config and celery_config_options bypass (#64392)``
+
+Misc
+~~~~
+
+* ``Clean up CeleryExecutor to use workload terminology and typing (#63888)``
+* ``Compat sdk conf follow-up: Celery, Common AI, FAB, Edge3 (#64292)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Celery tests after conf-backcompat merge (#64388)``
+
 3.17.2
 ......
 

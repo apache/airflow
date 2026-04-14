@@ -1,0 +1,1 @@
+``workers.labels`` field is now deprecated in favor of ``workers.celery.labels`` and ``workers.kubernetes.labels``. Please update your configuration accordingly.

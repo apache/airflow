@@ -30,6 +30,7 @@
   - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
   - [Convert commits to changelog entries and bump provider versions](#convert-commits-to-changelog-entries-and-bump-provider-versions)
   - [Update versions of dependent providers to the next version](#update-versions-of-dependent-providers-to-the-next-version)
+  - [Create a PR with the changes](#create-a-pr-with-the-changes)
   - [Apply incremental changes and merge the PR](#apply-incremental-changes-and-merge-the-pr)
   - [(Optional) Apply template updates](#optional-apply-template-updates)
   - [Build Provider distributions for SVN apache upload](#build-provider-distributions-for-svn-apache-upload)
@@ -232,6 +233,22 @@ removed.
 
 ```shell script
 breeze release-management update-providers-next-version
+```
+
+## Create a PR with the changes
+
+Make sure to set labels: `allow provider dependency bump` and `skip common compat check` to the PR,
+so that the PR is not blocked by selective checks.
+
+You can do it for example this way:
+
+```shell script
+gh pr create \
+  --title "Prepare providers release ${RELEASE_DATE}" \
+  --label "allow provider dependency bump" \
+  --label "skip common compat check" \
+  --body "Prepare providers release ${RELEASE_DATE}" \
+  --web
 ```
 
 ## Apply incremental changes and merge the PR
@@ -583,13 +600,13 @@ email.
 export VOTE_DURATION_IN_HOURS=72
 export IS_SHORTEN_VOTE=$([ $VOTE_DURATION_IN_HOURS -ge 72 ] && echo "false" || echo "true")
 export SHORTEN_VOTE_TEXT="This is a shortened ($VOTE_DURATION_IN_HOURS hours vote) as agreed by policy set it https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm"
-if [ "$OS" = "Darwin" ]; then  # MacOS (BSD date)
+if [[ "${OSTYPE}" == *darwin* ]]; then
   export VOTE_END_TIME=$(date -u -v "+${VOTE_DURATION_IN_HOURS}H" -v "+10M" +'%Y-%m-%d %H:%M')
 else  # Linux
   export VOTE_END_TIME=$(date --utc -d "now + $VOTE_DURATION_IN_HOURS hours + 10 minutes" +'%Y-%m-%d %H:%M')
 fi
-export RELEASE_MANAGER_NAME="RELEASE_MANAGER_NAME_HERE"
-export GITHUB_ISSUE_LINK="LINK_TO_GITHUB_ISSUE"
+export RELEASE_MANAGER_NAME="TODO:RELEASE_MANAGER_NAME"
+export GITHUB_ISSUE_LINK="TODO:ISSUE_LINK"
 ```
 
 subject:

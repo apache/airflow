@@ -206,6 +206,7 @@ body:
         - teradata
         - trino
         - vertica
+        - vespa
         - weaviate
         - yandex
         - ydb

@@ -64,7 +64,7 @@ apache-airflow-providers-smtp package
 `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
 
 
-Release: 2.4.4
+Release: 2.4.5
 
 Provider package
 ----------------
@@ -117,5 +117,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-smtp 2.4.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-2.4.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-2.4.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-2.4.4.tar.gz.sha512>`__)
-* `The apache-airflow-providers-smtp 2.4.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-2.4.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-2.4.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-2.4.4-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-smtp 2.4.5 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-2.4.5.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-2.4.5.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-2.4.5.tar.gz.sha512>`__)
+* `The apache-airflow-providers-smtp 2.4.5 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-2.4.5-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-2.4.5-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-2.4.5-py3-none-any.whl.sha512>`__)
