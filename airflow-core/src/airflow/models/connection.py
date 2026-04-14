@@ -34,7 +34,7 @@ from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_masker import mask_secret
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
-from airflow.models.crypto import get_fernet
+from airflow.models.crypto import FernetFieldsMixin, get_fernet
 
 # AirflowSecretsBackendAccessDenied was added to task-sdk in 1.2.2. When
 # airflow-core is installed alongside an older published task-sdk (e.g. 1.2.1 or earlier),
@@ -109,7 +109,7 @@ def _parse_netloc_to_hostname(uri_parts):
     return hostname
 
 
-class Connection(Base, LoggingMixin):
+class Connection(Base, FernetFieldsMixin, LoggingMixin):
     """
     Placeholder to store information about different database instances connection information.
 
@@ -145,7 +145,7 @@ class Connection(Base, LoggingMixin):
     host: Mapped[str | None] = mapped_column(String(500), nullable=True)
     schema: Mapped[str | None] = mapped_column(String(500), nullable=True)
     login: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    _password: Mapped[str | None] = mapped_column("password", Text(), nullable=True)
+    # _password and _extra columns inherited from FernetFieldsMixin
     port: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
     is_extra_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
@@ -154,7 +154,6 @@ class Connection(Base, LoggingMixin):
         ForeignKey("team.name", ondelete="SET NULL"),
         nullable=True,
     )
-    _extra: Mapped[str | None] = mapped_column("extra", Text(), nullable=True)
 
     def __init__(
         self,

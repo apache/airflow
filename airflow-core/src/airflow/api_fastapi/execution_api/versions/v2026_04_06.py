@@ -35,6 +35,17 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 )
 
 
+class AddConnectionTestEndpoint(VersionChange):
+    """Add connection-tests endpoints for async connection testing."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/connection-tests/{connection_test_id}", ["PATCH"]).didnt_exist,
+        endpoint("/connection-tests/{connection_test_id}/connection", ["GET"]).didnt_exist,
+    )
+
+
 class AddPartitionKeyField(VersionChange):
     """Add the `partition_key` field to DagRun model."""
 

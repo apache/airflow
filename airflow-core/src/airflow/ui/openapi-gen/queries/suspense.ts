@@ -245,6 +245,21 @@ export const useConnectionServiceGetConnectionsSuspense = <TData = Common.Connec
   orderBy?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, connectionIdPrefixPattern, limit, offset, orderBy }, queryKey), queryFn: () => ConnectionService.getConnections({ connectionIdPattern, connectionIdPrefixPattern, limit, offset, orderBy }) as TData, ...options });
 /**
+* Get Connection Test
+* Poll for the status of an async connection test.
+*
+* The ``connection_test_token`` is a crypto-random identifier used to
+* look up the specific test result. Access to this endpoint is still
+* governed by standard authentication and connection-level authorization.
+* @param data The data for the request.
+* @param data.connectionTestToken
+* @returns AsyncConnectionTestResponse Successful Response
+* @throws ApiError
+*/
+export const useConnectionServiceGetConnectionTestSuspense = <TData = Common.ConnectionServiceGetConnectionTestDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ connectionTestToken }: {
+  connectionTestToken: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionTestKeyFn({ connectionTestToken }, queryKey), queryFn: () => ConnectionService.getConnectionTest({ connectionTestToken }) as TData, ...options });
+/**
 * Hook Meta Data
 * Retrieve information about available connection types (hook classes) and their parameters.
 * @returns ConnectionHookMetaData Successful Response
