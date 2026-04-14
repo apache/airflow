@@ -84,18 +84,19 @@ class JavaLocaleCoordinator(BaseLocaleCoordinator):
         cls,
         *,
         what: TaskInstance,
-        dag_rel_path: str | os.PathLike[str],
+        dag_file_path: str,
+        bundle_path: str,
         bundle_info: BundleInfo,
         comm_addr: str,
         logs_addr: str,
     ) -> list[str]:
         """Build the ``java`` command for executing a task in a JAR bundle."""
-        jar_path = Path(dag_rel_path)
+        jar_path = Path(dag_file_path)
         # Java bundles are typically thin JARs: the main JAR only contains
         # the bundle's own classes while its dependencies (the Airflow Java
         # SDK, logging libraries, etc.) are separate JARs that live alongside
         # it.  Using ``<dir>/*`` lets the JVM load every JAR in the directory.
-        classpath = f"{jar_path.parent}/*"
+        classpath = f"{bundle_path}/*"
         return [
             "java",
             "-classpath",
