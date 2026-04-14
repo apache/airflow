@@ -36,7 +36,7 @@ runs:
   using: "composite"
   steps:
     - name: "Restore CI docker images ${{ inputs.platform }}:${{ inputs.python }}"
-      uses: apache/infrastructure-actions/stash/restore@d79f0a5b7a43448f860a0fa20d7a87ea78d55a54
+      uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
       with:
         key: ci-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}
         path: "/mnt/"
