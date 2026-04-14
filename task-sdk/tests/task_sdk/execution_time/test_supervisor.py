@@ -143,7 +143,7 @@ from airflow.sdk.execution_time.supervisor import (
     _remote_logging_conn,
     process_log_messages_from_subprocess,
     set_supervisor_comms,
-    supervise,
+    supervise_task,
 )
 from airflow.sdk.execution_time.task_runner import run
 
@@ -230,7 +230,7 @@ class TestSupervisor:
 
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             with expectation:
-                supervise(**kw)
+                supervise_task(**kw)
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -624,7 +624,7 @@ class TestWatchedSubprocess:
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
-            exit_code = supervise(
+            exit_code = supervise_task(
                 ti=ti,
                 dag_rel_path=dagfile_path,
                 token="",
@@ -679,7 +679,7 @@ class TestWatchedSubprocess:
             patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)),
             patch("airflow.sdk.execution_time.supervisor.time.monotonic", side_effect=mock_monotonic),
         ):
-            exit_code = supervise(
+            exit_code = supervise_task(
                 ti=ti,
                 dag_rel_path="super_basic_deferred_run.py",
                 token="",
@@ -723,12 +723,13 @@ class TestWatchedSubprocess:
             "exit_code": 0,
             "duration": 0.0,
             "final_state": "deferred",
-            "event": "Task finished",
+            "event": "Workload finished",
+            "workload_type": "ExecuteTask",
+            "workload_id": str(ti.id),
             "timestamp": mocker.ANY,
             "level": "info",
             "logger": "supervisor",
             "loc": mocker.ANY,
-            "task_instance_id": str(ti.id),
         } in captured_logs
 
     @pytest.mark.parametrize("captured_logs", [logging.ERROR], indirect=True, ids=["log_level=error"])

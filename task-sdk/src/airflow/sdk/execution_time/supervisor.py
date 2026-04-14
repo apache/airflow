@@ -138,8 +138,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
-
-__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
+__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "supervise_task"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
@@ -2007,7 +2006,7 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
     return logger, log_file_descriptor
 
 
-def supervise(
+def supervise_task(
     *,
     ti: TaskInstance,
     bundle_info: BundleInfo,
@@ -2114,8 +2113,9 @@ def supervise(
         exit_code = process.wait()
         end = time.monotonic()
         log.info(
-            "Task finished",
-            task_instance_id=str(ti.id),
+            "Workload finished",
+            workload_type="ExecuteTask",
+            workload_id=str(ti.id),
             exit_code=exit_code,
             duration=end - start,
             final_state=process.final_state,
@@ -2127,3 +2127,22 @@ def supervise(
         if close_client and client:
             with suppress(Exception):
                 client.close()
+
+
+def supervise(**kwargs) -> int:
+    """
+    Call ``supervise_task()`` with a deprecation warning.
+
+    This wrapper exists for backward compatibility with provider packages that may import ``supervise`` directly.
+
+    .. deprecated::
+        Use :func:`supervise_task` instead.
+    """
+    import warnings
+
+    warnings.warn(
+        "supervise() is deprecated, use supervise_task() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return supervise_task(**kwargs)
