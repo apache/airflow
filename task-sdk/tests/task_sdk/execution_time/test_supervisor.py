@@ -53,7 +53,7 @@ from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
-from airflow.sdk import BaseOperator, timezone
+from airflow.sdk import DAG, BaseOperator, timezone
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
@@ -3312,8 +3312,6 @@ class TestInProcessTestSupervisor:
         task = FailingOperator(task_id="failing", on_failure_callback=failure_callback)
 
         # Assign a minimal DAG to the operator so `task.dag` access succeeds
-        from airflow.sdk import DAG
-
         task.dag = DAG(dag_id="test_dag")
 
         # Create a simple TaskInstance datamodel to pass to the supervisor
