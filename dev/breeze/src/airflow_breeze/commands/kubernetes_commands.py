@@ -889,7 +889,7 @@ def _build_skaffold_config(
         else "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
     )
 
-    _, api_server_port, *_ = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
+    _, api_server_port = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
 
     # --------------------
     # Helm values (NON-image)
@@ -1218,7 +1218,7 @@ def _deploy_helm_chart(
     from packaging.version import Version
 
     cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
-    _, api_server_port, *_ = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
+    _, api_server_port = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
     action = "Deploying" if not upgrade else "Upgrading"
     get_console(output=output).print(f"[info]{action} {cluster_name} with airflow Helm Chart.")
     with tempfile.TemporaryDirectory(prefix="chart_") as tmp_dir:
@@ -1311,25 +1311,6 @@ def _is_helm_timeout_error(result: RunCommandResult) -> bool:
     return "timed out waiting for the condition" in error_output
 
 
-def _otel_flags_from_options(extra_options: tuple[str, ...] | None = None) -> set[str]:
-    """Return the set of otelCollector sub-keys set to true via --set (e.g. 'tracesEnabled').
-
-    Parses pairs like: --set otelCollector.tracesEnabled=true
-    """
-    enabled: set[str] = set()
-    if not extra_options:
-        return enabled
-    it = iter(extra_options)
-    for option in it:
-        if option != "--set":
-            continue
-        value = next(it, "")
-        if value.startswith("otelCollector.") and value.endswith("=true"):
-            key = value[len("otelCollector.") : -len("=true")]
-            enabled.add(key)
-    return enabled
-
-
 def _deploy_airflow(
     python: str,
     kubernetes_version: str,
@@ -1387,23 +1368,6 @@ def _deploy_airflow(
             check=False,
         )
     if result.returncode == 0:
-        otel_flags = _otel_flags_from_options(extra_options)
-        observability_files: list[str] = []
-        if "tracesEnabled" in otel_flags:
-            observability_files.append(str(SCRIPTS_CI_KUBERNETES_PATH / "observability" / "jaeger.yaml"))
-        if "metricsEnabled" in otel_flags:
-            observability_files.append(str(SCRIPTS_CI_KUBERNETES_PATH / "observability" / "prometheus.yaml"))
-            observability_files.append(str(SCRIPTS_CI_KUBERNETES_PATH / "observability" / "grafana.yaml"))
-        if observability_files:
-            get_console(output=output).print("[info]Deploying observability backends for enabled OTel flags.")
-            run_command_with_k8s_env(
-                ["kubectl", "apply", "--namespace", HELM_AIRFLOW_NAMESPACE]
-                + [arg for f in observability_files for arg in ("-f", f)],
-                python=python,
-                kubernetes_version=kubernetes_version,
-                output=output,
-                check=False,
-            )
         if multi_namespace_mode:
             # duplicate Airflow configmaps, secrets and service accounts to test namespace
             run_command_with_k8s_env(
