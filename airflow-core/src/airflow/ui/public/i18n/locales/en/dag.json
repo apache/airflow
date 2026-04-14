@@ -66,6 +66,11 @@
     },
     "info": "INFO",
     "noTryNumber": "No try number",
+    "search": {
+      "matchCount": "{{current}} of {{total}}",
+      "noMatches": "No matches",
+      "placeholder": "Search logs..."
+    },
     "settings": "Log Settings",
     "viewInExternal": "View logs in {{name}} (attempt {{attempt}})",
     "warning": "WARNING"
