@@ -3327,7 +3327,7 @@ class TestInProcessTestSupervisor:
         )
 
         # Patch the API client used by InProcessTestSupervisor to return a predictable TI context
-        fake_task_instances = mock.MagicMock(spec_set=["start"])
+        fake_task_instances = mock.MagicMock(spec_set=["start", "finish"])
         fake_task_instances.start.return_value = make_ti_context()
         fake_client = mock.MagicMock(spec_set=["task_instances"])
         fake_client.task_instances = fake_task_instances
