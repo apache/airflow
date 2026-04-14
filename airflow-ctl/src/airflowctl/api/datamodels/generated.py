@@ -1378,6 +1378,7 @@ class DAGDetailsResponse(BaseModel):
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
     timetable_partitioned: Annotated[bool, Field(title="Timetable Partitioned")]
+    timetable_periodic: Annotated[bool, Field(title="Timetable Periodic")]
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
     max_active_tasks: Annotated[int, Field(title="Max Active Tasks")]
     max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = None
@@ -1410,6 +1411,9 @@ class DAGDetailsResponse(BaseModel):
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
     active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
+    is_backfillable: Annotated[
+        bool, Field(description="Whether this DAG's schedule supports backfilling.", title="Is Backfillable")
+    ]
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
     concurrency: Annotated[
         int,
@@ -1443,6 +1447,7 @@ class DAGResponse(BaseModel):
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
     timetable_partitioned: Annotated[bool, Field(title="Timetable Partitioned")]
+    timetable_periodic: Annotated[bool, Field(title="Timetable Periodic")]
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
     max_active_tasks: Annotated[int, Field(title="Max Active Tasks")]
     max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = None
@@ -1459,6 +1464,9 @@ class DAGResponse(BaseModel):
     next_dagrun_run_after: Annotated[datetime | None, Field(title="Next Dagrun Run After")] = None
     allowed_run_types: Annotated[list[DagRunType] | None, Field(title="Allowed Run Types")] = None
     owners: Annotated[list[str], Field(title="Owners")]
+    is_backfillable: Annotated[
+        bool, Field(description="Whether this DAG's schedule supports backfilling.", title="Is Backfillable")
+    ]
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
 
 

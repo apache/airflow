@@ -2564,6 +2564,18 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "extraVolumes": [{"name": "test", "emptyDir": {}}],
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_extra_volumes(self, workers_values):
@@ -2602,6 +2614,20 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "extraVolumeMounts": [{"name": "test", "mountPath": "/opt"}],
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "extraVolumeMounts": [
+                                {"name": "test-volume-mount-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                            ],
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_extra_volume_mounts(self, workers_values):
@@ -2612,10 +2638,10 @@ class TestWorkerSets:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[0].volumeMounts[0]", docs[0]) == {
-            "name": "test-volume-mount-airflow",
-            "mountPath": "/opt/test",
-        }
+        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+        assert {"name": "test-volume-mount-airflow", "mountPath": "/opt/test"} in volume_mounts
+        assert {"name": "test", "mountPath": "/opt"} not in volume_mounts
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -2911,6 +2937,27 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "tolerations": [
+                        {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ],
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "tolerations": [
+                                {
+                                    "key": "dynamic-pods",
+                                    "operator": "Equal",
+                                    "value": "true",
+                                    "effect": "NoSchedule",
+                                }
+                            ],
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_tolerations(self, workers_values):
@@ -2950,6 +2997,32 @@ class TestWorkerSets:
                 ],
                 "celery": {
                     "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "topologySpreadConstraints": [
+                                {
+                                    "maxSkew": 1,
+                                    "topologyKey": "foo",
+                                    "whenUnsatisfiable": "ScheduleAnyway",
+                                    "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                                }
+                            ],
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "topologySpreadConstraints": [
+                        {
+                            "maxSkew": 1,
+                            "topologyKey": "not-me",
+                            "whenUnsatisfiable": "ScheduleAnyway",
+                            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                        }
+                    ],
                     "sets": [
                         {
                             "name": "set1",
@@ -3034,6 +3107,13 @@ class TestWorkerSets:
                     "sets": [{"name": "set1", "annotations": {"test": "echo"}}],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "annotations": {"echo": "test"},
+                    "sets": [{"name": "set1", "annotations": {"test": "echo"}}],
+                },
+            },
         ],
     )
     def test_overwrite_annotations(self, workers_values):
@@ -3060,6 +3140,13 @@ class TestWorkerSets:
                     "sets": [{"name": "set1", "podAnnotations": {"test": "echo"}}],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "podAnnotations": {"echo": "test"},
+                    "sets": [{"name": "set1", "podAnnotations": {"test": "echo"}}],
+                },
+            },
         ],
     )
     def test_overwrite_pod_annotations(self, workers_values):
@@ -3079,6 +3166,13 @@ class TestWorkerSets:
             {
                 "labels": {"echo": "test"},
                 "celery": {"enableDefault": False, "sets": [{"name": "set1", "labels": {"test": "echo"}}]},
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "labels": {"echo": "test"},
+                    "sets": [{"name": "set1", "labels": {"test": "echo"}}],
+                },
             },
         ],
     )
@@ -3265,6 +3359,13 @@ class TestWorkerSets:
                 "env": [{"name": "TEST", "value": "test"}],
                 "celery": {
                     "enableDefault": False,
+                    "sets": [{"name": "set1", "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}],
+                },
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "env": [{"name": "TEST", "value": "test"}],
                     "sets": [{"name": "set1", "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}],
                 },
             },

@@ -554,15 +554,36 @@ class TestPodTemplateFile:
             }
         }
 
-    def test_workers_tolerations(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "tolerations": [
+                    {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+            },
+            {
+                "kubernetes": {
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ]
+                },
+            },
+            {
+                "tolerations": [{"key": "pods", "operator": "Exists", "effect": "PreferNoSchedule"}],
+                "kubernetes": {
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ]
+                },
+            },
+        ],
+    )
+    def test_workers_tolerations(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "KubernetesExecutor",
-                "workers": {
-                    "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
-                    ],
-                },
+                "workers": workers_values,
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
@@ -573,11 +594,41 @@ class TestPodTemplateFile:
             {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
         ]
 
-    def test_workers_topology_spread_constraints(self):
-        docs = render_chart(
-            values={
-                "executor": "KubernetesExecutor",
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "topologySpreadConstraints": [
+                    {
+                        "maxSkew": 1,
+                        "topologyKey": "foo",
+                        "whenUnsatisfiable": "ScheduleAnyway",
+                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                    }
+                ],
+            },
+            {
+                "kubernetes": {
+                    "topologySpreadConstraints": [
+                        {
+                            "maxSkew": 1,
+                            "topologyKey": "foo",
+                            "whenUnsatisfiable": "ScheduleAnyway",
+                            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                        }
+                    ],
+                }
+            },
+            {
+                "topologySpreadConstraints": [
+                    {
+                        "maxSkew": 1,
+                        "topologyKey": "not-me",
+                        "whenUnsatisfiable": "ScheduleAnyway",
+                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                    }
+                ],
+                "kubernetes": {
                     "topologySpreadConstraints": [
                         {
                             "maxSkew": 1,
@@ -588,6 +639,11 @@ class TestPodTemplateFile:
                     ],
                 },
             },
+        ],
+    )
+    def test_workers_topology_spread_constraints(self, workers_values):
+        docs = render_chart(
+            values={"executor": "KubernetesExecutor", "workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -924,28 +980,60 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.securityContext.runAsUser", docs[0]) == 1
 
-    def test_should_create_valid_volume_mount_and_volume(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}]},
+            {"kubernetes": {"extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}]}},
+            {
+                "extraVolumes": [{"name": "test", "emptyDir": {}}],
+                "kubernetes": {"extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}]},
+            },
+        ],
+    )
+    def test_should_create_valid_volume(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": {
-                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+            values={"workers": workers_values},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        # [2:] -> Skipping logs and config volumes
+        assert jmespath.search("spec.volumes[2:].name", docs[0]) == ["test-volume-airflow"]
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "extraVolumeMounts": [{"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}],
+            },
+            {
+                "kubernetes": {
                     "extraVolumeMounts": [
                         {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
                     ],
                 }
             },
+            {
+                "extraVolumeMounts": [{"name": "test", "mountPath": "test"}],
+                "kubernetes": {
+                    "extraVolumeMounts": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                    ],
+                },
+            },
+        ],
+    )
+    def test_should_create_valid_volume_mount(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert "test-volume-airflow" in jmespath.search(
-            "spec.volumes[*].name",
-            docs[0],
-        )
-        assert "test-volume-airflow" in jmespath.search(
-            "spec.containers[0].volumeMounts[*].name",
-            docs[0],
-        )
+        volume_mounts = jmespath.search("spec.containers[0].volumeMounts", docs[0])
+        assert {"name": "test-volume-airflow", "mountPath": "/opt/test"} in volume_mounts
+        assert {"name": "test", "mountPath": "test"} not in volume_mounts
 
     def test_should_add_env_for_gitsync(self):
         docs = render_chart(
@@ -1043,29 +1131,76 @@ class TestPodTemplateFile:
             annotations = jmespath.search("spec.template.metadata.annotations", doc)
             assert annotations.get("cluster-autoscaler.kubernetes.io/safe-to-evict") == "true"
 
-    def test_workers_pod_annotations(self):
+    def test_global_pod_annotations_templated(self):
         docs = render_chart(
-            values={"workers": {"podAnnotations": {"my_annotation": "annotated!"}}},
+            values={"airflowPodAnnotations": {"global": "{{ .Release.Name }}"}},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
-        annotations = jmespath.search("metadata.annotations", docs[0])
-        assert "my_annotation" in annotations
-        assert "annotated!" in annotations["my_annotation"]
 
-    def test_airflow_and_workers_pod_annotations(self):
-        # should give preference to workers.podAnnotations
+        assert jmespath.search("metadata.annotations", docs[0])["global"] == "release-name"
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"podAnnotations": {"my_annotation": "{{ .Release.Name }}"}},
+            {"kubernetes": {"podAnnotations": {"my_annotation": "{{ .Release.Name }}"}}},
+            {
+                "podAnnotations": {"test": "test"},
+                "kubernetes": {"podAnnotations": {"my_annotation": "{{ .Release.Name }}"}},
+            },
+        ],
+    )
+    def test_workers_pod_annotations_templated(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("metadata.annotations", docs[0])["my_annotation"] == "release-name"
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"podAnnotations": {"my_annotation": "workerPodAnnotations"}},
+            {"kubernetes": {"podAnnotations": {"my_annotation": "workerPodAnnotations"}}},
+        ],
+    )
+    def test_workers_pod_annotations_override(self, workers_values):
+        # Worker-specific pod annotations should override global airflowPodAnnotations,
+        # whether they come from workers.podAnnotations or workers.kubernetes.podAnnotations
         docs = render_chart(
             values={
                 "airflowPodAnnotations": {"my_annotation": "airflowPodAnnotations"},
-                "workers": {"podAnnotations": {"my_annotation": "workerPodAnnotations"}},
+                "workers": workers_values,
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
+
+        assert jmespath.search("metadata.annotations", docs[0])["my_annotation"] == "workerPodAnnotations"
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"podAnnotations": {"local": "workerPodAnnotations"}},
+            {"kubernetes": {"podAnnotations": {"local": "workerPodAnnotations"}}},
+        ],
+    )
+    def test_pod_annotations_merge(self, workers_values):
+        docs = render_chart(
+            values={
+                "airflowPodAnnotations": {"global": "airflowPodAnnotations"},
+                "workers": workers_values,
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
         annotations = jmespath.search("metadata.annotations", docs[0])
-        assert "my_annotation" in annotations
-        assert "workerPodAnnotations" in annotations["my_annotation"]
+        assert annotations["global"] == "airflowPodAnnotations"
+        assert annotations["local"] == "workerPodAnnotations"
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -1204,10 +1339,24 @@ class TestPodTemplateFile:
             "tier": "airflow",
         }
 
-    def test_should_add_extraEnvs(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "env": [
+                    {"name": "TEST_ENV_1", "value": "test_env_1"},
+                    {
+                        "name": "TEST_ENV_2",
+                        "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                    },
+                    {
+                        "name": "TEST_ENV_3",
+                        "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                    },
+                ]
+            },
+            {
+                "kubernetes": {
                     "env": [
                         {"name": "TEST_ENV_1", "value": "test_env_1"},
                         {
@@ -1221,6 +1370,27 @@ class TestPodTemplateFile:
                     ]
                 }
             },
+            {
+                "env": [{"name": "TEST", "value": "test"}],
+                "kubernetes": {
+                    "env": [
+                        {"name": "TEST_ENV_1", "value": "test_env_1"},
+                        {
+                            "name": "TEST_ENV_2",
+                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                        },
+                        {
+                            "name": "TEST_ENV_3",
+                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                        },
+                    ]
+                },
+            },
+        ],
+    )
+    def test_should_add_extraEnvs(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -1228,6 +1398,7 @@ class TestPodTemplateFile:
         assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.containers[0].env", docs[0]
         )
+        assert {"name": "TEST", "value": "test"} not in jmespath.search("spec.containers[0].env", docs[0])
         assert {
             "name": "TEST_ENV_2",
             "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
@@ -1237,20 +1408,38 @@ class TestPodTemplateFile:
             "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
         } in jmespath.search("spec.containers[0].env", docs[0])
 
-    def test_should_add_component_specific_labels(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "labels": {"test_label": "test_label_value"},
+            },
+            {
+                "kubernetes": {
+                    "labels": {"test_label": "test_label_value"},
+                }
+            },
+            {
+                "labels": {"key": "value"},
+                "kubernetes": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+        ],
+    )
+    def test_should_add_component_specific_labels(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "KubernetesExecutor",
-                "workers": {
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "workers": workers_values,
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        labels = jmespath.search("metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels
 
     @pytest.mark.parametrize(
         "workers_values",

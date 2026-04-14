@@ -13,6 +13,7 @@
     "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
     "reprocessBehavior": "Reprocess Behavior",
     "run": "Run Backfill",
+    "scheduleNotBackfillable": "This Dag's schedule does not support backfills",
     "selectDescription": "Run this Dag for a range of dates",
     "selectLabel": "Backfill",
     "title": "Run Backfill",
@@ -22,7 +23,6 @@
         "title": "Backfill generated"
       }
     },
-    "tooltip": "Backfill requires a schedule",
     "unpause": "Unpause {{dag_display_name}} on trigger",
     "validation": {
       "datesRequired": "Both Data Interval Start Date and End Date must be provided.",

@@ -91,6 +91,18 @@ In order to deploy Airflow, the PROD image of Airflow need to be extended and ex
 template files should be added to the image. This is done via ``build-k8s-image``, ``upload-k8s-image``.
 This can also be done for all/selected images/clusters in parallel via ``--run-in-parallel`` flag.
 
+.. note::
+
+   Before running ``breeze k8s build-k8s-image`` command, make sure that all UI assets are compiled by checking
+   if ``airflow-core/src/airflow/ui/dist`` is not empty. If the mentioned directory is empty, run following
+   command:
+
+   .. code-block:: shell
+
+      breeze ui compile-assets
+
+   for making sure that all assets are up-to-date, run the above command with ``--force-clean`` flag.
+
 Deploy Airflow to Kubernetes Cluster
 ------------------------------------
 

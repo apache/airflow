@@ -1617,7 +1617,7 @@
             "default": null
         },
         "jwtSecret": {
-            "description": "Secret key used to encode and decode JWTs to authenticate to public and private APIs (can only be set during install, not upgrade).",
+            "description": "Secret key used to encode and decode JWTs to authenticate to public and private APIs. Note: It is not recommended to use in production as during helm upgrade it will be changed which can cause dag failures during component rollover.",
             "type": [
                 "string",
                 "null"
@@ -2317,7 +2317,7 @@
                     }
                 },
                 "extraVolumes": {
-                    "description": "Additional volumes attached to the Airflow Celery workers and pods created with pod-template-file.",
+                    "description": "Additional volumes attached to the Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.extraVolumes`` and/or ``workers.kubernetes.extraVolumes`` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2325,7 +2325,7 @@
                     }
                 },
                 "extraVolumeMounts": {
-                    "description": "Additional volume mounts attached to the Airflow Celery workers and pods created with pod-template-file.",
+                    "description": "Additional volume mounts attached to the Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.extraVolumeMounts`` and/or ``workers.kubernetes.extraVolumeMounts`` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2363,7 +2363,7 @@
                     "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
                 },
                 "tolerations": {
-                    "description": "Specify Tolerations for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify Tolerations for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.tolerations`` and/or ``workers.kubernetes.tolerations`` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2372,7 +2372,7 @@
                     }
                 },
                 "topologySpreadConstraints": {
-                    "description": "Specify topology spread constraints for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify topology spread constraints for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.topologySpreadConstraints`` and/or ``workers.kubernetes.topologySpreadConstraints`` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2403,7 +2403,7 @@
                     ]
                 },
                 "annotations": {
-                    "description": "Annotations to add to the Airflow Celery worker deployment.",
+                    "description": "Annotations to add to the Airflow Celery worker deployment (deprecated, use ``workers.celery.annotations`` instead).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2411,7 +2411,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the Airflow Celery workers and pods created with pod-template-file (templated).",
+                    "description": "Annotations to add to the Airflow Celery workers and pods created with pod-template-file (templated) (deprecated, use ``workers.celery.podAnnotations`` and/or ``workers.kubernetes.podAnnotations`` instead).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2428,7 +2428,7 @@
                     "x-docsSection": "Common"
                 },
                 "labels": {
-                    "description": "Labels to add to the Airflow Celery workers objects and pods created with pod-template-file.",
+                    "description": "Labels to add to the Airflow Celery workers objects and pods created with pod-template-file (deprecated, use ``workers.celery.labels`` and/or ``workers.kubernetes.labels`` instead).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2436,8 +2436,150 @@
                     }
                 },
                 "logGroomerSidecar": {
-                    "$ref": "#/definitions/logGroomerConfigType",
-                    "description": "Configuration for Airflow Celery worker log groomer sidecar"
+                    "description": "Configuration for Airflow Celery worker log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar`` instead).",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Whether to deploy the Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.enabled`` instead).",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "command": {
+                            "description": "Command to use when running the Airflow log groomer sidecar (templated) (deprecated, use ``workers.celery.logGroomerSidecar.command`` instead).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
+                        "args": {
+                            "description": "Args to use when running the Airflow log groomer sidecar (templated) (deprecated, use ``workers.celery.logGroomerSidecar.args`` instead).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "bash",
+                                "/clean-logs"
+                            ]
+                        },
+                        "retentionDays": {
+                            "description": "Number of days to retain the logs when running the Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.retentionDays`` instead). Total retention time is ``retentionDays`` + ``retentionMinutes``.",
+                            "type": "integer",
+                            "default": 15
+                        },
+                        "retentionMinutes": {
+                            "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.retentionMinutes`` instead). Total retention time is ``retentionDays`` + ``retentionMinutes``.",
+                            "type": "integer",
+                            "default": 0
+                        },
+                        "frequencyMinutes": {
+                            "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.frequencyMinutes`` instead).",
+                            "type": "integer",
+                            "default": 15
+                        },
+                        "maxSizeBytes": {
+                            "description": "Max size of logs directory in bytes (deprecated, use ``workers.celery.logGroomerSidecar.maxSizeBytes`` instead). When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled.",
+                            "type": "integer",
+                            "default": 0,
+                            "minimum": 0
+                        },
+                        "maxSizePercent": {
+                            "description": "Max size of logs as a percentage of total disk space (deprecated, use ``workers.celery.logGroomerSidecar.maxSizePercent`` instead). When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if ``maxSizeBytes`` is set.",
+                            "type": "integer",
+                            "default": 0,
+                            "minimum": 0,
+                            "maximum": 100
+                        },
+                        "env": {
+                            "description": "Add additional env vars to log groomer sidecar container (templated) (deprecated, use ``workers.celery.logGroomerSidecar.env`` instead).",
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                            },
+                            "type": "array",
+                            "default": [],
+                            "x-kubernetes-patch-merge-key": "name",
+                            "x-kubernetes-patch-strategy": "merge"
+                        },
+                        "resources": {
+                            "description": "Resources for Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.resources`` instead).",
+                            "type": "object",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
+                                }
+                            ],
+                            "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "containerLifecycleHooks": {
+                            "description": "Container Lifecycle Hooks definition for the log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.containerLifecycleHooks`` instead). If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "postStart": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
+                                    },
+                                    "preStop": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.securityContexts`` instead). If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "container": {
+                                    "description": "Container security context definition for the log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.securityContexts.container`` instead).",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
                 },
                 "securityContext": {
                     "description": "Security context for the Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.securityContexts`` and/or ``workers.kubernetes.securityContexts`` instead). If not set, the values from `securityContext` will be used.",
@@ -2577,7 +2719,7 @@
                     }
                 },
                 "env": {
-                    "description": "Add additional env vars to the Airflow Celery workers and pods created with pod-template-file.",
+                    "description": "Add additional env vars to the Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.env`` and/or ``workers.kubernetes.env`` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -3396,6 +3538,22 @@
                                 "$ref": "#/definitions/io.k8s.api.core.v1.Container"
                             }
                         },
+                        "extraVolumes": {
+                            "description": "Additional volumes attached to the Airflow Celery workers.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
+                            }
+                        },
+                        "extraVolumeMounts": {
+                            "description": "Additional volume mounts attached to the Airflow Celery workers.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+                            }
+                        },
                         "extraPorts": {
                             "description": "Expose additional ports of Airflow Celery worker container.",
                             "type": "array",
@@ -3434,6 +3592,24 @@
                             "default": {},
                             "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
                         },
+                        "tolerations": {
+                            "description": "Specify Tolerations for Airflow Celery worker pods.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                            }
+                        },
+                        "topologySpreadConstraints": {
+                            "description": "Specify topology spread constraints for Airflow Celery worker pods.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                            }
+                        },
                         "hostAliases": {
                             "description": "Specify HostAliases for Airflow Celery worker pods.",
                             "items": {
@@ -3455,6 +3631,191 @@
                                     ]
                                 }
                             ]
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to the Airflow Celery worker deployment.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "podAnnotations": {
+                            "description": "Annotations to add to the Airflow Celery workers (templated).",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "labels": {
+                            "description": "Labels to add to the Airflow Celery workers objects.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "logGroomerSidecar": {
+                            "description": "Configuration for Airflow Celery worker log groomer sidecar.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Whether to deploy the Airflow log groomer sidecar.",
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "command": {
+                                    "description": "Command to use when running the Airflow log groomer sidecar (templated).",
+                                    "type": [
+                                        "array",
+                                        "null"
+                                    ],
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "default": null
+                                },
+                                "args": {
+                                    "description": "Args to use when running the Airflow log groomer sidecar (templated).",
+                                    "type": [
+                                        "array",
+                                        "null"
+                                    ],
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "default": []
+                                },
+                                "retentionDays": {
+                                    "description": "Number of days to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "retentionMinutes": {
+                                    "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "frequencyMinutes": {
+                                    "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "maxSizeBytes": {
+                                    "description": "Max size of logs directory in bytes. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null,
+                                    "minimum": 0
+                                },
+                                "maxSizePercent": {
+                                    "description": "Max size of logs as a percentage of total disk space. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if ``maxSizeBytes`` is set.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null,
+                                    "minimum": 0,
+                                    "maximum": 100
+                                },
+                                "env": {
+                                    "description": "Add additional env vars to log groomer sidecar container (templated).",
+                                    "items": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                                    },
+                                    "type": "array",
+                                    "default": [],
+                                    "x-kubernetes-patch-merge-key": "name",
+                                    "x-kubernetes-patch-strategy": "merge"
+                                },
+                                "resources": {
+                                    "description": "Resources for Airflow log groomer sidecar.",
+                                    "type": "object",
+                                    "default": {},
+                                    "examples": [
+                                        {
+                                            "limits": {
+                                                "cpu": "100m",
+                                                "memory": "128Mi"
+                                            },
+                                            "requests": {
+                                                "cpu": "100m",
+                                                "memory": "128Mi"
+                                            }
+                                        }
+                                    ],
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                                },
+                                "containerLifecycleHooks": {
+                                    "description": "Container Lifecycle Hooks definition for the log groomer sidecar. If not set, the values from ``workers.containerLifecycleHooks`` will be used.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "postStart": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo postStart handler > /usr/share/message"
+                                                    ]
+                                                }
+                                            },
+                                            "preStop": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo preStop handler > /usr/share/message"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                "securityContexts": {
+                                    "description": "Security context definition for the log groomer sidecar. If not set, the values from ``workers.securityContexts`` will be used.",
+                                    "type": "object",
+                                    "x-docsSection": "Kubernetes",
+                                    "properties": {
+                                        "container": {
+                                            "description": "Container security context definition for the log groomer sidecar.",
+                                            "type": "object",
+                                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                            "default": {},
+                                            "x-docsSection": "Kubernetes",
+                                            "examples": [
+                                                {
+                                                    "allowPrivilegeEscalation": false,
+                                                    "capabilities": {
+                                                        "drop": [
+                                                            "ALL"
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
                         },
                         "waitForMigrations": {
                             "description": "Configuration of wait-for-airflow-migration init container for Airflow Celery workers.",
@@ -3514,6 +3875,63 @@
                                         }
                                     }
                                 }
+                            }
+                        },
+                        "env": {
+                            "description": "Add additional env vars to the Airflow Celery workers.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    },
+                                    "valueFrom": {
+                                        "type": "object",
+                                        "properties": {
+                                            "configMapKeyRef": {
+                                                "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                                "description": "Selects a key of a ConfigMap."
+                                            },
+                                            "secretKeyRef": {
+                                                "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                                "description": "Selects a key of a secret in the pod's namespace"
+                                            }
+                                        },
+                                        "anyOf": [
+                                            {
+                                                "required": [
+                                                    "configMapKeyRef"
+                                                ]
+                                            },
+                                            {
+                                                "required": [
+                                                    "secretKeyRef"
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ],
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "value"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "valueFrom"
+                                        ]
+                                    }
+                                ],
+                                "additionalProperties": false
                             }
                         },
                         "volumeClaimTemplates": {
@@ -3902,6 +4320,22 @@
                                 "$ref": "#/definitions/io.k8s.api.core.v1.Container"
                             }
                         },
+                        "extraVolumes": {
+                            "description": "Additional volumes attached to the pods created with pod-template-file.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
+                            }
+                        },
+                        "extraVolumeMounts": {
+                            "description": "Additional volume mounts attached to the pods created with pod-template-file.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+                            }
+                        },
                         "nodeSelector": {
                             "description": "Select certain nodes for pods created with pod-template-file.",
                             "type": "object",
@@ -3932,6 +4366,24 @@
                             "default": {},
                             "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
                         },
+                        "tolerations": {
+                            "description": "Specify Tolerations for pods created with pod-template-file.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                            }
+                        },
+                        "topologySpreadConstraints": {
+                            "description": "Specify topology spread constraints for pods created with pod-template-file.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                            }
+                        },
                         "hostAliases": {
                             "description": "Specify HostAliases for pods created with pod-template-file.",
                             "items": {
@@ -3953,6 +4405,79 @@
                                     ]
                                 }
                             ]
+                        },
+                        "podAnnotations": {
+                            "description": "Annotations to add to the pods created with pod-template-file (templated).",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "labels": {
+                            "description": "Labels to add to the pods created with pod-template-file.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "env": {
+                            "description": "Add additional env vars to the pods created with pod-template-file.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    },
+                                    "valueFrom": {
+                                        "type": "object",
+                                        "properties": {
+                                            "configMapKeyRef": {
+                                                "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                                "description": "Selects a key of a ConfigMap."
+                                            },
+                                            "secretKeyRef": {
+                                                "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                                "description": "Selects a key of a secret in the pod's namespace"
+                                            }
+                                        },
+                                        "anyOf": [
+                                            {
+                                                "required": [
+                                                    "configMapKeyRef"
+                                                ]
+                                            },
+                                            {
+                                                "required": [
+                                                    "secretKeyRef"
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ],
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "value"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "valueFrom"
+                                        ]
+                                    }
+                                ],
+                                "additionalProperties": false
+                            }
                         },
                         "schedulerName": {
                             "description": "Specify kube scheduler name for pods created with pod-template-file.",
@@ -10856,6 +11381,15 @@
                     ],
                     "default": 1,
                     "x-docsSection": "Kubernetes"
+                },
+                "ttlSecondsAfterFinished": {
+                    "description": "The number of seconds after a finished Job is eligible to be automatically deleted.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": "Kubernetes"
                 }
             }
         },
@@ -14597,12 +15131,12 @@
                     ]
                 },
                 "retentionDays": {
-                    "description": "Number of days to retain the logs when running the Airflow log groomer sidecar. Total retention time is retentionDays + retentionMinutes.",
+                    "description": "Number of days to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                     "type": "integer",
                     "default": 15
                 },
                 "retentionMinutes": {
-                    "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar. Total retention time is retentionDays + retentionMinutes.",
+                    "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                     "type": "integer",
                     "default": 0
                 },
@@ -14618,7 +15152,7 @@
                     "minimum": 0
                 },
                 "maxSizePercent": {
-                    "description": "Max size of logs as a percentage of total disk space. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if maxSizeBytes is set.",
+                    "description": "Max size of logs as a percentage of total disk space. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if ``maxSizeBytes`` is set.",
                     "type": "integer",
                     "default": 0,
                     "minimum": 0,

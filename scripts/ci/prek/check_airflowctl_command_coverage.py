@@ -28,11 +28,10 @@ Check that all airflowctl CLI commands have integration test coverage by compari
 
 from __future__ import annotations
 
-import ast
 import re
 import sys
 
-from common_prek_utils import AIRFLOW_ROOT_PATH, console
+from common_prek_utils import AIRFLOW_ROOT_PATH, console, parse_operations
 
 OPERATIONS_FILE = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / "api" / "operations.py"
 CTL_TESTS_FILE = (
@@ -74,31 +73,6 @@ EXCLUDED_COMMANDS = {
 }
 
 
-def parse_operations() -> dict[str, list[str]]:
-    commands: dict[str, list[str]] = {}
-
-    with open(OPERATIONS_FILE) as f:
-        tree = ast.parse(f.read(), filename=str(OPERATIONS_FILE))
-
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef) and node.name.endswith("Operations"):
-            if node.name in EXCLUDED_OPERATION_CLASSES:
-                continue
-
-            group_name = node.name.replace("Operations", "").lower()
-            commands[group_name] = []
-
-            for child in node.body:
-                if isinstance(child, ast.FunctionDef):
-                    method_name = child.name
-                    if method_name in EXCLUDED_METHODS or method_name.startswith("_"):
-                        continue
-                    subcommand = method_name.replace("_", "-")
-                    commands[group_name].append(subcommand)
-
-    return commands
-
-
 def parse_tested_commands() -> set[str]:
     tested: set[str] = set()
 
@@ -117,7 +91,11 @@ def parse_tested_commands() -> set[str]:
 
 
 def main():
-    available = parse_operations()
+    available = parse_operations(
+        operations_file=OPERATIONS_FILE,
+        exclude_operation_classes=EXCLUDED_OPERATION_CLASSES,
+        exclude_methods=EXCLUDED_METHODS,
+    )
     tested = parse_tested_commands()
 
     missing = []

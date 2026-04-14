@@ -19,8 +19,8 @@
 ---
 {{- $nodeSelector := or .Values.workers.kubernetes.nodeSelector .Values.workers.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.workers.kubernetes.affinity .Values.workers.affinity .Values.affinity }}
-{{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
-{{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $tolerations := or .Values.workers.kubernetes.tolerations .Values.workers.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.workers.kubernetes.topologySpreadConstraints .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowPodSecurityContext" (list .Values.workers.kubernetes .Values.workers .Values) }}
 {{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list .Values.workers.kubernetes.kerberosSidecar .Values.workers.kerberosSidecar .Values) }}
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kubernetes.kerberosSidecar.containerLifecycleHooks .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
@@ -29,7 +29,7 @@
 {{- $containerSecurityContext := include "containerSecurityContext" (list .Values.workers.kubernetes .Values.workers .Values) }}
 {{- $containerLifecycleHooks := or .Values.workers.kubernetes.containerLifecycleHooks .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (or .Values.workers.kubernetes.safeToEvict (and (not (has .Values.workers.kubernetes.safeToEvict (list true false))) .Values.workers.safeToEvict) | toString) }}
-{{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict .Values.workers.podAnnotations }}
+{{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict (.Values.workers.kubernetes.podAnnotations | default .Values.workers.podAnnotations) }}
 {{- $schedulerName := or .Values.workers.kubernetes.schedulerName .Values.workers.schedulerName .Values.schedulerName }}
 apiVersion: v1
 kind: Pod
@@ -39,8 +39,8 @@ metadata:
     tier: airflow
     component: worker
     release: {{ .Release.Name }}
-    {{- if or (.Values.labels) (.Values.workers.labels) }}
-      {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
+    {{- if or .Values.labels .Values.workers.labels .Values.workers.kubernetes.labels }}
+      {{- mustMerge (.Values.workers.kubernetes.labels | default .Values.workers.labels) .Values.labels | toYaml | nindent 4 }}
     {{- end }}
   annotations:
     {{- tpl (toYaml $podAnnotations) . | nindent 4 }}
@@ -86,8 +86,8 @@ spec:
         {{- if .Values.volumeMounts }}
           {{- toYaml .Values.volumeMounts | nindent 8 }}
         {{- end }}
-        {{- if .Values.workers.extraVolumeMounts }}
-          {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 8 }}
+        {{- if or .Values.workers.extraVolumeMounts .Values.workers.kubernetes.extraVolumeMounts }}
+          {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumeMounts | default .Values.workers.extraVolumeMounts)) . | nindent 8 }}
         {{- end }}
         {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
           {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
@@ -120,7 +120,7 @@ spec:
         {{- end }}
         {{- include "standard_airflow_environment" . | indent 6}}
         {{- include "custom_airflow_environment" . | indent 6 }}
-        {{- include "container_extra_envs" (list . .Values.workers.env) | indent 6 }}
+        {{- include "container_extra_envs" (list . (.Values.workers.kubernetes.env | default .Values.workers.env)) | indent 6 }}
       image: {{ template "pod_template_image" . }}
       imagePullPolicy: {{ .Values.images.pod_template.pullPolicy }}
       securityContext: {{ $containerSecurityContext | nindent 8 }}
@@ -145,8 +145,8 @@ spec:
         {{- if .Values.volumeMounts }}
           {{- toYaml .Values.volumeMounts | nindent 8 }}
         {{- end }}
-        {{- if .Values.workers.extraVolumeMounts }}
-          {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 8 }}
+        {{- if or .Values.workers.extraVolumeMounts .Values.workers.kubernetes.extraVolumeMounts }}
+          {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumeMounts | default .Values.workers.extraVolumeMounts)) . | nindent 8 }}
         {{- end }}
         {{- if .Values.kerberos.enabled }}
         - name: kerberos-keytab
@@ -192,8 +192,8 @@ spec:
         {{- if .Values.volumeMounts }}
           {{- toYaml .Values.volumeMounts | nindent 8 }}
         {{- end }}
-        {{- if .Values.workers.extraVolumeMounts }}
-          {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 8 }}
+        {{- if or .Values.workers.extraVolumeMounts .Values.workers.kubernetes.extraVolumeMounts }}
+          {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumeMounts | default .Values.workers.extraVolumeMounts)) . | nindent 8 }}
         {{- end }}
         {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
           {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
@@ -287,6 +287,6 @@ spec:
   - name: kerberos-ccache
     emptyDir: {}
   {{- end }}
-  {{- if .Values.workers.extraVolumes }}
-    {{- tpl (toYaml .Values.workers.extraVolumes) . | nindent 2 }}
+  {{- if or .Values.workers.kubernetes.extraVolumes .Values.workers.extraVolumes }}
+    {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumes | default .Values.workers.extraVolumes)) . | nindent 2 }}
   {{- end }}

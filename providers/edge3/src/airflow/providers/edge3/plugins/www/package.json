@@ -36,7 +36,7 @@
     "@emotion/react": "^11.14.0",
     "@tanstack/react-query": "^5.90.21",
     "@types/semver": "^7.7.1",
-    "axios": "^1.13.6",
+    "axios": "^1.15.0",
     "next-themes": "^0.4.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -51,6 +51,7 @@
     "@7nohe/openapi-react-query-codegen": "^2.0.0",
     "@eslint/compat": "^2.0.2",
     "@eslint/js": "^10.0.1",
+    "@rolldown/plugin-babel": "^0.2.3",
     "@stylistic/eslint-plugin": "^5.9.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -61,8 +62,10 @@
     "@typescript-eslint/eslint-plugin": "8.56.1",
     "@typescript-eslint/parser": "8.56.1",
     "@typescript-eslint/utils": "^8.56.1",
+    "@vitejs/plugin-react": "^6.0.1",
     "@vitejs/plugin-react-swc": "^4.2.3",
-    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/coverage-v8": "^4.1.4",
+    "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -77,10 +80,10 @@
     "prettier": "^3.8.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "^7.3.2",
+    "vite": "^8.0.8",
     "vite-plugin-css-injected-by-js": "^4.0.1",
     "vite-plugin-dts": "^4.5.4",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.4"
   },
   "pnpm": {
     "minimumReleaseAge": 5760,
@@ -110,7 +113,8 @@
       "lodash@>=4.0.0 <=4.17.23": ">=4.18.0",
       "lodash-es@<=4.17.23": ">=4.18.0",
       "lodash@<=4.17.23": ">=4.18.0",
-      "defu@<=6.1.4": ">=6.1.5"
+      "defu@<=6.1.4": ">=6.1.5",
+      "follow-redirects@<=1.15.11": ">=1.16.0"
     }
   }
 }

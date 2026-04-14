@@ -580,6 +580,8 @@ apiSecretKeySecretName: ~
 #    api-secret-key: <base64_encoded_api_secret_key>
 
 # Secret key used to encode and decode JWTs: '[api_auth] jwt_secret' in airflow.cfg
+# Note: It is not advised to use in production as during helm upgrade it will be changed
+# which can cause dag failures during component rollouts
 jwtSecret: ~
 
 # Add custom annotations to the JWT secret
@@ -1058,10 +1060,10 @@ workers:
   # instead)
   extraInitContainers: []
 
-  # Additional volumes and volume mounts attached to the
-  # Airflow Celery workers and pods created with pod-template-file
+  # Additional volumes attached to the Airflow Celery workers
+  # and pods created with pod-template-file
+  # (deprecated, use `workers.celery.extraVolumes` and/or `workers.kubernetes.extraVolumes` instead)
   extraVolumes: []
-  extraVolumeMounts: []
   # Mount additional volumes into workers pods. It can be templated like in the following example:
   #  extraVolumes:
   #    - name: my-templated-extra-volume
@@ -1069,7 +1071,15 @@ workers:
   #         secretName: '{{ include "my_secret_template" . }}'
   #         defaultMode: 0640
   #         optional: true
-  #
+
+  # Additional volume mounts attached to the Airflow Celery workers
+  # and pods created with pod-template-file
+  # (deprecated, use
+  #   `workers.celery.extraVolumeMounts` and/or
+  #   `workers.kubernetes.extraVolumeMounts`
+  # instead)
+  extraVolumeMounts: []
+  # Mount additional volumes into workers pods. It can be templated like in the following example:
   #  extraVolumeMounts:
   #    - name: my-templated-extra-volume
   #      mountPath: "{{ .Values.my_custom_path }}"
@@ -1101,7 +1111,13 @@ workers:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
 
+  # (deprecated, use `workers.celery.tolerations` and/or `workers.kubernetes.tolerations` instead)
   tolerations: []
+
+  # (deprecated, use
+  #   `workers.celery.topologySpreadConstraints` and/or
+  #   `workers.kubernetes.topologySpreadConstraints`
+  # instead)
   topologySpreadConstraints: []
 
   # hostAliases to use in Airflow Celery worker pods and pods created with pod-template-file
@@ -1117,42 +1133,55 @@ workers:
   #   - "test.hostname.two"
 
   # Annotations for the Airflow Celery worker resource
+  # (deprecated, use `workers.celery.annotations` instead)
   annotations: {}
 
   # Pod annotations for the Airflow Celery workers and pods created with pod-template-file (templated)
+  # (deprecated, use `workers.celery.podAnnotations` and/or `workers.kubernetes.podAnnotations` instead)
   podAnnotations: {}
 
   # Labels specific to Airflow Celery workers objects and pods created with pod-template-file
+  # (deprecated, use `workers.celery.labels` and/or `workers.kubernetes.labels` instead)
   labels: {}
 
   # Log groomer configuration for Airflow Celery workers
+  # (deprecated, use `workers.celery.logGroomerSidecar` instead)
   logGroomerSidecar:
     # Whether to deploy the Airflow Celery worker log groomer sidecar
+    # (deprecated, use `workers.celery.logGroomerSidecar.enabled` instead)
     enabled: true
 
     # Command to use when running the Airflow Celery worker log groomer sidecar (templated)
+    # (deprecated, use `workers.celery.logGroomerSidecar.command` instead)
     command: ~
 
     # Args to use when running the Airflow Celery worker log groomer sidecar (templated)
+    # (deprecated, use `workers.celery.logGroomerSidecar.args` instead)
     args: ["bash", "/clean-logs"]
 
     # Number of days to retain logs
+    # (deprecated, use `workers.celery.logGroomerSidecar.retentionDays` instead)
     retentionDays: 15
 
     # Number of minutes to retain logs.
     # This can be used for finer granularity than days.
-    # Total retention is retentionDays + retentionMinutes.
+    # Total retention is `retentionDays` + `retentionMinutes`.
+    # (deprecated, use `workers.celery.logGroomerSidecar.retentionMinutes` instead)
     retentionMinutes: 0
 
     # Frequency to attempt to groom logs (in minutes)
+    # (deprecated, use `workers.celery.logGroomerSidecar.frequencyMinutes` instead)
     frequencyMinutes: 15
 
     # Max size of logs in bytes. 0 = disabled
+    # (deprecated, use `workers.celery.logGroomerSidecar.maxSizeBytes` instead)
     maxSizeBytes: 0
 
-    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if `maxSizeBytes` is set.
+    # (deprecated, use `workers.celery.logGroomerSidecar.maxSizePercent` instead)
     maxSizePercent: 0
 
+    # (deprecated, use `workers.celery.logGroomerSidecar.resources` instead)
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1161,11 +1190,18 @@ workers:
     #   cpu: 100m
     #   memory: 128Mi
 
-    # Detailed default security context for logGroomerSidecar for container level
+    # Detailed default security context for `logGroomerSidecar` for container level
+    # (deprecated, use `workers.celery.logGroomerSidecar.securityContexts` instead)
     securityContexts:
+      # (deprecated, use `workers.celery.logGroomerSidecar.securityContexts.container` instead)
       container: {}
 
+    # (deprecated, use `workers.celery.logGroomerSidecar.env` instead)
     env: []
+
+    # Container level lifecycle hooks
+    # (deprecated, use `workers.celery.logGroomerSidecar.containerLifecycleHooks` instead)
+    containerLifecycleHooks: {}
 
   # Configuration of wait-for-airflow-migration init container for Airflow Celery workers
   # (deprecated, use `workers.celery.waitForMigrations` instead)
@@ -1184,6 +1220,7 @@ workers:
       container: {}
 
   # Additional env variable configuration for Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.env` and/or `workers.kubernetes.env` instead)
   env: []
 
   # Additional volume claim templates for Airflow Celery workers.
@@ -1457,6 +1494,24 @@ workers:
     # Add additional init containers into Airflow Celery workers (templated)
     extraInitContainers: []
 
+    # Additional volumes attached to the Airflow Celery workers
+    extraVolumes: []
+    # Mount additional volumes into workers pods. It can be templated like in the following example:
+    #  extraVolumes:
+    #    - name: my-templated-extra-volume
+    #      secret:
+    #         secretName: '{{ include "my_secret_template" . }}'
+    #         defaultMode: 0640
+    #         optional: true
+
+    # Additional volume mounts attached to the Airflow Celery workers
+    extraVolumeMounts: []
+    # Mount additional volumes into workers pods. It can be templated like in the following example:
+    #  extraVolumeMounts:
+    #    - name: my-templated-extra-volume
+    #      mountPath: "{{ .Values.my_custom_path }}"
+    #      readOnly: true
+
     # Expose additional ports of Airflow Celery workers. These can be used for additional metric collection.
     extraPorts: []
 
@@ -1478,6 +1533,10 @@ workers:
     #        topologyKey: kubernetes.io/hostname
     #      weight: 100
 
+    tolerations: []
+
+    topologySpreadConstraints: []
+
     # hostAliases to use in Airflow Celery worker pods
     # See:
     # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
@@ -1489,6 +1548,60 @@ workers:
     #   hostnames:
     #   - "test.hostname.two"
 
+    # Annotations for the Airflow Celery worker resource
+    annotations: {}
+
+    # Pod annotations for the Airflow Celery workers (templated)
+    podAnnotations: {}
+
+    # Labels specific to Airflow Celery workers objects
+    labels: {}
+
+    # Log groomer configuration for Airflow Celery workers
+    logGroomerSidecar:
+      # Whether to deploy the Airflow Celery worker log groomer sidecar
+      enabled: ~
+
+      # Command to use when running the Airflow Celery worker log groomer sidecar (templated)
+      command: ~
+
+      # Args to use when running the Airflow Celery worker log groomer sidecar (templated)
+      args: []
+
+      # Number of days to retain logs
+      retentionDays: ~
+
+      # Number of minutes to retain logs.
+      # This can be used for finer granularity than days.
+      # Total retention is `retentionDays` + `retentionMinutes`.
+      retentionMinutes: ~
+
+      # Frequency to attempt to groom logs (in minutes)
+      frequencyMinutes: ~
+
+      # Max size of logs in bytes. 0 = disabled
+      maxSizeBytes: ~
+
+      # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if `maxSizeBytes` is set.
+      maxSizePercent: ~
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for `logGroomerSidecar` for container level
+      securityContexts:
+        container: {}
+
+      env: []
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
+
     # Configuration of wait-for-airflow-migration init container for Airflow Celery workers
     waitForMigrations:
       # Whether to create init container to wait for db migrations
@@ -1499,6 +1612,9 @@ workers:
       # Detailed default security context for wait-for-airflow-migrations container
       securityContexts:
         container: {}
+
+    # Additional env variable configuration for Airflow Celery workers
+    env: []
 
     # Additional volume claim templates for Airflow Celery workers.
     # Requires mounting of specified volumes under extraVolumeMounts.
@@ -1627,6 +1743,24 @@ workers:
     # Add additional init containers into pods created with pod-template-file (templated)
     extraInitContainers: []
 
+    # Additional volumes attached to the pods created with pod-template-file
+    extraVolumes: []
+    # Mount additional volumes into workers pods. It can be templated like in the following example:
+    #  extraVolumes:
+    #    - name: my-templated-extra-volume
+    #      secret:
+    #         secretName: '{{ include "my_secret_template" . }}'
+    #         defaultMode: 0640
+    #         optional: true
+
+    # Additional volume mounts attached to the pods created with pod-template-file
+    extraVolumeMounts: []
+    # Mount additional volumes into workers pods. It can be templated like in the following example:
+    #  extraVolumeMounts:
+    #    - name: my-templated-extra-volume
+    #      mountPath: "{{ .Values.my_custom_path }}"
+    #      readOnly: true
+
     # Select certain nodes for pods created with pod-template-file
     nodeSelector: {}
 
@@ -1635,6 +1769,10 @@ workers:
     priorityClassName: ~
 
     affinity: {}
+
+    tolerations: []
+
+    topologySpreadConstraints: []
 
     # hostAliases to use in pods created with pod-template-file
     # See:
@@ -1646,6 +1784,15 @@ workers:
     # - ip: "127.0.0.3"
     #   hostnames:
     #   - "test.hostname.two"
+
+    # Pod annotations for the pods created with pod-template-file (templated)
+    podAnnotations: {}
+
+    # Labels specific to pods created with pod-template-file
+    labels: {}
+
+    # Additional env variable configuration for pods created with pod-template-file
+    env: []
 
     schedulerName: ~
 
@@ -1842,7 +1989,7 @@ scheduler:
     # Max size of logs in bytes. 0 = disabled
     maxSizeBytes: 0
 
-    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if `maxSizeBytes` is set.
     maxSizePercent: 0
 
     resources: {}
@@ -1853,7 +2000,7 @@ scheduler:
     #   cpu: 100m
     #   memory: 128Mi
 
-    # Detailed default security context for logGroomerSidecar for container level
+    # Detailed default security context for `logGroomerSidecar` for container level
     securityContexts:
       container: {}
 
@@ -2776,7 +2923,7 @@ triggerer:
     #   cpu: 100m
     #   memory: 128Mi
 
-    # Detailed default security context for logGroomerSidecar for container level
+    # Detailed default security context for `logGroomerSidecar` for container level
     securityContexts:
       container: {}
 
@@ -3913,6 +4060,9 @@ databaseCleanup:
   # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.
   failedJobsHistoryLimit: 1
   successfulJobsHistoryLimit: 1
+
+  # Time to live (in seconds) for Jobs created by this CronJob after they finish.
+  ttlSecondsAfterFinished: ~
 
 # Configuration for postgresql subchart
 # Uses bitnamilegacy images to avoid Bitnami licensing restrictions
