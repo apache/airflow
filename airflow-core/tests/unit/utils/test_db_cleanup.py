@@ -741,6 +741,58 @@ class TestDBCleanup:
         else:
             confirm_mock.assert_not_called()
 
+    @patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("", {}, None))
+    def test_error_on_cleanup_failure_raises_when_flag_set(self, cleanup_table_mock, caplog):
+        """When error_on_cleanup_failure=True and a table fails, AirflowException should be raised."""
+        with pytest.raises(AirflowException, match="airflow db clean encountered errors"):
+            run_cleanup(
+                clean_before_timestamp=None,
+                table_names=["log"],
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                error_on_cleanup_failure=True,
+            )
+
+    @patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("", {}, None))
+    def test_error_on_cleanup_failure_no_raise_by_default(self, cleanup_table_mock, caplog):
+        """When error_on_cleanup_failure=False (default) and a table fails, no exception is raised."""
+        run_cleanup(
+            clean_before_timestamp=None,
+            table_names=["log"],
+            dry_run=False,
+            verbose=False,
+            confirm=False,
+            error_on_cleanup_failure=False,
+        )
+        assert "The following tables were not cleaned due to errors" in caplog.text
+
+    @patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("", {}, None))
+    def test_error_on_cleanup_failure_lists_failed_tables_in_warning(self, cleanup_table_mock, caplog):
+        """A warning naming the failed tables should always be emitted, regardless of the flag."""
+        run_cleanup(
+            clean_before_timestamp=None,
+            table_names=["log"],
+            dry_run=False,
+            verbose=False,
+            confirm=False,
+        )
+        assert "log" in caplog.text
+        assert "The following tables were not cleaned due to errors" in caplog.text
+
+    @patch("airflow.utils.db_cleanup._cleanup_table")
+    def test_error_on_cleanup_failure_propagated_from_run_cleanup(self, cleanup_table_mock):
+        """Ensure error_on_cleanup_failure is accepted by run_cleanup without errors when no failures occur."""
+        run_cleanup(
+            clean_before_timestamp=None,
+            table_names=["log"],
+            dry_run=False,
+            verbose=False,
+            confirm=False,
+            error_on_cleanup_failure=True,
+        )
+        cleanup_table_mock.assert_called_once()
+
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
     from tests_common.test_utils.taskinstance import create_task_instance
