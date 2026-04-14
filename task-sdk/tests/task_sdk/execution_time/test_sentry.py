@@ -25,9 +25,10 @@ from unittest import mock
 
 import pytest
 import uuid6
+from structlog.typing import FilteringBoundLogger as Logger
 
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import Context, get_current_context
+from airflow.sdk import Context
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk._shared.timezones import timezone
 from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, DagRunType, TaskInstanceState
@@ -35,8 +36,6 @@ from airflow.sdk.execution_time.comms import GetTaskBreadcrumbs, TaskBreadcrumbs
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
 from tests_common.test_utils.config import conf_vars
-
-from structlog.typing import FilteringBoundLogger as Logger
 
 LOGICAL_DATE = timezone.utcnow()
 SCHEDULE_INTERVAL = datetime.timedelta(days=1)
@@ -276,28 +275,12 @@ class TestSentryHook:
         assert mock_sentry_sdk.init.mock_calls == [mock.call(integrations=[])]
 
     @pytest.mark.parametrize(
-        ('run_exception_return', 'run_raise'),
+        ("run_exception_return", "run_raise"),
         (
-                pytest.param(
-                    ValueError("This is Run Exception"),
-                    False,
-                    id="run_with_raise_exception"
-                ),
-                pytest.param(
-                    None,
-                    True,
-                    id="run_with_return_exception"
-                ),
-                pytest.param(
-                    ValueError("This is Run Exception"),
-                    True,
-                    id="run_with_return_and_raise_exception"
-                ),
-                pytest.param(
-                    None,
-                    False,
-                    id="run_without_exception"
-                )
+                pytest.param(ValueError("This is Run Exception"), False, id="run_with_raise_exception"),
+                pytest.param(None, True, id="run_with_return_exception"),
+                pytest.param(ValueError("This is Run Exception"), True, id="run_with_return_and_raise_exception"),
+                pytest.param(None, False, id="run_without_exception")
         )
     )
     def test_sentry_capture_exception(self, mock_sentry_sdk, task_instance, run_exception_return, run_raise):
@@ -312,7 +295,9 @@ class TestSentryHook:
         log = mock.Mock()
 
         with mock.patch("airflow.sdk.execution_time.task_runner.run", side_effect=run_side_effect) as run:
-            run(task_instance, get_current_context(), log)
+            run(task_instance, {}, log)
 
         if run_exception_return is not None or run_raise:
             mock_sentry_sdk.capture_exception.assert_called()
+        else:
+            mock_sentry_sdk.capture_exception.assert_not_called()
