@@ -53,16 +53,16 @@ class ConnectionResponse(BaseModel):
     @field_validator("extra", mode="before")
     @classmethod
     def redact_extra(cls, v: str | None) -> str | None:
-        if v is None:
-            return None
+        if v is None or v == "":
+            return v
         try:
             extra_dict = json.loads(v)
             redacted_dict = redact(extra_dict)
             return json.dumps(redacted_dict)
         except json.JSONDecodeError:
             # Do not return un-redacted extra because this could cause sensitive information to be exposed.
-            # This code path should never been hit as ``Connection._validate_extra`` sure that ``extra`` is
-            # always a valid JSON string. We add this safeguard just in case and to make the coupling
+            # This code path should never be hit as ``Connection._validate_extra`` makes sure that ``extra`` is
+            # always a valid JSON string (if truthy). We add this safeguard just in case and to make the coupling
             # explicit.
             raise ValueError(
                 "This code path should never happen as persisted Connections (DB layer) should always enforce `extra` as a JSON string."
