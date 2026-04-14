@@ -147,6 +147,7 @@ def get_html_theme_options():
             {"href": "/community/", "text": "Community"},
             {"href": "/meetups/", "text": "Meetups"},
             {"href": "/docs/", "text": "Documentation"},
+            {"href": "/registry/", "text": "Registry"},
             {"href": "/use-cases/", "text": "Use Cases"},
             {"href": "/announcements/", "text": "Announcements"},
             {"href": "/blog/", "text": "Blog"},
