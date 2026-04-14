@@ -79,13 +79,19 @@ To output task logs to OpenSearch directly, the following config could be used: 
 Enabling the OpenSearch task handler on Airflow 3.0.0 – 3.2.0
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
+This section is **only about reading task logs back into the Airflow UI**. Tasks running
+on workers will write logs as usual (to local files, stdout, or — with appropriate log
+shipping — to OpenSearch) regardless of the override below. Without the override on
+Airflow 3.0.0 – 3.2.0, logs reach OpenSearch fine but the **UI cannot render them**
+because no handler is registered to fetch them back.
+
 The wiring that registers ``OpensearchTaskHandler`` inside the stock
 ``airflow_local_settings.py`` (the file that builds ``DEFAULT_LOGGING_CONFIG``) only landed
 in Airflow **3.2.1**. On Airflow **3.0.0 – 3.2.0** installing the provider is not enough:
-you must ship a custom logging config that swaps the ``task`` handler. The handler
-self-registers as the remote-log reader on construction (via ``REMOTE_TASK_LOG`` on
-3.0/3.1 and ``_ActiveLoggingConfig`` on 3.2), so swapping the handler class is the only
-change required.
+to make the UI's log viewer fetch logs from OpenSearch you must ship a custom logging
+config that swaps the ``task`` handler. The handler self-registers as the remote-log
+reader on construction (via ``REMOTE_TASK_LOG`` on 3.0/3.1 and ``_ActiveLoggingConfig``
+on 3.2), so swapping the handler class is the only change required.
 
 Create a module on the Python path — for example ``config/airflow_local_settings.py`` —
 and point Airflow at it via ``[logging] logging_config_class``:
