@@ -118,6 +118,7 @@ if TYPE_CHECKING:
 
     from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
     from airflow.models.dag import DagModel
+    from airflow.models.dagbag import DBDagBag
     from airflow.models.dagrun import DagRun
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
@@ -460,8 +461,6 @@ def clear_external_task_marker_dependencies(
 
     :meta private:
     """
-    from airflow.models.dagbag import DBDagBag
-
     if recursion_depth <= 0:
         raise RuntimeError(
             f"Maximum recursion depth {recursion_depth} reached for ExternalTaskMarker. "
