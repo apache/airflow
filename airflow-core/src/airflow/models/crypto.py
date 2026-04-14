@@ -21,6 +21,9 @@ import logging
 from functools import cache
 from typing import Protocol
 
+from sqlalchemy import Text
+from sqlalchemy.orm import Mapped, declared_attr, mapped_column, synonym
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 
@@ -91,6 +94,66 @@ class _RealFernet:
     def rotate(self, msg: bytes | str) -> bytes:
         """Rotate the Fernet key for the given message."""
         return self._fernet.rotate(msg)
+
+
+class FernetFieldsMixin:
+    """
+    Mixin providing Fernet-encrypted ``password`` and ``extra`` fields.
+
+    Subclasses get ``_password`` / ``_extra`` mapped columns and transparent
+    encrypt-on-write / decrypt-on-read via SQLAlchemy synonyms.
+
+    Models that need additional logic (e.g. the ``Connection`` model's
+    ``is_encrypted`` flag) can override ``get_password``, ``set_password``,
+    ``get_extra``, and ``set_extra``.
+    """
+
+    _password: Mapped[str | None] = mapped_column("password", Text(), nullable=True)
+    _extra: Mapped[str | None] = mapped_column("extra", Text(), nullable=True)
+
+    def get_password(self) -> str | None:
+        """Decrypt and return password."""
+        if self._password:
+            fernet = get_fernet()
+            if not fernet.is_encrypted:
+                return self._password
+            return fernet.decrypt(bytes(self._password, "utf-8")).decode()
+        return self._password
+
+    def set_password(self, value: str | None):
+        """Encrypt and store password."""
+        if value:
+            fernet = get_fernet()
+            self._password = fernet.encrypt(bytes(value, "utf-8")).decode()
+        else:
+            self._password = value
+
+    @declared_attr
+    def password(cls):
+        """Password. The value is decrypted/encrypted when reading/setting the value."""
+        return synonym("_password", descriptor=property(cls.get_password, cls.set_password))
+
+    def get_extra(self) -> str | None:
+        """Decrypt and return extra data."""
+        if self._extra:
+            fernet = get_fernet()
+            if not fernet.is_encrypted:
+                return self._extra
+            return fernet.decrypt(bytes(self._extra, "utf-8")).decode()
+        return self._extra
+
+    def set_extra(self, value: str | None):
+        """Encrypt and store extra data."""
+        if value:
+            fernet = get_fernet()
+            self._extra = fernet.encrypt(bytes(value, "utf-8")).decode()
+        else:
+            self._extra = value
+
+    @declared_attr
+    def extra(cls):
+        """Extra data. The value is decrypted/encrypted when reading/setting the value."""
+        return synonym("_extra", descriptor=property(cls.get_extra, cls.set_extra))
 
 
 @cache

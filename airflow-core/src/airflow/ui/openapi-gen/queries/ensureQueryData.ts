@@ -245,6 +245,21 @@ export const ensureUseConnectionServiceGetConnectionsData = (queryClient: QueryC
   orderBy?: string[];
 } = {}) => queryClient.ensureQueryData({ queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, connectionIdPrefixPattern, limit, offset, orderBy }), queryFn: () => ConnectionService.getConnections({ connectionIdPattern, connectionIdPrefixPattern, limit, offset, orderBy }) });
 /**
+* Get Connection Test
+* Poll for the status of an async connection test.
+*
+* The ``connection_test_token`` is a crypto-random identifier used to
+* look up the specific test result. Access to this endpoint is still
+* governed by standard authentication and connection-level authorization.
+* @param data The data for the request.
+* @param data.connectionTestToken
+* @returns AsyncConnectionTestResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseConnectionServiceGetConnectionTestData = (queryClient: QueryClient, { connectionTestToken }: {
+  connectionTestToken: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseConnectionServiceGetConnectionTestKeyFn({ connectionTestToken }), queryFn: () => ConnectionService.getConnectionTest({ connectionTestToken }) });
+/**
 * Hook Meta Data
 * Retrieve information about available connection types (hook classes) and their parameters.
 * @returns ConnectionHookMetaData Successful Response
