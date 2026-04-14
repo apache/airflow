@@ -1,18 +1,28 @@
-// generated with @7nohe/openapi-react-query-codegen@2.0.0
-import { type Options } from "@hey-api/client-axios";
+// generated with @7nohe/openapi-react-query-codegen@2.1.0
 import { useSuspenseQuery, UseSuspenseQueryOptions } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 
-import { createTokenAllAdmins, loginAllAdmins } from "../requests/services.gen";
-import { CreateTokenAllAdminsError } from "../requests/types.gen";
+import type { Options } from "../requests/sdk.gen";
+import { createTokenAllAdmins, loginAllAdmins } from "../requests/sdk.gen";
+import {
+  CreateTokenAllAdminsData,
+  CreateTokenAllAdminsError,
+  LoginAllAdminsData,
+  LoginAllAdminsError,
+} from "../requests/types.gen";
 import * as Common from "./common";
 
+/**
+ * Create Token All Admins
+ *
+ * Create a token with no credentials only if ``simple_auth_manager_all_admins`` is True.
+ */
 export const useCreateTokenAllAdminsSuspense = <
   TData = NonNullable<Common.CreateTokenAllAdminsDefaultResponse>,
   TError = AxiosError<CreateTokenAllAdminsError>,
   TQueryKey extends Array<unknown> = unknown[],
 >(
-  clientOptions: Options<unknown, true> = {},
+  clientOptions: Options<CreateTokenAllAdminsData, true> = {},
   queryKey?: TQueryKey,
   options?: Omit<UseSuspenseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
@@ -22,12 +32,17 @@ export const useCreateTokenAllAdminsSuspense = <
       createTokenAllAdmins({ ...clientOptions }).then((response) => response.data as TData) as TData,
     ...options,
   });
+/**
+ * Login All Admins
+ *
+ * Login the user with no credentials.
+ */
 export const useLoginAllAdminsSuspense = <
   TData = NonNullable<Common.LoginAllAdminsDefaultResponse>,
   TError = AxiosError<LoginAllAdminsError>,
   TQueryKey extends Array<unknown> = unknown[],
 >(
-  clientOptions: Options<unknown, true> = {},
+  clientOptions: Options<LoginAllAdminsData, true> = {},
   queryKey?: TQueryKey,
   options?: Omit<UseSuspenseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
