@@ -20,8 +20,9 @@
 /* eslint-disable max-lines -- virtualized Gantt body markup is kept in one file for readability */
 import { Badge, Box, Flex, Text } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import dayjs from "dayjs";
 import type { RefObject } from "react";
-import { Fragment, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
@@ -49,6 +50,9 @@ import {
  *  from this value so the icon is never clipped when a task has a very short duration. */
 const GANTT_STATE_ICON_SIZE_PX = 10;
 const MIN_BAR_WIDTH_PX = GANTT_STATE_ICON_SIZE_PX;
+
+/** Minimum horizontal gap (px) between time-axis labels before one is dropped. */
+const MIN_TICK_SPACING_PX = 80;
 
 /** Short mark above the axis bottom border, aligned with each timestamp. */
 const GANTT_AXIS_TICK_HEIGHT_PX = 6;
@@ -85,8 +89,8 @@ const toTooltipSummary = (
 
   return {
     child_states: null,
-    max_end_date: new Date(segment.x[1]).toISOString(),
-    min_start_date: new Date(segment.x[0]).toISOString(),
+    max_end_date: dayjs(segment.x[1]).toISOString(),
+    min_start_date: dayjs(segment.x[0]).toISOString(),
     state: segment.state ?? null,
     task_display_name: segment.y,
     task_id: segment.taskId,
@@ -142,12 +146,11 @@ export const GanttTimeline = ({
 
   const summaryByTaskId = gridSummariesToTaskIdMap(gridSummaries);
   // Precompute max try per task once (O(n)) so getGanttSegmentTo can do O(1) lookups.
-  const maxTryByTaskId = useMemo(() => buildMaxTryByTaskId(ganttDataItems), [ganttDataItems]);
+  const maxTryByTaskId = buildMaxTryByTaskId(ganttDataItems);
   const spanMs = Math.max(1, maxMs - minMs);
 
   // Derive tick count from available width so labels never overlap.
-  // Each "HH:MM:SS" label is ~8 chars at font-size xs; allow ~80px per tick.
-  const MIN_TICK_SPACING_PX = 80;
+  // Each "HH:MM:SS" label is ~8 chars at font-size xs; allow MIN_TICK_SPACING_PX per tick.
   const tickCount =
     bodyWidthPx > 0 ? Math.max(2, Math.floor(bodyWidthPx / MIN_TICK_SPACING_PX)) : GANTT_TIME_AXIS_TICK_COUNT;
   const timeTicks = buildGanttTimeAxisTicks(minMs, maxMs, tickCount);
@@ -320,10 +323,8 @@ export const GanttTimeline = ({
                       searchParams: baseSearchParams,
                     });
                     const tooltipInstance = toTooltipSummary(segment, node, gridSummary);
-                    const prevSegment = segIndex > 0 ? segments[segIndex - 1] : undefined;
-                    const nextSegment = segIndex < segments.length - 1 ? segments[segIndex + 1] : undefined;
-                    const touchesPrev = prevSegment?.x[1] === segment.x[0];
-                    const touchesNext = segment.x[1] === nextSegment?.x[0];
+                    const touchesPrev = segment.touchesPrev ?? false;
+                    const touchesNext = segment.touchesNext ?? false;
                     const barRadius = 4;
 
                     if (to === undefined) {
@@ -374,7 +375,9 @@ export const GanttTimeline = ({
                               variant="solid"
                               w="100%"
                             >
-                              <StateIcon size={GANTT_STATE_ICON_SIZE_PX} state={segment.state} />
+                              {touchesNext ? undefined : (
+                                <StateIcon size={GANTT_STATE_ICON_SIZE_PX} state={segment.state} />
+                              )}
                             </Badge>
                           </Link>
                         </Box>

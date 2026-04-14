@@ -37,6 +37,8 @@ export type GanttDataItem = {
   scheduled_when?: string | null;
   state?: TaskInstanceState | null;
   taskId: string;
+  touchesNext?: boolean;
+  touchesPrev?: boolean;
   tryNumber?: number;
   /** [startMs, endMs] as Unix millisecond timestamps — pre-parsed to avoid repeated `new Date()` in render loops. */
   x: [number, number];
@@ -213,6 +215,22 @@ export const transformGanttData = ({
               });
             }
 
+            // Annotate intra-try adjacency so the render layer can use direct flag reads
+            // instead of comparing x coordinates.
+            for (let index = 0; index < items.length; index += 1) {
+              const segment = items[index];
+
+              if (segment !== undefined) {
+                if (index > 0) {
+                  segment.touchesPrev = true;
+                }
+
+                if (index < items.length - 1) {
+                  segment.touchesNext = true;
+                }
+              }
+            }
+
             return items;
           });
         }
@@ -267,8 +285,18 @@ export const computeGanttTimeRangeMs = ({
     return { maxMs: effectiveEndMs, minMs };
   }
 
-  const maxTime = ganttItems.reduce((max, item) => Math.max(max, item.x[1]), -Infinity);
-  const minTime = ganttItems.reduce((min, item) => Math.min(min, item.x[0]), Infinity);
+  let minTime = Infinity;
+  let maxTime = -Infinity;
+
+  for (const item of ganttItems) {
+    if (item.x[0] < minTime) {
+      [minTime] = item.x;
+    }
+    if (item.x[1] > maxTime) {
+      [, maxTime] = item.x;
+    }
+  }
+
   const totalDuration = maxTime - minTime;
 
   return {
