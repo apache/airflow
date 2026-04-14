@@ -1497,9 +1497,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     user.changed_on = datetime.datetime.now(tz=datetime.timezone.utc)
             merged_user = self.session.merge(user)
             self.session.commit()
-            self._reset_user_permissions_cache(user)
-            if merged_user is not user:
-                self._reset_user_permissions_cache(merged_user)
+            self._reset_user_permissions_cache(merged_user)
             log.info(const.LOGMSG_INF_SEC_UPD_USER, user)
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_UPD_USER, e)
