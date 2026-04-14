@@ -1051,11 +1051,17 @@ class KubernetesPodOperator(BaseOperator):
         reraise=True,
     )
     def _write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
-        since_seconds = (
-            math.ceil((datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds())
-            if since_time
-            else None
-        )
+        since_seconds = None
+        if since_time:
+            try:
+                since_seconds = math.ceil(
+                    (datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds()
+                )
+            except TypeError:
+                self.log.warning(
+                    "Error calculating since_seconds with since_time %s. Using None instead.",
+                    since_time,
+                )
         logs = self.client.read_namespaced_pod_log(
             name=pod.metadata.name,
             namespace=pod.metadata.namespace,

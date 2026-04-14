@@ -2842,6 +2842,31 @@ class TestKubernetesPodOperatorAsync:
         post_complete_action.assert_called_once()
         assert "Reading of logs interrupted with error" in caplog.text
 
+    @patch(KUB_OP_PATH.format("client"))
+    def test_write_logs_with_valid_since_time(self, mocked_client):
+        """Test that since_seconds is calculated correctly when since_time is a valid datetime."""
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE))
+        since_time = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(seconds=30)
+        k = KubernetesPodOperator(task_id="task", get_logs=True)
+
+        k._write_logs(pod, since_time=since_time)
+
+        _, call_kwargs = mocked_client.read_namespaced_pod_log.call_args
+        assert call_kwargs["since_seconds"] is not None
+        assert call_kwargs["since_seconds"] >= 30
+
+    @patch(KUB_OP_PATH.format("client"))
+    def test_write_logs_with_invalid_since_time_falls_back_to_none(self, mocked_client, caplog):
+        """Test that a TypeError from an invalid since_time is caught, warns, and uses since_seconds=None."""
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE))
+        k = KubernetesPodOperator(task_id="task", get_logs=True)
+
+        k._write_logs(pod, since_time="not-a-datetime")
+
+        _, call_kwargs = mocked_client.read_namespaced_pod_log.call_args
+        assert call_kwargs["since_seconds"] is None
+        assert "Error calculating since_seconds with since_time" in caplog.text
+
     @pytest.mark.parametrize(
         ("log_pod_spec_on_failure", "expect_match"),
         [
