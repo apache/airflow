@@ -28,7 +28,12 @@ except ImportError:
 
 @task
 def get_text_inference_profile_arn() -> str:
-    """Select a valid Bedrock inference profile ARN for system tests."""
+    """
+    Select a valid Bedrock inference profile ARN for system tests.
+
+    Note that for Anthropic models, first-time users may need to
+    submit use case details before they can access the model.
+    """
     from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
 
     client = BedrockHook().conn
@@ -41,7 +46,8 @@ def get_text_inference_profile_arn() -> str:
     log.info("Valid text inference profile ARNs: %s", arns)
 
     for arn in arns:
-        # Haiku has some version dependency issues: RAG only supports 3.5 but batch only support 4.5
+        # Haiku has some version dependency issues: RAG only supports 3.5 but batch only supports 4.5
         if "sonnet" in arn:
+            log.info("Selected inference profile ARN: %s", arn)
             return arn
     raise RuntimeError("No valid inference profiles found")

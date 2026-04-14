@@ -126,6 +126,8 @@ with DAG(
 
     create_bucket = S3CreateBucketOperator(task_id="create_bucket", bucket_name=bucket_name)
 
+    # Note that for Anthropic models, first-time users may need to
+    # submit use case details before they can access the model.
     text_model_arn = get_text_inference_profile_arn()
 
     # [START howto_operator_bedrock_batch_inference]
