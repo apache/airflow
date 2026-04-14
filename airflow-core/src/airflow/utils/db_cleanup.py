@@ -26,6 +26,7 @@ from __future__ import annotations
 import csv
 import logging
 import os
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from types import SimpleNamespace
@@ -476,8 +477,17 @@ def _print_config(*, configs: dict[str, _TableConfig]) -> None:
 
 
 @contextmanager
-def _suppress_with_logging(table: str, session: Session):
-    """Suppresses errors but logs them, and tracks whether an exception was suppressed."""
+def _suppress_with_logging(table: str, session: Session) -> Generator[SimpleNamespace, None, None]:
+    """
+    Suppress per-table cleanup errors, log them, and expose failure state to the caller.
+
+    Yields a :class:`~types.SimpleNamespace` with a single attribute ``failed`` (bool).
+    When an :class:`~sqlalchemy.exc.OperationalError` or
+    :class:`~sqlalchemy.exc.ProgrammingError` is raised inside the ``with`` block the
+    exception is swallowed, ``ctx.failed`` is set to ``True``, a WARNING is emitted for
+    the table, and the session is rolled back.  The caller can inspect ``ctx.failed``
+    after the block to decide whether to surface the error upstream.
+    """
     ctx = SimpleNamespace(failed=False)
     try:
         yield ctx
