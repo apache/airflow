@@ -61,7 +61,7 @@ from airflow.providers.common.compat.sdk import dag, task
 from airflow.providers.common.sql.config import DataSourceConfig
 from airflow.providers.common.sql.operators.analytics import AnalyticsOperator
 from airflow.providers.standard.operators.hitl import ApprovalOperator, HITLEntryOperator
-from airflow.sdk import Param
+from airflow.sdk import Param, log
 
 try:
     from airflow.providers.http.operators.http import HttpOperator
@@ -250,7 +250,7 @@ example_llm_survey_interactive()
 
 
 # [START example_llm_survey_scheduled]
-@dag(schedule="@monthly", start_date=None)
+@dag(schedule="@monthly", start_date=datetime.datetime(2025, 1, 1))
 def example_llm_survey_scheduled():
     """
     Download, validate, query, and report on the survey CSV on a schedule.
@@ -366,17 +366,16 @@ def example_llm_survey_scheduled():
     @task
     def send_result(data: str) -> None:
         if SMTP_CONN_ID and NOTIFY_EMAIL:
-            from airflow.providers.smtp.operators.smtp import EmailOperator
+            from airflow.providers.smtp.hooks.smtp import SmtpHook
 
-            EmailOperator(
-                task_id="_send_email",
-                smtp_conn_id=SMTP_CONN_ID,
-                to=NOTIFY_EMAIL,
-                subject=f"Airflow Survey Analysis: {SCHEDULED_PROMPT}",
-                html_content=f"<pre>{data}</pre>",
-            ).execute({})
+            with SmtpHook(smtp_conn_id=SMTP_CONN_ID) as hook:
+                hook.send_email_smtp(
+                    to=NOTIFY_EMAIL,
+                    subject=f"Airflow Survey Analysis: {SCHEDULED_PROMPT}",
+                    html_content=f"<pre>{data}</pre>",
+                )
         else:
-            print(f"Survey analysis result:\n{data}")
+            log.info("Survey analysis result:\n%s", data)
 
     generate_sql >> run_query >> result_data >> send_result(result_data)
 
