@@ -79,6 +79,9 @@ dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
     response_model_exclude_none=True,
     dependencies=[
         Depends(requires_access_dag(method="GET")),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN)),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL)),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
     operation_id="get_dags_ui",
 )

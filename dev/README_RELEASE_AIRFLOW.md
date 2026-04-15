@@ -1534,7 +1534,8 @@ If you don't have access to the account ask a PMC member to post.
 This includes:
 
 - Modify `./scripts/ci/prek/supported_versions.py` and let prek do the job.
-- For major/minor release, update version in `airflow/__init__.py` and `docs/docker-stack/` to the next likely minor version release.
+- For major/minor release, update version in `airflow/__init__.py` and `docker-stack-docs/` to the next likely major version release.
+  - New version should be, current major release + 1.0
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.
 - Updating `1-airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.

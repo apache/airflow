@@ -353,4 +353,36 @@ describe("Task log search", () => {
     // Auto-expand should make it visible.
     await waitFor(() => expect(screen.getByText(/starting attempt 1 of 3/iu)).toBeInTheDocument());
   }, 10_000);
+
+  it("skips group markers when assigning line numbers", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/generate"]} />,
+    );
+
+    await waitForLogs();
+
+    const expectRenderedLineNumber = async (pattern: RegExp, expectedLineNumber: number) => {
+      const row = (await screen.findByText(pattern)).closest('[data-testid^="virtualized-item-"]');
+
+      expect(row).not.toBeNull();
+
+      const anchor = row?.querySelector<HTMLAnchorElement>("a[id]");
+
+      expect(anchor).not.toBeNull();
+
+      expect(Number(anchor?.id)).toBe(expectedLineNumber);
+    };
+
+    const summaryPre = screen.getByTestId("summary-Pre task execution logs");
+
+    fireEvent.click(summaryPre);
+
+    const summaryDependency = await screen.findByTestId("summary-Dependency check details");
+
+    fireEvent.click(summaryDependency);
+
+    await expectRenderedLineNumber(/dep_context=non-requeueable/iu, 0);
+    await expectRenderedLineNumber(/dep_context=requeueable/iu, 1);
+    await expectRenderedLineNumber(/starting attempt 1 of 3/iu, 2);
+  }, 10_000);
 });
