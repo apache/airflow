@@ -29,6 +29,7 @@ import structlog
 from pydantic import Field, TypeAdapter
 
 from airflow.sdk._shared.module_loading import accepts_context, accepts_keyword_args
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetAssetByName,
@@ -278,8 +279,6 @@ class CallbackSubprocess(WatchedSubprocess):
 
     def _handle_request(self, msg: CallbackToSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
         """Handle incoming requests from the callback subprocess."""
-        from airflow.sdk.exceptions import ErrorType
-
         if isinstance(msg, MaskSecret):
             log.debug("Received request from callback (body omitted)", msg=type(msg))
         else:

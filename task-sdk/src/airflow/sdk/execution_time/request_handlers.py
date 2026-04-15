@@ -29,7 +29,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.sdk.api.datamodels._generated import AssetResponse, ConnectionResponse, VariableResponse
+from airflow.sdk.api.datamodels._generated import (
+    AssetResponse,
+    ConnectionResponse,
+    VariableResponse,
+    XComResponse,
+)
 from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
@@ -77,7 +82,9 @@ def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dic
     xcom = client.xcoms.get(
         msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
     )
-    return XComResult.from_xcom_response(xcom), {}
+    if isinstance(xcom, XComResponse):
+        return XComResult.from_xcom_response(xcom), {}
+    return xcom, {}
 
 
 def handle_get_asset_by_name(client: Client, msg: GetAssetByName) -> tuple[BaseModel | None, dict[str, bool]]:
