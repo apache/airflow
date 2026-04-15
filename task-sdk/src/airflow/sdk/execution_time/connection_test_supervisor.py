@@ -24,37 +24,13 @@ import uuid
 import structlog
 
 from airflow.sdk.api.client import Client
-from airflow.sdk.api.datamodels._generated import ConnectionResponse, ConnectionTestState
-from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
+from airflow.sdk.api.datamodels._generated import ConnectionTestState
 from airflow.sdk.definitions.connection import Connection as SDKConnection
-from airflow.sdk.execution_time.context import with_extra_secrets_backends
+from airflow.sdk.execution_time.context import _preset_connections
 
 __all__ = ["supervise_connection_test"]
 
 log = structlog.get_logger(logger_name="connection_test_supervisor")
-
-
-class _TestRequestSecretsBackend(BaseSecretsBackend):
-    """Resolve a single ``conn_id`` to the fields stored on its test request."""
-
-    def __init__(self, conn_id: str, conn_response: ConnectionResponse) -> None:
-        self._conn_id = conn_id
-        self._conn_response = conn_response
-
-    def get_connection(self, conn_id: str, team_name: str | None = None) -> SDKConnection | None:
-        if conn_id != self._conn_id:
-            return None
-        r = self._conn_response
-        return SDKConnection(
-            conn_id=r.conn_id,
-            conn_type=r.conn_type,
-            host=r.host,
-            login=r.login,
-            password=r.password,
-            schema=r.schema_,
-            port=r.port,
-            extra=r.extra,
-        )
 
 
 def supervise_connection_test(
@@ -65,11 +41,7 @@ def supervise_connection_test(
     token: str,
     server: str,
 ) -> int:
-    """
-    Execute a connection test on the worker and report the result via the Execution API.
-
-    Timeout is enforced with ``signal.SIGALRM`` — POSIX-only, main thread only.
-    """
+    """Execute a connection test on the worker and report the result via the Execution API."""
     from airflow.models.connection import Connection
 
     client = Client(base_url=server, token=token)
@@ -82,20 +54,33 @@ def supervise_connection_test(
     try:
         client.connection_tests.update_state(connection_test_id, ConnectionTestState.RUNNING)
 
-        conn_response = client.connection_tests.get_connection(connection_test_id)
+        r = client.connection_tests.get_connection(connection_test_id)
 
         conn = Connection(
-            conn_id=conn_response.conn_id,
-            conn_type=conn_response.conn_type,
-            host=conn_response.host,
-            login=conn_response.login,
-            password=conn_response.password,
-            schema=conn_response.schema_,
-            port=conn_response.port,
-            extra=conn_response.extra,
+            conn_id=r.conn_id,
+            conn_type=r.conn_type,
+            host=r.host,
+            login=r.login,
+            password=r.password,
+            schema=r.schema_,
+            port=r.port,
+            extra=r.extra,
         )
-        with with_extra_secrets_backends(_TestRequestSecretsBackend(conn_response.conn_id, conn_response)):
+        preset = SDKConnection(
+            conn_id=r.conn_id,
+            conn_type=r.conn_type,
+            host=r.host,
+            login=r.login,
+            password=r.password,
+            schema=r.schema_,
+            port=r.port,
+            extra=r.extra,
+        )
+        preset_token = _preset_connections.set({preset.conn_id: preset})
+        try:
             success, message = conn.test_connection()
+        finally:
+            _preset_connections.reset(preset_token)
 
         state = ConnectionTestState.SUCCESS if success else ConnectionTestState.FAILED
         client.connection_tests.update_state(connection_test_id, state, message)
