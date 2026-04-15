@@ -59,7 +59,6 @@ if TYPE_CHECKING:
     from airflow.sdk import Variable
     from airflow.sdk._shared.state import TaskScope
     from airflow.sdk.bases.operator import BaseOperator
-    from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.execution_time.comms import (
@@ -158,22 +157,16 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
     return Variable(**var_result.model_dump(exclude={"type"}))
 
 
-_extra_secrets_backends: ContextVar[tuple[BaseSecretsBackend, ...]] = ContextVar(
-    "_extra_secrets_backends", default=()
-)
-
-
-@contextlib.contextmanager
-def with_extra_secrets_backends(*backends: BaseSecretsBackend) -> Iterator[None]:
-    """Prepend ``backends`` to connection/variable lookup for the duration of the block."""
-    token = _extra_secrets_backends.set((*backends, *_extra_secrets_backends.get()))
-    try:
-        yield
-    finally:
-        _extra_secrets_backends.reset(token)
+_preset_connections: ContextVar[dict[str, Connection]] = ContextVar("_preset_connections", default={})
 
 
 def _get_connection(conn_id: str) -> Connection:
+    preset = _preset_connections.get()
+    if conn_id in preset:
+        conn = preset[conn_id]
+        _mask_connection_secrets(conn)
+        return conn
+
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
@@ -190,7 +183,7 @@ def _get_connection(conn_id: str) -> Connection:
 
     # Iterate over configured backends (which may include SupervisorCommsSecretsBackend
     # in worker contexts or MetastoreBackend in API server contexts)
-    backends = (*_extra_secrets_backends.get(), *ensure_secrets_backend_loaded())
+    backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
             conn = secrets_backend.get_connection(conn_id=conn_id)  # type: ignore[assignment]
@@ -214,6 +207,12 @@ def _get_connection(conn_id: str) -> Connection:
 
 
 async def _async_get_connection(conn_id: str) -> Connection:
+    preset = _preset_connections.get()
+    if conn_id in preset:
+        conn = preset[conn_id]
+        _mask_connection_secrets(conn)
+        return conn
+
     from asgiref.sync import sync_to_async
 
     from airflow.sdk.execution_time.cache import SecretCache
@@ -232,7 +231,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
     # Try secrets backends
-    backends = (*_extra_secrets_backends.get(), *ensure_secrets_backend_loaded())
+    backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
             # Use async method if available, otherwise wrap sync method
