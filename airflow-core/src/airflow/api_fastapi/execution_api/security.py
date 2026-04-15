@@ -74,10 +74,8 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.security import HTTPBearer, SecurityScopes
-from sqlalchemy import select
 
 from airflow.api_fastapi.auth.tokens import JWTValidator
-from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.deps import DepContainer
 
@@ -222,15 +220,19 @@ class ExecutionAPIRoute(APIRoute):
         self.allowed_token_types = frozenset(token_scopes) if token_scopes else frozenset({"execution"})
 
 
-async def get_team_name_dep(session: AsyncSessionDep, token=CurrentTIToken) -> str | None:
+async def get_team_name_dep(token=CurrentTIToken) -> str | None:
     """Return the team name associated to the task (if any)."""
     from airflow.configuration import conf
-    from airflow.models import DagModel, TaskInstance
-    from airflow.models.dagbundle import DagBundleModel
-    from airflow.models.team import Team
 
     if not conf.getboolean("core", "multi_team"):
         return None
+
+    from sqlalchemy import select
+
+    from airflow.models import DagModel, TaskInstance
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.models.team import Team
+    from airflow.utils.session import create_session_async
 
     stmt = (
         select(Team.name)
@@ -240,4 +242,5 @@ async def get_team_name_dep(session: AsyncSessionDep, token=CurrentTIToken) -> s
         .join(DagBundleModel.teams)
         .where(TaskInstance.id == token.id)
     )
-    return await session.scalar(stmt)
+    async with create_session_async() as session:
+        return await session.scalar(stmt)
