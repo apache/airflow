@@ -68,7 +68,6 @@ class DBDagBag:
         """
         self.load_op_links = load_op_links
         self._dags: MutableMapping[UUID | str, SerializedDAG] = {}
-        self._dag_models: dict[UUID | str, SerializedDagModel] = {}
         self._use_cache = False
 
         # Initialize bounded cache if cache_size is provided and > 0
@@ -132,17 +131,14 @@ class DBDagBag:
         """
         Return the SerializedDagModel for a given dag version id.
 
-        Uses a separate plain dict cache (not the LRU/TTL cache, which stores
-        deserialized SerializedDAG objects). The triggerer needs the full model
-        for ``serialized_dag_model.data``.
+        Always queries the database. The triggerer needs the full model
+        for ``serialized_dag_model.data``, which cannot be stored in the
+        LRU/TTL cache (it stores deserialized SerializedDAG objects).
         """
-        if serdag := self._dag_models.get(version_id):
-            return serdag
         dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
         if not dag_version or not (serdag := dag_version.serialized_dag):
             return None
         serdag.load_op_links = self.load_op_links
-        self._dag_models[version_id] = serdag
         return serdag
 
     def clear_cache(self) -> int:
@@ -154,7 +150,6 @@ class DBDagBag:
         with self._lock:
             count = len(self._dags)
             self._dags.clear()
-        self._dag_models.clear()
 
         if self._use_cache:
             Stats.incr("api_server.dag_bag.cache_clear")
