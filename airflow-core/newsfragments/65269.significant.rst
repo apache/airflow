@@ -1,0 +1,1 @@
+Synchronous deadline callbacks (``SyncCallback``) can now access Connections, Variables, XCom, and Assets from the Airflow metadata database.
