@@ -1049,9 +1049,9 @@ class TestDagRun:
 
         assert len([dagrun for dagrun in dagruns if dagrun.last_scheduling_decision is not None]) == 10
 
-    def test_get_running_dag_runs_with_max_new_dagruns_to_examine(self, session, dag_maker):
+    def test_get_running_dag_runs_with_max_new_dagruns_to_examine(self, session, dag_maker, monkeypatch):
 
-        DagRun.DEFAULT_NEW_DAGRUNS_TO_EXAMINE = 10
+        monkeypatch.setattr(DagRun, "DEFAULT_NEW_DAGRUNS_TO_EXAMINE", 10)
 
         def create_dagruns(
             last_scheduling_decision: datetime.datetime | None = None,
