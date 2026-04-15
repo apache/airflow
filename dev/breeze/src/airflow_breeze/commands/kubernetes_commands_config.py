@@ -276,6 +276,7 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--force-venv-setup",
             ],
         },
-        {"name": "Build image flags", "options": ["--rebuild-base-image", "--use-uv"]},
+        {"name": "Build image flags", "options": ["--rebuild-base-image", "--use-uv", "--skip-image-build"]},
+        {"name": "UI flags", "options": ["--skip-compile-ui-assets"]},
     ],
 }

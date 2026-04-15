@@ -256,6 +256,18 @@ option_parallelism_cluster = click.option(
     envvar="PARALLELISM",
     show_default=True,
 )
+option_skip_image_build = click.option(
+    "--skip-image-build",
+    help="Skips execution of breeze k8s build-k8s-image in deploy-cluster command.",
+    is_flag=True,
+    envvar="SKIP_IMAGE_BUILD",
+)
+option_skip_compile_ui_assets = click.option(
+    "--skip-compile-ui-assets",
+    help="Skips execution of breeze ui compile-assets in deploy-cluster command.",
+    is_flag=True,
+    envvar="SKIP_IMAGE_BUILD",
+)
 option_all = click.option("--all", help="Apply it to all created clusters", is_flag=True, envvar="ALL")
 
 K8S_CLUSTER_CREATE_PROGRESS_REGEXP = r".*airflow-python-[0-9.]+-v[0-9.].*|.*Connecting to localhost.*"
@@ -2253,6 +2265,8 @@ def run_complete_tests(
 @option_kubernetes_version
 @option_rebuild_base_image
 @option_use_uv
+@option_skip_image_build
+@option_skip_compile_ui_assets
 def deploy_cluster(
     force_venv_setup: bool,
     force_recreate_cluster: bool,
@@ -2260,14 +2274,15 @@ def deploy_cluster(
     kubernetes_version: str,
     rebuild_base_image: bool,
     use_uv: bool,
+    skip_image_build: bool,
+    skip_compile_ui_assets: bool,
 ):
-    # Setup Virtual Environment
+    console_print("[info]Syncing Virtual Environment[/]")
     result = sync_virtualenv(force_venv_setup=force_venv_setup)
     if result.returncode != 0:
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed()
 
-    # Create Cluster
     return_code, _ = _create_cluster(
         python=python,
         kubernetes_version=kubernetes_version,
@@ -2279,7 +2294,6 @@ def deploy_cluster(
     if return_code != 0:
         sys.exit(return_code)
 
-    # Configure Cluster
     return_code, _ = _configure_k8s_cluster(
         python=python,
         kubernetes_version=kubernetes_version,
@@ -2288,25 +2302,30 @@ def deploy_cluster(
     if return_code != 0:
         sys.exit(return_code)
 
-    # Compile UI Assets
-    perform_environment_checks()
-    assert_prek_installed()
-    result = run_compile_ui_assets(
-        dev=False, run_in_background=False, force_clean=False, additional_ui_hooks=[]
-    )
-    if result.returncode != 0:
-        sys.exit(result.returncode)
+    if skip_compile_ui_assets:
+        console_print("[info]Skipping compilation of Airflow UI assets[/]")
+    else:
+        console_print("[info]Compiling Airflow UI assets[/]")
+        perform_environment_checks()
+        assert_prek_installed()
+        result = run_compile_ui_assets(
+            dev=False, run_in_background=False, force_clean=False, additional_ui_hooks=[]
+        )
+        if result.returncode != 0:
+            sys.exit(result.returncode)
 
-    # Rebuild K8S Image
-    return_code, _ = _rebuild_k8s_image(
-        python=python,
-        rebuild_base_image=rebuild_base_image,
-        copy_local_sources=True,
-        use_uv=use_uv,
-        output=None,
-    )
-    if return_code != 0:
-        sys.exit(return_code)
+    if skip_image_build:
+        console_print("[info]Skipping Airflow Image Build[/]")
+    else:
+        return_code, _ = _rebuild_k8s_image(
+            python=python,
+            rebuild_base_image=rebuild_base_image,
+            copy_local_sources=True,
+            use_uv=use_uv,
+            output=None,
+        )
+        if return_code != 0:
+            sys.exit(return_code)
 
     return_code, _ = _upload_k8s_image(
         python=python,
