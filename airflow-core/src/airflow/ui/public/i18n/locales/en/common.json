@@ -28,6 +28,7 @@
   },
   "collapseAllExtra": "Collapse all extra JSON",
   "collapseDetailsPanel": "Collapse Details Panel",
+  "consumingAsset": "Consuming Asset",
   "createdAssetEvent_one": "Created Asset Event",
   "createdAssetEvent_other": "Created Asset Events",
   "dag_one": "Dag",
@@ -131,6 +132,7 @@
     "logicalDateTo": "Logical Date To",
     "runAfterFrom": "Run After From",
     "runAfterTo": "Run After To",
+    "searchAsset": "Search Asset",
     "selectDateRange": "Select Date Range",
     "startTime": "Start Time"
   },

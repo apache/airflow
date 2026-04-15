@@ -23,6 +23,7 @@ export enum SearchParamsKeys {
   BODY_SEARCH = "body_search",
   BUNDLE_VERSION = "bundle_version",
   CONF_CONTAINS = "conf_contains",
+  CONSUMING_ASSET_PATTERN = "consuming_asset_pattern",
   CREATED_AT_GTE = "created_at_gte",
   CREATED_AT_LTE = "created_at_lte",
   CREATED_AT_RANGE = "created_at_range",

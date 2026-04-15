@@ -46,11 +46,13 @@ from airflow.configuration import conf
 from airflow.models import Base
 from airflow.models.asset import (
     AssetAliasModel,
+    AssetEvent,
     AssetModel,
     AssetPartitionDagRun,
     DagScheduleAssetReference,
     TaskInletAssetReference,
     TaskOutletAssetReference,
+    association_table,
 )
 from airflow.models.connection import Connection
 from airflow.models.dag import DagModel, DagTag
@@ -783,6 +785,46 @@ class _AssetDependencyFilter(BaseParam[str]):
 
 QueryHasAssetScheduleFilter = Annotated[_HasAssetScheduleFilter, Depends(_HasAssetScheduleFilter.depends)]
 QueryAssetDependencyFilter = Annotated[_AssetDependencyFilter, Depends(_AssetDependencyFilter.depends)]
+
+
+class _ConsumingAssetFilter(BaseParam[str | None]):
+    """Filter DAG runs by consuming asset (name or URI)."""
+
+    def to_orm(self, select: Select) -> Select:
+        if not self.value and self.skip_none:
+            return select
+
+        event_subquery = (
+            sql_select(AssetEvent.id)
+            .join(AssetModel, AssetEvent.asset_id == AssetModel.id)
+            .where(
+                or_(
+                    AssetModel.name.ilike(f"%{self.value}%"),
+                    AssetModel.uri.ilike(f"%{self.value}%"),
+                )
+            )
+            .distinct()
+        )
+
+        dagrun_subquery = (
+            sql_select(association_table.c.dag_run_id)
+            .where(association_table.c.event_id.in_(event_subquery))
+            .distinct()
+        )
+
+        return select.where(DagRun.id.in_(dagrun_subquery))
+
+    @classmethod
+    def depends(
+        cls,
+        consuming_asset_pattern: str | None = Query(
+            None, description="Filter by consuming asset name or URI using pattern matching"
+        ),
+    ) -> _ConsumingAssetFilter:
+        return cls().set_value(consuming_asset_pattern)
+
+
+QueryConsumingAssetPatternSearch = Annotated[_ConsumingAssetFilter, Depends(_ConsumingAssetFilter.depends)]
 
 
 class _PendingActionsFilter(BaseParam[bool]):

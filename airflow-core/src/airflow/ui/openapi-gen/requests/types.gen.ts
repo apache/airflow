@@ -2562,6 +2562,10 @@ export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunRespons
 export type GetDagRunsData = {
     bundleVersion?: string | null;
     confContains?: string;
+    /**
+     * Filter by consuming asset name or URI using pattern matching
+     */
+    consumingAssetPattern?: string | null;
     dagId: string;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
