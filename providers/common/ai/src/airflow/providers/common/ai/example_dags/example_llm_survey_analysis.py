@@ -43,6 +43,7 @@ Before running either DAG:
 
 from __future__ import annotations
 
+import csv as csv_mod
 import datetime
 import json
 import os
@@ -279,9 +280,6 @@ def example_llm_survey_scheduled():
     # ------------------------------------------------------------------
     @task
     def prepare_csv(csv_text: str) -> None:
-        import csv as csv_mod
-        import os
-
         os.makedirs(os.path.dirname(SURVEY_CSV_PATH), exist_ok=True)
         with open(SURVEY_CSV_PATH, "w", encoding="utf-8") as f:
             f.write(csv_text)
