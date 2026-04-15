@@ -125,7 +125,9 @@ def process_fd(
     log: Logger,
     process_line_callback: Callable[[str], None] | None = None,
     is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
-):
+    on_dataflow_job_id_found_callback: Callable[[], None] | None = None,
+    on_dataflow_job_id_found_callback_called: bool = False,
+) -> bool:
     """
     Print output to logs.
 
@@ -133,7 +135,14 @@ def process_fd(
     :param fd: File descriptor.
     :param process_line_callback: Optional callback which can be used to process
         stdout and stderr to detect job id.
+    :param is_dataflow_job_id_exist_callback: Optional callback which can be used in case of dataflow job id
+        found
+    :param on_dataflow_job_id_found_callback: Optional callback to execute when the dataflow job id found
+    :param on_dataflow_job_id_found_callback_called: Flag to keep track if the
+        on_dataflow_job_id_found_callback's executed already or not. We must call the callback once.
     :param log: logger.
+
+    Return whether the on_dataflow_job_id_found_callback function's executed or not
     """
     if fd not in (proc.stdout, proc.stderr):
         raise AirflowException("No data in stderr or in stdout.")
@@ -147,7 +156,12 @@ def process_fd(
             process_line_callback(line)
         func_log(line.rstrip("\n"))
         if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
-            return
+            if not on_dataflow_job_id_found_callback_called and on_dataflow_job_id_found_callback:
+                log.info("JOB ID found for dataflow. Calling the callback!")
+                on_dataflow_job_id_found_callback_called = True
+                on_dataflow_job_id_found_callback()
+
+    return on_dataflow_job_id_found_callback_called
 
 
 def run_beam_command(
@@ -156,6 +170,7 @@ def run_beam_command(
     process_line_callback: Callable[[str], None] | None = None,
     working_directory: str | None = None,
     is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+    on_dataflow_job_id_found_callback: Callable[[], None] | None = None,
 ) -> None:
     """
     Run pipeline command in subprocess.
@@ -164,6 +179,9 @@ def run_beam_command(
     :param process_line_callback: Optional callback which can be used to process
         stdout and stderr to detect job id
     :param working_directory: Working directory
+    :param is_dataflow_job_id_exist_callback: Optional callback which can be used in case of dataflow job id
+        found
+    :param on_dataflow_job_id_found_callback: Optional callback to execute when the dataflow job id found
     :param log: logger.
     """
     log.info("Running command: %s", " ".join(shlex.quote(c) for c in cmd))
@@ -179,6 +197,8 @@ def run_beam_command(
     # Waits for Apache Beam pipeline to complete.
     log.info("Start waiting for Apache Beam process to complete.")
     reads = [fd for fd in (proc.stderr, proc.stdout) if fd is not None]
+
+    on_dataflow_job_id_found_callback_called = False
     while True:
         # Wait for at least one available fd.
         readable_fds, _, _ = select.select(reads, [], [], 5)
@@ -187,16 +207,30 @@ def run_beam_command(
             continue
 
         for readable_fd in readable_fds:
-            process_fd(proc, readable_fd, log, process_line_callback, is_dataflow_job_id_exist_callback)
-            if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
-                return
+            on_dataflow_job_id_found_callback_called = process_fd(
+                proc,
+                readable_fd,
+                log,
+                process_line_callback,
+                is_dataflow_job_id_exist_callback,
+                on_dataflow_job_id_found_callback,
+                on_dataflow_job_id_found_callback_called,
+            )
 
         if proc.poll() is not None:
             break
 
     # Corner case: check if more output was created between the last read and the process termination
     for readable_fd in reads:
-        process_fd(proc, readable_fd, log, process_line_callback, is_dataflow_job_id_exist_callback)
+        process_fd(
+            proc,
+            readable_fd,
+            log,
+            process_line_callback,
+            is_dataflow_job_id_exist_callback,
+            on_dataflow_job_id_found_callback,
+            on_dataflow_job_id_found_callback_called,
+        )
 
     log.info("Process exited with return code: %s", proc.returncode)
 
@@ -228,6 +262,7 @@ class BeamHook(BaseHook):
         process_line_callback: Callable[[str], None] | None = None,
         working_directory: str | None = None,
         is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+        on_dataflow_job_id_found_callback: Callable[[], None] | None = None,
     ) -> None:
         cmd = [*command_prefix, f"--runner={self.runner}"]
         if variables:
@@ -238,6 +273,7 @@ class BeamHook(BaseHook):
             working_directory=working_directory,
             log=self.log,
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+            on_dataflow_job_id_found_callback=on_dataflow_job_id_found_callback,
         )
 
     def start_python_pipeline(
@@ -250,6 +286,7 @@ class BeamHook(BaseHook):
         py_system_site_packages: bool = False,
         process_line_callback: Callable[[str], None] | None = None,
         is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+        on_dataflow_job_id_found_callback: Callable[[], None] | None = None,
     ):
         """
         Start Apache Beam python pipeline.
@@ -273,6 +310,10 @@ class BeamHook(BaseHook):
             This option is only relevant if the ``py_requirements`` parameter is not None.
         :param process_line_callback: (optional) Callback that can be used to process each line of
             the stdout and stderr file descriptors.
+        :param is_dataflow_job_id_exist_callback: (optional) callback which can be used in case of
+            dataflow job id found
+        :param on_dataflow_job_id_found_callback: (optional) callback to execute when the dataflow
+            job id found
         """
         if "labels" in variables:
             variables["labels"] = [f"{key}={value}" for key, value in variables["labels"].items()]
@@ -319,6 +360,7 @@ class BeamHook(BaseHook):
                 command_prefix=command_prefix,
                 process_line_callback=process_line_callback,
                 is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+                on_dataflow_job_id_found_callback=on_dataflow_job_id_found_callback,
             )
 
     def start_java_pipeline(
@@ -328,6 +370,7 @@ class BeamHook(BaseHook):
         job_class: str | None = None,
         process_line_callback: Callable[[str], None] | None = None,
         is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+        on_dataflow_job_id_found_callback: Callable[[], None] | None = None,
     ) -> None:
         """
         Start Apache Beam Java pipeline.
@@ -337,6 +380,10 @@ class BeamHook(BaseHook):
         :param job_class: Name of the java class for the pipeline.
         :param process_line_callback: (optional) Callback that can be used to process each line of
             the stdout and stderr file descriptors.
+        :param is_dataflow_job_id_exist_callback: (optional) callback which can be used in case of
+            dataflow job id found
+        :param on_dataflow_job_id_found_callback: (optional) callback to execute when the dataflow
+            job id found
         """
         if "labels" in variables:
             variables["labels"] = json.dumps(variables["labels"], separators=(",", ":"))
@@ -347,6 +394,7 @@ class BeamHook(BaseHook):
             command_prefix=command_prefix,
             process_line_callback=process_line_callback,
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+            on_dataflow_job_id_found_callback=on_dataflow_job_id_found_callback,
         )
 
     def start_go_pipeline(
