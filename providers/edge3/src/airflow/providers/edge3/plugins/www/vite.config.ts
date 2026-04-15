@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import react from "@vitejs/plugin-react-swc";
+import babel from "@rolldown/plugin-babel";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { resolve } from "node:path";
 import cssInjectedByJsPlugin from "vite-plugin-css-injected-by-js";
 import dts from "vite-plugin-dts";
@@ -61,6 +62,9 @@ export default defineConfig(({ command }) => {
     },
     plugins: [
       react(),
+      babel({
+        presets: [reactCompilerPreset()],
+      }),
       cssInjectedByJsPlugin(),
       ...(isLibraryBuild
         ? [

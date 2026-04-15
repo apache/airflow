@@ -100,8 +100,8 @@ jobs:
             --jq '.[0].url' 2>/dev/null || true)
           echo "pr-url=${PR_URL}" >> "${GITHUB_OUTPUT}"
       - name: >-
-          [${{ inputs.target-branch }}] Notify Slack
-        if: steps.find-pr.outputs.pr-url != ''
+          [${{ inputs.target-branch }}] Notify Slack on success
+        if: success() && steps.find-pr.outputs.pr-url != ''
         uses: >-
           slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95
         with:
@@ -110,16 +110,49 @@ jobs:
           payload: |
             channel: "internal-airflow-ci-cd"
             text: >-
-              🔧 [${{ inputs.target-branch }}] CI upgrade PR
-              ready for review. Please undraft, review and
-              merge: ${{ steps.find-pr.outputs.pr-url }}
+              🔧 [${{ inputs.target-branch }}] Scheduled CI upgrade PR
+              ready: ${{ steps.find-pr.outputs.pr-url }}
             blocks:
               - type: section
                 text:
                   type: mrkdwn
                   text: >-
-                    🔧 *[${{ inputs.target-branch }}] CI upgrade
-                    PR ready for review*
+                    🔧 *[${{ inputs.target-branch }}] Scheduled CI upgrade
+                    PR ready*
 
-                    Please undraft, review and merge:
+                    A new CI upgrade PR has been created as a draft on the
+                    `${{ inputs.target-branch }}` branch. Please:
+
+                      1. *Undraft* the PR to trigger CI
+                      2. *Review* the changes
+                      3. *Merge* it once CI passes
+
                     <${{ steps.find-pr.outputs.pr-url }}|View PR>
+      - name: >-
+          [${{ inputs.target-branch }}] Notify Slack on failure
+        if: failure()
+        uses: >-
+          slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95
+        with:
+          method: chat.postMessage
+          token: ${{ env.SLACK_BOT_TOKEN }}
+          # yamllint disable rule:line-length
+          payload: |
+            channel: "internal-airflow-ci-cd"
+            text: >-
+              ⚠️ [${{ inputs.target-branch }}] Scheduled CI upgrade FAILED.
+              See: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            blocks:
+              - type: section
+                text:
+                  type: mrkdwn
+                  text: >-
+                    ⚠️ *[${{ inputs.target-branch }}] Scheduled CI upgrade
+                    FAILED*
+
+                    The `breeze ci upgrade` job on the
+                    `${{ inputs.target-branch }}` branch did not complete
+                    successfully. Please investigate the failed run and
+                    re-run the workflow if needed.
+
+                    <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View failed run>

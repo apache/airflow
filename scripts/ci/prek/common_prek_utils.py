@@ -519,3 +519,31 @@ def retrieve_gh_token(*, token: str | None = None, description: str, scopes: str
         )
         sys.exit(1)
     return token
+
+
+def parse_operations(
+    operations_file: Path, exclude_operation_classes: set, exclude_methods: set
+) -> dict[str, list[str]]:
+    """Parse airflowctl operations file and return a mapping of CLI group names to subcommands."""
+    commands: dict[str, list[str]] = {}
+
+    with open(operations_file) as f:
+        tree = ast.parse(f.read(), filename=str(operations_file))
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name.endswith("Operations"):
+            if node.name in exclude_operation_classes:
+                continue
+
+            group_name = node.name.replace("Operations", "").lower()
+            commands[group_name] = []
+
+            for child in node.body:
+                if isinstance(child, ast.FunctionDef):
+                    method_name = child.name
+                    if method_name in exclude_methods or method_name.startswith("_"):
+                        continue
+                    subcommand = method_name.replace("_", "-")
+                    commands[group_name].append(subcommand)
+
+    return commands

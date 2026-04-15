@@ -26,6 +26,7 @@ import os
 import sys
 from collections.abc import Callable
 from functools import wraps
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar, cast
 
 import httpx
@@ -62,6 +63,7 @@ from airflowctl.api.operations import (
 )
 from airflowctl.exceptions import (
     AirflowCtlCredentialNotFoundException,
+    AirflowCtlException,
     AirflowCtlKeyringException,
     AirflowCtlNotFoundException,
 )
@@ -144,6 +146,17 @@ def _bounded_get_new_password() -> str:
     )
 
 
+def _safe_path_under_airflow_home(airflow_home: str, filename: str) -> str:
+    base = Path(airflow_home).resolve()
+    target = (base / filename).resolve()
+    if not target.is_relative_to(base):
+        raise AirflowCtlException(
+            f"Security Error: Path traversal detected in '{filename}'. "
+            f"The resolved path must stay within AIRFLOW_HOME."
+        )
+    return str(target)
+
+
 # Credentials for the API
 class Credentials:
     """Credentials for the API."""
@@ -161,8 +174,15 @@ class Credentials:
     ):
         self.api_url = api_url
         self.api_token = api_token
-        self.api_environment = os.getenv("AIRFLOW_CLI_ENVIRONMENT") or api_environment
         self.client_kind = client_kind
+        raw_env = os.getenv("AIRFLOW_CLI_ENVIRONMENT") or api_environment
+        if "/" in raw_env or "\\" in raw_env or ".." in raw_env:
+            raise AirflowCtlException(
+                f"Invalid environment name: '{raw_env}'. "
+                f"Environment names cannot contain path separators ('/', '\\') or '..'."
+            )
+
+        self.api_environment = raw_env
 
     @property
     def input_cli_config_file(self) -> str:
@@ -183,14 +203,16 @@ class Credentials:
         """
         default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         os.makedirs(default_config_dir, exist_ok=True)
-        with open(os.path.join(default_config_dir, self.input_cli_config_file), "w") as f:
+        config_path = _safe_path_under_airflow_home(default_config_dir, self.input_cli_config_file)
+        with open(config_path, "w") as f:
             json.dump({"api_url": self.api_url}, f)
 
         try:
             if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
-                with open(
-                    os.path.join(default_config_dir, f"debug_creds_{self.input_cli_config_file}"), "w"
-                ) as f:
+                debug_path = _safe_path_under_airflow_home(
+                    default_config_dir, f"debug_creds_{self.input_cli_config_file}"
+                )
+                with open(debug_path, "w") as f:
                     json.dump({self.token_key_for_environment(self.api_environment): self.api_token}, f)
             else:
                 if skip_keyring:
@@ -226,7 +248,7 @@ class Credentials:
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
         default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
-        config_path = os.path.join(default_config_dir, self.input_cli_config_file)
+        config_path = _safe_path_under_airflow_home(default_config_dir, self.input_cli_config_file)
         try:
             with open(config_path) as f:
                 credentials = json.load(f)
@@ -234,7 +256,7 @@ class Credentials:
                 if self.api_token is not None:
                     return self
                 if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
-                    debug_creds_path = os.path.join(
+                    debug_creds_path = _safe_path_under_airflow_home(
                         default_config_dir, f"debug_creds_{self.input_cli_config_file}"
                     )
                     try:

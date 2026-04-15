@@ -265,16 +265,25 @@ config:
         type: string
         example: ~
         default: "False"
+      ssl_mutual_tls:
+        description: |
+          Whether to require mutual TLS (client certificate authentication).
+          When True (default), SSL_KEY and SSL_CERT must be set.
+          Set to False for one-way TLS (server verification only).
+        version_added: ~
+        type: boolean
+        example: ~
+        default: "True"
       ssl_key:
         description: |
-          Path to the client key.
+          Path to the client key. Required when SSL_MUTUAL_TLS is True.
         version_added: ~
         type: string
         example: ~
         default: ""
       ssl_cert:
         description: |
-          Path to the client certificate.
+          Path to the client certificate. Required when SSL_MUTUAL_TLS is True.
         version_added: ~
         type: string
         example: ~
