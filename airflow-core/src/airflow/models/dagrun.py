@@ -668,12 +668,8 @@ class DagRun(Base, LoggingMixin):
             DagRun.run_after,
         ]
 
-        new_dagruns_to_examine = cls.DEFAULT_NEW_DAGRUNS_TO_EXAMINE
+        new_dagruns_to_examine = max(cls.DEFAULT_NEW_DAGRUNS_TO_EXAMINE, 0)
         dagruns_to_examine = cls.DEFAULT_DAGRUNS_TO_EXAMINE
-
-        if new_dagruns_to_examine < 0:
-            log.warning("'max_new_dagruns_per_loop_to_schedule' is smaller than 0, ignoring configuration")
-            new_dagruns_to_examine = 0
 
         query = _get_dagrun_query(
             filters=filters
