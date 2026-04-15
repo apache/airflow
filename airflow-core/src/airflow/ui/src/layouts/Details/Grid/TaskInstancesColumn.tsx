@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, type BoxProps } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import { useParams } from "react-router-dom";
 
@@ -27,6 +27,7 @@ import { useHover } from "src/context/hover";
 
 import { GridTI } from "./GridTI";
 import { DagVersionIndicator } from "./VersionIndicator";
+import { ROW_HEIGHT } from "./constants";
 import type { GridTask } from "./utils";
 
 type Props = {
@@ -38,7 +39,16 @@ type Props = {
   readonly virtualItems?: Array<VirtualItem>;
 };
 
-const ROW_HEIGHT = 20;
+type CellBorderProps = Pick<BoxProps, "borderBottomWidth" | "borderColor" | "borderTopWidth">;
+
+const taskInstanceCellBorderProps = (hideRowBorders: boolean, rowIndex: number): CellBorderProps =>
+  hideRowBorders
+    ? { borderBottomWidth: 0, borderTopWidth: 0 }
+    : {
+        borderBottomWidth: 1,
+        borderColor: "border",
+        borderTopWidth: rowIndex === 0 ? 1 : 0,
+      };
 
 export const TaskInstancesColumn = ({
   nodes,
@@ -69,6 +79,7 @@ export const TaskInstancesColumn = ({
   const hasMixedVersions = versionNumbers.size > 1;
 
   const isHovered = hoveredRunId === run.run_id;
+  const hideRowBorders = isSelected || isHovered;
 
   const handleMouseEnter = () => setHoveredRunId(run.run_id);
   const handleMouseLeave = () => setHoveredRunId(undefined);
@@ -94,6 +105,7 @@ export const TaskInstancesColumn = ({
         if (!taskInstance) {
           return (
             <Box
+              {...taskInstanceCellBorderProps(hideRowBorders, virtualItem.index)}
               height={`${ROW_HEIGHT}px`}
               key={`${node.id}-${run.run_id}`}
               left={0}
@@ -124,6 +136,8 @@ export const TaskInstancesColumn = ({
 
         return (
           <Box
+            {...taskInstanceCellBorderProps(hideRowBorders, virtualItem.index)}
+            height={`${ROW_HEIGHT}px`}
             key={node.id}
             left={0}
             position="absolute"

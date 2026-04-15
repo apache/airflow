@@ -16,16 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, type BoxProps } from "@chakra-ui/react";
 
-export const DurationAxis = (props: BoxProps) => (
-  <Box
-    borderBottomWidth={1}
-    borderColor="border"
-    left={0}
-    position="absolute"
-    right={0}
-    zIndex={0}
-    {...props}
-  />
-);
+/** The three available views for the main DAG panel. */
+export type DagView = "gantt" | "graph" | "grid";
