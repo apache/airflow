@@ -538,6 +538,10 @@ def clear_external_task_marker_dependencies(
                 task_ids=list(external_partial.task_dict.keys()),
                 start_date=ti.logical_date,
                 end_date=ti.logical_date,
+                run_id=None,
+                state=(),
+                exclude_task_ids=None,
+                exclude_run_ids=None,
                 session=session,
             )
         )

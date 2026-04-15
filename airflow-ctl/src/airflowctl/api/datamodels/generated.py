@@ -165,13 +165,6 @@ class ClearTaskInstancesBody(BaseModel):
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
     include_future: Annotated[bool | None, Field(title="Include Future")] = False
     include_past: Annotated[bool | None, Field(title="Include Past")] = False
-    include_recursive: Annotated[
-        bool | None,
-        Field(
-            description="If set to true, clearing tasks that are ExternalTaskMarker instances will also recursively clear the referenced tasks in external DAGs.",
-            title="Include Recursive",
-        ),
-    ] = False
     run_on_latest_version: Annotated[
         bool | None,
         Field(
