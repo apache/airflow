@@ -1155,6 +1155,45 @@ class TestAsyncKubernetesHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
+        ("kubeconfig_content", "expected_cached"),
+        [
+            pytest.param(
+                (
+                    "current-context: ctx1\n"
+                    "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+                    "users:\n- name: user1\n  user:\n    exec:\n      command: aws eks get-token\n"
+                ),
+                False,
+                id="kube_config_path_with_exec",
+            ),
+            pytest.param(
+                (
+                    "current-context: ctx1\n"
+                    "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+                    "users:\n- name: user1\n  user:\n    token: static-token\n"
+                ),
+                True,
+                id="kube_config_path_no_exec",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config")
+    async def test_load_config_caching_behavior_kube_config_path(
+        self, mock_load_file, tmp_path, kubeconfig_content, expected_cached
+    ):
+        mock_load_file.return_value = None
+        kubeconfig_file = tmp_path / "kubeconfig.yaml"
+        kubeconfig_file.write_text(kubeconfig_content)
+
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False)
+        hook._get_field = mock.AsyncMock(
+            side_effect=lambda field: str(kubeconfig_file) if field == "kube_config_path" else None
+        )
+        await hook._load_config()
+        assert hook._config_loaded is expected_cached
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
         ("kubeconfig", "expected_cached"),
         [
             pytest.param(
