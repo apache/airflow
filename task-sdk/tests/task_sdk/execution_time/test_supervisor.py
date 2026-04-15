@@ -141,6 +141,7 @@ from airflow.sdk.execution_time.supervisor import (
     InProcessTestSupervisor,
     _make_process_nondumpable,
     _remote_logging_conn,
+    in_process_api_server,
     process_log_messages_from_subprocess,
     set_supervisor_comms,
     supervise_task,
@@ -3298,3 +3299,39 @@ def test_nondumpable_noop_on_non_linux():
     """On non-Linux, _make_process_nondumpable returns without error."""
 
     _make_process_nondumpable()
+
+
+def test_in_process_api_server_caches_instance():
+    """in_process_api_server() returns the same instance on repeated calls."""
+    in_process_api_server.cache_clear()
+    try:
+        first = in_process_api_server()
+        second = in_process_api_server()
+        assert first is second
+
+        in_process_api_server.cache_clear()
+        third = in_process_api_server()
+        assert third is not first
+    finally:
+        in_process_api_server.cache_clear()
+
+
+def test_api_client_clears_dag_bag_override_when_dag_is_none():
+    """_api_client(dag=None) removes stale dag_bag_from_app overrides set by a previous call."""
+    from unittest.mock import MagicMock
+
+    from airflow.api_fastapi.common.dagbag import dag_bag_from_app
+
+    in_process_api_server.cache_clear()
+    try:
+        # First call with a dag sets the override
+        mock_dag = MagicMock()
+        InProcessTestSupervisor._api_client(dag=mock_dag)
+        api = in_process_api_server()
+        assert dag_bag_from_app in api.app.dependency_overrides
+
+        # Second call with dag=None should remove it
+        InProcessTestSupervisor._api_client(dag=None)
+        assert dag_bag_from_app not in api.app.dependency_overrides
+    finally:
+        in_process_api_server.cache_clear()
