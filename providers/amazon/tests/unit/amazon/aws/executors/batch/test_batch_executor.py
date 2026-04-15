@@ -42,7 +42,7 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
     CONFIG_GROUP_NAME,
     AllBatchConfigKeys,
 )
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
 from airflow.version import version as airflow_version_str
@@ -196,6 +196,7 @@ class TestAwsBatchExecutor:
         mock_executor.batch.submit_job.return_value = {"jobId": MOCK_JOB_ID, "jobName": "some-job-name"}
 
         mock_executor.execute_async(airflow_key, airflow_cmd)
+        mock_executor.running.add(airflow_key)
         assert len(mock_executor.pending_jobs) == 1
         mock_executor.attempt_submit_jobs()
         mock_executor.batch.submit_job.assert_called_once()
@@ -295,6 +296,7 @@ class TestAwsBatchExecutor:
         }
         mock_executor.execute_async(airflow_key, airflow_cmd1)
         mock_executor.execute_async(airflow_key, airflow_cmd2)
+        mock_executor.running.add(airflow_key)
         assert len(mock_executor.pending_jobs) == 2
 
         mock_executor.batch.submit_job.side_effect = responses
@@ -362,6 +364,7 @@ class TestAwsBatchExecutor:
         }
         mock_executor.execute_async(airflow_key, airflow_cmd1)
         mock_executor.execute_async(airflow_key, airflow_cmd2)
+        mock_executor.running.add(airflow_key)
         assert len(mock_executor.pending_jobs) == 2
 
         mock_executor.batch.submit_job.side_effect = failures
@@ -383,11 +386,14 @@ class TestAwsBatchExecutor:
         mock_executor.attempt_submit_jobs()
         if VersionInfo.parse(str(airflow_version)) >= (2, 10, 0):
             events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
-            assert events == [("batch job submit failure", "b", 1)] * 2
+            # Only one event because after the first job with this key is failed,
+            # the key is removed from self.running and the second job is skipped.
+            assert events == [("batch job submit failure", "b", 1)]
 
     def test_attempt_submit_jobs_failure(self, mock_executor):
         mock_executor.batch.submit_job.side_effect = NoCredentialsError()
         mock_executor.execute_async("airflow_key", "airflow_cmd")
+        mock_executor.running.add("airflow_key")
         assert len(mock_executor.pending_jobs) == 1
         with pytest.raises(NoCredentialsError, match="Unable to locate credentials"):
             mock_executor.attempt_submit_jobs()
@@ -413,6 +419,7 @@ class TestAwsBatchExecutor:
 
         mock_executor.execute_async(airflow_keys[0], airflow_cmds[0])
         mock_executor.execute_async(airflow_keys[1], airflow_cmds[1])
+        mock_executor.running.update(airflow_keys)
         assert len(mock_executor.pending_jobs) == 2
         jobs = [
             {
@@ -483,6 +490,7 @@ class TestAwsBatchExecutor:
 
     def test_sync_client_error(self, mock_executor, caplog):
         mock_executor.execute_async("airflow_key", "airflow_cmd")
+        mock_executor.running.add("airflow_key")
         assert len(mock_executor.pending_jobs) == 1
         mock_resp = {
             "Error": {
@@ -668,6 +676,7 @@ class TestAwsBatchExecutor:
             exec_config={},
             attempt_number=attempt_number,
         )
+        executor.running.add(airflow_key)
 
         after_batch_job = {
             "jobName": "some-job-queue",
@@ -749,6 +758,149 @@ class TestAwsBatchExecutor:
             assert submit_kwargs["jobQueue"] == "some-job-queue"
             assert submit_kwargs["jobDefinition"] == "some-job-def"
             assert submit_kwargs["jobName"] == "some-job-name"
+
+    @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    def test_failed_job_not_retried_when_cancelled(self, _, mock_executor, caplog):
+        """When a task is removed from self.running (e.g. user cancelled it), the executor
+        should not reschedule the failed job."""
+        airflow_key = "CancelledTaskKey"
+        mock_executor.execute_async(airflow_key, ["cmd1", "cmd2"])
+        mock_executor.running.add(airflow_key)
+
+        mock_executor.batch.submit_job.return_value = {"jobId": "job-cancel-1"}
+        mock_executor.attempt_submit_jobs()
+
+        assert len(mock_executor.active_workers) == 1
+        assert len(mock_executor.pending_jobs) == 0
+
+        # Simulate the scheduler removing the task from running (user cancelled)
+        mock_executor.running.discard(airflow_key)
+
+        # Now simulate the job failing in AWS
+        mock_executor.batch.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobName": "job-cancel-1",
+                    "jobId": "job-cancel-1",
+                    "status": "FAILED",
+                    "statusReason": "Container exited with non-zero code",
+                }
+            ]
+        }
+        mock_executor.sync_running_jobs()
+
+        # Task should NOT be rescheduled
+        assert len(mock_executor.pending_jobs) == 0
+        assert len(mock_executor.active_workers) == 0
+        assert "no longer in the running state" in caplog.text
+
+    def test_pending_job_not_submitted_when_cancelled(self, mock_executor):
+        """When a task is removed from self.running while it's in the pending queue,
+        the executor should discard it instead of submitting."""
+        airflow_key = "CancelledPendingKey"
+        mock_executor.execute_async(airflow_key, ["cmd1", "cmd2"])
+        mock_executor.running.add(airflow_key)
+
+        assert len(mock_executor.pending_jobs) == 1
+
+        # Simulate the scheduler removing the task from running (user cancelled)
+        mock_executor.running.discard(airflow_key)
+
+        mock_executor.attempt_submit_jobs()
+
+        # Job should not have been submitted
+        mock_executor.batch.submit_job.assert_not_called()
+        assert len(mock_executor.pending_jobs) == 0
+        assert len(mock_executor.active_workers) == 0
+
+    def test_revoke_task_running_job(self, mock_executor):
+        """Test that revoke_task terminates a running Batch job and cleans up internal state."""
+        airflow_key = TaskInstanceKey("dag", "task", "run", 1)
+        mock_executor.active_workers.add_job(
+            job_id="revoke-job-1",
+            airflow_task_key=airflow_key,
+            airflow_cmd=["cmd"],
+            queue="queue",
+            exec_config={},
+            attempt_number=1,
+        )
+        mock_executor.running.add(airflow_key)
+
+        ti = mock.Mock(spec=TaskInstance)
+        ti.key = airflow_key
+
+        mock_executor.revoke_task(ti=ti)
+
+        mock_executor.batch.terminate_job.assert_called_once_with(
+            jobId="revoke-job-1", reason="Task was revoked by the Airflow scheduler"
+        )
+        assert airflow_key not in mock_executor.running
+        assert len(mock_executor.active_workers) == 0
+
+    def test_revoke_task_pending_job(self, mock_executor):
+        """Test that revoke_task removes a pending job from the queue."""
+        from airflow.providers.amazon.aws.executors.batch.utils import BatchQueuedJob
+
+        airflow_key = TaskInstanceKey("dag", "task", "run", 1)
+        mock_executor.pending_jobs.append(
+            BatchQueuedJob(
+                key=airflow_key,
+                command=["cmd"],
+                queue="queue",
+                executor_config={},
+                attempt_number=1,
+                next_attempt_time=timezone.utcnow(),
+            )
+        )
+        mock_executor.running.add(airflow_key)
+
+        ti = mock.Mock(spec=TaskInstance)
+        ti.key = airflow_key
+
+        mock_executor.revoke_task(ti=ti)
+
+        assert airflow_key not in mock_executor.running
+        assert len(mock_executor.pending_jobs) == 0
+        # No Batch job to terminate since it was only pending
+        mock_executor.batch.terminate_job.assert_not_called()
+
+    def test_revoke_task_not_found(self, mock_executor):
+        """Test that revoke_task handles gracefully when the task is not in any internal structure."""
+        airflow_key = TaskInstanceKey("dag", "task", "run", 1)
+        mock_executor.running.add(airflow_key)
+
+        ti = mock.Mock(spec=TaskInstance)
+        ti.key = airflow_key
+
+        # Should not raise
+        mock_executor.revoke_task(ti=ti)
+
+        assert airflow_key not in mock_executor.running
+        mock_executor.batch.terminate_job.assert_not_called()
+
+    def test_revoke_task_terminate_api_failure(self, mock_executor, caplog):
+        """Test that revoke_task handles API failures gracefully."""
+        airflow_key = TaskInstanceKey("dag", "task", "run", 1)
+        mock_executor.active_workers.add_job(
+            job_id="revoke-fail-job",
+            airflow_task_key=airflow_key,
+            airflow_cmd=["cmd"],
+            queue="queue",
+            exec_config={},
+            attempt_number=1,
+        )
+        mock_executor.running.add(airflow_key)
+        mock_executor.batch.terminate_job.side_effect = Exception("API Error")
+
+        ti = mock.Mock(spec=TaskInstance)
+        ti.key = airflow_key
+
+        # Should not raise
+        mock_executor.revoke_task(ti=ti)
+
+        assert airflow_key not in mock_executor.running
+        assert len(mock_executor.active_workers) == 0
+        assert "Failed to terminate Batch job" in caplog.text
 
 
 class TestBatchExecutorConfig:

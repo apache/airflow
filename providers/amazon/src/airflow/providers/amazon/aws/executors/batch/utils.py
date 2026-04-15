@@ -117,7 +117,17 @@ class BatchJobCollection:
         del self.key_to_id[task_key]
         del self.id_to_key[job_id]
         del self.id_to_failure_counts[job_id]
+        del self.id_to_job_info[job_id]
         return task_key
+
+    def pop_by_key(self, task_key: TaskInstanceKey) -> str:
+        """Delete job from collection based off of Airflow Task Instance Key."""
+        job_id = self.key_to_id[task_key]
+        del self.key_to_id[task_key]
+        del self.id_to_key[job_id]
+        del self.id_to_failure_counts[job_id]
+        del self.id_to_job_info[job_id]
+        return job_id
 
     def failure_count_by_id(self, job_id: str) -> int:
         """Get the number of times a job has failed given a Batch Job Id."""

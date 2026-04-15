@@ -344,6 +344,15 @@ class AwsEcsExecutor(BaseExecutor):
         queue = task_info.queue
         exec_info = task_info.config
         failure_count = self.active_workers.failure_count_by_key(task_key)
+        if task_key not in self.running:
+            self.log.info(
+                "Airflow task %s is no longer in the running state (likely cancelled). "
+                "Not rescheduling failed ECS task %s.",
+                task_key,
+                task_arn,
+            )
+            self.active_workers.pop_by_key(task_key)
+            return
         if int(failure_count) < int(self.max_run_task_attempts):
             self.log.warning(
                 "Airflow task %s failed due to %s. Failure %s out of %s occurred on %s. Rescheduling.",
@@ -392,6 +401,13 @@ class AwsEcsExecutor(BaseExecutor):
             exec_config = ecs_task.executor_config
             attempt_number = ecs_task.attempt_number
             failure_reasons = []
+            if task_key not in self.running:
+                self.log.info(
+                    "Airflow task %s is no longer in the running state (likely cancelled). "
+                    "Not submitting pending ECS task.",
+                    task_key,
+                )
+                continue
             if timezone.utcnow() < ecs_task.next_attempt_time:
                 self.pending_tasks.append(ecs_task)
                 continue
@@ -511,6 +527,34 @@ class AwsEcsExecutor(BaseExecutor):
         self.pending_tasks.append(
             EcsQueuedTask(key, command, queue, executor_config or {}, 1, timezone.utcnow())
         )
+
+    def revoke_task(self, *, ti: TaskInstance):
+        """
+        Revoke a task instance from the executor.
+
+        Stop the running ECS task (if any), and clean up internal data structures.
+        Does not change the task state in Airflow or add events to the event buffer.
+
+        :param ti: Task instance to revoke
+        """
+        self.running.discard(ti.key)
+        self.queued_tasks.pop(ti.key, None)
+
+        # Remove from pending tasks queue
+        self.pending_tasks = deque(task for task in self.pending_tasks if task.key != ti.key)
+
+        # Stop the running ECS task if it exists
+        if ti.key in self.active_workers.key_to_arn:
+            task_arn = self.active_workers.key_to_arn[ti.key]
+            self.active_workers.pop_by_key(ti.key)
+            try:
+                self.ecs.stop_task(
+                    cluster=self.cluster,
+                    task=task_arn,
+                    reason="Task was revoked by the Airflow scheduler",
+                )
+            except Exception:
+                self.log.exception("Failed to stop ECS task %s for task %s", task_arn, ti.key)
 
     def end(self, heartbeat_interval=10):
         """Wait for all currently running tasks to end, and don't launch any tasks."""

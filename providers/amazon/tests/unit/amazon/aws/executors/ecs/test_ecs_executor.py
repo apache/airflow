@@ -401,6 +401,7 @@ class TestAwsEcsExecutor:
 
         assert len(mock_executor.pending_tasks) == 0
         mock_executor.execute_async(airflow_key, mock_cmd)
+        mock_executor.running.add(airflow_key)
         assert len(mock_executor.pending_tasks) == 1
 
         mock_executor.attempt_task_runs()
@@ -520,6 +521,7 @@ class TestAwsEcsExecutor:
         }
         mock_executor.ecs.run_task.side_effect = [run_task_exception, run_task_exception, run_task_success]
         mock_executor.execute_async(mock_airflow_key, mock_cmd)
+        mock_executor.running.add(mock_airflow_key)
         expected_retry_count = 2
 
         # Fail 2 times
@@ -540,6 +542,7 @@ class TestAwsEcsExecutor:
         """Test what happens when ECS refuses to execute a task and throws an exception"""
         mock_executor.ecs.run_task.side_effect = Exception("Test exception")
         mock_executor.execute_async(mock_airflow_key, mock_cmd)
+        mock_executor.running.add(mock_airflow_key)
 
         # No matter what, don't schedule until run_task becomes successful.
         for _ in range(int(mock_executor.max_run_task_attempts) * 2):
@@ -557,6 +560,7 @@ class TestAwsEcsExecutor:
         }
 
         mock_executor.execute_async(mock_airflow_key, mock_cmd)
+        mock_executor.running.add(mock_airflow_key)
 
         # No matter what, don't schedule until run_task becomes successful.
         for _ in range(int(mock_executor.max_run_task_attempts) * 2):
@@ -585,6 +589,7 @@ class TestAwsEcsExecutor:
 
         mock_executor.execute_async(airflow_keys[0], commands[0])
         mock_executor.execute_async(airflow_keys[1], commands[1])
+        mock_executor.running.update(airflow_keys)
 
         assert len(mock_executor.pending_tasks) == 2
         assert len(mock_executor.active_workers.get_all_arns()) == 0
@@ -653,6 +658,7 @@ class TestAwsEcsExecutor:
 
         mock_executor.execute_async(airflow_keys[0], airflow_commands[0])
         mock_executor.execute_async(airflow_keys[1], airflow_commands[1])
+        mock_executor.running.update(airflow_keys)
 
         assert len(mock_executor.pending_tasks) == 2
 
@@ -672,6 +678,7 @@ class TestAwsEcsExecutor:
         airflow_keys[1] = mock.Mock(spec=tuple)
         airflow_commands[1] = _generate_mock_cmd()
         mock_executor.execute_async(airflow_keys[1], airflow_commands[1])
+        mock_executor.running.add(airflow_keys[1])
 
         assert len(mock_executor.pending_tasks) == 2
         # assert that the order of pending tasks is preserved i.e. the first task is 1st etc.
@@ -715,6 +722,7 @@ class TestAwsEcsExecutor:
 
         mock_executor.execute_async(airflow_keys[0], airflow_commands[0])
         mock_executor.execute_async(airflow_keys[1], airflow_commands[1])
+        mock_executor.running.update(airflow_keys)
         assert len(mock_executor.pending_tasks) == 2
         caplog.set_level("WARNING")
 
@@ -882,6 +890,7 @@ class TestAwsEcsExecutor:
         mock_executor._calculate_next_attempt_time = MagicMock(return_value=utcnow())
         task_key = mock_airflow_key()
         mock_executor.execute_async(task_key, mock_cmd)
+        mock_executor.running.add(task_key)
         for _ in range(2):
             assert len(mock_executor.pending_tasks) == 1
             keys = [task.key for task in mock_executor.pending_tasks]
@@ -957,6 +966,7 @@ class TestAwsEcsExecutor:
         """Test what happens when ECS sync fails for certain tasks repeatedly."""
         airflow_key = "test-key"
         mock_executor.execute_async(airflow_key, mock_cmd)
+        mock_executor.running.add(airflow_key)
         assert len(mock_executor.pending_tasks) == 1
 
         run_task_ret_val = {
@@ -1148,7 +1158,9 @@ class TestAwsEcsExecutor:
     @staticmethod
     def _add_mock_task(executor: AwsEcsExecutor, arn: str, state=TaskInstanceState.RUNNING):
         task = mock_task(arn, state)
-        executor.active_workers.add_task(task, mock.Mock(spec=tuple), mock_queue, mock_cmd, mock_config, 1)  # type:ignore[arg-type]
+        task_key = mock.Mock(spec=tuple)
+        executor.active_workers.add_task(task, task_key, mock_queue, mock_cmd, mock_config, 1)  # type:ignore[arg-type]
+        executor.running.add(task_key)
 
     def _sync_mock_with_call_counts(self, sync_func: Callable):
         """Mock won't work here, because we actually want to call the 'sync' func."""
@@ -1321,6 +1333,153 @@ class TestAwsEcsExecutor:
         assert len(orphaned_tasks) - 1 == len(mock_executor.active_workers)
         # The remaining one task is unable to be adopted.
         assert len(not_adopted_tasks) == 1
+
+    @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    def test_failed_task_not_retried_when_cancelled(self, _, mock_executor, mock_cmd, caplog):
+        """When a task is removed from self.running (e.g. user cancelled it), the executor
+        should not reschedule the failed ECS task."""
+        airflow_key = "CancelledTaskKey"
+        mock_executor.execute_async(airflow_key, mock_cmd)
+        mock_executor.running.add(airflow_key)
+
+        mock_executor.ecs.run_task.return_value = {
+            "tasks": [
+                {
+                    "taskArn": ARN1,
+                    "lastStatus": "",
+                    "desiredStatus": "",
+                    "containers": [{"name": "some-ecs-container"}],
+                }
+            ],
+            "failures": [],
+        }
+        mock_executor.attempt_task_runs()
+
+        assert len(mock_executor.active_workers) == 1
+        assert len(mock_executor.pending_tasks) == 0
+
+        # Simulate the scheduler removing the task from running (user cancelled)
+        mock_executor.running.discard(airflow_key)
+
+        # Now simulate the task failing in AWS
+        mock_executor.ecs.describe_tasks.return_value = {
+            "tasks": [],
+            "failures": [{"arn": ARN1, "reason": "Task failed"}],
+        }
+        mock_executor.sync_running_tasks()
+
+        # Task should NOT be rescheduled
+        assert len(mock_executor.pending_tasks) == 0
+        assert len(mock_executor.active_workers) == 0
+        assert "no longer in the running state" in caplog.text
+
+    def test_pending_task_not_submitted_when_cancelled(self, mock_executor, mock_cmd):
+        """When a task is removed from self.running while it's in the pending queue,
+        the executor should discard it instead of submitting."""
+        airflow_key = "CancelledPendingKey"
+        mock_executor.execute_async(airflow_key, mock_cmd)
+        mock_executor.running.add(airflow_key)
+
+        assert len(mock_executor.pending_tasks) == 1
+
+        # Simulate the scheduler removing the task from running (user cancelled)
+        mock_executor.running.discard(airflow_key)
+
+        mock_executor.attempt_task_runs()
+
+        # Task should not have been submitted
+        mock_executor.ecs.run_task.assert_not_called()
+        assert len(mock_executor.pending_tasks) == 0
+        assert len(mock_executor.active_workers) == 0
+
+    def test_revoke_task_running_task(self, mock_executor):
+        """Test that revoke_task stops a running ECS task and cleans up internal state."""
+        airflow_key = TaskInstanceKey("dag", "task", "run", 1)
+        ecs_task = EcsExecutorTask(
+            task_arn="revoke-arn-1",
+            last_status="RUNNING",
+            desired_status="RUNNING",
+            containers=[{"name": "some-ecs-container"}],
+        )
+        mock_executor.active_workers.add_task(ecs_task, airflow_key, "queue", ["cmd"], {}, 1)
+        mock_executor.running.add(airflow_key)
+
+        ti = mock.Mock(spec=TaskInstance)
+        ti.key = airflow_key
+
+        mock_executor.revoke_task(ti=ti)
+
+        mock_executor.ecs.stop_task.assert_called_once_with(
+            cluster=mock_executor.cluster,
+            task="revoke-arn-1",
+            reason="Task was revoked by the Airflow scheduler",
+        )
+        assert airflow_key not in mock_executor.running
+        assert len(mock_executor.active_workers) == 0
+
+    def test_revoke_task_pending_task(self, mock_executor):
+        """Test that revoke_task removes a pending task from the queue."""
+        from airflow.providers.amazon.aws.executors.ecs.utils import EcsQueuedTask
+
+        airflow_key = TaskInstanceKey("dag", "task", "run", 1)
+        mock_executor.pending_tasks.append(
+            EcsQueuedTask(
+                key=airflow_key,
+                command=["cmd"],
+                queue="queue",
+                executor_config={},
+                attempt_number=1,
+                next_attempt_time=utcnow(),
+            )
+        )
+        mock_executor.running.add(airflow_key)
+
+        ti = mock.Mock(spec=TaskInstance)
+        ti.key = airflow_key
+
+        mock_executor.revoke_task(ti=ti)
+
+        assert airflow_key not in mock_executor.running
+        assert len(mock_executor.pending_tasks) == 0
+        # No ECS task to stop since it was only pending
+        mock_executor.ecs.stop_task.assert_not_called()
+
+    def test_revoke_task_not_found(self, mock_executor):
+        """Test that revoke_task handles gracefully when the task is not in any internal structure."""
+        airflow_key = TaskInstanceKey("dag", "task", "run", 1)
+        mock_executor.running.add(airflow_key)
+
+        ti = mock.Mock(spec=TaskInstance)
+        ti.key = airflow_key
+
+        # Should not raise
+        mock_executor.revoke_task(ti=ti)
+
+        assert airflow_key not in mock_executor.running
+        mock_executor.ecs.stop_task.assert_not_called()
+
+    def test_revoke_task_stop_api_failure(self, mock_executor, caplog):
+        """Test that revoke_task handles API failures gracefully."""
+        airflow_key = TaskInstanceKey("dag", "task", "run", 1)
+        ecs_task = EcsExecutorTask(
+            task_arn="revoke-fail-arn",
+            last_status="RUNNING",
+            desired_status="RUNNING",
+            containers=[{"name": "some-ecs-container"}],
+        )
+        mock_executor.active_workers.add_task(ecs_task, airflow_key, "queue", ["cmd"], {}, 1)
+        mock_executor.running.add(airflow_key)
+        mock_executor.ecs.stop_task.side_effect = Exception("API Error")
+
+        ti = mock.Mock(spec=TaskInstance)
+        ti.key = airflow_key
+
+        # Should not raise
+        mock_executor.revoke_task(ti=ti)
+
+        assert airflow_key not in mock_executor.running
+        assert len(mock_executor.active_workers) == 0
+        assert "Failed to stop ECS task" in caplog.text
 
 
 class TestEcsExecutorConfig:

@@ -268,6 +268,15 @@ class AwsBatchExecutor(BaseExecutor):
         queue = job_info.queue
         exec_info = job_info.config
         failure_count = self.active_workers.failure_count_by_id(job_id=job.job_id)
+        if task_key not in self.running:
+            self.log.info(
+                "Airflow task %s is no longer in the running state (likely cancelled). "
+                "Not rescheduling failed job %s.",
+                task_key,
+                job.job_id,
+            )
+            self.active_workers.pop_by_id(job.job_id)
+            return
         if int(failure_count) < int(self.max_submit_job_attempts):
             self.log.warning(
                 "Airflow task %s failed due to %s. Failure %s out of %s occurred on %s. Rescheduling.",
@@ -315,6 +324,13 @@ class AwsBatchExecutor(BaseExecutor):
             exec_config = batch_job.executor_config
             attempt_number = batch_job.attempt_number
             failure_reason: str | None = None
+            if key not in self.running:
+                self.log.info(
+                    "Airflow task %s is no longer in the running state (likely cancelled). "
+                    "Not submitting pending job.",
+                    key,
+                )
+                continue
             if timezone.utcnow() < batch_job.next_attempt_time:
                 self.pending_jobs.append(batch_job)
                 continue
@@ -448,6 +464,29 @@ class AwsBatchExecutor(BaseExecutor):
             {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}
         )
         return submit_job_api
+
+    def revoke_task(self, *, ti: TaskInstance):
+        """
+        Revoke a task instance from the executor.
+
+        Stop the running AWS Batch job (if any), and clean up internal data structures.
+        Does not change the task state in Airflow or add events to the event buffer.
+
+        :param ti: Task instance to revoke
+        """
+        self.running.discard(ti.key)
+        self.queued_tasks.pop(ti.key, None)
+
+        # Remove from pending jobs queue
+        self.pending_jobs = deque(job for job in self.pending_jobs if job.key != ti.key)
+
+        # Terminate the running Batch job if it exists
+        if ti.key in self.active_workers.key_to_id:
+            job_id = self.active_workers.pop_by_key(ti.key)
+            try:
+                self.batch.terminate_job(jobId=job_id, reason="Task was revoked by the Airflow scheduler")
+            except Exception:
+                self.log.exception("Failed to terminate Batch job %s for task %s", job_id, ti.key)
 
     def end(self, heartbeat_interval=10):
         """Wait for all currently running tasks to end and prevent any new jobs from running."""
