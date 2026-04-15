@@ -821,12 +821,14 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
     def _read_frame(self):
         from asgiref.sync import async_to_sync
 
-        return async_to_sync(self._aread_frame)()
+        with self._thread_lock:
+            return async_to_sync(self._aread_frame)()
 
     def send(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
         from asgiref.sync import async_to_sync
 
-        return async_to_sync(self.asend)(msg)
+        with self._thread_lock:
+            return async_to_sync(self.asend)(msg)
 
     async def _aread_frame(self):
         try:
