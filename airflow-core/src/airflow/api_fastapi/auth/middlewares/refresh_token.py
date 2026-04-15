@@ -61,16 +61,29 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
 
             if new_token is not None:
+                cookie_path = get_cookie_path()
                 secure = bool(conf.get("api", "ssl_cert", fallback=""))
                 response.set_cookie(
                     COOKIE_NAME_JWT_TOKEN,
                     new_token,
-                    path=get_cookie_path(),
+                    path=cookie_path,
                     httponly=True,
                     secure=secure,
                     samesite="lax",
                     max_age=0 if new_token == "" else None,
                 )
+                # Clear any stale _token cookie at root path "/".
+                # Older Airflow instances may have set the cookie there;
+                # without this, the root-path cookie keeps being sent on
+                # every request, causing an infinite redirect loop.
+                if cookie_path != "/":
+                    response.delete_cookie(
+                        key=COOKIE_NAME_JWT_TOKEN,
+                        path="/",
+                        httponly=True,
+                        secure=secure,
+                        samesite="lax",
+                    )
         except HTTPException as exc:
             # If any HTTPException is raised during user resolution or refresh, return it as response
             return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})

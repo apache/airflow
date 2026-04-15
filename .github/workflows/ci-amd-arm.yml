@@ -40,7 +40,6 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-  UV_VERSION: "0.11.3"  # Keep this comment to allow automatic replacement of uv version
   VERBOSE: "true"
 
 concurrency:
@@ -212,23 +211,6 @@ jobs:
       use-uv: ${{needs.build-info.outputs.use-uv}}
       platform: ${{ needs.build-info.outputs.platform }}
       shared-distributions-as-json: ${{needs.build-info.outputs.shared-distributions-as-json}}
-
-  verify-release-calendar:
-    name: "Verify release calendar"
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
-    needs: [build-info]
-    # Only run on canary builds (push to main, scheduled runs, or manual dispatch)
-    if: needs.build-info.outputs.canary-run == 'true'
-    timeout-minutes: 10
-    steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        with:
-          persist-credentials: false
-      - name: "Install uv"
-        run: pip install "uv==${UV_VERSION}"
-      - name: "Verify release calendar"
-        run: uv run dev/verify_release_calendar.py
 
   build-ci-images:
     name: Build CI images

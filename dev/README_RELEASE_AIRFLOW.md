@@ -1534,7 +1534,8 @@ If you don't have access to the account ask a PMC member to post.
 This includes:
 
 - Modify `./scripts/ci/prek/supported_versions.py` and let prek do the job.
-- For major/minor release, update version in `airflow/__init__.py` and `docs/docker-stack/` to the next likely minor version release.
+- For major/minor release, update version in `airflow/__init__.py` and `docker-stack-docs/` to the next likely major version release.
+  - New version should be, current major release + 1.0
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.
 - Updating `1-airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.
@@ -1598,6 +1599,12 @@ According to the policy above, if we have to release clients:
 
     - [Python client](https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PYTHON_CLIENT.md)
     - [Go client](https://github.com/apache/airflow-client-go/blob/main/dev/README_RELEASE_CLIENT.md)
+
+### Remove dependabot workflows for previous minor release
+
+In case you release a new minor version, you should remove the dependabot workflow for the previous minor
+version to avoid confusion and unnecessary updates. For example, if you release 3.3.0,
+you should remove the dependabot workflows for v3-2-test from `.github/workflows/dependabot.yml`
 
 # Additional processes
 

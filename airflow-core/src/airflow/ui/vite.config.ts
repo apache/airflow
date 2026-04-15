@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import react from "@vitejs/plugin-react";
+import babel from "@rolldown/plugin-babel";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import cssInjectedByJsPlugin from "vite-plugin-css-injected-by-js";
 import { defineConfig } from "vitest/config";
 
@@ -28,10 +29,9 @@ export default defineConfig({
     exclude: ["@guanmingchiu/sqlparser-ts"], // WASM package needs to be excluded from pre-bundling
   },
   plugins: [
-    react({
-      babel: {
-        plugins: ["babel-plugin-react-compiler"],
-      },
+    react(),
+    babel({
+      presets: [reactCompilerPreset()],
     }),
     // Replace the directory to work with the flask plugin generation
     {

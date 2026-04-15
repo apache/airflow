@@ -141,9 +141,10 @@ from airflow.sdk.execution_time.supervisor import (
     InProcessTestSupervisor,
     _make_process_nondumpable,
     _remote_logging_conn,
+    in_process_api_server,
     process_log_messages_from_subprocess,
     set_supervisor_comms,
-    supervise,
+    supervise_task,
 )
 from airflow.sdk.execution_time.task_runner import run
 
@@ -230,7 +231,7 @@ class TestSupervisor:
 
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             with expectation:
-                supervise(**kw)
+                supervise_task(**kw)
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -624,7 +625,7 @@ class TestWatchedSubprocess:
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
-            exit_code = supervise(
+            exit_code = supervise_task(
                 ti=ti,
                 dag_rel_path=dagfile_path,
                 token="",
@@ -679,7 +680,7 @@ class TestWatchedSubprocess:
             patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)),
             patch("airflow.sdk.execution_time.supervisor.time.monotonic", side_effect=mock_monotonic),
         ):
-            exit_code = supervise(
+            exit_code = supervise_task(
                 ti=ti,
                 dag_rel_path="super_basic_deferred_run.py",
                 token="",
@@ -723,12 +724,13 @@ class TestWatchedSubprocess:
             "exit_code": 0,
             "duration": 0.0,
             "final_state": "deferred",
-            "event": "Task finished",
+            "event": "Workload finished",
+            "workload_type": "ExecuteTask",
+            "workload_id": str(ti.id),
             "timestamp": mocker.ANY,
             "level": "info",
             "logger": "supervisor",
             "loc": mocker.ANY,
-            "task_instance_id": str(ti.id),
         } in captured_logs
 
     @pytest.mark.parametrize("captured_logs", [logging.ERROR], indirect=True, ids=["log_level=error"])
@@ -2913,6 +2915,31 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
                 assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
 
 
+def test_log_upload_failures_are_non_fatal(mocker):
+    proc = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=mocker.MagicMock(),
+        client=mocker.MagicMock(),
+        process=mocker.MagicMock(),
+    )
+    proc.ti = mocker.MagicMock()
+
+    mocker.patch(
+        "airflow.sdk.execution_time.supervisor._remote_logging_conn",
+        side_effect=RuntimeError("upload failed"),
+    )
+
+    proc._upload_logs()
+
+    proc.process_log.exception.assert_called_once_with(
+        "Failed to upload remote logs",
+        ti_id=TI_ID,
+        pid=12345,
+    )
+
+
 def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
     """
     Test that _remote_logging_conn sets _AIRFLOW_PROCESS_CONTEXT=client.
@@ -3297,3 +3324,39 @@ def test_nondumpable_noop_on_non_linux():
     """On non-Linux, _make_process_nondumpable returns without error."""
 
     _make_process_nondumpable()
+
+
+def test_in_process_api_server_caches_instance():
+    """in_process_api_server() returns the same instance on repeated calls."""
+    in_process_api_server.cache_clear()
+    try:
+        first = in_process_api_server()
+        second = in_process_api_server()
+        assert first is second
+
+        in_process_api_server.cache_clear()
+        third = in_process_api_server()
+        assert third is not first
+    finally:
+        in_process_api_server.cache_clear()
+
+
+def test_api_client_clears_dag_bag_override_when_dag_is_none():
+    """_api_client(dag=None) removes stale dag_bag_from_app overrides set by a previous call."""
+    from unittest.mock import MagicMock
+
+    from airflow.api_fastapi.common.dagbag import dag_bag_from_app
+
+    in_process_api_server.cache_clear()
+    try:
+        # First call with a dag sets the override
+        mock_dag = MagicMock()
+        InProcessTestSupervisor._api_client(dag=mock_dag)
+        api = in_process_api_server()
+        assert dag_bag_from_app in api.app.dependency_overrides
+
+        # Second call with dag=None should remove it
+        InProcessTestSupervisor._api_client(dag=None)
+        assert dag_bag_from_app not in api.app.dependency_overrides
+    finally:
+        in_process_api_server.cache_clear()
