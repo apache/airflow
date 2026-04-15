@@ -1998,20 +1998,20 @@ def _resolve_locale_entrypoint(startup_details: StartupDetails, log: Logger) -> 
     """
     Check provider-registered process coordinators for a locale-specific entrypoint.
 
-    If a coordinator claims this task (e.g. a Java coordinator for JVM-based
-    tasks), return a no-arg callable that bridges fd 0 to the locale
-    subprocess.  Otherwise return ``None`` to fall through to the standard
-    Python execution path.
+    If the task's ``language`` field matches a coordinator's ``locale_name``,
+    return a no-arg callable that bridges fd 0 to the locale subprocess.
+    Otherwise return ``None`` to fall through to the standard Python
+    execution path.
     """
+    language = startup_details.ti.language
+    if language is None:
+        return None
+
     import functools
 
     from airflow._shared.module_loading import import_string
     from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
-    # TODO: Route based on a ``language`` field on the TaskInstance model
-    # once it is exposed via the Execution API.  For now, we iterate over
-    # all registered coordinators and let each decide via its own matching
-    # logic (e.g. checking the bundle type or task metadata).
     for coordinator_path in ProvidersManagerTaskRuntime().process_coordinators:
         try:
             coordinator_cls = import_string(coordinator_path)
@@ -2022,9 +2022,13 @@ def _resolve_locale_entrypoint(startup_details: StartupDetails, log: Logger) -> 
         if not hasattr(coordinator_cls, "run_task_execution"):
             continue
 
+        if getattr(coordinator_cls, "locale_name", None) != language:
+            continue
+
         log.debug(
             "Resolved locale-specific entrypoint for task",
             coordinator=coordinator_path,
+            language=language,
             task_id=startup_details.ti.task_id,
         )
         return functools.partial(
@@ -2035,6 +2039,11 @@ def _resolve_locale_entrypoint(startup_details: StartupDetails, log: Logger) -> 
             startup_details=startup_details,
         )
 
+    log.warning(
+        "No process coordinator found for language",
+        language=language,
+        task_id=startup_details.ti.task_id,
+    )
     return None
 
 
