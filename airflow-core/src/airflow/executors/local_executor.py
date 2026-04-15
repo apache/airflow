@@ -225,7 +225,7 @@ class LocalExecutor(BaseExecutor):
             assert p.pid  # Since we've called start
         self.workers[p.pid] = p
 
-    def _spawn_workers_with_gc_freeze(self, spawn_number):
+    def _spawn_workers_with_gc_freeze(self, spawn_number: int):
         """
         Freeze the GC before forking worker process and unfreeze it after forking.
 
@@ -236,6 +236,10 @@ class LocalExecutor(BaseExecutor):
 
         Ref: https://docs.python.org/3/library/gc.html#gc.freeze
         """
+        if spawn_number <= 0:
+            # Early return to avoid an unnecessary gc.freeze/unfreeze cycle.
+            return
+
         import gc
 
         gc.freeze()

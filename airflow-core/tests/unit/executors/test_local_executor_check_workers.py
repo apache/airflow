@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+import gc
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -115,6 +116,19 @@ def test_no_spawn_if_parallelism_reached(setup_executor):
     executor.workers = {1: proc1, 2: proc2}
     executor._check_workers()
     executor._spawn_worker.assert_not_called()
+
+
+@patch.object(gc, "freeze")
+def test_no_gc_freeze_when_nothing_to_spawn(mock_freeze, setup_executor):
+    executor = setup_executor
+    executor.parallelism = 1
+    executor._unread_messages.value = 1
+    executor.activity_queue.empty.return_value = False
+    proc1 = MagicMock()
+    proc1.is_alive.return_value = True
+    executor.workers = {1: proc1}
+    executor._check_workers()
+    mock_freeze.assert_not_called()
 
 
 def test_spawn_worker_when_we_have_parallelism_left(setup_executor):
