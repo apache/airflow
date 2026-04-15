@@ -531,10 +531,14 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
 
 def dispose_orm(do_log: bool = True):
     """Properly close pooled database connections."""
-    global Session, engine, NonScopedSession
+    global Session, engine, NonScopedSession, async_engine, AsyncSession
 
     _globals = globals()
-    if _globals.get("engine") is None and _globals.get("Session") is None:
+    if (
+        _globals.get("engine") is None
+        and _globals.get("Session") is None
+        and _globals.get("async_engine") is None
+    ):
         return
 
     if do_log:
@@ -551,6 +555,11 @@ def dispose_orm(do_log: bool = True):
     if "engine" in _globals and engine is not None:
         engine.dispose()
         engine = None
+
+    if "async_engine" in _globals and async_engine is not None:
+        async_engine.sync_engine.dispose()
+        async_engine = None
+        AsyncSession = None
 
 
 def reconfigure_orm(disable_connection_pool=False, pool_class=None):
