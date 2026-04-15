@@ -55,6 +55,8 @@ class BaseTaskInstanceDTO(BaseModel):
     priority_weight: int
     executor_config: dict | None = Field(default=None, exclude=True)
 
+    language: str | None = None
+
     parent_context_carrier: dict | None = None
     context_carrier: dict | None = None
 
