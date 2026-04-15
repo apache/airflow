@@ -2856,16 +2856,20 @@ class TestKubernetesPodOperatorAsync:
         assert call_kwargs["since_seconds"] >= 30
 
     @patch(KUB_OP_PATH.format("client"))
-    def test_write_logs_with_invalid_since_time_falls_back_to_none(self, mocked_client, caplog):
+    def test_write_logs_with_invalid_since_time_falls_back_to_none(self, mocked_client):
         """Test that a TypeError from an invalid since_time is caught, warns, and uses since_seconds=None."""
         pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE))
         k = KubernetesPodOperator(task_id="task", get_logs=True)
 
-        k._write_logs(pod, since_time="not-a-datetime")
+        with patch.object(k.log, "warning") as mock_warning:
+            k._write_logs(pod, since_time="not-a-datetime")
 
         _, call_kwargs = mocked_client.read_namespaced_pod_log.call_args
         assert call_kwargs["since_seconds"] is None
-        assert "Error calculating since_seconds with since_time" in caplog.text
+        mock_warning.assert_called_once_with(
+            "Error calculating since_seconds with since_time %s. Using None instead.",
+            "not-a-datetime",
+        )
 
     @pytest.mark.parametrize(
         ("log_pod_spec_on_failure", "expect_match"),
