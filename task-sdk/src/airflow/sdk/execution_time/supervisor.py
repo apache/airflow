@@ -814,8 +814,11 @@ class WatchedSubprocess:
                 continue
             exc = future.exception()
             if exc is not None:
-                if isinstance(exc, ServerResponseError):
-                    error_details = exc.response.json() if exc.response else None
+                if isinstance(exc, ServerResponseError) and exc.response is not None:
+                    try:
+                        error_details: dict | None = exc.response.json()
+                    except Exception:
+                        error_details = None
                     log.error(
                         "API server error",
                         status_code=exc.response.status_code,
@@ -831,6 +834,16 @@ class WatchedSubprocess:
                                 "message": str(exc),
                                 "detail": error_details,
                             },
+                        ),
+                        request_id=req_id,
+                    )
+                else:
+                    log.error("Offloaded request failed", exc_info=exc)
+                    self.send_msg(
+                        msg=None,
+                        error=ErrorResponse(
+                            error=ErrorType.API_SERVER_ERROR,
+                            detail={"status_code": None, "message": str(exc), "detail": None},
                         ),
                         request_id=req_id,
                     )
