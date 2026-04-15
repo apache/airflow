@@ -25,7 +25,10 @@ from unittest import mock
 from unittest.mock import MagicMock, call, patch
 
 import pytest
+from sqlalchemy.engine import Engine
+from sqlalchemy.ext.asyncio import AsyncEngine
 
+from airflow import settings
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
 
 SETTINGS_FILE_POLICY = """
@@ -228,3 +231,71 @@ def test_sqlite_relative_path(value, expectation):
     ):
         with expectation:
             settings.configure_orm()
+
+
+class TestDisposeOrm:
+    """Tests for dispose_orm() async engine disposal."""
+
+    def setup_method(self):
+        self._orig = {
+            "engine": settings.engine,
+            "Session": settings.Session,
+            "NonScopedSession": settings.NonScopedSession,
+            "async_engine": settings.async_engine,
+            "AsyncSession": settings.AsyncSession,
+        }
+
+    def teardown_method(self):
+        for attr, val in self._orig.items():
+            setattr(settings, attr, val)
+
+    def test_disposes_async_engine(self):
+        """dispose_orm() must dispose the async engine and clear AsyncSession."""
+        mock_sync_engine = MagicMock(spec=Engine)
+        mock_async_engine = MagicMock(spec=AsyncEngine)
+        mock_async_engine.sync_engine = mock_sync_engine
+
+        settings.engine = None
+        settings.Session = None
+        settings.NonScopedSession = None
+        settings.async_engine = mock_async_engine
+        settings.AsyncSession = MagicMock()
+
+        settings.dispose_orm(do_log=False)
+
+        mock_sync_engine.dispose.assert_called_once()
+        assert settings.async_engine is None
+        assert settings.AsyncSession is None
+
+    def test_disposes_both_sync_and_async(self):
+        """dispose_orm() disposes both engines when both are set."""
+        mock_engine = MagicMock(spec=Engine)
+        mock_sync_engine = MagicMock(spec=Engine)
+        mock_async_engine = MagicMock(spec=AsyncEngine)
+        mock_async_engine.sync_engine = mock_sync_engine
+
+        settings.engine = mock_engine
+        settings.Session = MagicMock()
+        settings.NonScopedSession = MagicMock()
+        settings.async_engine = mock_async_engine
+        settings.AsyncSession = MagicMock()
+
+        with patch("sqlalchemy.orm.session.close_all_sessions"):
+            settings.dispose_orm(do_log=False)
+
+        mock_engine.dispose.assert_called_once()
+        mock_sync_engine.dispose.assert_called_once()
+        assert settings.engine is None
+        assert settings.async_engine is None
+        assert settings.AsyncSession is None
+
+    def test_early_return_when_all_none(self):
+        """dispose_orm() returns early without side effects when nothing is configured."""
+        settings.engine = None
+        settings.Session = None
+        settings.async_engine = None
+
+        with patch("sqlalchemy.orm.session.close_all_sessions") as mock_close:
+            settings.dispose_orm(do_log=False)
+
+        mock_close.assert_not_called()
