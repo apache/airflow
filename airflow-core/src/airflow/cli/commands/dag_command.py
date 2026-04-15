@@ -53,6 +53,7 @@ from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
@@ -262,6 +263,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "timetable_summary": core_timetable.summary,
         "timetable_description": core_timetable.description,
         "timetable_partitioned": core_timetable.partitioned,
+        "timetable_periodic": core_timetable.periodic,
         "tags": dag.tags,
         "max_active_tasks": dag.max_active_tasks,
         "max_active_runs": dag.max_active_runs,
@@ -275,6 +277,8 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "next_dagrun_logical_date": None,
         "next_dagrun_run_after": None,
         "allowed_run_types": dag.allowed_run_types,
+        "is_backfillable": core_timetable.periodic
+        and (dag.allowed_run_types is None or DagRunType.BACKFILL_JOB in dag.allowed_run_types),
     }
 
 

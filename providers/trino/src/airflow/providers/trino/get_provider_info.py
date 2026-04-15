@@ -53,6 +53,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.trino.hooks.trino.TrinoHook",
+                "hook-name": "Trino",
                 "connection-type": "trino",
                 "ui-field-behaviour": {
                     "placeholders": {

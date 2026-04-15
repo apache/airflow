@@ -24,6 +24,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.models import DagRun
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
@@ -233,6 +235,29 @@ class TestGetDagRuns(TestPublicDagEndpoint):
 
     def test_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/dags", params={})
+        assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        "denied_entity",
+        [
+            DagAccessEntity.RUN,
+            DagAccessEntity.HITL_DETAIL,
+            DagAccessEntity.TASK_INSTANCE,
+        ],
+    )
+    def test_should_response_403_on_missing_entity_permission(self, test_client, denied_entity):
+        """Users lacking any sub-entity permission should receive 403 on the DAG list."""
+        original_is_authorized = SimpleAuthManager.is_authorized_dag
+
+        def restricted_is_authorized_dag(self, *, method, user, access_entity=None, details=None):
+            if access_entity == denied_entity:
+                return False
+            return original_is_authorized(
+                self, method=method, user=user, access_entity=access_entity, details=details
+            )
+
+        with mock.patch.object(SimpleAuthManager, "is_authorized_dag", restricted_is_authorized_dag):
+            response = test_client.get("/dags")
         assert response.status_code == 403
 
     def test_get_dags_no_n_plus_one_queries(self, session, test_client):

@@ -84,13 +84,14 @@ export const TaskLogPreview = ({
         <Box borderTopStyle="solid" borderTopWidth={1} maxHeight="200px" overflow="auto">
           <TaskLogContent
             error={error}
+            expanded
             isLoading={isLoading}
             logError={error}
             parsedLogs={data.parsedLogs ?? []}
             wrap={wrap}
           />
         </Box>
-      ) : null}
+      ) : undefined}
     </Box>
   );
 };

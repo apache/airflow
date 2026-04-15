@@ -16,34 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { test } from "@playwright/test";
 import { testConfig } from "playwright.config";
-
-import { DagCodePage } from "../pages/DagCodePage";
+import { test } from "tests/e2e/fixtures";
 
 test.describe("DAG Code Tab", () => {
   test.setTimeout(60_000);
   const dagId = testConfig.testDag.id;
-  let codePage: DagCodePage;
 
-  test.beforeEach(async ({ page }) => {
-    codePage = new DagCodePage(page);
-    await codePage.navigateToCodeTab(dagId);
+  test.beforeEach(async ({ dagCodePage }) => {
+    await dagCodePage.navigateToCodeTab(dagId);
   });
 
-  test.fixme("Verify DAG source code is displayed", async () => {
-    await codePage.verifySourceCodeDisplayed();
+  test("Verify DAG source code is displayed", async ({ dagCodePage }) => {
+    await dagCodePage.verifySourceCodeDisplayed();
   });
 
-  test.fixme("Verify syntax highlighting is applied", async () => {
-    await codePage.verifySyntaxHighlighting();
+  test("Verify syntax highlighting is applied", async ({ dagCodePage }) => {
+    await dagCodePage.verifySyntaxHighlighting();
   });
 
-  test.fixme("Verify code is scrollable for long files", async () => {
-    await codePage.verifyCodeIsScrollable();
+  test("Verify code is scrollable for long files", async ({ dagCodePage }) => {
+    await dagCodePage.verifyCodeIsScrollable();
   });
 
-  test.fixme("Verify line numbers are displayed", async () => {
-    await codePage.verifyLineNumbersDisplayed();
+  test("Verify line numbers are displayed", async ({ dagCodePage }) => {
+    await dagCodePage.verifyLineNumbersDisplayed();
   });
 });

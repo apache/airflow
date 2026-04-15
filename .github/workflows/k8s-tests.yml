@@ -84,9 +84,6 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
-      - name: "Free up disk space"
-        shell: bash
-        run: ./scripts/tools/free_up_disk_space.sh
       # env.PYTHON_MAJOR_MINOR_VERSION, env.KUBERNETES_VERSION are set in the previous
       # step id: prepare-versions
       - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"

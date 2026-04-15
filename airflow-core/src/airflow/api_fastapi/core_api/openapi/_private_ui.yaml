@@ -2051,6 +2051,9 @@ components:
         timetable_partitioned:
           type: boolean
           title: Timetable Partitioned
+        timetable_periodic:
+          type: boolean
+          title: Timetable Periodic
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -2128,6 +2131,11 @@ components:
         is_favorite:
           type: boolean
           title: Is Favorite
+        is_backfillable:
+          type: boolean
+          title: Is Backfillable
+          description: Whether this DAG's schedule supports backfilling.
+          readOnly: true
         file_token:
           type: string
           title: File Token
@@ -2150,6 +2158,7 @@ components:
       - timetable_summary
       - timetable_description
       - timetable_partitioned
+      - timetable_periodic
       - tags
       - max_active_tasks
       - max_active_runs
@@ -2166,6 +2175,7 @@ components:
       - latest_dag_runs
       - pending_actions
       - is_favorite
+      - is_backfillable
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
@@ -2469,6 +2479,18 @@ components:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
           - type: 'null'
+        scheduled_dttm:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduled Dttm
+        queued_dttm:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued Dttm
         start_date:
           anyOf:
           - type: string
@@ -2495,6 +2517,8 @@ components:
       - task_display_name
       - try_number
       - state
+      - scheduled_dttm
+      - queued_dttm
       - start_date
       - end_date
       title: GanttTaskInstance
@@ -3492,11 +3516,13 @@ components:
     Theme:
       properties:
         tokens:
-          additionalProperties:
-            $ref: '#/components/schemas/ThemeColors'
-          propertyNames:
-            const: colors
-          type: object
+          anyOf:
+          - additionalProperties:
+              $ref: '#/components/schemas/ThemeColors'
+            propertyNames:
+              const: colors
+            type: object
+          - type: 'null'
           title: Tokens
         globalCss:
           anyOf:
@@ -3517,13 +3543,80 @@ components:
           - type: 'null'
           title: Icon Dark Mode
       type: object
-      required:
-      - tokens
       title: Theme
       description: JSON to modify Chakra's theme.
     ThemeColors:
-      additionalProperties: true
+      properties:
+        brand:
+          anyOf:
+          - additionalProperties:
+              additionalProperties:
+                $ref: '#/components/schemas/OklchColor'
+              propertyNames:
+                const: value
+              type: object
+            propertyNames:
+              enum:
+              - '50'
+              - '100'
+              - '200'
+              - '300'
+              - '400'
+              - '500'
+              - '600'
+              - '700'
+              - '800'
+              - '900'
+              - '950'
+            type: object
+          - type: 'null'
+          title: Brand
+        gray:
+          anyOf:
+          - additionalProperties:
+              additionalProperties:
+                $ref: '#/components/schemas/OklchColor'
+              propertyNames:
+                const: value
+              type: object
+            propertyNames:
+              enum:
+              - '50'
+              - '100'
+              - '200'
+              - '300'
+              - '400'
+              - '500'
+              - '600'
+              - '700'
+              - '800'
+              - '900'
+              - '950'
+            type: object
+          - type: 'null'
+          title: Gray
+        black:
+          anyOf:
+          - additionalProperties:
+              $ref: '#/components/schemas/OklchColor'
+            propertyNames:
+              const: value
+            type: object
+          - type: 'null'
+          title: Black
+        white:
+          anyOf:
+          - additionalProperties:
+              $ref: '#/components/schemas/OklchColor'
+            propertyNames:
+              const: value
+            type: object
+          - type: 'null'
+          title: White
       type: object
+      title: ThemeColors
+      description: Color tokens for the UI theme. All fields are optional; at least
+        one must be provided.
     TokenType:
       type: string
       enum:

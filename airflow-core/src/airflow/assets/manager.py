@@ -575,6 +575,8 @@ def resolve_asset_manager() -> AssetManager:
         key="asset_manager_kwargs",
         fallback={},
     )
+    if TYPE_CHECKING:
+        assert isinstance(_asset_manager_kwargs, dict)
     return _asset_manager_class(**_asset_manager_kwargs)
 
 

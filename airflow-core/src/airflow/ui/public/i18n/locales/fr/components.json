@@ -22,7 +22,6 @@
         "title": "Rattrapage généré"
       }
     },
-    "tooltip": "Le rattrapage nécessite une planification",
     "unpause": "Réactiver {{dag_display_name}} lors du déclenchement",
     "validation": {
       "datesRequired": "Les dates de début et de fin de l'intervalle de données doivent être renseignées.",

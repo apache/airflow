@@ -50,6 +50,7 @@ except ImportError:
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from system.amazon.aws.utils.k8s import get_describe_pod_operator
 
 DAG_ID = "example_emr_eks"
 
@@ -292,6 +293,10 @@ with DAG(
     )
     # [END howto_sensor_emr_container]
 
+    # Describe pods only on failure to help diagnose EMR on EKS job issues.
+    describe_pod = get_describe_pod_operator(cluster_name=eks_cluster_name, namespace=eks_namespace)
+    describe_pod.trigger_rule = TriggerRule.ONE_FAILED
+
     delete_eks_cluster = EksDeleteClusterOperator(
         task_id="delete_eks_cluster",
         cluster_name=eks_cluster_name,
@@ -330,6 +335,7 @@ with DAG(
         create_emr_eks_cluster,
         job_starter,
         job_waiter,
+        describe_pod,
         # TEST TEARDOWN
         delete_iam_oidc_identity_provider(eks_cluster_name),
         delete_virtual_cluster(str(create_emr_eks_cluster.output)),
@@ -347,5 +353,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

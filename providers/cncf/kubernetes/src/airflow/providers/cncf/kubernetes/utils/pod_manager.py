@@ -145,7 +145,7 @@ async def await_pod_start(
         else:
             remote_pod = pod_manager.read_pod(pod)
         pod_status = remote_pod.status
-        if pod_status.phase != PodPhase.PENDING:
+        if pod_status.phase not in (PodPhase.PENDING, PodPhase.UNKNOWN):
             pod_manager.stop_watching_events = True
             pod_manager.log.info("::endgroup::")
             break

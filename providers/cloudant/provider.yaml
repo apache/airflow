@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1774298722
+source-date-epoch: 1775591858
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 4.3.4
   - 4.3.3
   - 4.3.2
   - 4.3.1
@@ -75,6 +76,7 @@ hooks:
 
 connection-types:
   - hook-class-name: airflow.providers.cloudant.hooks.cloudant.CloudantHook
+    hook-name: "Cloudant"
     connection-type: cloudant
     ui-field-behaviour:
       hidden-fields:
