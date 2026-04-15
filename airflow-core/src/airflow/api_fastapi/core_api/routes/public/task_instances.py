@@ -925,6 +925,11 @@ def post_clear_task_instances(
             *((t, m) for t, m in mapped_tasks_tuples if t not in normal_task_ids),
         ]
 
+    # Follow ExternalTaskMarker connections when explicitly requested via
+    # include_downstream_dags, or automatically whenever downstream clearing
+    # is selected (restoring Airflow 2 behaviour).
+    include_dependent_dags = body.include_downstream_dags or downstream
+
     task_instances: Sequence[TI]
     if dag_run_id is not None and not (past or future):
         # Use run_id-based clearing when we have a specific dag_run_id and not using past/future
@@ -936,6 +941,7 @@ def post_clear_task_instances(
             run_on_latest_version=resolved_run_on_latest,
             only_failed=body.only_failed,
             only_running=body.only_running,
+            include_dependent_dags=include_dependent_dags,
         )
     else:
         # Use date-based clearing when no dag_run_id or when past/future is specified
@@ -948,6 +954,7 @@ def post_clear_task_instances(
             run_on_latest_version=resolved_run_on_latest,
             only_failed=body.only_failed,
             only_running=body.only_running,
+            include_dependent_dags=include_dependent_dags,
         )
 
     if not dry_run:
