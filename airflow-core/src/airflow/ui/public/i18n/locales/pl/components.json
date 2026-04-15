@@ -24,7 +24,6 @@
         "title": "Ponowne przetwarzanie uruchomione"
       }
     },
-    "tooltip": "Ponowne przetworzenie wymaga harmonogramu",
     "unpause": "Wznów {{dag_display_name}} przy wykonaniu",
     "validation": {
       "datesRequired": "Należy podać zarówno datę początkową, jak i końcową interwału danych.",

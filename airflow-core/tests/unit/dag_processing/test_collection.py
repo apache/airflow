@@ -537,6 +537,7 @@ class TestUpdateDagParsingResults:
                     bundle_version=None,
                     min_update_interval=mock.ANY,
                     session=mock_session,
+                    _prefetched=mock.ANY,
                 ),
             ]
         )
