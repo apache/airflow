@@ -195,6 +195,7 @@ class SerializedBaseOperator(DAGNode):
                 "ignore_first_depends_on_past",
                 "inlets",
                 "is_setup",
+                "language",
                 "is_teardown",
                 "map_index_template",
                 "max_active_tis_per_dag",

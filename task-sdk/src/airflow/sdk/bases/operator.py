@@ -905,6 +905,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     max_active_tis_per_dagrun: int | None = None
     executor: str | None = None
     executor_config: dict | None = None
+    language: str | None = None
     do_xcom_push: bool = True
     multiple_outputs: bool = False
     inlets: list[Any] = field(default_factory=list)
@@ -1063,6 +1064,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         max_active_tis_per_dagrun: int | None = None,
         executor: str | None = None,
         executor_config: dict | None = None,
+        language: str | None = None,
         do_xcom_push: bool = True,
         multiple_outputs: bool = False,
         inlets: Any | None = None,
@@ -1142,6 +1144,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.end_date = timezone.convert_to_utc(end_date)
         self.executor = executor
         self.executor_config = executor_config or {}
+        self.language = language
         self.run_as_user = run_as_user
         # TODO:
         # self.retries = parse_retries(retries)
