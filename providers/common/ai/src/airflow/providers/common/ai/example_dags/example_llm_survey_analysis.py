@@ -237,7 +237,7 @@ example_llm_survey_interactive()
 
 
 # [START example_llm_survey_scheduled]
-@dag(schedule="@monthly", start_date=datetime.datetime(2025, 1, 1))
+@dag(schedule="@monthly", start_date=datetime.datetime(2025, 1, 1), catchup=False)
 def example_llm_survey_scheduled():
     """
     Download, validate, query, and report on the survey CSV on a schedule.
