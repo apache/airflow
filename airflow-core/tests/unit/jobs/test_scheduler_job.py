@@ -3354,7 +3354,7 @@ class TestSchedulerJob:
         dag_run = dag_maker.create_dagrun(state=State.RUNNING, session=session, run_type=DagRunType.SCHEDULED)
 
         for _ in range(5):
-            # create a bunch of dagruns in queued state, to make sure they are filtered by max_active_runs
+            # create a bunch of dagruns in running state, to exceed max_active_runs
             dag_run = dag_maker.create_dagrun_after(
                 dag_run, run_type=DagRunType.SCHEDULED, state=State.RUNNING
             )
