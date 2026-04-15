@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from azure.core.exceptions import ResourceNotFoundError
+from azure.identity import AzureAuthorityHosts
 from azure.mgmt.containerinstance.models import (
     Logs,
     ResourceRequests,
@@ -165,4 +166,89 @@ class TestAzureContainerInstanceHookWithoutSetupCredential:
         mock_client_cls.assert_called_once_with(
             credential=mock_credential,
             subscription_id="subscription_id",
+            base_url="https://management.azure.com",
+            credential_scopes=["https://management.azure.com/.default"],
+        )
+
+
+class TestAzureContainerInstanceHookCloudEnvironment:
+    @pytest.mark.parametrize(
+        ("cloud_env", "expected_authority", "expected_base_url", "expected_scopes"),
+        [
+            pytest.param(
+                None,
+                AzureAuthorityHosts.AZURE_PUBLIC_CLOUD,
+                "https://management.azure.com",
+                ["https://management.azure.com/.default"],
+                id="default_public_cloud",
+            ),
+            pytest.param(
+                "AzurePublicCloud",
+                AzureAuthorityHosts.AZURE_PUBLIC_CLOUD,
+                "https://management.azure.com",
+                ["https://management.azure.com/.default"],
+                id="explicit_public_cloud",
+            ),
+            pytest.param(
+                "AzureUSGovernment",
+                AzureAuthorityHosts.AZURE_GOVERNMENT,
+                "https://management.usgovcloudapi.net",
+                ["https://management.usgovcloudapi.net/.default"],
+                id="us_government",
+            ),
+            pytest.param(
+                "AzureChinaCloud",
+                AzureAuthorityHosts.AZURE_CHINA,
+                "https://management.chinacloudapi.cn",
+                ["https://management.chinacloudapi.cn/.default"],
+                id="china_cloud",
+            ),
+        ],
+    )
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.ContainerInstanceManagementClient")
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.ClientSecretCredential")
+    def test_get_conn_cloud_environment(
+        self,
+        mock_credential_cls,
+        mock_client_cls,
+        cloud_env,
+        expected_authority,
+        expected_base_url,
+        expected_scopes,
+        create_mock_connection,
+    ):
+        extras = {
+            "tenantId": "my-tenant",
+            "subscriptionId": "my-subscription",
+        }
+        if cloud_env is not None:
+            extras["cloud_environment"] = cloud_env
+
+        mock_connection = create_mock_connection(
+            Connection(
+                conn_id="azure_container_instance_cloud_test",
+                conn_type="azure_container_instances",
+                login="my-client-id",
+                password="my-secret",
+                extra=extras,
+            )
+        )
+
+        mock_credential_cls.return_value = MagicMock()
+        mock_client_cls.return_value = MagicMock()
+
+        hook = AzureContainerInstanceHook(azure_conn_id=mock_connection.conn_id)
+        hook.get_conn()
+
+        mock_credential_cls.assert_called_once_with(
+            client_id="my-client-id",
+            client_secret="my-secret",
+            tenant_id="my-tenant",
+            authority=expected_authority,
+        )
+        mock_client_cls.assert_called_once_with(
+            credential=mock_credential_cls.return_value,
+            subscription_id="my-subscription",
+            base_url=expected_base_url,
+            credential_scopes=expected_scopes,
         )
