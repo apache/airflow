@@ -3167,6 +3167,13 @@ class TestWorkerSets:
                 "labels": {"echo": "test"},
                 "celery": {"enableDefault": False, "sets": [{"name": "set1", "labels": {"test": "echo"}}]},
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "labels": {"echo": "test"},
+                    "sets": [{"name": "set1", "labels": {"test": "echo"}}],
+                },
+            },
         ],
     )
     def test_overwrite_labels(self, workers_values):
@@ -3352,6 +3359,13 @@ class TestWorkerSets:
                 "env": [{"name": "TEST", "value": "test"}],
                 "celery": {
                     "enableDefault": False,
+                    "sets": [{"name": "set1", "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}],
+                },
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "env": [{"name": "TEST", "value": "test"}],
                     "sets": [{"name": "set1", "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}],
                 },
             },

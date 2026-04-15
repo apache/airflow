@@ -813,6 +813,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (empty .Values.workers.labels) }}
+
+ DEPRECATION WARNING:
+    `workers.labels` has been renamed to `workers.celery.labels`/`workers.kubernetes.labels`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (empty .Values.workers.volumeClaimTemplates) }}
 
  DEPRECATION WARNING:
@@ -945,6 +953,14 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `workers.waitForMigrations.securityContexts.container` has been renamed to `workers.celery.waitForMigrations.securityContexts.container`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.env) }}
+
+ DEPRECATION WARNING:
+    `workers.env` has been renamed to `workers.celery.env`/`workers.kubernetes.env`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}

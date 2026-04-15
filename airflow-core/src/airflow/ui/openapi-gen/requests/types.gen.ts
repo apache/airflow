@@ -542,6 +542,7 @@ export type DAGDetailsResponse = {
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
     max_active_runs: number | null;
@@ -578,6 +579,10 @@ export type DAGDetailsResponse = {
 } | null;
     is_favorite?: boolean;
     active_runs_count?: number;
+    /**
+     * Whether this DAG's schedule supports backfilling.
+     */
+    readonly is_backfillable: boolean;
     /**
      * Return file token.
      */
@@ -621,6 +626,7 @@ export type DAGResponse = {
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
     max_active_runs: number | null;
@@ -633,6 +639,10 @@ export type DAGResponse = {
     next_dagrun_run_after: string | null;
     allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
+    /**
+     * Whether this DAG's schedule supports backfilling.
+     */
+    readonly is_backfillable: boolean;
     /**
      * Return file token.
      */
@@ -1903,6 +1913,7 @@ export type DAGWithLatestDagRunsResponse = {
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
     max_active_runs: number | null;
@@ -1921,6 +1932,10 @@ export type DAGWithLatestDagRunsResponse = {
     latest_dag_runs: Array<DAGRunLightResponse>;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
+    /**
+     * Whether this DAG's schedule supports backfilling.
+     */
+    readonly is_backfillable: boolean;
     /**
      * Return file token.
      */

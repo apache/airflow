@@ -418,10 +418,40 @@ class TestWorker:
             jmespath.search("spec.template.spec.containers[0].volumeMounts[0].name", docs[0]) == "test-volume"
         )
 
-    def test_should_add_extraEnvs(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "env": [
+                    {"name": "TEST_ENV_1", "value": "test_env_1"},
+                    {
+                        "name": "TEST_ENV_2",
+                        "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                    },
+                    {
+                        "name": "TEST_ENV_3",
+                        "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                    },
+                ],
+            },
+            {
+                "celery": {
+                    "env": [
+                        {"name": "TEST_ENV_1", "value": "test_env_1"},
+                        {
+                            "name": "TEST_ENV_2",
+                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                        },
+                        {
+                            "name": "TEST_ENV_3",
+                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                        },
+                    ],
+                }
+            },
+            {
+                "env": [{"name": "TEST", "value": "test"}],
+                "celery": {
                     "env": [
                         {"name": "TEST_ENV_1", "value": "test_env_1"},
                         {
@@ -435,10 +465,18 @@ class TestWorker:
                     ],
                 },
             },
+        ],
+    )
+    def test_should_add_extraEnvs(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
         assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
+        )
+        assert {"name": "TEST", "value": "test"} not in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
         assert {
@@ -471,19 +509,37 @@ class TestWorker:
             "spec.template.spec.initContainers[0].env", docs[0]
         )
 
-    def test_should_add_component_specific_labels(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "labels": {"test_label": "test_label_value"},
+            },
+            {
+                "celery": {
+                    "labels": {"test_label": "test_label_value"},
+                }
+            },
+            {
+                "labels": {"key": "value"},
+                "celery": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+        ],
+    )
+    def test_should_add_component_specific_labels(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
-        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+        labels = jmespath.search("spec.template.metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -2300,20 +2356,40 @@ class TestWorkerCeleryLogGroomer(LogGroomerTestBase):
 class TestWorkerKedaAutoScaler:
     """Tests worker keda auto scaler."""
 
-    def test_should_add_component_specific_labels(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {"keda": {"enabled": True}},
+                "labels": {"test_label": "test_label_value"},
+            },
+            {
+                "celery": {
+                    "keda": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                }
+            },
+            {
+                "labels": {"key": "value"},
+                "celery": {
+                    "keda": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+        ],
+    )
+    def test_should_add_component_specific_labels(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "celery": {"keda": {"enabled": True}},
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
 
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        labels = jmespath.search("metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels
 
     def test_should_remove_replicas_field(self):
         docs = render_chart(
@@ -2469,20 +2545,37 @@ class TestWorkerHPAAutoScaler:
 
         assert len(docs) == 1
 
-    def test_should_add_component_specific_labels(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"celery": {"hpa": {"enabled": True}}, "labels": {"test_label": "test_label_value"}},
+            {
+                "celery": {
+                    "hpa": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                }
+            },
+            {
+                "labels": {"key": "value"},
+                "celery": {
+                    "hpa": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+        ],
+    )
+    def test_should_add_component_specific_labels(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "celery": {"hpa": {"enabled": True}},
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-hpa.yaml"],
         )
 
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        labels = jmespath.search("metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels
 
     def test_should_remove_replicas_field(self):
         docs = render_chart(
@@ -2607,38 +2700,66 @@ class TestWorkerHPAAutoScaler:
 class TestWorkerNetworkPolicy:
     """Tests worker network policy."""
 
-    def test_should_add_component_specific_labels(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "labels": {"test_label": "test_label_value"},
+            },
+            {
+                "celery": {"labels": {"test_label": "test_label_value"}},
+            },
+            {
+                "labels": {"key": "value"},
+                "celery": {"labels": {"test_label": "test_label_value"}},
+            },
+        ],
+    )
+    def test_should_add_component_specific_labels(self, workers_values):
         docs = render_chart(
             values={
                 "networkPolicies": {"enabled": True},
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-networkpolicy.yaml"],
         )
 
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        labels = jmespath.search("metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels
 
 
 class TestWorkerService:
     """Tests worker service."""
 
-    def test_should_add_component_specific_labels(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "labels": {"test_label": "test_label_value"},
+            },
+            {
+                "celery": {"labels": {"test_label": "test_label_value"}},
+            },
+            {
+                "labels": {"key": "value"},
+                "celery": {"labels": {"test_label": "test_label_value"}},
+            },
+        ],
+    )
+    def test_should_add_component_specific_labels(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-service.yaml"],
         )
 
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        labels = jmespath.search("metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels
 
 
 class TestWorkerCeleryServiceAccount:
@@ -2770,20 +2891,40 @@ class TestWorkerCeleryServiceAccount:
 
         assert jmespath.search("metadata.name", docs[0]) == "test"
 
-    def test_should_add_component_specific_labels(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {"serviceAccount": {"create": True}},
+                "labels": {"test_label": "test_label_value"},
+            },
+            {
+                "celery": {
+                    "serviceAccount": {"create": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            {
+                "labels": {"key": "value"},
+                "celery": {
+                    "serviceAccount": {"create": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+        ],
+    )
+    def test_should_add_component_specific_labels(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "celery": {"serviceAccount": {"create": True}},
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
 
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        labels = jmespath.search("metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels
 
 
 class TestWorkerKubernetesServiceAccount:
@@ -2924,17 +3065,37 @@ class TestWorkerKubernetesServiceAccount:
 
         assert jmespath.search("metadata.name", docs[0]) == "test"
 
-    def test_should_add_component_specific_labels(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "kubernetes": {"serviceAccount": {"create": True}},
+                "labels": {"test_label": "test_label_value"},
+            },
+            {
+                "kubernetes": {
+                    "serviceAccount": {"create": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            {
+                "labels": {"key": "value"},
+                "kubernetes": {
+                    "serviceAccount": {"create": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+        ],
+    )
+    def test_should_add_component_specific_labels(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "KubernetesExecutor",
-                "workers": {
-                    "kubernetes": {"serviceAccount": {"create": True}},
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
         )
 
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        labels = jmespath.search("metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels

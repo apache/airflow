@@ -22,7 +22,6 @@
         "title": "Auffüllung gestartet"
       }
     },
-    "tooltip": "Auffüllung benötigt eine Zeitplanung",
     "unpause": "Dag {{dag_display_name}} beim Start der Auffüllung aktiv schalten",
     "validation": {
       "datesRequired": "Sowohl Start- als auch Enddatum müssen angegeben werden.",

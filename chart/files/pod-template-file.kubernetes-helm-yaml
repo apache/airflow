@@ -39,8 +39,8 @@ metadata:
     tier: airflow
     component: worker
     release: {{ .Release.Name }}
-    {{- if or (.Values.labels) (.Values.workers.labels) }}
-      {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
+    {{- if or .Values.labels .Values.workers.labels .Values.workers.kubernetes.labels }}
+      {{- mustMerge (.Values.workers.kubernetes.labels | default .Values.workers.labels) .Values.labels | toYaml | nindent 4 }}
     {{- end }}
   annotations:
     {{- tpl (toYaml $podAnnotations) . | nindent 4 }}
@@ -120,7 +120,7 @@ spec:
         {{- end }}
         {{- include "standard_airflow_environment" . | indent 6}}
         {{- include "custom_airflow_environment" . | indent 6 }}
-        {{- include "container_extra_envs" (list . .Values.workers.env) | indent 6 }}
+        {{- include "container_extra_envs" (list . (.Values.workers.kubernetes.env | default .Values.workers.env)) | indent 6 }}
       image: {{ template "pod_template_image" . }}
       imagePullPolicy: {{ .Values.images.pod_template.pullPolicy }}
       securityContext: {{ $containerSecurityContext | nindent 8 }}

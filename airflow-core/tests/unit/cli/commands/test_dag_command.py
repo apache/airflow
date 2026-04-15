@@ -40,7 +40,7 @@ from airflow.models import DagModel, DagRun
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import BaseOperator, task
+from airflow.sdk import DAG, BaseOperator, task
 from airflow.sdk.definitions.dag import _run_inline_trigger
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.session import create_session
@@ -1070,3 +1070,36 @@ class TestCliDagsReserialize:
 
         serialized_dag_ids = set(session.execute(select(SerializedDagModel.dag_id)).scalars())
         assert serialized_dag_ids == {"test_example_bash_operator", "test_sensor"}
+
+
+class TestDagDetailsIsBackfillable:
+    """Tests for the is_backfillable computation in _get_dagbag_dag_details."""
+
+    @pytest.mark.parametrize(
+        ("schedule", "allowed_run_types", "expected"),
+        [
+            pytest.param("@daily", None, True, id="periodic-allowed-none"),
+            pytest.param(
+                "@daily",
+                [DagRunType.SCHEDULED, DagRunType.MANUAL, DagRunType.BACKFILL_JOB],
+                True,
+                id="periodic-backfill-included",
+            ),
+            pytest.param(
+                "@daily",
+                [DagRunType.SCHEDULED, DagRunType.MANUAL],
+                False,
+                id="periodic-backfill-excluded",
+            ),
+            pytest.param(None, None, False, id="non-periodic-null-schedule"),
+            pytest.param("@once", None, False, id="non-periodic-once-schedule"),
+        ],
+    )
+    def test_is_backfillable(self, schedule, allowed_run_types, expected):
+        dag = DAG(
+            dag_id="test_is_backfillable",
+            schedule=schedule,
+            allowed_run_types=allowed_run_types,
+        )
+        dag_details = dag_command._get_dagbag_dag_details(dag)
+        assert dag_details["is_backfillable"] is expected
