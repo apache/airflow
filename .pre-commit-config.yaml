@@ -1006,12 +1006,14 @@ repos:
         pass_filenames: false
         files: ^dev/breeze/src/airflow_breeze/global_constants\.py$
         require_serial: true
-        # This is a fast regular hook that runs when any pyproject.toml changes
-        # It runs locally and usually will not result in modifying the lock unnecessarily
-        # Unless there is a conflict and uv will determine that the lock needs to be updated to resolve it
+        # This is a fast regular hook that runs when any pyproject.toml changes.
+        # It runs locally with `--frozen` so the lock is only verified against pyproject.toml,
+        # never silently rewritten during a commit. If a pyproject.toml change makes the lock
+        # stale, the hook fails and the contributor must run `uv lock` explicitly and commit
+        # the refreshed uv.lock — which keeps lock updates intentional and reviewable.
       - id: update-uv-lock
         name: Update uv.lock
-        entry: uv lock
+        entry: uv lock --frozen
         language: system
         files: >
           (?x)
