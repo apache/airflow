@@ -1102,6 +1102,16 @@ class TestUpdateDagParsingResults:
         orm_dag = session.get(DagModel, "dag_max_runs")
         assert orm_dag.max_active_runs == 3
 
+    def test_max_active_runs_equal_to_schema_default_not_overridden_by_conf(
+        self, testing_dag_bundle, session, dag_maker
+    ):
+        with conf_vars({("core", "max_active_runs_per_dag"): "1"}):
+            with dag_maker("dag_max_runs_schema_default", schedule=None, max_active_runs=16) as dag:
+                ...
+            update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
+            orm_dag = session.get(DagModel, "dag_max_runs_schema_default")
+            assert orm_dag.max_active_runs == 16
+
     def test_max_active_runs_defaults_from_conf_when_none(self, testing_dag_bundle, session, dag_maker):
         with conf_vars({("core", "max_active_runs_per_dag"): "4"}):
             with dag_maker("dag_max_runs_default", schedule=None) as dag:

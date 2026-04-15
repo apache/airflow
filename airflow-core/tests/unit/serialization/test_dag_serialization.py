@@ -82,6 +82,7 @@ from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
     DagSerialization,
+    LazyDeserializedDAG,
     OperatorSerialization,
     _XComRef,
 )
@@ -218,6 +219,9 @@ serialized_simple_dag_ground_truth = {
             "downstream_task_ids": [],
         },
         "is_paused_upon_creation": False,
+        "max_active_runs": 16,
+        "max_active_tasks": 16,
+        "max_consecutive_failed_dag_runs": 0,
         "dag_id": "simple_dag",
         "deadline": None,
         "allowed_run_types": None,
@@ -3745,6 +3749,7 @@ def test_handle_v2_serdag():
 
 def test_dag_schema_defaults_optimization():
     """Test that DAG fields matching schema defaults are excluded from serialization."""
+    config_driven_fields = {"max_active_runs", "max_active_tasks", "max_consecutive_failed_dag_runs"}
 
     # Create DAG with all schema default values
     dag_with_defaults = DAG(
@@ -3767,9 +3772,12 @@ def test_dag_schema_defaults_optimization():
     serialized = DagSerialization.to_dict(dag_with_defaults)
     dag_data = serialized["dag"]
 
-    # Schema default fields should be excluded
+    # Non-config-driven schema default fields should be excluded
     for field in DagSerialization.get_schema_defaults("dag").keys():
-        assert field not in dag_data, f"Schema default field '{field}' should be excluded"
+        if field in config_driven_fields:
+            assert field in dag_data, f"Config-driven field '{field}' must always be serialised"
+        else:
+            assert field not in dag_data, f"Schema default field '{field}' should be excluded"
 
     # None fields should also be excluded
     none_fields = ["description", "doc_md"]
@@ -3807,6 +3815,29 @@ def test_dag_schema_defaults_optimization():
     assert dag_non_defaults_data["max_active_runs"] == 32
     assert "description" in dag_non_defaults_data
     assert dag_non_defaults_data["description"] == "Test description"
+
+
+def test_config_driven_dag_fields_always_serialized():
+    """Config-driven fields must survive serialisation even when they equal the schema default."""
+    dag = DAG(
+        dag_id="test_config_driven_fields",
+        start_date=datetime(2023, 1, 1),
+        max_active_runs=16,
+        max_active_tasks=16,
+        max_consecutive_failed_dag_runs=0,
+    )
+
+    serialized = DagSerialization.to_dict(dag)
+    dag_data = serialized["dag"]
+
+    assert dag_data["max_active_runs"] == 16
+    assert dag_data["max_active_tasks"] == 16
+    assert dag_data["max_consecutive_failed_dag_runs"] == 0
+
+    lazy_dag = LazyDeserializedDAG(data=serialized)
+    assert lazy_dag.max_active_runs == 16
+    assert lazy_dag.max_active_tasks == 16
+    assert lazy_dag.max_consecutive_failed_dag_runs == 0
 
 
 def test_email_optimization_removes_email_attrs_when_email_empty():

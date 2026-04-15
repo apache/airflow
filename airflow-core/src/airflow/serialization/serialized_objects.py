@@ -1878,9 +1878,20 @@ class DagSerialization(BaseSerialization):
         if attrname == "dag_display_name" and var == op.dag_id:
             return True
 
-        # DAG schema defaults exclusion (same pattern as SerializedBaseOperator)
+        # DAG schema defaults exclusion (same pattern as SerializedBaseOperator).
+        # Fields whose defaults come from airflow config must never be excluded based on
+        # the hardcoded schema default because the schema default (e.g. 16) may differ
+        # from the runtime config value (e.g. 1). Excluding them loses explicitly-set
+        # values that happen to equal the schema default.
+        _CONFIG_DRIVEN_FIELDS = frozenset(
+            {
+                "max_active_runs",
+                "max_active_tasks",
+                "max_consecutive_failed_dag_runs",
+            }
+        )
         dag_schema_defaults = cls.get_schema_defaults("dag")
-        if attrname in dag_schema_defaults:
+        if attrname in dag_schema_defaults and attrname not in _CONFIG_DRIVEN_FIELDS:
             if dag_schema_defaults[attrname] == var:
                 return True
 
