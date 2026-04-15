@@ -125,14 +125,14 @@ Key columns (quote all names in SQL):
 """
 
 survey_datasource = DataSourceConfig(
-    conn_id="",
+    conn_id="",  # No connection needed for local file-based sources
     table_name="survey",
     uri=SURVEY_CSV_URI,
     format="csv",
 )
 
 reference_datasource = DataSourceConfig(
-    conn_id="",
+    conn_id="",  # No connection needed for local file-based sources
     table_name="survey_reference",
     uri=REFERENCE_CSV_URI,
     format="csv",
@@ -216,14 +216,14 @@ def example_llm_survey_interactive():
     # ------------------------------------------------------------------
     # Step 5: Result confirmation -- approve or reject the query result.
     # ------------------------------------------------------------------
-    result_confirmation = ApprovalOperator(
+    result_confirmation = ApprovalOperator(  # noqa: F841
         task_id="result_confirmation",
         subject="Review the survey query result",
-        body="{{ ti.xcom_pull(task_ids='extract_data') }}",
+        body=result_data,
         response_timeout=datetime.timedelta(hours=1),
     )
 
-    prompt_confirmation >> generate_sql >> run_query >> result_data >> result_confirmation
+    prompt_confirmation >> generate_sql >> run_query
 
 
 # [END example_llm_survey_interactive]
@@ -299,10 +299,9 @@ def example_llm_survey_scheduled():
     # ------------------------------------------------------------------
     check_schema = LLMSchemaCompareOperator(
         task_id="check_schema",
-        prompt=(
-            "Compare the survey CSV schema against the reference schema. "
-            "Flag any missing or renamed columns that would break the downstream SQL queries."
-        ),
+        prompt="""\
+Compare the survey CSV schema against the reference schema. \
+Flag any missing or renamed columns that would break the downstream SQL queries.""",
         llm_conn_id=LLM_CONN_ID,
         data_sources=[survey_datasource, reference_datasource],
         context_strategy="basic",
