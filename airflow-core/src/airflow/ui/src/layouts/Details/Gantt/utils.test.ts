@@ -322,37 +322,4 @@ describe("transformGanttData", () => {
     expect(result[0]?.tryNumber).toBe(1);
     expect(result[1]?.tryNumber).toBe(2);
   });
-
-  it("suppresses scheduled and queued bars when their gap to start_date is less than 1 second", () => {
-    const flatNodes = [{ depth: 0, id: "task_1", is_mapped: false, label: "task_1" }];
-    const baseArgs = {
-      end_date: "2024-03-14T10:05:00+00:00",
-      is_mapped: false,
-      start_date: "2024-03-14T10:00:00+00:00",
-      state: "success" as const,
-      task_display_name: "task_1",
-      task_id: "task_1",
-      try_number: 1,
-    };
-
-    // scheduled_dttm 500 ms before start — below the 1 s threshold
-    const scheduledResult = transformGanttData({
-      allTries: [{ ...baseArgs, queued_dttm: null, scheduled_dttm: "2024-03-14T09:59:59.500+00:00" }],
-      flatNodes,
-      gridSummaries: [],
-    });
-
-    expect(scheduledResult).toHaveLength(1);
-    expect(scheduledResult[0]?.state).toBe("success");
-
-    // queued_dttm 800 ms before start — below the 1 s threshold
-    const queuedResult = transformGanttData({
-      allTries: [{ ...baseArgs, queued_dttm: "2024-03-14T09:59:59.200+00:00", scheduled_dttm: null }],
-      flatNodes,
-      gridSummaries: [],
-    });
-
-    expect(queuedResult).toHaveLength(1);
-    expect(queuedResult[0]?.state).toBe("success");
-  });
 });

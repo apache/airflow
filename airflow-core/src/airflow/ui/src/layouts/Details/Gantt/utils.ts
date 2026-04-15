@@ -37,8 +37,6 @@ export type GanttDataItem = {
   scheduled_when?: string | null;
   state?: TaskInstanceState | null;
   taskId: string;
-  touchesNext?: boolean;
-  touchesPrev?: boolean;
   tryNumber?: number;
   /** [startMs, endMs] as Unix millisecond timestamps — pre-parsed to avoid repeated `new Date()` in render loops. */
   x: [number, number];
@@ -137,19 +135,10 @@ export const transformGanttData = ({
             const queuedMs = queuedDttm === null ? undefined : dayjs(queuedDttm).valueOf();
             const scheduledMs = scheduledDttm === null ? undefined : dayjs(scheduledDttm).valueOf();
 
-            // Whether each pre-execution segment will actually be rendered (gap >= 1 s).
-            // The same predicate drives both segment creation and tooltip field inclusion.
-            const willShowQueued =
-              queuedMs !== undefined && (startMs === undefined || startMs - queuedMs >= 1000);
-            const willShowScheduled =
-              scheduledMs !== undefined &&
-              (startMs === undefined ||
-                (!willShowQueued && startMs - scheduledMs >= 1000) ||
-                (willShowQueued && queuedMs - scheduledMs >= 1000));
-
+            // Include scheduled/queued times in tooltip data whenever the timestamps exist.
             const tryWhenForTooltip = {
-              ...(willShowScheduled ? { scheduled_when: scheduledDttm } : {}),
-              ...(willShowQueued ? { queued_when: queuedDttm } : {}),
+              ...(scheduledMs === undefined ? {} : { scheduled_when: scheduledDttm }),
+              ...(queuedMs === undefined ? {} : { queued_when: queuedDttm }),
             };
 
             let endMs: number;
@@ -162,8 +151,7 @@ export const transformGanttData = ({
               endMs = dayjs(endDate).valueOf();
             }
 
-            // Scheduled segment: skip when the gap to start_date is less than 1 s (not worth rendering).
-            if (willShowScheduled) {
+            if (scheduledMs !== undefined) {
               const scheduledEndMs =
                 queuedMs ?? startMs ?? (hasTaskRunning || tryRow.state === "scheduled" ? Date.now() : endMs);
 
@@ -181,8 +169,7 @@ export const transformGanttData = ({
               }
             }
 
-            // Queue segment: skip when the gap to start_date is less than 1 s (not worth rendering).
-            if (willShowQueued) {
+            if (queuedMs !== undefined) {
               const queueEndMs = startMs ?? (hasTaskRunning ? Date.now() : endMs);
 
               if (queueEndMs > queuedMs) {
@@ -213,22 +200,6 @@ export const transformGanttData = ({
                 x: [startMs, execEndMs],
                 y: tryRow.task_display_name,
               });
-            }
-
-            // Annotate intra-try adjacency so the render layer can use direct flag reads
-            // instead of comparing x coordinates.
-            for (let index = 0; index < items.length; index += 1) {
-              const segment = items[index];
-
-              if (segment !== undefined) {
-                if (index > 0) {
-                  segment.touchesPrev = true;
-                }
-
-                if (index < items.length - 1) {
-                  segment.touchesNext = true;
-                }
-              }
             }
 
             return items;

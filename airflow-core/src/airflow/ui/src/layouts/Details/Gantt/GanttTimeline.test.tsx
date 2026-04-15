@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /* eslint-disable unicorn/no-null */
 
 /*!
@@ -18,10 +20,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import type { PropsWithChildren, RefObject } from "react";
 import { createRef } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { HoverProvider } from "src/context/hover";
 import { ROW_HEIGHT } from "src/layouts/Details/Grid/constants";
@@ -85,6 +87,10 @@ const defaultProps = {
 };
 
 describe("GanttTimeline segment bars", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("renders a single execution bar when only start_date is present", () => {
     const executionSegment: GanttDataItem = {
       queued_when: null,
@@ -249,5 +255,85 @@ describe("GanttTimeline segment bars", () => {
     );
 
     expect(screen.queryAllByRole("link")).toHaveLength(0);
+  });
+
+  it("hides scheduled and queued bars whose pixel width is below MIN_SEGMENT_RENDER_PX (5 px)", () => {
+    // Simulate a 1000 px-wide Gantt body via a ResizeObserver mock.
+    // spanMs = MAX_MS − MIN_MS = 600 000 ms (10 min)
+    // A 2-second bar → (2 000 / 600 000) * 1 000 ≈ 3.33 px  <  5 px threshold → hidden
+    // A 5-minute execution bar → (300 000 / 600 000) * 1 000 = 500 px → visible
+
+    let observerCallback: ResizeObserverCallback | undefined;
+
+    vi.stubGlobal(
+      "ResizeObserver",
+      class MockResizeObserver {
+        public constructor(cb: ResizeObserverCallback) {
+          observerCallback = cb;
+        }
+        // eslint-disable-next-line @typescript-eslint/class-methods-use-this
+        public disconnect() {
+          /* empty */
+        }
+        // eslint-disable-next-line @typescript-eslint/class-methods-use-this
+        public observe() {
+          /* empty */
+        }
+        // eslint-disable-next-line @typescript-eslint/class-methods-use-this
+        public unobserve() {
+          /* empty */
+        }
+      },
+    );
+
+    const scheduledSegment: GanttDataItem = {
+      queued_when: new Date(MIN_MS + 2000).toISOString(),
+      scheduled_when: new Date(MIN_MS).toISOString(),
+      state: "scheduled",
+      taskId: "task_1",
+      tryNumber: 1,
+      // 2 s wide — below the 5 px threshold at 1000 px viewport
+      x: [MIN_MS, MIN_MS + 2000],
+      y: "task_1",
+    };
+    const queuedSegment: GanttDataItem = {
+      queued_when: new Date(MIN_MS + 2000).toISOString(),
+      scheduled_when: new Date(MIN_MS).toISOString(),
+      state: "queued",
+      taskId: "task_1",
+      tryNumber: 1,
+      // 2 s wide — below the 5 px threshold at 1000 px viewport
+      x: [MIN_MS + 2000, MIN_MS + 4000],
+      y: "task_1",
+    };
+    const executionSegment: GanttDataItem = {
+      queued_when: new Date(MIN_MS + 2000).toISOString(),
+      scheduled_when: new Date(MIN_MS).toISOString(),
+      state: "success",
+      taskId: "task_1",
+      tryNumber: 1,
+      // 5 min wide — well above threshold
+      x: [MIN_MS + 4000, MIN_MS + 304_000],
+      y: "task_1",
+    };
+    const segments = [scheduledSegment, queuedSegment, executionSegment];
+
+    render(
+      <GanttTimeline
+        {...defaultProps}
+        ganttDataItems={segments}
+        rowSegments={[segments]}
+        scrollContainerRef={makeScrollRef()}
+      />,
+      { wrapper: TestWrapper },
+    );
+
+    // Fire the ResizeObserver callback to set bodyWidthPx = 1000, enabling the filter.
+    act(() => {
+      observerCallback?.([{ contentRect: { width: 1000 } } as ResizeObserverEntry], {} as ResizeObserver);
+    });
+
+    // Only the execution bar should be rendered; scheduled and queued are too narrow.
+    expect(screen.getAllByRole("link")).toHaveLength(1);
   });
 });

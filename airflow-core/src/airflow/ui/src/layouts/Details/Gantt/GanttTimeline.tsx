@@ -51,6 +51,10 @@ import {
 const GANTT_STATE_ICON_SIZE_PX = 10;
 const MIN_BAR_WIDTH_PX = GANTT_STATE_ICON_SIZE_PX;
 
+/** Scheduled and queued bars narrower than this are not rendered — they would be invisible anyway
+ *  and their presence would suppress the rounded left edge of the adjacent execution bar. */
+const MIN_SEGMENT_RENDER_PX = 5;
+
 /** Minimum horizontal gap (px) between time-axis labels before one is dropped. */
 const MIN_TICK_SPACING_PX = 80;
 
@@ -72,33 +76,30 @@ type Props = {
   readonly virtualizerScrollPaddingStart: number;
 };
 
-/** Matches `TaskInstanceTooltip` payload for Gantt segments (grid summary + optional `*_when`). */
-type GanttSegmentTooltipSummary = {
-  readonly queued_when?: string | null;
-  readonly scheduled_when?: string | null;
-} & LightGridTaskInstanceSummary;
-
 const toTooltipSummary = (
   segment: GanttDataItem,
   node: GridTask,
   gridSummary: LightGridTaskInstanceSummary | undefined,
-): GanttSegmentTooltipSummary => {
+) => {
   if (gridSummary !== undefined && (node.isGroup ?? node.is_mapped)) {
     return gridSummary;
   }
 
   return {
+    // eslint-disable-next-line unicorn/no-null
     child_states: null,
     max_end_date: dayjs(segment.x[1]).toISOString(),
     min_start_date: dayjs(segment.x[0]).toISOString(),
+    // eslint-disable-next-line unicorn/no-null
     state: segment.state ?? null,
     task_display_name: segment.y,
     task_id: segment.taskId,
+    try_number: segment.tryNumber,
     ...(segment.tryNumber === undefined
       ? {}
       : {
-          queued_when: segment.queued_when ?? null,
-          scheduled_when: segment.scheduled_when ?? null,
+          queued_when: segment.queued_when,
+          scheduled_when: segment.scheduled_when,
         }),
   };
 };
@@ -181,6 +182,7 @@ export const GanttTimeline = ({
     return {
       leftPct,
       widthPct: Math.min(widthPctAdjusted, 100 - leftPct),
+      widthPx,
     };
   };
 
@@ -280,7 +282,17 @@ export const GanttTimeline = ({
               return undefined;
             }
 
-            const segments = rowSegments[vItem.index] ?? [];
+            const allSegments = rowSegments[vItem.index] ?? [];
+            // Hide scheduled/queued bars that are too narrow to see. Re-derive adjacency
+            // from the filtered list so the adjacent execution bar keeps rounded corners.
+            const segments =
+              bodyWidthPx > 0
+                ? allSegments.filter((segment) =>
+                    segment.state !== "scheduled" && segment.state !== "queued"
+                      ? true
+                      : segmentLayout(segment).widthPx >= MIN_SEGMENT_RENDER_PX,
+                  )
+                : allSegments;
             const taskId = node.id;
             const isSelected = selectedTaskId === taskId || selectedGroupId === taskId;
             const isHovered = hoveredTaskId === taskId;
@@ -322,19 +334,19 @@ export const GanttTimeline = ({
                       runId,
                       searchParams: baseSearchParams,
                     });
+                    const { state, tryNumber, x } = segment;
                     const tooltipInstance = toTooltipSummary(segment, node, gridSummary);
-                    const touchesPrev = segment.touchesPrev ?? false;
-                    const touchesNext = segment.touchesNext ?? false;
                     const barRadius = 4;
 
-                    if (to === undefined) {
-                      return undefined;
-                    }
+                    // Task groups don't have a try number
+                    const touchesNext =
+                      tryNumber === undefined ? false : segments[segIndex + 1]?.tryNumber === tryNumber;
+                    const touchesPrev =
+                      tryNumber === undefined ? false : segments[segIndex - 1]?.tryNumber === tryNumber;
 
                     return (
                       <TaskInstanceTooltip
-                        disabled={touchesNext}
-                        key={`${segment.taskId}-${segment.tryNumber ?? 0}-${segment.x[0]}`}
+                        key={`${taskId}-${tryNumber ?? -1}-${x[0]}`}
                         openDelay={500}
                         positioning={{
                           offset: { crossAxis: 0, mainAxis: 5 },
@@ -358,7 +370,7 @@ export const GanttTimeline = ({
                             onClick={() => onSegmentClick?.()}
                             replace
                             style={{ display: "block", height: "100%", width: "100%" }}
-                            to={to}
+                            to={to ?? ""}
                           >
                             <Badge
                               alignItems="center"
@@ -366,7 +378,7 @@ export const GanttTimeline = ({
                               borderBottomRightRadius={touchesNext ? 0 : barRadius}
                               borderTopLeftRadius={touchesPrev ? 0 : barRadius}
                               borderTopRightRadius={touchesNext ? 0 : barRadius}
-                              colorPalette={segment.state ?? "none"}
+                              colorPalette={state ?? "none"}
                               display="flex"
                               h="100%"
                               justifyContent="center"
@@ -376,7 +388,7 @@ export const GanttTimeline = ({
                               w="100%"
                             >
                               {touchesNext ? undefined : (
-                                <StateIcon size={GANTT_STATE_ICON_SIZE_PX} state={segment.state} />
+                                <StateIcon size={GANTT_STATE_ICON_SIZE_PX} state={state} />
                               )}
                             </Badge>
                           </Link>
