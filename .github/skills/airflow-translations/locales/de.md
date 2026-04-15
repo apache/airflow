@@ -235,6 +235,73 @@ Unhealthy → "Fehlerhaft"
 - Translate variable names or placeholders inside `{{...}}`
 - Omit parenthetical English terms where the pattern has been established
 
+## 7. Rationale for Translation Choices
+
+This section documents *why* each translation decision was made. It is derived
+from `airflow-core/src/airflow/ui/public/i18n/locales/de/README.md`, which is
+now superseded by this skill file as the single source of truth.
+
+### Formal register ("Sie")
+
+German distinguishes formal from informal address. Because the user group is
+unknown, the formal "Sie" register was chosen throughout.
+
+### Why certain terms are not translated
+
+- **Dag / Dags** — Following the devlist discussion
+  ["Airflow should deprecate the term 'DAG' for end users"](https://lists.apache.org/thread/lktrzqkzrpvc1cyctxz7zxfmc0fwtq2j)
+  and the global rename to `Dag`, this brand-like term is retained. Translating
+  it as "Workflow" would be misleading for experienced Airflow users. `Dag` is
+  treated as neuter in German ("der Dag").
+- **Log levels (CRITICAL, ERROR, WARNING, INFO, DEBUG)** — These strings also
+  appear verbatim in log output, so they must not be translated.
+- **Pool / Pools** — Directly understood in German; "Schwimmbad" would be
+  absurd, and "Ressourcen-Pool" is too verbose.
+- **Provider / Providers** — Translating this does not improve comprehension;
+  the English term is well understood in German.
+- **Operator / Operatoren** — Mathematical/technical term that also appears in
+  code; alternatives like "Betreiber-Implementierung" are too cumbersome.
+
+### Why specific translations were chosen
+
+- **`Asset` → `Datenset (Asset)`** — New term in Airflow 3, so a meaningful
+  German translation is appropriate. The English original is kept in
+  parentheses so new users can recognise the Airflow concept. Exception: in
+  the navigation bar the shorter form "Datensets" is used without the
+  parenthetical to save space.
+- **`Asset Event` → `Ereignis zu Datenset (Asset)`** — Logical consequence of
+  the Asset translation; avoids the clumsy "Datensatz-Ereignis".
+- **`Backfill` → `Auffüllen` / `Auffüllung`** — The technical meaning (filling
+  gaps in historical runs) maps well to the German concept of "auffüllen".
+- **`Bundle` → `Bündel`** — Direct translation that matches the intended meaning.
+- **`Catchup` → `Nachholen`** — Direct translation.
+- **`Connection` → `Verbindung`** — Although a technical Airflow construct, the
+  direct translation is immediately accessible to new users.
+- **`Dag Run` → `Dag Lauf`** — While "Run" appears in code and logs, a German
+  equivalent improves the overall UI experience. "Dag" is kept untranslated.
+- **`Deferred` → `Delegiert`** — The closest German equivalent: a task is
+  handed off ("delegiert") to the Triggerer component.
+- **`Docs` → `Doku`** — "Dokumentation" is correct but too wide for the
+  navigation bar without a line break; "Doku" is a common German abbreviation.
+- **`Map Index` → `Planungs-Index`** — No direct equivalent exists; referring
+  to the planning/scheduling aspect is the most accurate option.
+- **`Plugins` → `Plug-ins`** — Hyphenated form recommended by Duden.
+- **`Scheduled` → `Geplant`** — Used for cyclically scheduled Dag runs.
+- **`Tag` → `Markierung`** — Describes the purpose (marking/tagging Dags for
+  organisation) without the English loanword.
+- **`Task Instance` → `Task Instanz`** — "Task" is kept because it appears in
+  code and logs; "Aufgabe" would be the purist choice but less recognisable in
+  context.
+- **`Trigger` (verb) → `Auslösen`** — Most natural German equivalent. "Triggern"
+  exists colloquially but "Auslösen" is more formal and consistent with
+  "Auslöse-Regel" (Trigger Rule).
+- **`Trigger Rule` → `Auslöse-Regel`** — Consistent with the verb choice above;
+  describes the condition that starts a task within a Dag Run.
+- **`XCom` → `Task Kommunikation (XCom)`** — Translating the concept improves
+  navigation for new users; the original `XCom` is kept in parentheses because
+  it appears frequently in code and logs.
+
 ---
 
-**Version:** 1.0 — derived from existing `de/*.json` locale files (April 2026)
+**Version:** 1.1 — rationale consolidated from
+`airflow-core/src/airflow/ui/public/i18n/locales/de/README.md` (April 2026)
