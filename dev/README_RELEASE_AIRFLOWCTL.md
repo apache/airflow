@@ -104,19 +104,46 @@ This caused a side effect where we won't be able to use following versions in fu
 - [1.0.0rc1](https://pypi.org/project/apache-airflow-ctl/1.0.0rc1/)
 - [1.0.0rc2](https://pypi.org/project/apache-airflow-ctl/1.0.0rc2/)
 
-Set version env variable
+Set version env variables — **all commands in this document rely on these being set in your
+current shell session**. Replace the values with the actual versions for your release.
 
 ```shell script
-VERSION=0.1.0
-VERSION_SUFFIX=rc1
-VERSION_RC=${VERSION}${VERSION_SUFFIX}
+export PREVIOUS_VERSION=0.1.3
+export VERSION=0.1.4
+export VERSION_SUFFIX=rc1
+export VERSION_RC=${VERSION}${VERSION_SUFFIX}
+```
+
+Verify they are set before running any command:
+
+```shell script
+echo "Previous: ${PREVIOUS_VERSION}  Current: ${VERSION}  RC: ${VERSION_RC}"
 ```
 
 # Prepare Regular airflow-ctl distributions (RC)
 
 ## Generate release notes
 
-TODO: Describe release notes preparation
+Generate the RST changelog for the new release by running:
+
+```shell script
+breeze release-management generate-airflowctl-changelog --previous-release "airflow-ctl/${PREVIOUS_VERSION}" --version "${VERSION}"
+```
+
+`--current-release` defaults to `HEAD` so you do not need to tag first.
+The command fetches PR metadata from GitHub (using `gh auth token` or `GITHUB_TOKEN`) and
+categorises each merged PR into one of:
+
+- **Significant Changes** — PRs whose title starts with `feat`, `add`, or `allow`
+- **Bug Fixes** — PRs whose title starts with `fix`
+- **Improvements** — everything else that is user-visible
+- **Miscellaneous** — CI / build / upgrade changes
+
+By default, the new section is **prepended** to `airflow-ctl/RELEASE_NOTES.rst` before the
+previous version entry. Pass `--output-file -` to print to stdout instead, or
+`--output-file <path>` to write to a different file.
+
+Review the changes to `airflow-ctl/RELEASE_NOTES.rst` and commit before proceeding.
 
 ## Build airflow-ctl distributions for SVN apache upload
 
@@ -364,7 +391,11 @@ list and stable links should be updated, also Fastly cache will be invalidated.
 
 ## Prepare issue in GitHub to keep status of testing
 
-TODO: prepare an issue
+Generate the GitHub issue body that asks contributors to test the RC:
+
+```shell script
+breeze release-management generate-issue-content-airflow-ctl --previous-release "airflow-ctl/${PREVIOUS_VERSION}" --current-release "airflow-ctl/${VERSION_RC}"
+```
 
 ## Prepare voting email for airflow-ctl release candidate
 

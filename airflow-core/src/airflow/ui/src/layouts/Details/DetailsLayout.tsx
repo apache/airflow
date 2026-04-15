@@ -78,7 +78,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const [defaultDagView] = useLocalStorage<"graph" | "grid">(DEFAULT_DAG_VIEW_KEY, "grid");
   const panelGroupRef = useRef<ImperativePanelGroupHandle | null>(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(dagViewKey(dagId), defaultDagView);
-  const [limit, setLimit] = useLocalStorage<number>(dagRunsLimitKey(dagId), 10);
+  const [limit, setLimit] = useLocalStorage(dagRunsLimitKey(dagId), 10);
   const [runAfterGte, setRunAfterGte] = useLocalStorage<string | undefined>(runAfterGteKey(dagId), undefined);
   const [runAfterLte, setRunAfterLte] = useLocalStorage<string | undefined>(runAfterLteKey(dagId), undefined);
   const [runTypeFilter, setRunTypeFilter] = useLocalStorage<DagRunType | undefined>(
@@ -94,9 +94,9 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
     undefined,
   );
 
-  const [showGantt, setShowGantt] = useLocalStorage<boolean>(showGanttKey(dagId), false);
+  const [showGantt, setShowGantt] = useLocalStorage(showGanttKey(dagId), false);
   // Global setting: applies to all Dags (intentionally not scoped to dagId)
-  const [showVersionIndicatorMode, setShowVersionIndicatorMode] = useLocalStorage<VersionIndicatorOptions>(
+  const [showVersionIndicatorMode, setShowVersionIndicatorMode] = useLocalStorage(
     `version_indicator_display_mode`,
     VersionIndicatorOptions.ALL,
   );
