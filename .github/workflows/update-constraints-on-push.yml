@@ -22,6 +22,7 @@ on:  # yamllint disable-line rule:truthy
     branches:
       - main
       - v[0-9]+-[0-9]+-test
+      - v[0-9]+-[0-9]+-stable
     paths:
       - 'uv.lock'
 permissions:
@@ -34,7 +35,6 @@ env:
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
-  UV_VERSION: "0.10.10"  # Keep this comment to allow automatic replacement of uv version
   VERBOSE: "true"
 jobs:
   build-info:
@@ -150,3 +150,27 @@ jobs:
       - name: "Push changes"
         working-directory: "constraints"
         run: git push
+
+  notify-on-failure:
+    name: "Notify on failure"
+    runs-on: ["ubuntu-22.04"]
+    needs: [build-info, build-ci-images, generate-constraints, update-constraints]
+    if: failure()
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+    steps:
+      - name: "Send Slack notification"
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+        with:
+          method: chat.postMessage
+          token: ${{ env.SLACK_BOT_TOKEN }}
+          # yamllint disable rule:line-length
+          payload: |
+            channel: "internal-airflow-ci-cd"
+            text: "🚨 Update constraints workflow failed on branch *${{ github.ref_name }}*\n\n*Details:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "🚨 Update constraints workflow failed on *${{ github.ref_name }}*\n\n*Details:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+          # yamllint enable rule:line-length
