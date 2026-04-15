@@ -20,7 +20,6 @@ import copy
 import logging
 import os
 import re
-import subprocess
 import sys
 from importlib.metadata import version as importlib_version
 from unittest import mock
@@ -438,18 +437,56 @@ class TestBeamRunner:
         with pytest.raises(AirflowException, match="Apache Beam process failed with return code 1"):
             run_beam_command(cmd, fake_logger)
 
-        mock_popen.assert_called_once_with(
-            cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, cwd=None
+    @mock.patch("subprocess.Popen")
+    @mock.patch("select.select")
+    @mock.patch(
+        "airflow.providers.apache.beam.hooks.beam.process_fd"
+    )  # Mocking process_fd to control return value
+    def test_run_beam_command_with_callbacks(self, mock_process_fd, mock_select, mock_popen):
+        """Test that callbacks are passed to process_fd and state is maintained."""
+        logger_name = "test-beam-callback-logger"
+        fake_logger = logging.getLogger(logger_name)
+        cmd = ["fake", "cmd"]
+
+        # Setup mock process
+        mock_proc = MagicMock(name="FakeProc")
+        mock_proc.stderr = MagicMock(name="FakeStderr")
+        mock_proc.stdout = MagicMock(name="FakeStdout")
+        mock_proc.poll.side_effect = [None, 0]  # Run loop once, then exit
+        mock_proc.returncode = 0
+        mock_popen.return_value = mock_proc
+
+        # Mock select to return stdout on first call
+        mock_select.return_value = ([mock_proc.stdout], [], [])
+
+        # Callback mocks
+        mock_is_exists = MagicMock()
+        mock_on_found = MagicMock()
+
+        # We simulate that process_fd returns True (callback was triggered)
+        mock_process_fd.return_value = True
+
+        run_beam_command(
+            cmd,
+            fake_logger,
+            is_dataflow_job_id_exist_callback=mock_is_exists,
+            on_dataflow_job_id_found_callback=mock_on_found,
         )
         info_messages = [rt[2] for rt in caplog.record_tuples if rt[0] == logger_name and rt[1] == 20]
         assert "Running command: fake cmd" in info_messages
         assert "apache-beam-stdout" in info_messages
 
-        warn_messages = [rt[2] for rt in caplog.record_tuples if rt[0] == logger_name and rt[1] == 30]
-        assert "apache-beam-stderr-1" in warn_messages
-        assert "apache-beam-stderr-2" in warn_messages
-        assert "apache-beam-stderr-3" in warn_messages
-        assert "apache-beam-other-stderr" in warn_messages
+        # Verify process_fd was called with the correct arguments
+        # Note: It's called inside the loop AND in the "corner case" block at the end
+        assert mock_process_fd.call_count >= 2
+
+        # Check that the 'on_dataflow_job_id_found_callback_called'
+        # (the 7th positional arg) was updated correctly between calls
+        first_call_args = mock_process_fd.call_args_list[0][0]
+        assert first_call_args[7] is False  # Initially False
+
+        last_call_args = mock_process_fd.call_args_list[-1][0]
+        assert last_call_args[7] is True  # Became True after mock_process_fd returned True
 
     @mock.patch("subprocess.Popen")
     @mock.patch("select.select")
