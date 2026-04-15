@@ -47,10 +47,7 @@
     "invalidJson": "Nieprawidłowy format JSON: {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_few": "Błędy",
-    "error_many": "Błędów",
     "error_one": "Błąd",
-    "error_other": "Błedy",
     "errorAndWarning": "1 Błąd i {{warningText}}",
     "warning_few": "{{count}} Ostrzeżenia",
     "warning_many": "{{count}} Ostrzeżeń",
