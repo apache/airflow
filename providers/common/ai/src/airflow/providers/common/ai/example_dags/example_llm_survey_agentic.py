@@ -115,18 +115,18 @@ survey_datasource = DataSourceConfig(
 DIMENSION_KEYS = ["executor", "deployment", "cloud", "airflow_version"]
 
 SQL_SYSTEM_PROMPT = """\
-You are a SQL analysis agent working on the table "survey". \
+You are a SQL analysis agent working on the table "survey".
 Always quote all table and column names with double quotes.
 
-For the AI usage filter column \
+For the AI usage filter column
 "Are you using AI/LLM (ChatGPT/Cursor/Claude etc) to assist you in writing Airflow code?":
 - Treat affirmative free text (yes, sometimes, occasionally, rarely, often, regularly) as AI users.
 - Treat explicit negatives (no, never) as non-users.
 - Exclude blank, NULL, and ambiguous responses from the filtered set."""
 
 SYNTHESIS_SYSTEM_PROMPT = """\
-You are a data analyst summarizing survey results about Apache Airflow practitioners. \
-Write in plain, concise language suitable for a technical audience. \
+You are a data analyst summarizing survey results about Apache Airflow practitioners.
+Write in plain, concise language suitable for a technical audience.
 Focus on patterns and proportions rather than raw counts."""
 
 
@@ -161,21 +161,21 @@ def example_llm_survey_agentic():
     def decompose_question() -> list[str]:
         return [
             """\
-Among respondents who use AI/LLM tools to write Airflow code, \
-what executor types (CeleryExecutor, KubernetesExecutor, LocalExecutor) \
-are most commonly enabled? Count an executor as enabled only if the \
-column value is clearly affirmative. Treat blank, NULL, and negative \
+Among respondents who use AI/LLM tools to write Airflow code,
+what executor types (CeleryExecutor, KubernetesExecutor, LocalExecutor)
+are most commonly enabled? Count an executor as enabled only if the
+column value is clearly affirmative. Treat blank, NULL, and negative
 values as not enabled. Return the count per executor type.""",
             """\
-Among respondents who use AI/LLM tools to write Airflow code, \
+Among respondents who use AI/LLM tools to write Airflow code,
 how do they deploy Airflow? Return the count per deployment method.""",
             """\
-Among respondents who use AI/LLM tools to write Airflow code, \
-which cloud providers are most commonly used for Airflow? \
+Among respondents who use AI/LLM tools to write Airflow code,
+which cloud providers are most commonly used for Airflow?
 Return the count per cloud provider.""",
             """\
-Among respondents who use AI/LLM tools to write Airflow code, \
-what version of Airflow are they currently running? \
+Among respondents who use AI/LLM tools to write Airflow code,
+what version of Airflow are they currently running?
 Return the count per version.""",
         ]
 
@@ -246,9 +246,9 @@ Return the count per version.""",
         llm_conn_id=LLM_CONN_ID,
         system_prompt=SYNTHESIS_SYSTEM_PROMPT,
         prompt="""\
-Given these four independent survey query results about practitioners \
-who use AI tools to write Airflow code, write a 2-3 sentence \
-characterization of what a typical Airflow deployment looks like for \
+Given these four independent survey query results about practitioners
+who use AI tools to write Airflow code, write a 2-3 sentence
+characterization of what a typical Airflow deployment looks like for
 this group.
 
 Results: {{ ti.xcom_pull(task_ids='collect_results') }}""",

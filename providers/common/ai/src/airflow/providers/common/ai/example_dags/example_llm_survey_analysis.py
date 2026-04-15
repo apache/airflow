@@ -300,7 +300,7 @@ def example_llm_survey_scheduled():
     check_schema = LLMSchemaCompareOperator(
         task_id="check_schema",
         prompt="""\
-Compare the survey CSV schema against the reference schema. \
+Compare the survey CSV schema against the reference schema.
 Flag any missing or renamed columns that would break the downstream SQL queries.""",
         llm_conn_id=LLM_CONN_ID,
         data_sources=[survey_datasource, reference_datasource],
