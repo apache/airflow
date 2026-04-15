@@ -1613,7 +1613,7 @@ api:
         so lookups by DAG ID (e.g., viewing a DAG's details) always query
         the database for the latest version, but the deserialized result is
         cached for subsequent version-specific lookups.
-      version_added: 3.2.0
+      version_added: 3.3.0
       type: integer
       example: ~
       default: "64"
@@ -1626,7 +1626,7 @@ api:
         Note: After a DAG is updated, the API server may serve the previous version
         until the cached entry expires. Lower values reduce staleness but increase
         database load.
-      version_added: 3.2.0
+      version_added: 3.3.0
       type: integer
       example: ~
       default: "3600"

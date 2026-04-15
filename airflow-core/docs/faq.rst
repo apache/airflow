@@ -679,7 +679,7 @@ The API server caches serialized Dag objects in memory. Over time, as Dag versio
 
 There are two complementary approaches:
 
-**1. Bounded DAG caching (available since Airflow 3.2.0)**
+**1. Bounded DAG caching (available since Airflow 3.3.0)**
 
 The API server supports LRU+TTL caching that bounds how many serialized Dag versions are kept
 in memory. Configure this in the ``[api]`` section:
