@@ -423,6 +423,10 @@ export type ClearTaskInstancesBody = {
     include_future?: boolean;
     include_past?: boolean;
     /**
+     * If set to true, clearing tasks that are ExternalTaskMarker instances will also recursively clear the referenced tasks in external DAGs.
+     */
+    include_recursive?: boolean;
+    /**
      * (Experimental) Run on the latest bundle version of the dag after clearing the task instances.
      */
     run_on_latest_version?: boolean;

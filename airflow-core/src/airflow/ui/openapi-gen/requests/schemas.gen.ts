@@ -1373,6 +1373,12 @@ export const $ClearTaskInstancesBody = {
             title: 'Include Past',
             default: false
         },
+        include_recursive: {
+            type: 'boolean',
+            title: 'Include Recursive',
+            description: 'If set to true, clearing tasks that are ExternalTaskMarker instances will also recursively clear the referenced tasks in external DAGs.',
+            default: false
+        },
         run_on_latest_version: {
             type: 'boolean',
             title: 'Run On Latest Version',
