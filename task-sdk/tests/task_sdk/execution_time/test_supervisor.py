@@ -2915,8 +2915,7 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
                 assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
 
 
-@pytest.mark.parametrize("captured_logs", [logging.ERROR], indirect=True)
-def test_log_upload_failures_are_non_fatal(captured_logs, mocker):
+def test_log_upload_failures_are_non_fatal(mocker):
     proc = ActivitySubprocess(
         process_log=mocker.MagicMock(),
         id=TI_ID,
@@ -2927,24 +2926,18 @@ def test_log_upload_failures_are_non_fatal(captured_logs, mocker):
     )
     proc.ti = mocker.MagicMock()
 
-    mocker.patch("airflow.sdk.execution_time.supervisor._remote_logging_conn", return_value=nullcontext())
-    upload_to_remote = mocker.patch(
-        "airflow.sdk.log.upload_to_remote", side_effect=RuntimeError("upload failed")
+    mocker.patch(
+        "airflow.sdk.execution_time.supervisor._remote_logging_conn",
+        side_effect=RuntimeError("upload failed"),
     )
 
     proc._upload_logs()
 
-    upload_to_remote.assert_called_once_with(proc.process_log, proc.ti)
-    assert {
-        "event": "Failed to upload remote logs",
-        "level": "error",
-        "logger": "supervisor",
-        "ti_id": TI_ID,
-        "pid": 12345,
-        "timestamp": mocker.ANY,
-        "loc": mocker.ANY,
-        "exc_info": mocker.ANY,
-    } in captured_logs
+    proc.process_log.exception.assert_called_once_with(
+        "Failed to upload remote logs",
+        ti_id=TI_ID,
+        pid=12345,
+    )
 
 
 def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
