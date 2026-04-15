@@ -78,6 +78,7 @@ def stub(
     python_callable: Callable | None = None,
     queue: str | None = None,
     executor: str | None = None,
+    language: str | None = None,
     **kwargs,
 ) -> TaskDecorator:
     """
@@ -86,11 +87,15 @@ def stub(
     Stub tasks exist in the Dag graph only, but the execution must happen in an external
     environment via the Task Execution Interface.
 
+    :param language: The language runtime that should execute this task (e.g. ``"java"``).
+        When set, the worker routes the task to the matching locale coordinator
+        instead of executing it as Python.
     """
     return task_decorator_factory(
         decorated_operator_class=_StubOperator,
         python_callable=python_callable,
         queue=queue,
         executor=executor,
+        language=language,
         **kwargs,
     )
