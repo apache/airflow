@@ -30,7 +30,7 @@
 - **Run other suites of tests** `breeze testing <test_group>` (test groups: `airflow-ctl-tests`, `docker-compose-tests`, `task-sdk-tests`)
 - **Run scripts tests:** `uv run --project scripts pytest scripts/tests/ -xvs`
 - **Run Airflow CLI:** `breeze run airflow dags list`
-- **Type-check (non-providers):** `uv run --project <PROJECT> --with "apache-airflow-devel-common[mypy]" mypy path/to/code`
+- **Type-check (non-providers):** first run `uv sync --frozen --project <PROJECT>` to align the local virtualenv with `uv.lock` (the dependency set CI uses), then `uv run --frozen --project <PROJECT> --with "apache-airflow-devel-common[mypy]" mypy path/to/code`
 - **Type-check (providers):** `breeze run mypy path/to/code`
 - **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`
 - **Format with ruff only:** `prek run ruff-format --from-ref <target_branch>`
@@ -129,11 +129,12 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Add tests for new behavior — cover success, failure, and edge cases.
 - Use pytest patterns, not `unittest.TestCase`.
 - Use `spec`/`autospec` when mocking.
-- Use `time_machine` for time-dependent tests.
+- Use `time_machine` for time-dependent tests. Do not use `datetime.now()`
 - Use `@pytest.mark.parametrize` for multiple similar inputs.
 - Use `@pytest.mark.db_test` for tests that require database access.
 - Test fixtures: `devel-common/src/tests_common/pytest_plugin.py`.
 - Test location mirrors source: `airflow/cli/cli_parser.py` → `tests/cli/test_cli_parser.py`.
+- Do not use `caplog` in tests, prefer checking logic and not log output.
 
 
 ## Commits and PRs

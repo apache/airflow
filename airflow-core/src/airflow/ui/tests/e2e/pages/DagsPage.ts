@@ -25,7 +25,6 @@ import type { DAGRunResponse } from "openapi/requests/types.gen";
  * Dags Page Object
  */
 export class DagsPage extends BasePage {
-  // Page URLs
   public static get dagsListUrl(): string {
     return "/dags";
   }
@@ -40,7 +39,6 @@ export class DagsPage extends BasePage {
   public readonly runningFilter: Locator;
   public readonly searchBox: Locator;
   public readonly searchInput: Locator;
-  public readonly stateElement: Locator;
   public readonly successFilter: Locator;
   public readonly tableViewButton: Locator;
   public readonly triggerButton: Locator;
@@ -55,16 +53,14 @@ export class DagsPage extends BasePage {
     this.triggerButton = page.getByTestId("trigger-dag-button");
     // Scoped to the dialog so we never accidentally click the page-level trigger.
     this.confirmButton = page.getByRole("dialog").getByRole("button", { name: "Trigger" });
-    this.stateElement = page.getByTestId("dag-run-state");
+
     this.searchBox = page.getByRole("textbox", { name: /search/i });
     this.searchInput = page.getByPlaceholder("Search DAGs");
     this.operatorFilter = page.getByTestId("operator-filter");
     this.triggerRuleFilter = page.getByTestId("trigger-rule-filter");
     this.retriesFilter = page.getByTestId("retries-filter");
-    // View toggle buttons
     this.cardViewButton = page.getByRole("button", { name: "Show card view" });
     this.tableViewButton = page.getByRole("button", { name: "Show table view" });
-    // Status filter buttons
     this.successFilter = page.getByRole("button", { name: "Success" });
     this.failedFilter = page.getByRole("button", { name: "Failed" });
     this.runningFilter = page.getByRole("button", { name: "Running" });
@@ -73,7 +69,6 @@ export class DagsPage extends BasePage {
     this.needsReviewFilter = page.getByTestId("dags-needs-review-filter");
   }
 
-  // URL builders for dynamic paths
   public static getDagDetailUrl(dagName: string): string {
     return `/dags/${dagName}`;
   }
@@ -90,8 +85,10 @@ export class DagsPage extends BasePage {
       .waitForResponse((resp: Response) => resp.url().includes("/api/v2/dags") && resp.status() === 200, {
         timeout: 10_000,
       })
-      .catch(() => {
-        /* API response may be cached */
+      .catch((error: unknown) => {
+        if (error instanceof Error && !error.message.includes("Timeout")) {
+          throw error;
+        }
       });
 
     // Click the clear button instead of programmatically clearing the input.
@@ -129,8 +126,10 @@ export class DagsPage extends BasePage {
       .waitForResponse((resp: Response) => resp.url().includes("/api/v2/dags") && resp.status() === 200, {
         timeout: 10_000,
       })
-      .catch(() => {
-        // Some filters are applied client-side and don't trigger a network request.
+      .catch((error: unknown) => {
+        if (error instanceof Error && !error.message.includes("Timeout")) {
+          throw error;
+        }
       });
 
     await filterMap[status].click();
@@ -142,18 +141,28 @@ export class DagsPage extends BasePage {
   }
 
   /**
+   * Get a locator for a specific Dag link in the list (card or table view).
+   */
+  public getDagLink(dagId: string): Locator {
+    // Card view locator OR table view locator — only one will be visible.
+    return this.page
+      .locator('[data-testid="dag-id"]')
+      .filter({ hasText: dagId })
+      .or(this.page.locator('[data-testid="table-list"] tbody tr td a').filter({ hasText: dagId }));
+  }
+
+  /**
    * Get all Dag links from the list
    */
   public async getDagLinks(): Promise<Array<string>> {
     await this.waitForDagList();
 
-    // Check which view is active
     const cardList = this.page.locator('[data-testid="card-list"]');
     const isCardView = await cardList.isVisible();
 
     const links = isCardView
       ? await this.page.locator('[data-testid="dag-id"]').all()
-      : await this.page.locator('[data-testid="table-list"] tbody tr td:nth-child(2) a').all();
+      : await this.page.getByTestId("table-list").locator('tbody td a[href*="/dags/"]').all();
 
     const hrefs: Array<string> = [];
 
@@ -174,13 +183,12 @@ export class DagsPage extends BasePage {
   public async getDagNames(): Promise<Array<string>> {
     await this.waitForDagList();
 
-    // Check which view is active
     const cardList = this.page.locator('[data-testid="card-list"]');
     const isCardView = await cardList.isVisible();
 
     const dagLinks = isCardView
       ? this.page.locator('[data-testid="dag-id"]')
-      : this.page.locator('[data-testid="table-list"] tbody tr td:nth-child(2) a');
+      : this.page.getByTestId("table-list").locator('tbody td a[href*="/dags/"]');
 
     const texts = await dagLinks.allTextContents();
 
@@ -193,31 +201,38 @@ export class DagsPage extends BasePage {
   public async getDagsCount(): Promise<number> {
     await this.waitForDagList();
 
-    // Check which view is active
     const cardList = this.page.locator('[data-testid="card-list"]');
     const isCardView = await cardList.isVisible();
 
     if (isCardView) {
-      // Card view: count dag-id elements
       return this.page.locator('[data-testid="dag-id"]').count();
     }
 
-    // Table view: count table body rows
-    return this.page.locator('[data-testid="table-list"] tbody tr').count();
+    return this.page.getByTestId("table-list").locator("tbody tr").count();
   }
 
   public async getFilterOptions(filter: Locator): Promise<Array<string>> {
-    await filter.click();
+    const state = await filter.getAttribute("data-state");
+
+    if (state === "open") {
+      await this.page.keyboard.press("Escape");
+      await expect(filter).toHaveAttribute("data-state", "closed", { timeout: 5000 });
+    }
+
+    await expect(async () => {
+      await filter.click({ timeout: 5000 });
+      await expect(filter).toHaveAttribute("data-state", "open", { timeout: 5000 });
+    }).toPass({ intervals: [1000, 2000], timeout: 15_000 });
 
     const controlsId = await filter.getAttribute("aria-controls");
 
     const dropdown =
       controlsId === null
-        ? this.page.locator('div[role="listbox"]').first()
+        ? this.page.locator('div[role="listbox"][data-state="open"]').first()
         : this.page.locator(`[id="${controlsId}"]`);
-
-    await expect(dropdown).toBeVisible({ timeout: 5000 });
     const options = dropdown.locator('div[role="option"]');
+
+    await expect(options.first()).toBeVisible({ timeout: 10_000 });
 
     const count = await options.count();
     const dataValues: Array<string> = [];
@@ -230,12 +245,10 @@ export class DagsPage extends BasePage {
       }
     }
 
-    await this.page.keyboard.press("Escape");
-    // Wait for the dropdown to close. On WebKit, the listbox may stay in the DOM
-    // with data-state="closed", while on other browsers it may be removed entirely.
-    await expect(dropdown)
-      .toBeHidden({ timeout: 5000 })
-      .catch(() => expect(dropdown).toHaveAttribute("data-state", "closed", { timeout: 1000 }));
+    // Click outside to dismiss — Escape is unreliable on WebKit.
+    await this.page.locator("body").click({ position: { x: 0, y: 0 } });
+
+    await expect(dropdown.and(this.page.locator('[data-state="open"]'))).toBeHidden({ timeout: 5000 });
 
     return dataValues;
   }
@@ -244,38 +257,44 @@ export class DagsPage extends BasePage {
    * Navigate to Dags list page
    */
   public async navigate(): Promise<void> {
-    // Set up API listener before navigation
-    const responsePromise = this.page
-      .waitForResponse((resp: Response) => resp.url().includes("/api/v2/dags") && resp.status() === 200, {
-        timeout: 60_000,
-      })
-      .catch(() => {
-        /* API might fail or timeout */
-      });
-
-    await this.navigateTo(DagsPage.dagsListUrl);
-
-    // Wait for initial API response
-    await responsePromise;
-    await this.waitForDagList();
+    await expect(async () => {
+      await this.navigateTo(DagsPage.dagsListUrl);
+      await this.waitForDagList();
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   /**
    * Navigate to Dag detail page
    */
   public async navigateToDagDetail(dagName: string): Promise<void> {
-    await this.navigateTo(DagsPage.getDagDetailUrl(dagName));
+    await expect(async () => {
+      await this.page.goto(DagsPage.getDagDetailUrl(dagName), { waitUntil: "domcontentloaded" });
+
+      const hydrationSignal = this.page
+        .getByRole("heading", { name: dagName })
+        .or(this.page.locator(`[data-testid="dag-name"]:has-text("${dagName}")`))
+        .first();
+
+      await expect(hydrationSignal).toBeVisible({ timeout: 10_000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
+  }
+
+  /**
+   * Navigate to details tab and wait for heading to appear
+   */
+  public async navigateToDagDetails(dagName: string): Promise<void> {
+    await expect(async () => {
+      await this.page.goto(`/dags/${dagName}/details`, { waitUntil: "domcontentloaded" });
+      await expect(this.page.getByRole("heading", { name: dagName })).toBeVisible({ timeout: 30_000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async navigateToDagTasks(dagId: string): Promise<void> {
     await expect(async () => {
-      await this.safeGoto(`/dags/${dagId}/tasks`);
-      await expect(
-        this.page
-          .locator("th")
-          .filter({ hasText: /^Operator$/ })
-          .first(),
-      ).toBeVisible({ timeout: 30_000 });
+      await this.page.goto(`/dags/${dagId}/tasks`, { waitUntil: "domcontentloaded" });
+      await expect(this.page.getByRole("columnheader", { name: "Operator" })).toBeVisible({
+        timeout: 30_000,
+      });
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
@@ -289,8 +308,10 @@ export class DagsPage extends BasePage {
       .waitForResponse((resp: Response) => resp.url().includes("/dags") && resp.status() === 200, {
         timeout: 30_000,
       })
-      .catch(() => {
-        /* API might be cached */
+      .catch((error: unknown) => {
+        if (error instanceof Error && !error.message.includes("Timeout")) {
+          throw error;
+        }
       });
 
     await this.searchInput.fill(searchTerm);
@@ -321,22 +342,20 @@ export class DagsPage extends BasePage {
    * Switch to card view
    */
   public async switchToCardView(): Promise<void> {
-    // Wait for the button to be visible and enabled
     await expect(this.cardViewButton).toBeVisible({ timeout: 30_000 });
     await expect(this.cardViewButton).toBeEnabled({ timeout: 10_000 });
     await this.cardViewButton.click();
-    await this.verifyCardViewVisible();
+    await this.waitForCardView();
   }
 
   /**
    * Switch to table view
    */
   public async switchToTableView(): Promise<void> {
-    // Wait for the button to be visible and enabled
     await expect(this.tableViewButton).toBeVisible({ timeout: 30_000 });
     await expect(this.tableViewButton).toBeEnabled({ timeout: 10_000 });
     await this.tableViewButton.click();
-    await this.verifyTableViewVisible();
+    await this.waitForTableView();
   }
 
   /**
@@ -353,143 +372,59 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Verify card view is visible
+   * Wait for card view to be visible
    */
-  public async verifyCardViewVisible(): Promise<void> {
+  public async waitForCardView(): Promise<void> {
     await expect(this.page.locator('[data-testid="card-list"]')).toBeVisible({ timeout: 10_000 });
   }
 
   /**
-   * Navigate to details tab and verify Dag details are displayed correctly
+   * Wait for DAG list to be rendered (card view, table view, or empty state).
    */
-  public async verifyDagDetails(dagName: string): Promise<void> {
-    await expect(async () => {
-      await this.safeGoto(`/dags/${dagName}/details`, { waitUntil: "domcontentloaded" });
-      await expect(this.page.getByRole("heading", { name: dagName })).toBeVisible({ timeout: 30_000 });
-    }).toPass({ intervals: [2000], timeout: 60_000 });
+  public async waitForDagList(): Promise<void> {
+    // Wait for actual rendered content — not skeletons, not bare table rows.
+    // Card view: dag-id links only render after data loads.
+    const dagCard = this.page.locator('[data-testid="dag-id"]').first();
+    const dagLink = this.page.locator('tbody td a[href*="/dags/"]').first();
+    const noDagFound = this.page.getByText(/no dag/i);
+
+    await expect(dagCard.or(dagLink).or(noDagFound)).toBeVisible({ timeout: 60_000 });
   }
 
   /**
-   * Verify if a specific Dag exists in the list
+   * Wait for table view to be visible
    */
-  public async verifyDagExists(dagId: string): Promise<void> {
-    await this.waitForDagList();
-
-    // Check which view is active
-    const cardList = this.page.locator('[data-testid="card-list"]');
-    const isCardView = await cardList.isVisible();
-
-    const dagLink = isCardView
-      ? this.page.locator('[data-testid="dag-id"]').filter({ hasText: dagId })
-      : this.page.locator('[data-testid="table-list"] tbody tr td a').filter({ hasText: dagId });
-
-    await expect(dagLink).toBeVisible({ timeout: 10_000 });
-  }
-
-  public async verifyDagRunStatus(dagName: string, dagRunId: string | null): Promise<void> {
-    if (dagRunId === null || dagRunId === "") {
-      return;
-    }
-
-    await this.safeGoto(DagsPage.getDagRunDetailsUrl(dagName, dagRunId), {
-      timeout: 15_000,
-      waitUntil: "domcontentloaded",
-    });
-
-    await expect
-      .poll(
-        async () => {
-          await expect(this.stateElement).toBeVisible({ timeout: 30_000 });
-
-          const status = await this.getCurrentDagRunStatus();
-
-          if (status === "failed") {
-            throw new Error(`Dag run failed: ${dagRunId}`);
-          }
-
-          if (status !== "success") {
-            await this.page.reload({ waitUntil: "domcontentloaded" });
-          }
-
-          return status;
-        },
-        {
-          intervals: [10_000],
-          message: `Dag run did not complete within the allowed time: ${dagRunId}`,
-          timeout: 7 * 60 * 1000,
-        },
-      )
-      .toBe("success");
-  }
-
-  /**
-   * Verify that the Dags list is visible
-   */
-  public async verifyDagsListVisible(): Promise<void> {
-    await this.waitForDagList();
-  }
-
-  /**
-   * Verify table view is visible
-   */
-  public async verifyTableViewVisible(): Promise<void> {
+  public async waitForTableView(): Promise<void> {
     await expect(this.page.locator("table")).toBeVisible({ timeout: 10_000 });
   }
 
-  private async getCurrentDagRunStatus(): Promise<string> {
-    try {
-      const statusText = await this.stateElement.textContent().catch(() => "");
-      const status = statusText?.trim() ?? "";
-
-      switch (status) {
-        case "Failed":
-          return "failed";
-        case "Queued":
-          return "queued";
-        case "Running":
-          return "running";
-        case "Success":
-          return "success";
-        default:
-          return "unknown";
-      }
-    } catch {
-      return "unknown";
-    }
-  }
-
   private async handleTriggerDialog(): Promise<string | null> {
-    const responsePromise = this.page
-      .waitForResponse(
-        (response: Response) => {
-          const url = response.url();
-          const method = response.request().method();
-
-          return (
-            method === "POST" && Boolean(url.includes("dagRuns")) && Boolean(!url.includes("hitlDetails"))
-          );
-        },
-        { timeout: 10_000 },
-      )
-      .catch(() => undefined);
-
     await expect(this.confirmButton).toBeVisible({ timeout: 8000 });
     await expect(this.confirmButton).toBeEnabled({ timeout: 10_000 });
+
+    const responsePromise = this.page.waitForResponse(
+      (response: Response) => {
+        const url = response.url();
+        const method = response.request().method();
+
+        return method === "POST" && Boolean(url.includes("dagRuns")) && Boolean(!url.includes("hitlDetails"));
+      },
+      { timeout: 30_000 },
+    );
+
     await this.confirmButton.click();
 
     const apiResponse = await responsePromise;
 
-    if (apiResponse) {
-      try {
-        const responseBody = await apiResponse.text();
-        const responseJson = JSON.parse(responseBody) as DAGRunResponse;
+    try {
+      const responseBody = await apiResponse.text();
+      const responseJson = JSON.parse(responseBody) as DAGRunResponse;
 
-        if (Boolean(responseJson.dag_run_id)) {
-          return responseJson.dag_run_id;
-        }
-      } catch {
-        // Response parsing failed
+      if (Boolean(responseJson.dag_run_id)) {
+        return responseJson.dag_run_id;
       }
+    } catch {
+      // Response parsing failed — return null so caller can handle.
     }
 
     // eslint-disable-next-line unicorn/no-null
@@ -497,65 +432,28 @@ export class DagsPage extends BasePage {
   }
 
   private async selectDropdownOption(filter: Locator, value: string): Promise<void> {
-    await filter.click();
+    await expect(async () => {
+      // Dismiss any open dropdown/overlay before clicking the target filter.
+      const currentState = await filter.getAttribute("data-state");
 
-    const option = this.page.locator(`div[role="option"][data-value="${value}"]`);
-
-    await expect(option).toBeVisible({ timeout: 5000 });
-    await option.click();
-
-    // Ensure the dropdown closes after selection. Chakra Select may not auto-close
-    // reliably across browsers, so press Escape as a fallback.
-    const listbox = this.page.locator('div[role="listbox"]');
-
-    await expect(listbox)
-      .toBeHidden({ timeout: 5000 })
-      .catch(async () => {
+      if (currentState === "open") {
         await this.page.keyboard.press("Escape");
         await expect(filter).toHaveAttribute("data-state", "closed", { timeout: 5000 });
-      });
-  }
+      }
 
-  /**
-   * Wait for DAG list to be rendered
-   */
-  private async waitForDagList(): Promise<void> {
-    // Define multiple possible UI states: Card View, Table View, or Empty State.
-    // Use regex (/no dag/i) to handle case and singular/plural variations
-    // (e.g. "No Dag found", "No Dags found", "NO DAG FOUND").
-    const cardList = this.page.locator('[data-testid="card-list"]');
-    const tableList = this.page.locator('[data-testid="table-list"]');
-    const noDagFound = this.page.getByText(/no dag/i);
-    const fallbackTable = this.page.locator("table");
+      await filter.click({ timeout: 5000 });
+      await expect(filter).toHaveAttribute("data-state", "open", { timeout: 5000 });
 
-    // Wait for any of these elements to appear
-    await expect(cardList.or(tableList).or(noDagFound).or(fallbackTable)).toBeVisible({
-      timeout: 30_000,
-    });
+      const option = this.page.locator(`div[role="option"][data-value="${value}"]`);
 
-    // If empty state is shown, consider the list as successfully rendered
-    if (await noDagFound.isVisible().catch(() => false)) {
-      return;
-    }
+      await expect(option).toBeVisible({ timeout: 5000 });
+      await option.click();
 
-    // Wait for loading to complete (skeletons to disappear)
-    const skeleton = this.page.locator('[data-testid="skeleton"]');
+      if ((await filter.getAttribute("aria-expanded")) === "true") {
+        await this.page.keyboard.press("Escape");
+      }
 
-    await expect(skeleton).toHaveCount(0, { timeout: 30_000 });
-
-    // Now wait for actual DAG content based on current view
-    const isCardView = await cardList.isVisible().catch(() => false);
-
-    if (isCardView) {
-      // Card view: wait for dag-id elements
-      await expect(this.page.locator('[data-testid="dag-id"]').first()).toBeVisible({ timeout: 30_000 });
-    } else {
-      // Table view: prefer table-list testid, fallback to any <table> element
-      const rowsInTableList = tableList.locator("tbody tr");
-
-      await ((await rowsInTableList.count().catch(() => 0)) > 0
-        ? expect(rowsInTableList.first()).toBeVisible({ timeout: 30_000 })
-        : expect(fallbackTable.locator("tbody tr").first()).toBeVisible({ timeout: 30_000 }));
-    }
+      await expect(filter).toHaveAttribute("data-state", "closed", { timeout: 5000 });
+    }).toPass({ intervals: [1000, 2000], timeout: 30_000 });
   }
 }

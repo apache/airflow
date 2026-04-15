@@ -16,65 +16,71 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from "@playwright/test";
 import { testConfig } from "playwright.config";
-import { DagsPage } from "tests/e2e/pages/DagsPage";
+import { expect, test } from "tests/e2e/fixtures";
+import { apiDeleteDagRun, waitForDagRunStatus } from "tests/e2e/utils/test-helpers";
 
 test.describe("Dag Trigger Workflow", () => {
-  let dagsPage: DagsPage;
   const testDagId = testConfig.testDag.id;
 
-  test.beforeEach(({ page }) => {
-    dagsPage = new DagsPage(page);
-  });
-
-  test.fixme("should successfully trigger a Dag run", async () => {
-    test.setTimeout(7 * 60 * 1000);
+  test("should successfully trigger a Dag run", async ({
+    authenticatedRequest,
+    dagReady: _ready,
+    dagsPage,
+    page,
+  }) => {
+    test.slow();
 
     const dagRunId = await dagsPage.triggerDag(testDagId);
 
-    if (Boolean(dagRunId)) {
-      await dagsPage.verifyDagRunStatus(testDagId, dagRunId);
+    expect(dagRunId).toBeTruthy();
+
+    if (dagRunId !== null) {
+      await waitForDagRunStatus(authenticatedRequest, {
+        dagId: testDagId,
+        expectedState: "success",
+        runId: dagRunId,
+        timeout: 120_000,
+      });
+
+      await page.goto(`/dags/${testDagId}/runs/${dagRunId}`);
+      const stateBadge = page.getByTestId("state-badge").first();
+
+      await expect(stateBadge).toContainText("Success", { timeout: 30_000 });
+
+      await apiDeleteDagRun(authenticatedRequest, testDagId, dagRunId).catch(() => undefined);
     }
   });
 });
 
 test.describe("Dag Details Tab", () => {
-  let dagsPage: DagsPage;
-
   const testDagId = testConfig.testDag.id;
 
-  test.beforeEach(({ page }) => {
-    dagsPage = new DagsPage(page);
-  });
-
-  test.fixme("should successfully verify details tab", async () => {
-    test.setTimeout(120_000);
-    await dagsPage.verifyDagDetails(testDagId);
+  test("should successfully verify details tab", async ({ dagReady: _ready, dagsPage }) => {
+    test.slow();
+    await dagsPage.navigateToDagDetails(testDagId);
   });
 });
 
 test.describe("Dags List Display", () => {
-  let dagsPage: DagsPage;
+  // dagReady is triggered once per worker via beforeEach.
+  // eslint-disable-next-line @typescript-eslint/no-empty-function -- triggers worker-scoped data fixture
+  test.beforeEach(async ({ dagReady: _ready }) => {});
 
-  test.beforeEach(({ page }) => {
-    dagsPage = new DagsPage(page);
-  });
-
-  test("should display Dags list after successful login", async () => {
-    test.setTimeout(120_000);
+  test("should display Dags list after successful login", async ({ dagsPage }) => {
+    test.slow();
     await dagsPage.navigate();
-    await dagsPage.verifyDagsListVisible();
+    await dagsPage.waitForDagList();
 
     const dagsCount = await dagsPage.getDagsCount();
 
     expect(dagsCount).toBeGreaterThan(0);
   });
 
-  test("should display Dag links correctly", async () => {
-    test.setTimeout(120_000);
+  test("should display Dag links correctly", async ({ dagsPage }) => {
+    test.slow();
     await dagsPage.navigate();
-    await dagsPage.verifyDagsListVisible();
+    await dagsPage.waitForDagList();
 
     const dagLinks = await dagsPage.getDagLinks();
 
@@ -85,37 +91,31 @@ test.describe("Dags List Display", () => {
     }
   });
 
-  test("should display test Dag in the list", async () => {
-    test.setTimeout(120_000);
+  test("should display test Dag in the list", async ({ dagsPage }) => {
+    test.slow();
     const testDagId = testConfig.testDag.id;
 
     await dagsPage.navigate();
-    await dagsPage.verifyDagsListVisible();
-    await dagsPage.verifyDagExists(testDagId);
+    await dagsPage.waitForDagList();
+    await expect(dagsPage.getDagLink(testDagId)).toBeVisible();
   });
 });
 
 test.describe("Dags View Toggle", () => {
-  let dagsPage: DagsPage;
-
-  test.beforeEach(({ page }) => {
-    dagsPage = new DagsPage(page);
-  });
-
-  test("should toggle between card view and table view", async () => {
-    test.setTimeout(120_000);
+  test("should toggle between card view and table view", async ({ dagsPage }) => {
+    test.slow();
     await dagsPage.navigate();
-    await dagsPage.verifyDagsListVisible();
+    await dagsPage.waitForDagList();
 
     await dagsPage.switchToCardView();
-    await dagsPage.verifyCardViewVisible();
+    await dagsPage.waitForCardView();
 
     const cardViewDagsCount = await dagsPage.getDagsCount();
 
     expect(cardViewDagsCount).toBeGreaterThan(0);
 
     await dagsPage.switchToTableView();
-    await dagsPage.verifyTableViewVisible();
+    await dagsPage.waitForTableView();
 
     const tableViewDagsCount = await dagsPage.getDagsCount();
 
@@ -124,28 +124,22 @@ test.describe("Dags View Toggle", () => {
 });
 
 test.describe("Dags Search", () => {
-  let dagsPage: DagsPage;
-
   const testDagId = testConfig.testDag.id;
 
-  test.beforeEach(({ page }) => {
-    dagsPage = new DagsPage(page);
-  });
-
-  test.fixme("should search for a Dag by name", async () => {
-    test.setTimeout(120_000);
+  test("should search for a Dag by name", async ({ dagsPage }) => {
+    test.slow();
     await dagsPage.navigate();
-    await dagsPage.verifyDagsListVisible();
+    await dagsPage.waitForDagList();
 
     const initialCount = await dagsPage.getDagsCount();
 
     expect(initialCount).toBeGreaterThan(0);
 
     await dagsPage.searchDag(testDagId);
-    await dagsPage.verifyDagExists(testDagId);
+    await expect(dagsPage.getDagLink(testDagId)).toBeVisible();
     await dagsPage.clearSearch();
 
-    await dagsPage.verifyDagsListVisible();
+    await dagsPage.waitForDagList();
 
     await expect
       .poll(async () => dagsPage.getDagsCount(), {
@@ -157,16 +151,10 @@ test.describe("Dags Search", () => {
 });
 
 test.describe("Dags Status Filtering", () => {
-  let dagsPage: DagsPage;
-
-  test.beforeEach(({ page }) => {
-    dagsPage = new DagsPage(page);
-  });
-
-  test("should display status filter buttons", async () => {
-    test.setTimeout(7 * 60 * 1000);
+  test("should display status filter buttons", async ({ dagsPage }) => {
+    test.slow();
     await dagsPage.navigate();
-    await dagsPage.verifyDagsListVisible();
+    await dagsPage.waitForDagList();
 
     await expect(dagsPage.successFilter).toBeVisible();
     await expect(dagsPage.failedFilter).toBeVisible();
@@ -174,9 +162,9 @@ test.describe("Dags Status Filtering", () => {
     await expect(dagsPage.queuedFilter).toBeVisible();
 
     await dagsPage.filterByStatus("success");
-    await dagsPage.verifyDagsListVisible();
+    await dagsPage.waitForDagList();
 
     await dagsPage.filterByStatus("failed");
-    await dagsPage.verifyDagsListVisible();
+    await dagsPage.waitForDagList();
   });
 });

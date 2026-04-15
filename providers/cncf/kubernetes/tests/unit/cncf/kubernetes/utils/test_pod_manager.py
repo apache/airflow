@@ -1080,6 +1080,36 @@ class TestPodManager:
         assert mock_sleep.call_count == 1
 
     @mock.patch("time.sleep")
+    def test_await_pod_completion_breaks_on_xcom_sidecar_container_completed(self, mock_sleep, pod_factory):
+        """When do_xcom_push=True and base container has completed, stop waiting even if pod is still Running."""
+        running1 = pod_factory(pod_phase=PodPhase.RUNNING, container_name="base", terminated=False)
+        running2 = pod_factory(pod_phase=PodPhase.RUNNING, container_name="base", terminated=True)
+
+        self.pod_manager.read_pod = mock.MagicMock(side_effect=[running1, running2])
+
+        result = self.pod_manager.await_pod_completion(
+            pod=mock.MagicMock(), istio_enabled=False, container_name="base", do_xcom_push=True
+        )
+
+        assert result is running2
+        assert mock_sleep.call_count == 1
+
+    @mock.patch("time.sleep")
+    def test_await_pod_completion_waits_for_pod_phase_without_sidecars(self, mock_sleep, pod_factory):
+        """Without istio or xcom sidecar, await_pod_completion waits for terminal pod phase."""
+        running1 = pod_factory(pod_phase=PodPhase.RUNNING, container_name="base", terminated=True)
+        succeeded = pod_factory(pod_phase=PodPhase.SUCCEEDED, container_name="base", terminated=True)
+
+        self.pod_manager.read_pod = mock.MagicMock(side_effect=[running1, succeeded])
+
+        result = self.pod_manager.await_pod_completion(
+            pod=mock.MagicMock(), istio_enabled=False, container_name="base", do_xcom_push=False
+        )
+
+        assert result is succeeded
+        assert mock_sleep.call_count == 1
+
+    @mock.patch("time.sleep")
     def test_await_pod_completion_breaks_on_early_termination_issue(self, mock_sleep, pod_factory):
         running1 = pod_factory(pod_phase=PodPhase.PENDING, container_name="base")
         running2 = pod_factory(

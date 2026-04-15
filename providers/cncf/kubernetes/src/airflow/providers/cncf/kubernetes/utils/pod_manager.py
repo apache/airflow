@@ -741,7 +741,11 @@ class PodManager(LoggingMixin):
             time.sleep(polling_time)
 
     def await_pod_completion(
-        self, pod: V1Pod, istio_enabled: bool = False, container_name: str = "base"
+        self,
+        pod: V1Pod,
+        istio_enabled: bool = False,
+        container_name: str = "base",
+        do_xcom_push: bool = False,
     ) -> V1Pod:
         """
         Monitor a pod and return the final state.
@@ -749,13 +753,21 @@ class PodManager(LoggingMixin):
         :param istio_enabled: whether istio is enabled in the namespace
         :param pod: pod spec that will be monitored
         :param container_name: name of the container within the pod
-        :return: tuple[State, str | None]
+        :param do_xcom_push: whether to push XComs
+        :return: V1Pod
         """
         while True:
             remote_pod = self.read_pod(pod)
             if remote_pod.status.phase in PodPhase.terminal_states:
                 break
-            if istio_enabled and container_is_completed(remote_pod, container_name):
+            if (istio_enabled or do_xcom_push) and container_is_completed(remote_pod, container_name):
+                self.log.info(
+                    "Container '%s' completed but pod %s still has phase %s "
+                    "(likely due to a sidecar container). Skipping waiting for pod completion.",
+                    container_name,
+                    pod.metadata.name,
+                    remote_pod.status.phase,
+                )
                 break
             # abort waiting if defined issues are detected
             if detect_pod_terminate_early_issues(remote_pod):
