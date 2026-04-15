@@ -34,6 +34,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections, clear_db_logs, clear_test_connections
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
@@ -168,6 +169,19 @@ class TestGetConnection(TestConnectionEndpoint):
         assert body["conn_type"] == TEST_CONN_TYPE
         assert body["extra"] == '{"extra_key": "extra_value"}'
 
+    @pytest.mark.parametrize("extra_value", [None, ""])
+    def test_get_should_respond_200_with_empty_extra(self, test_client, session, extra_value):
+        """Empty string or NULL extra should not break serialization (regression test for #64950)."""
+        self.create_connection()
+        connection = session.scalars(select(Connection)).first()
+        connection.extra = extra_value
+        session.commit()
+        response = test_client.get(f"/connections/{TEST_CONN_ID}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["connection_id"] == TEST_CONN_ID
+        assert body["extra"] == extra_value
+
     @pytest.mark.enable_redact
     def test_get_should_respond_200_with_extra_redacted(self, test_client, session):
         self.create_connection()
@@ -286,10 +300,15 @@ class TestPostConnection(TestConnectionEndpoint):
         assert len(connection) == 1
         _check_last_log(session, dag_id=None, event="post_connection", logical_date=None)
 
+    @conf_vars({("core", "multi_team"): "True"})
     def test_post_should_respond_201_with_team(self, test_client, session, testing_team):
         response = test_client.post(
             "/connections",
-            json={"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "team_name": testing_team.name},
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "team_name": testing_team.name,
+            },
         )
         assert response.status_code == 201
         assert response.json() == {
@@ -337,6 +356,22 @@ class TestPostConnection(TestConnectionEndpoint):
                 }
             ]
         }
+
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_post_rejects_team_name_when_multi_team_disabled(self, test_client):
+        response = test_client.post(
+            "/connections",
+            json={
+                "connection_id": TEST_CONN_ID_2,
+                "conn_type": TEST_CONN_TYPE_2,
+                "team_name": "test_team",
+            },
+        )
+        assert response.status_code == 422
+        assert (
+            "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            in response.json()["detail"][0]["msg"]
+        )
 
     @pytest.mark.parametrize(
         "body",
@@ -602,6 +637,7 @@ class TestPatchConnection(TestConnectionEndpoint):
 
         assert response.json() == expected_result
 
+    @conf_vars({("core", "multi_team"): "True"})
     def test_patch_with_team_should_respond_200(self, test_client, testing_team, session):
         self.create_connection()
 
@@ -965,6 +1001,23 @@ class TestPatchConnection(TestConnectionEndpoint):
             params={"update_mask": ["host"]},
         )
         assert response.status_code == 422
+
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_patch_rejects_team_name_when_multi_team_disabled(self, test_client):
+        self.create_connection()
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID_2}",
+            json={
+                "connection_id": TEST_CONN_ID_2,
+                "conn_type": "new_type",
+                "team_name": "test_team",
+            },
+        )
+        assert response.status_code == 422
+        assert (
+            "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            in response.json()["detail"][0]["msg"]
+        )
 
 
 class TestConnection(TestConnectionEndpoint):
@@ -1615,6 +1668,57 @@ class TestBulkConnections(TestConnectionEndpoint):
             service.handle_bulk_delete(request.actions[0], results)
 
         assert sorted(results.success) == [TEST_CONN_ID, TEST_CONN_ID_2]
+
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_bulk_rejects_team_name_when_multi_team_is_disabled(self, test_client):
+        actions = {
+            "actions": [
+                {
+                    "action": "create",
+                    "entities": [
+                        {
+                            "connection_id": "test_conn_id_1",
+                            "conn_type": TEST_CONN_TYPE,
+                            "description": "description",
+                        },
+                        {
+                            "connection_id": "test_conn_id_2",
+                            "conn_type": TEST_CONN_TYPE_2,
+                            "description": "description_2",
+                            "team_name": "test_team",
+                        },
+                    ],
+                },
+                {
+                    "action": "update",
+                    "entities": [
+                        {
+                            "connection_id": "test_conn_id_3",
+                            "conn_type": TEST_CONN_TYPE,
+                            "description": "updated_description",
+                            "team_name": "test_team",
+                        },
+                        {
+                            "connection_id": "test_conn_id_4",
+                            "conn_type": TEST_CONN_TYPE_2,
+                            "description": "updated_description_2",
+                        },
+                    ],
+                },
+            ]
+        }
+        response = test_client.patch("/connections", json=actions)
+        assert response.status_code == 422
+        detail = response.json()["detail"]
+
+        assert all(
+            "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            in err["msg"]
+            for err in detail
+        ), f"Unexpected errors in detail: {detail}"
+
+        expected_error_conn_ids = {err["input"]["connection_id"] for err in detail}
+        assert sorted(expected_error_conn_ids) == ["test_conn_id_2", "test_conn_id_3"]
 
 
 class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):

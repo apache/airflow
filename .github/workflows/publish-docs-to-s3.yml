@@ -167,13 +167,21 @@ jobs:
              echo "airflow-base-version=no-airflow" >> ${GITHUB_OUTPUT}
           fi
           # Extract provider IDs for registry update
-          # include-docs contains package names like "apache-airflow-providers-amazon"
-          # Strip the "apache-airflow-providers-" prefix to get provider IDs
+          # include-docs contains short names like "amazon", "common.ai", "openlineage"
+          # or full package names like "apache-airflow-providers-amazon"
           REGISTRY_PROVIDERS=""
           for pkg in ${INCLUDE_DOCS}; do
             case "${pkg}" in
               apache-airflow-providers-*)
                 PROVIDER_ID="${pkg#apache-airflow-providers-}"
+                REGISTRY_PROVIDERS="${REGISTRY_PROVIDERS:+${REGISTRY_PROVIDERS} }${PROVIDER_ID}"
+                ;;
+              apache-airflow|all-providers|apache-airflow-providers|helm-chart|docker-stack)
+                # Not a provider package, skip
+                ;;
+              *)
+                # Short name like "amazon" or "common.ai" -- convert dots to hyphens
+                PROVIDER_ID="${pkg//./-}"
                 REGISTRY_PROVIDERS="${REGISTRY_PROVIDERS:+${REGISTRY_PROVIDERS} }${PROVIDER_ID}"
                 ;;
             esac

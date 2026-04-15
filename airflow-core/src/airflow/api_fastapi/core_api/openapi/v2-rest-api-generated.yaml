@@ -10244,6 +10244,9 @@ components:
         timetable_partitioned:
           type: boolean
           title: Timetable Partitioned
+        timetable_periodic:
+          type: boolean
+          title: Timetable Periodic
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -10387,6 +10390,11 @@ components:
           type: integer
           title: Active Runs Count
           default: 0
+        is_backfillable:
+          type: boolean
+          title: Is Backfillable
+          description: Whether this DAG's schedule supports backfilling.
+          readOnly: true
         file_token:
           type: string
           title: File Token
@@ -10424,6 +10432,7 @@ components:
       - timetable_summary
       - timetable_description
       - timetable_partitioned
+      - timetable_periodic
       - tags
       - max_active_tasks
       - max_active_runs
@@ -10449,6 +10458,7 @@ components:
       - timezone
       - last_parsed
       - default_args
+      - is_backfillable
       - file_token
       - concurrency
       - latest_dag_version
@@ -10532,6 +10542,9 @@ components:
         timetable_partitioned:
           type: boolean
           title: Timetable Partitioned
+        timetable_periodic:
+          type: boolean
+          title: Timetable Periodic
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -10590,6 +10603,11 @@ components:
             type: string
           type: array
           title: Owners
+        is_backfillable:
+          type: boolean
+          title: Is Backfillable
+          description: Whether this DAG's schedule supports backfilling.
+          readOnly: true
         file_token:
           type: string
           title: File Token
@@ -10612,6 +10630,7 @@ components:
       - timetable_summary
       - timetable_description
       - timetable_partitioned
+      - timetable_periodic
       - tags
       - max_active_tasks
       - max_active_runs
@@ -10624,6 +10643,7 @@ components:
       - next_dagrun_run_after
       - allowed_run_types
       - owners
+      - is_backfillable
       - file_token
       title: DAGResponse
       description: DAG serializer for responses.

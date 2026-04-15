@@ -98,9 +98,7 @@ async function cleanupMultipleRuns(
   request: APIRequestContext,
   runs: Array<{ dagId: string; runId: string }>,
 ): Promise<void> {
-  for (const { dagId, runId } of runs) {
-    await safeCleanupDagRun(request, dagId, runId);
-  }
+  await Promise.all(runs.map(({ dagId, runId }) => safeCleanupDagRun(request, dagId, runId)));
 }
 
 export const test = base.extend<DataTestFixtures, DataWorkerFixtures>({
