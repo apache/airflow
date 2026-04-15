@@ -2889,6 +2889,31 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
                 assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
 
 
+def test_log_upload_failures_are_non_fatal(mocker):
+    proc = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=mocker.MagicMock(),
+        client=mocker.MagicMock(),
+        process=mocker.MagicMock(),
+    )
+    proc.ti = mocker.MagicMock()
+
+    mocker.patch(
+        "airflow.sdk.execution_time.supervisor._remote_logging_conn",
+        side_effect=RuntimeError("upload failed"),
+    )
+
+    proc._upload_logs()
+
+    proc.process_log.exception.assert_called_once_with(
+        "Failed to upload remote logs",
+        ti_id=TI_ID,
+        pid=12345,
+    )
+
+
 def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
     """
     Test that _remote_logging_conn sets _AIRFLOW_PROCESS_CONTEXT=client.
