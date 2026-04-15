@@ -994,10 +994,10 @@ class TestDagRun:
         assert (upstream.task_id in schedulable_tis) == is_ti_schedulable
 
     def test_get_running_dag_runs_ignores_new_dagruns_to_examine_when_smaller_than_0(
-        self, session, dag_maker
+        self, session, dag_maker, monkeypatch
     ):
 
-        DagRun.DEFAULT_NEW_DAGRUNS_TO_EXAMINE = 0
+        monkeypatch.setattr(DagRun, "DEFAULT_NEW_DAGRUNS_TO_EXAMINE", 0)
 
         def create_dagruns(
             last_scheduling_decision: datetime.datetime | None = None,
