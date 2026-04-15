@@ -99,6 +99,7 @@ with DAG(
 
     wait_for_go_job_async_done = DataflowJobStatusSensor(
         task_id="wait_for_go_job_async_done",
+        # verbose form: "{{ task_instance.xcom_pull('start_go_pipeline_dataflow_runner')['dataflow_job_id'] }}"
         job_id="{{start_go_pipeline_dataflow_runner.output['dataflow_job_id']}}",
         expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
         location=LOCATION,

@@ -303,6 +303,7 @@ with DAG(
     # [START howto_operator_dms_serverless_start_replication]
     replicate = DmsStartReplicationOperator(
         task_id="replicate",
+        # verbose form: "{{ task_instance.xcom_pull(task_ids='create_replication_config', key='return_value') }}"
         replication_config_arn=create_replication_config.output,
         replication_start_type="start-replication",
         wait_for_completion=True,
@@ -314,6 +315,7 @@ with DAG(
     # [START howto_operator_dms_serverless_stop_replication]
     stop_replication = DmsStopReplicationOperator(
         task_id="stop_replication",
+        # verbose form: "{{ task_instance.xcom_pull(task_ids='create_replication_config', key='return_value') }}"
         replication_config_arn=create_replication_config.output,
         wait_for_completion=True,
         waiter_delay=120,
@@ -326,6 +328,7 @@ with DAG(
     delete_replication_config = DmsDeleteReplicationConfigOperator(
         task_id="delete_replication_config",
         waiter_max_attempts=200,
+        # verbose form: "{{ task_instance.xcom_pull(task_ids='create_replication_config', key='return_value') }}"
         replication_config_arn=create_replication_config.output,
     )
     # [END howto_operator_dms_serverless_delete_replication_config]

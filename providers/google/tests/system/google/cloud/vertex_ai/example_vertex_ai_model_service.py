@@ -111,6 +111,7 @@ MODEL_OUTPUT_CONFIG = {
 MODEL_SERVING_CONTAINER_URI = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-2:latest"
 MODEL_OBJ = {
     "display_name": f"model-{ENV_ID}",
+    # verbose form: "{{ ti.xcom_pull('custom_task')['artifactUri'] }}"
     "artifact_uri": "{{custom_task.output['artifactUri']}}",
     "container_spec": {
         "image_uri": MODEL_SERVING_CONTAINER_URI,
@@ -124,6 +125,7 @@ MODEL_OBJ = {
 }
 MODEL_OBJ_V2 = {
     "display_name": f"model-{ENV_ID}-v2",
+    # verbose form: "{{ ti.xcom_pull('custom_task')['artifactUri'] }}"
     "artifact_uri": "{{custom_task.output['artifactUri']}}",
     "container_spec": {
         "image_uri": MODEL_SERVING_CONTAINER_URI,

@@ -128,6 +128,7 @@ with DAG(
 
     # [START howto_operator_vision_detect_text_result]
     detect_text_result = BashOperator(
+        # verbose form: "{{ task_instance.xcom_pull('detect_text')['textAnnotations'] }}"
         bash_command="echo {{ detect_text.output['textAnnotations'][0] }}",
         task_id="detect_text_result",
     )

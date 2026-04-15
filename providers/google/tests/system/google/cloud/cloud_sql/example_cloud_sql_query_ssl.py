@@ -422,6 +422,7 @@ with DAG(
         )
 
         task_id = f"example_cloud_sql_query_ssl_{database_type}"
+        # verbose form: "{{ task_instance.xcom_pull('save_ssl_cert_locally_{database_type}')['sslkey'] }}"
         ssl_server_cert_path = f"{{{{ save_ssl_cert_locally_{database_type}.output['sslrootcert'] }}}}"
         ssl_cert_path = f"{{{{ save_ssl_cert_locally_{database_type}.output['sslcert'] }}}}"
         ssl_key_path = f"{{{{ save_ssl_cert_locally_{database_type}.output['sslkey'] }}}}"

@@ -100,6 +100,7 @@ with DAG(
     # [START howto_sensor_wait_for_job_status]
     wait_for_python_job_async_done = DataflowJobStatusSensor(
         task_id="wait_for_python_job_async_done",
+        # verbose form: "{{ task_instance.xcom_pull('start_python_job_async')['dataflow_job_id'] }}"
         job_id="{{start_python_job_async.output['dataflow_job_id']}}",
         expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
         location=LOCATION,

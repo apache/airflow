@@ -141,6 +141,7 @@ with DAG(
     # [START howto_operator_gcp_transfer_update_job]
     update_transfer = CloudDataTransferServiceUpdateJobOperator(
         task_id="update_transfer",
+        # verbose form: "{{ task_instance.xcom_pull('create_transfer')['name'] }}"
         job_name="{{create_transfer.output['name']}}",
         body=update_body,
     )

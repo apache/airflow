@@ -76,8 +76,11 @@ IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 GOOGLE_ANALYTICS_ACCOUNT_SECRET_ID = "google_analytics_account_id"
 GOOGLE_ADS_PROPERTY_SECRET_ID = "google_ads_property_id"
+# verbose form: "{{ task_instance.xcom_pull('create_property')['name'].split('/')[-1] }}"
 PROPERTY_ID = "{{ create_property.output['name'].split('/')[-1] }}"
+# verbose form: "{{ task_instance.xcom_pull('create_data_stream')['name'].split('/')[-1] }}"
 DATA_STREAM_ID = "{{ create_data_stream.output['name'].split('/')[-1] }}"
+# verbose form: "{{ task_instance.xcom_pull('list_google_ads_links')[0]['name'].split('/')[-1] }}"
 GA_ADS_LINK_ID = "{{ list_google_ads_links.output[0]['name'].split('/')[-1] }}"
 
 log = logging.getLogger(__name__)

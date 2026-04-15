@@ -110,7 +110,7 @@ with DAG(
 
     stop_server = BashOperator(
         task_id="stop_simple_http_server",
-        bash_command='kill {{ti.xcom_pull(task_ids="start_server")}}',
+        bash_command='kill {{ ti.xcom_pull(task_ids="start_server") }}',
         trigger_rule=TriggerRule.ALL_DONE,
     )
 

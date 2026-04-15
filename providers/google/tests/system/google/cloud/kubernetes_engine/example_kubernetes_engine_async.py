@@ -107,8 +107,10 @@ with DAG(
         task_id="pod_task_xcom_result",
         bash_command="""
         {% if params.airflow_v3 %}
+        # verbose form: "{{ task_instance.xcom_pull('pod_task_xcom_async') }}"
         echo "{{ pod_task_xcom_async.output }}"
         {% else %}
+        # verbose form: "{{ task_instance.xcom_pull('pod_task_xcom_async')[0] }}"
         echo "{{ pod_task_xcom_async.output[0] }}"
         {% endif %}
         """,

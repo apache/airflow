@@ -102,6 +102,7 @@ with DAG(
     upload_gcs_to_sheet = GCSToGoogleSheetsOperator(
         task_id="upload_gcs_to_sheet",
         bucket_name=BUCKET_NAME,
+        # verbose form: "{{ task_instance.xcom_pull('upload_sheet_to_gcs')[0] }}"
         object_name="{{ upload_sheet_to_gcs.output[0] }}",
         spreadsheet_id="{{ task_instance.xcom_pull(task_ids='create_spreadsheet', key='spreadsheet_id') }}",
         gcp_conn_id=CONNECTION_ID,

@@ -171,6 +171,7 @@ with DAG(
     wait_for_sync = FeatureViewSyncSensor(
         task_id="wait_for_sync",
         location=REGION,
+        # verbose form: "{{ task_instance.xcom_pull(task_ids='sync_task', key='return_value') }}"
         feature_view_sync_name=sync_task.output,
         poke_interval=60,  # Check every minute
         timeout=1200,  # Timeout after 20 minutes

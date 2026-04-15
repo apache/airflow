@@ -144,6 +144,7 @@ with DAG(
     # [START howto_operator_vision_product_set_get]
     product_set_get = CloudVisionGetProductSetOperator(
         location=LOCATION,
+        # verbose form: "{{ task_instance.xcom_pull('product_set_create') }}"
         product_set_id=product_set_create.output,
         task_id="product_set_get",
     )
@@ -152,6 +153,7 @@ with DAG(
     # [START howto_operator_vision_product_set_update]
     product_set_update = CloudVisionUpdateProductSetOperator(
         location=LOCATION,
+        # verbose form: "{{ task_instance.xcom_pull('product_set_create') }}"
         product_set_id=product_set_create.output,
         product_set=ProductSet(display_name="My Product Set 2"),
         task_id="product_set_update",
@@ -161,6 +163,7 @@ with DAG(
     # [START howto_operator_vision_product_set_delete]
     product_set_delete = CloudVisionDeleteProductSetOperator(
         location=LOCATION,
+        # verbose form: "{{ task_instance.xcom_pull('product_set_create') }}"
         product_set_id=product_set_create.output,
         task_id="product_set_delete",
     )
@@ -227,6 +230,7 @@ with DAG(
     # [START howto_operator_vision_add_product_to_product_set]
     add_product_to_product_set = CloudVisionAddProductToProductSetOperator(
         location=LOCATION,
+        # verbose form: "{{ task_instance.xcom_pull('product_set_create') }}"
         product_set_id=product_set_create.output,
         product_id=product_create.output,
         retry=Retry(maximum=10.0),
@@ -238,6 +242,7 @@ with DAG(
     # [START howto_operator_vision_remove_product_from_product_set]
     remove_product_from_product_set = CloudVisionRemoveProductFromProductSetOperator(
         location=LOCATION,
+        # verbose form: "{{ task_instance.xcom_pull('product_set_create') }}"
         product_set_id=product_set_create.output,
         product_id=product_create.output,
         retry=Retry(maximum=10.0),

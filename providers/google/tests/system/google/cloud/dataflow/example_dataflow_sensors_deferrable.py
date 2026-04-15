@@ -95,6 +95,7 @@ with DAG(
     # [START howto_sensor_wait_for_job_status_deferrable]
     wait_for_beam_python_pipeline_job_status_def = DataflowJobStatusSensor(
         task_id="wait_for_beam_python_pipeline_job_status_def",
+        # verbose form: "{{ task_instance.xcom_pull('start_beam_python_pipeline')['dataflow_job_id'] }}"
         job_id="{{start_beam_python_pipeline.output['dataflow_job_id']}}",
         expected_statuses=DataflowJobStatus.JOB_STATE_DONE,
         location=LOCATION,

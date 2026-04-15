@@ -82,7 +82,9 @@ DISPLAY_VIDEO_GMP_PARTNER_ID = "google_display_video_gmp_partner_id"
 DISPLAY_VIDEO_SERVICE_ACCOUNT_KEY = "google_display_video_service_account_key"
 
 # [START howto_display_video_env_variables]
+# verbose form: "{{ task_instance.xcom_pull('get_display_video_advertiser_id') }}"
 ADVERTISER_ID = "{{ get_display_video_advertiser_id.output }}"
+# verbose form: "{{ task_instance.xcom_pull('get_display_video_gmp_partner_id') }}"
 GMP_PARTNER_ID = "{{ get_display_video_gmp_partner_id.output }}"
 SDF_VERSION = "SDF_VERSION_9"
 BQ_DATASET = f"bq_dataset_{DAG_ID}_{ENV_ID}".replace("-", "_")

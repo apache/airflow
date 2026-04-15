@@ -159,7 +159,8 @@ with DAG(
 
     wait_for_operation_to_start = CloudDataTransferServiceJobStatusSensor(
         task_id="wait_for_operation_to_start",
-        job_name="{{create_transfer_job_s3_to_gcs.output['name']}}",
+        # verbose form: "{{ task_instance.xcom_pull('create_transfer_job_s3_to_gcs')['name'] }}"
+        job_name="{{ create_transfer_job_s3_to_gcs.output['name'] }}",
         project_id=GCP_PROJECT_ID,
         expected_statuses={GcpTransferOperationStatus.IN_PROGRESS},
         poke_interval=WAIT_FOR_OPERATION_POKE_INTERVAL,
@@ -168,8 +169,8 @@ with DAG(
     # [START howto_operator_gcp_transfer_pause_operation]
     pause_operation = CloudDataTransferServicePauseOperationOperator(
         task_id="pause_operation",
-        operation_name="{{task_instance.xcom_pull('wait_for_operation_to_start', "
-        "key='sensed_operations')[0]['name']}}",
+        operation_name="{{ task_instance.xcom_pull('wait_for_operation_to_start', "
+        "key='sensed_operations')[0]['name'] }}",
     )
     # [END howto_operator_gcp_transfer_pause_operation]
 
@@ -228,8 +229,8 @@ with DAG(
     # [START howto_operator_gcp_transfer_cancel_operation]
     cancel_operation = CloudDataTransferServiceCancelOperationOperator(
         task_id="cancel_operation",
-        operation_name="{{task_instance.xcom_pull("
-        "'wait_for_operation_to_start_2', key='sensed_operations')[0]['name']}}",
+        operation_name="{{ task_instance.xcom_pull("
+        "'wait_for_operation_to_start_2', key='sensed_operations')[0]['name'] }}",
     )
     # [END howto_operator_gcp_transfer_cancel_operation]
 

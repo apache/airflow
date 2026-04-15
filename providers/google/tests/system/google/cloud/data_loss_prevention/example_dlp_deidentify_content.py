@@ -112,6 +112,7 @@ with DAG(
         task_id="reidentify_content",
         project_id=PROJECT_ID,
         item=ContentItem(value="{{ deidentify_content.output['item'] }}"),
+        # verbose form: "{{ task_instance.xcom_pull('deidentify_content')['item'] }}"
         reidentify_config=REVERSIBLE_DEIDENTIFY_CONFIG,
         inspect_config=INSPECT_CONFIG,
     )
@@ -139,6 +140,7 @@ with DAG(
     deidentify_content_with_template = CloudDLPDeidentifyContentOperator(
         project_id=PROJECT_ID,
         item=ITEM,
+        # verbose form: "{{ task_instance.xcom_pull('create_template')['name'] }}"
         deidentify_template_name="{{ create_template.output['name'] }}",
         inspect_config=INSPECT_CONFIG,
         task_id="deidentify_content_with_template",
