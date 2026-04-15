@@ -741,7 +741,10 @@ class TestDBCleanup:
         else:
             confirm_mock.assert_not_called()
 
-    @patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("", {}, Exception("mock db error")))
+    @patch(
+        "airflow.utils.db_cleanup._cleanup_table",
+        side_effect=OperationalError("", {}, Exception("mock db error")),
+    )
     def test_error_on_cleanup_failure_raises_when_flag_set(self, cleanup_table_mock, caplog):
         """When error_on_cleanup_failure=True and a table fails, AirflowException should be raised."""
         with pytest.raises(AirflowException, match="airflow db clean encountered errors"):
@@ -754,7 +757,10 @@ class TestDBCleanup:
                 error_on_cleanup_failure=True,
             )
 
-    @patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("", {}, Exception("mock db error")))
+    @patch(
+        "airflow.utils.db_cleanup._cleanup_table",
+        side_effect=OperationalError("", {}, Exception("mock db error")),
+    )
     def test_error_on_cleanup_failure_no_raise_by_default(self, cleanup_table_mock, caplog):
         """When error_on_cleanup_failure=False (default) and a table fails, no exception is raised."""
         run_cleanup(
@@ -767,7 +773,10 @@ class TestDBCleanup:
         )
         assert "The following tables were not cleaned due to errors" in caplog.text
 
-    @patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("", {}, Exception("mock db error")))
+    @patch(
+        "airflow.utils.db_cleanup._cleanup_table",
+        side_effect=OperationalError("", {}, Exception("mock db error")),
+    )
     def test_error_on_cleanup_failure_lists_failed_tables_in_warning(self, cleanup_table_mock, caplog):
         """A warning naming the failed tables should always be emitted, regardless of the flag."""
         run_cleanup(

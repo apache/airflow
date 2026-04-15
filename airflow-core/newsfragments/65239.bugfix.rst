@@ -1,0 +1,1 @@
+Add ``--error-on-cleanup-failure`` flag to ``airflow db clean`` so that per-table cleanup errors, which were previously suppressed and caused the command to exit 0 silently, can now surface as a non-zero exit code. A warning summary listing failed tables is always emitted regardless of the flag.
