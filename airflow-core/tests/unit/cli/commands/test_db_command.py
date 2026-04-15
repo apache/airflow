@@ -733,6 +733,7 @@ class TestCLIDBClean:
             confirm=False,
             skip_archive=False,
             batch_size=None,
+            error_on_cleanup_failure=False,
         )
 
     @pytest.mark.parametrize("timezone", ["UTC", "Europe/Berlin", "America/Los_Angeles"])
@@ -756,6 +757,7 @@ class TestCLIDBClean:
             confirm=False,
             skip_archive=False,
             batch_size=None,
+            error_on_cleanup_failure=False,
         )
 
     @pytest.mark.parametrize(("confirm_arg", "expected"), [(["-y"], False), ([], True)])
@@ -785,6 +787,7 @@ class TestCLIDBClean:
             confirm=expected,
             skip_archive=False,
             batch_size=None,
+            error_on_cleanup_failure=False,
         )
 
     @pytest.mark.parametrize(("extra_arg", "expected"), [(["--skip-archive"], True), ([], False)])
@@ -814,6 +817,7 @@ class TestCLIDBClean:
             confirm=True,
             skip_archive=expected,
             batch_size=None,
+            error_on_cleanup_failure=False,
         )
 
     @pytest.mark.parametrize(("dry_run_arg", "expected"), [(["--dry-run"], True), ([], False)])
@@ -843,6 +847,7 @@ class TestCLIDBClean:
             confirm=True,
             skip_archive=False,
             batch_size=None,
+            error_on_cleanup_failure=False,
         )
 
     @pytest.mark.parametrize(
@@ -874,6 +879,7 @@ class TestCLIDBClean:
             confirm=True,
             skip_archive=False,
             batch_size=None,
+            error_on_cleanup_failure=False,
         )
 
     @pytest.mark.parametrize(("extra_args", "expected"), [(["--verbose"], True), ([], False)])
@@ -903,6 +909,7 @@ class TestCLIDBClean:
             confirm=True,
             skip_archive=False,
             batch_size=None,
+            error_on_cleanup_failure=False,
         )
 
     @pytest.mark.parametrize(("extra_args", "expected"), [(["--batch-size", "1234"], 1234), ([], None)])
@@ -932,6 +939,7 @@ class TestCLIDBClean:
             confirm=True,
             skip_archive=False,
             batch_size=expected,
+            error_on_cleanup_failure=False,
         )
 
     @pytest.mark.parametrize(
@@ -963,6 +971,7 @@ class TestCLIDBClean:
             confirm=True,
             skip_archive=False,
             batch_size=None,
+            error_on_cleanup_failure=False,
         )
 
     @pytest.mark.parametrize(
@@ -994,6 +1003,37 @@ class TestCLIDBClean:
             confirm=True,
             skip_archive=False,
             batch_size=None,
+            error_on_cleanup_failure=False,
+        )
+
+    @pytest.mark.parametrize(
+        ("extra_args", "expected"), [(["--error-on-cleanup-failure"], True), ([], False)]
+    )
+    @patch("airflow.cli.commands.db_command.run_cleanup")
+    def test_error_on_cleanup_failure(self, run_cleanup_mock, extra_args, expected):
+        """When --error-on-cleanup-failure is passed, error_on_cleanup_failure should be True."""
+        args = self.parser.parse_args(
+            [
+                "db",
+                "clean",
+                "--clean-before-timestamp",
+                "2021-01-01",
+                *extra_args,
+            ]
+        )
+        db_command.cleanup_tables(args)
+
+        run_cleanup_mock.assert_called_once_with(
+            table_names=None,
+            dry_run=False,
+            dag_ids=None,
+            exclude_dag_ids=None,
+            clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
+            verbose=False,
+            confirm=True,
+            skip_archive=False,
+            batch_size=None,
+            error_on_cleanup_failure=expected,
         )
 
     @patch("airflow.cli.commands.db_command.export_archived_records")

@@ -638,8 +638,7 @@ def run_cleanup(
 
     if failed_tables:
         logger.warning(
-            "The following tables were not cleaned due to errors: %s. "
-            "Check the logs above for details.",
+            "The following tables were not cleaned due to errors: %s. Check the logs above for details.",
             failed_tables,
         )
         if error_on_cleanup_failure:
