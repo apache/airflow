@@ -52,6 +52,9 @@
     "buttons": {
       "advanced": "Erweitert",
       "dagDocs": "Dag Dokumentation"
+    },
+    "status": {
+      "deactivated": "Deaktiviert"
     }
   },
   "logs": {
