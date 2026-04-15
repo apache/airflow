@@ -24,7 +24,7 @@ import subprocess
 import sys
 from importlib.metadata import version as importlib_version
 from unittest import mock
-from unittest.mock import ANY, AsyncMock, MagicMock
+from unittest.mock import ANY, AsyncMock, MagicMock, call
 
 import pytest
 
@@ -32,6 +32,7 @@ from airflow.providers.apache.beam.hooks.beam import (
     BeamAsyncHook,
     BeamHook,
     beam_options_to_args,
+    process_fd,
     run_beam_command,
 )
 from airflow.providers.common.compat.sdk import AirflowException
@@ -89,6 +90,7 @@ class TestBeamHook:
         hook = BeamHook(runner=DEFAULT_RUNNER)
         process_line_callback = MagicMock()
         is_dataflow_job_id_exist_callback = MagicMock()
+        on_dataflow_job_id_found_callback = MagicMock()
 
         hook.start_python_pipeline(
             variables=copy.deepcopy(BEAM_VARIABLES_PY),
@@ -96,6 +98,7 @@ class TestBeamHook:
             py_options=PY_OPTIONS,
             process_line_callback=process_line_callback,
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+            on_dataflow_job_id_found_callback=on_dataflow_job_id_found_callback,
         )
 
         expected_cmd = [
@@ -112,6 +115,7 @@ class TestBeamHook:
             working_directory=None,
             log=ANY,
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+            on_dataflow_job_id_found_callback=on_dataflow_job_id_found_callback,
         )
 
     @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.35.0")
@@ -176,6 +180,7 @@ class TestBeamHook:
             working_directory=None,
             log=ANY,
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+            on_dataflow_job_id_found_callback=None,
         )
 
     @pytest.mark.parametrize(
@@ -226,6 +231,7 @@ class TestBeamHook:
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
             working_directory=None,
             log=ANY,
+            on_dataflow_job_id_found_callback=None,
         )
         mock_virtualenv.assert_called_once_with(
             venv_directory=mock.ANY,
@@ -282,6 +288,7 @@ class TestBeamHook:
             working_directory=None,
             log=ANY,
             is_dataflow_job_id_exist_callback=None,
+            on_dataflow_job_id_found_callback=None,
         )
 
     @mock.patch(BEAM_STRING.format("run_beam_command"))
@@ -311,6 +318,7 @@ class TestBeamHook:
             working_directory=None,
             log=ANY,
             is_dataflow_job_id_exist_callback=None,
+            on_dataflow_job_id_found_callback=None,
         )
 
     @mock.patch(BEAM_STRING.format("shutil.which"))
@@ -342,6 +350,7 @@ class TestBeamHook:
             working_directory=go_workspace,
             log=ANY,
             is_dataflow_job_id_exist_callback=None,
+            on_dataflow_job_id_found_callback=None,
         )
 
     @mock.patch(BEAM_STRING.format("shutil.which"))
@@ -388,6 +397,7 @@ class TestBeamHook:
             working_directory=None,
             log=ANY,
             is_dataflow_job_id_exist_callback=None,
+            on_dataflow_job_id_found_callback=None,
         )
 
 
@@ -439,6 +449,54 @@ class TestBeamRunner:
         assert "apache-beam-stderr-2" in warn_messages
         assert "apache-beam-stderr-3" in warn_messages
         assert "apache-beam-other-stderr" in warn_messages
+
+    @mock.patch("subprocess.Popen")
+    @mock.patch("select.select")
+    @mock.patch(
+        "airflow.providers.apache.beam.hooks.beam.process_fd"
+    )  # Mocking process_fd to control return value
+    def test_run_beam_command_with_callbacks(self, mock_process_fd, mock_select, mock_popen):
+        """Test that callbacks are passed to process_fd and state is maintained."""
+        logger_name = "test-beam-callback-logger"
+        fake_logger = logging.getLogger(logger_name)
+        cmd = ["fake", "cmd"]
+
+        # Setup mock process
+        mock_proc = MagicMock(name="FakeProc")
+        mock_proc.stderr = MagicMock(name="FakeStderr")
+        mock_proc.stdout = MagicMock(name="FakeStdout")
+        mock_proc.poll.side_effect = [None, 0]  # Run loop once, then exit
+        mock_proc.returncode = 0
+        mock_popen.return_value = mock_proc
+
+        # Mock select to return stdout on first call
+        mock_select.return_value = ([mock_proc.stdout], [], [])
+
+        # Callback mocks
+        mock_is_exists = MagicMock()
+        mock_on_found = MagicMock()
+
+        # We simulate that process_fd returns True (callback was triggered)
+        mock_process_fd.return_value = True
+
+        run_beam_command(
+            cmd,
+            fake_logger,
+            is_dataflow_job_id_exist_callback=mock_is_exists,
+            on_dataflow_job_id_found_callback=mock_on_found,
+        )
+
+        # Verify process_fd was called with the correct arguments
+        # Note: It's called inside the loop AND in the "corner case" block at the end
+        assert mock_process_fd.call_count >= 2
+
+        # Check that the 'on_dataflow_job_id_found_callback_called'
+        # (the 7th positional arg, index 6) was updated correctly between calls
+        first_call_args = mock_process_fd.call_args_list[0][0]
+        assert first_call_args[6] is False  # Initially False
+
+        last_call_args = mock_process_fd.call_args_list[-1][0]
+        assert last_call_args[6] is True  # Became True after mock_process_fd returned True
 
 
 class TestBeamOptionsToArgs:
@@ -690,3 +748,95 @@ class TestBeamAsyncHook:
             command_prefix=command_prefix,
             process_line_callback=None,
         )
+
+
+class TestProcessFD:
+    @pytest.fixture
+    def mock_proc(self):
+        """Fixture to create a mock subprocess with stdout and stderr."""
+        proc = MagicMock()
+        proc.stdout = MagicMock()
+        proc.stderr = MagicMock()
+        return proc
+
+    @pytest.fixture
+    def mock_log(self):
+        """Fixture for the logger."""
+        return MagicMock()
+
+    def test_invalid_fd_raises_exception(self, mock_proc, mock_log):
+        """Should raise AirflowException if fd is not from the process."""
+        invalid_fd = MagicMock()
+
+        with pytest.raises(AirflowException, match="No data in stderr or in stdout."):
+            process_fd(mock_proc, invalid_fd, mock_log)
+
+    def test_stdout_logging_flow(self, mock_proc, mock_log):
+        """Should read from stdout and log at INFO level."""
+        mock_proc.stdout.readline.side_effect = [b"standard output line\n", b""]
+
+        result = process_fd(mock_proc, mock_proc.stdout, mock_log)
+
+        mock_log.info.assert_called_with("standard output line")
+        assert result is False
+
+    def test_stderr_logging_flow(self, mock_proc, mock_log):
+        """Should read from stderr and log at WARNING level."""
+        mock_proc.stderr.readline.side_effect = [b"error line\n", b""]
+
+        process_fd(mock_proc, mock_proc.stderr, mock_log)
+
+        mock_log.warning.assert_called_with("error line")
+
+    def test_callback_triggers_on_job_id_found(self, mock_proc, mock_log):
+        """Should execute the callback exactly once when job ID is detected."""
+        mock_proc.stdout.readline.side_effect = [b"job log line\n", b""]
+
+        # Mocks for callbacks
+        line_cb = MagicMock()
+        exists_cb = MagicMock(return_value=True)
+        found_cb = MagicMock()
+
+        result = process_fd(
+            proc=mock_proc,
+            fd=mock_proc.stdout,
+            log=mock_log,
+            process_line_callback=line_cb,
+            is_dataflow_job_id_exist_callback=exists_cb,
+            on_dataflow_job_id_found_callback=found_cb,
+            on_dataflow_job_id_found_callback_called=False,
+        )
+
+        # Assertions
+        line_cb.assert_called_with("job log line\n")
+        found_cb.assert_called_once()
+        mock_log.info.assert_any_call("JOB ID found for dataflow. Calling the callback!")
+        assert result is True
+
+    def test_callback_not_called_if_already_flagged(self, mock_proc, mock_log):
+        """Should skip callback execution if on_dataflow_job_id_found_callback_called is True."""
+        mock_proc.stdout.readline.side_effect = [b"job log line\n", b""]
+
+        exists_cb = MagicMock(return_value=True)
+        found_cb = MagicMock()
+
+        result = process_fd(
+            proc=mock_proc,
+            fd=mock_proc.stdout,
+            log=mock_log,
+            is_dataflow_job_id_exist_callback=exists_cb,
+            on_dataflow_job_id_found_callback=found_cb,
+            on_dataflow_job_id_found_callback_called=True,  # Already called
+        )
+
+        found_cb.assert_not_called()
+        assert result is True
+
+    def test_multi_line_processing(self, mock_proc, mock_log):
+        """Ensures all lines are processed until the stream is empty (b"")."""
+        mock_proc.stdout.readline.side_effect = [b"line 1\n", b"line 2\n", b""]
+
+        process_fd(mock_proc, mock_proc.stdout, mock_log)
+
+        assert mock_log.info.call_count == 2
+        mock_log.info.assert_has_calls([call("line 1"), call("line 2")])
