@@ -115,6 +115,12 @@
     "notFound": "Nie znaleziono strony",
     "title": "Błąd"
   },
+  "errors": {
+    "forbidden": {
+      "description": "Nie masz uprawnień do wykonania tej akcji.",
+      "title": "Dostęp zabroniony"
+    }
+  },
   "expand": {
     "collapse": "Zwiń",
     "expand": "Rozwiń",
@@ -140,6 +146,7 @@
     "selectDateRange": "Wybierz zakres dat",
     "startTime": "Czas rozpoczęcia"
   },
+  "generateToken": "Wygeneruj token",
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
   "logoutConfirmation": "Zamierzasz wylogować się z aplikacji.",
@@ -187,6 +194,7 @@
   "reset": "Resetuj",
   "runId": "Identyfikator wykonania",
   "runTypes": {
+    "asset_materialization": "Materializacja zasobu",
     "asset_triggered": "Uruchomiony przez zasób",
     "backfill": "Wypełnienie wsteczne",
     "manual": "Ręcznie",
@@ -316,10 +324,10 @@
   },
   "toaster": {
     "bulkDelete": {
-      "error": "Nie udało się wykonać żądania masowego usunięcia {{resourceName}}",
+      "error": "Nie udało się wykonać żądania grupowego usunięcia {{resourceName}}",
       "success": {
         "description": "Pomyślnie usunięto {{count}} {{resourceName}}. Klucze: {{keys}}",
-        "title": "Wysłano żądanie masowego usunięcia {{resourceName}}"
+        "title": "Wysłano żądanie grupowego usunięcia {{resourceName}}"
       }
     },
     "create": {
@@ -350,6 +358,18 @@
         "title": "Wysłano żądanie aktualizacji {{resourceName}}"
       }
     }
+  },
+  "tokenGeneration": {
+    "apiToken": "Token API",
+    "cliToken": "Token CLI",
+    "errorDescription": "Podczas generowania tokenu wystąpił błąd. Spróbuj ponownie.",
+    "errorTitle": "Nie udało się wygenerować tokenu",
+    "generate": "Wygeneruj",
+    "selectType": "Wybierz typ tokenu do wygenerowania.",
+    "title": "Wygeneruj token",
+    "tokenExpiresIn": "Ten token wygasa za {{duration}}.",
+    "tokenGenerated": "Twój token został wygenerowany.",
+    "tokenShownOnce": "Ten token zostanie wyświetlony tylko raz. Skopiuj go teraz."
   },
   "total": "Wszystkie {{state}}",
   "triggered": "Uruchomiony",

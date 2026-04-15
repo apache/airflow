@@ -45,12 +45,16 @@
     "buttons": {
       "resetToLatest": "Przywróć do najnowszego",
       "toggleGroup": "Przełącz grupę"
-    }
+    },
+    "runTypeLegend": "Legenda typów wykonań"
   },
   "header": {
     "buttons": {
       "advanced": "Zaawansowane",
       "dagDocs": "Dokumentacja Daga"
+    },
+    "status": {
+      "deactivated": "Deaktywowany"
     }
   },
   "logs": {
