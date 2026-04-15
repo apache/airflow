@@ -16,19 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from "@playwright/test";
-import { testConfig, AUTH_FILE } from "playwright.config";
-import { DagsPage } from "tests/e2e/pages/DagsPage";
-import { EventsPage } from "tests/e2e/pages/EventsPage";
+import { expect, test } from "tests/e2e/fixtures";
 
 test.describe("Events Page", () => {
-  let eventsPage: EventsPage;
-
-  test.beforeEach(({ page }) => {
-    eventsPage = new EventsPage(page);
-  });
-
-  test("verify events page displays correctly", async () => {
+  test("verify events page displays correctly", async ({ eventsPage }) => {
     await eventsPage.navigate();
 
     await expect(eventsPage.eventsPageTitle).toBeVisible({ timeout: 10_000 });
@@ -36,62 +27,19 @@ test.describe("Events Page", () => {
     await eventsPage.verifyTableColumns();
   });
 
-  test("verify search input is visible", async () => {
+  test("verify search input is visible", async ({ eventsPage }) => {
     await eventsPage.navigate();
     await eventsPage.waitForEventsTable();
 
-    // Verify filter bar (containing search functionality) is visible
     await expect(eventsPage.filterBar).toBeVisible({ timeout: 10_000 });
-
-    // Verify the filter button is present (allows adding search filters)
-    const filterButton = eventsPage.page.locator('button:has-text("Filter")');
-
-    await expect(filterButton).toBeVisible();
-
-    // Click the filter button to open the filter menu
-    await filterButton.click();
-
-    // Verify filter menu opened - be more specific to target the filter menu
-    const filterMenu = eventsPage.page.locator('[role="menu"][aria-labelledby*="menu"][data-state="open"]');
-
-    await expect(filterMenu).toBeVisible({ timeout: 5000 });
-
-    // Look for text search options in the menu
-    const textSearchOptions = eventsPage.page.locator(
-      '[role="menuitem"]:has-text("DAG ID"), [role="menuitem"]:has-text("Event Type"), [role="menuitem"]:has-text("User")',
-    );
-
-    const textSearchOptionsCount = await textSearchOptions.count();
-
-    expect(textSearchOptionsCount).toBeGreaterThan(0);
-    await expect(textSearchOptions.first()).toBeVisible();
-
-    // Close the menu by pressing Escape
-    await eventsPage.page.keyboard.press("Escape");
+    await eventsPage.verifyFilterMenuHasOptions();
   });
 });
 
 test.describe("Events with Generated Data", () => {
-  let eventsPage: EventsPage;
-  const testDagId = testConfig.testDag.id;
-
   test.setTimeout(60_000);
 
-  test.beforeAll(async ({ browser }) => {
-    test.setTimeout(3 * 60 * 1000);
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
-    const dagsPage = new DagsPage(page);
-
-    await dagsPage.triggerDag(testDagId);
-    await context.close();
-  });
-
-  test.beforeEach(({ page }) => {
-    eventsPage = new EventsPage(page);
-  });
-
-  test("verify audit log entries display valid data", async () => {
+  test("verify audit log entries display valid data", async ({ eventsPage, executedDagRun: _run }) => {
     await eventsPage.navigate();
 
     await expect(eventsPage.eventsTable).toBeVisible();
@@ -102,7 +50,10 @@ test.describe("Events with Generated Data", () => {
     await eventsPage.verifyLogEntriesWithData();
   });
 
-  test.fixme("verify search for specific event type and filtered results", async () => {
+  test("verify search for specific event type and filtered results", async ({
+    eventsPage,
+    executedDagRun: _run,
+  }) => {
     await eventsPage.navigate();
 
     const initialRowCount = await eventsPage.getTableRowCount();
@@ -123,10 +74,10 @@ test.describe("Events with Generated Data", () => {
     }).toPass({ timeout: 20_000 });
   });
 
-  test.fixme("verify filter by DAG ID", async () => {
+  test("verify filter by DAG ID", async ({ eventsPage, executedDagRun }) => {
     await eventsPage.navigate();
     await eventsPage.addFilter("DAG ID");
-    await eventsPage.setFilterValue("DAG ID", testDagId);
+    await eventsPage.setFilterValue("DAG ID", executedDagRun.dagId);
     await expect(eventsPage.eventsTable).toBeVisible();
 
     await expect(async () => {
@@ -140,7 +91,7 @@ test.describe("Events with Generated Data", () => {
         const dagIdCell = await eventsPage.getCellByColumnName(row, "DAG ID");
         const dagIdText = await dagIdCell.textContent();
 
-        expect(dagIdText?.toLowerCase()).toContain(testDagId.toLowerCase());
+        expect(dagIdText?.toLowerCase()).toContain(executedDagRun.dagId.toLowerCase());
       }
     }).toPass({ timeout: 20_000 });
   });

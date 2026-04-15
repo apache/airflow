@@ -68,9 +68,16 @@ class AlreadyRunningBackfill(AirflowException):
     """
 
 
-class DagNoScheduleException(AirflowException):
+class DagNonPeriodicScheduleException(AirflowException):
     """
-    Raised when attempting to create backfill for a Dag with no schedule.
+    Raised when attempting to backfill a Dag whose schedule is fundamentally incompatible with backfills.
+
+    This covers the following timetable types:
+    - NullTimetable
+    - OnceTimetable
+    - ContinuousTimetable
+    - AssetTriggeredTimetable
+    - PartitionedAssetTimetable
 
     :meta private:
     """
@@ -275,20 +282,21 @@ def _do_dry_run(
     reprocess_behavior: ReprocessBehavior,
     session: Session,
 ) -> Iterable[DagRunInfo]:
-    from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
 
     serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
     if not serdag:
         raise DagNotFound(f"Could not find Dag {dag_id}")
     dag = serdag.dag
-    _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior)
 
-    no_schedule = session.scalar(
-        select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
-    )
-    if no_schedule:
-        raise DagNoScheduleException(f"{dag_id} has no schedule")
+    if not dag.timetable.periodic:
+        raise DagNonPeriodicScheduleException(
+            f"{dag_id} has a non-periodic schedule that does not support backfills"
+        )
+    if dag.allowed_run_types is not None and DagRunType.BACKFILL_JOB not in dag.allowed_run_types:
+        raise DagRunTypeNotAllowed(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
+
+    _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior)
 
     dagrun_info_list = _get_info_list(
         dag=dag,
@@ -571,8 +579,12 @@ def _create_backfill(
                 and DagRunType.BACKFILL_JOB not in dag_model.allowed_run_types
             ):
                 raise DagRunTypeNotAllowed(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
-            if dag_model.timetable_summary == "None":
-                raise DagNoScheduleException(f"{dag_id} has no schedule")
+
+        dag = serdag.dag
+        if not dag.timetable.periodic:
+            raise DagNonPeriodicScheduleException(
+                f"{dag_id} has a non-periodic schedule that does not support backfills"
+            )
 
         num_active = session.scalar(
             select(func.count()).where(
@@ -588,7 +600,6 @@ def _create_backfill(
                 f"There can be only one running backfill per Dag."
             )
 
-        dag = serdag.dag
         _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior)
 
         br = Backfill(

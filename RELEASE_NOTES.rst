@@ -395,6 +395,10 @@ Make start_date optional for @continuous schedule
 """""""""""""""""""""""""""""""""""""""""""""""""
 The ``schedule="@continuous"`` parameter now works without requiring a ``start_date``, and any Dags with this schedule will begin running immediately when unpaused. (#61405)
 
+Upgrade SQLAlchemy (SQLA) to 2.0
+"""""""""""""""""""""""""""""""""""""""""""""""""
+Airflow now only support SQLAlchemy version 2
+
 New Features
 ^^^^^^^^^^^^
 
@@ -589,6 +593,7 @@ Bug Fixes
 Miscellaneous
 ^^^^^^^^^^^^^
 
+- Set minimum version of ``sqlalchemy[asyncio]>=2.0.48``
 - Deprecate ``api.page_size`` config in favor of ``api.fallback_page_limit`` (#61067)
 - Improve Dag callback relevancy by passing a context-relevant task instance based on the Dag's final state instead of an arbitrary lexicographical selection (#61274)
 - Optimize ``get_dag_runs`` API endpoint performance (#63940)

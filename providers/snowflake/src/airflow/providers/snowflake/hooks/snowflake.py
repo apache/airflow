@@ -42,7 +42,9 @@ from airflow.providers.common.compat.sdk import (
     Connection,
     conf,
 )
+from airflow.providers.common.sql.hooks import handlers as sql_handlers
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalchemy_uri
 from airflow.utils import timezone
@@ -697,6 +699,62 @@ class SnowflakeHook(DbApiHook):
     def get_autocommit(self, conn):
         return getattr(conn, "autocommit_mode", False)
 
+    @staticmethod
+    def _session_params_has_autocommit(session_params: Any) -> bool:
+        """Check if AUTOCOMMIT is present in a session_parameters dict (case-insensitive)."""
+        if not isinstance(session_params, dict):
+            return False
+        return any(k.upper() == "AUTOCOMMIT" for k in session_params)
+
+    def _has_autocommit_session_parameter(self) -> bool:
+        """Check if AUTOCOMMIT is configured in session_parameters."""
+        # Check hook-level session_parameters first (avoids connection lookup)
+        if isinstance(self.session_parameters, dict):
+            return self._session_params_has_autocommit(self.session_parameters)
+        # Fall back to connection-level session_parameters using the cached
+        # static config to avoid triggering OAuth token refresh.
+        try:
+            static_config = self._get_static_conn_params
+        except Exception:
+            self.log.debug("Could not read connection params to check AUTOCOMMIT session parameter")
+            return False
+        return self._session_params_has_autocommit(static_config.get("session_parameters"))
+
+    def _run_command(self, cur, sql_statement, parameters, *, num_statements=None):
+        """
+        Run a statement using an already open cursor.
+
+        Extends the base implementation to support Snowflake's ``num_statements``
+        parameter for multi-statement execution.
+
+        :param cur: The database cursor.
+        :param sql_statement: The SQL statement to execute.
+        :param parameters: The parameters to bind to the SQL statement.
+        :param num_statements: Number of statements for Snowflake multi-statement
+            execution. Set to 0 to auto-detect. None means single-statement mode.
+        """
+        if self.log_sql:
+            self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+
+        execute_kwargs: dict[str, Any] = {}
+        if num_statements is not None:
+            execute_kwargs["num_statements"] = num_statements
+
+        if parameters:
+            cur.execute(sql_statement, parameters, **execute_kwargs)
+        else:
+            cur.execute(sql_statement, **execute_kwargs)
+
+        send_sql_hook_lineage(
+            context=self,
+            sql=sql_statement,
+            sql_parameters=parameters,
+            cur=cur,
+        )
+
+        if (row_count := sql_handlers.get_row_count(cur)) is not None:
+            self.log.info("Rows affected: %s", row_count)
+
     @overload
     def run(
         self,
@@ -746,7 +804,13 @@ class SnowflakeHook(DbApiHook):
         :param handler: The result handler which is called with the result of
             each statement.
         :param split_statements: Whether to split a single SQL string into
-            statements and run separately
+            statements and run separately. When False and sql is a string,
+            the entire SQL block is sent to Snowflake in a single execute()
+            call with ``num_statements=0`` (auto-detect), enabling
+            multi-statement execution (e.g., ``BEGIN; INSERT ...; COMMIT;``
+            transaction blocks). Note that the handler only receives the
+            first result set, and a single query ID is recorded for the
+            entire block.
         :param return_last: Whether to return result for only last statement or
             for all after split.
         :param return_dictionaries: Whether to return dictionaries rather than
@@ -775,14 +839,33 @@ class SnowflakeHook(DbApiHook):
         else:
             raise ValueError("List of SQL statements is empty")
 
+        # When split_statements=False and sql is a string, the entire SQL
+        # block is sent as one cursor.execute() call. Snowflake requires
+        # num_statements to be set for multi-statement execution.
+        # See: https://github.com/apache/airflow/issues/48233
+        is_multi_statement = isinstance(sql, str) and not split_statements
+
         with closing(self.get_conn()) as conn:
-            self.set_autocommit(conn, autocommit)
+            # Respect AUTOCOMMIT in session_parameters when autocommit is
+            # False (the default). When autocommit=True, always override.
+            # See: https://github.com/apache/airflow/issues/30236
+            if autocommit or not self._has_autocommit_session_parameter():
+                self.set_autocommit(conn, autocommit)
+            else:
+                # AUTOCOMMIT is set in session_parameters and was applied
+                # during connect(). Record the mode so get_autocommit()
+                # returns True and we skip the redundant conn.commit().
+                setattr(conn, "autocommit_mode", True)
 
             with self._get_cursor(conn, return_dictionaries) as cur:
                 results = []
                 for sql_statement in sql_list:
-                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-                    self._run_command(cur, sql_statement, parameters)
+                    self._run_command(
+                        cur,
+                        sql_statement,
+                        parameters,
+                        num_statements=0 if is_multi_statement else None,
+                    )
 
                     if handler is not None:
                         result = self._make_common_data_structure(handler(cur))
@@ -794,7 +877,6 @@ class SnowflakeHook(DbApiHook):
                             self.descriptions.append(cur.description)
 
                     query_id = cur.sfqid
-                    self.log.info("Rows affected: %s", cur.rowcount)
                     self.log.info("Snowflake query id: %s", query_id)
                     self.query_ids.append(query_id)
 

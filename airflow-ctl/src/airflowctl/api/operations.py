@@ -59,6 +59,8 @@ from airflowctl.api.datamodels.generated import (
     ImportErrorCollectionResponse,
     ImportErrorResponse,
     JobCollectionResponse,
+    PluginCollectionResponse,
+    PluginImportErrorCollectionResponse,
     PoolBody,
     PoolCollectionResponse,
     PoolPatchBody,
@@ -644,10 +646,20 @@ class JobsOperations(BaseOperations):
     """Job operations."""
 
     def list(
-        self, job_type: str, hostname: str, is_alive: bool
+        self,
+        job_type: str | None = None,
+        hostname: str | None = None,
+        is_alive: bool | None = None,
     ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
-        params = {"job_type": job_type, "hostname": hostname, "is_alive": is_alive}
+        params: dict[str, Any] = {}
+        if job_type:
+            params["job_type"] = job_type
+        if hostname:
+            params["hostname"] = hostname
+        if is_alive is not None:
+            params["is_alive"] = is_alive
+
         return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params)
 
 
@@ -891,5 +903,21 @@ class XComOperations(BaseOperations):
                 params=params,
             )
             return key
+        except ServerResponseError as e:
+            raise e
+
+
+class PluginsOperations(BaseOperations):
+    """Plugins operations."""
+
+    def list(self) -> PluginCollectionResponse | ServerResponseError:
+        """List all plugins from the API server."""
+        return super().execute_list(path="plugins", data_model=PluginCollectionResponse)
+
+    def list_import_errors(self) -> PluginImportErrorCollectionResponse | ServerResponseError:
+        """List plugin import errors from the API server."""
+        try:
+            self.response = self.client.get("plugins/importErrors")
+            return PluginImportErrorCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
