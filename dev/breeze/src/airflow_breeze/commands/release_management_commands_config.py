@@ -62,7 +62,11 @@ RELEASE_AIRFLOW_TASK_SDK_COMMANDS: dict[str, str | list[str]] = {
 
 RELEASE_AIRFLOW_CTL_COMMANDS: dict[str, str | list[str]] = {
     "name": "airflowctl release commands",
-    "commands": ["prepare-airflow-ctl-distributions", "generate-issue-content-airflow-ctl"],
+    "commands": [
+        "prepare-airflow-ctl-distributions",
+        "generate-issue-content-airflow-ctl",
+        "generate-airflowctl-changelog",
+    ],
 }
 
 RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
@@ -113,18 +117,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--version-suffix",
                 "--use-local-hatch",
-            ],
-        }
-    ],
-    "breeze release-management generate-issue-content-airflow-ctl": [
-        {
-            "name": "Generate issue flags",
-            "options": [
-                "--github-token",
-                "--previous-release",
-                "--current-release",
-                "--excluded-pr-list",
-                "--limit-pr-count",
             ],
         }
     ],
@@ -379,6 +371,31 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--current-release",
                 "--excluded-pr-list",
                 "--limit-pr-count",
+            ],
+        }
+    ],
+    "breeze release-management generate-issue-content-airflow-ctl": [
+        {
+            "name": "Generate issue flags",
+            "options": [
+                "--github-token",
+                "--previous-release",
+                "--current-release",
+                "--excluded-pr-list",
+                "--limit-pr-count",
+            ],
+        }
+    ],
+    "breeze release-management generate-airflowctl-changelog": [
+        {
+            "name": "Generate changelog flags",
+            "options": [
+                "--github-token",
+                "--previous-release",
+                "--current-release",
+                "--version",
+                "--excluded-pr-list",
+                "--output-file",
             ],
         }
     ],
