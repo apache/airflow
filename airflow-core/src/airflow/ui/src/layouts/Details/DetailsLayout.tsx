@@ -134,18 +134,15 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const runAfterGte = searchParams.get(SearchParamsKeys.RUN_AFTER_GTE) ?? undefined;
   const runAfterLte = searchParams.get(SearchParamsKeys.RUN_AFTER_LTE) ?? undefined;
   const runTypeFilter = (searchParams.get(SearchParamsKeys.RUN_TYPE) as DagRunType | null) ?? undefined;
-  const triggeringUserFilter = searchParams.get(SearchParamsKeys.TRIGGERING_USER) ?? undefined;
+  const triggeringUserFilter = searchParams.get(SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN) ?? undefined;
   const dagRunStateFilter = (searchParams.get(SearchParamsKeys.STATE) as DagRunState | null) ?? undefined;
 
   // --- Setters that write back to URL ---
   const setDagView = (value: DagView) => setParam(SearchParamsKeys.DAG_VIEW, value);
   const setLimit = (value: number) => setParam(SearchParamsKeys.LIMIT, String(value));
-  const setRunAfterGte = (value: string | undefined) => setParam(SearchParamsKeys.RUN_AFTER_GTE, value);
+  // Only LTE is needed directly: ceiling logic and jump-to-latest both touch it.
+  // GTE and the filter params (state, run_type, triggering_user) are managed by GridFilters/FilterBar.
   const setRunAfterLte = (value: string | undefined) => setParam(SearchParamsKeys.RUN_AFTER_LTE, value);
-  const setRunTypeFilter = (value: DagRunType | undefined) => setParam(SearchParamsKeys.RUN_TYPE, value);
-  const setTriggeringUserFilter = (value: string | undefined) =>
-    setParam(SearchParamsKeys.TRIGGERING_USER, value);
-  const setDagRunStateFilter = (value: DagRunState | undefined) => setParam(SearchParamsKeys.STATE, value);
 
   // Reset to grid when there is no runId. Remove this when we do gantt averages.
   useEffect(() => {
@@ -276,23 +273,13 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
             >
               <Flex flexDirection="column" height="100%">
                 <PanelButtons
-                  dagRunStateFilter={dagRunStateFilter}
                   dagView={dagView}
                   limit={limit}
                   panelGroupRef={panelGroupRef}
-                  runAfterGte={runAfterGte}
-                  runAfterLte={runAfterLte}
-                  runTypeFilter={runTypeFilter}
-                  setDagRunStateFilter={setDagRunStateFilter}
                   setDagView={setDagView}
                   setLimit={setLimit}
-                  setRunAfterGte={setRunAfterGte}
-                  setRunAfterLte={setRunAfterLte}
-                  setRunTypeFilter={setRunTypeFilter}
                   setShowVersionIndicatorMode={setShowVersionIndicatorMode}
-                  setTriggeringUserFilter={setTriggeringUserFilter}
                   showVersionIndicatorMode={showVersionIndicatorMode}
-                  triggeringUserFilter={triggeringUserFilter}
                 />
                 <Box flex={1} minH={0} overflow="hidden">
                   {dagView === "graph" ? (
