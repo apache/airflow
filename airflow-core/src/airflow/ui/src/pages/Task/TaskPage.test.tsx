@@ -18,6 +18,7 @@
  */
 
 import { render } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
@@ -57,7 +58,7 @@ vi.mock("src/hooks/useRequiredActionTabs", () => ({
 }));
 
 vi.mock("src/layouts/Details/DetailsLayout", () => ({
-  DetailsLayout: ({ children }: { readonly children: unknown }) => <div>{children}</div>,
+  DetailsLayout: ({ children }: { readonly children: ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock("src/queries/useGridStructure.ts", () => ({
