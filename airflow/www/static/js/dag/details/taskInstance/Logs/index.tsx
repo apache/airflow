@@ -278,7 +278,6 @@ const Logs = ({
             parsedLogs={parsedLogs}
             wrap={wrap}
             tryNumber={selectedTryNumber}
-            unfoldedGroups={unfoldedLogGroups}
             setUnfoldedLogGroup={setUnfoldedLogGroup}
           />
         )

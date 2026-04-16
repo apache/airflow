@@ -309,6 +309,7 @@ const Details = ({
       <Tabs
         size="lg"
         isLazy
+        lazyBehavior="keepMounted"
         height="100%"
         index={tabIndex}
         onChange={onChangeTab}

@@ -25,7 +25,6 @@ interface Props {
   parsedLogs: string;
   wrap: boolean;
   tryNumber: number;
-  unfoldedGroups: Array<string>;
   setUnfoldedLogGroup: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
@@ -33,7 +32,6 @@ const LogBlock = ({
   parsedLogs,
   wrap,
   tryNumber,
-  unfoldedGroups,
   setUnfoldedLogGroup,
 }: Props) => {
   const [autoScroll, setAutoScroll] = useState(true);
@@ -74,10 +72,11 @@ const LogBlock = ({
         0,
         target.id.length - unfoldIdSuffix.length,
       );
-      // remember the folding state if logs re-loaded
-      unfoldedGroups.push(gId);
-      setUnfoldedLogGroup(unfoldedGroups);
-      // now do the folding
+      // Persist the unfolded state so it survives re-renders (auto-refresh).
+      // A new array is required for React to detect the state change.
+      setUnfoldedLogGroup((prev) => [...prev, gId]);
+      // Immediate DOM update so the user sees the change without waiting
+      // for the next render cycle.
       target.style.display = "none";
       if (target.nextElementSibling) {
         (target.nextElementSibling as HTMLElement).style.display = "inline";
@@ -87,12 +86,7 @@ const LogBlock = ({
         0,
         target.id.length - foldIdSuffix.length,
       );
-      // remember the folding state if logs re-loaded
-      if (unfoldedGroups.indexOf(gId) >= 0) {
-        unfoldedGroups.splice(unfoldedGroups.indexOf(gId), 1);
-      }
-      setUnfoldedLogGroup(unfoldedGroups);
-      // now do the folding
+      setUnfoldedLogGroup((prev) => prev.filter((id) => id !== gId));
       if (target.parentElement) {
         target.parentElement.style.display = "none";
         if (target.parentElement.previousSibling) {
