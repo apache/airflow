@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from airflow_breeze.commands.ai_commands import ai
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.commands.workflow_commands import workflow_run_group
 from airflow_breeze.utils.path_utils import (
@@ -51,6 +52,7 @@ main.add_command(testing_group)
 main.add_command(kubernetes_group)
 main.add_command(ci_group)
 main.add_command(ci_image_group)
+main.add_command(ai)
 main.add_command(prod_image_group)
 main.add_command(setup_group)
 main.add_command(registry_group)

@@ -35,6 +35,7 @@ except ImportError as e:
     else:
         raise
 else:
+    from airflow_breeze.commands.ai_commands_config import AI_COMMANDS, AI_PARAMETERS
     from airflow_breeze.commands.ci_commands_config import CI_COMMANDS, CI_PARAMETERS
     from airflow_breeze.commands.ci_image_commands_config import (
         CI_IMAGE_TOOLS_COMMANDS,
@@ -74,6 +75,7 @@ else:
         "blob/main/dev/breeze/doc/01_installation.rst[/]\n"
     )
     click.rich_click.OPTION_GROUPS = {
+        **AI_PARAMETERS,
         **DEVELOPER_PARAMETERS,
         **KUBERNETES_PARAMETERS,
         **TESTING_PARAMETERS,
@@ -92,6 +94,10 @@ else:
     click.rich_click.COMMAND_GROUPS = {
         "breeze": [
             DEVELOPER_COMMANDS,
+            {
+                "name": "AI commands",
+                "commands": ["ai"],
+            },
             {
                 "name": "Testing commands",
                 "commands": ["testing", "k8s"],
@@ -148,6 +154,7 @@ else:
         ],
         "breeze sbom": [SBOM_COMMANDS],
         "breeze ci": [CI_COMMANDS],
+        "breeze ai": [AI_COMMANDS],
         "breeze workflow-run": [WORKFLOW_RUN_COMMANDS],
         "breeze registry": [REGISTRY_COMMANDS],
         "breeze ui": [UI_COMMANDS],
