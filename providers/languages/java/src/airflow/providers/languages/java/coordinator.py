@@ -20,25 +20,16 @@
 from __future__ import annotations
 
 import contextlib
-import email
 import os
 import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from airflow.providers.languages.java.bundle_scanner import BundleScanner
 from airflow.sdk.execution_time.coordinator import BaseLocaleCoordinator
 
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
-
-
-def find_main_class(jar_path: Path) -> str:
-    """Read the Main-Class attribute from the JAR manifest."""
-    with zipfile.ZipFile(jar_path) as zf:
-        with zf.open("META-INF/MANIFEST.MF") as f:
-            if main_class := email.message_from_binary_file(f).get("Main-Class"):
-                return main_class
-    raise FileNotFoundError(f"No Main-Class in manifest of {jar_path}")
 
 
 class JavaLocaleCoordinator(BaseLocaleCoordinator):
@@ -48,9 +39,9 @@ class JavaLocaleCoordinator(BaseLocaleCoordinator):
 
     @classmethod
     def can_handle_dag_file(cls, bundle_name: str, path: str | os.PathLike[str]) -> bool:
-        """Return ``True`` when *path* is a JAR with a ``Main-Class`` manifest entry."""
-        with contextlib.suppress(FileNotFoundError):
-            return find_main_class(Path(path)) is not None
+        """Return ``True`` when *path* is a JAR with valid Airflow Java SDK manifest attributes."""
+        with contextlib.suppress(FileNotFoundError, zipfile.BadZipFile, KeyError):
+            return BundleScanner.resolve_jar(Path(path)) is not None
         return False
 
     @classmethod
@@ -74,7 +65,7 @@ class JavaLocaleCoordinator(BaseLocaleCoordinator):
             "java",
             "-classpath",
             classpath,
-            find_main_class(jar_path),
+            BundleScanner.resolve_jar(jar_path),
             f"--comm={comm_addr}",
             f"--logs={logs_addr}",
         ]
@@ -91,17 +82,38 @@ class JavaLocaleCoordinator(BaseLocaleCoordinator):
         logs_addr: str,
     ) -> list[str]:
         """Build the ``java`` command for executing a task in a JAR bundle."""
-        jar_path = Path(dag_file_path)
-        # Java bundles are typically thin JARs: the main JAR only contains
-        # the bundle's own classes while its dependencies (the Airflow Java
-        # SDK, logging libraries, etc.) are separate JARs that live alongside
-        # it.  Using ``<dir>/*`` lets the JVM load every JAR in the directory.
-        classpath = f"{bundle_path}/*"
+        if what.language is None:
+            # Case 1: Pure Java Dag — the dag_file_path points directly to a
+            # bundle JAR inside the Airflow Core Dag Bundle.
+            jar_path = Path(dag_file_path)
+            classpath = f"{bundle_path}/*"
+            return [
+                "java",
+                "-classpath",
+                classpath,
+                BundleScanner.resolve_jar(jar_path),
+                f"--comm={comm_addr}",
+                f"--logs={logs_addr}",
+            ]
+
+        # Case 2: Python Stub Dag — the task's ``language`` field is set
+        # (e.g. "java").  The actual JAR bundle lives in the provider's
+        # configured ``[java] bundles_folder``, not in the Dag bundle path.
+        from airflow.providers.common.compat.sdk import conf
+
+        bundles_folder = conf.get("java", "bundles_folder", fallback=None)
+        if not bundles_folder:
+            raise ValueError(
+                "The [java] bundles_folder config must be set for Python stub DAGs "
+                "that delegate to Java task execution."
+            )
+
+        resolved = BundleScanner(Path(bundles_folder)).resolve(dag_id=what.dag_id)
         return [
             "java",
             "-classpath",
-            classpath,
-            find_main_class(jar_path),
+            resolved.classpath,
+            resolved.main_class,
             f"--comm={comm_addr}",
             f"--logs={logs_addr}",
         ]
