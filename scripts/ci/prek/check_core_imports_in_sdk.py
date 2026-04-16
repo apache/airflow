@@ -31,6 +31,8 @@ from pathlib import Path
 
 from common_prek_utils import console
 
+NOCHECK_MARKER = "# nocheck: core-imports"
+
 
 def check_file_for_core_imports(file_path: Path) -> list[tuple[int, str]]:
     """Check file for airflow-core imports (anything except airflow.sdk). Returns list of (line_num, import_statement)."""
@@ -40,6 +42,7 @@ def check_file_for_core_imports(file_path: Path) -> list[tuple[int, str]]:
     except (OSError, UnicodeDecodeError, SyntaxError):
         return []
 
+    source_lines = source.splitlines()
     mismatches = []
 
     for node in ast.walk(tree):
@@ -50,6 +53,8 @@ def check_file_for_core_imports(file_path: Path) -> list[tuple[int, str]]:
                 and node.module.startswith("airflow.")
                 and not node.module.startswith("airflow.sdk")
             ):
+                if _has_nocheck_marker(source_lines, node):
+                    continue
                 import_names = ", ".join(alias.name for alias in node.names)
                 statement = f"from {node.module} import {import_names}"
                 mismatches.append((node.lineno, statement))
@@ -57,12 +62,23 @@ def check_file_for_core_imports(file_path: Path) -> list[tuple[int, str]]:
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 if alias.name.startswith("airflow.") and not alias.name.startswith("airflow.sdk"):
+                    if _has_nocheck_marker(source_lines, node):
+                        continue
                     statement = f"import {alias.name}"
                     if alias.asname:
                         statement += f" as {alias.asname}"
                     mismatches.append((node.lineno, statement))
 
     return mismatches
+
+
+def _has_nocheck_marker(source_lines: list[str], node: ast.Import | ast.ImportFrom) -> bool:
+    """Check if the import statement has the nocheck marker comment on any of its lines."""
+    for lineno in (node.lineno, node.end_lineno):
+        if lineno is not None and lineno <= len(source_lines):
+            if NOCHECK_MARKER in source_lines[lineno - 1]:
+                return True
+    return False
 
 
 def main():
