@@ -81,7 +81,7 @@ dependencies = [
     "docutils>=0.21",
     "pagefind>=1.5.0",
     "pagefind-bin>=1.5.0",
-    "sphinx-airflow-theme@https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.5-py3-none-any.whl",
+    "sphinx-airflow-theme@https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.7-py3-none-any.whl",
     "sphinx-argparse>=0.4.0",
     "sphinx-autoapi>=3.8.0",
     "sphinx-autobuild>=2024.10.2",
