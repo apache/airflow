@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -96,11 +95,9 @@ describe("Task page API behavior", () => {
       </Wrapper>,
     );
 
-    expect(useTaskServiceGetTask).toHaveBeenCalledWith(
-      { dagId: "example_dag", taskId: "" },
-      undefined,
-      { enabled: false },
-    );
+    expect(useTaskServiceGetTask).toHaveBeenCalledWith({ dagId: "example_dag", taskId: "" }, undefined, {
+      enabled: false,
+    });
     expect(useTaskServiceGetTask).toHaveBeenCalledTimes(1);
   });
 
