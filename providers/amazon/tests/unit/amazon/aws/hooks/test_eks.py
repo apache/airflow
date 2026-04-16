@@ -1303,9 +1303,7 @@ class TestEksHook:
             "COMMAND must validate that token is non-empty before producing ExecCredential JSON"
         )
         # Verify the empty-token validation block exits with an error
-        assert "exit 1" in COMMAND, (
-            "COMMAND must exit with error when token extraction fails"
-        )
+        assert "exit 1" in COMMAND, "COMMAND must exit with error when token extraction fails"
 
 
 # Helper methods for repeated assert combinations.
