@@ -53,7 +53,7 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
           <Accordion.ItemTrigger>
             <Text fontWeight="bold">
               {translate("dags:runAndTaskActions.affectedTasks.title", {
-                count: affectedTasks.total_entries,
+                count: affectedTasks.total_entries ?? 0,
               })}
             </Text>
           </Accordion.ItemTrigger>

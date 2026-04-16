@@ -310,7 +310,7 @@ export const TaskInstances = () => {
         isLoading={isLoading}
         modelName="common:taskInstance"
         onStateChange={setTableURLState}
-        total={data?.total_entries}
+        total={data?.total_entries ?? undefined}
       />
     </>
   );
