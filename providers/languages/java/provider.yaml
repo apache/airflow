@@ -37,5 +37,22 @@ integrations:
     tags:
       - software
 
+config:
+  java:
+    description: "Options for the Java language provider."
+    options:
+      bundles_folder:
+        description: |
+          Path to the directory containing Java DAG bundle JARs.
+          When using Python stub DAGs that delegate task execution to Java,
+          the coordinator scans this directory to find the JAR bundle matching
+          the target dag_id. Each immediate subdirectory is treated as a
+          separate bundle home, and the directory itself is also checked
+          (flat layout).
+        type: string
+        version_added: ~
+        example: ~/airflow/java-bundles
+        default: ""
+
 process-coordinators:
   - airflow.providers.languages.java.coordinator.JavaLocaleCoordinator
