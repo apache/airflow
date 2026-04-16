@@ -992,6 +992,10 @@ class DagFileProcessorManager(LoggingMixin):
         and persists DAGs/import-errors via :meth:`persist_parsing_result`.
         Extracted from ``_collect_results`` to keep result handling and
         persistence separate.
+
+        If persistence fails, the error is logged and this method returns without
+        updating file stats for this file so other files in the same
+        ``_collect_results`` cycle still run.
         """
         is_callback_only = proc.had_callbacks and proc.parsing_result is None
         if is_callback_only:
@@ -1010,14 +1014,23 @@ class DagFileProcessorManager(LoggingMixin):
         )
 
         if proc.parsing_result is not None:
-            self.persist_parsing_result(
-                bundle_name=file.bundle_name,
-                bundle_version=self._bundle_versions[file.bundle_name],
-                parsing_result=proc.parsing_result,
-                run_duration=run_duration,
-                relative_fileloc=str(file.rel_path),
-                session=session,
-            )
+            try:
+                self.persist_parsing_result(
+                    bundle_name=file.bundle_name,
+                    bundle_version=self._bundle_versions[file.bundle_name],
+                    parsing_result=proc.parsing_result,
+                    run_duration=run_duration,
+                    relative_fileloc=str(file.rel_path),
+                    session=session,
+                )
+            except Exception:
+                self.log.exception(
+                    "Failed to persist parsing result for %s in bundle %s; "
+                    "skipping stats update for this file. Other files in this cycle are still processed.",
+                    str(file.rel_path),
+                    file.bundle_name,
+                )
+                return
 
         self._file_stats[file] = next_stat
 
