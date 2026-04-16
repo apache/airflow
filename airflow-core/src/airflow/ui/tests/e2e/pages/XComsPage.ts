@@ -38,11 +38,12 @@ export class XComsPage extends BasePage {
   }
 
   public async applyFilter(filterName: string, value: string): Promise<void> {
+    await expect(this.addFilterButton).toBeVisible({ timeout: 30_000 });
     await this.addFilterButton.click();
 
     const filterMenu = this.page.locator('[role="menu"]');
 
-    await filterMenu.waitFor({ state: "visible", timeout: 5000 });
+    await expect(filterMenu).toBeVisible({ timeout: 30_000 });
 
     const filterOption = filterMenu.locator('[role="menuitem"]').filter({ hasText: filterName });
 
@@ -54,17 +55,19 @@ export class XComsPage extends BasePage {
       .first();
     const filterInput = filterPill.locator("input");
 
-    await filterInput.waitFor({ state: "visible", timeout: 5000 });
+    await expect(filterInput).toBeVisible({ timeout: 30_000 });
     await filterInput.fill(value);
     await filterInput.press("Enter");
-    await this.page.waitForLoadState("networkidle");
+
+    await expect(this.xcomsTable.locator("tbody tr").first()).toBeVisible({ timeout: 30_000 });
   }
 
   public async navigate(): Promise<void> {
-    await this.navigateTo(XComsPage.xcomsUrl);
-    await this.page.waitForURL(/.*xcoms/, { timeout: 15_000 });
-    await this.xcomsTable.waitFor({ state: "visible", timeout: 30_000 });
-    await this.page.waitForLoadState("networkidle");
+    await expect(async () => {
+      await this.navigateTo(XComsPage.xcomsUrl);
+      await this.page.waitForURL(/.*xcoms/, { timeout: 15_000 });
+      await expect(this.xcomsTable).toBeVisible({ timeout: 30_000 });
+    }).toPass({ intervals: [2000, 5000], timeout: 60_000 });
   }
 
   public async verifyDagDisplayNameFiltering(dagDisplayNamePattern: string): Promise<void> {
@@ -92,13 +95,12 @@ export class XComsPage extends BasePage {
   public async verifyExpandCollapse(): Promise<void> {
     await this.navigate();
 
-    await expect(this.expandAllButton.first()).toBeVisible({ timeout: 5000 });
-    await this.expandAllButton.first().click();
-    await this.page.waitForLoadState("networkidle");
+    await expect(async () => {
+      await this.expandAllButton.first().click({ timeout: 5000 });
+      await expect(this.collapseAllButton.first()).toBeVisible({ timeout: 3000 });
+    }).toPass({ intervals: [2000], timeout: 15_000 });
 
-    await expect(this.collapseAllButton.first()).toBeVisible({ timeout: 5000 });
     await this.collapseAllButton.first().click();
-    await this.page.waitForLoadState("networkidle");
   }
 
   public async verifyKeyPatternFiltering(keyPattern: string): Promise<void> {

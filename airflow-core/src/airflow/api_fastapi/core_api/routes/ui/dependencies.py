@@ -65,6 +65,8 @@ def get_dependencies(
             raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Invalid asset node_id: {node_id}")
 
         data = get_data_dependencies(asset_id, session, readable_dags_filter.value)
+        if not data["nodes"]:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with id {asset_id} was not found")
         return BaseGraphResponse(**data)
 
     data = get_scheduling_dependencies(readable_dags_filter.value)

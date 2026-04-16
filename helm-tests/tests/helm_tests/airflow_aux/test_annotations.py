@@ -18,9 +18,7 @@ from __future__ import annotations
 
 import copy
 
-import jmespath
 import pytest
-import yaml
 from chart_utils.helm_template_generator import render_chart
 
 
@@ -363,6 +361,158 @@ class TestServiceAccountAnnotations:
             assert k in obj["metadata"]["annotations"]
             assert v == obj["metadata"]["annotations"][k]
 
+    @pytest.mark.parametrize(
+        ("values_key", "show_only"),
+        [
+            ("scheduler", "templates/scheduler/scheduler-serviceaccount.yaml"),
+            ("triggerer", "templates/triggerer/triggerer-serviceaccount.yaml"),
+        ],
+    )
+    def test_tpl_rendered_annotations_airflow_2(self, values_key, show_only):
+        """Test SA annotations support tpl rendering for Airflow 2.x components."""
+        k8s_objects = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                values_key: {
+                    "serviceAccount": {
+                        "annotations": {
+                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-sa@project.iam",
+                        },
+                    },
+                },
+            },
+            show_only=[show_only],
+        )
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["metadata"]["annotations"]
+        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-sa@project.iam"
+
+    def test_tpl_rendered_multiple_annotations(self):
+        """Test that multiple annotations render correctly with tpl."""
+        k8s_objects = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "scheduler": {
+                    "serviceAccount": {
+                        "annotations": {
+                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-sa@project.iam",
+                            "another-annotation": "{{ .Release.Name }}-other",
+                            "plain-annotation": "no-template",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-serviceaccount.yaml"],
+        )
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["metadata"]["annotations"]
+        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-sa@project.iam"
+        assert annotations["another-annotation"] == "release-name-other"
+        assert annotations["plain-annotation"] == "no-template"
+
+    def test_tpl_rendered_annotations_pgbouncer(self):
+        """Test pgbouncer SA annotations support tpl rendering."""
+        k8s_objects = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "pgbouncer": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "annotations": {
+                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-sa@project.iam",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-serviceaccount.yaml"],
+        )
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["metadata"]["annotations"]
+        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-sa@project.iam"
+
+    @pytest.mark.parametrize(
+        ("values_key", "show_only"),
+        [
+            ("dagProcessor", "templates/dag-processor/dag-processor-serviceaccount.yaml"),
+            ("apiServer", "templates/api-server/api-server-serviceaccount.yaml"),
+        ],
+    )
+    def test_tpl_rendered_annotations_airflow_3(self, values_key, show_only):
+        """Test SA annotations support tpl rendering for Airflow 3.x components."""
+        k8s_objects = render_chart(
+            values={
+                values_key: {
+                    "serviceAccount": {
+                        "annotations": {
+                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-sa@project.iam",
+                        },
+                    },
+                },
+            },
+            show_only=[show_only],
+        )
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["metadata"]["annotations"]
+        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-sa@project.iam"
+
+    def test_tpl_rendered_annotations_celery_worker(self):
+        """Test Celery worker SA annotations support tpl rendering."""
+        k8s_objects = render_chart(
+            values={
+                "workers": {
+                    "celery": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-worker@project.iam",
+                            },
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["metadata"]["annotations"]
+        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-worker@project.iam"
+
+    def test_tpl_rendered_annotations_kubernetes_worker(self):
+        """Test KubernetesExecutor worker SA annotations support tpl rendering."""
+        k8s_objects = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": {
+                    "serviceAccount": {
+                        "annotations": {
+                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-worker@project.iam",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["metadata"]["annotations"]
+        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-worker@project.iam"
+
+    def test_tpl_rendered_annotations_webserver(self):
+        """Test webserver SA annotations support tpl rendering (Airflow 2.x only)."""
+        k8s_objects = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "webserver": {
+                    "serviceAccount": {
+                        "annotations": {
+                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-web@project.iam",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/webserver/webserver-serviceaccount.yaml"],
+        )
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["metadata"]["annotations"]
+        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-web@project.iam"
+
     def test_annotations_on_webserver(self):
         """Test annotations are added on webserver for Airflow 2"""
         k8s_objects = render_chart(
@@ -392,39 +542,72 @@ class TestServiceAccountAnnotations:
             {
                 "scheduler": {
                     "podAnnotations": {
-                        "example": "scheduler",
+                        "example": "{{ .Release.Name }}-scheduler",
                     },
                 },
             },
             "templates/scheduler/scheduler-deployment.yaml",
             {
-                "example": "scheduler",
+                "example": "release-name-scheduler",
             },
         ),
         (
             {
                 "apiServer": {
                     "podAnnotations": {
-                        "example": "api-server",
+                        "example": "{{ .Release.Name }}-api-server",
                     },
                 },
             },
             "templates/api-server/api-server-deployment.yaml",
             {
-                "example": "api-server",
+                "example": "release-name-api-server",
             },
         ),
         (
             {
                 "workers": {
                     "podAnnotations": {
-                        "example": "worker",
+                        "example": "{{ .Release.Name }}-worker",
                     },
                 },
             },
             "templates/workers/worker-deployment.yaml",
             {
-                "example": "worker",
+                "example": "release-name-worker",
+            },
+        ),
+        (
+            {
+                "workers": {
+                    "celery": {
+                        "podAnnotations": {
+                            "example": "{{ .Release.Name }}-worker",
+                        },
+                    }
+                },
+            },
+            "templates/workers/worker-deployment.yaml",
+            {
+                "example": "release-name-worker",
+            },
+        ),
+        (
+            {
+                "workers": {
+                    "podAnnotations": {
+                        "test": "test",
+                    },
+                    "celery": {
+                        "podAnnotations": {
+                            "example": "{{ .Release.Name }}-worker",
+                        },
+                    },
+                },
+            },
+            "templates/workers/worker-deployment.yaml",
+            {
+                "example": "release-name-worker",
             },
         ),
         (
@@ -432,26 +615,26 @@ class TestServiceAccountAnnotations:
                 "flower": {
                     "enabled": True,
                     "podAnnotations": {
-                        "example": "flower",
+                        "example": "{{ .Release.Name }}-flower",
                     },
                 },
             },
             "templates/flower/flower-deployment.yaml",
             {
-                "example": "flower",
+                "example": "release-name-flower",
             },
         ),
         (
             {
                 "triggerer": {
                     "podAnnotations": {
-                        "example": "triggerer",
+                        "example": "{{ .Release.Name }}-triggerer",
                     },
                 },
             },
             "templates/triggerer/triggerer-deployment.yaml",
             {
-                "example": "triggerer",
+                "example": "release-name-triggerer",
             },
         ),
         (
@@ -459,13 +642,13 @@ class TestServiceAccountAnnotations:
                 "dagProcessor": {
                     "enabled": True,
                     "podAnnotations": {
-                        "example": "dag-processor",
+                        "example": "{{ .Release.Name }}-dag-processor",
                     },
                 },
             },
             "templates/dag-processor/dag-processor-deployment.yaml",
             {
-                "example": "dag-processor",
+                "example": "release-name-dag-processor",
             },
         ),
         (
@@ -474,13 +657,13 @@ class TestServiceAccountAnnotations:
                 "cleanup": {
                     "enabled": True,
                     "podAnnotations": {
-                        "example": "cleanup",
+                        "example": "{{ .Release.Name }}-cleanup",
                     },
                 },
             },
             "templates/cleanup/cleanup-cronjob.yaml",
             {
-                "example": "cleanup",
+                "example": "release-name-cleanup",
             },
         ),
         (
@@ -488,39 +671,39 @@ class TestServiceAccountAnnotations:
                 "databaseCleanup": {
                     "enabled": True,
                     "podAnnotations": {
-                        "example": "database-cleanup",
+                        "example": "{{ .Release.Name }}-database-cleanup",
                     },
                 }
             },
             "templates/database-cleanup/database-cleanup-cronjob.yaml",
             {
-                "example": "database-cleanup",
+                "example": "release-name-database-cleanup",
             },
         ),
         (
             {
                 "redis": {
                     "podAnnotations": {
-                        "example": "redis",
+                        "example": "{{ .Release.Name }}-redis",
                     },
                 },
             },
             "templates/redis/redis-statefulset.yaml",
             {
-                "example": "redis",
+                "example": "release-name-redis",
             },
         ),
         (
             {
                 "statsd": {
                     "podAnnotations": {
-                        "example": "statsd",
+                        "example": "{{ .Release.Name }}-statsd",
                     },
                 },
             },
             "templates/statsd/statsd-deployment.yaml",
             {
-                "example": "statsd",
+                "example": "release-name-statsd",
             },
         ),
         (
@@ -528,13 +711,13 @@ class TestServiceAccountAnnotations:
                 "pgbouncer": {
                     "enabled": True,
                     "podAnnotations": {
-                        "example": "pgbouncer",
+                        "example": "{{ .Release.Name }}-pgbouncer",
                     },
                 },
             },
             "templates/pgbouncer/pgbouncer-deployment.yaml",
             {
-                "example": "pgbouncer",
+                "example": "release-name-pgbouncer",
             },
         ),
     ],
@@ -583,19 +766,15 @@ class TestPerComponentPodAnnotations:
             assert v == annotations[k]
 
     def test_pod_annotations_are_templated(self, values, show_only, expected_annotations):
-        templated_values = copy.deepcopy(values)
-        for val in templated_values.values():
-            if isinstance(val, dict) and "podAnnotations" in val:
-                val["podAnnotations"] = {"release-name": "{{ .Release.Name }}"}
-
         k8s_objects = render_chart(
-            values=templated_values,
+            values=values,
             show_only=[show_only],
         )
 
         assert len(k8s_objects) == 1
         annotations = get_object_annotations(k8s_objects[0])
-        assert annotations["release-name"] == "release-name"
+        assert annotations["example"] == expected_annotations["example"]
+        assert "test" not in annotations
 
     def test_airflow_pod_annotations_are_templated(self, values, show_only, expected_annotations):
         templated_values = copy.deepcopy(values)
@@ -643,50 +822,6 @@ class TestRedisAnnotations:
         for k, v in expected_annotations.items():
             assert k in obj["metadata"]["annotations"]
             assert v == obj["metadata"]["annotations"][k]
-
-
-class TestPodTemplateFileAnnotationsTemplating:
-    """Tests that podAnnotations are templated in the pod template file."""
-
-    def test_pod_template_file_annotations_are_templated(self):
-        k8s_objects = render_chart(
-            values={
-                "executor": "KubernetesExecutor",
-                "workers": {
-                    "podAnnotations": {
-                        "release-name": "{{ .Release.Name }}",
-                    },
-                },
-            },
-            show_only=["templates/configmaps/configmap.yaml"],
-        )
-
-        assert len(k8s_objects) == 1
-        pod_template = k8s_objects[0]["data"]["pod_template_file.yaml"]
-        annotations = jmespath.search(
-            "metadata.annotations",
-            yaml.safe_load(pod_template),
-        )
-        assert annotations["release-name"] == "release-name"
-
-    def test_pod_template_file_global_annotations_are_templated(self):
-        k8s_objects = render_chart(
-            values={
-                "executor": "KubernetesExecutor",
-                "airflowPodAnnotations": {
-                    "global-release": "{{ .Release.Name }}",
-                },
-            },
-            show_only=["templates/configmaps/configmap.yaml"],
-        )
-
-        assert len(k8s_objects) == 1
-        pod_template = k8s_objects[0]["data"]["pod_template_file.yaml"]
-        annotations = jmespath.search(
-            "metadata.annotations",
-            yaml.safe_load(pod_template),
-        )
-        assert annotations["global-release"] == "release-name"
 
 
 class TestWebserverPodAnnotationsTemplating:

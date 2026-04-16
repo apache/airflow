@@ -965,6 +965,11 @@ class TestKubernetesPodOperatorSystem:
         )
         pod_mock = MagicMock()
         pod_mock.status.phase = "Succeeded"
+        base_container_status = MagicMock()
+        base_container_status.name = "base"
+        base_container_status.state.terminated.exit_code = 0
+        pod_mock.status.container_statuses = [base_container_status]
+        pod_mock.status.init_container_statuses = None
         await_pod_completion_mock.return_value = pod_mock
         context = create_context(k)
 

@@ -197,6 +197,39 @@ class TestDefaultFillingLogic:
 
         assert make_op(dummy_task, op_kwargs={"a": 1, "kw_required": "x"}) is not None
 
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            pytest.param(
+                {"task_id": "fetch_{}".format},
+                "Expected 'task_id' to be .*, got builtin_function_or_method",
+                id="task_id_bound_method",
+            ),
+            pytest.param(
+                {"retries": "three"},
+                "Expected 'retries' to be .*, got str",
+                id="retries_string",
+            ),
+            pytest.param(
+                {"queue": 42},
+                "Expected 'queue' to be .*, got int",
+                id="queue_int",
+            ),
+            pytest.param(
+                {"priority_weight": 1.5},
+                "Expected 'priority_weight' to be .*, got float",
+                id="priority_weight_float",
+            ),
+        ],
+    )
+    def test_wrong_arg_type_raises_type_error_at_decoration_time(self, kwargs, match):
+        """Non-matching types for operator kwargs raise TypeError at decoration time."""
+        with pytest.raises(TypeError, match=match):
+
+            @task(**kwargs)
+            def my_task():
+                return 1
+
 
 def make_op(func, op_args=None, op_kwargs=None, **kwargs):
     return DummyDecoratedOperator(

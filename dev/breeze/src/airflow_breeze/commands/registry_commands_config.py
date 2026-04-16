@@ -39,8 +39,10 @@ REGISTRY_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Backfill flags",
             "options": [
+                "--python",
                 "--provider",
                 "--version",
+                "--use-docker",
             ],
         },
     ],

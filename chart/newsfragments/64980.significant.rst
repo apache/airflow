@@ -1,0 +1,1 @@
+``workers.topologySpreadConstraints`` field is now deprecated in favor of ``workers.celery.topologySpreadConstraints`` and ``workers.kubernetes.topologySpreadConstraints``. Please update your configuration accordingly.

@@ -1,0 +1,1 @@
+``workers.extraVolumeMounts`` field is now deprecated in favor of ``workers.celery.extraVolumeMounts`` and ``workers.kubernetes.extraVolumeMounts``. Please update your configuration accordingly.

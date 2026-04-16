@@ -31,7 +31,7 @@ repos:
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: d7815f1f950f8d5ec933fa4f70208bf316bb13f8  # frozen: v2.3.0
+    rev: 8c02ba71e7e9c5c90d85f05b676523cb8fd897c6  # frozen: v2.4.0
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -448,7 +448,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.9']
+        additional_dependencies: ['ruff==0.15.10']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -1007,12 +1007,14 @@ repos:
         pass_filenames: false
         files: ^dev/breeze/src/airflow_breeze/global_constants\.py$
         require_serial: true
-        # This is a fast regular hook that runs when any pyproject.toml changes
-        # It runs locally and usually will not result in modifying the lock unnecessarily
-        # Unless there is a conflict and uv will determine that the lock needs to be updated to resolve it
+        # This is a fast regular hook that runs when any pyproject.toml changes.
+        # It runs locally with `--frozen` so the lock is only verified against pyproject.toml,
+        # never silently rewritten during a commit. If a pyproject.toml change makes the lock
+        # stale, the hook fails and the contributor must run `uv lock` explicitly and commit
+        # the refreshed uv.lock — which keeps lock updates intentional and reviewable.
       - id: update-uv-lock
         name: Update uv.lock
-        entry: uv lock
+        entry: uv lock --frozen
         language: system
         files: >
           (?x)

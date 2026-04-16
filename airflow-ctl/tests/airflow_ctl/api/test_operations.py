@@ -731,6 +731,7 @@ class TestDagOperations:
         timetable_summary="timetable_summary",
         timetable_description="timetable_description",
         timetable_partitioned=False,
+        timetable_periodic=True,
         tags=[],
         max_active_tasks=1,
         max_active_runs=1,
@@ -742,6 +743,7 @@ class TestDagOperations:
         next_dagrun_data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
         next_dagrun_run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
         owners=["apache-airflow"],
+        is_backfillable=True,
         file_token="file_token",
         bundle_name="bundle_name",
         is_stale=False,
@@ -759,6 +761,7 @@ class TestDagOperations:
         timetable_summary="timetable_summary",
         timetable_description="timetable_description",
         timetable_partitioned=False,
+        timetable_periodic=True,
         tags=[],
         max_active_tasks=1,
         max_active_runs=1,
@@ -770,6 +773,7 @@ class TestDagOperations:
         next_dagrun_data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
         next_dagrun_run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
         owners=["apache-airflow"],
+        is_backfillable=True,
         catchup=False,
         dag_run_timeout=datetime.timedelta(days=1),
         asset_expression=None,
@@ -1158,6 +1162,11 @@ class TestJobsOperations:
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/jobs"
+            params = dict(request.url.params)
+            assert params["job_type"] == "job_type"
+            assert params["hostname"] == "hostname"
+            assert params["is_alive"] == "true"
+            assert params["limit"] == "50"
             return httpx.Response(200, json=json.loads(self.job_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -1166,6 +1175,32 @@ class TestJobsOperations:
             hostname="hostname",
             is_alive=True,
         )
+        assert response == self.job_collection_response
+
+    @pytest.mark.parametrize(
+        ("job_type", "hostname", "is_alive", "expected_subset"),
+        [
+            (None, None, None, {}),
+            ("scheduler", None, None, {"job_type": "scheduler"}),
+            (None, "host-a", None, {"hostname": "host-a"}),
+            (None, None, False, {"is_alive": "false"}),
+        ],
+    )
+    def test_list_omits_empty_filters(self, job_type, hostname, is_alive, expected_subset):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/jobs"
+            params = dict(request.url.params)
+            assert params["limit"] == "50"
+            for key, value in expected_subset.items():
+                assert params[key] == value
+
+            assert ("job_type" in params) is ("job_type" in expected_subset)
+            assert ("hostname" in params) is ("hostname" in expected_subset)
+            assert ("is_alive" in params) is ("is_alive" in expected_subset)
+            return httpx.Response(200, json=json.loads(self.job_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.jobs.list(job_type=job_type, hostname=hostname, is_alive=is_alive)
         assert response == self.job_collection_response
 
 
