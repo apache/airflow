@@ -52,8 +52,8 @@ export const Task = () => {
     data: task,
     error,
     isLoading,
-  } = useTaskServiceGetTask({ dagId, taskId: groupId ?? taskId }, undefined, {
-    enabled: groupId === undefined,
+  } = useTaskServiceGetTask({ dagId, taskId: taskId ?? "" }, undefined, {
+    enabled: groupId === undefined && Boolean(taskId),
   });
 
   const { data: dagStructure } = useGridStructure({ limit: 1 });
