@@ -1452,6 +1452,10 @@ export class DagService {
     /**
      * Patch Dags
      * Patch multiple DAGs.
+     *
+     * If `dag_id_pattern` is not provided, no DAGs will be matched regardless
+     * of other filters. To match all DAGs, pass a wildcard value such as `~`
+     * or `%` for `dag_id_pattern`.
      * @param data The data for the request.
      * @param data.requestBody
      * @param data.updateMask

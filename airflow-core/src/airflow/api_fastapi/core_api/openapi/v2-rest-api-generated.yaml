@@ -3301,7 +3301,14 @@ paths:
       tags:
       - DAG
       summary: Patch Dags
-      description: Patch multiple DAGs.
+      description: 'Patch multiple DAGs.
+
+
+        If `dag_id_pattern` is not provided, no DAGs will be matched regardless
+
+        of other filters. To match all DAGs, pass a wildcard value such as `~`
+
+        or `%` for `dag_id_pattern`.'
       operationId: patch_dags
       security:
       - OAuth2PasswordBearer: []
