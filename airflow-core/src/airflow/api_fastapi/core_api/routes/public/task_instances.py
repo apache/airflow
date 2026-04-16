@@ -27,7 +27,12 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.cursors import apply_cursor_filter, encode_cursor
+from airflow.api_fastapi.common.cursors import (
+    apply_cursor_filter,
+    encode_cursor,
+    make_backward_cursor,
+    parse_cursor,
+)
 from airflow.api_fastapi.common.dagbag import (
     DagBagDep,
     get_dag_for_run,
@@ -551,17 +556,38 @@ def get_task_instances(
         task_instance_select = apply_filters_to_select(
             statement=query, filters=[*filters, order_by, cursor_limit]
         )
+
+        is_backward = False
         if cursor:
-            task_instance_select = apply_cursor_filter(task_instance_select, cursor, order_by)
+            token, is_backward = parse_cursor(cursor)
+            if is_backward:
+                task_instance_select = order_by.to_orm(task_instance_select, reversed=True)
+            task_instance_select = apply_cursor_filter(
+                task_instance_select, token, order_by, is_backward=is_backward
+            )
 
         fetched = list(session.scalars(task_instance_select))
-        has_next = len(fetched) > page_limit
+        has_more = len(fetched) > page_limit
         task_instances = fetched[:page_limit]
+
+        if is_backward:
+            task_instances.reverse()
+            has_prev = has_more
+            has_next = True
+        else:
+            has_prev = bool(cursor)
+            has_next = has_more
 
         return TaskInstanceCollectionResponse(
             task_instances=task_instances,
-            next_cursor=encode_cursor(task_instances[-1], order_by) if has_next and task_instances else None,
-            previous_cursor=encode_cursor(task_instances[0], order_by) if cursor and task_instances else None,
+            next_cursor=(
+                encode_cursor(task_instances[-1], order_by) if has_next and task_instances else None
+            ),
+            previous_cursor=(
+                make_backward_cursor(encode_cursor(task_instances[0], order_by))
+                if has_prev and task_instances
+                else None
+            ),
         )
 
     task_instance_select, total_entries = paginated_select(

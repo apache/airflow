@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime as dt
 import itertools
+import math
 import os
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
@@ -1771,64 +1772,72 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert body2["previous_cursor"] is not None
         assert body2["total_entries"] is None
 
-    def test_cursor_pagination_pages_do_not_overlap(self, test_client, session):
-        """Cursor-driven pages partition the result set without overlap."""
+    def test_cursor_pagination_forward_and_backward_consistency(self, test_client, session):
+        """Walk all pages forward via next_cursor, then backward via previous_cursor, and compare."""
         dag_id = "example_python_operator"
+        total_tis = 13
+        page_size = 4
+        max_pages = math.ceil(total_tis / page_size)
         self.create_task_instances(
             session,
             task_instances=[
-                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(10)
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(total_tis)
             ],
             dag_id=dag_id,
         )
-        page_size = 4
-        all_ids: list[str] = []
-        cursor_token = ""
 
-        for _ in range(5):
-            params: dict = {"limit": page_size, "order_by": ["map_index"], "cursor": cursor_token}
-            response = test_client.get("/dags/~/dagRuns/~/taskInstances", params=params)
+        # -- Walk forward collecting pages --
+        forward_ids: list[str] = []
+        forward_pages: list[dict] = []
+        cursor_token = ""
+        for _ in range(max_pages):
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances",
+                params={"limit": page_size, "order_by": ["map_index"], "cursor": cursor_token},
+            )
             assert response.status_code == 200, response.json()
             body = response.json()
             assert body["total_entries"] is None
-            page_ids = [ti["id"] for ti in body["task_instances"]]
-            all_ids.extend(page_ids)
+            forward_pages.append(body)
+            forward_ids.extend(ti["id"] for ti in body["task_instances"])
 
             cursor_token = body.get("next_cursor")
             if cursor_token is None:
                 break
 
-        assert len(all_ids) == len(set(all_ids)), "Cursor pages should not have overlapping items"
+        # Sanity: all TIs collected, no overlaps, multiple pages
+        assert len(forward_ids) == total_tis
+        assert len(forward_ids) == len(set(forward_ids)), "Forward pages should not overlap"
+        assert len(forward_pages) == 4
 
-    def test_cursor_pagination_cursors_null_at_boundaries(self, test_client, session):
-        """previous_cursor is null on the first page; next_cursor is null on the last page."""
-        dag_id = "example_python_operator"
-        self.create_task_instances(
-            session,
-            task_instances=[
-                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(5)
-            ],
-            dag_id=dag_id,
-        )
-        # Page 1 (first page): previous_cursor must be null, next_cursor set
-        r1 = test_client.get(
-            "/dags/~/dagRuns/~/taskInstances",
-            params={"limit": 3, "order_by": ["map_index"], "cursor": ""},
-        )
-        assert r1.status_code == 200
-        b1 = r1.json()
-        assert b1["previous_cursor"] is None, "First page should have no previous_cursor"
-        assert b1["next_cursor"] is not None, "First page should have next_cursor when more rows exist"
+        # Boundary cursors
+        assert forward_pages[0]["previous_cursor"] is None, "First page should have no previous_cursor"
+        assert forward_pages[-1]["next_cursor"] is None, "Last page should have no next_cursor"
 
-        # Page 2 (last page): next_cursor must be null, previous_cursor set
-        r2 = test_client.get(
-            "/dags/~/dagRuns/~/taskInstances",
-            params={"limit": 100, "cursor": b1["next_cursor"], "order_by": ["map_index"]},
+        # -- Walk backward from the last page using previous_cursor --
+        backward_ids: list[str] = []
+        cursor_token = forward_pages[-1]["previous_cursor"]
+        assert cursor_token is not None, "Last page should provide a previous_cursor"
+
+        for _ in range(max_pages):
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances",
+                params={"limit": page_size, "order_by": ["map_index"], "cursor": cursor_token},
+            )
+            assert response.status_code == 200, response.json()
+            body = response.json()
+            backward_ids = [ti["id"] for ti in body["task_instances"]] + backward_ids
+
+            cursor_token = body.get("previous_cursor")
+            if cursor_token is None:
+                break
+
+        # Backward walk covers all items except the last page (already collected).
+        # Order must match exactly — no re-sorting needed if pagination is correct.
+        all_backward = backward_ids + [ti["id"] for ti in forward_pages[-1]["task_instances"]]
+        assert all_backward == forward_ids, (
+            "Walking backward + last page should produce the same TIs in the same order as walking forward"
         )
-        assert r2.status_code == 200
-        b2 = r2.json()
-        assert b2["next_cursor"] is None, "Last page should have no next_cursor"
-        assert b2["previous_cursor"] is not None, "Last page should have previous_cursor"
 
     def test_cursor_pagination_invalid_token(self, test_client, session):
         """Invalid cursor token returns 400."""

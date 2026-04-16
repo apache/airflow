@@ -337,12 +337,15 @@ class SortParam(BaseParam[list[str]]):
         self._cached_resolution = resolved
         return self._cached_resolution
 
-    def to_orm(self, select: Select) -> Select:
+    def to_orm(self, select: Select, *, reversed: bool = False) -> Select:
         if self.skip_none is False:
             raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
 
         resolved = self._resolve()
-        columns = [col.desc() if is_desc else col.asc() for _, col, is_desc in resolved]
+        if reversed:
+            columns = [col.asc() if is_desc else col.desc() for _, col, is_desc in resolved]
+        else:
+            columns = [col.desc() if is_desc else col.asc() for _, col, is_desc in resolved]
         return select.order_by(None).order_by(*columns)
 
     def get_resolved_columns(self) -> list[tuple[str, ColumnElement, bool]]:
