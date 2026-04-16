@@ -27,9 +27,6 @@
 Changelog
 ---------
 
-Bug fixes
-~~~~~~~~~
-
 When the ``[elasticsearch] host`` config embeds credentials
 (``https://user:password@elk.example.com:9200``), the log-source label
 shown in task logs is now the host URL with the ``user:password@`` portion
