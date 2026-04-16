@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
 import attrs
+import jwt
 import structlog
 from cadwyn import VersionedAPIRouter
 from fastapi import Body, HTTPException, Query, Response, Security, status
@@ -303,7 +304,7 @@ def ti_run(
     try:
         generator: JWTGenerator = services.get(JWTGenerator)
         execution_token = generator.generate(extras={"sub": str(task_instance_id), "scope": "execution"})
-    except Exception:
+    except jwt.PyJWTError:
         log.exception("Failed to generate execution token for task instance %s", task_instance_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Token generation failed"

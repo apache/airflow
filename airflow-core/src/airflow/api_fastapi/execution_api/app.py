@@ -78,7 +78,7 @@ def _jwt_generator():
     generator = JWTGenerator(
         valid_for=conf.getint("execution_api", "jwt_expiration_time"),
         # workload_valid_for uses the attrs default factory, which reads
-        # execution_api.jwt_workload_token_expiration_time
+        # [scheduler] task_queued_timeout
         audience=conf.get_mandatory_list_value("execution_api", "jwt_audience")[0],
         issuer=conf.get("api_auth", "jwt_issuer", fallback=None),
         # Since this one is used across components/server, there is no point trying to generate one, error

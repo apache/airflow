@@ -419,7 +419,7 @@ class JWTGenerator:
     kid: str = attrs.field(default=attrs.Factory(_generate_kid, takes_self=True))
     valid_for: float
     workload_valid_for: float = attrs.field(
-        factory=_conf_factory("execution_api", "jwt_workload_token_expiration_time", fallback="86400"),
+        factory=_conf_factory("scheduler", "task_queued_timeout"),
         converter=float,
     )
     audience: str
