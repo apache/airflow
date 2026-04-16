@@ -1424,6 +1424,106 @@ class TestDag:
         mock_task_object_1.assert_called()
         mock_task_object_2.assert_not_called()
 
+    def test_dag_test_multiple_independent_tasks(self, testing_dag_bundle):
+        """Test dag.test() with multiple independent tasks succeeds.
+
+        When a DAG has multiple tasks with no dependencies between them,
+        they are all scheduled in the same loop iteration and run
+        sequentially via _run_task.  Each _run_task call must commit the
+        QUEUED state so the in-process execution API (which runs in a
+        separate thread via a2wsgi with its own non-scoped session) can
+        observe it.  Without proper session handling, the API reads stale
+        state (e.g. RUNNING from a previous task) and raises
+        TaskAlreadyRunningError.
+        """
+        dag = DAG(
+            dag_id="test_dag_test_multiple_independent_tasks",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+        )
+        sync_dag_to_db(dag)
+
+        mock_task_a = mock.MagicMock()
+        mock_task_b = mock.MagicMock()
+        mock_task_c = mock.MagicMock()
+
+        @task_decorator
+        def task_a():
+            mock_task_a()
+            return "a"
+
+        @task_decorator
+        def task_b():
+            mock_task_b()
+            return "b"
+
+        @task_decorator
+        def task_c():
+            mock_task_c()
+            return "c"
+
+        with dag:
+            task_a()
+            task_b()
+            task_c()
+        sync_dag_to_db(dag)
+
+        dr = dag.test()
+
+        # All three independent tasks must succeed — no TaskAlreadyRunningError.
+        ti_a = dr.get_task_instance("task_a")
+        ti_b = dr.get_task_instance("task_b")
+        ti_c = dr.get_task_instance("task_c")
+        assert ti_a.state == TaskInstanceState.SUCCESS
+        assert ti_b.state == TaskInstanceState.SUCCESS
+        assert ti_c.state == TaskInstanceState.SUCCESS
+
+        mock_task_a.assert_called_once()
+        mock_task_b.assert_called_once()
+        mock_task_c.assert_called_once()
+
+    def test_dag_test_independent_tasks_with_retries(self, testing_dag_bundle):
+        """Test dag.test() with independent tasks and retries configured.
+
+        Ensures the session fix works when default_args include retries,
+        which was a configuration present in the original bug report.
+        """
+        dag = DAG(
+            dag_id="test_dag_test_independent_tasks_retries",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            default_args={"retries": 3},
+        )
+        sync_dag_to_db(dag)
+
+        mock_task_1 = mock.MagicMock()
+        mock_task_2 = mock.MagicMock()
+
+        @task_decorator
+        def first_task():
+            mock_task_1()
+            return "first"
+
+        @task_decorator
+        def second_task():
+            mock_task_2()
+            return "second"
+
+        with dag:
+            first_task()
+            second_task()
+        sync_dag_to_db(dag)
+
+        dr = dag.test()
+
+        ti_1 = dr.get_task_instance("first_task")
+        ti_2 = dr.get_task_instance("second_task")
+        assert ti_1.state == TaskInstanceState.SUCCESS
+        assert ti_2.state == TaskInstanceState.SUCCESS
+
+        mock_task_1.assert_called_once()
+        mock_task_2.assert_called_once()
+
     def test_dag_connection_file(self, tmp_path, testing_dag_bundle):
         test_connections_string = """
 ---
