@@ -58,8 +58,6 @@ try:
 except ImportError:
     from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager  # type:ignore[no-redef]
 
-if AIRFLOW_V_3_2_PLUS:
-    from airflow.executors.workloads.callback import execute_callback_workload
 
 log = logging.getLogger(__name__)
 
@@ -206,11 +204,43 @@ def on_celery_worker_ready(*args, **kwargs):
 # and deserialization for us.
 @app.task(name="execute_workload")
 def execute_workload(input: str) -> None:
+    if not AIRFLOW_V_3_2_PLUS:
+        return _execute_workload_pre_3_2(input)
+
+    from celery.exceptions import Ignore
+    from pydantic import TypeAdapter
+
+    from airflow.executors.workloads import ExecutorWorkload
+
+    decoder = TypeAdapter[ExecutorWorkload](ExecutorWorkload)
+    workload = decoder.validate_json(input)
+
+    celery_task_id = app.current_task.request.id
+
+    log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
+
+    try:
+        BaseExecutor.run_workload(workload)
+    except Exception as e:
+        if AIRFLOW_V_3_1_9_PLUS:
+            from airflow.sdk.exceptions import TaskAlreadyRunningError
+
+            if isinstance(e, TaskAlreadyRunningError):
+                log.info("[%s] Task already running elsewhere, ignoring redelivered message", celery_task_id)
+                # Raise Ignore() so Celery does not record a FAILURE result for this duplicate
+                # delivery. Without this, the broker redelivering the message (e.g. after a
+                # visibility timeout) would cause Celery to mark the task as failed, even though
+                # the original worker is still executing it successfully.
+                raise Ignore()
+        raise
+
+
+def _execute_workload_pre_3_2(input: str) -> None:
+    """Fallback for Airflow < 3.2 which lacks BaseExecutor.run_workload()."""
     from celery.exceptions import Ignore
     from pydantic import TypeAdapter
 
     from airflow.executors import workloads
-    from airflow.providers.common.compat.sdk import conf
     from airflow.sdk.execution_time.supervisor import supervise
 
     decoder = TypeAdapter[workloads.All](workloads.All)
@@ -237,10 +267,6 @@ def execute_workload(input: str) -> None:
                 server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
                 log_path=workload.log_path,
             )
-        elif isinstance(workload, workloads.ExecuteCallback):
-            success, error_msg = execute_callback_workload(workload.callback, log)
-            if not success:
-                raise RuntimeError(error_msg or "Callback execution failed")
         else:
             raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
     except Exception as e:

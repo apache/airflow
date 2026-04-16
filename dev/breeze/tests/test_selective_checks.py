@@ -1297,6 +1297,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 id="Shared logging library changes enable both remote logging e2e jobs",
             )
         ),
+        (
+            pytest.param(
+                ("shared/timezones/src/airflow_shared/timezones/timezone.py",),
+                {
+                    "ci-image-build": "true",
+                    "run-unit-tests": "true",
+                },
+                id="Shared library python changes trigger unit tests",
+            )
+        ),
     ],
 )
 def test_expected_output_pull_request_main(

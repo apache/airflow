@@ -1,0 +1,102 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+assets:
+  get: "Retrieve an asset by its ID"
+  get-by-alias: "Retrieve an asset by its alias"
+  list: "List all assets"
+  list-by-alias: "List all asset aliases"
+  create-event: "Create an event for a given asset"
+  materialize: "Trigger materialization of an asset by its ID"
+  get-queued-events: "List queued events for a given asset"
+  get-dag-queued-events: "List queued asset events for a given DAG"
+  get-dag-queued-event: "Retrieve a specific queued asset event for a given DAG and asset"
+  delete-queued-events: "Delete all queued events for a given asset"
+  delete-dag-queued-events: "Delete all queued asset events for a given DAG"
+  delete-queued-event: "Delete a specific queued asset event for a given DAG and asset"
+
+backfill:
+  create: "Create a backfill job for a given DAG ID and date range"
+  create-dry-run: "Preview a backfill job without executing it"
+  get: "Retrieve details of a backfill job by its ID"
+  list: "List all backfill jobs for a given DAG"
+  pause: "Pause an active backfill job"
+  unpause: "Resume a paused backfill job"
+  cancel: "Cancel a backfill job"
+
+config:
+  get: "Retrieve the value of a specific configuration option"
+  list: "List all configuration sections and their options"
+
+connections:
+  get: "Retrieve a connection by its ID"
+  list: "List all configured connections"
+  create: "Create a new connection"
+  create-defaults: "Populate default connections for installed providers"
+  delete: "Delete a connection by its ID"
+  update: "Update an existing connection"
+  test: "Test connectivity for a given connection"
+
+dags:
+  get: "Retrieve a DAG by its ID"
+  get-details: "Retrieve detailed information for a DAG"
+  get-tags: "List all tags used across DAGs"
+  list: "List all DAGs"
+  update: "Update properties of a DAG"
+  delete: "Delete a DAG by its ID"
+  get-import-error: "Retrieve a DAG import error by its ID"
+  list-import-errors: "List all DAG import errors"
+  get-stats: "Retrieve run statistics for one or more DAGs"
+  get-version: "Retrieve a specific version of a DAG"
+  list-version: "List all versions of a DAG"
+  list-warning: "List all DAG warnings"
+  trigger: "Trigger a new DAG run"
+
+dagrun:
+  get: "Retrieve a DAG run by DAG ID and run ID"
+  list: "List DAG runs, optionally filtered by state and date range"
+
+jobs:
+  list: "List scheduler, triggerer, and other Airflow jobs"
+
+pools:
+  get: "Retrieve a pool by its name"
+  list: "List all pools"
+  create: "Create a new pool"
+  delete: "Delete a pool by its name"
+  update: "Update an existing pool"
+
+providers:
+  list: "List all installed Airflow providers"
+
+variables:
+  get: "Retrieve a variable by its key"
+  list: "List all variables"
+  create: "Create a new variable"
+  delete: "Delete a variable by its key"
+  update: "Update an existing variable"
+
+xcom:
+  get: "Retrieve an XCom entry for a specific task instance"
+  list: "List XCom entries for a specific task instance"
+  add: "Add a new XCom entry for a specific task instance"
+  edit: "Update an existing XCom entry for a specific task instance"
+  delete: "Delete an XCom entry for a specific task instance"
+
+plugins:
+  list: "List all installed Airflow plugins"
+  list-import-errors: "List all plugin import errors"

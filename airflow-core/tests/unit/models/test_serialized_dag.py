@@ -524,6 +524,48 @@ class TestSerializedDagModel:
         )
         assert did_write is should_write
 
+    def test_prefetch_dag_write_metadata_multiple_dags(self, dag_maker, session):
+        """Test that _prefetch_dag_write_metadata returns correct metadata for multiple DAGs."""
+        with dag_maker("prefetch_multi_dag1"):
+            EmptyOperator(task_id="task1")
+        with dag_maker("prefetch_multi_dag2"):
+            EmptyOperator(task_id="task1")
+
+        result = SDM._prefetch_dag_write_metadata(
+            ["prefetch_multi_dag1", "prefetch_multi_dag2"], session=session
+        )
+
+        assert len(result) == 2
+        for dag_id in ("prefetch_multi_dag1", "prefetch_multi_dag2"):
+            metadata = result[dag_id]
+            assert metadata.last_updated is not None
+            assert metadata.dag_hash is not None
+            assert metadata.dag_version is not None
+            assert metadata.dag_version.dag_id == dag_id
+
+    def test_prefetch_dag_write_metadata_returns_latest_version(self, dag_maker, session):
+        """Test that _prefetch_dag_write_metadata returns the latest DagVersion."""
+        with dag_maker("prefetch_version_dag") as dag:
+            PythonOperator(task_id="task1", python_callable=lambda: None)
+        # Create a dagrun so that writing a changed DAG creates a new version
+        dag_maker.create_dagrun(run_id="run1", logical_date=pendulum.datetime(2025, 1, 1))
+
+        # Modify the DAG (add a task) and write again to create version 2
+        PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
+        SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
+
+        assert (
+            session.scalar(
+                select(func.count()).select_from(DagVersion).where(DagVersion.dag_id == dag.dag_id)
+            )
+            == 2
+        )
+
+        result = SDM._prefetch_dag_write_metadata([dag.dag_id], session=session)
+        metadata = result[dag.dag_id]
+        assert metadata.dag_version is not None
+        assert metadata.dag_version.version_number == 2
+
     def test_new_dag_version_created_when_bundle_name_changes_and_hash_unchanged(self, dag_maker, session):
         """Test that new dag_version is created if bundle_name changes but DAG is unchanged."""
         # Create and write initial DAG

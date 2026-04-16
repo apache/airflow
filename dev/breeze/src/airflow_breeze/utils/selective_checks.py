@@ -302,6 +302,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^chart/templates/.*",
             r"^providers/.*/src/.*",
             r"^providers/.*/tests/.*",
+            r"^shared/.*\.py$",
             r"^task-sdk/src/.*",
             r"^task-sdk/tests/.*",
             r"^devel-common/src/.*",
@@ -593,7 +594,7 @@ class SelectiveChecks:
 
     def _should_run_all_tests_and_versions(self) -> bool:
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
-            if self.only_text_non_doc_files_changed:
+            if self.only_text_non_doc_files_changed and self._github_event == GithubEvents.PUSH:
                 console_print(
                     f"[warning]Only text non doc files changed in {self._github_event}, skip full tests[/]"
                 )

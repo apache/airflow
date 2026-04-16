@@ -66,6 +66,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.utils.session import create_session
 
 log = structlog.get_logger(logger_name=__name__)
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
@@ -453,7 +454,6 @@ def _build_ti_summaries(
 )
 def get_grid_ti_summaries_stream(
     dag_id: str,
-    session: SessionDep,
     run_ids: Annotated[list[str] | None, Query()] = None,
 ) -> StreamingResponse:
     """
@@ -468,30 +468,36 @@ def get_grid_ti_summaries_stream(
     """
 
     def _generate() -> Generator[str, None, None]:
+        # Each iteration opens and closes its own DB session so the connection is
+        # released between yields.  This prevents a slow client from holding a
+        # database connection open for the entire stream duration.
+        # See https://github.com/apache/airflow/issues/65010.
+
         serdag_cache: dict[Any, SerializedDagModel | None] = {}
         for run_id in run_ids or []:
-            tis = session.execute(
-                select(
-                    TaskInstance.task_id,
-                    TaskInstance.state,
-                    TaskInstance.dag_version_id,
-                    TaskInstance.start_date,
-                    TaskInstance.end_date,
-                    DagVersion.version_number,
+            with create_session(scoped=False) as session:
+                tis = session.execute(
+                    select(
+                        TaskInstance.task_id,
+                        TaskInstance.state,
+                        TaskInstance.dag_version_id,
+                        TaskInstance.start_date,
+                        TaskInstance.end_date,
+                        DagVersion.version_number,
+                    )
+                    .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
+                    .where(TaskInstance.dag_id == dag_id)
+                    .where(TaskInstance.run_id == run_id)
+                    .order_by(TaskInstance.task_id)
+                    .execution_options(yield_per=1000)
                 )
-                .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
-                .where(TaskInstance.dag_id == dag_id)
-                .where(TaskInstance.run_id == run_id)
-                .order_by(TaskInstance.task_id)
-                .execution_options(yield_per=1000)
-            )
-            summary = _build_ti_summaries(
-                dag_id,
-                run_id,
-                tis,
-                session,
-                serdag_cache=serdag_cache,
-            )
+                summary = _build_ti_summaries(
+                    dag_id,
+                    run_id,
+                    tis,
+                    session,
+                    serdag_cache=serdag_cache,
+                )
             if summary is None:
                 continue
             yield GridTISummaries.model_validate(summary).model_dump_json() + "\n"

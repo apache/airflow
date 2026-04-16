@@ -56,6 +56,9 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 1
+      {{- if not (kindIs "invalid" .Values.databaseCleanup.ttlSecondsAfterFinished) }}
+      ttlSecondsAfterFinished: {{ .Values.databaseCleanup.ttlSecondsAfterFinished }}
+      {{- end }}
       template:
         metadata:
           labels:

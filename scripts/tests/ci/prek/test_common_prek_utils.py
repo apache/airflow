@@ -30,6 +30,7 @@ from ci.prek.common_prek_utils import (
     pre_process_mypy_files,
     read_airflow_version,
     read_allowed_kubernetes_versions,
+    read_default_python_major_minor_version_for_images,
     temporary_tsc_project,
 )
 
@@ -264,6 +265,19 @@ class TestReadAllowedKubernetesVersions:
             assert len(parts) >= 2, f"Version {v!r} should have at least major.minor"
             assert parts[0].isdigit()
             assert parts[1].isdigit()
+
+
+class TestReadDefaultPythonMajorMinorVersionForImages:
+    def test_returns_version_string(self):
+        version = read_default_python_major_minor_version_for_images()
+        assert isinstance(version, str)
+
+    def test_version_looks_like_major_minor(self):
+        version = read_default_python_major_minor_version_for_images()
+        parts = version.split(".")
+        assert len(parts) == 2
+        assert parts[0].isdigit()
+        assert parts[1].isdigit()
 
 
 class TestConsoleDiff:

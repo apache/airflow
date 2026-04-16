@@ -554,13 +554,34 @@ class TestSecurityContext:
             assert ctx_value == jmespath.search("spec.template.spec.containers[0].securityContext", doc)
 
     # Test securityContexts for log-groomer-sidecar main container
-    def test_log_groomer_sidecar_container_setting(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"logGroomerSidecar": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}},
+            {
+                "celery": {
+                    "logGroomerSidecar": {
+                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}}
+                    }
+                }
+            },
+            {
+                "logGroomerSidecar": {"securityContexts": {"container": {"runAsUser": 20}}},
+                "celery": {
+                    "logGroomerSidecar": {
+                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}}
+                    }
+                },
+            },
+        ],
+    )
+    def test_log_groomer_sidecar_container_setting(self, workers_values):
         ctx_value = {"allowPrivilegeEscalation": False}
         spec = {"logGroomerSidecar": {"securityContexts": {"container": ctx_value}}}
         docs = render_chart(
             values={
                 "scheduler": spec,
-                "workers": spec,
+                "workers": workers_values,
                 "dagProcessor": spec,
                 "triggerer": spec,
             },
