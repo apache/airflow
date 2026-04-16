@@ -27,12 +27,20 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.state import CallbackState, TaskInstanceState
 
 if TYPE_CHECKING:
+    from airflow.executors.workloads.callback import ExecuteCallback
+    from airflow.executors.workloads.connection_test import TestConnection
+    from airflow.executors.workloads.task import ExecuteTask
+
     # Type aliases for workload keys and states (used by executor layer)
     WorkloadKey: TypeAlias = TaskInstanceKey | CallbackKey | ConnectionTestKey
     WorkloadState: TypeAlias = TaskInstanceState | CallbackState | ConnectionTestState
 
     # Type alias for executor workload results (used by executor implementations)
     WorkloadResultType: TypeAlias = tuple[WorkloadKey, WorkloadState, Exception | None]
+
+    # Workload types that flow through executor queues (have key and sort_key).
+    # Update this union when adding a new queueable workload type.
+    QueueableWorkload: TypeAlias = ExecuteTask | ExecuteCallback | TestConnection
 
 # Type alias for scheduler workloads (ORM models that can be routed to executors)
 # Must be outside TYPE_CHECKING for use in function signatures
