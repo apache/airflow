@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+When the ``[elasticsearch] host`` config embeds credentials
+(``https://user:password@elk.example.com:9200``), the log-source label
+shown in task logs is now the host URL with the ``user:password@`` portion
+stripped. Previously the full URL (including credentials) could appear as
+a dictionary key in the task-log output when log-hits did not carry a
+``host`` field. The Elasticsearch client is still connected using the
+full URL, so authentication is unaffected.
+
 6.5.2
 .....
 

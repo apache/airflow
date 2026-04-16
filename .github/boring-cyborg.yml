@@ -348,17 +348,22 @@ labelPRBasedOnFilePath:
     - .readthedocs.yml
 
   # This should be copy of the "area:dev-tools" above minus contributing docs and some files that should
-  # only make sense in main - it should be updated when we switch maintenance branch
+  # only make sense in main - it should be updated when we switch maintenance branch.
+  # Scoped to PRs targeting `main` only — a PR opened directly against v3-2-test
+  # does not need a backport-to-v3-2-test label.
   backport-to-v3-2-test:
-    - scripts/**/*
-    - dev/**/*
-    - .github/**/*
-    - Dockerfile.ci
-    - yamllint-config.yml
-    - .dockerignore
-    - .hadolint.yaml
-    - .pre-commit-config.yaml
-    - .rat-excludes
+    paths:
+      - scripts/**/*
+      - dev/**/*
+      - .github/**/*
+      - Dockerfile.ci
+      - yamllint-config.yml
+      - .dockerignore
+      - .hadolint.yaml
+      - .pre-commit-config.yaml
+      - .rat-excludes
+    targetBranchFilter:
+      - ^main$
 
   kind:documentation:
     - airflow-core/docs/**/*
