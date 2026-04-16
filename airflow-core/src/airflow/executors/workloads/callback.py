@@ -26,7 +26,7 @@ from uuid import UUID
 import structlog
 from pydantic import BaseModel, Field, field_validator
 
-from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
+from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo, WorkloadType
 from airflow.utils.state import CallbackState
 
 if TYPE_CHECKING:
@@ -75,7 +75,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
 
     callback: CallbackDTO
 
-    type: Literal["ExecuteCallback"] = Field(init=False, default="ExecuteCallback")
+    type: Literal[WorkloadType.EXECUTE_CALLBACK] = Field(init=False, default=WorkloadType.EXECUTE_CALLBACK)
 
     @property
     def key(self) -> CallbackKey:
