@@ -46,6 +46,11 @@ class TestConnection(BaseWorkloadSchema):
         return ConnectionTestKey(id=str(self.connection_test_id))
 
     @property
+    def sort_key(self) -> int:
+        """Return the sort key for ordering within the connection-test priority group (FIFO)."""
+        return 0
+
+    @property
     def display_name(self) -> str:
         """Return a human-readable name for logging and process titles."""
         return f"connection-test {self.connection_id}"

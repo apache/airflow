@@ -54,8 +54,6 @@ from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.providers.amazon.aws.executors.ecs.utils import (
@@ -102,15 +100,14 @@ class AwsEcsExecutor(BaseExecutor):
     supports_multi_team: bool = True
 
     if AIRFLOW_V_3_3_PLUS:
-        supports_callbacks: bool = True
+        from airflow.executors.workloads.base import WorkloadType as _WorkloadType
+
+        supported_workload_types: frozenset[str] = frozenset(
+            {_WorkloadType.EXECUTE_TASK, _WorkloadType.EXECUTE_CALLBACK}
+        )
 
     # AWS limits the maximum number of ARNs in the describe_tasks function.
     DESCRIBE_TASKS_BATCH_SIZE = 99
-
-    if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
-        # In the v3 path, we store workloads, not commands as strings.
-        # TODO: TaskSDK: move this type change into BaseExecutor
-        queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -143,21 +140,10 @@ class AwsEcsExecutor(BaseExecutor):
             fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS],
         )
 
-    # TODO: Remove this once the minimum supported version is 3.3+, and defer to BaseExecutor.queue_workload.
-    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
-        from airflow.executors import workloads
-
-        if isinstance(workload, workloads.ExecuteTask):
-            self.queued_tasks[workload.ti.key] = workload
-            return
-        if AIRFLOW_V_3_3_PLUS and isinstance(workload, workloads.ExecuteCallback):
-            self.queued_callbacks[workload.callback.key] = workload
-            return
-        raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
-
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         """:sphinx-autoapi-skip:."""
         from airflow.executors import workloads
+        from airflow.executors.workloads.base import WorkloadType
 
         for workload in workload_items:
             queue: str | None
@@ -169,7 +155,7 @@ class AwsEcsExecutor(BaseExecutor):
                 queue = workload.ti.queue
                 executor_config = workload.ti.executor_config or {}
 
-                del self.queued_tasks[key]
+                del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
                 self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
                 self.running.add(key)
 
@@ -177,7 +163,7 @@ class AwsEcsExecutor(BaseExecutor):
                 command = [workload]
                 key = workload.callback.key
 
-                del self.queued_callbacks[key]
+                del self.executor_queues[WorkloadType.EXECUTE_CALLBACK][key]
                 self.execute_async(key=key, command=command, queue=None)
                 self.running.add(key)
 
