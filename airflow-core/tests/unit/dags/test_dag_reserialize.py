@@ -16,12 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-from airflow_e2e_tests.e2e_test_utils.base_remote_log_search_test import BaseRemoteLoggingSearchTest
-from airflow_e2e_tests.e2e_test_utils.clients import get_elasticsearch_session
+from datetime import datetime
+
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import DAG
 
 
-class TestRemoteLoggingElasticsearch(BaseRemoteLoggingSearchTest):
-    search_url = "http://localhost:9200"
+def empty_task():
+    pass
 
-    def _get_session(self):
-        return get_elasticsearch_session()
+
+with DAG(
+    "test_dag_reserialize",
+    start_date=datetime(2026, 1, 20),
+    schedule="* * * * *",
+    catchup=False,
+    max_active_runs=1,
+) as dag:
+    task_b = PythonOperator(task_id="bear", python_callable=empty_task)
