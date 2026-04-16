@@ -201,7 +201,6 @@
     "users": "Usuaris"
   },
   "selectLanguage": "Seleccionar idioma",
-  "selected": "Seleccionat",
   "showDetailsPanel": "Mostrar panell de detalls",
   "signedInAs": "Sessió iniciada com a",
   "source": {
@@ -302,25 +301,11 @@
     "utc": "UTC (Temps Universal Coordinat)"
   },
   "toaster": {
-    "bulkClear": {
-      "error": "Error en la sol·licitud de neteja massiva de {{resourceName}}",
-      "success": {
-        "description": "{{count}} {{resourceName}} s'han netejat correctament. Claus: {{keys}}",
-        "title": "Sol·licitud de neteja massiva de {{resourceName}} enviada"
-      }
-    },
     "bulkDelete": {
       "error": "Error en la sol·licitud de supressió massiva de {{resourceName}}",
       "success": {
         "description": "{{count}} {{resourceName}} s'han suprimit correctament. Claus: {{keys}}",
         "title": "Sol·licitud de supressió massiva de {{resourceName}} enviada"
-      }
-    },
-    "bulkUpdate": {
-      "error": "Error en la sol·licitud d'actualització massiva de {{resourceName}}",
-      "success": {
-        "description": "{{count}} {{resourceName}} s'han actualitzat correctament. Claus: {{keys}}",
-        "title": "Sol·licitud d'actualització massiva de {{resourceName}} enviada"
       }
     },
     "create": {
@@ -368,10 +353,6 @@
   "triggered": "Executat",
   "tryNumber": "Número d'intent",
   "user": "Usuari",
-  "validation": {
-    "mustBeAtLeast": "Ha de ser com a mínim {{min}}.",
-    "mustBeValidNumber": "Ha de ser un número vàlid."
-  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Premeu {{hotkey}} per alternar l'ajust de línia",

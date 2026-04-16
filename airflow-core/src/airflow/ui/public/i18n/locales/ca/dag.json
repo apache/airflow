@@ -52,6 +52,9 @@
     "buttons": {
       "advanced": "Avançat",
       "dagDocs": "Documentació del Dag"
+    },
+    "status": {
+      "deactivated": "TODO: translate: Deactivated"
     }
   },
   "logs": {
