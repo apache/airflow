@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import base64
+
 import msgspec
 from flask import request
 from flask.sessions import SecureCookieSessionInterface
@@ -28,11 +30,12 @@ class _LazySafeSerializer:
         encoder = msgspec.msgpack.Encoder(
             enc_hook=lambda obj: str(obj) if isinstance(obj, LazyString) else obj
         )
-        return encoder.encode(dict(session_dict))
+        return base64.b64encode(encoder.encode(dict(session_dict))).decode("ascii")
 
     def loads(self, data):
         decoder = msgspec.msgpack.Decoder()
-        return decoder.decode(data)
+        payload = data.encode("ascii") if isinstance(data, str) else data
+        return decoder.decode(base64.b64decode(payload))
 
     # optional old API
     encode = dumps
