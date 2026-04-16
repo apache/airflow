@@ -29,6 +29,7 @@ import random
 import selectors
 import signal
 import sys
+import threading
 import time
 import zipfile
 from collections import defaultdict, deque
@@ -433,7 +434,12 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._queue_requested_files_for_parsing()
 
-            self._refresh_dag_bundles(known_files=known_files)
+            # Service IPC requests from child processes in a background thread while
+            # _refresh_dag_bundles runs. Without this, child processes calling Variable.get()
+            # block on socket.recv() until the parent finishes bundle refresh and reaches
+            # _service_processor_sockets() — which can take minutes with many DAG files.
+            with self._ipc_service_thread():
+                self._refresh_dag_bundles(known_files=known_files)
 
             if not self._file_queue:
                 # Generate more file paths to process if we processed all the files already. Note for this to
@@ -469,6 +475,28 @@ class DagFileProcessorManager(LoggingMixin):
                 poll_time = 1 - loop_duration
             else:
                 poll_time = 0.0
+
+    @contextlib.contextmanager
+    def _ipc_service_thread(self):
+        """Run _service_processor_sockets in a background thread until the context exits.
+
+        This ensures child parsing processes that make IPC calls (e.g. Variable.get())
+        get immediate responses instead of waiting for the main loop to reach
+        _service_processor_sockets().
+        """
+        stop_event = threading.Event()
+
+        def _service_loop():
+            while not stop_event.is_set():
+                self._service_processor_sockets(timeout=0.1)
+
+        thread = threading.Thread(target=_service_loop, daemon=True, name="ipc-service")
+        thread.start()
+        try:
+            yield
+        finally:
+            stop_event.set()
+            thread.join(timeout=5)
 
     def _service_processor_sockets(self, timeout: float | None = 1.0):
         """
