@@ -99,7 +99,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { t: translate } = useTranslation();
   const { dagId = "", runId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
-  const [defaultDagView] = useLocalStorage<"graph" | "grid">(DEFAULT_DAG_VIEW_KEY, "grid");
+  const [dagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
   const panelGroupRef = useRef<ImperativePanelGroupHandle | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -129,7 +129,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   };
 
   // --- Read state from URL ---
-  const dagView = (searchParams.get(SearchParamsKeys.DAG_VIEW) as DagView | null) ?? defaultDagView;
   const limit = Number(searchParams.get(SearchParamsKeys.LIMIT) ?? "10");
   const runAfterGte = searchParams.get(SearchParamsKeys.RUN_AFTER_GTE) ?? undefined;
   const runAfterLte = searchParams.get(SearchParamsKeys.RUN_AFTER_LTE) ?? undefined;
@@ -138,7 +137,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const dagRunStateFilter = (searchParams.get(SearchParamsKeys.STATE) as DagRunState | null) ?? undefined;
 
   // --- Setters that write back to URL ---
-  const setDagView = (value: DagView) => setParam(SearchParamsKeys.DAG_VIEW, value);
   const setLimit = (value: number) => setParam(SearchParamsKeys.LIMIT, String(value));
   // Only LTE is needed directly: ceiling logic and jump-to-latest both touch it.
   // GTE and the filter params (state, run_type, triggering_user) are managed by GridFilters/FilterBar.
