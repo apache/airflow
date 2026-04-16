@@ -36,6 +36,7 @@ import yaml
 _MANIFEST_PATH = "META-INF/MANIFEST.MF"
 METADATA_MANIFEST_KEY = "Airflow-Java-SDK-Metadata"
 SDK_VERSION_MANIFEST_KEY = "Airflow-Java-SDK-Version"
+DAG_CODE_MANIFEST_KEY = "Airflow-Java-SDK-Dag-Code"
 MAIN_CLASS_MANIFEST_KEY = "Main-Class"
 
 
@@ -180,6 +181,35 @@ def _read_bundle_jar(jar_path: Path) -> tuple[str, set[str]] | None:
         return None
 
     return main_class, dag_ids
+
+
+def read_dag_code(jar_path: Path) -> str | None:
+    """
+    Read the DAG source code embedded in a JAR bundle.
+
+    Returns the source code string when the JAR carries a valid
+    ``Airflow-Java-SDK-Dag-Code`` manifest attribute pointing to an
+    embedded source file.  Returns ``None`` otherwise.
+    """
+    try:
+        with zipfile.ZipFile(jar_path) as zf:
+            try:
+                with zf.open(_MANIFEST_PATH) as f:
+                    manifest = email.message_from_binary_file(f)
+            except KeyError:
+                return None
+
+            dag_code_path = manifest.get(DAG_CODE_MANIFEST_KEY)
+            if not dag_code_path:
+                return None
+
+            try:
+                with zf.open(dag_code_path) as f:
+                    return f.read().decode()
+            except KeyError:
+                return None
+    except zipfile.BadZipFile:
+        return None
 
 
 def _parse_dag_ids_from_metadata(yaml_content: str) -> set[str]:

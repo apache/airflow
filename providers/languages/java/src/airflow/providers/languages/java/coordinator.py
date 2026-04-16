@@ -25,7 +25,7 @@ import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from airflow.providers.languages.java.bundle_scanner import BundleScanner
+from airflow.providers.languages.java.bundle_scanner import BundleScanner, read_dag_code
 from airflow.sdk.execution_time.coordinator import BaseLocaleCoordinator
 
 if TYPE_CHECKING:
@@ -43,6 +43,14 @@ class JavaLocaleCoordinator(BaseLocaleCoordinator):
         with contextlib.suppress(FileNotFoundError, zipfile.BadZipFile, KeyError):
             return BundleScanner.resolve_jar(Path(path)) is not None
         return False
+
+    @classmethod
+    def get_code_from_file(cls, fileloc: str) -> str:
+        """Read embedded DAG source code from a JAR bundle."""
+        code = read_dag_code(Path(fileloc))
+        if code is None:
+            raise FileNotFoundError(f"No DAG source code found in JAR: {fileloc}")
+        return code
 
     @classmethod
     def dag_parsing_locale_cmd(
@@ -82,7 +90,7 @@ class JavaLocaleCoordinator(BaseLocaleCoordinator):
         logs_addr: str,
     ) -> list[str]:
         """Build the ``java`` command for executing a task in a JAR bundle."""
-        if what.language is None:
+        if dag_file_path.endswith(".jar"):
             # Case 1: Pure Java Dag — the dag_file_path points directly to a
             # bundle JAR inside the Airflow Core Dag Bundle.
             jar_path = Path(dag_file_path)
@@ -96,9 +104,9 @@ class JavaLocaleCoordinator(BaseLocaleCoordinator):
                 f"--logs={logs_addr}",
             ]
 
-        # Case 2: Python Stub Dag — the task's ``language`` field is set
-        # (e.g. "java").  The actual JAR bundle lives in the provider's
-        # configured ``[java] bundles_folder``, not in the Dag bundle path.
+        # Case 2: Python Stub Dag — the dag_file_path is a Python file but
+        # the task delegates to a Java runtime.  The actual JAR bundle lives
+        # in the provider's configured ``[java] bundles_folder``.
         from airflow.providers.common.compat.sdk import conf
 
         bundles_folder = conf.get("java", "bundles_folder", fallback=None)
