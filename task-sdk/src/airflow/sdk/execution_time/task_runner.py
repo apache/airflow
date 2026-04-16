@@ -1975,6 +1975,9 @@ def _resolve_locale_entrypoint(startup_details: StartupDetails, log: Logger) -> 
     Otherwise return ``None`` to fall through to the standard Python
     execution path.
     """
+    if TYPE_CHECKING:
+        from airflow.sdk.execution_time.coordinator import BaseLocaleCoordinator
+
     language = startup_details.ti.language
     if language is None:
         return None
@@ -1986,7 +1989,7 @@ def _resolve_locale_entrypoint(startup_details: StartupDetails, log: Logger) -> 
 
     for coordinator_path in ProvidersManagerTaskRuntime().process_coordinators:
         try:
-            coordinator_cls = import_string(coordinator_path)
+            coordinator_cls: type[BaseLocaleCoordinator] = import_string(coordinator_path)
         except Exception:
             log.exception("Failed to import process coordinator", path=coordinator_path)
             continue
