@@ -34,10 +34,10 @@ if TYPE_CHECKING:
 
 from airflow.providers.common.compat.sdk import Stats
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_1_PLUS
 
 stats_reference = f"{Stats.__module__}.Stats"
-expected_call_count = 1 if AIRFLOW_V_3_2_PLUS else 2
+expected_call_count = 1 if AIRFLOW_V_3_2_1_PLUS else 2
 
 
 DAG_ID = "my_dag"
@@ -119,7 +119,7 @@ class TestJobsApiRoutes:
                 "state": TaskInstanceState.SUCCESS,
                 "task_id": TASK_ID,
             }
-            if AIRFLOW_V_3_2_PLUS:
+            if AIRFLOW_V_3_2_1_PLUS:
                 mock_stats_incr.assert_called_with("edge_worker.ti.finish", legacy_name_tags=expected_tags)
             else:
                 mock_stats_incr.assert_called_with("edge_worker.ti.finish", tags=expected_tags)

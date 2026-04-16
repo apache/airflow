@@ -36,7 +36,7 @@ from openlineage.client.facet_v2 import (
 )
 
 from airflow.providers.common.compat.sdk import Stats, conf as airflow_conf
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_1_PLUS
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.utils.utils import (
     _PRODUCER,
@@ -159,7 +159,7 @@ class OpenLineageAdapter(LoggingMixin):
 
         try:
             ctx: AbstractContextManager[object]
-            if AIRFLOW_V_3_2_PLUS:
+            if AIRFLOW_V_3_2_1_PLUS:
                 ctx = Stats.timer(
                     "ol.emit.attempts",
                     legacy_name_tags={"event_type": event_type, "transport_type": transport_type},

@@ -65,9 +65,13 @@ from airflow.providers.common.compat.sdk import Stats
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+)
 
-if AIRFLOW_V_3_2_PLUS:
+if AIRFLOW_V_3_2_1_PLUS:
     # The `Stats` shim can't be used here because the test is asserting on metrics
     # created under the base_executor using the `stats` module.
     stats_reference = "airflow._shared.observability.metrics.stats"

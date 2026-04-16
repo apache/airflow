@@ -27,7 +27,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.executors.workloads import ExecuteTask
 from airflow.providers.common.compat.sdk import Stats, timezone
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_1_PLUS
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
@@ -88,7 +88,7 @@ def fetch(
     session.commit()
     # Edge worker does not backport emitted Airflow metrics, so export some metrics
     tags = {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue}
-    if AIRFLOW_V_3_2_PLUS:
+    if AIRFLOW_V_3_2_1_PLUS:
         Stats.incr("edge_worker.ti.start", legacy_name_tags=tags)
     else:
         Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
@@ -145,7 +145,7 @@ def state(
                 "queue": job.queue,
                 "state": str(state),
             }
-            if AIRFLOW_V_3_2_PLUS:
+            if AIRFLOW_V_3_2_1_PLUS:
                 Stats.incr("edge_worker.ti.finish", legacy_name_tags=tags)
             else:
                 Stats.incr(f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}", tags=tags)

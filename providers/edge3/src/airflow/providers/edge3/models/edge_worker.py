@@ -27,7 +27,7 @@ from sqlalchemy.orm import Mapped
 
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_1_PLUS
 from airflow.providers.edge3.models.edge_base import Base
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -179,7 +179,7 @@ def set_metrics(
         "free_concurrency",
     }
 
-    if AIRFLOW_V_3_2_PLUS:
+    if AIRFLOW_V_3_2_1_PLUS:
         Stats.gauge(
             "edge_worker.status",
             sysinfo.get("status", logging.NOTSET),  # type: ignore
