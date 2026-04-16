@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import time_machine
 import re
 from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING
@@ -2917,18 +2918,18 @@ class TestKubernetesPodOperatorAsync:
         post_complete_action.assert_called_once()
         assert "Reading of logs interrupted with error" in caplog.text
 
+    @time_machine.travel("2026-01-01 00:00:00", tick=False)
     @patch(KUB_OP_PATH.format("client"))
     def test_write_logs_with_valid_since_time(self, mocked_client):
         """Test that since_seconds is calculated correctly when since_time is a valid datetime."""
         pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE))
-        since_time = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(seconds=30)
+        since_time = datetime.datetime(
+            2026, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc
+        ) - datetime.timedelta(seconds=30)
         k = KubernetesPodOperator(task_id="task", get_logs=True)
-
         k._write_logs(pod, since_time=since_time)
-
         _, call_kwargs = mocked_client.read_namespaced_pod_log.call_args
-        assert call_kwargs["since_seconds"] is not None
-        assert call_kwargs["since_seconds"] >= 30
+        assert call_kwargs["since_seconds"] == 30
 
     @patch(KUB_OP_PATH.format("client"))
     def test_write_logs_with_invalid_since_time_falls_back_to_none(self, mocked_client):
