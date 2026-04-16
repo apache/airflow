@@ -911,7 +911,7 @@ class FileTaskHandler(logging.Handler):
             if not url or not rel_path:
                 sources.append(
                     f"Could not read served logs: Hostname not available for "
-                    f"{log_type.value if log_type else LogType.WORKER.value}. "
+                    f"{log_type.value}. "
                     f"Please check your `hostname_callable` configuration."
                 )
                 return sources, log_streams
