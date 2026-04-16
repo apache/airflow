@@ -90,3 +90,102 @@ class TestFileTaskHandlerLogServer:
         assert len(sources) == 1
         assert "secret_key" in sources[0]
         assert streams == []
+
+
+class TestFileTaskHandlerReadFromLocal:
+    """Tests for ``FileTaskHandler._read_from_local`` path containment."""
+
+    @staticmethod
+    def _drain(stream) -> str:
+        return "".join(list(stream))
+
+    def test_reads_regular_log_file_inside_base(self, tmp_path):
+        """A regular file under ``base_log_folder`` is streamed as before."""
+        log_dir = tmp_path / "dag" / "run" / "task"
+        log_dir.mkdir(parents=True)
+        log_file = log_dir / "1.log"
+        log_file.write_text("legitimate log line\n")
+
+        handler = FileTaskHandler(base_log_folder=str(tmp_path))
+        sources, streams = handler._read_from_local(log_file)
+
+        assert sources == [str(log_file)]
+        assert len(streams) == 1
+        assert "legitimate log line" in self._drain(streams[0])
+
+    def test_skips_symlink_resolving_outside_base_log_folder(self, tmp_path):
+        """A glob hit that resolves outside ``base_log_folder`` is not streamed.
+
+        This documents the intended containment behaviour: a file under the
+        task's log directory that is actually a symlink whose real path is
+        outside the configured base log folder must be skipped, even though
+        it matches the glob pattern used to discover the task's log files.
+        """
+        base_log_folder = tmp_path / "logs"
+        log_dir = base_log_folder / "dag" / "run" / "task"
+        log_dir.mkdir(parents=True)
+
+        # A regular log file inside the base log folder.
+        legit = log_dir / "1.log"
+        legit.write_text("legitimate log line\n")
+
+        # A file that lives outside the base log folder.
+        external_dir = tmp_path / "external"
+        external_dir.mkdir()
+        external_file = external_dir / "other.txt"
+        external_file.write_text("external content\n")
+
+        # A glob hit that matches ``1.log*`` but resolves outside the base.
+        escape_link = log_dir / "1.log.external"
+        escape_link.symlink_to(external_file)
+
+        handler = FileTaskHandler(base_log_folder=str(base_log_folder))
+        sources, streams = handler._read_from_local(legit)
+
+        assert str(legit) in sources
+        assert str(escape_link) not in sources
+        content = "".join(self._drain(s) for s in streams)
+        assert "legitimate log line" in content
+        assert "external content" not in content
+
+    def test_follows_symlink_within_base_log_folder(self, tmp_path):
+        """A symlink that resolves back into the base log folder is allowed.
+
+        The containment check compares the realpath of the glob hit to the
+        realpath of the base log folder, so a symlink that stays entirely
+        inside the log tree (for example from log rotation) still works.
+        """
+        base_log_folder = tmp_path / "logs"
+        log_dir = base_log_folder / "dag" / "run" / "task"
+        log_dir.mkdir(parents=True)
+
+        real_file = log_dir / "real.log"
+        real_file.write_text("inner content\n")
+
+        link = log_dir / "1.log.link"
+        link.symlink_to(real_file)
+
+        handler = FileTaskHandler(base_log_folder=str(base_log_folder))
+        sources, streams = handler._read_from_local(log_dir / "1.log")
+
+        assert str(link) in sources
+        assert "inner content" in "".join(self._drain(s) for s in streams)
+
+    def test_handles_base_log_folder_that_is_itself_a_symlink(self, tmp_path):
+        """``base_log_folder`` itself is realpath'd so a base that is a
+        symlink to the actual log directory is treated as contained."""
+        real_base = tmp_path / "real_logs"
+        real_base.mkdir()
+        base_link = tmp_path / "logs"
+        base_link.symlink_to(real_base)
+
+        log_dir = base_link / "dag" / "run" / "task"
+        log_dir.mkdir(parents=True)
+        log_file = log_dir / "1.log"
+        log_file.write_text("through-symlink content\n")
+
+        handler = FileTaskHandler(base_log_folder=str(base_link))
+        sources, streams = handler._read_from_local(log_file)
+
+        assert len(sources) == 1
+        assert "through-symlink content" in self._drain(streams[0])
