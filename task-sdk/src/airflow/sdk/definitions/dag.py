@@ -1454,9 +1454,15 @@ def _run_task(
             from airflow.sdk.execution_time.supervisor import run_task_in_process
             from airflow.serialization.serialized_objects import create_scheduler_operator
 
-            # The API Server expects the task instance to be in QUEUED state before
-            # it is run.
-            ti.set_state(TaskInstanceState.QUEUED)
+            # The API Server expects the task instance to be in QUEUED state
+            # before it is run.  Use a non-scoped session so the commit is
+            # visible to the in-process execution API, which runs in a
+            # separate thread (via a2wsgi) with its own non-scoped session.
+            # Using the default scoped session can leave the QUEUED state
+            # invisible across thread/session boundaries, causing the API to
+            # see stale state (e.g. RUNNING) and raise TaskAlreadyRunningError.
+            with create_session(scoped=False) as session:
+                ti.set_state(TaskInstanceState.QUEUED, session=session)
             task_sdk_ti = TaskInstanceSDK(
                 id=UUID(str(ti.id)),
                 task_id=ti.task_id,
@@ -1473,9 +1479,11 @@ def _run_task(
             ti.task = create_scheduler_operator(taskrun_result.ti.task)
 
             if ti.state == TaskInstanceState.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
-                # API Server expects the task instance to be in QUEUED state before
-                # resuming from deferral.
-                ti.set_state(TaskInstanceState.QUEUED)
+                # API Server expects the task instance to be in QUEUED state
+                # before resuming from deferral (same cross-thread visibility
+                # concern as above).
+                with create_session(scoped=False) as session:
+                    ti.set_state(TaskInstanceState.QUEUED, session=session)
 
                 log.info("[DAG TEST] running trigger in line")
                 # trigger_kwargs need to be deserialized before passing to the
