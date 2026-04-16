@@ -206,9 +206,8 @@ class TestBatchJobCollection:
         assert len(self.collection) == 0
         assert self.job_id1 not in self.collection.id_to_key
         assert self.key1 not in self.collection.key_to_id
-        # id_to_job_info is NOT removed by pop_by_id in the current implementation.
-        assert self.job_id1 in self.collection.id_to_job_info
-        assert self.collection.id_to_job_info[self.job_id1].cmd == self.cmd1
+        # id_to_job_info is now also cleaned up by pop_by_id.
+        assert self.job_id1 not in self.collection.id_to_job_info
         # id_to_failure_counts is a defaultdict, so accessing a removed key returns 0.
         assert self.collection.id_to_failure_counts[self.job_id1] == 0
 
