@@ -214,6 +214,23 @@ class BaseLocaleCoordinator:
         return False
 
     @classmethod
+    def get_code_from_file(cls, fileloc: str) -> str:
+        """
+        Return the human-readable source code for a DAG file managed by this coordinator.
+
+        Called by :class:`~airflow.models.dagcode.DagCode` when persisting DAG
+        source to the metadata database.  The default Python path reads ``.py``
+        files directly; locale coordinators must override this to extract source
+        from their native packaging format (e.g. reading an embedded ``.java``
+        file from a JAR bundle).
+
+        :param fileloc: Absolute path to the DAG file (e.g. a ``/path/to/example.jar``).
+        :return: The source code as a string.
+        :raises FileNotFoundError: If source code cannot be retrieved from *fileloc*.
+        """
+        raise NotImplementedError
+
+    @classmethod
     def dag_parsing_locale_cmd(
         cls,
         *,
