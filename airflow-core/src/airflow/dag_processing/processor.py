@@ -590,6 +590,9 @@ class DagFileProcessorProcess(WatchedSubprocess):
         from airflow._shared.module_loading import import_string
         from airflow.providers_manager import ProvidersManager
 
+        if TYPE_CHECKING:
+            from airflow.sdk.execution_time.coordinator import BaseLocaleCoordinator
+
         for coordinator_class_path in ProvidersManager().process_coordinators:
             try:
                 log.debug(
@@ -597,7 +600,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
                     coordinator_class_path,
                     path,
                 )
-                coordinator_cls = import_string(coordinator_class_path)
+                coordinator_cls: type[BaseLocaleCoordinator] = import_string(coordinator_class_path)
                 if coordinator_cls.can_handle_dag_file(bundle_name, path):
                     log.debug(
                         "Using process coordinator %s for file %s",
