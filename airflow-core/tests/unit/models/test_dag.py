@@ -912,8 +912,8 @@ class TestDag:
     def test_dag_not_paused_when_latest_by_run_after_succeeds(self, testing_dag_bundle):
         """Verify _check_last_n_dagruns_failed does not pause when most recent run_after runs pass.
 
-          run_after order:  Run1(day0,FAILED)  Run2(day1,SUCCESS)  Run3(day2,FAILED)
-          logical_date order: Run1(day10,FAILED) Run2(day11,SUCCESS) Run3(day12,FAILED)
+          run_after order:  Run1(day0,FAILED) Run2(day1,SUCCESS) Run3(day2,FAILED)
+          logical_date order: Run1(day10,FAILED) Run2(day5,SUCCESS) Run3(day6,FAILED)
 
         By run_after the last 2 are Run2(SUCCESS) and Run3(FAILED) → only 1 consecutive
         failure → DAG must NOT be paused.
