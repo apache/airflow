@@ -135,8 +135,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const runAfterLte = searchParams.get(SearchParamsKeys.RUN_AFTER_LTE) ?? undefined;
   const runTypeFilter = (searchParams.get(SearchParamsKeys.RUN_TYPE) as DagRunType | null) ?? undefined;
   const triggeringUserFilter = searchParams.get(SearchParamsKeys.TRIGGERING_USER) ?? undefined;
-  const dagRunStateFilter =
-    (searchParams.get(SearchParamsKeys.DAG_RUN_STATE) as DagRunState | null) ?? undefined;
+  const dagRunStateFilter = (searchParams.get(SearchParamsKeys.STATE) as DagRunState | null) ?? undefined;
 
   // --- Setters that write back to URL ---
   const setDagView = (value: DagView) => setParam(SearchParamsKeys.DAG_VIEW, value);
@@ -146,8 +145,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const setRunTypeFilter = (value: DagRunType | undefined) => setParam(SearchParamsKeys.RUN_TYPE, value);
   const setTriggeringUserFilter = (value: string | undefined) =>
     setParam(SearchParamsKeys.TRIGGERING_USER, value);
-  const setDagRunStateFilter = (value: DagRunState | undefined) =>
-    setParam(SearchParamsKeys.DAG_RUN_STATE, value);
+  const setDagRunStateFilter = (value: DagRunState | undefined) => setParam(SearchParamsKeys.STATE, value);
 
   // Reset to grid when there is no runId. Remove this when we do gantt averages.
   useEffect(() => {

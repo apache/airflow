@@ -20,6 +20,7 @@
  */
 import {
   Box,
+  Button,
   createListCollection,
   Flex,
   IconButton,
@@ -35,7 +36,7 @@ import { useEffect, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiGrid } from "react-icons/fi";
-import { LuChartGantt, LuKeyboard } from "react-icons/lu";
+import { LuChartGantt, LuKeyboard, LuX } from "react-icons/lu";
 import { MdOutlineAccountTree, MdSettings } from "react-icons/md";
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
@@ -217,6 +218,21 @@ export const PanelButtons = ({
   const handleRunAfterRangeChange = (next: DateRangeValue) => {
     setRunAfterGte(next.startDate);
     setRunAfterLte(next.endDate);
+  };
+
+  const hasActiveFilters =
+    runTypeFilter !== undefined ||
+    dagRunStateFilter !== undefined ||
+    triggeringUserFilter !== undefined ||
+    runAfterGte !== undefined ||
+    runAfterLte !== undefined;
+
+  const handleResetFilters = () => {
+    setRunTypeFilter(undefined);
+    setDagRunStateFilter(undefined);
+    setTriggeringUserFilter(undefined);
+    setRunAfterGte(undefined);
+    setRunAfterLte(undefined);
   };
 
   const {
@@ -539,6 +555,18 @@ export const PanelButtons = ({
                             value={runAfterRange}
                           />
                         </VStack>
+                        {hasActiveFilters ? (
+                          <Button
+                            colorPalette="red"
+                            onClick={handleResetFilters}
+                            size="sm"
+                            variant="outline"
+                            w="full"
+                          >
+                            <LuX />
+                            {translate("common:filterReset_other")}
+                          </Button>
+                        ) : undefined}
                         <VStack alignItems="flex-start" px={1}>
                           <VersionIndicatorSelect
                             onChange={setShowVersionIndicatorMode}
