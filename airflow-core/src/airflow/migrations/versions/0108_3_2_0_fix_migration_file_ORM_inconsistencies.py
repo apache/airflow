@@ -32,6 +32,7 @@ from alembic import context, op
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 
 from airflow.migrations.db_types import StringID
+from airflow.migrations.utils import disable_sqlite_fkeys
 
 # revision identifiers, used by Alembic.
 revision = "888b59e02a5b"
@@ -98,23 +99,29 @@ def downgrade():
     downgrade only restores column nullability — it does NOT restore the original NULL values,
     because those cannot be distinguished from legitimately-populated values after the fact.
     """
-    with op.batch_alter_table("variable", schema=None) as batch_op:
-        batch_op.alter_column("is_encrypted", existing_type=sa.BOOLEAN(), nullable=True)
-        batch_op.alter_column("val", existing_type=sa.TEXT().with_variant(MEDIUMTEXT, "mysql"), nullable=True)
-        batch_op.alter_column("key", existing_type=StringID(length=250), nullable=True)
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("variable", schema=None) as batch_op:
+            batch_op.alter_column("is_encrypted", existing_type=sa.BOOLEAN(), nullable=True)
+            batch_op.alter_column(
+                "val", existing_type=sa.TEXT().with_variant(MEDIUMTEXT, "mysql"), nullable=True
+            )
+            batch_op.alter_column("key", existing_type=StringID(length=250), nullable=True)
 
-    with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.alter_column(
-            "max_tries", existing_type=sa.INTEGER(), nullable=True, existing_server_default=sa.text("'-1'")
-        )
-        batch_op.alter_column("try_number", existing_type=sa.INTEGER(), nullable=True)
+        with op.batch_alter_table("task_instance", schema=None) as batch_op:
+            batch_op.alter_column(
+                "max_tries",
+                existing_type=sa.INTEGER(),
+                nullable=True,
+                existing_server_default=sa.text("'-1'"),
+            )
+            batch_op.alter_column("try_number", existing_type=sa.INTEGER(), nullable=True)
 
-    with op.batch_alter_table("slot_pool", schema=None) as batch_op:
-        batch_op.alter_column("slots", existing_type=sa.INTEGER(), nullable=True)
+        with op.batch_alter_table("slot_pool", schema=None) as batch_op:
+            batch_op.alter_column("slots", existing_type=sa.INTEGER(), nullable=True)
 
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.alter_column("is_paused", existing_type=sa.BOOLEAN(), nullable=True)
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.alter_column("is_paused", existing_type=sa.BOOLEAN(), nullable=True)
 
-    with op.batch_alter_table("connection", schema=None) as batch_op:
-        batch_op.alter_column("is_extra_encrypted", existing_type=sa.BOOLEAN(), nullable=True)
-        batch_op.alter_column("is_encrypted", existing_type=sa.BOOLEAN(), nullable=True)
+        with op.batch_alter_table("connection", schema=None) as batch_op:
+            batch_op.alter_column("is_extra_encrypted", existing_type=sa.BOOLEAN(), nullable=True)
+            batch_op.alter_column("is_encrypted", existing_type=sa.BOOLEAN(), nullable=True)
