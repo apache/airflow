@@ -24,7 +24,7 @@ from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pendulum
 
@@ -53,13 +53,14 @@ def get_execution_api_server_url(conf_source: AirflowConfigParser | ExecutorConf
         a team-specific URL.
     """
     base_url = conf_source.get("api", "base_url", fallback="/")
-
-    # Both .get() statements have a fallback= which guarantee a str, mypy sees
-    # .get()'s return is typed as str | None so we have to add redundant checks
+    # ExecutorConf.get() is typed as str | None even when fallback= guarantees a str,
+    # so the `not base_url` guard and the cast() below keep mypy happy.
     if not base_url or base_url.startswith("/"):
         base_url = f"http://localhost:8080{base_url}"
     default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
-    return conf_source.get("core", "execution_api_server_url", fallback=default_execution_api_server)  # type: ignore[return-value]
+    return cast(
+        "str", conf_source.get("core", "execution_api_server_url", fallback=default_execution_api_server)
+    )
 
 
 if TYPE_CHECKING:

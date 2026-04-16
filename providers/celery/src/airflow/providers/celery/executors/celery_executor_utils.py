@@ -250,17 +250,11 @@ def _execute_workload_pre_3_2(input: str) -> None:
 
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
-    # TODO: Remove the inline resolution once the celery provider's minimum airflow version is >= 3.2.1
-    if AIRFLOW_V_3_2_PLUS:
-        from airflow.executors.base_executor import get_execution_api_server_url
-
-        server = get_execution_api_server_url()
-    else:
-        base_url = conf.get("api", "base_url", fallback="/")
-        if base_url.startswith("/"):
-            base_url = f"http://localhost:8080{base_url}"
-        default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
-        server = conf.get("core", "execution_api_server_url", fallback=default_execution_api_server)
+    base_url = conf.get("api", "base_url", fallback="/")
+    # If it's a relative URL, use localhost:8080 as the default.
+    if base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
+    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
 
     try:
         if isinstance(workload, workloads.ExecuteTask):
@@ -270,7 +264,7 @@ def _execute_workload_pre_3_2(input: str) -> None:
                 dag_rel_path=workload.dag_rel_path,
                 bundle_info=workload.bundle_info,
                 token=workload.token,
-                server=server,
+                server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
                 log_path=workload.log_path,
             )
         else:
