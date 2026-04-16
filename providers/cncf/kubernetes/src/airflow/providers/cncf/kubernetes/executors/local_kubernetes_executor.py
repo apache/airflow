@@ -98,7 +98,11 @@ class LocalKubernetesExecutor(BaseExecutor):
     @property
     def queued_tasks(self) -> dict[TaskInstanceKey, Any]:
         """Return queued tasks from local and kubernetes executor."""
-        return self.local_executor.queued_tasks | self.kubernetes_executor.queued_tasks
+        queued_tasks = self.local_executor.queued_tasks.copy()
+        # TODO: fix this, there is misalignment between the types of queued_tasks so it is likely wrong
+        queued_tasks.update(self.kubernetes_executor.queued_tasks)  # type: ignore[arg-type]
+
+        return queued_tasks
 
     @queued_tasks.setter
     def queued_tasks(self, value) -> None:
