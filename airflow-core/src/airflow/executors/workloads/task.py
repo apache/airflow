@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
 
-from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
+from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo, WorkloadType
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -84,12 +84,17 @@ class ExecuteTask(BaseDagBundleWorkload):
     ti: TaskInstanceDTO
     sentry_integration: str = ""
 
-    type: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
+    type: Literal[WorkloadType.EXECUTE_TASK] = Field(init=False, default=WorkloadType.EXECUTE_TASK)
 
     @property
     def key(self) -> TaskInstanceKey:
         """Return the TaskInstanceKey for this workload."""
         return self.ti.key
+
+    @property
+    def sort_key(self) -> int:
+        """Return the task priority weight for sorting (lower = higher priority)."""
+        return self.ti.priority_weight
 
     @property
     def display_name(self) -> str:
