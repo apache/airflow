@@ -240,8 +240,11 @@ class BaseExecutor(LoggingMixin):
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
 
-    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
+    def log_task_event(self, *, event: str, extra: str, ti_key: WorkloadKey):
         """Add an event to the log table."""
+        if isinstance(ti_key, CallbackKey):
+            self.log.debug("Skipping log_task_event for callback key %s (event=%s)", ti_key, event)
+            return
         self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
 
     def queue_workload(self, workload: ExecutorWorkload, session: Session) -> None:
@@ -429,7 +432,7 @@ class BaseExecutor(LoggingMixin):
     # it die". It is possible for the task itself to finish with success, but the state of the task to be set
     # to FAILED. By using TaskInstanceState enum here it confuses matters!
     def change_state(
-        self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
+        self, key: WorkloadKey, state: TaskInstanceState, info=None, remove_running=True
     ) -> None:
         """
         Change state of the task.
@@ -447,7 +450,7 @@ class BaseExecutor(LoggingMixin):
                 self.log.debug("Could not find key: %s", key)
         self.event_buffer[key] = state, info
 
-    def fail(self, key: TaskInstanceKey, info=None) -> None:
+    def fail(self, key: WorkloadKey, info=None) -> None:
         """
         Set fail state for the event.
 
@@ -456,7 +459,7 @@ class BaseExecutor(LoggingMixin):
         """
         self.change_state(key, TaskInstanceState.FAILED, info)
 
-    def success(self, key: TaskInstanceKey, info=None) -> None:
+    def success(self, key: WorkloadKey, info=None) -> None:
         """
         Set success state for the event.
 
@@ -465,7 +468,7 @@ class BaseExecutor(LoggingMixin):
         """
         self.change_state(key, TaskInstanceState.SUCCESS, info)
 
-    def queued(self, key: TaskInstanceKey, info=None) -> None:
+    def queued(self, key: WorkloadKey, info=None) -> None:
         """
         Set queued state for the event.
 
@@ -474,7 +477,7 @@ class BaseExecutor(LoggingMixin):
         """
         self.change_state(key, TaskInstanceState.QUEUED, info)
 
-    def running_state(self, key: TaskInstanceKey, info=None) -> None:
+    def running_state(self, key: WorkloadKey, info=None) -> None:
         """
         Set running state for the event.
 

@@ -100,6 +100,18 @@ def test_get_event_buffer():
     assert len(executor.event_buffer) == 0
 
 
+def test_log_task_event_branches_on_key_type():
+    executor = BaseExecutor()
+    ti_key = TaskInstanceKey("my_dag", "my_task", timezone.utcnow(), 1)
+
+    executor.log_task_event(event="task_event", extra="extra", ti_key=ti_key)
+    assert len(executor._task_event_logs) == 1
+
+    callback_key = str(UUID("00000000-0000-0000-0000-000000000001"))
+    executor.log_task_event(event="callback_event", extra="extra", ti_key=callback_key)
+    assert len(executor._task_event_logs) == 1
+
+
 def test_fail_and_success():
     executor = BaseExecutor()
 
