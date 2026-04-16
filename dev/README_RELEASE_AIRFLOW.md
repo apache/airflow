@@ -501,6 +501,23 @@ uv tool install -e ./dev/breeze
 
 - PR from the 'test' branch to the 'stable' branch
 
+  Cherry-picked commits often include provider dependency bumps (changes to `>=` constraints on
+  `apache-airflow-providers-*` packages in `pyproject.toml`). CI blocks such changes by default —
+  only Release Managers should perform them. To allow the PR to pass, add the
+  `allow provider dependency bump` label (and `skip common compat check` if common.compat files
+  changed). For example:
+
+  ```shell script
+  gh pr create \
+    --base v3-2-stable \
+    --head v3-2-test \
+    --title "Airflow ${VERSION}: test to stable" \
+    --label "allow provider dependency bump" \
+    --label "skip common compat check" \
+    --body "Sync v3-2-test into v3-2-stable for Airflow ${VERSION} release." \
+    --web
+  ```
+
 > [!TIP]
 > **Shortcut for first RC candidates:** When preparing the first RC candidate for a new minor release
 > (e.g., 3.2.0rc1), it is unlikely to be approved on the first attempt — bugs are typically found during
