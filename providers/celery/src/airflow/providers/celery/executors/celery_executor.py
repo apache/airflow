@@ -278,7 +278,7 @@ class CeleryExecutor(BaseExecutor):
                 self.update_task_state(cast("TaskInstanceKey", key), state, info)
 
     def change_state(
-        self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
+        self, key: WorkloadKey, state: TaskInstanceState, info=None, remove_running=True
     ) -> None:
         super().change_state(key, state, info, remove_running=remove_running)
         self.workloads.pop(key, None)
