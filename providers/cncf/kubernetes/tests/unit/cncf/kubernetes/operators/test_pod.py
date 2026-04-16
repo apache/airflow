@@ -266,6 +266,11 @@ class TestKubernetesPodOperator:
 
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = "Succeeded"
+        base_container_status = MagicMock()
+        base_container_status.name = operator.base_container_name
+        base_container_status.state.terminated.exit_code = 0
+        remote_pod_mock.status.container_statuses = [base_container_status]
+        remote_pod_mock.status.init_container_statuses = None
         self.await_pod_mock.return_value = remote_pod_mock
         operator.execute(context=context)
         return self.await_start_mock.call_args.kwargs["pod"], context
@@ -1054,6 +1059,71 @@ class TestKubernetesPodOperator:
             delete_pod_mock.assert_called_with(await_pod_completion_mock.return_value)
         else:
             delete_pod_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("base_container_exit_code", "expect_failure"),
+        [
+            pytest.param(0, False, id="base-succeeded"),
+            pytest.param(1, True, id="base-failed"),
+        ],
+    )
+    @patch(f"{POD_MANAGER_CLASS}.extract_xcom")
+    @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
+    @patch(f"{POD_MANAGER_CLASS}.delete_pod")
+    @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    def test_cleanup_with_xcom_sidecar_uses_base_container_status(
+        self,
+        find_pod_mock,
+        await_pod_completion_mock,
+        delete_pod_mock,
+        mock_await_xcom_sidecar,
+        mock_extract_xcom,
+        base_container_exit_code,
+        expect_failure,
+    ):
+        """
+        When do_xcom_push=True, cleanup should determine success/failure based on
+        the base container's exit status, not the pod phase. The xcom sidecar may
+        keep the pod in Running phase after the base container completes.
+        """
+        mock_extract_xcom.return_value = "{}"
+        mock_await_xcom_sidecar.return_value = None
+
+        base_status = MagicMock()
+        base_status.name = "base"
+        base_status.state.terminated.exit_code = base_container_exit_code
+        base_status.state.terminated.message = "task failed" if base_container_exit_code else None
+
+        xcom_sidecar_status = MagicMock()
+        xcom_sidecar_status.name = "airflow-xcom-sidecar"
+        xcom_sidecar_status.state.running = True
+        xcom_sidecar_status.state.terminated = None
+
+        # Pod is still Running because xcom sidecar is alive
+        remote_pod = MagicMock()
+        remote_pod.status.phase = "Running"
+        remote_pod.status.container_statuses = [base_status, xcom_sidecar_status]
+        remote_pod.metadata.name = "pod-with-xcom-sidecar"
+        remote_pod.metadata.namespace = "default"
+        remote_pod.spec.containers = [MagicMock(), MagicMock()]
+
+        await_pod_completion_mock.return_value = remote_pod
+        find_pod_mock.return_value = remote_pod
+
+        k = KubernetesPodOperator(
+            task_id="task",
+            do_xcom_push=True,
+        )
+
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        if expect_failure:
+            with pytest.raises(AirflowException, match="task failed"):
+                k.execute(context=context)
+        else:
+            k.execute(context=context)
 
     @pytest.mark.parametrize(
         ("task_kwargs", "should_be_deleted"),
@@ -1883,6 +1953,11 @@ class TestKubernetesPodOperator:
         mock_extract_xcom.return_value = "{}"
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = "Succeeded"
+        base_container_status = MagicMock()
+        base_container_status.name = "base"
+        base_container_status.state.terminated.exit_code = 0
+        remote_pod_mock.status.container_statuses = [base_container_status]
+        remote_pod_mock.status.init_container_statuses = None
         self.await_pod_mock.return_value = remote_pod_mock
         pod, _ = self.run_pod(k)
 
