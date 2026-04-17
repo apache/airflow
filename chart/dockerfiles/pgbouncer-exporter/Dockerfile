@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-ARG ALPINE_VERSION="3.19"
+ARG ALPINE_VERSION="3.23"
 ARG GO_VERSION
 
 FROM golang:${GO_VERSION} AS builder
