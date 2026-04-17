@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import datetime
-import time_machine
 import re
 from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING
@@ -27,6 +26,7 @@ from unittest.mock import MagicMock, mock_open, patch
 import pendulum
 import pytest
 import tenacity
+import time_machine
 from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
 from kubernetes.client.exceptions import ApiException
 
