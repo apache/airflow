@@ -28,7 +28,6 @@ from botocore.utils import ClientError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.executors.workloads.base import WorkloadType
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.aws_lambda.utils import (
     CONFIG_GROUP_NAME,
@@ -70,9 +69,9 @@ class AwsLambdaExecutor(BaseExecutor):
     """
 
     supports_multi_team: bool = True
-    supported_workload_types: frozenset[str] = frozenset(
-        {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
-    )
+    # WorkloadType enum values are strings; using literals avoids needing the
+    # import at class definition time on Airflow versions that lack WorkloadType.
+    supported_workload_types: frozenset[str] = frozenset({"ExecuteTask", "ExecuteCallback"})
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -223,6 +222,9 @@ class AwsLambdaExecutor(BaseExecutor):
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         from airflow.executors import workloads
 
+        if AIRFLOW_V_3_3_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
         for workload in workload_items:
             queue: str | None
             key: WorkloadKey
@@ -233,7 +235,10 @@ class AwsLambdaExecutor(BaseExecutor):
                 queue = workload.ti.queue
                 executor_config = workload.ti.executor_config or {}
 
-                del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
+                if AIRFLOW_V_3_3_PLUS:
+                    del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
+                else:
+                    del self.queued_tasks[key]
 
                 self.execute_async(
                     key=key,

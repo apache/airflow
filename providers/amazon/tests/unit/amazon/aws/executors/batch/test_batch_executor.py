@@ -201,7 +201,7 @@ class TestAwsBatchExecutor:
         mock_executor.batch.submit_job.assert_called_once()
         assert len(mock_executor.active_workers) == 1
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor.running_state")
     def test_task_sdk(self, running_state_mock, mock_airflow_key, mock_executor, mock_cmd):
         """Test task sdk execution from end-to-end."""
@@ -213,7 +213,7 @@ class TestAwsBatchExecutor:
         workload.ti.key = mock_airflow_key()
         workload.ti.queue = "some-job-queue"
         workload.type = WorkloadType.EXECUTE_TASK
-        workload.queue_key = workload.ti.key
+        workload.key = workload.ti.key
         tags_exec_config = [{"key": "FOO", "value": "BAR"}]
         workload.ti.executor_config = {"tags": tags_exec_config}
         ser_workload = json.dumps({"test_key": "test_value"})

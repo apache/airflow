@@ -413,7 +413,7 @@ class TestAwsEcsExecutor:
             airflow_key, TaskInstanceState.RUNNING, ARN1, remove_running=False
         )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.change_state")
     def test_task_sdk(self, change_state_mock, mock_airflow_key, mock_executor, mock_cmd):
         """Test task sdk execution from end-to-end."""
@@ -424,7 +424,7 @@ class TestAwsEcsExecutor:
         workload.ti = mock.Mock(spec=TaskInstance)
         workload.ti.key = mock_airflow_key()
         workload.type = WorkloadType.EXECUTE_TASK
-        workload.queue_key = workload.ti.key
+        workload.key = workload.ti.key
         tags_exec_config = [{"key": "FOO", "value": "BAR"}]
         workload.ti.executor_config = {"tags": tags_exec_config}
         ser_workload = json.dumps({"test_key": "test_value"})
