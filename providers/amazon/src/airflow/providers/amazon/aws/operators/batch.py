@@ -398,6 +398,9 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         if not context or "ti" not in context:
             return
 
+        if not self.job_id:
+            return
+
         try:
             awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
         except AirflowException as ae:
@@ -429,7 +432,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         created with ``execution_timeout``.
         """
         if not self.job_id:
-            raise AirflowException("AWS Batch job - job_id was not found")
+            raise ValueError("AWS Batch job - job_id was not found")
 
         # Persist job definition and queue links
         self._persist_links(context)
