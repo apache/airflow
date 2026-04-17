@@ -383,11 +383,11 @@ These include:
 
   .. code-block:: python
 
-      # AF 2 - pulls most recent value from any task
+      # Airflow 2 - pulls most recent value from any task
       value = ti.xcom_pull(key="shared_state")
 
-      # AF 3 - same call only checks the current task
+      # Airflow 3 - same call only checks the current task
       value = ti.xcom_pull(key="shared_state")
 
-      # AF 3 - specify task_ids to pull from other tasks
+      # Airflow 3 - specify task_ids to pull from other tasks
       value = ti.xcom_pull(task_ids="upstream_task", key="shared_state")
