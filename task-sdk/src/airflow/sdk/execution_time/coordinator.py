@@ -182,6 +182,7 @@ class BaseLocaleCoordinator:
     """
 
     locale_name: str
+    file_extension: str
 
     class DagParsingInfo(NamedTuple):
         """Information needed for locale Dag parsing."""
