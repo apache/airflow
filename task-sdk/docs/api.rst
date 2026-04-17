@@ -191,6 +191,8 @@ Assets
 
 .. autoapiclass:: airflow.sdk.Metadata
 
+.. autoapiclass:: airflow.sdk.PartitionKey
+
 Timetables
 ----------
 .. autoapiclass:: airflow.sdk.AssetOrTimeSchedule
@@ -208,6 +210,8 @@ Timetables
 .. autoapiclass:: airflow.sdk.EventsTimetable
 
 .. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
+
+.. autoapiclass:: airflow.sdk.PartitionAtRuntime
 
 .. autoapiclass:: airflow.sdk.PartitionedAssetTimetable
 
