@@ -41,18 +41,10 @@ import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
 import { ProgressBar, Pagination, Toaster } from "src/components/ui";
 
-export type CursorPaginationProps = {
-  readonly hasNext: boolean;
-  readonly hasPrevious: boolean;
-  readonly onNext: () => void;
-  readonly onPrevious: () => void;
-};
-
 type DataTableProps<TData> = {
   readonly allowFiltering?: boolean;
   readonly cardDef?: CardDef<TData>;
   readonly columns: Array<MetaColumn<TData>>;
-  readonly cursorPagination?: CursorPaginationProps;
   readonly data: Array<TData>;
   readonly displayMode?: "card" | "table";
   readonly errorMessage?: ReactNode | string;
@@ -61,9 +53,11 @@ type DataTableProps<TData> = {
   readonly isFetching?: boolean;
   readonly isLoading?: boolean;
   readonly modelName: string;
+  readonly nextCursor?: string | null;
   readonly noRowsMessage?: ReactNode;
   readonly onDisplayToggleChange?: (mode: "card" | "table") => void;
   readonly onStateChange?: (state: TableState) => void;
+  readonly previousCursor?: string | null;
   readonly renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
   readonly showDisplayToggle?: boolean;
   readonly showRowCountHeading?: boolean;
@@ -77,7 +71,6 @@ export const DataTable = <TData,>({
   allowFiltering,
   cardDef,
   columns,
-  cursorPagination,
   data,
   displayMode = "table",
   errorMessage,
@@ -86,9 +79,11 @@ export const DataTable = <TData,>({
   isFetching,
   isLoading,
   modelName,
+  nextCursor,
   noRowsMessage,
   onDisplayToggleChange,
   onStateChange,
+  previousCursor,
   showDisplayToggle,
   showRowCountHeading = true,
   skeletonCount = 10,
@@ -158,10 +153,13 @@ export const DataTable = <TData,>({
 
   const display = displayMode === "card" && Boolean(cardDef) ? "card" : "table";
   const hasRows = rows.length > 0;
+  const hasNext = nextCursor !== undefined && nextCursor !== null;
+  const hasPrevious = previousCursor !== undefined && previousCursor !== null;
+  const hasCursorPagination = hasNext || hasPrevious;
   const hasOffsetPagination =
-    !cursorPagination && initialState?.pagination !== undefined && (pageIndex !== 0 || rows.length !== total);
-  const hasCursorPagination =
-    cursorPagination !== undefined && (cursorPagination.hasNext || cursorPagination.hasPrevious);
+    !hasCursorPagination &&
+    initialState?.pagination !== undefined &&
+    (pageIndex !== 0 || rows.length !== total);
 
   // Default to show columns filter only if there are actually many columns displayed
   const showColumnsFilter = allowFiltering ?? columns.length > 5;
@@ -171,7 +169,7 @@ export const DataTable = <TData,>({
     [modelName, translate],
   );
   const showRowCount = Boolean(
-    showRowCountHeading && !cursorPagination && !Boolean(isLoading) && !Boolean(isFetching) && total > 0,
+    showRowCountHeading && !hasCursorPagination && !Boolean(isLoading) && !Boolean(isFetching) && total > 0,
   );
   const noRowsModelName = translateModelName(0);
 
@@ -219,13 +217,20 @@ export const DataTable = <TData,>({
           </HStack>
         </Pagination.Root>
       ) : undefined}
-      {hasCursorPagination ? (
+      {/* Pagination.Root is designed for offset-based pagination and requires count/page/pageSize.
+          Cursor pagination doesn't have these values, and passing fake values causes
+          incorrect disabled styling on the triggers. Use plain IconButtons instead. */}
+      {hasCursorPagination && initialState ? (
         <HStack my={2}>
           <IconButton
             aria-label="Previous page"
             data-testid="prev"
-            disabled={!cursorPagination.hasPrevious}
-            onClick={cursorPagination.onPrevious}
+            disabled={!hasPrevious}
+            onClick={() => {
+              if (onStateChange && previousCursor !== undefined && previousCursor !== null) {
+                onStateChange({ ...initialState, cursor: previousCursor });
+              }
+            }}
             size="sm"
             variant="ghost"
           >
@@ -234,8 +239,12 @@ export const DataTable = <TData,>({
           <IconButton
             aria-label="Next page"
             data-testid="next"
-            disabled={!cursorPagination.hasNext}
-            onClick={cursorPagination.onNext}
+            disabled={!hasNext}
+            onClick={() => {
+              if (onStateChange && nextCursor !== undefined && nextCursor !== null) {
+                onStateChange({ ...initialState, cursor: nextCursor });
+              }
+            }}
             size="sm"
             variant="ghost"
           >

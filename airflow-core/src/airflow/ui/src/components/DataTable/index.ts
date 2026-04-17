@@ -18,4 +18,3 @@
  */
 
 export { DataTable } from "./DataTable";
-export type { CursorPaginationProps } from "./DataTable";

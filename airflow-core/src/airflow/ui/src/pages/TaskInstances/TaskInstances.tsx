@@ -29,7 +29,6 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
-import type { CursorPaginationProps } from "src/components/DataTable";
 import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -334,21 +333,6 @@ export const TaskInstances = () => {
   const nextCursor = data && "next_cursor" in data ? data.next_cursor : undefined;
   const previousCursor = data && "previous_cursor" in data ? data.previous_cursor : undefined;
 
-  const cursorPagination: CursorPaginationProps = {
-    hasNext: nextCursor !== undefined && nextCursor !== null,
-    hasPrevious: previousCursor !== undefined && previousCursor !== null,
-    onNext: () => {
-      if (nextCursor !== undefined && nextCursor !== null) {
-        setTableURLState({ cursor: nextCursor, pagination, sorting });
-      }
-    },
-    onPrevious: () => {
-      if (previousCursor !== undefined && previousCursor !== null) {
-        setTableURLState({ cursor: previousCursor, pagination, sorting });
-      }
-    },
-  };
-
   const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
     useRowSelection({
       data: data?.task_instances,
@@ -374,13 +358,14 @@ export const TaskInstances = () => {
       <TaskInstancesFilter />
       <DataTable
         columns={columns}
-        cursorPagination={cursorPagination}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="common:taskInstance"
+        nextCursor={nextCursor}
         onStateChange={setTableURLState}
+        previousCursor={previousCursor}
       />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
