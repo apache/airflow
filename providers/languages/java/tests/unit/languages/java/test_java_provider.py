@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.languages.java.coordinator import JavaLocaleCoordinator
+from airflow.providers.languages.java.coordinator import JavaRuntimeCoordinator
 from airflow.providers.languages.java.get_provider_info import get_provider_info
 
 
@@ -25,7 +25,7 @@ def test_get_provider_info_exposes_java_runtime_components():
     assert get_provider_info() == {
         "package-name": "apache-airflow-providers-languages-java",
         "name": "Languages: Java",
-        "description": "Java language support for Apache Airflow process coordinators.\n",
+        "description": "Java language support for Apache Airflow runtime coordinators.\n",
         "integrations": [
             {
                 "integration-name": "Java",
@@ -33,11 +33,11 @@ def test_get_provider_info_exposes_java_runtime_components():
                 "tags": ["software"],
             }
         ],
-        "process-coordinators": [
-            "airflow.providers.languages.java.coordinator.JavaLocaleCoordinator",
+        "runtime-coordinators": [
+            "airflow.providers.languages.java.coordinator.JavaRuntimeCoordinator",
         ],
     }
 
 
 def test_java_provider_entrypoints_are_importable():
-    assert JavaLocaleCoordinator.locale_name == "java"
+    assert JavaRuntimeCoordinator.runtime_name == "java"

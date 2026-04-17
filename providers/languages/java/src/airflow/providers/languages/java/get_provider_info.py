@@ -25,7 +25,7 @@ def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-languages-java",
         "name": "Languages: Java",
-        "description": "Java language support for Apache Airflow process coordinators.\n",
+        "description": "Java language support for Apache Airflow runtime coordinators.\n",
         "integrations": [
             {"integration-name": "Java", "external-doc-url": "https://openjdk.org/", "tags": ["software"]}
         ],
@@ -43,5 +43,5 @@ def get_provider_info():
                 },
             }
         },
-        "process-coordinators": ["airflow.providers.languages.java.coordinator.JavaLocaleCoordinator"],
+        "runtime-coordinators": ["airflow.providers.languages.java.coordinator.JavaRuntimeCoordinator"],
     }
