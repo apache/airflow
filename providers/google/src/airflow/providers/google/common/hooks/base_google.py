@@ -301,6 +301,7 @@ class GoogleBaseHook(BaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        *,
         quota_project_id: str | None = None,
         **kwargs,
     ) -> None:
