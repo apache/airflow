@@ -1,0 +1,198 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Cross-language DAG serialization test cases.
+#
+# Each entry defines DAG constructor parameters in a language-agnostic way.
+# Both the Python and Java serialization scripts read this file, construct
+# DAGs from the params, and write the serialized output for comparison.
+#
+# Type conventions:
+#   start_date / end_date  — ISO-8601 string, parsed to datetime / Instant
+#   dagrun_timeout_seconds — number of seconds, parsed to timedelta / Duration
+#   tags                   — list of strings, converted to set on both sides
+#   access_control         — nested map; innermost lists become sets
+
+test_cases:
+  # ---- schedule variants ------------------------------------------------
+  - name: "minimal_dag"
+    params:
+      dag_id: "example_dag"
+
+  - name: "schedule_daily"
+    params:
+      dag_id: "example_dag"
+      schedule: "@daily"
+
+  - name: "schedule_hourly"
+    params:
+      dag_id: "example_dag"
+      schedule: "@hourly"
+
+  - name: "schedule_once"
+    params:
+      dag_id: "example_dag"
+      schedule: "@once"
+
+  - name: "schedule_continuous"
+    params:
+      dag_id: "example_dag"
+      schedule: "@continuous"
+      max_active_runs: 1
+
+  - name: "schedule_cron"
+    params:
+      dag_id: "example_dag"
+      schedule: "0 0 * * *"
+
+  - name: "schedule_cron_complex"
+    params:
+      dag_id: "example_dag"
+      schedule: "30 2 */3 * 1-5"
+
+  # ---- simple scalar fields --------------------------------------------
+  - name: "with_description"
+    params:
+      dag_id: "example_dag"
+      description: "This is an example DAG for testing serialization."
+
+  - name: "with_doc_md"
+    params:
+      dag_id: "example_dag"
+      doc_md: "# Example DAG\n\nThis is **markdown** documentation."
+
+  - name: "with_dag_display_name"
+    params:
+      dag_id: "example_dag"
+      dag_display_name: "My Example Pipeline"
+
+  - name: "with_dag_display_name_same_as_id"
+    params:
+      dag_id: "example_dag"
+      dag_display_name: "example_dag"
+
+  # ---- boolean / numeric fields -----------------------------------------
+  - name: "with_catchup_and_start_date"
+    params:
+      dag_id: "example_dag"
+      schedule: "@daily"
+      start_date: "2024-01-01T00:00:00Z"
+      catchup: true
+
+  - name: "with_fail_fast"
+    params:
+      dag_id: "example_dag"
+      fail_fast: true
+
+  - name: "with_render_template_as_native_obj"
+    params:
+      dag_id: "example_dag"
+      render_template_as_native_obj: true
+
+  - name: "with_is_paused_upon_creation_true"
+    params:
+      dag_id: "example_dag"
+      is_paused_upon_creation: true
+
+  - name: "with_is_paused_upon_creation_false"
+    params:
+      dag_id: "example_dag"
+      is_paused_upon_creation: false
+
+  - name: "with_max_active_tasks"
+    params:
+      dag_id: "example_dag"
+      max_active_tasks: 32
+      max_active_runs: 8
+      max_consecutive_failed_dag_runs: 5
+
+  - name: "with_dagrun_timeout"
+    params:
+      dag_id: "example_dag"
+      dagrun_timeout_seconds: 3600
+
+  - name: "with_start_and_end_date"
+    params:
+      dag_id: "example_dag"
+      start_date: "2024-01-01T00:00:00Z"
+      end_date: "2024-12-31T23:59:59Z"
+
+  # ---- collection fields ------------------------------------------------
+  - name: "with_tags"
+    params:
+      dag_id: "example_dag"
+      tags: ["alpha", "beta", "gamma"]
+
+  - name: "with_owner_links"
+    params:
+      dag_id: "example_dag"
+      owner_links:
+        data_team: "https://example.com/data-team"
+        dev_team: "https://example.com/dev-team"
+
+  # ---- decorated / typed fields -----------------------------------------
+  - name: "with_default_args"
+    params:
+      dag_id: "example_dag"
+      default_args:
+        retries: 3
+        owner: "test_owner"
+
+  - name: "with_params"
+    params:
+      dag_id: "example_dag"
+      params:
+        param_string: "value1"
+        param_int: 42
+        param_bool: true
+
+  - name: "with_access_control"
+    params:
+      dag_id: "example_dag"
+      access_control:
+        viewer_role:
+          DAGs:
+            - "can_read"
+        editor_role:
+          DAGs:
+            - "can_read"
+            - "can_edit"
+
+  # ---- complex combined -------------------------------------------------
+  - name: "complex_dag"
+    params:
+      dag_id: "complex_dag"
+      schedule: "0 */6 * * *"
+      description: "A complex DAG with many parameters"
+      start_date: "2024-06-15T10:30:00Z"
+      catchup: true
+      max_active_tasks: 32
+      max_active_runs: 8
+      max_consecutive_failed_dag_runs: 3
+      dagrun_timeout_seconds: 7200
+      tags: ["complex", "production", "etl"]
+      owner_links:
+        data_team: "https://example.com/data-team"
+      fail_fast: true
+      dag_display_name: "Complex ETL Pipeline"
+      doc_md: "# Complex Pipeline\nHandles ETL processing."
+      default_args:
+        retries: 2
+        owner: "data_engineering"
+      params:
+        env: "production"
+        batch_size: 1000
