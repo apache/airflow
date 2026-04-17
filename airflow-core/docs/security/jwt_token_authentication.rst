@@ -409,7 +409,7 @@ All JWT-related configuration parameters:
      - 600 (10 min)
      - Execution API ``execution``-scoped token lifetime in seconds.
    * - ``[scheduler] task_queued_timeout``
-     - 600 (10 min)
+     - 600.0 (10 min)
      - Queue-starvation timeout. Also sets the ``workload``-scoped token lifetime to the same value.
    * - ``[execution_api] jwt_audience``
      - ``urn:airflow.apache.org:task``
