@@ -22,7 +22,6 @@
         "title": "Backfill létrehozva"
       }
     },
-    "tooltip": "A backfill futtatáshoz ütemezés szükséges",
     "unpause": "{{dag_display_name}} folytatása indításkor",
     "validation": {
       "datesRequired": "A kezdő és a befejező dátumot is meg kell adni.",
