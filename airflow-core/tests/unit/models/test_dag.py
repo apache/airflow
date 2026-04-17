@@ -1429,12 +1429,11 @@ class TestDag:
 
         When a DAG has multiple tasks with no dependencies between them,
         they are all scheduled in the same loop iteration and run
-        sequentially via _run_task.  Each _run_task call must commit the
-        QUEUED state so the in-process execution API (which runs in a
-        separate thread via a2wsgi with its own non-scoped session) can
-        observe it.  Without proper session handling, the API reads stale
-        state (e.g. RUNNING from a previous task) and raises
-        TaskAlreadyRunningError.
+        sequentially via _run_task.  All state writes in _run_task must use
+        non-scoped sessions so they do not borrow and close the outer
+        dag.test() thread-local session, which would expunge all task
+        instance ORM objects from the session identity map and corrupt the
+        outer loop's view of task state for subsequent tasks.
         """
         dag = DAG(
             dag_id="test_dag_test_multiple_independent_tasks",

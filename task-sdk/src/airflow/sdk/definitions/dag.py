@@ -1454,13 +1454,15 @@ def _run_task(
             from airflow.sdk.execution_time.supervisor import run_task_in_process
             from airflow.serialization.serialized_objects import create_scheduler_operator
 
-            # The API Server expects the task instance to be in QUEUED state
-            # before it is run.  Use a non-scoped session so the commit is
-            # visible to the in-process execution API, which runs in a
-            # separate thread (via a2wsgi) with its own non-scoped session.
-            # Using the default scoped session can leave the QUEUED state
-            # invisible across thread/session boundaries, causing the API to
-            # see stale state (e.g. RUNNING) and raise TaskAlreadyRunningError.
+            # All state writes in _run_task use non-scoped sessions to avoid
+            # borrowing the long-lived thread-local session held by the outer
+            # dag.test() loop (settings.Session is a scoped_session, so
+            # @provide_session would resolve to that same session).  When
+            # create_session() closes that shared session it expunges all ORM
+            # objects from the identity map, which corrupts the outer loop's
+            # view of task state and causes subsequent tasks to misbehave.  A
+            # dedicated non-scoped session for each write keeps these
+            # operations fully isolated from the outer session.
             with create_session(scoped=False) as session:
                 ti.set_state(TaskInstanceState.QUEUED, session=session)
             task_sdk_ti = TaskInstanceSDK(
@@ -1475,13 +1477,11 @@ def _run_task(
 
             taskrun_result = run_task_in_process(ti=task_sdk_ti, task=task)
             msg = taskrun_result.msg
-            ti.set_state(taskrun_result.ti.state)
+            with create_session(scoped=False) as session:
+                ti.set_state(taskrun_result.ti.state, session=session)
             ti.task = create_scheduler_operator(taskrun_result.ti.task)
 
             if ti.state == TaskInstanceState.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
-                # API Server expects the task instance to be in QUEUED state
-                # before resuming from deferral (same cross-thread visibility
-                # concern as above).
                 with create_session(scoped=False) as session:
                     ti.set_state(TaskInstanceState.QUEUED, session=session)
 
@@ -1499,8 +1499,7 @@ def _run_task(
                 ti.next_kwargs = {"event": serialize(event.payload)} if event else msg.next_kwargs
                 log.info("[DAG TEST] Trigger completed")
 
-                # Set the state to SCHEDULED so that the task can be resumed.
-                with create_session() as session:
+                with create_session(scoped=False) as session:
                     ti.state = TaskInstanceState.SCHEDULED
                     session.add(ti)
                 continue
@@ -1509,7 +1508,8 @@ def _run_task(
         except Exception:
             log.exception("[DAG TEST] Error running task %s", ti)
             if ti.state not in FINISHED_STATES:
-                ti.set_state(TaskInstanceState.FAILED)
+                with create_session(scoped=False) as session:
+                    ti.set_state(TaskInstanceState.FAILED, session=session)
                 taskrun_result = None
                 break
             raise
