@@ -220,24 +220,24 @@ export const DataTable = <TData,>({
         </Pagination.Root>
       ) : undefined}
       {hasCursorPagination ? (
-        <HStack justifyContent="center" my={2}>
+        <HStack my={2}>
           <IconButton
             aria-label="Previous page"
-            data-testid="cursor-prev"
+            data-testid="prev"
             disabled={!cursorPagination.hasPrevious}
             onClick={cursorPagination.onPrevious}
             size="sm"
-            variant="outline"
+            variant="ghost"
           >
             <HiChevronLeft />
           </IconButton>
           <IconButton
             aria-label="Next page"
-            data-testid="cursor-next"
+            data-testid="next"
             disabled={!cursorPagination.hasNext}
             onClick={cursorPagination.onNext}
             size="sm"
-            variant="outline"
+            variant="ghost"
           >
             <HiChevronRight />
           </IconButton>
