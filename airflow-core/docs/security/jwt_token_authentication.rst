@@ -204,7 +204,7 @@ Token scopes (Execution API)
 The Execution API defines two token scopes with different lifetimes:
 
 **workload**
-   A longer-lived token embedded in the workload JSON payload when the Scheduler
+   A token embedded in the workload JSON payload when the Scheduler
    dispatches a task. This scope is accepted only on endpoints that explicitly opt in
    via ``Security(require_auth, scopes=["token:workload"])``. The longer lifetime
    allows tasks to remain valid while waiting in executor queues before execution
@@ -287,9 +287,9 @@ No token revocation (Execution API)
 
 Execution API tokens are not subject to revocation. ``execution``-scoped tokens are short-lived
 (default 10 minutes) and automatically refreshed by the ``JWTReissueMiddleware``.
-``workload``-scoped tokens are longer-lived (tracking ``[scheduler] task_queued_timeout``) and
-are not refreshed — they expire naturally after their validity period. Revocation is not part
-of the Execution API security model.
+``workload``-scoped tokens (tracking ``[scheduler] task_queued_timeout``) are not refreshed —
+they expire naturally after their validity period. Revocation is not part of the Execution API
+security model.
 
 
 
