@@ -218,6 +218,19 @@ class DiscordWebhookHook(HttpHook):
             conn = self.get_connection(http_conn_id)
         return self.handler.get_webhook_endpoint(conn, webhook_endpoint)
 
+    def get_conn(self, headers: dict[Any, Any] | None = None, extra_options: dict[str, Any] | None = None):
+        """Override to prevent webhook_endpoint from being sent as an HTTP header."""
+        if not self.http_conn_id:
+            return super().get_conn(headers=headers, extra_options=extra_options)
+        conn = self.get_connection(self.http_conn_id)
+        original_extra = conn.extra
+        try:
+            cleaned = {k: v for k, v in conn.extra_dejson.items() if k != "webhook_endpoint"}
+            conn.extra = json.dumps(cleaned) if cleaned else None
+            return super().get_conn(headers=headers, extra_options=extra_options)
+        finally:
+            conn.extra = original_extra
+
     def execute(self) -> None:
         """Execute the Discord webhook call."""
         proxies = {}
