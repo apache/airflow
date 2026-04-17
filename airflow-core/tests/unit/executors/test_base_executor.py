@@ -41,7 +41,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.sdk import BaseOperator
 from airflow.sdk.execution_time.callback_supervisor import execute_callback
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import CallbackState, State, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -110,6 +110,17 @@ def test_log_task_event_branches_on_key_type():
     callback_key = str(UUID("00000000-0000-0000-0000-000000000001"))
     executor.log_task_event(event="callback_event", extra="extra", ti_key=callback_key)
     assert len(executor._task_event_logs) == 1
+
+
+def test_state_methods_pick_callback_state_for_callback_key():
+    executor = BaseExecutor()
+    callback_key = str(UUID("00000000-0000-0000-0000-000000000002"))
+
+    executor.fail(callback_key)
+    assert executor.event_buffer[callback_key] == (CallbackState.FAILED, None)
+
+    executor.success(callback_key)
+    assert executor.event_buffer[callback_key] == (CallbackState.SUCCESS, None)
 
 
 def test_fail_and_success():

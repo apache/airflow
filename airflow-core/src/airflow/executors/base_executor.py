@@ -37,9 +37,10 @@ from airflow.executors.workloads.callback import ExecuteCallback
 from airflow.executors.workloads.task import ExecuteTask
 from airflow.models import Log
 from airflow.models.callback import CallbackKey
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.observability.metrics import stats_utils
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import CallbackState, TaskInstanceState
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -76,9 +77,8 @@ if TYPE_CHECKING:
     from airflow.configuration import AirflowConfigParser
     from airflow.executors.executor_utils import ExecutorName
     from airflow.executors.workloads import ExecutorWorkload
-    from airflow.executors.workloads.types import WorkloadKey
+    from airflow.executors.workloads.types import WorkloadKey, WorkloadState
     from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # Event_buffer dict value type
     # Tuple of: state, info
@@ -86,6 +86,12 @@ if TYPE_CHECKING:
 
 
 log = logging.getLogger(__name__)
+
+
+def _state_class_for_key(key: WorkloadKey) -> type[TaskInstanceState] | type[CallbackState]:
+    if isinstance(key, TaskInstanceKey):
+        return TaskInstanceState
+    return CallbackState
 
 
 @dataclass
@@ -431,9 +437,7 @@ class BaseExecutor(LoggingMixin):
     # TODO: This should not be using `TaskInstanceState` here, this is just "did the process complete, or did
     # it die". It is possible for the task itself to finish with success, but the state of the task to be set
     # to FAILED. By using TaskInstanceState enum here it confuses matters!
-    def change_state(
-        self, key: WorkloadKey, state: TaskInstanceState, info=None, remove_running=True
-    ) -> None:
+    def change_state(self, key: WorkloadKey, state: WorkloadState, info=None, remove_running=True) -> None:
         """
         Change state of the task.
 
@@ -457,7 +461,7 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, TaskInstanceState.FAILED, info)
+        self.change_state(key, _state_class_for_key(key).FAILED, info)
 
     def success(self, key: WorkloadKey, info=None) -> None:
         """
@@ -466,7 +470,7 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, TaskInstanceState.SUCCESS, info)
+        self.change_state(key, _state_class_for_key(key).SUCCESS, info)
 
     def queued(self, key: WorkloadKey, info=None) -> None:
         """
@@ -475,7 +479,7 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, TaskInstanceState.QUEUED, info)
+        self.change_state(key, _state_class_for_key(key).QUEUED, info)
 
     def running_state(self, key: WorkloadKey, info=None) -> None:
         """
@@ -484,7 +488,7 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, TaskInstanceState.RUNNING, info, remove_running=False)
+        self.change_state(key, _state_class_for_key(key).RUNNING, info, remove_running=False)
 
     def get_event_buffer(self, dag_ids=None) -> dict[WorkloadKey, EventBufferValueType]:
         """
