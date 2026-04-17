@@ -54,7 +54,6 @@ type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 const getRowKey = (ti: TaskInstanceResponse) => `${ti.dag_id}:${ti.dag_run_id}:${ti.task_id}:${ti.map_index}`;
 
 const {
-  CURSOR: CURSOR_PARAM,
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
   DAG_VERSION: DAG_VERSION_PARAM,
   DURATION_GTE: DURATION_GTE_PARAM,
@@ -261,25 +260,7 @@ const taskInstanceColumns = ({
 export const TaskInstances = () => {
   const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const cursor = searchParams.get(CURSOR_PARAM) ?? "";
-  const setCursor = (value: string) => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-
-        if (value) {
-          next.set(CURSOR_PARAM, value);
-        } else {
-          next.delete(CURSOR_PARAM);
-        }
-
-        return next;
-      },
-      { replace: true },
-    );
-  };
+  const [searchParams] = useSearchParams();
 
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
@@ -291,7 +272,7 @@ export const TaskInstances = () => {
       queue: false,
     },
   });
-  const { pagination, sorting } = tableURLState;
+  const { cursor, pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-id"];
 
@@ -317,7 +298,7 @@ export const TaskInstances = () => {
 
   const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
-      cursor,
+      cursor: cursor ?? "",
       dagId: dagId ?? "~",
       dagIdPattern: filteredDagIdPattern ?? undefined,
       dagRunId: runId ?? "~",
@@ -358,12 +339,12 @@ export const TaskInstances = () => {
     hasPrevious: previousCursor !== undefined && previousCursor !== null,
     onNext: () => {
       if (nextCursor !== undefined && nextCursor !== null) {
-        setCursor(nextCursor);
+        setTableURLState({ cursor: nextCursor, pagination, sorting });
       }
     },
     onPrevious: () => {
       if (previousCursor !== undefined && previousCursor !== null) {
-        setCursor(previousCursor);
+        setTableURLState({ cursor: previousCursor, pagination, sorting });
       }
     },
   };

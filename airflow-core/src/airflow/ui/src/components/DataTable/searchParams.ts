@@ -44,8 +44,11 @@ export const stateToSearchParams = (state: TableState, defaultTableState?: Table
     queryParams.set(OFFSET_PARAM, `${state.pagination.pageIndex}`);
   }
 
-  // Clear cursor when table state changes (sort, page size, etc.).
-  queryParams.delete(CURSOR_PARAM);
+  if (state.cursor !== undefined && state.cursor !== "") {
+    queryParams.set(CURSOR_PARAM, state.cursor);
+  } else {
+    queryParams.delete(CURSOR_PARAM);
+  }
 
   if (state.sorting.length) {
     state.sorting.forEach(({ desc, id }) => {
@@ -76,6 +79,13 @@ export const searchParamsToState = (searchParams: URLSearchParams, defaultState:
       },
     };
   }
+
+  const cursorValue = searchParams.get(CURSOR_PARAM);
+
+  if (cursorValue !== null) {
+    urlState = { ...urlState, cursor: cursorValue };
+  }
+
   const sorts = searchParams.getAll(SORT_PARAM);
   const sorting: SortingState = sorts.map((sort) => ({
     desc: sort.startsWith("-"),
