@@ -110,6 +110,16 @@ class TestNocheckMarker:
                 id="multiline-marker-on-first-line",
             ),
             pytest.param(
+                textwrap.dedent("""\
+                    from airflow.models import (
+                        DagRun,  # nocheck: core-imports
+                        TaskInstance,
+                    )
+                """),
+                [],
+                id="multiline-marker-on-middle-line",
+            ),
+            pytest.param(
                 "from airflow.models import DagRun  # noqa: E402\n",
                 [(1, "from airflow.models import DagRun")],
                 id="wrong-marker-not-suppressed",

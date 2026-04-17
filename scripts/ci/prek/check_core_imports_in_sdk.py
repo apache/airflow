@@ -74,10 +74,11 @@ def check_file_for_core_imports(file_path: Path) -> list[tuple[int, str]]:
 
 def _has_nocheck_marker(source_lines: list[str], node: ast.Import | ast.ImportFrom) -> bool:
     """Check if the import statement has the nocheck marker comment on any of its lines."""
-    for lineno in (node.lineno, node.end_lineno):
-        if lineno is not None and lineno <= len(source_lines):
-            if NOCHECK_MARKER in source_lines[lineno - 1]:
-                return True
+    start = node.lineno
+    end = node.end_lineno or start
+    for lineno in range(start, end + 1):
+        if lineno <= len(source_lines) and NOCHECK_MARKER in source_lines[lineno - 1]:
+            return True
     return False
 
 
