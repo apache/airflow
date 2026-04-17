@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 import logging
 import os
 import warnings
@@ -241,7 +242,13 @@ class DagBundlesManager(LoggingMixin):
         if self._bundle_config:
             return
 
-        config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
+        bundle_config_file = conf.get("dag_processor", "dag_bundle_config_file", fallback=None)
+        if bundle_config_file and os.path.exists(bundle_config_file):
+            with open(bundle_config_file) as f:
+                config_list = json.load(f)
+            self.log.info("Loading bundle config from %s", bundle_config_file)
+        else:
+            config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
         if not config_list:
             return
         if not isinstance(config_list, list):
