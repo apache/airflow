@@ -22,7 +22,12 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 
 import type { TableState } from "./types";
 
-const { LIMIT: LIMIT_PARAM, OFFSET: OFFSET_PARAM, SORT: SORT_PARAM }: SearchParamsKeysType = SearchParamsKeys;
+const {
+  CURSOR: CURSOR_PARAM,
+  LIMIT: LIMIT_PARAM,
+  OFFSET: OFFSET_PARAM,
+  SORT: SORT_PARAM,
+}: SearchParamsKeysType = SearchParamsKeys;
 
 export const stateToSearchParams = (state: TableState, defaultTableState?: TableState): URLSearchParams => {
   const queryParams = new URLSearchParams(globalThis.location.search);
@@ -38,6 +43,9 @@ export const stateToSearchParams = (state: TableState, defaultTableState?: Table
   } else if (state.pagination.pageIndex) {
     queryParams.set(OFFSET_PARAM, `${state.pagination.pageIndex}`);
   }
+
+  // Clear cursor when table state changes (sort, page size, etc.).
+  queryParams.delete(CURSOR_PARAM);
 
   if (state.sorting.length) {
     state.sorting.forEach(({ desc, id }) => {

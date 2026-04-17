@@ -167,6 +167,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
       });
 
       newParams.delete(SearchParamsKeys.OFFSET);
+      newParams.delete(SearchParamsKeys.CURSOR);
 
       return newParams;
     });

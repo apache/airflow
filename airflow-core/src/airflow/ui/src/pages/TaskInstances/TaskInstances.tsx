@@ -21,7 +21,6 @@
 import { Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -55,6 +54,7 @@ type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 const getRowKey = (ti: TaskInstanceResponse) => `${ti.dag_id}:${ti.dag_run_id}:${ti.task_id}:${ti.map_index}`;
 
 const {
+  CURSOR: CURSOR_PARAM,
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
   DAG_VERSION: DAG_VERSION_PARAM,
   DURATION_GTE: DURATION_GTE_PARAM,
@@ -261,7 +261,26 @@ const taskInstanceColumns = ({
 export const TaskInstances = () => {
   const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const cursor = searchParams.get(CURSOR_PARAM) ?? "";
+  const setCursor = (value: string) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+
+        if (value) {
+          next.set(CURSOR_PARAM, value);
+        } else {
+          next.delete(CURSOR_PARAM);
+        }
+
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
       dag_version: false,
@@ -275,17 +294,6 @@ export const TaskInstances = () => {
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-id"];
-
-  // Reset cursor when filters or sort change. URL search params capture both,
-  // so comparing their serialized form detects any change without useEffect.
-  const [cursor, setCursor] = useState<string>("");
-  const searchKey = searchParams.toString();
-  const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
-
-  if (searchKey !== prevSearchKey) {
-    setCursor("");
-    setPrevSearchKey(searchKey);
-  }
 
   const filteredState = searchParams.getAll(STATE_PARAM);
   const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
