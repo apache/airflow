@@ -113,6 +113,7 @@ attr
 attrs
 au
 auditability
+auditable
 Auth
 auth
 authenticator
@@ -1355,6 +1356,7 @@ responder
 reStructuredText
 resultset
 resumable
+retryable
 Reusability
 rfc
 rmse

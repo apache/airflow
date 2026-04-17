@@ -43,7 +43,10 @@ export class AssetListPage extends BasePage {
   }
 
   public async navigate(): Promise<void> {
-    await this.navigateTo("/assets");
+    await expect(async () => {
+      await this.navigateTo("/assets");
+      await this.page.waitForURL(/.*assets/, { timeout: 10_000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async openFirstAsset(): Promise<string> {

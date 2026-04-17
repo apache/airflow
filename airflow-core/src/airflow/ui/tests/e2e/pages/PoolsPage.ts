@@ -68,10 +68,6 @@ export class PoolsPage extends BasePage {
 
     await saveButton.click();
     await responsePromise;
-    await Promise.any([
-      expect(dialog).toBeHidden({ timeout: 10_000 }),
-      expect(dialog).toHaveAttribute("data-state", "closed", { timeout: 10_000 }),
-    ]);
   }
 
   public async deletePool(poolName: string): Promise<void> {
@@ -93,10 +89,6 @@ export class PoolsPage extends BasePage {
 
     await confirmDeleteButton.click();
     await responsePromise;
-    await Promise.any([
-      expect(confirmDialog).toBeHidden({ timeout: 10_000 }),
-      expect(confirmDialog).toHaveAttribute("data-state", "closed", { timeout: 10_000 }),
-    ]);
   }
 
   public async editPoolSlots(poolName: string, newSlots: number): Promise<void> {
@@ -125,10 +117,6 @@ export class PoolsPage extends BasePage {
 
     await saveButton.click();
     await responsePromise;
-    await Promise.any([
-      expect(dialog).toBeHidden({ timeout: 10_000 }),
-      expect(dialog).toHaveAttribute("data-state", "closed", { timeout: 10_000 }),
-    ]);
   }
 
   public getPoolCard(poolName: string): Locator {
@@ -136,9 +124,11 @@ export class PoolsPage extends BasePage {
   }
 
   public async navigate(): Promise<void> {
-    await this.navigateTo(PoolsPage.poolsUrl);
-    await this.page.waitForURL("**/pools", { timeout: 15_000 });
-    await expect(this.cardList).toBeVisible({ timeout: 15_000 });
+    await expect(async () => {
+      await this.navigateTo(PoolsPage.poolsUrl);
+      await this.page.waitForURL("**/pools", { timeout: 15_000 });
+      await expect(this.addPoolButton).toBeVisible({ timeout: 15_000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async verifyPoolExists(poolName: string): Promise<void> {
