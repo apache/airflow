@@ -36,10 +36,10 @@ class ArgNotSet:
         return "NOTSET"
 
     def __repr__(self) -> str:
-        return self.__class__.__name__
+        return self.serialize()
 
     def __str__(self) -> str:
-        return self.__class__.__name__
+        return self.serialize()
 
 
 NOTSET = ArgNotSet()
