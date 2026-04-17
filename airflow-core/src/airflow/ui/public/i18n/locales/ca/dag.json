@@ -45,12 +45,16 @@
     "buttons": {
       "resetToLatest": "Restablir a l'últim",
       "toggleGroup": "Alternar grup"
-    }
+    },
+    "runTypeLegend": "Llegenda del tipus d'execució"
   },
   "header": {
     "buttons": {
       "advanced": "Avançat",
       "dagDocs": "Documentació del Dag"
+    },
+    "status": {
+      "deactivated": "Desactivat"
     }
   },
   "logs": {
