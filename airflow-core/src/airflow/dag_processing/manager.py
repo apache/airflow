@@ -267,6 +267,9 @@ class DagFileProcessorManager(LoggingMixin):
         factory=_config_get_factory("dag_processor", "file_parsing_sort_mode")
     )
 
+    _locale_file_extensions: tuple[str, ...] | None = attrs.field(default=None, init=False)
+    """File extensions registered by locale coordinators (e.g. ".jar"). Lazily populated."""
+
     _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=InProcessExecutionAPI)
     """API server to interact with Metadata DB"""
 
@@ -815,6 +818,27 @@ class DagFileProcessorManager(LoggingMixin):
 
         return rel_paths
 
+    def _get_locale_file_extensions(self) -> tuple[str, ...]:
+        """Collect file extensions from registered locale coordinators (cached after first call)."""
+        if self._locale_file_extensions is not None:
+            return self._locale_file_extensions
+
+        from airflow._shared.module_loading import import_string
+        from airflow.providers_manager import ProvidersManager
+
+        if TYPE_CHECKING:
+            from airflow.sdk.execution_time.coordinator import BaseLocaleCoordinator
+
+        extensions: list[str] = []
+        for coordinator_class_path in ProvidersManager().process_coordinators:
+            try:
+                coordinator_cls: type[BaseLocaleCoordinator] = import_string(coordinator_class_path)
+                extensions.append(coordinator_cls.file_extension)
+            except Exception:
+                self.log.exception("Failed to load coordinator %s", coordinator_class_path)
+        self._locale_file_extensions = tuple(extensions)
+        return self._locale_file_extensions
+
     def _get_observed_filelocs(self, present: set[DagFileInfo]) -> set[str]:
         """
         Return observed DAG source paths for bundle entries.
@@ -822,7 +846,11 @@ class DagFileProcessorManager(LoggingMixin):
         For regular files this includes the relative file path.
         For ZIP archives this includes DAG-like inner paths such as
         ``archive.zip/dag.py``.
+
+        Locale coordinator file extensions (e.g. ``.jar``) are treated as
+        opaque files rather than ZIP archives.
         """
+        locale_extensions = self._get_locale_file_extensions()
 
         def find_zipped_dags(abs_path: os.PathLike) -> Iterator[str]:
             """Yield absolute paths for DAG-like files inside a ZIP archive."""
@@ -837,7 +865,7 @@ class DagFileProcessorManager(LoggingMixin):
         observed_filelocs: set[str] = set()
         for info in present:
             abs_path = str(info.absolute_path)
-            if abs_path.endswith(".py") or not zipfile.is_zipfile(abs_path):
+            if abs_path.endswith((".py", *locale_extensions)) or not zipfile.is_zipfile(abs_path):
                 observed_filelocs.add(str(info.rel_path))
             else:
                 if TYPE_CHECKING:
