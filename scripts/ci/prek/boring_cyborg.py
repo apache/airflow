@@ -46,8 +46,14 @@ if CONFIG_KEY not in cyborg_config:
     raise SystemExit(f"Missing section {CONFIG_KEY}")
 
 errors = []
-# Check if all patterns in the cyborg config are existing in the repository
-for label, patterns in cyborg_config[CONFIG_KEY].items():
+# Each label rule is either a list of glob patterns (legacy form) or an object
+# with `paths` and an optional `targetBranchFilter` (see kaxil/boring-cyborg#112).
+# Only the glob patterns in `paths` need to exist in the repository.
+for label, rule in cyborg_config[CONFIG_KEY].items():
+    if isinstance(rule, dict):
+        patterns = rule.get("paths", [])
+    else:
+        patterns = rule
     for pattern in patterns:
         try:
             next(Path(AIRFLOW_ROOT_PATH).glob(pattern))

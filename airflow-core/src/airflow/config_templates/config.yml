@@ -1606,6 +1606,31 @@ api:
       type: string
       example: ~
       default: "False"
+    dag_cache_size:
+      description: |
+        Size of the LRU cache for SerializedDAG objects in the API server.
+        Set to 0 to use an unbounded dict (no eviction, matching pre-3.2 behavior).
+        The cache is keyed by Dag version ID, so lookups by Dag ID
+        (e.g., viewing a Dag's details) always query the database for the latest
+        version, but the deserialized result is cached for subsequent
+        version-specific lookups.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "64"
+    dag_cache_ttl:
+      description: |
+        Time-to-live (seconds) for cached SerializedDAG objects in the API server.
+        After this time, cached DAGs will be re-fetched from the database on next access.
+        Set to 0 to disable TTL (cache entries will only be evicted by LRU policy).
+
+        Note: After a DAG is updated, the API server may serve the previous version
+        until the cached entry expires. Lower values reduce staleness but increase
+        database load.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "3600"
     base_url:
       description: |
         The base url of the API server. Airflow cannot guess what domain or CNAME you are using.
