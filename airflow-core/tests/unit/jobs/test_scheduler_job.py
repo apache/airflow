@@ -7673,6 +7673,46 @@ class TestSchedulerJob:
         assert callback_request.context_from_server.max_tries == ti.max_tries
 
     @pytest.mark.parametrize(
+        ("retries", "expected_callback_type"),
+        [
+            (1, TaskInstanceState.UP_FOR_RETRY),
+            (0, TaskInstanceState.FAILED),
+        ],
+    )
+    def test_heartbeat_timeout_sets_callback_type_based_on_retry_eligibility(
+        self, dag_maker, session, retries, expected_callback_type
+    ):
+        """Heartbeat-timeout cleanup should set ``task_callback_type`` based on retry eligibility.
+
+        Regression test for the case where a TI's worker stops heartbeating (e.g. OOMKilled): the
+        scheduler created a ``TaskCallbackRequest`` with ``task_callback_type`` unset (defaulting to
+        ``None``). The DAG processor then dispatched ``on_failure_callback`` even when the TI still
+        had retries remaining, producing spurious failure alerts.
+        """
+        with dag_maker(dag_id=f"hb_timeout_{expected_callback_type}", session=session):
+            EmptyOperator(task_id="test_task", retries=retries)
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        ti = dag_run.get_task_instance(task_id="test_task")
+        ti.state = TaskInstanceState.RUNNING
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.merge(ti)
+        session.commit()
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        mock_executor.send_callback.assert_called_once()
+        request = mock_executor.send_callback.call_args[0][0]
+        assert isinstance(request, TaskCallbackRequest)
+        assert request.task_callback_type == expected_callback_type
+
+    @pytest.mark.parametrize(
         ("retries", "callback_kind", "expected"),
         [
             (1, "retry", TaskInstanceState.UP_FOR_RETRY),

@@ -1,0 +1,1 @@
+Set ``task_callback_type`` when scheduler handles tasks that lose heartbeat. Previously ``_purge_task_instances_without_heartbeats`` created a ``TaskCallbackRequest`` without ``task_callback_type``, which defaults to ``None``; the DAG processor then treated the request as a failure and invoked ``on_failure_callback`` even when the task still had retries remaining.
