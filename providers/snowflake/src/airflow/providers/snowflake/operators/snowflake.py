@@ -543,7 +543,7 @@ class SnowflakeNotebookOperator(SnowflakeSqlApiOperator):
     :param notebook: Fully-qualified notebook name
         (e.g. ``MY_DB.MY_SCHEMA.MY_NOTEBOOK``).
     :param parameters: Optional list of string parameters to pass to the
-        notebook.  Values must be strings (the type hint enforces
+        notebook.  Values must be strings (the type hint declares
         ``list[str]``).  Parameters are accessible in the notebook via
         ``sys.argv``.
     """
@@ -563,6 +563,9 @@ class SnowflakeNotebookOperator(SnowflakeSqlApiOperator):
         self.parameters = parameters
         sql = self._build_execute_notebook_query()
         super().__init__(sql=sql, statement_count=1, **kwargs)
+        # SQLExecuteQueryOperator.__init__ owns a `parameters` attribute (for SQL bind
+        # parameters) and resets it to None. Restore our notebook parameters.
+        self.parameters = parameters
 
     def execute(self, context: Context) -> None:
         """Rebuild SQL from rendered template fields, then execute."""
@@ -573,6 +576,8 @@ class SnowflakeNotebookOperator(SnowflakeSqlApiOperator):
         """Build the ``EXECUTE NOTEBOOK`` SQL statement."""
         params_clause = ""
         if self.parameters:
-            sanitized = [p.replace("'", "''") for p in self.parameters]  # escape single quotes for SQL
+            # Escape backslashes first (Snowflake interprets `\` in string literals),
+            # then single quotes.
+            sanitized = [p.replace("\\", "\\\\").replace("'", "''") for p in self.parameters]
             params_clause = ", ".join(f"'{p}'" for p in sanitized)
         return f"EXECUTE NOTEBOOK {self.notebook}({params_clause})"

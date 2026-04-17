@@ -637,6 +637,35 @@ class TestSnowflakeNotebookOperatorSQL:
         )
         assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('O''Brien', 'it''s')"
 
+    def test_build_sql_escapes_backslashes(self):
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            notebook=NOTEBOOK,
+            parameters=["C:\\data", "a\\'b"],
+        )
+        assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('C:\\\\data', 'a\\\\''b')"
+
+    def test_parameters_survives_parent_init(self):
+        """Parent SQLExecuteQueryOperator.__init__ owns a `parameters` attribute; ensure ours survives."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            notebook=NOTEBOOK,
+            parameters=["a", "b"],
+        )
+        assert operator.parameters == ["a", "b"]
+
+    def test_execute_rebuilds_sql_from_rendered_parameters(self):
+        """Simulate template rendering mutating parameters; execute() should rebuild SQL with escaping."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            notebook=NOTEBOOK,
+            parameters=["{{ params.name }}"],
+        )
+        # Simulate Airflow template rendering mutating the attribute in-place
+        operator.parameters = ["O'Brien"]
+        operator.sql = operator._build_execute_notebook_query()
+        assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('O''Brien')"
+
     def test_build_sql_empty_params(self):
         operator = SnowflakeNotebookOperator(
             task_id=TASK_ID,
