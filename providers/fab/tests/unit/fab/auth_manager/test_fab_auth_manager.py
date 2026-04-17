@@ -70,6 +70,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_PLUGIN,
     RESOURCE_PROVIDER,
     RESOURCE_TASK_INSTANCE,
+    RESOURCE_TEAM,
     RESOURCE_TRIGGER,
     RESOURCE_VARIABLE,
     RESOURCE_WEBSITE,
@@ -137,11 +138,12 @@ if TYPE_CHECKING:
 
 
 IS_AUTHORIZED_METHODS_SIMPLE = {
-    "is_authorized_configuration": RESOURCE_CONFIG,
-    "is_authorized_connection": RESOURCE_CONNECTION,
     "is_authorized_asset": RESOURCE_ASSET,
     "is_authorized_asset_alias": RESOURCE_ASSET_ALIAS,
     "is_authorized_backfill": RESOURCE_BACKFILL,
+    "is_authorized_configuration": RESOURCE_CONFIG,
+    "is_authorized_connection": RESOURCE_CONNECTION,
+    "is_authorized_team": RESOURCE_TEAM,
     "is_authorized_variable": RESOURCE_VARIABLE,
 }
 

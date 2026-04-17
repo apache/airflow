@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+from functools import reduce
 
 import packaging.version
 
@@ -142,6 +143,40 @@ assoc_user_group = Table(
     extend_existing=True,
 )
 
+assoc_team_user = Table(
+    "ab_team_user",
+    Model.metadata,
+    Column(
+        "id",
+        Integer,
+        Sequence("ab_team_user_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        primary_key=True,
+    ),
+    Column("team_id", Integer, ForeignKey("ab_team.id", ondelete="CASCADE")),
+    Column("user_id", Integer, ForeignKey("ab_user.id", ondelete="CASCADE")),
+    UniqueConstraint("team_id", "user_id"),
+    Index("idx_team_id", "team_id"),
+    Index("idx_team_user_id", "user_id"),
+    extend_existing=True,
+)
+
+assoc_team_group = Table(
+    "ab_team_group",
+    Model.metadata,
+    Column(
+        "id",
+        Integer,
+        Sequence("ab_team_group_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        primary_key=True,
+    ),
+    Column("team_id", Integer, ForeignKey("ab_team.id", ondelete="CASCADE")),
+    Column("group_id", Integer, ForeignKey("ab_group.id", ondelete="CASCADE")),
+    UniqueConstraint("team_id", "group_id"),
+    Index("idx_team_id", "team_id"),
+    Index("idx_team_group_id", "group_id"),
+    extend_existing=True,
+)
+
 
 class Action(Model):
     """Represents permission actions such as `can_read`."""
@@ -249,9 +284,38 @@ class Group(Model):
     roles: Mapped[list[Role]] = relationship(
         "Role", secondary=assoc_group_role, backref="groups", passive_deletes=True
     )
+    teams: Mapped[list[Team]] = relationship(
+        "Team", secondary=assoc_team_group, backref="groups", passive_deletes=True
+    )
+
+    def get_teams(self):
+        return {t.name for t in self.teams}
 
     def __repr__(self):
         return self.name
+
+
+class Team(Model):
+    """Represents an Airflow team which has users and roles assigned."""
+
+    __tablename__ = "ab_team"
+    __table_args__ = {"extend_existing": True}
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        Sequence("ab_team_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        primary_key=True,
+    )
+
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    members: Mapped[list[User]] = relationship(
+        "User",
+        secondary=assoc_team_user,
+        backref="teams",
+        lazy="selectin",
+        passive_deletes=True,
+    )
 
 
 class User(Model, BaseUser):
@@ -276,12 +340,22 @@ class User(Model, BaseUser):
     last_login: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     login_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fail_login_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    groups: Mapped[list[Group]] = relationship(
+        "Group",
+        secondary=assoc_user_group,
+        backref="users",
+        lazy="selectin",
+        passive_deletes=True,
+    )
     roles: Mapped[list[Role]] = relationship(
         "Role",
         secondary=assoc_user_role,
         backref="user",
         lazy="selectin",
         passive_deletes=True,
+    )
+    teams: Mapped[list[Team]] = relationship(
+        "Team", secondary=assoc_team_user, backref="members", lazy="selectin", passive_deletes=True
     )
     created_on: Mapped[datetime.datetime | None] = mapped_column(
         DateTime, default=lambda: datetime.datetime.now(), nullable=True
@@ -353,6 +427,18 @@ class User(Model, BaseUser):
                     (perm.action.name, perm.resource.name) for role in self.roles for perm in role.permissions
                 }
         return self._perms
+
+    def get_teams(self):
+        """
+        Get the user's team mebership.
+
+        Team membership includes any groups that a user is a member of.
+        """
+        if not self._teams:
+            self._teams = {team.name for team in self.teams}.union(
+                reduce(set.union, [g.get_teams() for g in self.groups], {})
+            )
+        return self._teams
 
     def get_id(self) -> str:
         return str(self.id)

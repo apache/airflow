@@ -54,6 +54,7 @@ RESOURCE_SLA_MISS = "SLA Misses"
 RESOURCE_TASK_INSTANCE = "Task Instances"
 RESOURCE_TASK_LOG = "Task Logs"
 RESOURCE_TASK_RESCHEDULE = "Task Reschedules"
+RESOURCE_TEAM = "Teams"
 RESOURCE_TRIGGER = "Triggers"
 RESOURCE_USER = "Users"
 RESOURCE_USER_STATS_CHART = "User Stats Chart"
@@ -92,6 +93,16 @@ RESOURCE_DETAILS_MAP = {
 }
 PREFIX_LIST = [details["prefix"] for details in RESOURCE_DETAILS_MAP.values()]
 PREFIX_RESOURCES_MAP = {details["prefix"]: resource for resource, details in RESOURCE_DETAILS_MAP.items()}
+
+TEAM_SCOPED_RESOURCES = frozenset(
+    {
+        RESOURCE_CONNECTION,
+        RESOURCE_DAG,
+        RESOURCE_POOL,
+        RESOURCE_TEAM,
+        RESOURCE_VARIABLE,
+    }
+)
 
 
 def resource_name(dag_id: str, resource: str) -> str:

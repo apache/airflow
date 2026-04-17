@@ -191,6 +191,20 @@ def get_provider_info():
                         "example": "Admin",
                         "default": "",
                     },
+                    "create_team_roles": {
+                        "description": "Enables creation of team scoped roles and permissions when running with multi_team.\n",
+                        "version_added": None,
+                        "type": "boolean",
+                        "example": None,
+                        "default": "True",
+                    },
+                    "create_superadmin": {
+                        "description": "Enables creating the SuperAdmin role which has access to all team scoped resources when running with multi_team.\n",
+                        "version_added": None,
+                        "type": "boolean",
+                        "example": None,
+                        "default": "True",
+                    },
                 },
             }
         },

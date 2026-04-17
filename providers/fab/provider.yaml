@@ -280,6 +280,20 @@ config:
         type: string
         example: "Admin"
         default: ""
+      create_team_roles:
+        description: |
+          Enables creation of team scoped roles and permissions when running with multi_team.
+        version_added: ~
+        type: boolean
+        example: ~
+        default: "True"
+      create_superadmin:
+        description: |
+          Enables creating the SuperAdmin role which has access to all team scoped resources when running with multi_team.
+        version_added: ~
+        type: boolean
+        example: ~
+        default: "True"
 
 auth-managers:
   - airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager

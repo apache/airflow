@@ -114,6 +114,18 @@ ARG_ROLE_EXPORT_FMT = Arg(
     action="store_true",
 )
 
+ARG_CREATE_TEAM = Arg(("-c", "--create"), help="Create a new team", action="store_true")
+ARG_LIST_TEAMS = Arg(("-l", "--list"), help="List teams", action="store_true")
+ARG_TEAMS = Arg(("team",), help="The name of a team", nargs="*")
+ARG_TEAM_MEMBERS = Arg(("-m", "--members"), help="Show team members", action="store_true")
+ARG_TEAM_IMPORT = Arg(("file",), help="Import teams from JSON file", nargs=None)
+ARG_TEAM_EXPORT = Arg(("file",), help="Export all roles to JSON file", nargs=None)
+ARG_TEAM_EXPORT_FMT = Arg(
+    ("-p", "--pretty"),
+    help="Format output JSON file by sorting team names and indenting by 4 spaces",
+    action="store_true",
+)
+
 # sync-perm
 ARG_INCLUDE_DAGS = Arg(
     ("--include-dags",), help="If passed, DAG specific permissions will also be synced.", action="store_true"
@@ -265,6 +277,61 @@ ROLES_COMMANDS = (
     ),
 )
 
+TEAMS_COMMANDS = (
+    ActionCommand(
+        name="list",
+        help="List available Teams in the FAB db",
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.teams_command.teams_list"),
+        args=(ARG_TEAMS, ARG_TEAM_MEMBERS, ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="create",
+        help="Create a Team in the FAB db",
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.teams_command.teams_create"),
+        args=(ARG_TEAMS, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="delete",
+        help="Delete a Team in the FAB db",
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.teams_command.teams_delete"),
+        args=(ARG_TEAMS, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="add-members",
+        help="Add Members to a Team in the FAB db",
+        func=lazy_load_command(
+            "airflow.providers.fab.auth_manager.cli_commands.teams_command.teams_add_members"
+        ),
+        args=(ARG_TEAMS, ARG_TEAM_MEMBERS, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="del-members",
+        help="Remove Members from a Team in the FAB db",
+        func=lazy_load_command(
+            "airflow.providers.fab.auth_manager.cli_commands.teams_command.teams_del_members"
+        ),
+        args=(ARG_TEAMS, ARG_TEAM_MEMBERS, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="import-teams",
+        help="Import Teams into the FAB db",
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.teams_command.teams_import"),
+        args=(ARG_TEAMS, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="export-teams",
+        help="Export Teams from the FAB db",
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.teams_command.teams_export"),
+        args=(ARG_TEAMS, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="sync-teams",
+        help="Sync teams from Airflow into FAB",
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.teams_command.teams_sync"),
+        args=(ARG_TEAMS, ARG_VERBOSE),
+    ),
+)
+
 SYNC_PERM_COMMAND = ActionCommand(
     name="sync-perm",
     help="Update permissions for existing roles and optionally DAGs",
@@ -372,10 +439,18 @@ def get_fab_cli_commands():
         PERMISSIONS_CLEANUP_COMMAND,  # single command for permissions cleanup
     ]
     # If Airflow version is 3.0.0 or higher, add the fab-db command group
-    if packaging.version.parse(
-        packaging.version.parse(airflow_version).base_version
-    ) >= packaging.version.parse("3.0.0"):
+    base_version = packaging.version.parse(packaging.version.parse(airflow_version).base_version)
+    if base_version >= packaging.version.parse("3.0.0"):
         commands.append(GroupCommand(name="fab-db", help="Manage FAB", subcommands=DB_COMMANDS))
+    # If Airflow version is 3.2.0 or higher, add teams command group
+    if base_version >= packaging.version.parse("3.2.0"):
+        commands.append(
+            GroupCommand(
+                name="fab-teams",
+                help="Manage teams in fab",
+                subcommands=TEAMS_COMMANDS,
+            )
+        )
     return commands
 
 

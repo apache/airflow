@@ -76,6 +76,7 @@ from airflow.providers.fab.auth_manager.models import (
     RegisterUser,
     Resource,
     Role,
+    Team,
     User,
     assoc_permission_role,
 )
@@ -100,10 +101,12 @@ from airflow.providers.fab.auth_manager.views.user_edit import (
     CustomUserInfoEditView,
 )
 from airflow.providers.fab.auth_manager.views.user_stats import CustomUserStatsChartView
-from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.fab.www.security import permissions
+from airflow.providers.fab.www.security.permissions import TEAM_SCOPED_RESOURCES
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
 from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
+from airflow.providers.fab.www.utils import get_team_scoped_resource
 
 if TYPE_CHECKING:
     from authlib.integrations.flask_client import OAuth
@@ -141,6 +144,9 @@ else:
             dagbag.collect_dags_from_db()
         return dagbag.dags.values()
 
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.models.team import Team as AirflowTeam
 
 log = logging.getLogger(__name__)
 
@@ -182,6 +188,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     action_model = Action
     resource_model = Resource
     permission_model = Permission
+    team_model = Team
 
     """ Views """
     authdbview = AuthDBView
@@ -336,8 +343,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_PASSWORD),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TEAM),
     ]
     # [END security_admin_perms]
+
+    SUPERADMIN_PERMISSIONS = VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS + ADMIN_PERMISSIONS
 
     ###########################################################################
     #                     DEFAULT ROLE CONFIGURATIONS
@@ -924,7 +934,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         engine = self.session.get_bind(mapper=None, clause=None)
         inspector = inspect(engine)
         existing_tables = inspector.get_table_names()
-        if "ab_user" not in existing_tables or "ab_group" not in existing_tables:
+        if (
+            "ab_user" not in existing_tables
+            or "ab_group" not in existing_tables
+            or "ab_team" not in existing_tables
+        ):
             log.info(const.LOGMSG_INF_SEC_NO_DB)
             Model.metadata.create_all(engine)
             log.info(const.LOGMSG_INF_SEC_ADD_DB)
@@ -1095,8 +1109,47 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     if dag_perm:
                         self.add_permission_to_role(role, dag_perm)
 
+    def _create_team_scoped_config(
+        self, team_name: str, configs: list[dict[str, Any]], include_superadmin: bool = True
+    ):
+        """
+        Create team prefixed role configs. Includes SuperAdmin role.
+
+        :param team_name: team name to prepend
+        :param configs: role configs to use
+        :param include_superadmin: include the SuperAdmin role in the new team permissions
+        """
+        new_configs = copy.deepcopy(configs)
+        for config in new_configs:
+            role = config["role"] + "-" + team_name
+            perms = [
+                (action, get_team_scoped_resource(resource, team_name))
+                for action, resource in config["perms"]
+                if resource in TEAM_SCOPED_RESOURCES
+            ]
+            config.update({"role": role, "perms": perms})
+        if include_superadmin:
+            new_configs.append(
+                {
+                    "role": "SuperAdmin",
+                    "perms": [
+                        (action, get_team_scoped_resource(resource, team_name))
+                        for action, resource in self.SUPERADMIN_PERMISSIONS
+                        if resource in TEAM_SCOPED_RESOURCES
+                    ],
+                }
+            )
+        return new_configs
+
+    def create_roles_for_team(self, team_name: str):
+        self.bulk_sync_roles(
+            self._create_team_scoped_config(
+                team_name, self.ROLE_CONFIGS, conf.get("fab", "include_superadmin", fallback=True)
+            )
+        )
+
     def add_permissions_view(
-        self, base_action_names, resource_name
+        self, base_action_names, resource_name, team_name=None
     ) -> None:  # Keep name for compatibility with FAB.
         """
         Add an action on a resource to the backend.
@@ -1106,8 +1159,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
              'can_add','can_edit' etc...
         :param resource_name:
             name of the resource to add
+        :param team_name:
+            name of the team owning this resource
         """
-        resource = self.create_resource(resource_name)
+        resource = self.create_resource(resource_name, team_name)
         perms = self.get_resource_permissions(resource)
 
         if not perms:
@@ -1172,6 +1227,19 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
            with related permissions.
         2. Init the custom role(dag-user) with related permissions.
         """
+        # Create teams if multi team is enabled
+        if AIRFLOW_V_3_2_PLUS and conf.get("core", "multi_team", fallback=False):
+            # Create SuperAdmin role
+            self.sync_teams()
+
+            if conf.get("fab", "create_team_roles", fallback=True):
+                if conf.get("fab", "create_superadmin", fallback=True):
+                    log.info("Creating SuperAdmin role")
+                    self.bulk_sync_roles([{"role": "SuperAdmin", "perms": self.SUPERADMIN_PERMISSIONS}])
+                for team in self.get_all_teams():
+                    log.info("Creating roles for Team %s", team)
+                    self.create_roles_for_team(team.name)
+
         # Create global all-dag permissions
         self.create_perm_vm_for_all_dag()
 
@@ -1265,6 +1333,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
                 if perm not in role.permissions:
                     self.add_permission_to_role(role, perm)
+
+    def _get_teams_from_db(self) -> list[Team]:
+        teams = [Team(name=t.name) for t in AirflowTeam.get_all_team_names()]
+        return teams
 
     """
     -----------
@@ -1368,6 +1440,77 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             .unique()
             .one_or_none()
         )
+
+    """
+    -----------
+    Team entity
+    -----------
+    """
+
+    def get_all_teams(self) -> set[Team]:
+        """Return all existing teams in the database."""
+        return set(self.sesion.execute(select(self.team_model)))
+
+    def sync_teams(self):
+        db_teams = AirflowTeam.get_all_team_names()
+        for team_name in db_teams:
+            team = self.find_team(team_name)
+            if team is None:
+                self.add_team(team_name)
+        for team in self.get_all_teams():
+            if team.name not in db_teams:
+                self.delete_team(team.name)
+
+    def find_team(self, name) -> Team | None:
+        return self.session.scalars(select(self.team_model).filter_by(name=name)).unique().one_or_none()
+
+    def add_team(self, name: str, members: list[User] | None = None):
+        if members is None:
+            members = []
+        team = self.team_model()
+        team.name = name
+        team.members = members
+        self.session.add(team)
+        self.session.commit()
+        log.info("Added Team: %s", name)
+
+    def delete_team(self, team_name: str):
+        try:
+            log.info("Deleting Team %s", team_name)
+            self.session.delete(self.team_model).where(self.team_model.name == team_name)
+            self.session.commit()
+            return True
+        except Exception as e:
+            log.error("Error deleting Team: %s", e)
+            self.session.rollback()
+            return False
+
+    def add_user_to_team(self, team: Team, user: User):
+        if user in team.members:
+            raise FabException("User %s is already a member of Team %s", user.name, team.name)
+        try:
+            team.members.append(user)
+            self.session.merge(team)
+            self.session.commit()
+            return True
+        except Exception as e:
+            log.error("Error adding member to Team: %s", e)
+            self.session.rollback()
+            return False
+
+    def remove_user_from_team(self, team: Team, user: User):
+        if user not in team.members:
+            raise FabException("User %s is not a member of Team %s", user.name, team.name)
+        try:
+            members = [m for m in team.members if m.id != user.id]
+            team.members = members
+            self.session.merge(team)
+            self.session.commit()
+            return True
+        except Exception as e:
+            log.error("Error adding member to Team: %s", e)
+            self.session.rollback()
+            return False
 
     """
     -----------
@@ -1626,21 +1769,23 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     ---------------
     """
 
-    def get_resource(self, name: str) -> Resource | None:
+    def get_resource(self, name: str, team_name=None) -> Resource | None:
         """
         Return a resource record by name, if it exists.
 
         :param name: Name of resource
+        :param team_name: Name of the team owning the resource
         """
         return self.session.scalars(select(self.resource_model).filter_by(name=name)).one_or_none()
 
-    def create_resource(self, name) -> Resource:
+    def create_resource(self, name, team_name=None) -> Resource:
         """
         Create a resource with the given name.
 
         :param name: The name of the resource to create created.
+        :param team_name: The name of the team owning this resource.
         """
-        resource = self.get_resource(name)
+        resource = self.get_resource(name, team_name)
         if resource is None:
             try:
                 resource = self.resource_model()
@@ -1699,7 +1844,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """
         return self.session.scalars(select(self.permission_model).filter_by(resource_id=resource.id)).all()
 
-    def create_permission(self, action_name, resource_name) -> Permission | None:
+    def create_permission(self, action_name, resource_name, team_name=None) -> Permission | None:
         """
         Add a permission on a resource to the backend.
 
@@ -1707,13 +1852,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             name of the action to add: 'can_add','can_edit' etc...
         :param resource_name:
             name of the resource to add
+        :param team_name:
+            name of the team owning the resource
         """
         if not (action_name and resource_name):
             return None
-        perm = self.get_permission(action_name, resource_name)
+        perm = self.get_permission(action_name, resource_name, team_name)
         if perm:
             return perm
-        resource = self.create_resource(resource_name)
+        resource = self.create_resource(resource_name, team_name)
         if resource is None:
             log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, "Resource creation failed %s", resource_name)
             return None

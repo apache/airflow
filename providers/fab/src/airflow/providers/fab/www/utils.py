@@ -82,3 +82,10 @@ def get_method_from_fab_action_map():
     return {
         **{v: k for k, v in _MAP_METHOD_NAME_TO_FAB_ACTION_NAME.items()},
     }
+
+
+def get_team_scoped_resource(resource_name, team_name=None):
+    """Get name of a resource with team scoping applied."""
+    if team_name is not None:
+        return f"{resource_name}:{team_name}"
+    return resource_name

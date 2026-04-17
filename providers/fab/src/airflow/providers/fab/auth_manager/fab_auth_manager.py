@@ -50,6 +50,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     DagAccessEntity,
     DagDetails,
     PoolDetails,
+    TeamDetails,
     VariableDetails,
 )
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
@@ -83,12 +84,13 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_PROVIDER,
     RESOURCE_TASK_INSTANCE,
     RESOURCE_TASK_LOG,
+    RESOURCE_TEAM,
     RESOURCE_TRIGGER,
     RESOURCE_VARIABLE,
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
 )
-from airflow.providers.fab.www.utils import get_fab_action_from_method_map
+from airflow.providers.fab.www.utils import get_fab_action_from_method_map, get_team_scoped_resource
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -403,7 +405,10 @@ class FabAuthManager(BaseAuthManager[User]):
         user: User,
         details: ConnectionDetails | None = None,
     ) -> bool:
-        return self._is_authorized(method=method, resource_type=RESOURCE_CONNECTION, user=user)
+        team_name = self._get_team_name(details)
+        return self._is_authorized(
+            method=method, resource_type=RESOURCE_CONNECTION, user=user, team_name=team_name
+        )
 
     def is_authorized_dag(
         self,
@@ -432,11 +437,14 @@ class FabAuthManager(BaseAuthManager[User]):
         :param access_entity: The dag access entity.
         :param details: The dag details.
         """
+        team_name = self._get_team_name(details)
         if access_entity:
             # If a sub-Dag entity is specified, check whether the user has access to it
             resource_types = self._get_fab_resource_types(access_entity)
             access_entity_authorized = all(
-                self._is_authorized(method=method, resource_type=resource_type, user=user)
+                self._is_authorized(
+                    method=method, resource_type=resource_type, user=user, team_name=team_name
+                )
                 for resource_type in resource_types
             )
             if access_entity == DagAccessEntity.RUN and details and details.id:
@@ -445,6 +453,7 @@ class FabAuthManager(BaseAuthManager[User]):
                     method=method,
                     resource_type=permissions.resource_name(details.id, RESOURCE_DAG_RUN),
                     user=user,
+                    team_name=team_name,
                 )
                 if not (is_authorized_run or access_entity_authorized):
                     return False
@@ -497,7 +506,19 @@ class FabAuthManager(BaseAuthManager[User]):
     def is_authorized_pool(
         self, *, method: ResourceMethod, user: User, details: PoolDetails | None = None
     ) -> bool:
-        return self._is_authorized(method=method, resource_type=RESOURCE_POOL, user=user)
+        team_name = self._get_team_name(details)
+        return self._is_authorized(method=method, resource_type=RESOURCE_POOL, user=user, team_name=team_name)
+
+    def is_authorized_team(
+        self, *, method: ResourceMethod, user: User, details: TeamDetails | None = None
+    ) -> bool:
+        team_name = details.name if details else None
+        return self._is_authorized(
+            method=method,
+            resource_type=RESOURCE_TEAM,
+            user=user,
+            team_name=team_name,
+        )
 
     def is_authorized_variable(
         self,
@@ -506,7 +527,10 @@ class FabAuthManager(BaseAuthManager[User]):
         user: User,
         details: VariableDetails | None = None,
     ) -> bool:
-        return self._is_authorized(method=method, resource_type=RESOURCE_VARIABLE, user=user)
+        team_name = self._get_team_name(details)
+        return self._is_authorized(
+            method=method, resource_type=RESOURCE_VARIABLE, user=user, team_name=team_name
+        )
 
     def is_authorized_view(self, *, access_view: AccessView, user: User) -> bool:
         # "Docs" are only links in the menu, there is no page associated
@@ -680,6 +704,11 @@ class FabAuthManager(BaseAuthManager[User]):
                 "href": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/roles/list/",
             },
             {
+                "resource_type": "List Teams",
+                "text": "Teams",
+                "href": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/teams/list/",
+            },
+            {
                 "resource_type": "Actions",
                 "text": "Actions",
                 "href": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/actions/list/",
@@ -708,12 +737,19 @@ class FabAuthManager(BaseAuthManager[User]):
         # https://github.com/apache/airflow/pull/62308 auto uses DB managers from installed providers
         return "airflow.providers.fab.auth_manager.models.db.FABDBManager"
 
+    @staticmethod
+    def _get_team_name(
+        details: ConnectionDetails | DagDetails | PoolDetails | VariableDetails | None,
+    ) -> str | None:
+        return getattr(details, "team_name", None) if details else None
+
     def _is_authorized(
         self,
         *,
         method: ExtendedResourceMethod,
         resource_type: str,
         user: User,
+        team_name: str | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action.
@@ -721,13 +757,26 @@ class FabAuthManager(BaseAuthManager[User]):
         :param method: the method to perform
         :param resource_type: the type of resource the user attempts to perform the action on
         :param user: the user performing the action
+        :param team_name: the team name of the resource the user attempts to perform the action on
 
         :meta private:
         """
+        if (
+            team_name
+            and conf.getboolean("core", "multi_team", fallback=False)
+            and resource_type in permissions.TEAM_SCOPED_RESOURCES
+        ):
+            resource = get_team_scoped_resource(resource_type, team_name)
+        else:
+            resource = resource_type
         fab_action = self._get_fab_action(method)
         user_permissions = self._get_user_permissions(user)
+        user_teams = self._get_user_teams(user)
 
-        return (fab_action, resource_type) in user_permissions
+        return (team_name is None or team_name in user_teams) and (fab_action, resource) in user_permissions
+
+    def _get_teams(self):
+        return {t.name for t in self.security_manager.get_all_teams()}
 
     def _is_authorized_dag(
         self,
@@ -744,14 +793,19 @@ class FabAuthManager(BaseAuthManager[User]):
 
         :meta private:
         """
-        is_global_authorized = self._is_authorized(method=method, resource_type=RESOURCE_DAG, user=user)
+        team_name = self._get_team_name(details)
+        is_global_authorized = self._is_authorized(
+            method=method, resource_type=RESOURCE_DAG, user=user, team_name=team_name
+        )
         if is_global_authorized:
             return True
 
         if details and details.id:
             # Check whether the user has permissions to access a specific DAG
             resource_dag_name = permissions.resource_name(details.id, RESOURCE_DAG)
-            return self._is_authorized(method=method, resource_type=resource_dag_name, user=user)
+            return self._is_authorized(
+                method=method, resource_type=resource_dag_name, user=user, team_name=team_name
+            )
         return False
 
     def _is_authorized_list_dags(self, *, user: User) -> bool:
@@ -812,6 +866,19 @@ class FabAuthManager(BaseAuthManager[User]):
         if not user:
             return []
         return getattr(user, "perms") or []
+
+    @staticmethod
+    def _get_user_teams(user: User) -> set[str]:
+        """
+        Return the user's team names.
+
+        :param user: the user to get teams for
+
+        :meta private:
+        """
+        if not user:
+            return {}
+        return user.get_teams()
 
     def _sync_appbuilder_roles(self):
         """
