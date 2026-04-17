@@ -148,7 +148,7 @@ with DAG(
         task_id="create_batch_prediction_job",
         job_display_name=JOB_DISPLAY_NAME,
         # verbose form: "{{ ti.xcom_pull('auto_ml_forecasting_task')['name'] }}"
-        model_name="{{auto_ml_forecasting_task.output['name']}}",
+        model_name="{{ auto_ml_forecasting_task.output['name'] }}",
         predictions_format="csv",
         bigquery_source=BIGQUERY_SOURCE,
         gcs_destination_prefix=GCS_DESTINATION_PREFIX,
@@ -163,7 +163,7 @@ with DAG(
         task_id="create_batch_prediction_job_def",
         job_display_name=JOB_DISPLAY_NAME,
         # verbose form: "{{ ti.xcom_pull('auto_ml_forecasting_task')['name'] }}"
-        model_name="{{auto_ml_forecasting_task.output['name']}}",
+        model_name="{{ auto_ml_forecasting_task.output['name'] }}",
         predictions_format="csv",
         bigquery_source=BIGQUERY_SOURCE,
         gcs_destination_prefix=GCS_DESTINATION_PREFIX,
