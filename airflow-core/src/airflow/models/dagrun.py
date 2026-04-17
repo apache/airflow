@@ -868,7 +868,7 @@ class DagRun(Base, LoggingMixin):
             .order_by(DagRun.run_after.desc(), DagRun.id.desc())
             .limit(max_consecutive_failed_dag_runs)
         ).all()
-        """ Marking dag as paused, if needed"""
+        # Mark dag as paused, if needed
         to_be_paused = len(dag_runs) >= max_consecutive_failed_dag_runs and all(
             dag_run.state == DagRunState.FAILED for dag_run in dag_runs
         )

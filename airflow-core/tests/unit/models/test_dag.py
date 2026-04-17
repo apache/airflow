@@ -829,6 +829,28 @@ class TestDag:
         add_failed_dag_run(scheduler_dag, "2", TEST_DATE + timedelta(days=1))
         assert session.get(DagModel, dag.dag_id).is_paused
 
+    @staticmethod
+    def _add_dag_run(scheduler_dag, op1, session, run_id, logical_date, run_after, ti_state, run_state):
+        """Create a dagrun, set the task-instance state, and call update_state.
+
+        update_state triggers _check_last_n_dagruns_failed only when the run
+        transitions to FAILED, so it is a no-op for SUCCESS runs.
+        """
+        dr = scheduler_dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            run_id=run_id,
+            logical_date=logical_date,
+            state=run_state,
+            data_interval=(logical_date, logical_date),
+            run_after=run_after,
+            triggered_by=DagRunTriggeredByType.TEST,
+            session=session,
+        )
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.set_state(state=ti_state, session=session)
+        dr.update_state(session=session)
+        return dr
+
     def test_dag_paused_after_limit_orders_by_run_after(self, testing_dag_bundle):
         """Verify _check_last_n_dagruns_failed orders by run_after, not logical_date.
 
@@ -853,54 +875,47 @@ class TestDag:
         scheduler_dag = sync_dag_to_db(dag, session=session)
         assert not session.get(DagModel, dag.dag_id).is_paused
 
-        # Run 1: oldest by run_after but LATEST logical_date — SUCCESS
-        dr1 = scheduler_dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
+        # Run 1: oldest by run_after but LATEST logical_date — SUCCESS.
+        # update_state is a no-op here because _check_last_n_dagruns_failed
+        # is only invoked on the FAILED branch.
+        self._add_dag_run(
+            scheduler_dag,
+            op1,
+            session,
             run_id="run_success",
             logical_date=TEST_DATE + timedelta(days=10),
-            state=State.SUCCESS,
-            data_interval=(TEST_DATE, TEST_DATE),
             run_after=TEST_DATE,
-            triggered_by=DagRunTriggeredByType.TEST,
-            session=session,
+            ti_state=TaskInstanceState.SUCCESS,
+            run_state=State.SUCCESS,
         )
-        ti1 = dr1.get_task_instance(task_id=op1.task_id, session=session)
-        ti1.set_state(state=TaskInstanceState.SUCCESS, session=session)
-        dr1.update_state(session=session)
 
         # Run 2: second by run_after, earlier logical_date — FAILED
-        dr2 = scheduler_dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
+        self._add_dag_run(
+            scheduler_dag,
+            op1,
+            session,
             run_id="run_fail_1",
             logical_date=TEST_DATE + timedelta(days=1),
-            state=State.FAILED,
-            data_interval=(TEST_DATE + timedelta(days=1), TEST_DATE + timedelta(days=1)),
             run_after=TEST_DATE + timedelta(days=1),
-            triggered_by=DagRunTriggeredByType.TEST,
-            session=session,
+            ti_state=TaskInstanceState.FAILED,
+            run_state=State.FAILED,
         )
-        ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
-        ti2.set_state(state=TaskInstanceState.FAILED, session=session)
-        dr2.update_state(session=session)
 
         # After one failure, DAG should NOT be paused yet
         session.expire_all()
         assert not session.get(DagModel, dag.dag_id).is_paused
 
         # Run 3: most recent by run_after, middle logical_date — FAILED
-        dr3 = scheduler_dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
+        self._add_dag_run(
+            scheduler_dag,
+            op1,
+            session,
             run_id="run_fail_2",
             logical_date=TEST_DATE + timedelta(days=2),
-            state=State.FAILED,
-            data_interval=(TEST_DATE + timedelta(days=2), TEST_DATE + timedelta(days=2)),
             run_after=TEST_DATE + timedelta(days=2),
-            triggered_by=DagRunTriggeredByType.TEST,
-            session=session,
+            ti_state=TaskInstanceState.FAILED,
+            run_state=State.FAILED,
         )
-        ti3 = dr3.get_task_instance(task_id=op1.task_id, session=session)
-        ti3.set_state(state=TaskInstanceState.FAILED, session=session)
-        dr3.update_state(session=session)
 
         # Last 2 runs by run_after are both FAILED, DAG should be paused.
         # If the code incorrectly ordered by logical_date, it would pick
@@ -934,50 +949,41 @@ class TestDag:
         scheduler_dag = sync_dag_to_db(dag, session=session)
 
         # Run 1: oldest by run_after — FAILED.
-        dr1 = scheduler_dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
+        self._add_dag_run(
+            scheduler_dag,
+            op1,
+            session,
             run_id="run_fail_old",
             logical_date=TEST_DATE + timedelta(days=10),
-            state=State.FAILED,
-            data_interval=(TEST_DATE, TEST_DATE),
             run_after=TEST_DATE,
-            triggered_by=DagRunTriggeredByType.TEST,
-            session=session,
+            ti_state=TaskInstanceState.FAILED,
+            run_state=State.FAILED,
         )
-        ti1 = dr1.get_task_instance(task_id=op1.task_id, session=session)
-        ti1.set_state(state=TaskInstanceState.FAILED, session=session)
-        dr1.update_state(session=session)
 
         # Run 2: middle by run_after, middle logical_date — SUCCESS.
-        dr2 = scheduler_dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
+        self._add_dag_run(
+            scheduler_dag,
+            op1,
+            session,
             run_id="run_success_mid",
             logical_date=TEST_DATE + timedelta(days=5),
-            state=State.SUCCESS,
-            data_interval=(TEST_DATE + timedelta(days=1), TEST_DATE + timedelta(days=1)),
             run_after=TEST_DATE + timedelta(days=1),
-            triggered_by=DagRunTriggeredByType.TEST,
-            session=session,
+            ti_state=TaskInstanceState.SUCCESS,
+            run_state=State.SUCCESS,
         )
-        ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
-        ti2.set_state(state=TaskInstanceState.SUCCESS, session=session)
-        dr2.update_state(session=session)
 
         # Run 3: most recent by run_after — FAILED.
         # This triggers _check_last_n_dagruns_failed.
-        dr3 = scheduler_dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
+        self._add_dag_run(
+            scheduler_dag,
+            op1,
+            session,
             run_id="run_fail_latest",
             logical_date=TEST_DATE + timedelta(days=6),
-            state=State.FAILED,
-            data_interval=(TEST_DATE + timedelta(days=2), TEST_DATE + timedelta(days=2)),
             run_after=TEST_DATE + timedelta(days=2),
-            triggered_by=DagRunTriggeredByType.TEST,
-            session=session,
+            ti_state=TaskInstanceState.FAILED,
+            run_state=State.FAILED,
         )
-        ti3 = dr3.get_task_instance(task_id=op1.task_id, session=session)
-        ti3.set_state(state=TaskInstanceState.FAILED, session=session)
-        dr3.update_state(session=session)
 
         # Correct (run_after) ordering: last 2 are Run2(SUCCESS) and Run3(FAILED) → not paused.
         # Wrong (logical_date) ordering: last 2 are Run1(+10d, FAILED) and Run3(+6d, FAILED) → paused.
