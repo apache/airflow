@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Java locale coordinator that launches a JVM subprocess for Dag file processing and task execution."""
+"""Java runtime coordinator that launches a JVM subprocess for Dag file processing and task execution."""
 
 from __future__ import annotations
 
@@ -26,16 +26,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from airflow.providers.languages.java.bundle_scanner import BundleScanner, read_dag_code
-from airflow.sdk.execution_time.coordinator import BaseLocaleCoordinator
+from airflow.sdk.execution_time.coordinator import BaseRuntimeCoordinator
 
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
 
 
-class JavaLocaleCoordinator(BaseLocaleCoordinator):
+class JavaRuntimeCoordinator(BaseRuntimeCoordinator):
     """Coordinator that launches a JVM subprocess for DAG parsing and task execution."""
 
-    locale_name = "java"
+    runtime_name = "java"
     file_extension = ".jar"
 
     @classmethod
@@ -54,7 +54,7 @@ class JavaLocaleCoordinator(BaseLocaleCoordinator):
         return code
 
     @classmethod
-    def dag_parsing_locale_cmd(
+    def dag_parsing_runtime_cmd(
         cls,
         *,
         dag_file_path: str,
@@ -80,7 +80,7 @@ class JavaLocaleCoordinator(BaseLocaleCoordinator):
         ]
 
     @classmethod
-    def task_execution_locale_cmd(
+    def task_execution_runtime_cmd(
         cls,
         *,
         what: TaskInstance,

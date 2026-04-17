@@ -16,17 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Locale coordinator for non-Python DAG file processing and task execution.
+Runtime coordinator for non-Python DAG file processing and task execution.
 
-Provides :class:`BaseLocaleCoordinator`, the base class for
+Provides :class:`BaseRuntimeCoordinator`, the base class for
 language-specific coordinators that bridge subprocess I/O between the
 Airflow supervisor and an external-language runtime (Java, Go, Rust, etc.).
 
-The coordinator's :meth:`~BaseLocaleCoordinator.run_dag_parsing` method
+The coordinator's :meth:`~BaseRuntimeCoordinator.run_dag_parsing` method
 handles the full lifecycle:
 
 1. Creates TCP servers for comm and logs channels.
-2. Calls :meth:`~BaseLocaleCoordinator.dag_parsing_locale_cmd` (provided
+2. Calls :meth:`~BaseRuntimeCoordinator.dag_parsing_runtime_cmd` (provided
    by the subclass) to obtain the subprocess command.
 3. Spawns the subprocess and accepts TCP connections from it.
 4. Runs a selector-based bridge that transparently forwards bytes
@@ -64,14 +64,14 @@ def _start_server() -> socket.socket:
     return server
 
 
-def _send_startup_details(locale_comm: socket.socket, startup_details: StartupDetails) -> None:
+def _send_startup_details(runtime_comm: socket.socket, startup_details: StartupDetails) -> None:
     """
-    Re-encode and send the ``StartupDetails`` frame to the locale subprocess.
+    Re-encode and send the ``StartupDetails`` frame to the runtime subprocess.
 
     In the task execution flow, ``task_runner.main()`` consumes the
     ``StartupDetails`` message from fd 0 (to determine routing) before
-    delegating to the locale coordinator.  This function re-serializes
-    the message and writes it to the locale subprocess's comm socket so
+    delegating to the runtime coordinator.  This function re-serializes
+    the message and writes it to the runtime subprocess's comm socket so
     the subprocess receives it as if it came directly from the supervisor.
     """
     from airflow.sdk.execution_time.comms import _ResponseFrame
@@ -81,26 +81,26 @@ def _send_startup_details(locale_comm: socket.socket, startup_details: StartupDe
     # msgpack extension types (e.g. Timestamp) that non-Python decoders
     # may not support.
     frame = _ResponseFrame(id=0, body=startup_details.model_dump(mode="json"))
-    locale_comm.sendall(frame.as_bytes())
+    runtime_comm.sendall(frame.as_bytes())
 
 
 def _bridge(
     supervisor_comm: socket.socket,
-    locale_comm: socket.socket,
-    locale_logs: socket.socket,
-    locale_stderr: socket.socket,
+    runtime_comm: socket.socket,
+    runtime_logs: socket.socket,
+    runtime_stderr: socket.socket,
     proc: subprocess.Popen,
     log: FilteringBoundLogger,
 ) -> None:
     """
-    Multiplex I/O between the supervisor and a locale subprocess.
+    Multiplex I/O between the supervisor and a runtime subprocess.
 
     Four channels are registered with the selector:
 
-    - ``supervisor_comm`` -> ``locale_comm`` (raw byte forwarding)
-    - ``locale_comm`` -> ``supervisor_comm`` (raw byte forwarding)
-    - ``locale_logs`` -> structlog (line-buffered JSON logs)
-    - ``locale_stderr`` -> structlog (line-buffered stderr output)
+    - ``supervisor_comm`` -> ``runtime_comm`` (raw byte forwarding)
+    - ``runtime_comm`` -> ``supervisor_comm`` (raw byte forwarding)
+    - ``runtime_logs`` -> structlog (line-buffered JSON logs)
+    - ``runtime_stderr`` -> structlog (line-buffered stderr output)
 
     Uses the same ``(handler, on_close)`` callback contract as
     :class:`~airflow.sdk.execution_time.supervisor.WatchedSubprocess`,
@@ -125,24 +125,24 @@ def _bridge(
     target_loggers = (log,)
 
     # Comm: bidirectional raw byte forwarding.
-    sel.register(supervisor_comm, selectors.EVENT_READ, make_raw_forwarder(locale_comm, on_close))
-    sel.register(locale_comm, selectors.EVENT_READ, make_raw_forwarder(supervisor_comm, on_close))
+    sel.register(supervisor_comm, selectors.EVENT_READ, make_raw_forwarder(runtime_comm, on_close))
+    sel.register(runtime_comm, selectors.EVENT_READ, make_raw_forwarder(supervisor_comm, on_close))
 
-    # TCP logs channel: line-buffered JSON from the locale SDK's LogSender,
+    # TCP logs channel: line-buffered JSON from the runtime SDK's LogSender,
     # processed with the same handler as WatchedSubprocess (level mapping,
     # timestamp parsing, exception extraction).
     sel.register(
-        locale_logs,
+        runtime_logs,
         selectors.EVENT_READ,
         make_buffered_socket_reader(process_log_messages_from_subprocess(target_loggers), on_close),
     )
-    # stderr: plain-text output from the locale process's logging framework
+    # stderr: plain-text output from the runtime process's logging framework
     # (e.g. SLF4J simple logger).  Use forward_to_log which handles raw
     # text lines, not process_log_messages_from_subprocess which expects JSON.
     import logging
 
     sel.register(
-        locale_stderr,
+        runtime_stderr,
         selectors.EVENT_READ,
         make_buffered_socket_reader(
             forward_to_log(target_loggers, logger="task.stderr", level=logging.ERROR), on_close
@@ -160,32 +160,32 @@ def _bridge(
             break
 
     sel.close()
-    for sock in (supervisor_comm, locale_comm, locale_logs, locale_stderr):
+    for sock in (supervisor_comm, runtime_comm, runtime_logs, runtime_stderr):
         with contextlib.suppress(OSError):
             sock.close()
 
 
-class BaseLocaleCoordinator:
+class BaseRuntimeCoordinator:
     """
-    Base coordinator for locale-specific DAG file processing and task execution.
+    Base coordinator for runtime-specific DAG file processing and task execution.
 
     Providers register subclasses in their ``provider.yaml`` under
-    ``process-coordinators``.  Both :class:`ProvidersManager` (airflow-core)
+    ``runtime-coordinators``.  Both :class:`ProvidersManager` (airflow-core)
     and :class:`ProvidersManagerTaskRuntime` (task-sdk) discover registered
     coordinators through this single extension point.
 
     Subclasses represent a specific language runtime (Java, Go, etc.) and
     only need to implement :meth:`can_handle_dag_file`,
-    :meth:`dag_parsing_locale_cmd` and :meth:`task_execution_locale_cmd`.
+    :meth:`dag_parsing_runtime_cmd` and :meth:`task_execution_runtime_cmd`.
     The base class owns the entire bridge lifecycle: TCP servers,
     subprocess management, selector-based I/O loop, and cleanup.
     """
 
-    locale_name: str
+    runtime_name: str
     file_extension: str
 
     class DagParsingInfo(NamedTuple):
-        """Information needed for locale Dag parsing."""
+        """Information needed for runtime Dag parsing."""
 
         dag_file_path: str
         bundle_name: str
@@ -193,7 +193,7 @@ class BaseLocaleCoordinator:
         mode: str = "dag-parsing"
 
     class TaskExecutionInfo(NamedTuple):
-        """Information needed for locale task execution."""
+        """Information needed for runtime task execution."""
 
         what: TaskInstance
         dag_rel_path: str | os.PathLike[str]
@@ -221,7 +221,7 @@ class BaseLocaleCoordinator:
 
         Called by :class:`~airflow.models.dagcode.DagCode` when persisting DAG
         source to the metadata database.  The default Python path reads ``.py``
-        files directly; locale coordinators must override this to extract source
+        files directly; runtime coordinators must override this to extract source
         from their native packaging format (e.g. reading an embedded ``.java``
         file from a JAR bundle).
 
@@ -232,7 +232,7 @@ class BaseLocaleCoordinator:
         raise NotImplementedError
 
     @classmethod
-    def dag_parsing_locale_cmd(
+    def dag_parsing_runtime_cmd(
         cls,
         *,
         dag_file_path: str,
@@ -251,12 +251,12 @@ class BaseLocaleCoordinator:
             for the bidirectional msgpack comm channel.
         :param logs_addr: ``host:port`` the subprocess must connect to
             for the structured JSON log channel.
-        :returns: Full command list (e.g. ``["java", "-cp", "...", ...]`` based on each locale).
+        :returns: Full command list (e.g. ``["java", "-cp", "...", ...]`` based on each runtime).
         """
         raise NotImplementedError
 
     @classmethod
-    def task_execution_locale_cmd(
+    def task_execution_runtime_cmd(
         cls,
         *,
         what: TaskInstance,
@@ -283,8 +283,8 @@ class BaseLocaleCoordinator:
 
     @classmethod
     def run_dag_parsing(cls, *, path: str, bundle_name: str, bundle_path: str) -> None:
-        """Entry point for running locale-specific Dag File Processing."""
-        cls._locale_subprocess_entrypoint(
+        """Entry point for running runtime-specific Dag File Processing."""
+        cls._runtime_subprocess_entrypoint(
             cls.DagParsingInfo(
                 dag_file_path=path,
                 bundle_name=bundle_name,
@@ -301,7 +301,7 @@ class BaseLocaleCoordinator:
         bundle_info: BundleInfo,
         startup_details: StartupDetails,
     ) -> None:
-        cls._locale_subprocess_entrypoint(
+        cls._runtime_subprocess_entrypoint(
             cls.TaskExecutionInfo(
                 what=what,
                 dag_rel_path=dag_rel_path,
@@ -311,15 +311,15 @@ class BaseLocaleCoordinator:
         )
 
     @classmethod
-    def _locale_subprocess_entrypoint(cls, entrypoint_info: DagParsingInfo | TaskExecutionInfo) -> None:
+    def _runtime_subprocess_entrypoint(cls, entrypoint_info: DagParsingInfo | TaskExecutionInfo) -> None:
         """
-        Spawn the locale subprocess and bridge I/O with the supervisor.
+        Spawn the runtime subprocess and bridge I/O with the supervisor.
 
         This is called inside the forked child process where fd 0 is the
         bidirectional comms socket to the supervisor.  The method:
 
         1. Creates TCP servers for comm and logs.
-        2. Calls :meth:`dag_parsing_locale_cmd` or :meth:`task_execution_locale_cmd` to get the command.
+        2. Calls :meth:`dag_parsing_runtime_cmd` or :meth:`task_execution_runtime_cmd` to get the command.
         3. Spawns the subprocess with ``stdin=/dev/null`` and stderr
            captured via a socketpair.
         4. Runs the selector-based bridge until the subprocess exits.
@@ -340,12 +340,12 @@ class BaseLocaleCoordinator:
 
         log = structlog.get_logger(logger_name="task")
         log.info(
-            "Starting locale subprocess",
-            locale=cls.locale_name,
+            "Starting runtime subprocess",
+            runtime=cls.runtime_name,
             mode=entrypoint_info.mode,
         )
 
-        # TCP servers for the locale subprocess to connect to.
+        # TCP servers for the runtime subprocess to connect to.
         comm_server = _start_server()
         logs_server = _start_server()
         comm_host, comm_port = comm_server.getsockname()
@@ -360,11 +360,11 @@ class BaseLocaleCoordinator:
 
         # For task execution, hold a BundleVersionLock for the entire
         # subprocess lifetime to prevent the bundle version from being
-        # garbage-collected while the locale process is still running.
+        # garbage-collected while the runtime process is still running.
         bundle_version_lock: contextlib.AbstractContextManager = contextlib.nullcontext()
 
         if isinstance(entrypoint_info, cls.DagParsingInfo):
-            cmd = cls.dag_parsing_locale_cmd(
+            cmd = cls.dag_parsing_runtime_cmd(
                 dag_file_path=entrypoint_info.dag_file_path,
                 bundle_name=entrypoint_info.bundle_name,
                 bundle_path=entrypoint_info.bundle_path,
@@ -384,7 +384,7 @@ class BaseLocaleCoordinator:
             resolved_bundle_path = str(bundle_instance.path)
             resolved_dag_file_path = os.fspath(Path(bundle_instance.path, entrypoint_info.dag_rel_path))
 
-            cmd = cls.task_execution_locale_cmd(
+            cmd = cls.task_execution_runtime_cmd(
                 what=entrypoint_info.what,
                 dag_file_path=resolved_dag_file_path,
                 bundle_path=resolved_bundle_path,
@@ -410,22 +410,22 @@ class BaseLocaleCoordinator:
             child_stderr.close()
 
             # Wait for the subprocess to connect to both servers.
-            locale_comm, _ = comm_server.accept()
-            locale_logs, _ = logs_server.accept()
+            runtime_comm, _ = comm_server.accept()
+            runtime_logs, _ = logs_server.accept()
             comm_server.close()
             logs_server.close()
 
             # For task execution the supervisor already sent ``StartupDetails``
             # on fd 0 and ``task_runner.main()`` consumed it before delegating
-            # here.  Re-encode and forward it to the locale subprocess so it
+            # here.  Re-encode and forward it to the runtime subprocess so it
             # knows which task to execute.
             if isinstance(entrypoint_info, cls.TaskExecutionInfo):
-                _send_startup_details(locale_comm, entrypoint_info.startup_details)
+                _send_startup_details(runtime_comm, entrypoint_info.startup_details)
 
             # fd 0 is the bidirectional comms socket to the supervisor.
             supervisor_comm = socket.socket(fileno=os.dup(0))
 
-            _bridge(supervisor_comm, locale_comm, locale_logs, read_stderr, proc, log)
+            _bridge(supervisor_comm, runtime_comm, runtime_logs, read_stderr, proc, log)
 
 
-__all__ = ["BaseLocaleCoordinator"]
+__all__ = ["BaseRuntimeCoordinator"]
