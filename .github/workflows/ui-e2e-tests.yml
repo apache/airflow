@@ -121,7 +121,7 @@ jobs:
         uses: ./.github/actions/breeze
         if: github.event_name == 'workflow_dispatch'
       - name: "Setup pnpm"
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320  # v5.0.0
+        uses: pnpm/action-setup@08c4be7e2e672a47d11bd04269e27e5f3e8529cb  # v6.0.0
         with:
           version: 9
           run_install: false
@@ -148,7 +148,7 @@ jobs:
         env:
           DOCKER_IMAGE: "${{ inputs.docker-image-tag || '' }}"
       - name: "Upload test results"
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: "playwright-report-${{ env.BROWSER }}"
           path: |
@@ -167,7 +167,7 @@ jobs:
           RUN_ATTEMPT: "${{ github.run_attempt }}"
         if: always()
       - name: "Upload E2E test report"
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: "e2e-test-report-${{ env.BROWSER }}"
           path: e2e-test-report/
