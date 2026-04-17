@@ -36,6 +36,7 @@ class JavaLocaleCoordinator(BaseLocaleCoordinator):
     """Coordinator that launches a JVM subprocess for DAG parsing and task execution."""
 
     locale_name = "java"
+    file_extension = ".jar"
 
     @classmethod
     def can_handle_dag_file(cls, bundle_name: str, path: str | os.PathLike[str]) -> bool:
