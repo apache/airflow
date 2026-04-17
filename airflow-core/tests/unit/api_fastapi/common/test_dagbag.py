@@ -89,7 +89,7 @@ class TestCreateDagBag:
     """Tests for create_dag_bag() function."""
 
     @pytest.mark.parametrize(
-        ["cache_size", "cache_ttl", "expected_use_cache", "expected_dags_type"],
+        ("cache_size", "cache_ttl", "expected_use_cache", "expected_dags_type"),
         [
             pytest.param(64, 3600, True, TTLCache, id="default_ttl_cache"),
             pytest.param(0, 3600, False, dict, id="size_zero_unbounded"),
