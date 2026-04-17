@@ -491,7 +491,11 @@ class BaseSerialization:
             )
         elif isinstance(var, list):
             return [cls.serialize(v, strict=strict) for v in var]
-        elif var.__class__.__name__ == "V1Pod" and _has_kubernetes() and isinstance(var, k8s.V1Pod):
+        elif (
+            var.__class__.__name__ == "V1Pod"
+            and _has_kubernetes(attempt_import=True)
+            and isinstance(var, k8s.V1Pod)
+        ):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, OutletEventAccessors):
