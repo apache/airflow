@@ -39,13 +39,17 @@ from deprecated import deprecated
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.executors.workloads.base import WorkloadType
 from airflow.providers.celery.executors import (
     celery_executor_utils as _celery_executor_utils,  # noqa: F401 # Needed to register Celery tasks at worker startup, see #63043.
 )
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_2_PLUS
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import AirflowTaskTimeout, Stats
 from airflow.utils.state import TaskInstanceState
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.executors.workloads.base import WorkloadType
+
+    _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
 
 log = logging.getLogger(__name__)
 
@@ -107,9 +111,10 @@ class CeleryExecutor(BaseExecutor):
     """
 
     supports_ad_hoc_ti_run: bool = True
-    supported_workload_types: frozenset[str] = frozenset(
-        {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
-    )
+    if AIRFLOW_V_3_3_PLUS:
+        supported_workload_types: frozenset[str] = _SUPPORTED_WORKLOAD_TYPES
+    else:
+        supports_callbacks: bool = True
     sentry_integration: str = "sentry_sdk.integrations.celery.CeleryIntegration"
     pre_assigns_external_executor_id: ClassVar[bool] = True
 
@@ -217,10 +222,16 @@ class CeleryExecutor(BaseExecutor):
                     )
                     self.workload_publish_retries[key] = retries + 1
                     continue
-            if key in self.executor_queues[WorkloadType.EXECUTE_TASK]:
-                self.executor_queues[WorkloadType.EXECUTE_TASK].pop(key)
+            if AIRFLOW_V_3_3_PLUS:
+                if key in self.executor_queues[WorkloadType.EXECUTE_TASK]:
+                    self.executor_queues[WorkloadType.EXECUTE_TASK].pop(key)
+                else:
+                    self.executor_queues[WorkloadType.EXECUTE_CALLBACK].pop(key, None)
             else:
-                self.executor_queues[WorkloadType.EXECUTE_CALLBACK].pop(key, None)
+                if key in self.queued_tasks:
+                    self.queued_tasks.pop(key)
+                else:
+                    self.queued_callbacks.pop(key, None)
             self.workload_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
                 self.log.error("%s: %s\n%s\n", CELERY_SEND_ERR_MSG_HEADER, result.exception, result.traceback)
@@ -396,7 +407,10 @@ class CeleryExecutor(BaseExecutor):
             except Exception:
                 self.log.exception("Error revoking task instance %s from celery", ti.key)
         self.running.discard(ti.key)
-        self.executor_queues[WorkloadType.EXECUTE_TASK].pop(ti.key, None)
+        if AIRFLOW_V_3_3_PLUS:
+            self.executor_queues[WorkloadType.EXECUTE_TASK].pop(ti.key, None)
+        else:
+            self.queued_tasks.pop(ti.key, None)
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:

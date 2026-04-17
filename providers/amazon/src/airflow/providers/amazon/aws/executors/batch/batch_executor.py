@@ -32,11 +32,13 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
     calculate_next_attempt_delay,
     exponential_backoff_retry,
 )
-from airflow.executors.workloads import WorkloadType
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import merge_dicts
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.executors.workloads.base import WorkloadType
 
 if TYPE_CHECKING:
     from airflow.executors import workloads
@@ -135,7 +137,10 @@ class AwsBatchExecutor(BaseExecutor):
                 queue = w.ti.queue
                 executor_config = w.ti.executor_config or {}
 
-                del self.executor_queues[WorkloadType.EXECUTE_TASK][task_key]
+                if AIRFLOW_V_3_3_PLUS:
+                    del self.executor_queues[WorkloadType.EXECUTE_TASK][task_key]
+                else:
+                    del self.queued_tasks[task_key]
                 self.execute_async(
                     key=task_key,
                     command=task_command,  # type: ignore[arg-type]
