@@ -16,7 +16,7 @@
 # under the License.
 
 ARG ALPINE_VERSION="3.23"
-ARG GO_VERSION
+ARG GO_VERSION="1.23.7"
 
 FROM golang:${GO_VERSION} AS builder
 
