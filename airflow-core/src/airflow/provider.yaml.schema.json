@@ -624,9 +624,9 @@
                 }
             }
         },
-        "process-coordinators": {
+        "runtime-coordinators": {
             "type": "array",
-            "description": "Process Coordinator class names (BaseLocaleCoordinator subclasses)",
+            "description": "Runtime Coordinator class names (BaseRuntimeCoordinator subclasses)",
             "items": {
                 "type": "string"
             }

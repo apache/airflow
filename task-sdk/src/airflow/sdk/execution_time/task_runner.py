@@ -1966,43 +1966,33 @@ def flush_spans():
             provider.force_flush(timeout_millis=timeout_millis)
 
 
-def _resolve_locale_entrypoint(startup_details: StartupDetails, log: Logger) -> Callable[[], None] | None:
+def _resolve_runtime_entrypoint(startup_details: StartupDetails, log: Logger) -> Callable[[], None] | None:
     """
-    Check provider-registered process coordinators for a locale-specific entrypoint.
+    Check provider-registered runtime coordinators for a runtime-specific entrypoint.
 
-    If the task's ``language`` field matches a coordinator's ``locale_name``,
-    return a no-arg callable that bridges fd 0 to the locale subprocess.
+    If the task's ``language`` field matches a coordinator's ``runtime_name``,
+    return a no-arg callable that bridges fd 0 to the runtime subprocess.
     Otherwise return ``None`` to fall through to the standard Python
     execution path.
     """
-    if TYPE_CHECKING:
-        from airflow.sdk.execution_time.coordinator import BaseLocaleCoordinator
-
     language = startup_details.ti.language
     if language is None:
         return None
 
     import functools
 
-    from airflow._shared.module_loading import import_string
     from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
-    for coordinator_path in ProvidersManagerTaskRuntime().process_coordinators:
-        try:
-            coordinator_cls: type[BaseLocaleCoordinator] = import_string(coordinator_path)
-        except Exception:
-            log.exception("Failed to import process coordinator", path=coordinator_path)
-            continue
-
+    for coordinator_cls in ProvidersManagerTaskRuntime().runtime_coordinators:
         if not hasattr(coordinator_cls, "run_task_execution"):
             continue
 
-        if getattr(coordinator_cls, "locale_name", None) != language:
+        if getattr(coordinator_cls, "runtime_name", None) != language:
             continue
 
         log.debug(
-            "Resolved locale-specific entrypoint for task",
-            coordinator=coordinator_path,
+            "Resolved runtime-specific entrypoint for task",
+            coordinator=coordinator_cls,
             language=language,
             task_id=startup_details.ti.task_id,
         )
@@ -2015,7 +2005,7 @@ def _resolve_locale_entrypoint(startup_details: StartupDetails, log: Logger) -> 
         )
 
     log.warning(
-        "No process coordinator found for language",
+        "No runtime coordinator found for language",
         language=language,
         task_id=startup_details.ti.task_id,
     )
@@ -2048,12 +2038,12 @@ def main():
                 # startup message as a ResendLoggingFD response.
                 if os.environ.pop("_AIRFLOW_FORK_EXEC", None) == "1":
                     reinit_supervisor_comms()
-                # Check if a provider-registered locale coordinator should
+                # Check if a provider-registered runtime coordinator should
                 # handle this task (e.g. Java, Go) instead of the standard
                 # Python execution path.
-                locale_entrypoint = _resolve_locale_entrypoint(startup_details, log)
-                if locale_entrypoint is not None:
-                    locale_entrypoint()
+                runtime_entrypoint = _resolve_runtime_entrypoint(startup_details, log)
+                if runtime_entrypoint is not None:
+                    runtime_entrypoint()
                     return
                 span = _make_task_span(msg=startup_details)
                 stack.enter_context(span)

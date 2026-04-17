@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from airflow.sdk import BaseHook
     from airflow.sdk.bases.decorator import TaskDecorator
     from airflow.sdk.definitions.asset import Asset
+    from airflow.sdk.execution_time.coordinator import BaseRuntimeCoordinator
 
 log = structlog.getLogger(__name__)
 
@@ -150,7 +151,7 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
         self._hooks_lazy_dict: LazyDictWithCache[str, HookInfo | Callable] = LazyDictWithCache()
         self._plugins_set: set[PluginInfo] = set()
-        self._process_coordinators: list[str] = []
+        self._runtime_coordinators: list[type[BaseRuntimeCoordinator]] = []
         self._provider_schema_validator = _create_provider_info_schema_validator()
         self._init_airflow_core_hooks()
         # Populated by initialize_provider_configs(); holds provider-contributed config sections.
@@ -221,11 +222,11 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         self.initialize_providers_list()
         self._discover_taskflow_decorators()
 
-    @provider_info_cache("process_coordinators")
-    def initialize_providers_process_coordinators(self):
-        """Lazy initialization of providers process coordinators."""
+    @provider_info_cache("runtime_coordinators")
+    def initialize_providers_runtime_coordinators(self):
+        """Lazy initialization of providers runtime coordinators."""
         self.initialize_providers_list()
-        self._discover_process_coordinators()
+        self._discover_runtime_coordinators()
 
     @provider_info_cache("provider_configs")
     def initialize_provider_configs(self):
@@ -471,13 +472,18 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
             connection_testable=hasattr(hook_class, "test_connection"),
         )
 
-    def _discover_process_coordinators(self) -> None:
-        """Retrieve all process coordinators defined in the providers."""
+    def _discover_runtime_coordinators(self) -> None:
+        """Retrieve and pre-load all runtime coordinators defined in the providers."""
+        seen: set[str] = set()
         for provider_package, provider in self._provider_dict.items():
-            for coordinator_class_path in provider.data.get("process-coordinators", []):
-                if _correctness_check(provider_package, coordinator_class_path, provider):
-                    self._process_coordinators.append(coordinator_class_path)
-        self._process_coordinators = sorted(set(self._process_coordinators))
+            for coordinator_class_path in provider.data.get("runtime-coordinators", []):
+                if coordinator_class_path in seen:
+                    continue
+                coordinator_cls = _correctness_check(provider_package, coordinator_class_path, provider)
+                if coordinator_cls:
+                    seen.add(coordinator_class_path)
+                    self._runtime_coordinators.append(coordinator_cls)
+        self._runtime_coordinators = sorted(self._runtime_coordinators, key=lambda c: c.__qualname__)
 
     def _discover_filesystems(self) -> None:
         """Retrieve all filesystems defined in the providers."""
@@ -627,10 +633,10 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         return sorted(self._plugins_set, key=lambda x: x.plugin_class)
 
     @property
-    def process_coordinators(self) -> list[str]:
-        """Returns process coordinator class paths available in providers."""
-        self.initialize_providers_process_coordinators()
-        return self._process_coordinators
+    def runtime_coordinators(self) -> list[type[BaseRuntimeCoordinator]]:
+        """Returns pre-loaded runtime coordinator classes available in providers."""
+        self.initialize_providers_runtime_coordinators()
+        return self._runtime_coordinators
 
     @property
     def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
@@ -664,7 +670,7 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         self._asset_uri_handlers.clear()
         self._asset_factories.clear()
         self._asset_to_openlineage_converters.clear()
-        self._process_coordinators.clear()
+        self._runtime_coordinators.clear()
         self._provider_configs.clear()
 
         # Imported lazily to preserve SDK conf lazy initialization and avoid a configuration/runtime cycle.
