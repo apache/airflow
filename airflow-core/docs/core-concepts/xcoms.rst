@@ -57,7 +57,7 @@ You can also use XComs in :ref:`templates <concepts:jinja-templating>`::
 
 .. note::
 
-  ``xcom_pull()`` without a ``task_ids`` argument pulls only from the current task. Earlier, the same call would search all tasks and return the most recent value. Always specify ``task_ids`` explicitly when pulling from other tasks.
+  ``xcom_pull()`` without a ``task_ids`` argument pulls only from the current task. In Airflow 2, the same call would search all tasks and return the most recent value. Always specify ``task_ids`` explicitly when pulling from other tasks.
 
 XComs are a relative of :doc:`variables`, with the main difference being that XComs are per-task-instance and designed for communication within a Dag run, while Variables are global and designed for overall configuration and value sharing.
 
