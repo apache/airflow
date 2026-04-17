@@ -119,24 +119,14 @@ class DagCode(Base):
 
     @staticmethod
     def get_code_from_file(fileloc):
-        # Try from locale coordinator first
-        # TODO: define another field in ProvidersManager for pre-loaded coordinator
-        # So that we don't need to import every time in the runtime and could be reused
-        from airflow._shared.module_loading import import_string
+        # Try from runtime coordinator first (classes are pre-loaded by ProvidersManager)
         from airflow.providers_manager import ProvidersManager
 
-        if TYPE_CHECKING:
-            from airflow.sdk.execution_time.coordinator import BaseLocaleCoordinator
-
-        if process_coordinator_paths := ProvidersManager().process_coordinators:
-            # short circuit for `process_coordinators` field
-
-            for coordinator_class_path in process_coordinator_paths:
-                coordinator_cls: type[BaseLocaleCoordinator] = import_string(coordinator_class_path)
-                # TODO: Perhaps the `can_handle_dag_file` interface should just accept `path` only?
-                # Or maybe we can have different granularity for this. that 1 with bundle + path, another with just path
-                if coordinator_cls.can_handle_dag_file("", fileloc):
-                    return coordinator_cls.get_code_from_file(fileloc)
+        for coordinator_cls in ProvidersManager().runtime_coordinators:
+            # TODO: Perhaps the `can_handle_dag_file` interface should just accept `path` only?
+            # Or maybe we can have different granularity for this. that 1 with bundle + path, another with just path
+            if coordinator_cls.can_handle_dag_file("", fileloc):
+                return coordinator_cls.get_code_from_file(fileloc)
 
         # Then fallback to python native
         try:

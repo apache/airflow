@@ -19,7 +19,7 @@
 package-name: apache-airflow-providers-languages-java
 name: "Languages: Java"
 description: |
-  Java language support for Apache Airflow process coordinators.
+  Java language support for Apache Airflow runtime coordinators.
 
 state: ready
 lifecycle: incubation
@@ -54,5 +54,5 @@ config:
         example: ~/airflow/java-bundles
         default: ""
 
-process-coordinators:
-  - airflow.providers.languages.java.coordinator.JavaLocaleCoordinator
+runtime-coordinators:
+  - airflow.providers.languages.java.coordinator.JavaRuntimeCoordinator
