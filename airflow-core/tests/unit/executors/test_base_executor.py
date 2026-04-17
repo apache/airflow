@@ -112,15 +112,22 @@ def test_log_task_event_branches_on_key_type():
     assert len(executor._task_event_logs) == 1
 
 
-def test_state_methods_pick_callback_state_for_callback_key():
+@pytest.mark.parametrize(
+    ("method_name", "expected_state"),
+    [
+        ("fail", CallbackState.FAILED),
+        ("success", CallbackState.SUCCESS),
+        ("queued", CallbackState.QUEUED),
+        ("running_state", CallbackState.RUNNING),
+    ],
+)
+def test_state_methods_pick_callback_state_for_callback_key(method_name, expected_state):
     executor = BaseExecutor()
     callback_key = str(UUID("00000000-0000-0000-0000-000000000002"))
 
-    executor.fail(callback_key)
-    assert executor.event_buffer[callback_key] == (CallbackState.FAILED, None)
+    getattr(executor, method_name)(callback_key)
 
-    executor.success(callback_key)
-    assert executor.event_buffer[callback_key] == (CallbackState.SUCCESS, None)
+    assert executor.event_buffer[callback_key] == (expected_state, None)
 
 
 def test_fail_and_success():
