@@ -20,10 +20,11 @@ from unittest import mock
 
 import pytest
 
-from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.definitions.asset.decorators import _AssetMainOperator, asset
+from airflow.sdk.definitions.asset import Asset, PartitionKey
+from airflow.sdk.definitions.asset.decorators import _AssetMainOperator, _AssetSelfProxy, asset
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.execution_time.comms import AssetResult, GetAssetByName
+from airflow.sdk.execution_time.context import OutletEventAccessors
 
 
 @pytest.fixture
@@ -72,6 +73,15 @@ def example_asset_func_with_valid_arg_as_inlet_asset_and_default(func_fixer):
         inlet_asset_2="default overwrites valid asset name",
         unknown_name="default supplied for non-asset argument",
     ):
+        return "This is example_asset"
+
+    return _example_asset_func
+
+
+@pytest.fixture
+def example_asset_func_with_outlet_events(func_fixer):
+    @func_fixer
+    def _example_asset_func(self, outlet_events):
         return "This is example_asset"
 
     return _example_asset_func
@@ -392,17 +402,19 @@ class Test_AssetMainOperator:
             python_callable=example_asset_func_with_valid_arg_as_inlet_asset,
             definition_name="example_asset_func",
         )
-        assert op.determine_kwargs(context={"k": "v"}) == {
-            "self": Asset(
-                name="example_asset_func",
-                uri="s3://bucket/object",
-                group="MLModel",
-                extra={"k": "v"},
-            ),
-            "context": {"k": "v"},
-            "inlet_asset_1": Asset(name="inlet_asset_1", uri="s3://bucket/object1"),
-            "inlet_asset_2": Asset(name="inlet_asset_2"),
-        }
+        outlet_events = OutletEventAccessors()
+        context = {"k": "v", "outlet_events": outlet_events}
+        kwargs = op.determine_kwargs(context=context)
+        assert isinstance(kwargs["self"], _AssetSelfProxy)
+        assert kwargs["self"]._asset == Asset(
+            name="example_asset_func",
+            uri="s3://bucket/object",
+            group="MLModel",
+            extra={"k": "v"},
+        )
+        assert kwargs["context"] is context
+        assert kwargs["inlet_asset_1"] == Asset(name="inlet_asset_1", uri="s3://bucket/object1")
+        assert kwargs["inlet_asset_2"] == Asset(name="inlet_asset_2")
 
         assert mock_supervisor_comms.mock_calls == [
             mock.call.send(GetAssetByName(name="example_asset_func")),
@@ -453,10 +465,78 @@ class Test_AssetMainOperator:
             AssetResult(name="custom_name", uri="s3://bucket/object1", group="Asset")
         ]
 
-        assert op.determine_kwargs(context={}) == {
-            "self": Asset(name="custom_name", uri="s3://bucket/object1", group="Asset")
-        }
+        kwargs = op.determine_kwargs(context={"outlet_events": OutletEventAccessors()})
+        assert list(kwargs) == ["self"]
+        assert isinstance(kwargs["self"], _AssetSelfProxy)
+        assert kwargs["self"]._asset == Asset(name="custom_name", uri="s3://bucket/object1", group="Asset")
 
         assert mock_supervisor_comms.mock_calls == [
             mock.call.send(GetAssetByName(name="custom_name", uri="s3://bucket/object1", group="Asset"))
         ]
+
+
+class TestAssetSelfProxy:
+    @pytest.fixture
+    def asset(self):
+        return Asset(name="a", uri="s3://bucket/a")
+
+    @pytest.fixture
+    def outlet_events(self):
+        return OutletEventAccessors()
+
+    def test_read_forwards_to_asset(self, asset, outlet_events):
+        proxy = _AssetSelfProxy(asset, outlet_events)
+        assert proxy.name == "a"
+        assert proxy.uri == "s3://bucket/a"
+
+    def test_partition_keys_read_forwards_to_accessor(self, asset, outlet_events):
+        outlet_events[asset].partition_keys = ["us"]
+        proxy = _AssetSelfProxy(asset, outlet_events)
+        assert proxy.partition_keys == ["us"]
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param(["us", "eu"], id="plain-strings"),
+            pytest.param([PartitionKey(key="us", extra={"src": "s3://us"})], id="partition-key-objects"),
+        ],
+    )
+    def test_partition_keys_write_forwards_to_accessor(self, asset, outlet_events, value):
+        proxy = _AssetSelfProxy(asset, outlet_events)
+        proxy.partition_keys = value
+        assert outlet_events[asset].partition_keys == value
+
+    @pytest.mark.parametrize("name", ["name", "uri", "extra", "group"])
+    def test_setting_other_attributes_raises(self, asset, outlet_events, name):
+        proxy = _AssetSelfProxy(asset, outlet_events)
+        with pytest.raises(AttributeError, match="only 'partition_keys' is settable at runtime"):
+            setattr(proxy, name, "anything")
+
+
+class TestOutletEventsKwarg:
+    def test_determine_kwargs_injects_outlet_events(
+        self, mock_supervisor_comms, example_asset_func_with_outlet_events
+    ):
+        definition = asset(schedule=None)(example_asset_func_with_outlet_events)
+        outlet_events = OutletEventAccessors()
+        context = {"outlet_events": outlet_events}
+
+        mock_supervisor_comms.send.side_effect = [
+            AssetResult(name="example_asset_func", uri="example_asset_func", group="asset"),
+        ]
+
+        op = _AssetMainOperator(
+            task_id="example_asset_func",
+            inlets=[],
+            outlets=[definition],
+            python_callable=example_asset_func_with_outlet_events,
+            definition_name="example_asset_func",
+        )
+
+        kwargs = op.determine_kwargs(context=context)
+        assert kwargs["outlet_events"] is outlet_events
+
+    def test_from_definition_excludes_outlet_events_from_inlets(self, example_asset_func_with_outlet_events):
+        definition = asset(schedule=None)(example_asset_func_with_outlet_events)
+        op = _AssetMainOperator.from_definition(definition)
+        assert op.inlets == []

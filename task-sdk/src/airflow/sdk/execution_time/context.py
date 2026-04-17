@@ -41,6 +41,7 @@ from airflow.sdk.definitions.asset import (
     AssetUniqueKey,
     AssetUriRef,
     BaseAssetUniqueKey,
+    PartitionKey,
 )
 from airflow.sdk.exceptions import AirflowNotFoundException, AirflowRuntimeError, ErrorType
 from airflow.sdk.log import mask_secret
@@ -739,6 +740,29 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
     key: BaseAssetUniqueKey
     extra: dict[str, JsonValue] = attrs.Factory(dict)
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
+    partition_keys: list[str | PartitionKey] = attrs.field(factory=list)
+
+    def add_partition(
+        self,
+        key: str | PartitionKey,
+        *,
+        extra: dict[str, JsonValue] | None = None,
+    ) -> None:
+        """
+        Append a partition key to :attr:`partition_keys`.
+
+        Prefer direct assignment (``partition_keys = [...]``) when the full list
+        is known up front. When *key* is a :class:`PartitionKey` and *extra* is
+        also supplied, the two metadata dicts are merged with *extra* winning on
+        conflict.
+        """
+        if isinstance(key, PartitionKey):
+            if extra:
+                self.partition_keys.append(PartitionKey(key=key.key, extra={**key.extra, **extra}))
+            else:
+                self.partition_keys.append(key)
+        else:
+            self.partition_keys.append(PartitionKey(key=key, extra=extra or {}))
 
     def add(self, asset: Asset | AssetRef, extra: dict[str, JsonValue] | None = None) -> None:
         """Add an AssetEvent to an existing Asset."""

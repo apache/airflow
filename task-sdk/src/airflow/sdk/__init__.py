@@ -59,7 +59,9 @@ __all__ = [
     "ObjectStoragePath",
     "Param",
     "ParamsDict",
+    "PartitionAtRuntime",
     "PartitionedAssetTimetable",
+    "PartitionKey",
     "PartitionMapper",
     "PokeReturnValue",
     "ProductMapper",
@@ -118,7 +120,14 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.skipmixin import SkipMixin
     from airflow.sdk.bases.xcom import BaseXCom
     from airflow.sdk.configuration import AirflowSDKConfigParser
-    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
+    from airflow.sdk.definitions.asset import (
+        Asset,
+        AssetAlias,
+        AssetAll,
+        AssetAny,
+        AssetWatcher,
+        PartitionKey,
+    )
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
     from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
@@ -161,6 +170,7 @@ if TYPE_CHECKING:
         CronDataIntervalTimetable,
         DeltaDataIntervalTimetable,
     )
+    from airflow.sdk.definitions.timetables.simple import PartitionAtRuntime
     from airflow.sdk.definitions.timetables.trigger import (
         CronPartitionTimetable,
         CronTriggerTimetable,
@@ -215,7 +225,9 @@ __lazy_imports: dict[str, str] = {
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "ParamsDict": ".definitions.param",
+    "PartitionAtRuntime": ".definitions.timetables.simple",
     "PartitionedAssetTimetable": ".definitions.timetables.assets",
+    "PartitionKey": ".definitions.asset",
     "PartitionMapper": ".definitions.partition_mappers.base",
     "PokeReturnValue": ".bases.sensor",
     "ProductMapper": ".definitions.partition_mappers.product",

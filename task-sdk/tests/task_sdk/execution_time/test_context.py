@@ -34,6 +34,7 @@ from airflow.sdk.definitions.asset import (
     AssetNameRef,
     AssetUniqueKey,
     AssetUriRef,
+    PartitionKey,
 )
 from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.definitions.variable import Variable
@@ -455,6 +456,71 @@ class TestOutletEventAccessor:
         outlet_event_accessor = OutletEventAccessor(key=key)
         outlet_event_accessor.add(*add_args)
         assert outlet_event_accessor.asset_alias_events == asset_alias_events
+
+
+class TestOutletEventAccessorPartitionKeys:
+    @pytest.fixture
+    def accessor(self) -> OutletEventAccessor:
+        return OutletEventAccessor(key=AssetUniqueKey.from_asset(Asset("a")))
+
+    def test_default_is_empty(self, accessor):
+        assert accessor.partition_keys == []
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param(["us", "eu"], id="plain-strings"),
+            pytest.param([PartitionKey(key="k1", extra={"a": 1})], id="partition-key-objects"),
+        ],
+    )
+    def test_direct_assignment(self, accessor, value):
+        accessor.partition_keys = value
+        assert accessor.partition_keys == value
+
+    @pytest.mark.parametrize(
+        ("args", "kwargs", "expected"),
+        [
+            pytest.param(
+                ("us",),
+                {},
+                PartitionKey(key="us"),
+                id="string",
+            ),
+            pytest.param(
+                ("us",),
+                {"extra": {"src": "s3://bucket"}},
+                PartitionKey(key="us", extra={"src": "s3://bucket"}),
+                id="string-with-extra",
+            ),
+            pytest.param(
+                (PartitionKey(key="eu", extra={"x": 1}),),
+                {},
+                PartitionKey(key="eu", extra={"x": 1}),
+                id="partition-key",
+            ),
+            pytest.param(
+                (PartitionKey(key="eu", extra={"a": 1}),),
+                {"extra": {"b": 2}},
+                PartitionKey(key="eu", extra={"a": 1, "b": 2}),
+                id="partition-key-merges-extra",
+            ),
+            pytest.param(
+                (PartitionKey(key="eu", extra={"a": 1}),),
+                {"extra": {"a": 2}},
+                PartitionKey(key="eu", extra={"a": 2}),
+                id="partition-key-extra-overrides",
+            ),
+        ],
+    )
+    def test_add_partition(self, accessor, args, kwargs, expected):
+        accessor.add_partition(*args, **kwargs)
+        assert accessor.partition_keys == [expected]
+
+    def test_add_partition_appends(self, accessor):
+        accessor.add_partition("us")
+        accessor.add_partition("eu")
+        accessor.add_partition("apac")
+        assert [pk.key for pk in accessor.partition_keys] == ["us", "eu", "apac"]
 
 
 class TestTriggeringAssetEventsAccessor:

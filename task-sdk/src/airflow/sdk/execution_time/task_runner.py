@@ -58,7 +58,14 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
+from airflow.sdk.definitions.asset import (
+    Asset,
+    AssetAlias,
+    AssetNameRef,
+    AssetUniqueKey,
+    AssetUriRef,
+    PartitionKey,
+)
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.exceptions import (
@@ -1153,7 +1160,18 @@ def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[d
     # Further filtering will be done in the API server.
     for key, accessor in events._dict.items():
         if isinstance(key, AssetUniqueKey):
-            yield {"dest_asset_key": attrs.asdict(key), "extra": accessor.extra}
+            event: dict[str, JsonValue] = {
+                "dest_asset_key": attrs.asdict(key),
+                "extra": accessor.extra,
+            }
+            if accessor.partition_keys:
+                event["partition_keys"] = [
+                    {"key": pk.key, "extra": pk.extra}
+                    if isinstance(pk, PartitionKey)
+                    else {"key": pk, "extra": {}}
+                    for pk in accessor.partition_keys
+                ]
+            yield event
         for alias_event in accessor.asset_alias_events:
             yield attrs.asdict(alias_event)
 

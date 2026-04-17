@@ -46,3 +46,21 @@ class ContinuousTimetable(BaseTimetable):
     """
 
     active_runs_limit = 1
+
+
+class PartitionAtRuntime(BaseTimetable):
+    """
+    Marker timetable indicating that partition key(s) are determined at runtime.
+
+    Use ``schedule=PartitionAtRuntime()`` to signal that tasks in this Dag will
+    set partition keys on their outlet events at execution time, rather than
+    deriving them from a cron expression or an upstream asset event.
+
+    Like ``schedule=None``, the Dag is not scheduled automatically — it must be
+    triggered externally (manually or via the API). The difference is semantic:
+    it tells readers and tooling that the Dag is expected to emit partitioned
+    asset events whose keys are discovered at runtime via
+    ``outlet_events[asset].partition_keys``.
+    """
+
+    can_be_scheduled = False

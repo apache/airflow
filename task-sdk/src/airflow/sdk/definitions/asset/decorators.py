@@ -36,7 +36,37 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.decorator import _TaskDecorator
     from airflow.sdk.definitions.dag import DagStateChangeCallback, ScheduleArg
     from airflow.sdk.definitions.param import ParamsDict
+    from airflow.sdk.types import OutletEventAccessorsProtocol
     from airflow.triggers.base import BaseTrigger
+
+
+class _AssetSelfProxy:
+    """
+    Proxy for the ``self`` parameter in ``@asset`` and ``@asset.multi`` functions.
+
+    Attribute reads forward to the underlying :class:`Asset`. Assignment to
+    ``partition_keys`` is forwarded to the corresponding
+    :class:`~airflow.sdk.execution_time.context.OutletEventAccessor`, so that
+    ``self.partition_keys = [...]`` inside ``@asset`` behaves the same as
+    ``outlet_events[self].partition_keys = [...]``. Any other write raises
+    :class:`AttributeError`.
+    """
+
+    def __init__(self, asset: Asset, outlet_events: OutletEventAccessorsProtocol) -> None:
+        object.__setattr__(self, "_asset", asset)
+        object.__setattr__(self, "_outlet_events", outlet_events)
+
+    def __getattr__(self, name: str) -> Any:
+        if name == "partition_keys":
+            return self._outlet_events[self._asset].partition_keys
+        return getattr(object.__getattribute__(self, "_asset"), name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name != "partition_keys":
+            raise AttributeError(
+                f"Cannot set {name!r} on @asset self; only 'partition_keys' is settable at runtime"
+            )
+        self._outlet_events[self._asset].partition_keys = value
 
 
 def _validate_asset_function_arguments(f: Callable) -> None:
@@ -62,7 +92,8 @@ class _AssetMainOperator(PythonOperator):
             inlets=[
                 Asset.ref(name=inlet_asset_name)
                 for inlet_asset_name, param in inspect.signature(definition._function).parameters.items()
-                if inlet_asset_name not in ("self", "context") and param.default is inspect.Parameter.empty
+                if inlet_asset_name not in ("self", "context", "outlet_events")
+                and param.default is inspect.Parameter.empty
             ],
             outlets=list(definition.iter_outlets()),
             python_callable=definition._function,
@@ -86,9 +117,11 @@ class _AssetMainOperator(PythonOperator):
             if param.default is not inspect.Parameter.empty:
                 value = param.default
             elif key == "self":
-                value = _fetch_asset(self._definition_name)
+                value = _AssetSelfProxy(_fetch_asset(self._definition_name), context["outlet_events"])
             elif key == "context":
                 value = context
+            elif key == "outlet_events":
+                value = context["outlet_events"]
             else:
                 value = _fetch_asset(key)
             yield key, value

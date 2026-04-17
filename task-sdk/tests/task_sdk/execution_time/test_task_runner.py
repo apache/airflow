@@ -67,7 +67,15 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, AssetUriRef, Dataset, Model
+from airflow.sdk.definitions.asset import (
+    Asset,
+    AssetAlias,
+    AssetUniqueKey,
+    AssetUriRef,
+    Dataset,
+    Model,
+    PartitionKey,
+)
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import (
     AirflowException,
@@ -156,6 +164,7 @@ from airflow.sdk.execution_time.task_runner import (
     _execute_task,
     _make_task_span,
     _push_xcom_if_needed,
+    _serialize_outlet_events,
     _xcom_push,
     finalize,
     get_startup_details,
@@ -1731,6 +1740,66 @@ def test_rendered_map_index_updates_sent_progressively(create_runtime_ti, mock_s
 
     # Verify that rendered_map_index is set (existing behavior)
     assert ti.rendered_map_index == "Label: test_task"
+
+
+class TestSerializeOutletEvents:
+    """Tests for the wire format produced by ``_serialize_outlet_events``."""
+
+    def test_omits_partition_keys_when_empty(self):
+        accessors = OutletEventAccessors()
+        accessors[Asset(name="a")].extra = {"x": 1}
+
+        events = list(_serialize_outlet_events(accessors))
+
+        assert events == [{"dest_asset_key": {"name": "a", "uri": "a"}, "extra": {"x": 1}}]
+
+    def test_emits_partition_keys_from_strings(self):
+        accessors = OutletEventAccessors()
+        accessors[Asset(name="a")].partition_keys = ["us", "eu"]
+
+        events = list(_serialize_outlet_events(accessors))
+
+        assert events == [
+            {
+                "dest_asset_key": {"name": "a", "uri": "a"},
+                "extra": {},
+                "partition_keys": [
+                    {"key": "us", "extra": {}},
+                    {"key": "eu", "extra": {}},
+                ],
+            }
+        ]
+
+    def test_emits_partition_keys_from_partition_key_objects(self):
+        accessors = OutletEventAccessors()
+        accessors[Asset(name="a")].partition_keys = [
+            PartitionKey(key="us", extra={"source": "s3://us"}),
+            PartitionKey(key="eu", extra={"source": "s3://eu"}),
+        ]
+
+        events = list(_serialize_outlet_events(accessors))
+
+        assert events == [
+            {
+                "dest_asset_key": {"name": "a", "uri": "a"},
+                "extra": {},
+                "partition_keys": [
+                    {"key": "us", "extra": {"source": "s3://us"}},
+                    {"key": "eu", "extra": {"source": "s3://eu"}},
+                ],
+            }
+        ]
+
+    def test_mixed_string_and_partition_key(self):
+        accessors = OutletEventAccessors()
+        accessors[Asset(name="a")].partition_keys = ["us", PartitionKey(key="eu", extra={"x": 1})]
+
+        [event] = list(_serialize_outlet_events(accessors))
+
+        assert event["partition_keys"] == [
+            {"key": "us", "extra": {}},
+            {"key": "eu", "extra": {"x": 1}},
+        ]
 
 
 class TestRuntimeTaskInstance:

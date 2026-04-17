@@ -57,6 +57,7 @@ __all__ = [
     "AssetRef",
     "AssetUriRef",
     "AssetWatcher",
+    "PartitionKey",
 ]
 
 from airflow.sdk.configuration import conf
@@ -530,3 +531,26 @@ class AssetAliasEvent(attrs.AttrsInstance):
     dest_asset_key: AssetUniqueKey
     dest_asset_extra: dict[str, JsonValue]
     extra: dict[str, JsonValue]
+
+
+@attrs.define(frozen=True)
+class PartitionKey:
+    """
+    A partition key with optional per-partition metadata.
+
+    Use :class:`PartitionKey` instead of a plain string when you need to attach
+    extra metadata to a specific partition event:
+
+    .. code-block:: python
+
+        outlet_events[my_asset].partition_keys = [
+            PartitionKey(key="region_a", extra={"source": "s3://bucket/region_a"}),
+            PartitionKey(key="region_b", extra={"source": "s3://bucket/region_b"}),
+        ]
+
+    Plain strings are also accepted and are equivalent to
+    ``PartitionKey(key=..., extra={})``.
+    """
+
+    key: str
+    extra: dict[str, JsonValue] = attrs.field(factory=dict)
