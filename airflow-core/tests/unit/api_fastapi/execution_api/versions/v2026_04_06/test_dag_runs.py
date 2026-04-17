@@ -21,6 +21,7 @@ import pytest
 
 from airflow._shared.timezones import timezone
 from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunType
 
 pytestmark = pytest.mark.db_test
 
@@ -61,3 +62,24 @@ def test_get_previous_dag_run_redirect(ver_client, session, dag_maker):
     assert result["dag_id"] == "test_dag_id"
     assert result["run_id"] == "run2"  # Most recent before 2025-01-10
     assert result["state"] == "failed"
+
+
+def test_get_dag_run_strips_bundle_version(ver_client, session, dag_maker):
+    """bundle_version must not appear in DagRun responses for API versions before 2026-04-06."""
+    dag_id = "test_dag_id_strip_bundle"
+    run_id = "test_run_strip_bundle"
+
+    with dag_maker(dag_id=dag_id, schedule=None, session=session, serialized=True):
+        pass
+
+    dag_maker.create_dagrun(
+        run_id=run_id,
+        logical_date=None,
+        run_type=DagRunType.MANUAL,
+        state=DagRunState.SUCCESS,
+    )
+    session.commit()
+
+    response = ver_client.get(f"/execution/dag-runs/{dag_id}/{run_id}")
+    assert response.status_code == 200
+    assert "bundle_version" not in response.json()

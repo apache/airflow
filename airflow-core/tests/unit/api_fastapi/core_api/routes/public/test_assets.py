@@ -1519,6 +1519,54 @@ class TestPostAssetMaterialize(TestAssets):
                 user=mock.ANY,
             )
 
+    def test_should_respond_with_bundle_version(self, test_client, session, dag_maker):
+        """Test that asset materialization respects bundle_version parameter."""
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        bundle_name = "testing_bundle"
+        asset = self.create_assets(session=session, num=1)[0].to_serialized()
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            schedule=None,
+            session=session,
+        ) as dag1:
+            EmptyOperator(task_id="task", outlets=asset)
+        sync_dag_to_db(dag1, bundle_name=bundle_name)
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            schedule=None,
+            session=session,
+        ) as dag2:
+            EmptyOperator(task_id="task", outlets=asset)
+        sync_dag_to_db(dag2, bundle_name=bundle_name)
+
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "v1"})
+        assert response.status_code == 200
+        assert response.json()["bundle_version"] == "v1"
+
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "invalid_version"})
+        assert response.status_code == 404
+        assert (
+            f"DAG with dag_id: '{self.DAG_ASSET1_ID}' does not have a version for bundle_version 'invalid_version'"
+            in response.json()["detail"]
+        )
+
+        dag2.disable_bundle_versioning = True
+        sync_dag_to_db(dag2, bundle_name=bundle_name)
+
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "v1"})
+        assert response.status_code == 400
+        assert (
+            f"DAG with dag_id: '{self.DAG_ASSET1_ID}' does not support bundle versioning"
+            in response.json()["detail"]
+        )
+
 
 class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
     @pytest.mark.usefixtures("time_freezer")

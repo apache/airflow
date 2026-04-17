@@ -486,7 +486,6 @@ def trigger_dag_run(
 
     try:
         dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-        params = body.validate_context(dag)
 
         if body.bundle_version is not None:
             if dag.disable_bundle_versioning:
@@ -494,6 +493,17 @@ def trigger_dag_run(
                     status.HTTP_400_BAD_REQUEST,
                     f"DAG with dag_id: '{dag_id}' does not support bundle versioning",
                 )
+            dag_version = DagVersion.get_latest_version(
+                dag.dag_id, bundle_version=body.bundle_version, load_serialized_dag=True, session=session
+            )
+            if dag_version is None:
+                raise HTTPException(
+                    status.HTTP_404_NOT_FOUND,
+                    f"DAG with dag_id: '{dag_id}' does not have a version for bundle_version '{body.bundle_version}'",
+                )
+            dag = dag_version.serialized_dag.dag
+
+        params = body.validate_context(dag)
 
         dag_run = dag.create_dagrun(
             run_id=params["run_id"],
