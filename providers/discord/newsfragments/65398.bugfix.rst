@@ -1,0 +1,1 @@
+Fixed ``DiscordWebhookHook`` sending ``webhook_endpoint`` as an HTTP header causing ``400 Bad Request`` from Discord after Airflow 3.2 updated ``HttpHook`` to inject connection extra fields as headers.
