@@ -832,19 +832,11 @@ class TestDagFileProcessorManager:
             manager._kill_timed_out_processors()
         mock_kill.assert_not_called()
 
-    def test_handle_parsing_result_keeps_prior_stats_when_persist_fails(self, session):
-        """Persist errors are logged and swallowed so one file does not abort the batch."""
+    def test_handle_parsing_result_throttles_retry_when_first_persist_fails(self, session):
+        """Persist errors should throttle retries without claiming persistence succeeded."""
         manager = DagFileProcessorManager(max_runs=1)
         file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
-        original_last_finish_time = timezone.utcnow() - timedelta(hours=2)
-        original_stat = DagFileStat(
-            num_dags=1,
-            import_errors=0,
-            last_finish_time=original_last_finish_time,
-            last_duration=1.0,
-            run_count=3,
-            last_num_of_db_queries=0,
-        )
+        original_stat = DagFileStat()
         manager._file_stats[file] = original_stat
         manager._bundle_versions["testing"] = "v1"
         manager._file_process_interval = 60
@@ -856,10 +848,13 @@ class TestDagFileProcessorManager:
         with mock.patch.object(manager, "persist_parsing_result", side_effect=RuntimeError("boom")):
             manager.handle_parsing_result(file, processor, session=session)
 
-        assert manager._file_stats[file] is original_stat
-        assert manager._file_stats[file].run_count == 3
-        assert manager._file_stats[file].last_finish_time == original_last_finish_time
-        assert manager.processed_recently(timezone.utcnow(), file) is False
+        assert manager._file_stats[file] is not original_stat
+        assert manager._file_stats[file].num_dags == 0
+        assert manager._file_stats[file].import_errors == 0
+        assert manager._file_stats[file].run_count == 1
+        assert manager._file_stats[file].last_finish_time is not None
+        assert manager._file_stats[file].last_duration is not None
+        assert manager.processed_recently(timezone.utcnow(), file) is True
 
     def test_handle_parsing_result_updates_stats_after_successful_persist(self, session):
         manager = DagFileProcessorManager(max_runs=1)
@@ -930,7 +925,11 @@ class TestDagFileProcessorManager:
         ):
             manager._collect_results(session=session)
 
-        assert manager._file_stats[file_a] is stat_a_before
+        assert manager._file_stats[file_a] is not stat_a_before
+        assert manager._file_stats[file_a].num_dags == stat_a_before.num_dags
+        assert manager._file_stats[file_a].import_errors == stat_a_before.import_errors
+        assert manager._file_stats[file_a].run_count == stat_a_before.run_count + 1
+        assert manager._file_stats[file_a].last_finish_time is not None
         assert manager._file_stats[file_b] is not stat_b_before
         assert manager._file_stats[file_b].run_count == 2
         assert len(manager._processors) == 0

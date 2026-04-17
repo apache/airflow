@@ -699,8 +699,7 @@ def test_import_error_updates_timestamps():
     assert stat.import_errors == 1
 
 
-@pytest.mark.db_test
-def test_persist_parsing_result_calls_update_db(session):
+def test_persist_parsing_result_calls_update_db():
     """persist_parsing_result should delegate to update_dag_parsing_results_in_db with transformed args."""
     parsing_result = DagFileParsingResult(
         fileloc="test.py",
@@ -710,6 +709,7 @@ def test_persist_parsing_result_calls_update_db(session):
     )
 
     manager = MagicMock(spec=DagFileProcessorManager)
+    session = MagicMock()
     # Call the real method on the mock instance
     with patch(
         "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True

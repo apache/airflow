@@ -993,8 +993,9 @@ class DagFileProcessorManager(LoggingMixin):
         Extracted from ``_collect_results`` to keep result handling and
         persistence separate.
 
-        If persistence fails, the error is logged and this method returns without
-        updating file stats for this file so other files in the same
+        If persistence fails, the error is logged and the previous persisted
+        DAG/import-error counts are preserved while a minimal timestamp update
+        throttles immediate retries, so other files in the same
         ``_collect_results`` cycle still run.
         """
         is_callback_only = proc.had_callbacks and proc.parsing_result is None
@@ -1002,9 +1003,10 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.debug("Detected callback-only processing for %s", file)
 
         run_duration = time.monotonic() - proc.start_time
+        finish_time = timezone.utcnow()
         next_stat = process_parse_results(
             run_duration=run_duration,
-            finish_time=timezone.utcnow(),
+            finish_time=finish_time,
             run_count=self._file_stats[file].run_count,
             bundle_name=file.bundle_name,
             bundle_version=self._bundle_versions[file.bundle_name],
@@ -1026,9 +1028,19 @@ class DagFileProcessorManager(LoggingMixin):
             except Exception:
                 self.log.exception(
                     "Failed to persist parsing result for %s in bundle %s; "
-                    "skipping stats update for this file. Other files in this cycle are still processed.",
+                    "keeping previous persisted stats while throttling retries. "
+                    "Other files in this cycle are still processed.",
                     str(file.rel_path),
                     file.bundle_name,
+                )
+                current_stat = self._file_stats[file]
+                self._file_stats[file] = DagFileStat(
+                    num_dags=current_stat.num_dags,
+                    import_errors=current_stat.import_errors,
+                    last_finish_time=finish_time,
+                    last_duration=run_duration,
+                    run_count=current_stat.run_count + 1,
+                    last_num_of_db_queries=current_stat.last_num_of_db_queries,
                 )
                 return
 
