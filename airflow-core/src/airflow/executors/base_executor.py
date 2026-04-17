@@ -35,12 +35,11 @@ from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads.callback import ExecuteCallback
 from airflow.executors.workloads.task import ExecuteTask
+from airflow.executors.workloads.types import state_class_for_key
 from airflow.models import Log
 from airflow.models.callback import CallbackKey
-from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.observability.metrics import stats_utils
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import CallbackState, TaskInstanceState
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -79,6 +78,7 @@ if TYPE_CHECKING:
     from airflow.executors.workloads import ExecutorWorkload
     from airflow.executors.workloads.types import WorkloadKey, WorkloadState
     from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # Event_buffer dict value type
     # Tuple of: state, info
@@ -86,12 +86,6 @@ if TYPE_CHECKING:
 
 
 log = logging.getLogger(__name__)
-
-
-def _state_class_for_key(key: WorkloadKey) -> type[TaskInstanceState] | type[CallbackState]:
-    if isinstance(key, TaskInstanceKey):
-        return TaskInstanceState
-    return CallbackState
 
 
 @dataclass
@@ -461,7 +455,7 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, _state_class_for_key(key).FAILED, info)
+        self.change_state(key, state_class_for_key(key).FAILED, info)
 
     def success(self, key: WorkloadKey, info=None) -> None:
         """
@@ -470,7 +464,7 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, _state_class_for_key(key).SUCCESS, info)
+        self.change_state(key, state_class_for_key(key).SUCCESS, info)
 
     def queued(self, key: WorkloadKey, info=None) -> None:
         """
@@ -479,7 +473,7 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, _state_class_for_key(key).QUEUED, info)
+        self.change_state(key, state_class_for_key(key).QUEUED, info)
 
     def running_state(self, key: WorkloadKey, info=None) -> None:
         """
@@ -488,7 +482,7 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, _state_class_for_key(key).RUNNING, info, remove_running=False)
+        self.change_state(key, state_class_for_key(key).RUNNING, info, remove_running=False)
 
     def get_event_buffer(self, dag_ids=None) -> dict[WorkloadKey, EventBufferValueType]:
         """
