@@ -54,7 +54,7 @@
       "dagDocs": "Documentació del Dag"
     },
     "status": {
-      "deactivated": "TODO: translate: Deactivated"
+      "deactivated": "Desactivat"
     }
   },
   "logs": {
