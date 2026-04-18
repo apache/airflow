@@ -18,7 +18,7 @@
  */
 import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
-import { setupServer, type SetupServerApi } from "msw/node";
+import { setupServer } from "msw/node";
 import { afterEach, describe, it, expect, beforeAll, afterAll } from "vitest";
 
 import type { DAGDetailsResponse } from "openapi/requests/types.gen";
@@ -28,10 +28,9 @@ import { Wrapper } from "src/utils/Wrapper";
 
 import { Header } from "./Header";
 
-let server: SetupServerApi;
+const server = setupServer(...handlers);
 
 beforeAll(() => {
-  server = setupServer(...handlers);
   server.listen({ onUnhandledRequest: "bypass" });
 });
 
