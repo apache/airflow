@@ -19,17 +19,20 @@
 
 // Grid layout constants - shared between Grid and Gantt for alignment
 export const ROW_HEIGHT = 20;
-export const GRID_OUTER_PADDING_PX = 64; // pt={16} = 16 * 4 = 64px
+/** Height of a task bar / badge within a row — matches the GridTI badge height. */
+export const TASK_BAR_HEIGHT_PX = 14;
 export const GRID_HEADER_PADDING_PX = 16; // pt={4} = 4 * 4 = 16px
 export const GRID_HEADER_HEIGHT_PX = 100; // height="100px" for duration bars
 
 // Gantt chart's x-axis height (time labels at top of chart)
 export const GANTT_AXIS_HEIGHT_PX = 36;
 
-// Total offset from top of Grid component to where task rows begin,
-// minus the Gantt axis height since the chart includes its own top axis
-export const GRID_BODY_OFFSET_PX =
-  GRID_OUTER_PADDING_PX + GRID_HEADER_PADDING_PX + GRID_HEADER_HEIGHT_PX - GANTT_AXIS_HEIGHT_PX;
+// Padding at top of Gantt scroll content so task rows share scrollTop with Grid
+// (grid scroll begins with sticky header; Gantt begins with the time axis).
+export const GANTT_TOP_PADDING_PX = GRID_HEADER_PADDING_PX + GRID_HEADER_HEIGHT_PX - GANTT_AXIS_HEIGHT_PX;
+
+/** Offset from scroll top to the first task row — used to align Grid and Gantt virtualizers. */
+export const GANTT_ROW_OFFSET_PX = GRID_HEADER_PADDING_PX + GRID_HEADER_HEIGHT_PX;
 
 // Version indicator constants
 export const BAR_HEIGHT = GRID_HEADER_HEIGHT_PX; // Duration bar height matches grid header

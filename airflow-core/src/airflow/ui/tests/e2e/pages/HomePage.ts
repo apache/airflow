@@ -23,7 +23,6 @@ import { BasePage } from "tests/e2e/pages/BasePage";
  * Home/Dashboard Page Object
  */
 export class HomePage extends BasePage {
-  // Page URLs
   public static get homeUrl(): string {
     return "/";
   }
@@ -34,18 +33,14 @@ export class HomePage extends BasePage {
   public readonly dagRunMetrics: Locator;
   public readonly failedDagsCard: Locator;
 
-  // Health section elements
   public readonly healthSection: Locator;
-  // Historical Metrics section (recent runs)
   public readonly historicalMetricsSection: Locator;
   public readonly metaDatabaseHealth: Locator;
-  // Pool Summary section
   public readonly poolSummarySection: Locator;
   public readonly runningDagsCard: Locator;
 
   public readonly schedulerHealth: Locator;
 
-  // Dashboard Stats elements
   public readonly statsSection: Locator;
   public readonly taskInstanceMetrics: Locator;
   public readonly triggererHealth: Locator;
@@ -53,25 +48,24 @@ export class HomePage extends BasePage {
   public constructor(page: Page) {
     super(page);
 
-    // Stats cards - using link patterns that match the StatsCard component
-    this.failedDagsCard = page.locator('a[href*="last_dag_run_state=failed"]');
-    this.runningDagsCard = page.locator('a[href*="last_dag_run_state=running"]');
-    this.activeDagsCard = page.locator('a[href*="paused=false"]');
+    // Stats cards - using link role with accessible name. The card text includes the label
+    // (e.g. "Failed", "Running", "Active") so getByRole("link") with name is reliable.
+    // If the accessible name only renders as a number, fall back to href-based selectors.
+    this.failedDagsCard = page.getByRole("link", { name: /failed/i });
+    this.runningDagsCard = page.getByRole("link", { name: /running/i });
+    this.activeDagsCard = page.getByRole("link", { name: /active/i });
     this.dagImportErrorsCard = page.getByRole("button", { name: "DAG Import Errors" });
 
-    // Stats section - using role-based selector
+    // Navigate to parent via ".." since there are no ARIA landmark/region roles on these sections.
     this.statsSection = page.getByRole("heading", { name: "Stats" }).locator("..");
-    // Health section - using role-based selector
     this.healthSection = page.getByRole("heading", { name: "Health" }).locator("..");
     this.metaDatabaseHealth = page.getByText("Metadatabase").first();
     this.schedulerHealth = page.getByText("Scheduler").first();
     this.triggererHealth = page.getByText("Triggerer").first();
     this.dagProcessorHealth = page.getByText("DAG Processor").first();
 
-    // Pool Summary section - using role-based selector
     this.poolSummarySection = page.getByRole("heading", { name: "Pool Summary" }).locator("..");
 
-    // Historical Metrics section (recent runs) - using role-based selector
     this.historicalMetricsSection = page.getByRole("heading", { name: "History" }).locator("..");
     this.dagRunMetrics = page.getByRole("heading", { name: /dag run/i }).first();
     this.taskInstanceMetrics = page.getByRole("heading", { name: /task instance/i }).first();
@@ -113,14 +107,19 @@ export class HomePage extends BasePage {
    * Navigate to Home/Dashboard page
    */
   public async navigate(): Promise<void> {
-    await this.navigateTo(HomePage.homeUrl);
+    await expect(async () => {
+      await this.navigateTo(HomePage.homeUrl);
+      await expect(this.welcomeHeading).toBeVisible({ timeout: 10_000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   /**
-   * Wait for dashboard to fully load
+   * Wait for dashboard to fully load including stats data
    */
   public async waitForDashboardLoad(): Promise<void> {
     await expect(this.welcomeHeading).toBeVisible({ timeout: 30_000 });
+    await expect(this.statsSection).toBeVisible({ timeout: 30_000 });
+    await expect(this.activeDagsCard).toBeVisible({ timeout: 30_000 });
   }
 
   /**

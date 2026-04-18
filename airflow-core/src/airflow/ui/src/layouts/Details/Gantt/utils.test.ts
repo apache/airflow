@@ -1,5 +1,7 @@
 /* eslint-disable max-lines */
 
+/* eslint-disable unicorn/no-null */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,162 +20,118 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ChartEvent, ActiveElement } from "chart.js";
 import dayjs from "dayjs";
-import type { TFunction } from "i18next";
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import type { GanttDataItem } from "./utils";
-import { createChartOptions, transformGanttData } from "./utils";
+import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import type { GridTask } from "src/layouts/Details/Grid/utils";
 
-// eslint-disable-next-line no-empty-function, @typescript-eslint/no-empty-function
-const noop = () => {};
+import {
+  type GanttDataItem,
+  buildGanttRowSegments,
+  buildGanttTimeAxisTicks,
+  buildMaxTryByTaskId,
+  GANTT_TIME_AXIS_TICK_COUNT,
+  gridSummariesToTaskIdMap,
+  transformGanttData,
+} from "./utils";
 
-const defaultChartParams = {
-  gridColor: "#ccc",
-  handleBarClick: noop as (event: ChartEvent, elements: Array<ActiveElement>) => void,
-  handleBarHover: noop as (event: ChartEvent, elements: Array<ActiveElement>) => void,
-  hoveredId: undefined,
-  hoveredItemColor: "#eee",
-  labels: ["task_1", "task_2"],
-  selectedId: undefined,
-  selectedItemColor: "#ddd",
-  selectedTimezone: "UTC",
-  translate: ((key: string) => key) as unknown as TFunction,
-};
+describe("buildGanttTimeAxisTicks", () => {
+  it("returns evenly spaced elapsed labels with edge alignment", () => {
+    const minMs = 0;
+    const maxMs = 60_000;
+    const ticks = buildGanttTimeAxisTicks(minMs, maxMs);
 
-describe("createChartOptions", () => {
-  describe("x-axis scale min/max with ISO date strings", () => {
-    it("should compute valid min/max for completed tasks with ISO dates", () => {
-      const data: Array<GanttDataItem> = [
-        {
-          state: "success",
-          taskId: "task_1",
-          x: ["2024-03-14T10:00:00.000Z", "2024-03-14T10:05:00.000Z"],
-          y: "task_1",
-        },
-        {
-          state: "success",
-          taskId: "task_2",
-          x: ["2024-03-14T10:03:00.000Z", "2024-03-14T10:10:00.000Z"],
-          y: "task_2",
-        },
-      ];
+    expect(ticks).toHaveLength(GANTT_TIME_AXIS_TICK_COUNT);
+    expect(ticks[0]?.leftPct).toBe(0);
+    expect(ticks[0]?.label).toBe("00:00:00");
+    expect(ticks[0]?.labelAlign).toBe("left");
+    expect(ticks[GANTT_TIME_AXIS_TICK_COUNT - 1]?.leftPct).toBe(100);
+    expect(ticks[GANTT_TIME_AXIS_TICK_COUNT - 1]?.labelAlign).toBe("right");
+    expect(ticks[GANTT_TIME_AXIS_TICK_COUNT - 1]?.label).toBe("00:01:00");
+    expect(ticks[1]?.labelAlign).toBe("center");
+    expect(ticks.every((tick) => typeof tick.label === "string" && tick.label.length > 0)).toBe(true);
+  });
 
-      const options = createChartOptions({
-        ...defaultChartParams,
-        data,
-        selectedRun: {
-          dag_id: "test_dag",
-          duration: 600,
-          end_date: "2024-03-14T10:10:00+00:00",
-          has_missed_deadline: false,
-          queued_at: "2024-03-14T09:59:00+00:00",
-          run_after: "2024-03-14T10:00:00+00:00",
-          run_id: "run_1",
-          run_type: "manual",
-          start_date: "2024-03-14T10:00:00+00:00",
-          state: "success",
-        },
-      });
+  it("supports a single tick", () => {
+    const ticks = buildGanttTimeAxisTicks(1000, 1000, 1);
 
-      const xScale = options.scales.x;
+    expect(ticks).toHaveLength(1);
+    expect(ticks[0]?.leftPct).toBe(0);
+    expect(ticks[0]?.labelAlign).toBe("left");
+    expect(ticks[0]?.label).toBe("00:00:00");
+  });
+});
 
-      expect(xScale.min).toBeTypeOf("number");
-      expect(xScale.max).toBeTypeOf("number");
-      expect(Number.isNaN(xScale.min)).toBe(false);
-      expect(Number.isNaN(xScale.max)).toBe(false);
-      // max should be slightly beyond the latest end date (5% padding)
-      expect(xScale.max).toBeGreaterThan(new Date("2024-03-14T10:10:00.000Z").getTime());
-    });
+describe("gridSummariesToTaskIdMap", () => {
+  it("indexes summaries by task_id", () => {
+    const summaries = [
+      { state: null, task_id: "a" } as LightGridTaskInstanceSummary,
+      { state: null, task_id: "b" } as LightGridTaskInstanceSummary,
+    ];
+    const map = gridSummariesToTaskIdMap(summaries);
 
-    it("should compute valid min/max for running tasks", () => {
-      const now = dayjs().toISOString();
-      const data: Array<GanttDataItem> = [
-        {
-          state: "success",
-          taskId: "task_1",
-          x: ["2024-03-14T10:00:00.000Z", "2024-03-14T10:05:00.000Z"],
-          y: "task_1",
-        },
-        {
-          state: "running",
-          taskId: "task_2",
-          x: ["2024-03-14T10:05:00.000Z", now],
-          y: "task_2",
-        },
-      ];
+    expect(map.get("a")).toBe(summaries[0]);
+    expect(map.get("b")).toBe(summaries[1]);
+    expect(map.size).toBe(2);
+  });
+});
 
-      const options = createChartOptions({
-        ...defaultChartParams,
-        data,
-        selectedRun: {
-          dag_id: "test_dag",
-          duration: 0,
-          // eslint-disable-next-line unicorn/no-null
-          end_date: null,
-          has_missed_deadline: false,
-          queued_at: "2024-03-14T09:59:00+00:00",
-          run_after: "2024-03-14T10:00:00+00:00",
-          run_id: "run_1",
-          run_type: "manual",
-          start_date: "2024-03-14T10:00:00+00:00",
-          state: "running",
-        },
-      });
+describe("buildMaxTryByTaskId", () => {
+  it("returns the maximum try number for each task", () => {
+    const items: Array<GanttDataItem> = [
+      { taskId: "t1", tryNumber: 1, x: [0, 1], y: "t1" },
+      { taskId: "t1", tryNumber: 3, x: [0, 1], y: "t1" },
+      { taskId: "t1", tryNumber: 2, x: [0, 1], y: "t1" },
+      { taskId: "t2", tryNumber: 1, x: [0, 1], y: "t2" },
+    ];
+    const map = buildMaxTryByTaskId(items);
 
-      const xScale = options.scales.x;
+    expect(map.get("t1")).toBe(3);
+    expect(map.get("t2")).toBe(1);
+  });
 
-      expect(xScale.min).toBeTypeOf("number");
-      expect(xScale.max).toBeTypeOf("number");
-      expect(Number.isNaN(xScale.min)).toBe(false);
-      expect(Number.isNaN(xScale.max)).toBe(false);
-    });
+  it("defaults to 1 when tryNumber is undefined", () => {
+    const items: Array<GanttDataItem> = [{ taskId: "t1", x: [0, 1], y: "t1" }];
+    const map = buildMaxTryByTaskId(items);
 
-    it("should handle empty data with running DagRun (fallback to formatted dates)", () => {
-      const options = createChartOptions({
-        ...defaultChartParams,
-        data: [],
-        labels: [],
-        selectedRun: {
-          dag_id: "test_dag",
-          duration: 0,
-          // eslint-disable-next-line unicorn/no-null
-          end_date: null,
-          has_missed_deadline: false,
-          queued_at: "2024-03-14T09:59:00+00:00",
-          run_after: "2024-03-14T10:00:00+00:00",
-          run_id: "run_1",
-          run_type: "manual",
-          start_date: "2024-03-14T10:00:00+00:00",
-          state: "running",
-        },
-      });
+    expect(map.get("t1")).toBe(1);
+  });
 
-      const xScale = options.scales.x;
+  it("returns an empty map for empty input", () => {
+    expect(buildMaxTryByTaskId([]).size).toBe(0);
+  });
+});
 
-      // With empty data, min/max are formatted date strings (fallback branch)
-      expect(xScale.min).toBeTypeOf("string");
-      expect(xScale.max).toBeTypeOf("string");
-    });
+describe("buildGanttRowSegments", () => {
+  it("groups items by task id in flat node order", () => {
+    const flatNodes: Array<GridTask> = [
+      { depth: 0, id: "t1", is_mapped: false, label: "a" } as GridTask,
+      { depth: 0, id: "t2", is_mapped: false, label: "b" } as GridTask,
+    ];
+    const items: Array<GanttDataItem> = [
+      { taskId: "t2", x: [1_577_836_800_000, 1_577_923_200_000], y: "b" },
+      { taskId: "t1", x: [1_577_836_800_000, 1_577_923_200_000], y: "a" },
+    ];
+
+    const segments = buildGanttRowSegments(flatNodes, items);
+
+    expect(segments).toHaveLength(2);
+    expect(segments[0]?.map((segment) => segment.taskId)).toEqual(["t1"]);
+    expect(segments[1]?.map((segment) => segment.taskId)).toEqual(["t2"]);
   });
 });
 
 describe("transformGanttData", () => {
-  it("should skip tasks with null start_date", () => {
+  it("returns no segments when the try has no schedule, queue, or start time", () => {
     const result = transformGanttData({
       allTries: [
         {
-          // eslint-disable-next-line unicorn/no-null
           end_date: null,
           is_mapped: false,
-          // eslint-disable-next-line unicorn/no-null
           queued_dttm: null,
-          // eslint-disable-next-line unicorn/no-null
           scheduled_dttm: null,
-          // eslint-disable-next-line unicorn/no-null
           start_date: null,
-          // eslint-disable-next-line unicorn/no-null
           state: null,
           task_display_name: "task_1",
           task_id: "task_1",
@@ -187,17 +145,14 @@ describe("transformGanttData", () => {
     expect(result).toHaveLength(0);
   });
 
-  it("should include running tasks with valid start_date and use current time as end", () => {
+  it("includes running tasks with valid start_date and uses current time as end", () => {
     const before = dayjs();
     const result = transformGanttData({
       allTries: [
         {
-          // eslint-disable-next-line unicorn/no-null
           end_date: null,
           is_mapped: false,
-          // eslint-disable-next-line unicorn/no-null
           queued_dttm: null,
-          // eslint-disable-next-line unicorn/no-null
           scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "running",
@@ -212,25 +167,20 @@ describe("transformGanttData", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.state).toBe("running");
-    // End time should be approximately now (ISO string)
-    const endTime = dayjs(result[0]?.x[1]);
+    const endTime = result[0]?.x[1] ?? 0;
 
-    expect(endTime.valueOf()).toBeGreaterThanOrEqual(before.valueOf());
+    expect(endTime).toBeGreaterThanOrEqual(before.valueOf());
   });
 
-  it("should skip groups with null min_start_date or max_end_date", () => {
+  it("skips groups with null min_start_date or max_end_date", () => {
     const result = transformGanttData({
       allTries: [],
       flatNodes: [{ depth: 0, id: "group_1", is_mapped: false, isGroup: true, label: "group_1" }],
       gridSummaries: [
         {
-          // eslint-disable-next-line unicorn/no-null
           child_states: null,
-          // eslint-disable-next-line unicorn/no-null
           max_end_date: null,
-          // eslint-disable-next-line unicorn/no-null
           min_start_date: null,
-          // eslint-disable-next-line unicorn/no-null
           state: null,
           task_display_name: "group_1",
           task_id: "group_1",
@@ -241,15 +191,13 @@ describe("transformGanttData", () => {
     expect(result).toHaveLength(0);
   });
 
-  it("should produce ISO date strings parseable by dayjs", () => {
+  it("uses millisecond timestamps for segment bounds", () => {
     const result = transformGanttData({
       allTries: [
         {
           end_date: "2024-03-14T10:05:00+00:00",
           is_mapped: false,
-          // eslint-disable-next-line unicorn/no-null
           queued_dttm: null,
-          // eslint-disable-next-line unicorn/no-null
           scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "success",
@@ -263,17 +211,12 @@ describe("transformGanttData", () => {
     });
 
     expect(result).toHaveLength(1);
-    // x values should be valid ISO strings that dayjs can parse without NaN
-    const start = dayjs(result[0]?.x[0]);
-    const end = dayjs(result[0]?.x[1]);
-
-    expect(start.isValid()).toBe(true);
-    expect(end.isValid()).toBe(true);
-    expect(Number.isNaN(start.valueOf())).toBe(false);
-    expect(Number.isNaN(end.valueOf())).toBe(false);
+    expect(Number.isFinite(result[0]?.x[0])).toBe(true);
+    expect(Number.isFinite(result[0]?.x[1])).toBe(true);
+    expect(result[0]?.x[1]).toBeGreaterThanOrEqual(result[0]?.x[0] ?? 0);
   });
 
-  it("should produce 3 segments when scheduled_dttm and queued_dttm are present", () => {
+  it("produces 3 segments when scheduled_dttm and queued_dttm are present", () => {
     const result = transformGanttData({
       allTries: [
         {
@@ -298,14 +241,13 @@ describe("transformGanttData", () => {
     expect(result[2]?.state).toBe("success");
   });
 
-  it("should produce 2 segments when only queued_dttm is present", () => {
+  it("produces 2 segments when only queued_dttm is present", () => {
     const result = transformGanttData({
       allTries: [
         {
           end_date: "2024-03-14T10:05:00+00:00",
           is_mapped: false,
           queued_dttm: "2024-03-14T09:59:00+00:00",
-          // eslint-disable-next-line unicorn/no-null
           scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "success",
@@ -323,15 +265,13 @@ describe("transformGanttData", () => {
     expect(result[1]?.state).toBe("success");
   });
 
-  it("should produce 1 segment when scheduled_dttm and queued_dttm are null", () => {
+  it("produces 1 segment when scheduled_dttm and queued_dttm are null", () => {
     const result = transformGanttData({
       allTries: [
         {
           end_date: "2024-03-14T10:05:00+00:00",
           is_mapped: false,
-          // eslint-disable-next-line unicorn/no-null
           queued_dttm: null,
-          // eslint-disable-next-line unicorn/no-null
           scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "success",
@@ -346,5 +286,40 @@ describe("transformGanttData", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.state).toBe("success");
+  });
+
+  it("sorts multiple tries by try_number", () => {
+    const result = transformGanttData({
+      allTries: [
+        {
+          end_date: "2024-03-14T10:05:00+00:00",
+          is_mapped: false,
+          queued_dttm: null,
+          scheduled_dttm: null,
+          start_date: "2024-03-14T10:00:00+00:00",
+          state: "failed",
+          task_display_name: "task_1",
+          task_id: "task_1",
+          try_number: 2,
+        },
+        {
+          end_date: "2024-03-14T09:55:00+00:00",
+          is_mapped: false,
+          queued_dttm: null,
+          scheduled_dttm: null,
+          start_date: "2024-03-14T09:50:00+00:00",
+          state: "failed",
+          task_display_name: "task_1",
+          task_id: "task_1",
+          try_number: 1,
+        },
+      ],
+      flatNodes: [{ depth: 0, id: "task_1", is_mapped: false, label: "task_1" }],
+      gridSummaries: [],
+    });
+
+    expect(result).toHaveLength(2);
+    expect(result[0]?.tryNumber).toBe(1);
+    expect(result[1]?.tryNumber).toBe(2);
   });
 });

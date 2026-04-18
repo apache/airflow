@@ -1097,8 +1097,11 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         from airflow.sdk.log import upload_to_remote
 
-        with _remote_logging_conn(self.client):
-            upload_to_remote(self.process_log, self.ti)
+        try:
+            with _remote_logging_conn(self.client):
+                upload_to_remote(self.process_log, self.ti)
+        except Exception:
+            self.process_log.exception("Failed to upload remote logs", ti_id=self.id, pid=self.pid)
 
     def _monitor_subprocess(self):
         """
