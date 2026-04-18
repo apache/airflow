@@ -1031,13 +1031,6 @@ repos:
           ^uv\.lock$
         pass_filenames: false
         require_serial: true
-      - id: mypy-dev
-        name: Run mypy for dev
-        language: python
-        entry: ./scripts/ci/prek/mypy_local_folder.py dev scripts
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true
       - id: mypy-devel-common
         name: Run mypy for devel-common
         language: python

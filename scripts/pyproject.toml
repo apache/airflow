@@ -76,3 +76,276 @@ packages = ["ci", "cov", "docker", "in_container", "tools"]
 # "from common_prek_utils import ..." inside those modules resolve correctly
 # (mirroring what Python does automatically when scripts are run directly).
 pythonpath = [".", "ci/prek", "in_container"]
+
+[tool.mypy]
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+pretty = true
+show_error_codes = true
+disable_error_code = [
+    "annotation-unchecked",
+]
+namespace_packages = true
+explicit_package_bases = true
+exclude = [
+    ".*/node_modules/.*",
+    # Exclude hidden files and directories
+    ".*/\\..*"
+]
+mypy_path = [
+    "$MYPY_CONFIG_FILE_DIR/../airflow-core/src",
+    "$MYPY_CONFIG_FILE_DIR/../airflow-core/tests",
+    "$MYPY_CONFIG_FILE_DIR/../task-sdk/src",
+    "$MYPY_CONFIG_FILE_DIR/../task-sdk/tests",
+    "$MYPY_CONFIG_FILE_DIR/../airflow-ctl/src",
+    "$MYPY_CONFIG_FILE_DIR/../airflow-ctl/tests",
+    "$MYPY_CONFIG_FILE_DIR/../airflow-ctl-tests/tests",
+    "$MYPY_CONFIG_FILE_DIR/../dev",
+    "$MYPY_CONFIG_FILE_DIR/../devel-common/src",
+    "$MYPY_CONFIG_FILE_DIR/../helm-tests/tests",
+    "$MYPY_CONFIG_FILE_DIR/../kubernetes-tests/tests",
+    "$MYPY_CONFIG_FILE_DIR/../docker-tests/tests",
+    "$MYPY_CONFIG_FILE_DIR/../task-sdk-integration-tests/tests",
+    # Automatically generated mypy paths (update_airflow_pyproject_toml.py)
+    "$MYPY_CONFIG_FILE_DIR/../providers/airbyte/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/airbyte/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/alibaba/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/alibaba/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/amazon/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/amazon/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/cassandra/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/cassandra/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/drill/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/drill/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/druid/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/druid/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/flink/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/flink/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/hdfs/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/hdfs/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/hive/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/hive/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/iceberg/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/iceberg/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/impala/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/impala/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/kafka/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/kafka/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/kylin/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/kylin/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/livy/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/livy/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/pig/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/pig/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/pinot/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/pinot/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/spark/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/spark/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/tinkerpop/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apache/tinkerpop/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apprise/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/apprise/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/arangodb/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/arangodb/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/asana/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/asana/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/atlassian/jira/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/atlassian/jira/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/celery/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/celery/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/cloudant/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/cloudant/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/cncf/kubernetes/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/cncf/kubernetes/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/cohere/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/cohere/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/common/ai/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/common/ai/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/common/compat/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/common/compat/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/common/io/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/common/io/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/common/messaging/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/common/messaging/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/common/sql/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/common/sql/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/databricks/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/databricks/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/datadog/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/datadog/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/dbt/cloud/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/dbt/cloud/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/dingding/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/dingding/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/discord/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/discord/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/docker/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/docker/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/edge3/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/edge3/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/elasticsearch/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/elasticsearch/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/exasol/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/exasol/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/fab/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/fab/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/facebook/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/facebook/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/ftp/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/ftp/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/git/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/git/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/github/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/github/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/google/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/google/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/grpc/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/grpc/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/hashicorp/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/hashicorp/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/http/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/http/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/imap/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/imap/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/influxdb/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/influxdb/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/informatica/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/informatica/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/jdbc/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/jdbc/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/jenkins/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/jenkins/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/keycloak/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/keycloak/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/microsoft/azure/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/microsoft/azure/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/microsoft/mssql/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/microsoft/mssql/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/microsoft/psrp/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/microsoft/psrp/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/microsoft/winrm/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/microsoft/winrm/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/mongo/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/mongo/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/mysql/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/mysql/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/neo4j/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/neo4j/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/odbc/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/odbc/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/openai/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/openai/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/openfaas/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/openfaas/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/openlineage/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/openlineage/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/opensearch/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/opensearch/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/opsgenie/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/opsgenie/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/oracle/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/oracle/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/pagerduty/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/pagerduty/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/papermill/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/papermill/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/pgvector/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/pgvector/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/pinecone/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/pinecone/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/postgres/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/postgres/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/presto/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/presto/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/qdrant/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/qdrant/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/redis/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/redis/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/salesforce/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/salesforce/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/samba/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/samba/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/segment/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/segment/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/sendgrid/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/sendgrid/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/sftp/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/sftp/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/singularity/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/singularity/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/slack/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/slack/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/smtp/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/smtp/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/snowflake/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/snowflake/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/sqlite/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/sqlite/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/ssh/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/ssh/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/standard/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/standard/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/tableau/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/tableau/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/telegram/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/telegram/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/teradata/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/teradata/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/trino/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/trino/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/vertica/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/vertica/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/vespa/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/vespa/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/weaviate/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/weaviate/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/yandex/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/yandex/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/ydb/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/ydb/tests",
+    "$MYPY_CONFIG_FILE_DIR/../providers/zendesk/src",
+    "$MYPY_CONFIG_FILE_DIR/../providers/zendesk/tests",
+    # End of automatically generated mypy paths
+]
+
+[[tool.mypy.overrides]]
+module="airflow.config_templates.default_webserver_config"
+disable_error_code = [
+    "var-annotated",
+]
+
+[[tool.mypy.overrides]]
+module="airflow.migrations.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module="airflow.*._vendor.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module= [
+    "google.cloud.*",
+    "azure.*",
+]
+no_implicit_optional = false
+
+[[tool.mypy.overrides]]
+module = "google.api_core.gapic_v1"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module=[
+    "referencing.*",
+    # Beam has some old type annotations, and they introduced an error recently with bad signature of
+    # a function. This is captured in https://github.com/apache/beam/issues/29927
+    # and we should remove this exclusion when it is fixed.
+    "apache_beam.*"
+]
+ignore_errors = true
+
+# airflowctl autogenered datamodels
+[[tool.mypy.overrides]]
+module="airflowctl.api.datamodels.*"
+ignore_errors = true

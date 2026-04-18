@@ -73,7 +73,7 @@ ALLOWED_FOLDERS = [
 ]
 
 # Map folder(s) to the uv project to use for running mypy.
-# When multiple folders are checked together (e.g. dev + scripts), the first folder's project is used.
+# When multiple folders are checked together, the first folder's project is used.
 # "shared" is handled specially (per-distribution iteration) and is not in this map.
 FOLDER_TO_PROJECT = {
     "airflow-core": "airflow-core",
@@ -88,6 +88,14 @@ FOLDER_TO_PROJECT = {
     "task-sdk-integration-tests": "task-sdk-integration-tests",
     "docker-tests": "docker-tests",
     "kubernetes-tests": "kubernetes-tests",
+}
+
+# Projects that ship their own [tool.mypy] configuration in their pyproject.toml;
+# mypy must be invoked with --config-file pointing at that file so those sections
+# take precedence over the root pyproject.toml.
+FOLDER_TO_MYPY_CONFIG = {
+    "dev": "dev/pyproject.toml",
+    "scripts": "scripts/pyproject.toml",
 }
 
 if len(sys.argv) < 2:
@@ -168,7 +176,7 @@ def write_file_list(files: list[str], suffix: str = "") -> Path:
     return mypy_file_list
 
 
-def run_local_mypy(project: str, hook_name: str, files: list[str]) -> int:
+def run_local_mypy(project: str, hook_name: str, files: list[str], config_file: str | None = None) -> int:
     """Sync a dedicated mypy venv under .build/ and run mypy on the given files.
 
     Each hook gets its own virtualenv and mypy cache so running mypy never mutates the
@@ -236,9 +244,10 @@ def run_local_mypy(project: str, hook_name: str, files: list[str]) -> int:
         "--cache-dir",
         str(mypy_cache_dir),
         "--follow-imports=silent",
-        f"@{mypy_file_list}",
-        *mypy_extra_args,
     ]
+    if config_file is not None:
+        cmd += ["--config-file", config_file]
+    cmd += [f"@{mypy_file_list}", *mypy_extra_args]
 
     result = subprocess.run(
         cmd,
@@ -352,6 +361,7 @@ else:
             project=project,
             hook_name=mypy_folders[0],
             files=all_files_to_check,
+            config_file=FOLDER_TO_MYPY_CONFIG.get(mypy_folders[0]),
         )
 
 if returncode != 0:
