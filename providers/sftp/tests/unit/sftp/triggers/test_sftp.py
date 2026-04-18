@@ -29,7 +29,11 @@ from asyncssh.sftp import SFTPAttrs, SFTPName
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.sftp.triggers.sftp import SFTPTrigger
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
+try:
+    from airflow.utils.deprecation_tools import DeprecatedImportWarning
+except ImportError:
+    DeprecatedImportWarning = DeprecationWarning
 
 
 class TestSFTPTrigger:

@@ -29,7 +29,11 @@ from pendulum import datetime as pendulum_datetime, timezone
 
 from airflow.providers.common.compat.sdk import AirflowException, PokeReturnValue
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
-from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
+try:
+    from airflow.utils.deprecation_tools import DeprecatedImportWarning
+except ImportError:
+    DeprecatedImportWarning = DeprecationWarning
 
 # Ignore missing args provided by default_args
 # mypy: disable-error-code="arg-type"
