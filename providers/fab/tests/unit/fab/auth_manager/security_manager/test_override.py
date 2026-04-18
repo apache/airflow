@@ -31,8 +31,14 @@ from airflow.providers.fab.auth_manager.models import (
     Resource,
     Role,
     User,
+    assoc_group_role,
+    assoc_permission_role,
+    assoc_user_role,
 )
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.providers.fab.auth_manager.security_manager.override import (
+    FabAirflowSecurityManagerOverride,
+    FabException,
+)
 
 
 class EmptySecurityManager(FabAirflowSecurityManagerOverride):
@@ -43,6 +49,62 @@ class EmptySecurityManager(FabAirflowSecurityManagerOverride):
 
 
 class TestFabAirflowSecurityManagerOverride:
+    def test_delete_role_cleans_associations_before_delete(self):
+        sm = EmptySecurityManager()
+        role = Mock(spec=Role)
+        role.id = 42
+        role.name = "roleA"
+        mock_session = Mock(spec=Session)
+
+        mock_scalars = Mock()
+        mock_scalars.first.return_value = role
+        mock_session.scalars.return_value = mock_scalars
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            sm.delete_role("roleA")
+
+        executed_statements = [call_args.args[0] for call_args in mock_session.execute.call_args_list]
+        assert len(executed_statements) == 4
+
+        first = str(executed_statements[0].compile(compile_kwargs={"literal_binds": True}))
+        second = str(executed_statements[1].compile(compile_kwargs={"literal_binds": True}))
+        third = str(executed_statements[2].compile(compile_kwargs={"literal_binds": True}))
+        fourth = str(executed_statements[3].compile(compile_kwargs={"literal_binds": True}))
+
+        assert f"DELETE FROM {assoc_permission_role.name}" in first
+        assert "WHERE" in first
+        assert "role_id" in first
+        assert "42" in first
+        assert f"DELETE FROM {assoc_user_role.name}" in second
+        assert "WHERE" in second
+        assert "role_id" in second
+        assert "42" in second
+        assert f"DELETE FROM {assoc_group_role.name}" in third
+        assert "WHERE" in third
+        assert "role_id" in third
+        assert "42" in third
+        assert "DELETE FROM ab_role" in fourth
+        assert "WHERE" in fourth
+        assert "id" in fourth
+        assert "42" in fourth
+
+        mock_session.commit.assert_called_once_with()
+
+    def test_delete_role_raises_for_missing_role(self):
+        sm = EmptySecurityManager()
+        mock_session = Mock(spec=Session)
+
+        mock_scalars = Mock()
+        mock_scalars.first.return_value = None
+        mock_session.scalars.return_value = mock_scalars
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            with pytest.raises(FabException, match="Role named 'missing' does not exist"):
+                sm.delete_role("missing")
+
+        mock_session.execute.assert_not_called()
+        mock_session.commit.assert_not_called()
+
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
     def test_add_permission_to_role_ignores_duplicate_from_concurrent_worker(self, mock_log):
         sm = EmptySecurityManager()
