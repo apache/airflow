@@ -33,36 +33,37 @@ class TestPoolSchema:
     def teardown_method(self) -> None:
         clear_db_pools()
 
+    @pytest.mark.parametrize(
+        ("pool_name", "slots", "expected_open_slots"),
+        [
+            pytest.param("test_pool", 2, 2, id="finite_slots"),
+            pytest.param("unlimited_pool", -1, -1, id="unlimited_slots_serialized_as_minus_one"),
+        ],
+    )
     @provide_session
-    def test_serialize(self, session):
-        pool_model = Pool(pool="test_pool", slots=2, include_deferred=False)
+    def test_serialize(self, pool_name, slots, expected_open_slots, session):
+        """Pools must serialize open_slots as an integer.
+
+        Unlimited pools (``slots == -1``) must not leak ``inf`` into the JSON
+        response since the OpenAPI schema declares ``open_slots`` as an integer.
+        """
+        pool_model = Pool(pool=pool_name, slots=slots, include_deferred=False)
         session.add(pool_model)
         session.commit()
         pool_instance = session.query(Pool).filter(Pool.pool == pool_model.pool).first()
         serialized_pool = pool_schema.dump(pool_instance)
         assert serialized_pool == {
-            "name": "test_pool",
-            "slots": 2,
+            "name": pool_name,
+            "slots": slots,
             "occupied_slots": 0,
             "running_slots": 0,
             "queued_slots": 0,
             "scheduled_slots": 0,
             "deferred_slots": 0,
-            "open_slots": 2,
+            "open_slots": expected_open_slots,
             "description": None,
             "include_deferred": False,
         }
-
-    @provide_session
-    def test_serialize_unlimited_pool_open_slots_as_minus_one(self, session):
-        """Unlimited pools must not serialize open_slots as inf (OpenAPI integer)."""
-        pool_model = Pool(pool="unlimited_pool", slots=-1, include_deferred=False)
-        session.add(pool_model)
-        session.commit()
-        pool_instance = session.query(Pool).filter(Pool.pool == pool_model.pool).first()
-        serialized_pool = pool_schema.dump(pool_instance)
-        assert serialized_pool["slots"] == -1
-        assert serialized_pool["open_slots"] == -1
 
     @provide_session
     def test_deserialize(self, session):
