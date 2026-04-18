@@ -30,10 +30,13 @@ from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.sftp.triggers.sftp import SFTPTrigger
 from airflow.triggers.base import TriggerEvent
 
+WARNING_CATEGORY: type[Warning]
 try:
     from airflow.utils.deprecation_tools import DeprecatedImportWarning
 except ImportError:
-    DeprecatedImportWarning = DeprecationWarning
+    WARNING_CATEGORY = DeprecationWarning
+else:
+    WARNING_CATEGORY = DeprecatedImportWarning
 
 
 class TestSFTPTrigger:
@@ -45,7 +48,7 @@ class TestSFTPTrigger:
             importlib.reload(sftp_trigger_module)
 
         assert not any(
-            issubclass(warning.category, DeprecatedImportWarning)
+            issubclass(warning.category, WARNING_CATEGORY)
             and "airflow.utils.timezone" in str(warning.message)
             for warning in captured_warnings
         )

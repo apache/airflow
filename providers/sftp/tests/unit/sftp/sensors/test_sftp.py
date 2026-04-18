@@ -30,10 +30,13 @@ from pendulum import datetime as pendulum_datetime, timezone
 from airflow.providers.common.compat.sdk import AirflowException, PokeReturnValue
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 
+WARNING_CATEGORY: type[Warning]
 try:
     from airflow.utils.deprecation_tools import DeprecatedImportWarning
 except ImportError:
-    DeprecatedImportWarning = DeprecationWarning
+    WARNING_CATEGORY = DeprecationWarning
+else:
+    WARNING_CATEGORY = DeprecatedImportWarning
 
 # Ignore missing args provided by default_args
 # mypy: disable-error-code="arg-type"
@@ -48,7 +51,7 @@ class TestSFTPSensor:
             importlib.reload(sftp_sensor_module)
 
         assert not any(
-            issubclass(warning.category, DeprecatedImportWarning)
+            issubclass(warning.category, WARNING_CATEGORY)
             and "airflow.utils.timezone" in str(warning.message)
             for warning in captured_warnings
         )
