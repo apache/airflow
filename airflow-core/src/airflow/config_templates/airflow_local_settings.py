@@ -370,4 +370,4 @@ if REMOTE_LOGGING:
             "section 'elasticsearch' if you are using Elasticsearch. In the other case, "
             "'remote_base_log_folder' option in the 'logging' section."
         )
-    DEFAULT_LOGGING_CONFIG["handlers"]["task"].update(remote_task_handler_kwargs)
+    DEFAULT_LOGGING_CONFIG["handlers"]["task"].update(_handler_kwargs)

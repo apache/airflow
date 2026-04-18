@@ -62,7 +62,7 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
 
             if new_token is not None:
                 cookie_path = get_cookie_path()
-                secure = bool(conf.get("api", "ssl_cert", fallback=""))
+                secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
                 response.set_cookie(
                     COOKIE_NAME_JWT_TOKEN,
                     new_token,
