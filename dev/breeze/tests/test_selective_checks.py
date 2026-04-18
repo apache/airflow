@@ -101,54 +101,72 @@ LIST_OF_ALL_PROVIDER_TESTS_AS_JSON = json.dumps(
 
 ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
     "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
-    "mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-task-sdk,"
+    "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+    "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = "identity,update-uv-lock"
 
 ALL_SKIPPED_COMMITS_IF_NO_UI = (
-    "identity,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-task-sdk,"
+    "identity,mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+    "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
     "identity,lint-helm-chart,"
-    "mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-task-sdk,update-uv-lock"
+    "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+    "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
     "identity,lint-helm-chart,"
-    "mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-task-sdk,"
+    "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+    "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
     "check-provider-yaml-valid,identity,"
-    "mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-task-sdk,"
+    "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+    "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
     "check-provider-yaml-valid,identity,lint-helm-chart,"
-    "mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-task-sdk,"
+    "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+    "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS = (
     "check-provider-yaml-valid,identity,lint-helm-chart,"
-    "mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-task-sdk,"
+    "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+    "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
     "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
-    "mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-task-sdk,update-uv-lock"
+    "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+    "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
     "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
-    "mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-task-sdk,"
+    "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+    "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
@@ -345,7 +363,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "skip-prek-hooks": (
                         "check-provider-yaml-valid,identity,lint-helm-chart,"
-                        "mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-task-sdk,"
+                        "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+                        "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+                        "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                         "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "upgrade-to-newer-dependencies": "false",
@@ -612,7 +632,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "full-tests-needed": "false",
                     "skip-prek-hooks": (
                         "check-provider-yaml-valid,identity,lint-helm-chart,"
-                        "mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
+                        "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+                        "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+                        "mypy-scripts,mypy-shared,mypy-task-sdk-integration-tests,"
                         "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "skip-providers-tests": "false",
@@ -642,7 +664,13 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-task-sdk-integration-tests": "true",
                     "docs-build": "false",
                     "full-tests-needed": "false",
-                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
+                    "skip-prek-hooks": (
+                        "check-provider-yaml-valid,identity,lint-helm-chart,"
+                        "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+                        "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+                        "mypy-scripts,mypy-shared,mypy-task-sdk,"
+                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                    ),
                     "skip-providers-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "run-mypy-providers": "false",
@@ -671,7 +699,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "full-tests-needed": "false",
                     "skip-prek-hooks": (
                         "check-provider-yaml-valid,identity,lint-helm-chart,"
-                        "mypy-airflow-core,mypy-dev,mypy-devel-common,mypy-task-sdk,"
+                        "mypy-airflow-core,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+                        "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+                        "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                         "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "skip-providers-tests": "true",
@@ -699,7 +729,13 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-airflow-ctl-integration-tests": "true",
                     "docs-build": "false",
                     "full-tests-needed": "false",
-                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
+                    "skip-prek-hooks": (
+                        "check-provider-yaml-valid,identity,lint-helm-chart,"
+                        "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-e2e-tests,"
+                        "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+                        "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                    ),
                     "skip-providers-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "run-mypy-providers": "false",
@@ -1032,7 +1068,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-kubernetes-tests": "false",
                 "skip-prek-hooks": (
                     "identity,lint-helm-chart,"
-                    "mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-task-sdk,"
+                    "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+                    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+                    "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "upgrade-to-newer-dependencies": "false",
@@ -1190,7 +1228,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "docs-build": "true",
                 "skip-prek-hooks": (
                     "check-provider-yaml-valid,flynt,identity,"
-                    "mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-task-sdk,"
+                    "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+                    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+                    "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "upgrade-to-newer-dependencies": "false",
@@ -2060,7 +2100,9 @@ def test_expected_output_push(
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "skip-prek-hooks": (
                     "check-provider-yaml-valid,identity,lint-helm-chart,"
-                    "mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-task-sdk,"
+                    "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+                    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+                    "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "upgrade-to-newer-dependencies": "false",
@@ -2095,7 +2137,9 @@ def test_expected_output_push(
                 "microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh standard trino",
                 "skip-prek-hooks": (
-                    "identity,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-task-sdk,"
+                    "identity,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+                    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+                    "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "run-kubernetes-tests": "true",
@@ -2135,7 +2179,9 @@ def test_expected_output_push(
                 "docs-list-as-string": "apache-airflow",
                 "skip-prek-hooks": (
                     "check-provider-yaml-valid,identity,lint-helm-chart,"
-                    "mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-task-sdk,"
+                    "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+                    "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
+                    "mypy-scripts,mypy-shared,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "run-kubernetes-tests": "false",

@@ -136,6 +136,12 @@ class FileGroupForCi(Enum):
     ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES = auto()
     ALL_DEV_PYTHON_FILES = auto()
     ALL_DEVEL_COMMON_PYTHON_FILES = auto()
+    ALL_SCRIPTS_PYTHON_FILES = auto()
+    ALL_HELM_TESTS_PYTHON_FILES = auto()
+    ALL_AIRFLOW_E2E_TESTS_PYTHON_FILES = auto()
+    ALL_DOCKER_TESTS_PYTHON_FILES = auto()
+    ALL_KUBERNETES_TESTS_PYTHON_FILES = auto()
+    ALL_SHARED_PYTHON_FILES = auto()
     ALL_PROVIDER_YAML_FILES = auto()
     TESTS_UTILS_FILES = auto()
     ASSET_FILES = auto()
@@ -297,6 +303,24 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.ALL_DEVEL_COMMON_PYTHON_FILES: [
             r"^devel-common/.*\.py$",
+        ],
+        FileGroupForCi.ALL_SCRIPTS_PYTHON_FILES: [
+            r"^scripts/.*\.py$",
+        ],
+        FileGroupForCi.ALL_HELM_TESTS_PYTHON_FILES: [
+            r"^helm-tests/.*\.py$",
+        ],
+        FileGroupForCi.ALL_AIRFLOW_E2E_TESTS_PYTHON_FILES: [
+            r"^airflow-e2e-tests/.*\.py$",
+        ],
+        FileGroupForCi.ALL_DOCKER_TESTS_PYTHON_FILES: [
+            r"^docker-tests/.*\.py$",
+        ],
+        FileGroupForCi.ALL_KUBERNETES_TESTS_PYTHON_FILES: [
+            r"^kubernetes-tests/.*\.py$",
+        ],
+        FileGroupForCi.ALL_SHARED_PYTHON_FILES: [
+            r"^shared/.*\.py$",
         ],
         FileGroupForCi.ALL_SOURCE_FILES: [
             r"^.pre-commit-config.yaml$",
@@ -1486,12 +1510,36 @@ class SelectiveChecks:
                 prek_hooks_to_skip.add("mypy-airflow-core")
             if not self._matching_files(FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-dev")
+            if not self._matching_files(FileGroupForCi.ALL_SCRIPTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-scripts")
             if not self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-task-sdk")
             if not self._matching_files(FileGroupForCi.ALL_DEVEL_COMMON_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-devel-common")
             if not self._matching_files(FileGroupForCi.ALL_AIRFLOW_CTL_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-airflow-ctl")
+            if not self._matching_files(
+                FileGroupForCi.AIRFLOW_CTL_INTEGRATION_TEST_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-airflow-ctl-tests")
+            if not self._matching_files(FileGroupForCi.ALL_HELM_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-helm-tests")
+            if not self._matching_files(
+                FileGroupForCi.ALL_AIRFLOW_E2E_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-airflow-e2e-tests")
+            if not self._matching_files(
+                FileGroupForCi.TASK_SDK_INTEGRATION_TEST_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-task-sdk-integration-tests")
+            if not self._matching_files(FileGroupForCi.ALL_DOCKER_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-docker-tests")
+            if not self._matching_files(
+                FileGroupForCi.ALL_KUBERNETES_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-kubernetes-tests")
+            if not self._matching_files(FileGroupForCi.ALL_SHARED_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-shared")
         return ",".join(sorted(prek_hooks_to_skip))
 
     @cached_property
