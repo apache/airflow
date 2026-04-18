@@ -855,9 +855,45 @@ class AsyncKubernetesHook(KubernetesHook):
         self._extras: dict | None = connection_extras
         self._event_polling_fallback = False
         self._config_loaded = False
+        # Cached result of exec-auth detection. None means not yet detected.
+        # This is to optimise and not calling _uses_exec_auth repeatedly on every _load_config() call.
+        self._is_exec_auth: bool | None = None
+
+    def _uses_exec_auth(self, kubeconfig_data: dict, context: str | None = None) -> bool:
+        """
+        Detect if the active kubeconfig context uses exec-based authentication.
+
+        Exec plugins return short-lived tokens (EKS, GKE, etc). Only the user
+        tied to the active context is checked. If the active context or its user
+        cannot be resolved, falls back to scanning all users and returns True if
+        any use exec auth — erring on the side of not caching.
+        """
+        active_context = context or kubeconfig_data.get("current-context")
+
+        active_user: str | None = None
+        for ctx in kubeconfig_data.get("contexts", []):
+            if ctx.get("name") == active_context:
+                active_user = (ctx.get("context") or {}).get("user")
+                break
+
+        users = kubeconfig_data.get("users", [])
+        if active_user is not None:
+            for user in users:
+                if user.get("name") == active_user:
+                    return "exec" in (user.get("user") or {})
+            return False
+
+        # fallback to check all users if active context user cannot be resolved; this is a safe fallback since it errs on the side of not caching
+        return any("exec" in (u.get("user") or {}) for u in users)
 
     async def _load_config(self):
-        """Load Kubernetes configuration once per hook instance."""
+        """
+        Load Kubernetes configuration.
+
+        For static auth (token, certificate), configuration is loaded once per hook instance
+        and cached. For exec-based auth (EKS, GKE), the config is reloaded on every call so
+        that short-lived tokens are always refreshed.
+        """
         if self._config_loaded:
             return
 
@@ -884,39 +920,68 @@ class AsyncKubernetesHook(KubernetesHook):
             self._config_loaded = True
             return
 
-        # If above block does not return, we are not in a cluster.
         self._is_in_cluster = False
-
         if self.config_dict:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
-            await async_config.load_kube_config_from_dict(self.config_dict, context=cluster_context)
-            self._config_loaded = True
-            return
 
+            await async_config.load_kube_config_from_dict(
+                self.config_dict,
+                context=cluster_context,
+            )
+
+            if self._is_exec_auth is None:
+                self._is_exec_auth = self._uses_exec_auth(self.config_dict, context=cluster_context)
+
+            if not self._is_exec_auth:
+                self._config_loaded = True
+
+            return
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
+
             await async_config.load_kube_config(
                 config_file=kubeconfig_path,
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-            self._config_loaded = True
-            return
 
+            if self._is_exec_auth is None:
+                try:
+                    async with aiofiles.open(kubeconfig_path) as f:
+                        content = await f.read()
+                        data = yaml.safe_load(content)
+                    self._is_exec_auth = self._uses_exec_auth(data, context=cluster_context)
+                except Exception as exc:
+                    self.log.warning(
+                        "Error while parsing kube_config from %s to detect exec auth; "
+                        "continuing without caching the config: %s",
+                        kubeconfig_path,
+                        exc,
+                    )
+                    self._is_exec_auth = True
+
+            if not self._is_exec_auth:
+                self._config_loaded = True
+
+            return
         if kubeconfig is not None:
             async with aiofiles.tempfile.NamedTemporaryFile() as temp_config:
-                self.log.debug(
-                    "Reading kubernetes configuration file from connection "
-                    "object and writing temporary config file with its content",
-                )
                 if isinstance(kubeconfig, dict):
-                    self.log.debug(
-                        LOADING_KUBE_CONFIG_FILE_RESOURCE.format(
-                            "connection kube_config dictionary (serializing)"
+                    kubeconfig_data = kubeconfig
+                    kubeconfig_str = json.dumps(kubeconfig)
+                else:
+                    try:
+                        kubeconfig_data = _load_body_to_dict(kubeconfig)
+                    except AirflowException as exc:
+                        self.log.debug(
+                            "Could not parse kubeconfig string to detect exec auth; "
+                            "config will not be cached: %s",
+                            exc,
                         )
-                    )
-                    kubeconfig = json.dumps(kubeconfig)
-                await temp_config.write(kubeconfig.encode())
+                        kubeconfig_data = None
+                    kubeconfig_str = kubeconfig
+
+                await temp_config.write(kubeconfig_str.encode())
                 await temp_config.flush()
 
                 await async_config.load_kube_config(
@@ -924,10 +989,20 @@ class AsyncKubernetesHook(KubernetesHook):
                     client_configuration=self.client_configuration,
                     context=cluster_context,
                 )
-                self._config_loaded = True
-                return
 
+                if self._is_exec_auth is None:
+                    self._is_exec_auth = (
+                        self._uses_exec_auth(kubeconfig_data, context=cluster_context)
+                        if kubeconfig_data
+                        else True
+                    )
+
+                if not self._is_exec_auth:
+                    self._config_loaded = True
+
+            return
         self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
+
         await async_config.load_kube_config(
             client_configuration=self.client_configuration,
             context=cluster_context,

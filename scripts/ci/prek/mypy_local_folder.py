@@ -186,7 +186,33 @@ if CI:
         },
     )
 else:
-    # Locally, run via uv with --frozen to not update the lock file.
+    # Locally, first synchronize the project's virtualenv with uv.lock so that mypy runs
+    # against the same dependency set CI uses. Without this, the local .venv can drift from
+    # uv.lock (e.g. after switching branches or installing extras) and mypy results would
+    # diverge from CI. --frozen ensures uv.lock itself is not updated.
+    sync_cmd = ["uv", "sync", "--frozen", "--project", project]
+    if console:
+        console.print(f"[magenta]Syncing virtualenv for project {project}: {' '.join(sync_cmd)}[/]")
+    else:
+        print(f"Syncing virtualenv for project {project}: {' '.join(sync_cmd)}")
+    sync_result = subprocess.run(
+        sync_cmd,
+        cwd=str(AIRFLOW_ROOT_PATH),
+        check=False,
+        env={**os.environ, "TERM": "ansi"},
+    )
+    if sync_result.returncode != 0:
+        msg = (
+            f"`uv sync --frozen --project {project}` failed. Fix the sync error before running mypy — "
+            "otherwise the local virtualenv may not match uv.lock and mypy results will diverge from CI.\n"
+        )
+        if console:
+            console.print(f"[red]{msg}")
+        else:
+            print(msg)
+        sys.exit(sync_result.returncode)
+
+    # Then run mypy via uv with --frozen to not update the lock file.
     cmd = [
         "uv",
         "run",
@@ -211,8 +237,9 @@ if result.returncode != 0:
     msg = (
         "Mypy check failed. You can run mypy locally with:\n"
         f"  prek run mypy-{mypy_folders[0]} --all-files\n"
-        "Or directly with:\n"
-        f'  uv run --project {project} --with "apache-airflow-devel-common[mypy]" mypy <files>\n'
+        "Or directly (first sync the virtualenv to match CI's dependency set):\n"
+        f"  uv sync --frozen --project {project}\n"
+        f'  uv run --frozen --project {project} --with "apache-airflow-devel-common[mypy]" mypy <files>\n'
         "You can also clear the mypy cache with:\n"
         "  breeze down --cleanup-mypy-cache\n"
     )

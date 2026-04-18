@@ -1133,6 +1133,158 @@ class TestAsyncKubernetesHook:
         with pytest.raises(AirflowException):
             await hook._load_config()
 
+    @pytest.mark.parametrize(
+        ("kubeconfig_data", "context", "expected"),
+        [
+            pytest.param(
+                {
+                    "current-context": "ctx1",
+                    "contexts": [{"name": "ctx1", "context": {"user": "user1"}}],
+                    "users": [{"name": "user1", "user": {"exec": {"command": "aws"}}}],
+                },
+                None,
+                True,
+                id="active_context_user_has_exec",
+            ),
+            pytest.param(
+                {
+                    "current-context": "ctx1",
+                    "contexts": [{"name": "ctx1", "context": {"user": "user1"}}],
+                    "users": [{"name": "user1", "user": {"token": "abc123"}}],
+                },
+                None,
+                False,
+                id="active_context_user_has_static_token",
+            ),
+            pytest.param(
+                {
+                    "current-context": "ctx1",
+                    "contexts": [{"name": "ctx1", "context": {"user": "user1"}}],
+                    "users": [
+                        {"name": "user1", "user": {"token": "abc123"}},
+                        {"name": "user2", "user": {"exec": {"command": "aws"}}},
+                    ],
+                },
+                None,
+                False,
+                id="only_inactive_user_has_exec",
+            ),
+            pytest.param(
+                {
+                    "users": [{"name": "user1", "user": {"exec": {"command": "aws"}}}],
+                },
+                None,
+                True,
+                id="no_contexts_fallback_any_user_has_exec",
+            ),
+        ],
+    )
+    def test_uses_exec_auth(self, kubeconfig_data, context, expected):
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False)
+        assert hook._uses_exec_auth(kubeconfig_data, context=context) is expected
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config_from_dict")
+    async def test_load_config_no_caching_when_exec_auth(self, mock_load):
+        mock_load.return_value = None
+        exec_config = {
+            "current-context": "ctx1",
+            "contexts": [{"name": "ctx1", "context": {"user": "user1"}}],
+            "users": [{"name": "user1", "user": {"exec": {"command": "aws eks get-token"}}}],
+        }
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False, config_dict=exec_config)
+        await hook._load_config()
+        assert hook._config_loaded is False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("kubeconfig_content", "expected_cached"),
+        [
+            pytest.param(
+                (
+                    "current-context: ctx1\n"
+                    "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+                    "users:\n- name: user1\n  user:\n    exec:\n      command: aws eks get-token\n"
+                ),
+                False,
+                id="kube_config_path_with_exec",
+            ),
+            pytest.param(
+                (
+                    "current-context: ctx1\n"
+                    "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+                    "users:\n- name: user1\n  user:\n    token: static-token\n"
+                ),
+                True,
+                id="kube_config_path_no_exec",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config")
+    async def test_load_config_caching_behavior_kube_config_path(
+        self, mock_load_file, tmp_path, kubeconfig_content, expected_cached
+    ):
+        mock_load_file.return_value = None
+        kubeconfig_file = tmp_path / "kubeconfig.yaml"
+        kubeconfig_file.write_text(kubeconfig_content)
+
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False)
+        hook._get_field = mock.AsyncMock(
+            side_effect=lambda field: str(kubeconfig_file) if field == "kube_config_path" else None
+        )
+        await hook._load_config()
+        assert hook._config_loaded is expected_cached
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("kubeconfig", "expected_cached"),
+        [
+            pytest.param(
+                {
+                    "current-context": "ctx1",
+                    "contexts": [{"name": "ctx1", "context": {"user": "user1"}}],
+                    "users": [{"name": "user1", "user": {"token": "static-token"}}],
+                },
+                True,
+                id="dict_kubeconfig_no_exec",
+            ),
+            pytest.param(
+                (
+                    "current-context: ctx1\n"
+                    "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+                    "users:\n- name: user1\n  user:\n    exec:\n      command: aws\n"
+                ),
+                False,
+                id="string_kubeconfig_with_exec",
+            ),
+            pytest.param(
+                (
+                    "current-context: ctx1\n"
+                    "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+                    "users:\n- name: user1\n  user:\n    token: static-token\n"
+                ),
+                True,
+                id="string_kubeconfig_no_exec",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config")
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config_from_dict")
+    async def test_load_config_caching_behavior(
+        self, mock_load_dict, mock_load_file, kubeconfig, expected_cached
+    ):
+        mock_load_dict.return_value = None
+        mock_load_file.return_value = None
+        if isinstance(kubeconfig, dict):
+            hook = AsyncKubernetesHook(conn_id=None, in_cluster=False, config_dict=kubeconfig)
+        else:
+            hook = AsyncKubernetesHook(conn_id=None, in_cluster=False)
+            hook._get_field = mock.AsyncMock(
+                side_effect=lambda field: kubeconfig if field == "kube_config" else None
+            )
+        await hook._load_config()
+        assert hook._config_loaded is expected_cached
+
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("list_namespaced_event"))
     async def test_async_get_pod_events_with_resource_version(
