@@ -1165,6 +1165,33 @@ class TestDagFileProcessorManager:
         assert not processor._open_sockets
         processor.logger_filehandle.close.assert_called_once()
 
+    def test_deregister_processor_sockets_suppresses_already_unregistered(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        processor, _ = self.mock_processor()
+
+        sock = mock.Mock(spec=socket)
+        processor._open_sockets[sock] = "log"
+        manager.selector = MagicMock()
+        manager.selector.unregister.side_effect = KeyError
+
+        manager._deregister_processor_sockets(processor)
+
+        sock.close.assert_called_once()
+        assert not processor._open_sockets
+
+    def test_deregister_processor_sockets_suppresses_close_error(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        processor, _ = self.mock_processor()
+
+        sock = mock.Mock(spec=socket)
+        sock.close.side_effect = OSError("fd already closed")
+        processor._open_sockets[sock] = "log"
+        manager.selector = MagicMock()
+
+        manager._deregister_processor_sockets(processor)
+
+        assert not processor._open_sockets
+
     def test_handle_parsing_result_provides_its_own_session_when_caller_omits(self):
         """``handle_parsing_result`` is wrapped in ``@provide_session`` so subclasses overriding it can run without a caller-supplied session."""
         manager = DagFileProcessorManager(max_runs=1)
