@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useMemo } from "react";
-
 import type { GridRunsResponse } from "openapi/requests";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 
@@ -44,31 +42,29 @@ export const useGridRunsWithVersionFlags = ({
 }: UseGridRunsWithVersionFlagsParams): Array<GridRunWithVersionFlags> | undefined => {
   const isVersionIndicatorEnabled = showVersionIndicatorMode !== VersionIndicatorOptions.NONE;
 
-  return useMemo(() => {
-    if (!gridRuns) {
-      return undefined;
-    }
+  if (!gridRuns) {
+    return undefined;
+  }
 
-    if (!isVersionIndicatorEnabled) {
-      return gridRuns.map((run) => ({ ...run, isBundleVersionChange: false, isDagVersionChange: false }));
-    }
+  if (!isVersionIndicatorEnabled) {
+    return gridRuns.map((run) => ({ ...run, isBundleVersionChange: false, isDagVersionChange: false }));
+  }
 
-    return gridRuns.map((run, index) => {
-      const nextRun = gridRuns[index + 1];
+  return gridRuns.map((run, index) => {
+    const nextRun = gridRuns[index + 1];
 
-      const currentBundleVersion = getBundleVersion(run);
-      const nextBundleVersion = nextRun ? getBundleVersion(nextRun) : undefined;
-      const isBundleVersionChange =
-        currentBundleVersion !== undefined &&
-        nextBundleVersion !== undefined &&
-        currentBundleVersion !== nextBundleVersion;
+    const currentBundleVersion = getBundleVersion(run);
+    const nextBundleVersion = nextRun ? getBundleVersion(nextRun) : undefined;
+    const isBundleVersionChange =
+      currentBundleVersion !== undefined &&
+      nextBundleVersion !== undefined &&
+      currentBundleVersion !== nextBundleVersion;
 
-      const currentVersion = getMaxVersionNumber(run);
-      const nextVersion = nextRun ? getMaxVersionNumber(nextRun) : undefined;
-      const isDagVersionChange =
-        currentVersion !== undefined && nextVersion !== undefined && currentVersion !== nextVersion;
+    const currentVersion = getMaxVersionNumber(run);
+    const nextVersion = nextRun ? getMaxVersionNumber(nextRun) : undefined;
+    const isDagVersionChange =
+      currentVersion !== undefined && nextVersion !== undefined && currentVersion !== nextVersion;
 
-      return { ...run, isBundleVersionChange, isDagVersionChange };
-    });
-  }, [gridRuns, isVersionIndicatorEnabled]);
+    return { ...run, isBundleVersionChange, isDagVersionChange };
+  });
 };

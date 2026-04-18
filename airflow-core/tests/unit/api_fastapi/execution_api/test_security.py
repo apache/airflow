@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import pytest
@@ -23,7 +24,12 @@ from fastapi import APIRouter, FastAPI, Request, Security
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
-from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, _jwt_bearer, require_auth
+from airflow.api_fastapi.execution_api.security import (
+    ExecutionAPIRoute,
+    _jwt_bearer,
+    get_team_name_dep,
+    require_auth,
+)
 
 
 class TestExecutionAPIRoute:
@@ -136,3 +142,21 @@ class TestTokenTypeScopeEnforcement:
         run = client.get(f"/task-instances/{self.TI_ID}/run", headers={"Authorization": "Bearer fake"})
         assert state.status_code == 200
         assert run.status_code == 200
+
+
+class TestGetTeamNameDep:
+    """Tests for get_team_name_dep avoiding unnecessary async sessions."""
+
+    @pytest.mark.asyncio
+    async def test_returns_none_without_session_when_multi_team_disabled(self):
+        """When multi_team=False, no async session should be created."""
+        token = MagicMock(spec=TIToken)
+
+        with (
+            patch("airflow.configuration.conf.getboolean", return_value=False),
+            patch("airflow.utils.session.create_session_async") as mock_create_session,
+        ):
+            result = await get_team_name_dep(token=token)
+
+        assert result is None
+        mock_create_session.assert_not_called()

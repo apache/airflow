@@ -16,45 +16,48 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { test, expect } from "@playwright/test";
-
-import { ProvidersPage } from "../pages/ProvidersPage";
+import { expect, test } from "tests/e2e/fixtures";
 
 test.describe("Providers Page", () => {
-  let providersPage: ProvidersPage;
-
-  test.beforeEach(async ({ page }) => {
-    providersPage = new ProvidersPage(page);
+  test.beforeEach(async ({ providersPage }) => {
     await providersPage.navigate();
     await providersPage.waitForLoad();
   });
 
-  test("verify providers page heading", async () => {
+  test("verify providers page heading", async ({ providersPage }) => {
     await expect(providersPage.heading).toBeVisible();
   });
 
-  test("Verify Providers page is accessible via Admin menu", async ({ page }) => {
-    await providersPage.navigateFromAdminMenu();
+  test("Verify Providers page is accessible via Admin menu", async ({ page, providersPage }) => {
+    await page.goto("/");
+
+    await page.getByRole("button", { name: /^admin$/i }).click();
+
+    const providersItem = page.getByRole("menuitem", { name: /^providers$/i });
+
+    await expect(providersItem).toBeVisible();
+    await providersItem.click();
+
     await providersPage.waitForLoad();
-
-    await expect(page).toHaveURL(/\/providers$/);
     await expect(providersPage.heading).toBeVisible();
-    await expect(providersPage.rows).not.toHaveCount(0);
+    expect(await providersPage.getRowCount()).toBeGreaterThan(0);
   });
 
-  test("Verify the providers list displays", async () => {
+  test("Verify the providers list displays", async ({ providersPage }) => {
     await expect(providersPage.table).toBeVisible();
   });
 
-  test("Verify package name, version, and description are not blank", async () => {
-    await expect(providersPage.rows).not.toHaveCount(0);
+  test("Verify package name, version, and description are not blank", async ({ providersPage }) => {
+    const count = await providersPage.getRowCount();
 
-    const count = Math.min(await providersPage.rows.count(), 2);
+    expect(count).toBeGreaterThan(0);
 
-    for (let i = 0; i < count; i++) {
-      await expect(providersPage.packageLinkAt(i)).not.toBeEmpty();
-      await expect(providersPage.versionCellAt(i)).not.toBeEmpty();
-      await expect(providersPage.descriptionCellAt(i)).not.toBeEmpty();
+    for (let i = 0; i < 2; i++) {
+      const { description, packageName, version } = await providersPage.getRowDetails(i);
+
+      expect(packageName).not.toEqual("");
+      expect(version).not.toEqual("");
+      expect(description).not.toEqual("");
     }
   });
 });

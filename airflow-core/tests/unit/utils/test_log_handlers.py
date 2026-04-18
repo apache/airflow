@@ -510,7 +510,7 @@ class TestFileTaskLogHandler:
         path2 = tmp_path / "hello1.log.suffix.log"
         path1.write_text("file1 content\nfile1 content2")
         path2.write_text("file2 content\nfile2 content2")
-        fth = FileTaskHandler("")
+        fth = FileTaskHandler(str(tmp_path))
         log_source_info, log_streams = fth._read_from_local(path1)
         assert log_source_info == [str(path1), str(path2)]
         assert len(log_streams) == 2
