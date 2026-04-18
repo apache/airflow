@@ -591,7 +591,7 @@ def run_cleanup(
     :param skip_archive: Set to True if you don't want the purged rows preserved in an archive table.
     :param session: Session representing connection to the metadata database.
     :param batch_size: Maximum number of rows to delete or archive in a single transaction.
-    :param error_on_cleanup_failure: If True, raise an AirflowException after processing all tables
+    :param error_on_cleanup_failure: If True, raise a RuntimeError after processing all tables
         if any per-table cleanup encountered an error. By default errors are suppressed and the
         command exits 0 even if some tables were not cleaned.
     """
@@ -637,15 +637,15 @@ def run_cleanup(
             logger.warning("Table %s not found.  Skipping.", table_name)
 
     if failed_tables:
+        if error_on_cleanup_failure:
+            raise RuntimeError(
+                f"airflow db clean encountered errors on the following tables and did not clean them: "
+                f"{failed_tables}. Check the logs above for details."
+            )
         logger.warning(
             "The following tables were not cleaned due to errors: %s. Check the logs above for details.",
             failed_tables,
         )
-        if error_on_cleanup_failure:
-            raise AirflowException(
-                f"airflow db clean encountered errors on the following tables and did not clean them: "
-                f"{failed_tables}. Check the logs above for details."
-            )
 
 
 @provide_session

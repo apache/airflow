@@ -543,12 +543,7 @@ ARG_DB_BATCH_SIZE = Arg(
 )
 ARG_DB_ERROR_ON_CLEANUP_FAILURE = Arg(
     ("--error-on-cleanup-failure",),
-    help=(
-        "If set, the command will exit with a non-zero exit code if any table cleanup encountered "
-        "an error. By default errors are suppressed and the command exits 0 even if some tables "
-        "were not cleaned. Recommended when running airflow db clean from a DAG or automated "
-        "workflow so that failures are surfaced rather than silently skipped."
-    ),
+    help="Command will exit with a non-zero exit code if any table cleanup failed. By default errors are suppressed and the command exits 0.",
     action="store_true",
 )
 ARG_DAG_IDS = Arg(

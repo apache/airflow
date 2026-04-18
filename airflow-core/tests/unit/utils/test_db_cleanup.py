@@ -549,19 +549,25 @@ class TestDBCleanup:
         assert set(all_models) - exclusion_list.union(config_dict) == set()
         assert exclusion_list.isdisjoint(config_dict)
 
-    def test_no_failure_warnings(self, caplog):
+    def test_no_failure_warnings(self):
         """
         Ensure every table we have configured (and that is present in the db) can be cleaned successfully.
         For example, this checks that the recency column is actually a column.
         """
-        run_cleanup(clean_before_timestamp=timezone.utcnow(), dry_run=True)
-        assert "Encountered error when attempting to clean table" not in caplog.text
+        with patch("airflow.utils.db_cleanup.logger") as mock_logger:
+            run_cleanup(clean_before_timestamp=timezone.utcnow(), dry_run=True)
+            for call in mock_logger.warning.call_args_list:
+                assert "Encountered error when attempting to clean table" not in str(call)
 
         # Lets check we have the right error message just in case
-        caplog.clear()
-        with patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("oops", {}, None)):
+        with (
+            patch("airflow.utils.db_cleanup.logger") as mock_logger,
+            patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("oops", {}, None)),
+        ):
             run_cleanup(clean_before_timestamp=timezone.utcnow(), table_names=["task_instance"], dry_run=True)
-        assert "Encountered error when attempting to clean table" in caplog.text
+            mock_logger.warning.assert_any_call(
+                "Encountered error when attempting to clean table '%s'. ", "task_instance"
+            )
 
     @pytest.mark.parametrize(
         "drop_archive",
@@ -745,9 +751,9 @@ class TestDBCleanup:
         "airflow.utils.db_cleanup._cleanup_table",
         side_effect=OperationalError("", {}, Exception("mock db error")),
     )
-    def test_error_on_cleanup_failure_raises_when_flag_set(self, cleanup_table_mock, caplog):
-        """When error_on_cleanup_failure=True and a table fails, AirflowException should be raised."""
-        with pytest.raises(AirflowException, match="airflow db clean encountered errors"):
+    def test_error_on_cleanup_failure_raises_when_flag_set(self, cleanup_table_mock):
+        """When error_on_cleanup_failure=True and a table fails, RuntimeError should be raised."""
+        with pytest.raises(RuntimeError, match="airflow db clean encountered errors"):
             run_cleanup(
                 clean_before_timestamp=None,
                 table_names=["log"],
@@ -761,33 +767,40 @@ class TestDBCleanup:
         "airflow.utils.db_cleanup._cleanup_table",
         side_effect=OperationalError("", {}, Exception("mock db error")),
     )
-    def test_error_on_cleanup_failure_no_raise_by_default(self, cleanup_table_mock, caplog):
+    def test_error_on_cleanup_failure_no_raise_by_default(self, cleanup_table_mock):
         """When error_on_cleanup_failure=False (default) and a table fails, no exception is raised."""
-        run_cleanup(
-            clean_before_timestamp=None,
-            table_names=["log"],
-            dry_run=False,
-            verbose=False,
-            confirm=False,
-            error_on_cleanup_failure=False,
-        )
-        assert "The following tables were not cleaned due to errors" in caplog.text
+        with patch("airflow.utils.db_cleanup.logger") as mock_logger:
+            run_cleanup(
+                clean_before_timestamp=None,
+                table_names=["log"],
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                error_on_cleanup_failure=False,
+            )
+            mock_logger.warning.assert_any_call(
+                "The following tables were not cleaned due to errors: %s. Check the logs above for details.",
+                ["log"],
+            )
 
     @patch(
         "airflow.utils.db_cleanup._cleanup_table",
         side_effect=OperationalError("", {}, Exception("mock db error")),
     )
-    def test_error_on_cleanup_failure_lists_failed_tables_in_warning(self, cleanup_table_mock, caplog):
-        """A warning naming the failed tables should always be emitted, regardless of the flag."""
-        run_cleanup(
-            clean_before_timestamp=None,
-            table_names=["log"],
-            dry_run=False,
-            verbose=False,
-            confirm=False,
-        )
-        assert "log" in caplog.text
-        assert "The following tables were not cleaned due to errors" in caplog.text
+    def test_error_on_cleanup_failure_lists_failed_tables_in_warning(self, cleanup_table_mock):
+        """A warning naming the failed tables is emitted when error_on_cleanup_failure is not set."""
+        with patch("airflow.utils.db_cleanup.logger") as mock_logger:
+            run_cleanup(
+                clean_before_timestamp=None,
+                table_names=["log"],
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+            )
+            mock_logger.warning.assert_any_call(
+                "The following tables were not cleaned due to errors: %s. Check the logs above for details.",
+                ["log"],
+            )
 
     @patch("airflow.utils.db_cleanup._cleanup_table")
     def test_error_on_cleanup_failure_propagated_from_run_cleanup(self, cleanup_table_mock):

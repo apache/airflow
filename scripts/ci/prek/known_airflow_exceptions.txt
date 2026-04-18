@@ -18,7 +18,7 @@ airflow-core/src/airflow/serialization/serialized_objects.py::2
 airflow-core/src/airflow/ti_deps/deps/valid_state_dep.py::1
 airflow-core/src/airflow/utils/cli.py::4
 airflow-core/src/airflow/utils/db.py::1
-airflow-core/src/airflow/utils/db_cleanup.py::2
+airflow-core/src/airflow/utils/db_cleanup.py::1
 airflow-core/src/airflow/utils/db_manager.py::3
 airflow-core/src/airflow/utils/dot_renderer.py::3
 airflow-core/src/airflow/utils/helpers.py::4
