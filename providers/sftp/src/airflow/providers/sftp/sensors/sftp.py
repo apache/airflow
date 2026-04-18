@@ -26,10 +26,15 @@ from typing import TYPE_CHECKING, Any
 
 from paramiko.sftp import SFTP_NO_SUCH_FILE
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, PokeReturnValue, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    BaseSensorOperator,
+    PokeReturnValue,
+    conf,
+    timezone,
+)
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.triggers.sftp import SFTPTrigger
-from airflow.utils.timezone import convert_to_utc, parse
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -119,9 +124,9 @@ class SFTPSensor(BaseSensorOperator):
                     continue
 
                 if isinstance(self.newer_than, str):
-                    self.newer_than = parse(self.newer_than)
-                _mod_time = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
-                _newer_than = convert_to_utc(self.newer_than)
+                    self.newer_than = timezone.parse(self.newer_than)
+                _mod_time = timezone.convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
+                _newer_than = timezone.convert_to_utc(self.newer_than)
                 if _newer_than <= _mod_time:
                     files_found.append(actual_file_present)
                     self.log.info(
