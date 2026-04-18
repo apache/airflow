@@ -727,6 +727,35 @@ class TestTaskInstance:
         period = ti.end_date.add(seconds=6000) - ti.end_date.add(seconds=1200)
         assert date in period
 
+    def test_next_retry_datetime_with_retry_delay_override(self, dag_maker):
+        """When retry_delay_override is set (by a RetryPolicy), it takes precedence over the standard calculation."""
+        with dag_maker(dag_id="fail_dag"):
+            task = BashOperator(
+                task_id="task_with_retry_override",
+                bash_command="exit 1",
+                retries=3,
+                retry_delay=datetime.timedelta(minutes=5),
+                retry_exponential_backoff=2.0,
+            )
+        ti = dag_maker.create_dagrun().task_instances[0]
+        ti.task = task
+        ti.end_date = pendulum.instance(timezone.utcnow())
+
+        # Without override: uses exponential backoff (would be > 5 minutes)
+        ti.retry_delay_override = None
+        date_normal = ti.next_retry_datetime()
+        assert date_normal > ti.end_date + datetime.timedelta(seconds=5)
+
+        # With override: uses the exact override value (10 seconds)
+        ti.retry_delay_override = 10.0
+        date_override = ti.next_retry_datetime()
+        assert date_override == ti.end_date + datetime.timedelta(seconds=10)
+
+        # Override of 0 means retry immediately
+        ti.retry_delay_override = 0.0
+        date_zero = ti.next_retry_datetime()
+        assert date_zero == ti.end_date
+
     @pytest.mark.usefixtures("test_pool")
     def test_mapped_task_reschedule_handling_clear_reschedules(self, dag_maker, task_reschedules_for_ti):
         """
@@ -2484,6 +2513,8 @@ class TestTaskInstance:
             "dag_version_id": mock.ANY,
             "context_carrier": {},
             "span_status": SpanStatus.ENDED,
+            "retry_delay_override": 60.0,
+            "retry_reason": "Rate limit, backing off",
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key}" for key in expected_values}

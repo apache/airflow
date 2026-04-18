@@ -118,6 +118,12 @@ class TaskInstanceHistory(Base):
     task_display_name: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     dag_version_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
 
+    # Retry policy snapshot: copied from TaskInstance on record_ti() so the
+    # audit trail of "why did the policy decide N seconds, reason X" is
+    # preserved per try (TI columns are cleared on the next ti_run).
+    retry_delay_override: Mapped[float | None] = mapped_column(Float, nullable=True)
+    retry_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
     dag_version = relationship(
         "DagVersion",
         primaryjoin="TaskInstanceHistory.dag_version_id == DagVersion.id",

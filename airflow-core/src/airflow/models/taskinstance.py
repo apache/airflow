@@ -603,6 +603,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     )
     dag_version = relationship("DagVersion", back_populates="task_instances")
 
+    # Retry policy overrides: set by the task worker when a RetryPolicy is configured.
+    # Cleared on task start (ti_run).  Read by next_retry_datetime().
+    retry_delay_override: Mapped[float | None] = mapped_column(Float, nullable=True)
+    retry_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),
         Index("ti_dag_run", dag_id, run_id),
@@ -1127,8 +1132,18 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         """
         Get datetime of the next retry if the task instance fails.
 
+        When a :class:`~airflow.sdk.definitions.retry_policy.RetryPolicy` has
+        overridden the delay, ``retry_delay_override`` is stored on the task
+        instance row and takes precedence over the static ``retry_delay`` /
+        exponential-backoff calculation.
+
         For exponential backoff, retry_delay is used as base and will be converted to seconds.
         """
+        # Check for a policy-driven delay override.
+        if self.retry_delay_override is not None:
+            base = self.end_date if self.end_date is not None else timezone.utcnow()
+            return base + timedelta(seconds=self.retry_delay_override)
+
         from airflow.sdk.definitions._internal.abstractoperator import MAX_RETRY_DELAY
 
         delay = self.task.retry_delay
