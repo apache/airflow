@@ -72,6 +72,7 @@
     "files_other": "{{count}} files"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Enter Duration in ISO 8601 format",
     "placeholder": "Select Value",
     "placeholderArray": "Enter each string on a new line",
     "placeholderExamples": "Start typing to see options",
@@ -79,6 +80,7 @@
     "validationErrorArrayNotArray": "Value must be an array.",
     "validationErrorArrayNotNumbers": "All elements in the array must be numbers.",
     "validationErrorArrayNotObject": "All elements in the array must be objects.",
+    "validationErrorDuration": "Invalid ISO 8601 duration format",
     "validationErrorRequired": "This field is required"
   },
   "graph": {

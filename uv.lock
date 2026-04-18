@@ -1819,6 +1819,7 @@ dependencies = [
     { name = "fastapi", extra = ["standard-no-fastapi-cloud-cli"] },
     { name = "httpx" },
     { name = "importlib-metadata" },
+    { name = "isoduration" },
     { name = "itsdangerous" },
     { name = "jinja2" },
     { name = "jsonschema" },
@@ -1956,6 +1957,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.25.0" },
     { name = "importlib-metadata", marker = "python_full_version < '3.12'", specifier = ">=6.5" },
     { name = "importlib-metadata", marker = "python_full_version >= '3.12'", specifier = ">=7.0" },
+    { name = "isoduration", specifier = ">=20.11.0" },
     { name = "itsdangerous", specifier = ">=2.0" },
     { name = "jinja2", specifier = ">=3.1.5" },
     { name = "jsonschema", specifier = ">=4.19.1" },
@@ -8470,6 +8472,7 @@ dependencies = [
     { name = "greenback" },
     { name = "httpx" },
     { name = "importlib-metadata", marker = "python_full_version < '3.12'" },
+    { name = "isoduration" },
     { name = "jinja2" },
     { name = "jsonschema" },
     { name = "methodtools" },
@@ -8546,6 +8549,7 @@ requires-dist = [
     { name = "greenback", specifier = ">=1.2.1" },
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "importlib-metadata", marker = "python_full_version < '3.12'", specifier = ">=6.5" },
+    { name = "isoduration", specifier = ">=20.11.0" },
     { name = "jinja2", specifier = ">=3.1.5" },
     { name = "jsonschema", specifier = ">=4.19.1" },
     { name = "methodtools", specifier = ">=0.4.7" },
@@ -8754,6 +8758,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/42/8b/2496b369a5f33b8bd7dea09e21578dc697b74db3ad5bdb83f7324ef5369c/arro3_core-0.8.0-pp311-pypy311_pp73-musllinux_1_2_armv7l.whl", hash = "sha256:593c2ca6f47de78fd92abf1809b625be9c20e36b1d3160a5d79713ec7d04819f", size = 3382665, upload-time = "2026-02-23T15:12:14.583Z" },
     { url = "https://files.pythonhosted.org/packages/b4/48/04b27a7d217f823324b4eb7bcb626c29ce100fdb7c54430a4101e5b851c0/arro3_core-0.8.0-pp311-pypy311_pp73-musllinux_1_2_i686.whl", hash = "sha256:57ff2c2761b4451c1a693f7a63d26ed1067e9d64e3670411e45998989859f3e5", size = 3307751, upload-time = "2026-02-23T15:12:17.124Z" },
     { url = "https://files.pythonhosted.org/packages/12/03/8653a2dce9f3908fe01fb5dc5aaaabd89dcd9f22bbdaa50745aad7c47a7a/arro3_core-0.8.0-pp311-pypy311_pp73-musllinux_1_2_x86_64.whl", hash = "sha256:d285aab000ef4ad4d91597e9662298ad3ac774939e8accea96a6522815331896", size = 3209809, upload-time = "2026-02-23T15:12:19.359Z" },
+]
+
+[[package]]
+name = "arrow"
+version = "1.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "python-dateutil" },
+    { name = "tzdata" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b9/33/032cdc44182491aa708d06a68b62434140d8c50820a087fac7af37703357/arrow-1.4.0.tar.gz", hash = "sha256:ed0cc050e98001b8779e84d461b0098c4ac597e88704a655582b21d116e526d7", size = 152931, upload-time = "2025-10-18T17:46:46.761Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ed/c9/d7977eaacb9df673210491da99e6a247e93df98c715fc43fd136ce1d3d33/arrow-1.4.0-py3-none-any.whl", hash = "sha256:749f0769958ebdc79c173ff0b0670d59051a535fa26e8eba02953dc19eb43205", size = 68797, upload-time = "2025-10-18T17:46:45.663Z" },
 ]
 
 [[package]]
@@ -13957,6 +13974,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/54/4d/e940025e2ce31a8ce1202635910747e5a87cc3a6a6bb2d00973375014749/isodate-0.7.2.tar.gz", hash = "sha256:4cd1aa0f43ca76f4a6c6c0292a85f40b35ec2e43e315b59f06e6d32171a953e6", size = 29705, upload-time = "2024-10-08T23:04:11.5Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/15/aa/0aca39a37d3c7eb941ba736ede56d689e7be91cab5d9ca846bde3999eba6/isodate-0.7.2-py3-none-any.whl", hash = "sha256:28009937d8031054830160fce6d409ed342816b543597cece116d966c6d99e15", size = 22320, upload-time = "2024-10-08T23:04:09.501Z" },
+]
+
+[[package]]
+name = "isoduration"
+version = "20.11.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "arrow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7c/1a/3c8edc664e06e6bd06cce40c6b22da5f1429aa4224d0c590f3be21c91ead/isoduration-20.11.0.tar.gz", hash = "sha256:ac2f9015137935279eac671f94f89eb00584f940f5dc49462a0c4ee692ba1bd9", size = 11649, upload-time = "2020-11-01T11:00:00.312Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7b/55/e5326141505c5d5e34c5e0935d2908a74e4561eca44108fbfb9c13d2911a/isoduration-20.11.0-py3-none-any.whl", hash = "sha256:b2904c2a4228c3d44f409c8ae8e2370eb21a26f7ac2ec5446df141dde3452042", size = 11321, upload-time = "2020-11-01T10:59:58.02Z" },
 ]
 
 [[package]]

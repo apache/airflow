@@ -21,8 +21,10 @@ from __future__ import annotations
 import collections.abc
 import copy
 from typing import TYPE_CHECKING, Any, Literal
+from jsonschema import FormatChecker, validate
 
 from airflow.exceptions import ParamValidationError
+
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 
 if TYPE_CHECKING:
@@ -57,11 +59,16 @@ class SerializedParam:
             default. They are only raised if this is set to *True* instead.
         """
         import jsonschema
+        from jsonschema import FormatChecker
 
         try:
             if not is_arg_set(value := self.value):
                 raise ValueError("No value passed")
-            jsonschema.validate(value, self.schema, format_checker=jsonschema.FormatChecker())
+            jsonschema.validate(
+                value,
+                self.schema,
+                format_checker=FormatChecker(),
+            )
         except Exception:
             if not raises:
                 return None

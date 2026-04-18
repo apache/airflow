@@ -106,8 +106,14 @@ class Param:
             if suppress_exception:
                 return None
             raise ParamValidationError("No value passed and Param has no default value")
+
         try:
-            jsonschema.validate(final_val, self.schema, format_checker=FormatChecker())
+            jsonschema.validate(
+                final_val,
+                self.schema,
+                format_checker=FormatChecker(),
+            )
+
         except ValidationError as err:
             if suppress_exception:
                 return None
