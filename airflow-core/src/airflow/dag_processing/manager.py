@@ -1080,7 +1080,7 @@ class DagFileProcessorManager(LoggingMixin):
         for sock in list(processor._open_sockets.keys()):
             with contextlib.suppress(KeyError):
                 self.selector.unregister(sock)
-            with contextlib.suppress(Exception):
+            with contextlib.suppress(OSError, ValueError):
                 sock.close()
         processor._open_sockets.clear()
 

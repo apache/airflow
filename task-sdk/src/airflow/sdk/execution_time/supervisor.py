@@ -2162,9 +2162,10 @@ def process_log_messages_from_subprocess(
             for target in loggers:
                 try:
                     target.log(level, msg, **event)
-                except ValueError:
-                    # Log handle already closed; discard remaining output from killed subprocess.
-                    return
+                except ValueError as e:
+                    if "write to closed file" not in str(e):
+                        raise
+                    # This logger's handle is closed (subprocess was killed); skip it.
 
 
 def forward_to_log(

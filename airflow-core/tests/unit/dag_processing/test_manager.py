@@ -1119,6 +1119,52 @@ class TestDagFileProcessorManager:
             manager._kill_timed_out_processors()
         mock_kill.assert_not_called()
 
+    def test_terminate_orphan_processes_deregisters_sockets(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        processor, _ = self.mock_processor()
+
+        sock1, sock2 = mock.Mock(spec=socket), mock.Mock(spec=socket)
+        processor._open_sockets[sock1] = "log"
+        processor._open_sockets[sock2] = "log"
+
+        file_info = DagFileInfo(
+            bundle_name="testing", rel_path=Path("removed.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        manager._processors = {file_info: processor}
+        manager.selector = MagicMock()
+
+        with mock.patch.object(type(processor), "kill"):
+            manager.terminate_orphan_processes(present=set())
+
+        manager.selector.unregister.assert_any_call(sock1)
+        manager.selector.unregister.assert_any_call(sock2)
+        sock1.close.assert_called_once()
+        sock2.close.assert_called_once()
+        assert not processor._open_sockets
+        processor.logger_filehandle.close.assert_called_once()
+
+    def test_kill_timed_out_processors_deregisters_sockets(self):
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
+        start_time = time.monotonic() - manager.processor_timeout - 1
+        processor, _ = self.mock_processor(start_time=start_time)
+
+        sock = mock.Mock(spec=socket)
+        processor._open_sockets[sock] = "log"
+
+        file_info = DagFileInfo(
+            bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER
+        )
+        manager._processors = {file_info: processor}
+        manager.selector = MagicMock()
+
+        with mock.patch.object(type(processor), "kill"):
+            manager._kill_timed_out_processors()
+
+        manager.selector.unregister.assert_called_once_with(sock)
+        sock.close.assert_called_once()
+        assert not processor._open_sockets
+        processor.logger_filehandle.close.assert_called_once()
+
     def test_handle_parsing_result_provides_its_own_session_when_caller_omits(self):
         """``handle_parsing_result`` is wrapped in ``@provide_session`` so subclasses overriding it can run without a caller-supplied session."""
         manager = DagFileProcessorManager(max_runs=1)

@@ -3654,6 +3654,54 @@ def test_process_log_messages_from_subprocess(monkeypatch, caplog):
     ]
 
 
+def test_process_log_messages_closed_logger_is_skipped():
+    """A logger whose file handle is closed is skipped; other loggers still receive messages
+    and the generator continues processing subsequent lines."""
+    from structlog.typing import FilteringBoundLogger
+
+    closed_logger = mock.Mock(spec=FilteringBoundLogger)
+    closed_logger.log.side_effect = ValueError("write to closed file")
+
+    good_logger = mock.Mock(spec=FilteringBoundLogger)
+
+    def fake_reconfigure(log, *args, **kwargs):
+        return log
+
+    with mock.patch(
+        "airflow.sdk.execution_time.supervisor.reconfigure_logger",
+        side_effect=fake_reconfigure,
+    ):
+        gen = process_log_messages_from_subprocess(loggers=(closed_logger, good_logger))
+        next(gen)
+
+        # closed_logger raises; good_logger should still receive both messages
+        gen.send(b'{"level": "info", "event": "hello"}\n')
+        gen.send(b'{"level": "info", "event": "world"}\n')
+
+    assert good_logger.log.call_count == 2
+
+
+def test_process_log_messages_unexpected_value_error_is_reraised():
+    """A ValueError unrelated to a closed file handle must propagate, not be silently swallowed."""
+    from structlog.typing import FilteringBoundLogger
+
+    buggy_logger = mock.Mock(spec=FilteringBoundLogger)
+    buggy_logger.log.side_effect = ValueError("unexpected formatting bug")
+
+    def fake_reconfigure(log, *args, **kwargs):
+        return log
+
+    with mock.patch(
+        "airflow.sdk.execution_time.supervisor.reconfigure_logger",
+        side_effect=fake_reconfigure,
+    ):
+        gen = process_log_messages_from_subprocess(loggers=(buggy_logger,))
+        next(gen)
+
+        with pytest.raises(ValueError, match="unexpected formatting bug"):
+            gen.send(b'{"level": "info", "event": "test"}\n')
+
+
 def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
     def subprocess_main():
         # This is run in the subprocess!
