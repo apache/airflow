@@ -147,22 +147,24 @@ class GitHook(BaseHook):
         if not isinstance(self.repo_url, str):
             return
         if self.auth_token and self.repo_url.startswith("https://"):
+            original_url = self.repo_url
             encoded_user = urlquote(self.user_name, safe="")
             encoded_token = urlquote(self.auth_token, safe="")
             self.repo_url = self.repo_url.replace("https://", f"https://{encoded_user}:{encoded_token}@", 1)
-            self._set_http_auth_env()
+            self._set_http_auth_env(original_url)
         elif self.auth_token and self.repo_url.startswith("http://"):
+            original_url = self.repo_url
             encoded_user = urlquote(self.user_name, safe="")
             encoded_token = urlquote(self.auth_token, safe="")
             self.repo_url = self.repo_url.replace("http://", f"http://{encoded_user}:{encoded_token}@", 1)
-            self._set_http_auth_env()
+            self._set_http_auth_env(original_url)
         elif self.repo_url.startswith("http://"):
             # if no auth token, use the repo url as is
             pass
         elif not self.repo_url.startswith("git@") and not self.repo_url.startswith("https://"):
             self.repo_url = os.path.expanduser(self.repo_url)
 
-    def _set_http_auth_env(self):
+    def _set_http_auth_env(self, repo_url: str) -> None:
         """
         Set git config env vars to force HTTP authentication via extraHeader.
 
@@ -171,12 +173,15 @@ class GitHook(BaseHook):
         header to be sent on every request, allowing authenticated rate limits.
 
         Uses GIT_CONFIG_* environment variables (git >= 2.31) to inject an
-        ``http.extraHeader`` with a Basic auth token.
+        ``http.<URL>.extraHeader`` scoped to ``repo_url``. The URL-scoped form
+        ensures the Authorization header is only attached when git contacts
+        the configured repository, not when it follows cross-host redirects
+        or fetches submodules from other origins.
         """
         credentials = f"{self.user_name}:{self.auth_token}"
         encoded = base64.b64encode(credentials.encode()).decode()
         self.env["GIT_CONFIG_COUNT"] = "1"
-        self.env["GIT_CONFIG_KEY_0"] = "http.extraHeader"
+        self.env["GIT_CONFIG_KEY_0"] = f"http.{repo_url}.extraHeader"
         self.env["GIT_CONFIG_VALUE_0"] = f"Authorization: Basic {encoded}"
 
     def set_git_env(self, key: str | None = None) -> None:
