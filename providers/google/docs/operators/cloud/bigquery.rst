@@ -1,5 +1,4 @@
  .. Licensed to the Apache Software Foundation (ASF) under one
- .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -288,6 +287,14 @@ You can also use this operator to delete a materialized view.
     :dedent: 4
     :start-after: [START howto_operator_bigquery_delete_materialized_view]
     :end-before: [END howto_operator_bigquery_delete_materialized_view]
+
+Manage routines
+^^^^^^^^^^^^^^^
+
+Airflow exposes the BigQuery routines API (user-defined functions, stored
+procedures, and table-valued functions) through a small set of dedicated
+operators and a sensor. See :doc:`bigquery_routines` for the full guide with
+examples for each routine type.
 
 .. _howto/operator:BigQueryInsertJobOperator:
 

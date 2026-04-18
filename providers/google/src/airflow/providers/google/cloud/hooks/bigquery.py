@@ -47,6 +47,7 @@ from google.cloud.bigquery import (
 )
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
 from google.cloud.bigquery.retry import DEFAULT_JOB_RETRY
+from google.cloud.bigquery.routine import Routine, RoutineReference
 from google.cloud.bigquery.table import (
     Row,
     RowIterator,
@@ -1162,6 +1163,213 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table_id=table_id,
         )
         return table
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_routine(
+        self,
+        routine: Routine | dict[str, Any],
+        dataset_id: str | None = None,
+        routine_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        if_exists: str = "fail",
+        retry: Retry = DEFAULT_RETRY,
+        timeout: float | None = None,
+    ) -> Routine:
+        """
+        Create a new routine (UDF, procedure, or TVF) in the dataset.
+
+        :param routine: The routine to create. Either a
+            :class:`~google.cloud.bigquery.routine.Routine` instance or a dict in the format defined
+            at https://cloud.google.com/bigquery/docs/reference/rest/v2/routines#Routine. If the
+            routine reference is incomplete, ``dataset_id`` and ``routine_id`` are used to complete
+            it.
+        :param dataset_id: Optional. The dataset that will own the routine. Required if ``routine``
+            does not include a fully-qualified ``routineReference``.
+        :param routine_id: Optional. The routine identifier. Required if ``routine`` does not
+            include a fully-qualified ``routineReference``.
+        :param project_id: Optional. The project that owns the dataset. Falls back to the hook
+            default.
+        :param if_exists: What to do if a routine with the same identifier already exists:
+            ``"fail"`` (default) raises :class:`google.api_core.exceptions.Conflict`;
+            ``"skip"`` leaves the existing routine untouched and returns it;
+            ``"replace"`` deletes the existing routine and creates the new one.
+        :param retry: Optional. A retry object used to retry requests.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request.
+        :return: The created (or existing) routine.
+        """
+        if if_exists not in {"fail", "skip", "replace"}:
+            raise ValueError(f"`if_exists` must be one of 'fail', 'skip', 'replace'; got {if_exists!r}")
+        routine = self._build_routine(
+            routine, project_id=project_id, dataset_id=dataset_id, routine_id=routine_id
+        )
+        client = self.get_client(project_id=project_id)
+        ref = routine.reference
+        routine_path = f"{ref.project}.{ref.dataset_id}.{ref.routine_id}"
+
+        if if_exists == "replace":
+            try:
+                client.delete_routine(ref, retry=retry, timeout=timeout)
+                self.log.info("Deleted existing routine before replace: %s", routine_path)
+            except NotFound:
+                pass
+            result = client.create_routine(routine, exists_ok=False, retry=retry, timeout=timeout)
+        else:
+            result = client.create_routine(
+                routine, exists_ok=(if_exists == "skip"), retry=retry, timeout=timeout
+            )
+
+        self.log.info("Created routine: %s", routine_path)
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_routine(
+        self,
+        routine: Routine | dict[str, Any],
+        fields: Sequence[str],
+        dataset_id: str | None = None,
+        routine_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry = DEFAULT_RETRY,
+        timeout: float | None = None,
+    ) -> Routine:
+        """
+        Update specified fields of an existing routine.
+
+        :param routine: The routine with updated values, as a
+            :class:`~google.cloud.bigquery.routine.Routine` or an API dict.
+        :param fields: The routine properties to update (e.g. ``["body", "description"]``).
+            Properties that are listed but are ``None`` in ``routine`` will be cleared.
+        :param dataset_id: Optional. Used to complete the routine reference if missing.
+        :param routine_id: Optional. Used to complete the routine reference if missing.
+        :param project_id: Optional. The project that owns the dataset.
+        :param retry: Optional. A retry object used to retry requests.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request.
+        """
+        routine = self._build_routine(
+            routine, project_id=project_id, dataset_id=dataset_id, routine_id=routine_id
+        )
+        client = self.get_client(project_id=project_id)
+        result = client.update_routine(routine, list(fields), retry=retry, timeout=timeout)
+        ref = result.reference
+        self.log.info("Updated routine: %s.%s.%s", ref.project, ref.dataset_id, ref.routine_id)
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_routine(
+        self,
+        dataset_id: str,
+        routine_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        not_found_ok: bool = True,
+        retry: Retry = DEFAULT_RETRY,
+        timeout: float | None = None,
+    ) -> None:
+        """
+        Delete an existing routine.
+
+        :param dataset_id: The dataset that owns the routine.
+        :param routine_id: The identifier of the routine to delete.
+        :param project_id: Optional. The project that owns the dataset.
+        :param not_found_ok: If ``True`` (default), ignore "not found" errors.
+        :param retry: Optional. A retry object used to retry requests.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request.
+        """
+        ref = RoutineReference.from_api_repr(
+            {"projectId": project_id, "datasetId": dataset_id, "routineId": routine_id}
+        )
+        routine_path = f"{project_id}.{dataset_id}.{routine_id}"
+        try:
+            self.get_client(project_id=project_id).delete_routine(ref, retry=retry, timeout=timeout)
+        except NotFound:
+            if not not_found_ok:
+                raise
+            self.log.info("Routine not found, ignoring: %s", routine_path)
+            return
+        self.log.info("Deleted routine: %s", routine_path)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_routine(
+        self,
+        dataset_id: str,
+        routine_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry = DEFAULT_RETRY,
+        timeout: float | None = None,
+    ) -> Routine:
+        """
+        Retrieve the metadata for a routine.
+
+        :param dataset_id: The dataset that owns the routine.
+        :param routine_id: The identifier of the routine to fetch.
+        :param project_id: Optional. The project that owns the dataset.
+        :param retry: Optional. A retry object used to retry requests.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request.
+        """
+        ref = RoutineReference.from_api_repr(
+            {"projectId": project_id, "datasetId": dataset_id, "routineId": routine_id}
+        )
+        return self.get_client(project_id=project_id).get_routine(ref, retry=retry, timeout=timeout)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def list_routines(
+        self,
+        dataset_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        max_results: int | None = None,
+        page_token: str | None = None,
+        retry: Retry = DEFAULT_RETRY,
+        timeout: float | None = None,
+    ) -> list[Routine]:
+        """
+        List routines in a dataset.
+
+        :param dataset_id: The dataset to list routines for.
+        :param project_id: Optional. The project that owns the dataset.
+        :param max_results: Optional. The maximum number of routines to return.
+        :param page_token: Optional. An opaque token identifying the page of results to return.
+        :param retry: Optional. A retry object used to retry requests.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request.
+        :return: The list of routines. Only a subset of fields is populated; fetch individual
+            routines via :meth:`get_routine` for the complete resource.
+        """
+        dataset_ref = DatasetReference(project=project_id, dataset_id=dataset_id)
+        iterator = self.get_client(project_id=project_id).list_routines(
+            dataset_ref,
+            max_results=max_results,
+            page_token=page_token,
+            retry=retry,
+            timeout=timeout,
+        )
+        return list(iterator)
+
+    @staticmethod
+    def _build_routine(
+        routine: Routine | dict[str, Any],
+        project_id: str,
+        dataset_id: str | None,
+        routine_id: str | None,
+    ) -> Routine:
+        """Return a :class:`Routine` with a fully-qualified reference, filling gaps from kwargs."""
+        if isinstance(routine, Routine):
+            resource = routine.to_api_repr()
+        else:
+            resource = dict(routine)
+
+        ref = resource.setdefault("routineReference", {})
+        ref.setdefault("projectId", project_id)
+        if dataset_id:
+            ref.setdefault("datasetId", dataset_id)
+        if routine_id:
+            ref.setdefault("routineId", routine_id)
+
+        missing = [k for k in ("projectId", "datasetId", "routineId") if not ref.get(k)]
+        if missing:
+            raise ValueError(
+                "Routine reference is missing required fields "
+                f"{missing!r}. Provide them via `dataset_id`/`routine_id` or in the routine "
+                "reference itself."
+            )
+        return Routine.from_api_repr(resource)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def poll_job_complete(
