@@ -964,14 +964,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
             if not ti.dag_version_id:
                 self.log.warning(
-                    "TaskInstance %s does not have a dag_version_id set, cannot be enqueued. "
+                    "TaskInstance %s (ti_id=%s) does not have a dag_version_id set, cannot be enqueued. "
                     "This would get unstuck and dag_version_id updated.",
                     ti,
+                    ti.id,
                 )
                 continue
 
             self.log.debug(
-                "Queueing workload for TI: %s id=%s try_number=%d state=%s scheduler_job_id=%s executor=%s",
+                "Queueing workload for TI: %s ti_id=%s try_number=%d state=%s scheduler_job_id=%s executor=%s",
                 ti,
                 ti.id,
                 ti.try_number,
@@ -1263,11 +1264,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
                 ti.external_executor_id = info
-                cls.logger().info("Setting external_executor_id for %s to %s", ti, info)
+                cls.logger().info("Setting external_executor_id for %s (ti_id=%s) to %s", ti, ti.id, info)
                 continue
 
             msg = (
-                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
+                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, ti_id=%s, "
                 "run_start_date=%s, run_end_date=%s, "
                 "run_duration=%s, state=%s, executor=%s, executor_state=%s, try_number=%s, max_tries=%s, "
                 "pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, scheduled_dttm=%s,"
@@ -1279,6 +1280,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.task_id,
                 ti.run_id,
                 ti.map_index,
+                ti.id,
                 ti.start_date,
                 ti.end_date,
                 ti.duration,
@@ -1337,15 +1339,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag = scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
                     if not dag:
                         cls.logger().error(
-                            "DAG '%s' for task instance %s not found in serialized_dag table",
+                            "DAG '%s' for task instance %s (ti_id=%s) not found in serialized_dag table",
                             ti.dag_id,
                             ti,
+                            ti.id,
                         )
                         raise DagNotFound(f"DAG '{ti.dag_id}' not found in serialized_dag table")
 
                     task = dag.get_task(ti.task_id)
                 except Exception:
-                    cls.logger().exception("Marking task instance %s as %s", ti, state)
+                    cls.logger().exception("Marking task instance %s (ti_id=%s) as %s", ti, ti.id, state)
                     ti.set_state(state)
                     continue
                 ti.task = task
@@ -1387,7 +1390,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Handle cleared tasks that were successfully terminated by executor
                 if ti.state == TaskInstanceState.RESTARTING and state == TaskInstanceState.SUCCESS:
                     cls.logger().info(
-                        "Task %s was cleared and successfully terminated. Setting to scheduled for retry.", ti
+                        "Task %s (ti_id=%s) was cleared and successfully terminated. "
+                        "Setting to scheduled for retry.",
+                        ti,
+                        ti.id,
                     )
                     # Adjust max_tries to allow retry beyond normal limits (like clearing does)
                     ti.max_tries = ti.try_number + ti.task.retries
@@ -1397,8 +1403,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Send email notification request to DAG processor via DB
                 if task.email and (task.email_on_failure or task.email_on_retry):
                     cls.logger().info(
-                        "Sending email request for task %s to DAG Processor",
+                        "Sending email request for task %s (ti_id=%s) to DAG Processor",
                         ti,
+                        ti.id,
                     )
                     # Safely extract bundle info with fallback for legacy tasks
                     # (dag_version may be None after Airflow 2 → 3 migration).
@@ -2506,7 +2513,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
         if num_times_stuck < self._num_stuck_queued_retries:
-            self.log.info("Task stuck in queued; will try to requeue. task_instance=%s", ti)
+            self.log.info("Task stuck in queued; will try to requeue. task_instance=%s ti_id=%s", ti, ti.id)
             session.add(
                 Log(
                     event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
@@ -2520,8 +2527,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._reschedule_stuck_task(ti, session=session)
         else:
             self.log.info(
-                "Task requeue attempts exceeded max; marking failed. task_instance=%s",
+                "Task requeue attempts exceeded max; marking failed. task_instance=%s ti_id=%s",
                 ti,
+                ti.id,
             )
             msg = f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed."
             session.add(
