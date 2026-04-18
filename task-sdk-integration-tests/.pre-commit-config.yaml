@@ -22,18 +22,10 @@ default_language_version:
 repos:
   - repo: local
     hooks:
-      - id: check-airflowctl-command-coverage
-        name: Check airflowctl CLI command test coverage
-        entry: ../scripts/ci/prek/check_airflowctl_command_coverage.py
+      - id: mypy-task-sdk-integration-tests
+        name: Run mypy for task-sdk-integration-tests
         language: python
-        pass_filenames: false
-        files:
-          (?x)
-          ^tests/airflowctl_tests/.*\.py$
-      - id: mypy-airflow-ctl-tests
-        name: Run mypy for airflow-ctl-tests
-        language: python
-        entry: ../scripts/ci/prek/mypy_local_folder.py airflow-ctl-tests
+        entry: ../scripts/ci/prek/mypy_local_folder.py task-sdk-integration-tests
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

@@ -1045,48 +1045,6 @@ repos:
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
-      - id: mypy-airflow-ctl-tests
-        name: Run mypy for airflow-ctl-tests
-        language: python
-        entry: ./scripts/ci/prek/mypy_local_folder.py airflow-ctl-tests
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true
-      - id: mypy-helm-tests
-        name: Run mypy for helm-tests
-        language: python
-        entry: ./scripts/ci/prek/mypy_local_folder.py helm-tests
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true
-      - id: mypy-airflow-e2e-tests
-        name: Run mypy for airflow-e2e-tests
-        language: python
-        entry: ./scripts/ci/prek/mypy_local_folder.py airflow-e2e-tests
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true
-      - id: mypy-task-sdk-integration-tests
-        name: Run mypy for task-sdk-integration-tests
-        language: python
-        entry: ./scripts/ci/prek/mypy_local_folder.py task-sdk-integration-tests
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true
-      - id: mypy-docker-tests
-        name: Run mypy for docker-tests
-        language: python
-        entry: ./scripts/ci/prek/mypy_local_folder.py docker-tests
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true
-      - id: mypy-kubernetes-tests
-        name: Run mypy for kubernetes-tests
-        language: python
-        entry: ./scripts/ci/prek/mypy_local_folder.py kubernetes-tests
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true
       - id: mypy-shared
         name: Run mypy for shared libraries
         language: python
