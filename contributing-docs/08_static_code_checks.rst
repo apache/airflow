@@ -281,26 +281,25 @@ Mypy checks
 -----------
 
 When we run mypy checks locally, the ``mypy-*`` checks run depending on the files you are changing:
-``mypy-airflow-core``, ``mypy-dev``, ``mypy-providers``, ``mypy-task-sdk``, ``mypy-airflow-ctl``, etc.
+``mypy-airflow-core``, ``mypy-dev``, ``mypy-providers``, ``mypy-task-sdk``, ``mypy-airflow-ctl``,
+``mypy-devel-common``, ``mypy-airflow-ctl-tests``, ``mypy-helm-tests``, ``mypy-airflow-e2e-tests``,
+``mypy-task-sdk-integration-tests``, ``mypy-docker-tests``, ``mypy-kubernetes-tests``,
+``mypy-shared``, etc.
 
-For **non-provider projects** (airflow-core, task-sdk, airflow-ctl, dev, scripts, devel-common), mypy
-runs locally using the ``uv`` virtualenv — no breeze CI image is needed. These checks run as regular
-prek hooks in the ``pre-commit`` stage, checking whole directories at once. This means they run both
-as part of local commits and as part of regular static checks in CI (not as separate mypy CI jobs).
+For **non-provider projects**, mypy runs locally using ``uv`` — no breeze CI image is needed. These
+checks run as regular prek hooks in the ``pre-commit`` stage, checking whole directories at once. This
+means they run both as part of local commits and as part of regular static checks in CI (not as
+separate mypy CI jobs).
 
-Before running mypy directly (or via the ``mypy-*`` prek hooks), synchronize your local virtualenv
-with ``uv.lock`` so it matches the dependency set CI uses — otherwise mypy may pick up a different
-set of installed packages than CI and produce results that diverge from CI:
+Each non-provider ``mypy-*`` hook uses a **dedicated virtualenv and mypy cache** under ``.build/`` so
+running mypy never mutates your regular project ``.venv`` and each hook keeps a stable, CI-aligned
+dependency set:
 
-.. code-block:: bash
+- virtualenvs: ``.build/mypy-venvs/<hook-name>/``
+- mypy caches: ``.build/mypy-caches/<hook-name>/``
 
-  uv sync --frozen --project <PROJECT>
-
-Then run mypy directly. Use ``--frozen`` so ``uv`` does not update ``uv.lock``:
-
-.. code-block:: bash
-
-  uv run --frozen --project <PROJECT> --with "apache-airflow-devel-common[mypy]" mypy path/to/code
+The ``mypy-shared`` hook iterates every ``shared/<dist>`` workspace distribution and builds a
+separate venv and cache per distribution (e.g. ``.build/mypy-venvs/shared-configuration/``).
 
 To run the prek hook for a specific project (example for ``airflow-core`` files):
 
@@ -308,20 +307,19 @@ To run the prek hook for a specific project (example for ``airflow-core`` files)
 
   prek mypy-airflow-core --all-files
 
-To show unused mypy ignores for any providers/airflow etc, eg: run below command:
+To show unused mypy ignores, run:
 
 .. code-block:: bash
 
   export SHOW_UNUSED_MYPY_WARNINGS=true
   prek mypy-airflow-core --all-files
 
-For non-provider projects, the local mypy cache is stored in ``.mypy_cache`` at the repo root.
-
 For **providers**, mypy still runs via breeze (``breeze run mypy``) as a separate CI job and requires
 ``breeze ci-image build --python 3.10`` to be built locally. Providers use a separate docker-volume
 (called ``mypy-cache-volume``) that keeps the cache of last MyPy execution.
 
-To clear all mypy caches (both local ``.mypy_cache`` and the Docker volume), run
+To clear all mypy caches (the Docker volume used by providers, any legacy repo-root ``.mypy_cache``,
+and the per-hook venvs + caches under ``.build/mypy-venvs/`` and ``.build/mypy-caches/``), run
 ``breeze down --cleanup-mypy-cache``.
 
 -----------

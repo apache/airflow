@@ -23,7 +23,9 @@
 # ///
 """Run mypy on entire folders using local virtualenv (uv) instead of breeze.
 
-Used for non-provider projects: airflow-core, task-sdk, airflow-ctl, dev, scripts, devel-common.
+Used for non-provider projects: airflow-core, task-sdk, airflow-ctl, dev, scripts,
+devel-common, airflow-ctl-tests, helm-tests, airflow-e2e-tests,
+task-sdk-integration-tests, docker-tests, kubernetes-tests, shared.
 """
 
 from __future__ import annotations
@@ -33,6 +35,7 @@ import re
 import shlex
 import subprocess
 import sys
+from pathlib import Path
 
 from common_prek_utils import (
     AIRFLOW_ROOT_PATH,
@@ -60,10 +63,18 @@ ALLOWED_FOLDERS = [
     "devel-common",
     "task-sdk",
     "airflow-ctl",
+    "airflow-ctl-tests",
+    "helm-tests",
+    "airflow-e2e-tests",
+    "task-sdk-integration-tests",
+    "docker-tests",
+    "kubernetes-tests",
+    "shared",
 ]
 
 # Map folder(s) to the uv project to use for running mypy.
 # When multiple folders are checked together (e.g. dev + scripts), the first folder's project is used.
+# "shared" is handled specially (per-distribution iteration) and is not in this map.
 FOLDER_TO_PROJECT = {
     "airflow-core": "airflow-core",
     "task-sdk": "task-sdk",
@@ -71,6 +82,12 @@ FOLDER_TO_PROJECT = {
     "devel-common": "devel-common",
     "dev": "dev",
     "scripts": "scripts",
+    "airflow-ctl-tests": "airflow-ctl-tests",
+    "helm-tests": "helm-tests",
+    "airflow-e2e-tests": "airflow-e2e-tests",
+    "task-sdk-integration-tests": "task-sdk-integration-tests",
+    "docker-tests": "docker-tests",
+    "kubernetes-tests": "kubernetes-tests",
 }
 
 if len(sys.argv) < 2:
@@ -122,29 +139,6 @@ def get_all_files(folder: str) -> list[str]:
     return files_to_check
 
 
-all_files_to_check: list[str] = []
-for mypy_folder in mypy_folders:
-    all_files_to_check.extend(get_all_files(mypy_folder))
-
-if not all_files_to_check:
-    print("No files to test. Quitting")
-    sys.exit(0)
-
-# Write file list
-mypy_file_list = AIRFLOW_ROOT_PATH / "files" / "mypy_files.txt"
-mypy_file_list.parent.mkdir(parents=True, exist_ok=True)
-mypy_file_list.write_text("\n".join(all_files_to_check))
-
-if console:
-    console.print(f"[info]You can check the list of files in:[/] {mypy_file_list}")
-else:
-    print(f"You can check the list of files in: {mypy_file_list}")
-
-file_argument_local = f"@{mypy_file_list}"
-file_argument_ci = "@/files/mypy_files.txt"
-
-project = FOLDER_TO_PROJECT.get(mypy_folders[0], "devel-common")
-
 mypy_extra_args: list[str] = []
 
 if show_unused_warnings == "true":
@@ -161,6 +155,139 @@ if show_unreachable_warnings == "true":
         print("Running mypy with --warn-unreachable")
     mypy_extra_args.append("--warn-unreachable")
 
+
+def write_file_list(files: list[str], suffix: str = "") -> Path:
+    name = "mypy_files.txt" if not suffix else f"mypy_files_{suffix}.txt"
+    mypy_file_list = AIRFLOW_ROOT_PATH / "files" / name
+    mypy_file_list.parent.mkdir(parents=True, exist_ok=True)
+    mypy_file_list.write_text("\n".join(files))
+    if console:
+        console.print(f"[info]You can check the list of files in:[/] {mypy_file_list}")
+    else:
+        print(f"You can check the list of files in: {mypy_file_list}")
+    return mypy_file_list
+
+
+def run_local_mypy(project: str, hook_name: str, files: list[str]) -> int:
+    """Sync a dedicated mypy venv under .build/ and run mypy on the given files.
+
+    Each hook gets its own virtualenv and mypy cache so running mypy never mutates the
+    contributor's regular project .venv and each hook keeps a stable, CI-aligned
+    dependency set. UV_PROJECT_ENVIRONMENT redirects uv away from the default
+    <project>/.venv to our cached location.
+    """
+    mypy_venv_dir = AIRFLOW_ROOT_PATH / ".build" / "mypy-venvs" / hook_name
+    mypy_cache_dir = AIRFLOW_ROOT_PATH / ".build" / "mypy-caches" / hook_name
+    mypy_venv_dir.parent.mkdir(parents=True, exist_ok=True)
+    mypy_cache_dir.parent.mkdir(parents=True, exist_ok=True)
+
+    run_env = {
+        **os.environ,
+        "TERM": "ansi",
+        "UV_PROJECT_ENVIRONMENT": str(mypy_venv_dir),
+    }
+
+    sync_cmd = ["uv", "sync", "--frozen", "--project", project]
+    if console:
+        console.print(
+            f"[magenta]Syncing dedicated mypy virtualenv ({mypy_venv_dir}) "
+            f"for project {project}: {' '.join(sync_cmd)}[/]"
+        )
+    else:
+        print(
+            f"Syncing dedicated mypy virtualenv ({mypy_venv_dir}) for project {project}: {' '.join(sync_cmd)}"
+        )
+    sync_result = subprocess.run(
+        sync_cmd,
+        cwd=str(AIRFLOW_ROOT_PATH),
+        check=False,
+        env=run_env,
+    )
+    if sync_result.returncode != 0:
+        msg = (
+            f"`uv sync --frozen --project {project}` failed for the mypy virtualenv at "
+            f"{mypy_venv_dir}. Fix the sync error before running mypy — otherwise the "
+            "dedicated mypy virtualenv will not match uv.lock and results will diverge "
+            "from CI. You can remove the cached virtualenv with:\n"
+            "  breeze down --cleanup-mypy-cache\n"
+        )
+        if console:
+            console.print(f"[red]{msg}")
+        else:
+            print(msg)
+        return sync_result.returncode
+
+    mypy_file_list = write_file_list(files, suffix=hook_name.replace("/", "_"))
+
+    # --follow-imports=silent: each hook only reports errors for files it owns. Transitive
+    # errors from imports into other workspace projects are not reported here — those files
+    # are covered by their own hook. Without this, mypy can produce different results for the
+    # same file across hooks because each hook's virtualenv installs a different dependency
+    # set that influences type inference.
+    cmd = [
+        "uv",
+        "run",
+        "--frozen",
+        "--project",
+        project,
+        "--with",
+        "apache-airflow-devel-common[mypy]",
+        "mypy",
+        "--cache-dir",
+        str(mypy_cache_dir),
+        "--follow-imports=silent",
+        f"@{mypy_file_list}",
+        *mypy_extra_args,
+    ]
+
+    result = subprocess.run(
+        cmd,
+        cwd=str(AIRFLOW_ROOT_PATH),
+        check=False,
+        env=run_env,
+    )
+    return result.returncode
+
+
+def run_shared_mypy() -> int:
+    """Iterate every shared/<dist> workspace distribution and run mypy per-dist.
+
+    Each shared library is an independent uv workspace member with its own dependency
+    set, so we build a dedicated venv and mypy cache per distribution under
+    .build/mypy-venvs/shared-<dist>/ and .build/mypy-caches/shared-<dist>/.
+    """
+    shared_root = AIRFLOW_ROOT_PATH / "shared"
+    shared_dists = sorted(p.name for p in shared_root.iterdir() if (p / "pyproject.toml").exists())
+    if console:
+        console.print(f"[magenta]Running mypy for shared distributions: {shared_dists}[/]")
+    else:
+        print(f"Running mypy for shared distributions: {shared_dists}")
+
+    combined_rc = 0
+    failed_dists: list[str] = []
+    for dist in shared_dists:
+        files = get_all_files(f"shared/{dist}")
+        if not files:
+            continue
+        rc = run_local_mypy(
+            project=f"shared/{dist}",
+            hook_name=f"shared-{dist}",
+            files=files,
+        )
+        if rc != 0:
+            failed_dists.append(dist)
+            if combined_rc == 0:
+                combined_rc = rc
+
+    if failed_dists:
+        msg = f"mypy failed for shared distribution(s): {', '.join(failed_dists)}"
+        if console:
+            console.print(f"[red]{msg}")
+        else:
+            print(msg)
+    return combined_rc
+
+
 if console:
     console.print(f"[magenta]Running mypy for folders: {mypy_folders}[/]")
 else:
@@ -176,7 +303,29 @@ if CI:
 
     initialize_breeze_prek(__name__, __file__)
 
-    mypy_cmd = f"TERM=ansi mypy {shlex.quote(file_argument_ci)} {' '.join(mypy_extra_args)}"
+    # For "shared", gather files across every shared distribution into a single list;
+    # CI uses one shared breeze environment so per-dist venvs are not needed.
+    if mypy_folders == ["shared"]:
+        all_files_to_check: list[str] = []
+        for dist in sorted(
+            p.name for p in (AIRFLOW_ROOT_PATH / "shared").iterdir() if (p / "pyproject.toml").exists()
+        ):
+            all_files_to_check.extend(get_all_files(f"shared/{dist}"))
+    else:
+        all_files_to_check = []
+        for mypy_folder in mypy_folders:
+            all_files_to_check.extend(get_all_files(mypy_folder))
+
+    if not all_files_to_check:
+        print("No files to test. Quitting")
+        sys.exit(0)
+
+    write_file_list(all_files_to_check)
+    file_argument_ci = "@/files/mypy_files.txt"
+
+    mypy_cmd = (
+        f"TERM=ansi mypy --follow-imports=silent {shlex.quote(file_argument_ci)} {' '.join(mypy_extra_args)}"
+    )
     result = run_command_via_breeze_shell(
         cmd=["bash", "-c", mypy_cmd],
         warn_image_upgrade_needed=True,
@@ -185,66 +334,36 @@ if CI:
             "MOUNT_SOURCES": "selected",
         },
     )
+    returncode = result.returncode
 else:
-    # Locally, first synchronize the project's virtualenv with uv.lock so that mypy runs
-    # against the same dependency set CI uses. Without this, the local .venv can drift from
-    # uv.lock (e.g. after switching branches or installing extras) and mypy results would
-    # diverge from CI. --frozen ensures uv.lock itself is not updated.
-    sync_cmd = ["uv", "sync", "--frozen", "--project", project]
-    if console:
-        console.print(f"[magenta]Syncing virtualenv for project {project}: {' '.join(sync_cmd)}[/]")
+    if mypy_folders == ["shared"]:
+        returncode = run_shared_mypy()
     else:
-        print(f"Syncing virtualenv for project {project}: {' '.join(sync_cmd)}")
-    sync_result = subprocess.run(
-        sync_cmd,
-        cwd=str(AIRFLOW_ROOT_PATH),
-        check=False,
-        env={**os.environ, "TERM": "ansi"},
-    )
-    if sync_result.returncode != 0:
-        msg = (
-            f"`uv sync --frozen --project {project}` failed. Fix the sync error before running mypy — "
-            "otherwise the local virtualenv may not match uv.lock and mypy results will diverge from CI.\n"
+        all_files_to_check = []
+        for mypy_folder in mypy_folders:
+            all_files_to_check.extend(get_all_files(mypy_folder))
+
+        if not all_files_to_check:
+            print("No files to test. Quitting")
+            sys.exit(0)
+
+        project = FOLDER_TO_PROJECT.get(mypy_folders[0], "devel-common")
+        returncode = run_local_mypy(
+            project=project,
+            hook_name=mypy_folders[0],
+            files=all_files_to_check,
         )
-        if console:
-            console.print(f"[red]{msg}")
-        else:
-            print(msg)
-        sys.exit(sync_result.returncode)
 
-    # Then run mypy via uv with --frozen to not update the lock file.
-    cmd = [
-        "uv",
-        "run",
-        "--frozen",
-        "--project",
-        project,
-        "--with",
-        "apache-airflow-devel-common[mypy]",
-        "mypy",
-        file_argument_local,
-        *mypy_extra_args,
-    ]
-
-    result = subprocess.run(
-        cmd,
-        cwd=str(AIRFLOW_ROOT_PATH),
-        check=False,
-        env={**os.environ, "TERM": "ansi"},
-    )
-
-if result.returncode != 0:
+if returncode != 0:
     msg = (
         "Mypy check failed. You can run mypy locally with:\n"
         f"  prek run mypy-{mypy_folders[0]} --all-files\n"
-        "Or directly (first sync the virtualenv to match CI's dependency set):\n"
-        f"  uv sync --frozen --project {project}\n"
-        f'  uv run --frozen --project {project} --with "apache-airflow-devel-common[mypy]" mypy <files>\n'
-        "You can also clear the mypy cache with:\n"
+        "The hook uses dedicated virtualenv(s) and mypy cache(s) under .build/ so it does\n"
+        "not touch your regular project .venv. You can clear both with:\n"
         "  breeze down --cleanup-mypy-cache\n"
     )
     if console:
         console.print(f"[yellow]{msg}")
     else:
         print(msg)
-sys.exit(result.returncode)
+sys.exit(returncode)
