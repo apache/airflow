@@ -336,7 +336,7 @@ Usage
 There are two ways to set a quota project in Airflow:
 
 - Via connection extras (recommended for environment-wide defaults).
-- Directly on operators or hooks (recommended when a single task must bill to a different project).
+- Directly on supported hook instances (recommended when a single task must bill to a different project).
 
 Connection extras
 ^^^^^^^^^^^^^^^^^
