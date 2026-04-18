@@ -266,6 +266,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
                 encrypted_kwargs=trigger_orm.encrypted_kwargs,
                 kind="RunTrigger",
                 dag_data=ANY,
+                bundle_info=ANY,
             )
         )
         # OK, now remove it from the DB
@@ -1456,3 +1457,133 @@ class TestMakeTriggerSpan:
         assert attrs["airflow.trigger.name"] == "OnlyTrigger"
         assert "airflow.dag_id" not in attrs
         assert "airflow.task_id" not in attrs
+
+
+class TestCreateWorkloadBundleInfo:
+    """Tests that _create_workload populates bundle_info from the trigger's task instance."""
+
+    @patch("airflow.jobs.triggerer_job_runner.TriggerLoggingFactory")
+    @patch("airflow.jobs.triggerer_job_runner.TaskInstanceDTO.model_validate")
+    def test_create_workload_sets_bundle_info_for_standard_trigger(
+        self, mock_model_validate, mock_logging_factory, supervisor_builder, session
+    ):
+        """_create_workload must populate bundle_info from task_instance relationships."""
+        from airflow.executors.workloads.base import BundleInfo
+
+        mock_model_validate.return_value = MagicMock(spec=TaskInstanceDTO)
+
+        trigger = MagicMock()
+        trigger.id = 1
+        trigger.classpath = "airflow.triggers.testing.SuccessTrigger"
+        trigger.encrypted_kwargs = "{}"
+        trigger.task_instance.dag_version_id = uuid.uuid4()
+        trigger.task_instance.trigger_timeout = None
+        trigger.task_instance.dag_model.bundle_name = "my-bundle"
+        trigger.task_instance.dag_run.bundle_version = "v42"
+
+        dag_bag = MagicMock()
+        dag_bag.get_serialized_dag_model.return_value = None  # no start_from_trigger path
+
+        supervisor = supervisor_builder()
+        workload = supervisor._create_workload(
+            trigger=trigger,
+            dag_bag=dag_bag,
+            render_log_fname=lambda ti: "fake/log/path",
+            session=session,
+        )
+
+        assert workload is not None
+        assert isinstance(workload.bundle_info, BundleInfo)
+        assert workload.bundle_info.name == "my-bundle"
+        assert workload.bundle_info.version == "v42"
+
+    def test_create_workload_no_bundle_info_for_asset_trigger(self, supervisor_builder, session):
+        """_create_workload must leave bundle_info as None when task_instance is None (asset triggers)."""
+        trigger = MagicMock()
+        trigger.id = 2
+        trigger.classpath = "airflow.triggers.testing.SuccessTrigger"
+        trigger.encrypted_kwargs = "{}"
+        trigger.task_instance = None
+
+        supervisor = supervisor_builder()
+        workload = supervisor._create_workload(
+            trigger=trigger,
+            dag_bag=MagicMock(),
+            render_log_fname=lambda ti: "fake/log/path",
+            session=session,
+        )
+
+        assert workload is not None
+        assert workload.bundle_info is None
+
+
+class TestEnsureBundleOnSyspath:
+    """Tests for TriggerRunner._ensure_bundle_on_syspath."""
+
+    def test_adds_bundle_path_to_syspath(self):
+        """_ensure_bundle_on_syspath must append the bundle root to sys.path when not already present."""
+        import sys
+
+        from airflow.executors.workloads.base import BundleInfo
+
+        mock_bundle = MagicMock()
+        mock_bundle.path = "/tmp/bundles/my-bundle/v1/dags"
+
+        with patch("airflow.dag_processing.bundles.manager.DagBundlesManager") as mock_manager_cls:
+            mock_manager_cls.return_value.get_bundle.return_value = mock_bundle
+
+            runner = TriggerRunner()
+            bundle_info = BundleInfo(name="my-bundle", version="v1")
+
+            original_path = sys.path.copy()
+            try:
+                runner._ensure_bundle_on_syspath(bundle_info)
+                assert "/tmp/bundles/my-bundle/v1/dags" in sys.path
+                mock_manager_cls.return_value.get_bundle.assert_called_once_with(
+                    name="my-bundle", version="v1"
+                )
+                mock_bundle.initialize.assert_called_once()
+            finally:
+                sys.path[:] = original_path
+
+    def test_does_not_add_duplicate_path(self):
+        """_ensure_bundle_on_syspath must not append the path if it is already present."""
+        import sys
+
+        from airflow.executors.workloads.base import BundleInfo
+
+        mock_bundle = MagicMock()
+        mock_bundle.path = "/tmp/bundles/my-bundle/v1/dags"
+
+        with patch("airflow.dag_processing.bundles.manager.DagBundlesManager") as mock_manager_cls:
+            mock_manager_cls.return_value.get_bundle.return_value = mock_bundle
+
+            runner = TriggerRunner()
+            bundle_info = BundleInfo(name="my-bundle", version="v1")
+
+            original_path = sys.path.copy()
+            sys.path.append("/tmp/bundles/my-bundle/v1/dags")
+            try:
+                count_before = sys.path.count("/tmp/bundles/my-bundle/v1/dags")
+                runner._ensure_bundle_on_syspath(bundle_info)
+                count_after = sys.path.count("/tmp/bundles/my-bundle/v1/dags")
+                assert count_after == count_before
+            finally:
+                sys.path[:] = original_path
+
+    def test_warning_on_failure(self, cap_structlog):
+        """_ensure_bundle_on_syspath must log a warning and not raise when bundle lookup fails."""
+        from airflow.executors.workloads.base import BundleInfo
+
+        with patch("airflow.dag_processing.bundles.manager.DagBundlesManager") as mock_manager_cls:
+            mock_manager_cls.return_value.get_bundle.side_effect = RuntimeError("bundle not found")
+
+            runner = TriggerRunner()
+            bundle_info = BundleInfo(name="missing-bundle", version=None)
+
+            runner._ensure_bundle_on_syspath(bundle_info)  # must not raise
+
+            assert any(
+                "Failed to add bundle path to sys.path for trigger import" in str(entry)
+                for entry in cap_structlog
+            )

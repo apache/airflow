@@ -48,6 +48,7 @@ from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
+from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
@@ -723,6 +724,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     timeout_after=trigger.task_instance.trigger_timeout,
                     dag_data=serialized_dag_model.data,
                     dag_run_data=dag_run.dag_run_data.model_dump(exclude_unset=True),
+                    bundle_info=BundleInfo(
+                        name=trigger.task_instance.dag_model.bundle_name,
+                        version=dag_run.bundle_version,
+                    ),
                 )
         return workloads.RunTrigger(
             id=trigger.id,
@@ -730,6 +735,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             encrypted_kwargs=trigger.encrypted_kwargs,
             ti=ser_ti,
             timeout_after=trigger.task_instance.trigger_timeout,
+            bundle_info=BundleInfo(
+                name=trigger.task_instance.dag_model.bundle_name,
+                version=trigger.task_instance.dag_run.bundle_version,
+            ),
         )
 
     def update_triggers(self, requested_trigger_ids: set[int]):
@@ -1080,6 +1089,8 @@ class TriggerRunner:
                 continue
 
             try:
+                if workload.bundle_info:
+                    self._ensure_bundle_on_syspath(workload.bundle_info)
                 trigger_class = self.get_trigger_by_classpath(workload.classpath)
             except BaseException as e:
                 # Either the trigger code or the path to it is bad. Fail the trigger.
@@ -1344,6 +1355,27 @@ class TriggerRunner:
                     await trigger.cleanup()
 
                 await self.log.ainfo("trigger completed", name=name)
+
+    def _ensure_bundle_on_syspath(self, bundle_info: BundleInfo) -> None:
+        """Add the bundle root to sys.path so trigger classpath imports resolve."""
+        try:
+            from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+            bundle = DagBundlesManager().get_bundle(name=bundle_info.name, version=bundle_info.version)
+            bundle.initialize()
+            bundle_path = str(bundle.path)
+            if bundle_path not in sys.path:
+                sys.path.append(bundle_path)
+                self.log.debug(
+                    "Added bundle path to sys.path",
+                    bundle_name=bundle_info.name,
+                    path=bundle_path,
+                )
+        except Exception:
+            self.log.warning(
+                "Failed to add bundle path to sys.path for trigger import",
+                bundle_name=bundle_info.name,
+            )
 
     def get_trigger_by_classpath(self, classpath: str) -> type[BaseTrigger]:
         """
