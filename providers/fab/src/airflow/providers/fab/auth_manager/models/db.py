@@ -23,6 +23,7 @@ from sqlalchemy.engine.url import make_url
 from airflow import settings
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.fab.auth_manager.models import model_metadata
+from airflow.providers.fab.version_compat import AIRFLOW_V_3_2_1_PLUS
 from airflow.utils.db import _offline_migration, print_happy_cat
 from airflow.utils.db_manager import BaseDBManager
 
@@ -66,7 +67,8 @@ class FABDBManager(BaseDBManager):
 
     def create_db_from_orm(self):
         super().create_db_from_orm()
-        db, flask_app = _get_flask_db(settings.SQL_ALCHEMY_CONN)
+        sql_conn = settings.get_sql_alchemy_conn() if AIRFLOW_V_3_2_1_PLUS else settings.SQL_ALCHEMY_CONN
+        db, flask_app = _get_flask_db(sql_conn)
         with flask_app.app_context():
             db.create_all()
 
@@ -89,8 +91,6 @@ class FABDBManager(BaseDBManager):
         _release_metadata_locks_if_supported(self)
 
         # alembic adds significant import time, so we import it lazily
-        if not settings.SQL_ALCHEMY_CONN:
-            raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is a critical assertion.")
         from alembic import command
 
         current_revision = self.get_current_revision()
@@ -130,9 +130,6 @@ class FABDBManager(BaseDBManager):
                 "downgrade from current revision."
             )
 
-        if not settings.SQL_ALCHEMY_CONN:
-            raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set.")
-
         # alembic adds significant import time, so we import it lazily
         from alembic import command
 
@@ -158,6 +155,7 @@ class FABDBManager(BaseDBManager):
 
     def drop_tables(self, connection):
         super().drop_tables(connection)
-        db, flask_app = _get_flask_db(settings.SQL_ALCHEMY_CONN)
+        sql_conn = settings.get_sql_alchemy_conn() if AIRFLOW_V_3_2_1_PLUS else settings.SQL_ALCHEMY_CONN
+        db, flask_app = _get_flask_db(sql_conn)
         with flask_app.app_context():
             db.drop_all()
