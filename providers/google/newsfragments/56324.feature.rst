@@ -1,1 +1,0 @@
-Add ``quota_project_id`` parameter to ``GoogleBaseHook`` to support specifying a separate Google Cloud project for API quota and billing purposes.
