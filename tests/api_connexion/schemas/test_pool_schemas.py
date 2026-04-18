@@ -54,6 +54,17 @@ class TestPoolSchema:
         }
 
     @provide_session
+    def test_serialize_unlimited_pool_open_slots_as_minus_one(self, session):
+        """Unlimited pools must not serialize open_slots as inf (OpenAPI integer)."""
+        pool_model = Pool(pool="unlimited_pool", slots=-1, include_deferred=False)
+        session.add(pool_model)
+        session.commit()
+        pool_instance = session.query(Pool).filter(Pool.pool == pool_model.pool).first()
+        serialized_pool = pool_schema.dump(pool_instance)
+        assert serialized_pool["slots"] == -1
+        assert serialized_pool["open_slots"] == -1
+
+    @provide_session
     def test_deserialize(self, session):
         pool_dict = {"name": "test_pool", "slots": 3, "include_deferred": True}
         deserialized_pool = pool_schema.load(pool_dict, session=session)

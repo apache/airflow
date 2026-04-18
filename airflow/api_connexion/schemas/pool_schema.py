@@ -70,9 +70,17 @@ class PoolSchema(SQLAlchemySchema):
         return obj.deferred_slots()
 
     @staticmethod
-    def get_open_slots(obj: Pool) -> float:
-        """Return the open slots of the pool."""
-        return obj.open_slots()
+    def get_open_slots(obj: Pool) -> int:
+        """Return the open slots of the pool.
+
+        Unlimited pools (``slots == -1``) use ``float('inf')`` internally; the REST API
+        schema requires an integer, so we serialize that as ``-1`` (same convention as
+        ``slots`` for unlimited).
+        """
+        open_slots = obj.open_slots()
+        if isinstance(open_slots, float) and open_slots == float("inf"):
+            return -1
+        return int(open_slots)
 
 
 class PoolCollection(NamedTuple):
