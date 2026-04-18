@@ -735,9 +735,9 @@ class SuperFastPRFinder:
                 return False
 
             first_pr_merged = parsed_date
-            two_months_ago = pendulum.now().subtract(months=2)
+            last_30_days = pendulum.now().subtract(days=30)
 
-            is_rookie = first_pr_merged >= two_months_ago
+            is_rookie = first_pr_merged >= last_30_days
             self.author_cache[author] = {
                 "is_rookie": is_rookie,
                 "total_prs": total_prs,

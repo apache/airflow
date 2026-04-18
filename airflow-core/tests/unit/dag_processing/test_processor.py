@@ -49,7 +49,7 @@ from airflow.callbacks.callback_requests import (
     TaskCallbackRequest,
 )
 from airflow.dag_processing.dagbag import DagBag
-from airflow.dag_processing.manager import process_parse_results
+from airflow.dag_processing.manager import DagFileProcessorManager, process_parse_results
 from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
@@ -645,7 +645,7 @@ def test_parse_file_static_check_with_default_warning():
     )
 
 
-def test_callback_processing_does_not_update_timestamps(session):
+def test_callback_processing_does_not_update_timestamps():
     """Callback processing should not update last_finish_time to prevent stale DAG detection."""
     stat = process_parse_results(
         run_duration=1.0,
@@ -654,7 +654,6 @@ def test_callback_processing_does_not_update_timestamps(session):
         bundle_name="test",
         bundle_version=None,
         parsing_result=None,
-        session=session,
         is_callback_only=True,
     )
 
@@ -662,7 +661,7 @@ def test_callback_processing_does_not_update_timestamps(session):
     assert stat.run_count == 5
 
 
-def test_normal_parsing_updates_timestamps(session):
+def test_normal_parsing_updates_timestamps():
     """last_finish_time should be updated when parsing a dag file."""
     finish_time = timezone.utcnow()
 
@@ -673,7 +672,6 @@ def test_normal_parsing_updates_timestamps(session):
         bundle_name="test-bundle",
         bundle_version="v1",
         parsing_result=DagFileParsingResult(fileloc="test.py", serialized_dags=[]),
-        session=session,
         is_callback_only=False,
     )
 
@@ -682,7 +680,7 @@ def test_normal_parsing_updates_timestamps(session):
     assert stat.import_errors == 0
 
 
-def test_import_error_updates_timestamps(session):
+def test_import_error_updates_timestamps():
     """last_finish_time should be updated when parsing a dag file results in import errors."""
     finish_time = timezone.utcnow()
 
@@ -693,13 +691,48 @@ def test_import_error_updates_timestamps(session):
         bundle_name="test-bundle",
         bundle_version="v1",
         parsing_result=None,
-        session=session,
         is_callback_only=False,
     )
 
     assert stat.last_finish_time == finish_time
     assert stat.run_count == 3
     assert stat.import_errors == 1
+
+
+def test_persist_parsing_result_calls_update_db():
+    """persist_parsing_result should delegate to update_dag_parsing_results_in_db with transformed args."""
+    parsing_result = DagFileParsingResult(
+        fileloc="test.py",
+        serialized_dags=[],
+        import_errors={"dags/broken.py": "SyntaxError"},
+        warnings=[],
+    )
+
+    manager = MagicMock(spec=DagFileProcessorManager)
+    session = MagicMock()
+    # Call the real method on the mock instance
+    with patch(
+        "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True
+    ) as mock_update:
+        DagFileProcessorManager.persist_parsing_result(
+            manager,
+            bundle_name="test-bundle",
+            bundle_version="v1",
+            parsing_result=parsing_result,
+            run_duration=1.5,
+            relative_fileloc="dags/test.py",
+            session=session,
+        )
+
+    mock_update.assert_called_once()
+    call_kwargs = mock_update.call_args.kwargs
+    assert call_kwargs["bundle_name"] == "test-bundle"
+    assert call_kwargs["bundle_version"] == "v1"
+    assert call_kwargs["parse_duration"] == 1.5
+    assert call_kwargs["session"] is session
+    assert call_kwargs["import_errors"] == {("test-bundle", "dags/broken.py"): "SyntaxError"}
+    assert ("test-bundle", "dags/test.py") in call_kwargs["files_parsed"]
+    assert ("test-bundle", "dags/broken.py") in call_kwargs["files_parsed"]
 
 
 class TestExecuteCallbacks:
