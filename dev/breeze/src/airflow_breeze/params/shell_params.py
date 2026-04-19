@@ -160,6 +160,7 @@ class ShellParams:
     """
 
     airflow_branch: str = AIRFLOW_BRANCH
+    airflow_build_constraints_location: str = ""
     airflow_constraints_location: str = ""
     airflow_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     airflow_constraints_reference: str = ""
@@ -577,6 +578,7 @@ services:
         """
 
         _env: dict[str, str] = {}
+        _set_var(_env, "AIRFLOW_BUILD_CONSTRAINTS_LOCATION", self.airflow_build_constraints_location)
         _set_var(_env, "AIRFLOW_CI_IMAGE", self.airflow_image_name)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_MODE", self.airflow_constraints_mode)

@@ -77,6 +77,7 @@ from airflow_breeze.commands.common_options import (
     option_version_suffix,
 )
 from airflow_breeze.commands.common_package_installation_options import (
+    option_airflow_build_constraints_location,
     option_airflow_constraints_location,
     option_airflow_constraints_mode_ci,
 )
@@ -241,6 +242,7 @@ option_ci_image_file_to_load = click.option(
 @option_additional_dev_apt_env
 @option_additional_pip_install_flags
 @option_additional_python_deps
+@option_airflow_build_constraints_location
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference_build
@@ -281,6 +283,7 @@ def build(
     additional_dev_apt_env: str | None,
     additional_pip_install_flags: str | None,
     additional_python_deps: str | None,
+    airflow_build_constraints_location: str | None,
     airflow_constraints_location: str | None,
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
@@ -333,6 +336,7 @@ def build(
         additional_dev_apt_env=additional_dev_apt_env,
         additional_pip_install_flags=additional_pip_install_flags,
         additional_python_deps=additional_python_deps,
+        airflow_build_constraints_location=airflow_build_constraints_location,
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,

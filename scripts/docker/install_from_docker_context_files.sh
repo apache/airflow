@@ -96,6 +96,8 @@ function install_airflow_and_providers_from_docker_context_files(){
         python_version=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
         local local_constraints_file=/docker-context-files/constraints-"${python_version}"/${AIRFLOW_CONSTRAINTS_MODE}-"${python_version}".txt
 
+        local local_build_constraints_file=/docker-context-files/constraints-"${python_version}"/build-constraints-"${python_version}".txt
+
         if [[ -f "${local_constraints_file}" ]]; then
             echo
             echo "${COLOR_BLUE}Installing docker-context-files distributions with constraints found in ${local_constraints_file}${COLOR_RESET}"
@@ -106,6 +108,13 @@ function install_airflow_and_providers_from_docker_context_files(){
             echo "${COLOR_BLUE}Copying ${local_constraints_file} to ${HOME}/constraints.txt${COLOR_RESET}"
             echo
             cp "${local_constraints_file}" "${HOME}/constraints.txt"
+            # Override build constraints with local docker-context file if available
+            if [[ -f "${local_build_constraints_file}" ]]; then
+                echo
+                echo "${COLOR_BLUE}Copying ${local_build_constraints_file} to ${HOME}/build-constraints.txt${COLOR_RESET}"
+                echo
+                cp "${local_build_constraints_file}" "${HOME}/build-constraints.txt"
+            fi
         else
             echo
             echo "${COLOR_BLUE}Installing docker-context-files distributions with constraints from GitHub${COLOR_RESET}"
@@ -120,8 +129,10 @@ function install_airflow_and_providers_from_docker_context_files(){
     fi
 
     set -x
+    # shellcheck disable=SC2046
     if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
         ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+        $(common::get_build_constraints_install_flags) \
         "${flags[@]}" \
         "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"; then
         set +x
@@ -162,7 +173,9 @@ function install_all_other_distributions_from_docker_context_files() {
         grep -v apache_airflow | grep -v apache-airflow || true)
     if [[ -n "${reinstalling_other_distributions}" ]]; then
         set -x
+        # shellcheck disable=SC2046
         ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            $(common::get_build_constraints_install_flags) \
             --force-reinstall --no-deps --no-index ${reinstalling_other_distributions}
         common::install_packaging_tools
         set +x
@@ -173,6 +186,7 @@ common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
 common::get_constraints_location
+common::get_build_constraints_location
 common::show_packaging_tool_version_and_location
 
 install_airflow_and_providers_from_docker_context_files

@@ -288,8 +288,14 @@ function determine_airflow_to_use() {
         local constraint_file="/tmp/constraints-from-lock.txt"
         uv export --frozen --no-hashes --no-emit-project --no-emit-workspace --no-editable --no-header \
             --no-annotate > "${constraint_file}" 2>/dev/null || true
+        local build_constraints_file="${AIRFLOW_SOURCES}/files/constraints-${PYTHON_MAJOR_MINOR_VERSION}/build-constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        local build_constraints_args=""
+        if [[ -s "${build_constraints_file}" ]]; then
+            build_constraints_args="--build-constraints ${build_constraints_file}"
+        fi
+        # shellcheck disable=SC2086
         uv run --no-cache /opt/airflow/scripts/in_container/install_development_dependencies.py \
-           --constraint "${constraint_file}"
+           --constraint "${constraint_file}" ${build_constraints_args}
         # Some packages might leave legacy typing module which causes test issues
         # shellcheck disable=SC2086
         ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} typing || true

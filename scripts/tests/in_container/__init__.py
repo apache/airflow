@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,22 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-cp -v ./files/constraints-*/{constraints,build-constraints}*.txt constraints/
-cd constraints || exit 1
-git add -- ./*.txt
-
-set +e
-git diff --cached --color --exit-code --ignore-matching-lines="^#.*"
-diff_status=$?
-set -e
-
-git reset HEAD -- . > /dev/null 2>&1
-
-if [[ ${diff_status} -eq 0 ]]; then
-    echo "No changes in constraints"
-elif [[ ${diff_status} -eq 1 ]]; then
-    echo "Changes detected in constraints, proceeding..."
-else
-    echo "Failed to diff constraints"
-    exit "${diff_status}"
-fi

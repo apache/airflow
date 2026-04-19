@@ -224,9 +224,9 @@ breeze release-management generate-constraints --airflow-constraints-mode constr
 AIRFLOW_SOURCES=$(pwd)
 ```
 
-The constraints will be generated in `files/constraints-PYTHON_VERSION/constraints-*.txt` files. You need to
-check out the right 'constraints-' branch in a separate repository, and then you can copy, commit and push the
-generated files.
+The constraints will be generated in `files/constraints-PYTHON_VERSION/constraints-*.txt` and
+`files/constraints-PYTHON_VERSION/build-constraints-*.txt` files. You need to check out the right
+'constraints-' branch in a separate repository, and then you can copy, commit and push the generated files.
 
 You need to be a committer, and you have to be authenticated in the apache/airflow repository for your
 git commands to be able to push the new constraints
@@ -234,7 +234,7 @@ git commands to be able to push the new constraints
 ```bash
 cd <AIRFLOW_WITH_CONSTRAINTS-MAIN_DIRECTORY>
 git pull
-cp ${AIRFLOW_SOURCES}/files/constraints-*/constraints*.txt .
+cp ${AIRFLOW_SOURCES}/files/constraints-*/{constraints,build-constraints}*.txt .
 git diff
 git add .
 git commit -m "Your commit message here" --no-verify

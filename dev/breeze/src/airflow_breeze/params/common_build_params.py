@@ -47,6 +47,7 @@ class CommonBuildParams:
     additional_python_deps: str | None = None
     additional_pip_install_flags: str | None = None
     airflow_branch: str = AIRFLOW_BRANCH
+    airflow_build_constraints_location: str | None = None
     default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_constraints_location: str | None = None
     builder: str = "autodetect"
@@ -188,6 +189,7 @@ class CommonBuildParams:
         return airflow_version
 
     def _set_common_opt_args(self):
+        self._opt_arg("AIRFLOW_BUILD_CONSTRAINTS_LOCATION", self.airflow_build_constraints_location)
         self._opt_arg("AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
         self._opt_arg("ADDITIONAL_AIRFLOW_EXTRAS", self.additional_airflow_extras)
         self._opt_arg("ADDITIONAL_DEV_APT_COMMAND", self.additional_dev_apt_command)

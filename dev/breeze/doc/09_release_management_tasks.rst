@@ -628,6 +628,11 @@ Generating constraints
 Whenever ``pyproject.toml`` gets modified, the CI main job will re-generate constraint files. Those constraint
 files are stored in separated orphan branches: ``constraints-main``, ``constraints-2-0``.
 
+In addition to runtime constraints, the generation also produces **build constraints** files
+(``build-constraints-PYTHON_VERSION.txt``). Build constraints pin the versions of build-time dependencies
+(e.g. ``setuptools``, ``hatchling``, ``maturin``) used during package compilation via build isolation.
+These are published alongside runtime constraints on the same branches.
+
 Those are constraint files as described in detail in the
 `</contributing-docs/13_airflow_dependencies_and_extras.rst#pinned-constraint-files>`_ contributing documentation.
 

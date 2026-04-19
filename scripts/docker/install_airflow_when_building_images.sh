@@ -95,6 +95,7 @@ function install_from_sources() {
 }
 
 function install_from_external_spec() {
+    common::get_build_constraints_location
      local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
@@ -117,14 +118,16 @@ function install_from_external_spec() {
         echo "${COLOR_BLUE}Installing all packages with highest resolutions. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_TO_HIGHEST_RESOLUTION} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags}
+        # shellcheck disable=SC2046
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_TO_HIGHEST_RESOLUTION} ${ADDITIONAL_PIP_INSTALL_FLAGS} $(common::get_build_constraints_install_flags) ${installation_command_flags}
         set +x
     else
         echo
         echo "${COLOR_BLUE}Installing all packages with constraints. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
-        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
+        # shellcheck disable=SC2046
+        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} $(common::get_build_constraints_install_flags) ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
             set +x
             if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
                 echo
@@ -158,6 +161,9 @@ function install_airflow_when_building_images() {
     fi
     # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
+        # Source installs use uv sync, which does not support --build-constraints.
+        # Remove stale build constraints from a previous non-source install run.
+        rm -f "${HOME}/build-constraints.txt"
         install_from_sources
     else
         install_from_external_spec

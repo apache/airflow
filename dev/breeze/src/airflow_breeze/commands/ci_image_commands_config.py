@@ -68,6 +68,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Selecting constraint location (for power users)",
             "options": [
+                "--airflow-build-constraints-location",
                 "--airflow-constraints-location",
                 "--airflow-constraints-mode",
                 "--airflow-constraints-reference",

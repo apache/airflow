@@ -81,6 +81,7 @@ from airflow_breeze.commands.common_options import (
     option_worker_types,
 )
 from airflow_breeze.commands.common_package_installation_options import (
+    option_airflow_build_constraints_location,
     option_airflow_constraints_location,
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_reference,
@@ -301,6 +302,7 @@ option_load_default_connections = click.option(
 )
 @option_install_airflow_python_client
 @option_start_api_server_with_examples
+@option_airflow_build_constraints_location
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference
@@ -362,6 +364,7 @@ option_load_default_connections = click.option(
 @option_use_uv
 @option_verbose
 def shell(
+    airflow_build_constraints_location: str,
     airflow_constraints_location: str,
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
@@ -438,6 +441,7 @@ def shell(
     )
     platform = get_normalized_platform(platform)
     shell_params = ShellParams(
+        airflow_build_constraints_location=airflow_build_constraints_location,
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
@@ -537,6 +541,7 @@ option_executor_start_airflow = click.option(
     is_flag=True,
 )
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
+@option_airflow_build_constraints_location
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference
@@ -585,6 +590,7 @@ option_executor_start_airflow = click.option(
 @option_use_distributions_from_dist
 @option_verbose
 def start_airflow(
+    airflow_build_constraints_location: str,
     airflow_constraints_mode: str,
     airflow_constraints_location: str,
     airflow_constraints_reference: str,
@@ -690,6 +696,7 @@ def start_airflow(
 
     platform = get_normalized_platform(platform)
     shell_params = ShellParams(
+        airflow_build_constraints_location=airflow_build_constraints_location,
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,

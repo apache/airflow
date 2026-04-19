@@ -35,6 +35,12 @@ option_airflow_constraints_location = click.option(
     help="Location of airflow constraints to use (remote URL or local context file).",
     envvar="AIRFLOW_CONSTRAINTS_LOCATION",
 )
+option_airflow_build_constraints_location = click.option(
+    "--airflow-build-constraints-location",
+    type=str,
+    help="Location of build constraints to use (remote URL or local file path).",
+    envvar="AIRFLOW_BUILD_CONSTRAINTS_LOCATION",
+)
 option_airflow_constraints_mode_update = click.option(
     "--airflow-constraints-mode",
     type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),

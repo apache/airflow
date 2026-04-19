@@ -78,6 +78,7 @@ from airflow_breeze.commands.common_options import (
     option_version_suffix,
 )
 from airflow_breeze.commands.common_package_installation_options import (
+    option_airflow_build_constraints_location,
     option_airflow_constraints_location,
     option_airflow_constraints_mode_prod,
 )
@@ -242,6 +243,7 @@ def prod_image_group():
 @option_additional_runtime_apt_command
 @option_additional_runtime_apt_deps
 @option_additional_runtime_apt_env
+@option_airflow_build_constraints_location
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_prod
 @option_airflow_constraints_reference_build
@@ -292,6 +294,7 @@ def build(
     additional_runtime_apt_command: str | None,
     additional_runtime_apt_deps: str | None,
     additional_runtime_apt_env: str | None,
+    airflow_build_constraints_location: str | None,
     airflow_constraints_location: str | None,
     airflow_constraints_mode: str,
     airflow_constraints_reference: str | None,
@@ -401,6 +404,7 @@ def build(
         additional_runtime_apt_command=additional_runtime_apt_command,
         additional_runtime_apt_deps=additional_runtime_apt_deps,
         additional_runtime_apt_env=additional_runtime_apt_env,
+        airflow_build_constraints_location=airflow_build_constraints_location,
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
