@@ -21,6 +21,7 @@
 **Table of contents**
 
 - [What the airflow-ctl distribution is](#what-the-airflow-ctl-distribution-is)
+- [Collect ambiguities during the release (for a follow-up doc PR)](#collect-ambiguities-during-the-release-for-a-follow-up-doc-pr)
 - [The airflow-ctl distributions](#the-airflow-ctl-distributions)
 - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Decide when to release](#decide-when-to-release)
@@ -70,6 +71,21 @@ needed to prepare the packages.
 NOTE!! When you have problems with any of those commands that run inside `breeze` docker image, you
 can run the command with `--debug` flag that will drop you in the shell inside the image and will
 print the command that you should run.
+
+# Collect ambiguities during the release (for a follow-up doc PR)
+
+These instructions are imperfect. Every release uncovers at least one command
+that has drifted, one step that is under-documented, or one automation that
+silently did the wrong thing. As you run through this document, jot down any
+such observations in a scratch file kept **outside** the repo (anywhere that
+is not tracked by git — a note in your home directory, a scratchpad, a
+gist). Once the release has landed, turn those notes into a follow-up PR
+against this document.
+
+Keeping the scratch file out of the repo avoids accidentally committing
+release-manager notes along with the release-prep PR, and makes it obvious
+that the notes are input to the next doc PR rather than something to keep
+around long-term.
 
 # The airflow-ctl distributions
 
@@ -139,15 +155,15 @@ rm ${AIRFLOW_REPO_ROOT:-$(pwd -P)}/airflow-ctl/src/airflowctl/__init__.py.bak
 Then generate the RST changelog for the new release by running:
 
 ```shell script
-GITHUB_TOKEN=$(gh auth token) \
-    breeze release-management generate-airflowctl-changelog \
-        --previous-release "airflow-ctl/${PREVIOUS_VERSION}" \
-        --version "${VERSION}"
+breeze release-management generate-airflowctl-changelog \
+    --previous-release "airflow-ctl/${PREVIOUS_VERSION}" \
+    --version "${VERSION}"
 ```
 
 `--current-release` defaults to `HEAD` so you do not need to tag first.
-The command fetches PR metadata from GitHub (using `GITHUB_TOKEN` or
-`gh auth token`) and categorises each merged PR into one of:
+The command fetches PR metadata from GitHub. Export `GITHUB_TOKEN` before
+running it (`gh auth login` if you have not already). The command categorises
+each merged PR into one of:
 
 - **Significant Changes** — PRs whose title starts with `feat`, `add`, or `allow`
 - **Bug Fixes** — PRs whose title starts with `fix`
@@ -233,7 +249,49 @@ Linux (Debian/Ubuntu):
 sudo apt-get install libassuan-dev gnupg
 ```
 
+### Verify your GPG signing key is ready
+
+Before you spend 10+ minutes building artifacts only to discover that signing
+fails, run these checks once:
+
+```shell script
+# 1. The apache.org key has a secret signing subkey available locally.
+gpg --list-secret-keys apache.org
+
+# 2. Signing actually works (exits 0, writes a .asc, verifies cleanly).
+echo test > /tmp/sign-check && \
+    gpg --yes --armor --local-user apache.org \
+        --output /tmp/sign-check.asc --detach-sig /tmp/sign-check && \
+    gpg --verify /tmp/sign-check.asc /tmp/sign-check && \
+    rm -f /tmp/sign-check /tmp/sign-check.asc && \
+    echo "GPG signing OK"
+
+# 3. The fingerprint of your signing (sub)key appears in the Airflow KEYS file.
+#    Without this, PMC verifiers cannot validate the release.
+FINGERPRINT=$(gpg --list-keys --with-colons apache.org | awk -F: '/^fpr:/ {print $10; exit}')
+curl -fsS https://dist.apache.org/repos/dist/release/airflow/KEYS | \
+    grep -q "${FINGERPRINT}" && echo "Key ${FINGERPRINT} is in KEYS" || \
+    echo "MISSING: add your key to KEYS before releasing"
+```
+
+If any of these fail, fix them before the build step. For first-time release
+managers, adding your key to the `KEYS` file is a separate PR against
+`https://dist.apache.org/repos/dist/release/airflow/` (SVN).
+
+`sign.sh` defaults to `SIGN_WITH=apache.org`. If your `apache.org` uid resolves
+to multiple keys (rare), set `SIGN_WITH` explicitly to the fingerprint of the
+key you want to use.
+
 ## Build and sign the source and convenience packages
+
+**Docker vs local hatch:** the `prepare-airflow-ctl-distributions` command has
+two backends. Default to Docker unless you have a specific reason not to:
+
+- **Docker (preferred, default):** reproducible build in a clean container,
+  no local Python state to pollute.
+- **`--use-local-hatch`:** faster iteration when you are debugging the build
+  itself, but requires `hatch` installed locally and your local environment to
+  match the reproducible-build expectations.
 
 * Cleanup dist folder:
 
@@ -260,23 +318,14 @@ git tag -s "airflow-ctl/${VERSION_RC}"
 git push apache "airflow-ctl/${VERSION_RC}"
 ```
 
-* Release candidate packages:
+* Release candidate packages. **Default to the Docker build** per the
+  "Docker vs local hatch" note above — only add `--use-local-hatch` if
+  you are actively debugging the build itself:
 
 ```shell script
 breeze release-management prepare-airflow-ctl-distributions --distribution-format both
 breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
 ```
-
-The `prepare-*-distributions` by default will use Dockerized approach and building of the packages
-will be done in a docker container.  However, if you have  `hatch` installed locally you can use
-`--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
-
-
-```shell script
-breeze release-management prepare-airflow-ctl-distributions --distribution-format both --use-local-hatch
-breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
-```
-
 
 The `prepare-*-distributions` commands (no matter if docker or local hatch is used) should produce the
 reproducible `.whl`, `.tar.gz` packages in the dist folder.
@@ -354,13 +403,74 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 breeze release-management prepare-airflow-ctl-distributions --version-suffix "${VERSION_SUFFIX}" --distribution-format both
 ```
 
-* Verify the artifacts that would be uploaded:
+* Run the pre-upload sanity checks below. These are all local and idempotent —
+  run them every release as a one-block paste, no per-release edits needed.
 
 ```shell script
+cd ${AIRFLOW_REPO_ROOT}/dist
+
+# 1. Verify dist/ contains EXACTLY the 2 PyPI artifacts and nothing else
+#    (no -source.tar.gz — that one is for SVN, not PyPI; no *.asc / *.sha512).
+expected=2
+actual=$(ls -1 | wc -l | tr -d ' ')
+[ "${actual}" = "${expected}" ] && echo "OK: ${expected} files in dist/" \
+    || { echo "FAIL: expected ${expected} files, got ${actual}:"; ls -1; exit 1; }
+ls -1 | grep -vE '\.(whl|tar\.gz)$' && { echo "FAIL: unexpected file type"; exit 1; } \
+    || echo "OK: only .whl and .tar.gz present"
+ls -1 | grep -E 'source\.tar\.gz$' && { echo "FAIL: -source.tar.gz must not go to PyPI"; exit 1; } \
+    || echo "OK: no source tarball in dist/"
+
+# 2. Verify each filename contains the expected rc suffix
+for f in apache_airflow_ctl-${VERSION_RC}-py3-none-any.whl apache_airflow_ctl-${VERSION_RC}.tar.gz; do
+    [ -f "${f}" ] && echo "OK: ${f} exists" \
+        || { echo "FAIL: ${f} missing"; exit 1; }
+done
+
+# 3. Verify the wheel's embedded version matches (hatch-vcs or manual __version__ path).
+python -m zipfile -e apache_airflow_ctl-${VERSION_RC}-py3-none-any.whl /tmp/whl-check/
+grep -E "^Version: ${VERSION_RC}$" /tmp/whl-check/apache_airflow_ctl-*.dist-info/METADATA \
+    && echo "OK: wheel METADATA Version is ${VERSION_RC}" \
+    || { echo "FAIL: wheel METADATA does not report ${VERSION_RC}"; exit 1; }
+rm -rf /tmp/whl-check
+
+# 4. twine's built-in README/metadata check
 twine check ${AIRFLOW_REPO_ROOT}/dist/*
+
+# 5. Sanity-install in a throwaway venv and import
+uv venv --python 3.12 /tmp/airflowctl-install-check
+uv pip install --python /tmp/airflowctl-install-check/bin/python \
+    ${AIRFLOW_REPO_ROOT}/dist/apache_airflow_ctl-${VERSION_RC}-py3-none-any.whl
+/tmp/airflowctl-install-check/bin/airflowctl version && \
+    echo "OK: airflowctl command runs from wheel"
+rm -rf /tmp/airflowctl-install-check
+
+cd ${AIRFLOW_REPO_ROOT}
 ```
 
-* Upload the package to PyPi:
+* Configure a short-lived PyPI token for this upload only. **Until Trusted
+  Publishing is deployed for apache-airflow-ctl on PyPI**, the recommended
+  practice is:
+
+  1. Log in to https://pypi.org and create an API token right before the
+     upload step. **Scope caveat:** you would ideally create a
+     project-scoped token for `apache-airflow-ctl` alone, but PyPI only
+     allows project-scoped tokens for projects you already own/maintain on
+     that account. Most Airflow release managers do not have per-project
+     owner rights on `apache-airflow-ctl`, so in practice you will need to
+     create an account-wide ("all projects") token. That is acceptable
+     **only if** you treat it as single-use and delete it immediately
+     after the upload (step 4 below). Never keep an all-projects token on
+     disk longer than the upload itself.
+  2. Put it in `~/.pypirc` (or export as `TWINE_USERNAME=__token__`
+     `TWINE_PASSWORD=pypi-...`).
+  3. Run the upload (below).
+  4. **Immediately delete the token** from the PyPI web UI after the upload
+     completes. Do not keep long-lived release-manager tokens on disk.
+
+  This is a defence-in-depth practice: the RM machine becomes a one-time
+  release vehicle, not a persistent point of compromise.
+
+* Upload the package to PyPI:
 
 ```shell script
 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
@@ -630,7 +740,7 @@ done
 You should see output similar to:
 
 ```
-apache_airflow_airflow_ctl-1.0.0.tar.gz:No diff found
+apache_airflow_ctl-0.1.4.tar.gz:No diff found
 ```
 
 You can use the `breeze release-management check-release-files` command to verify that all expected files are
@@ -818,7 +928,7 @@ that the Airflow works as you expected.
 VERSION="<here put the version - for example 0.1.1>"
 VERSION_SUFFIX=rc1
 VERSION_RC=${VERSION}${VERSION_SUFFIX}
-export RELEASE_MANAGER_NAME="Buğra Öztürk"
+export RELEASE_MANAGER_NAME="<Your Name>"
 ```
 
 ## Summarize the voting for the Apache Airflow release
