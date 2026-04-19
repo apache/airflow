@@ -35,7 +35,10 @@ from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseCo
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
-    from airflow.executors.workloads.types import WorkloadKey
+    from airflow.providers.amazon.version_compat import AIRFLOW_V_3_3_PLUS
+
+    if AIRFLOW_V_3_3_PLUS:
+        from airflow.executors.workloads.types import WorkloadKey
 
 CommandType = Sequence[str]
 ExecutorConfigFunctionType = Callable[[CommandType], dict]
