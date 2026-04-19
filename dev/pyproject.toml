@@ -88,21 +88,9 @@ exclude = [
     # Exclude hidden files and directories
     ".*/\\..*"
 ]
-mypy_path = [
-    "$MYPY_CONFIG_FILE_DIR/../airflow-core/src",
-    "$MYPY_CONFIG_FILE_DIR/../airflow-core/tests",
-    "$MYPY_CONFIG_FILE_DIR/../task-sdk/src",
-    "$MYPY_CONFIG_FILE_DIR/../task-sdk/tests",
-    "$MYPY_CONFIG_FILE_DIR/../airflow-ctl/src",
-    "$MYPY_CONFIG_FILE_DIR/../airflow-ctl/tests",
-    "$MYPY_CONFIG_FILE_DIR/../airflow-ctl-tests/tests",
-    "$MYPY_CONFIG_FILE_DIR/../dev",
-    "$MYPY_CONFIG_FILE_DIR/../devel-common/src",
-    "$MYPY_CONFIG_FILE_DIR/../helm-tests/tests",
-    "$MYPY_CONFIG_FILE_DIR/../kubernetes-tests/tests",
-    "$MYPY_CONFIG_FILE_DIR/../docker-tests/tests",
-    "$MYPY_CONFIG_FILE_DIR/../task-sdk-integration-tests/tests",
-]
+# Workspace packages (airflow_breeze, airflow_perf, airflow_mypy, etc.) are installed
+# editable into the hook's virtualenv by `uv sync`, so mypy resolves them via
+# site-packages — no mypy_path entries needed.
 
 [[tool.mypy.overrides]]
 module="airflow.config_templates.default_webserver_config"
