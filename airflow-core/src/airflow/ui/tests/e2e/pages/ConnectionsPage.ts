@@ -147,11 +147,12 @@ export class ConnectionsPage extends BasePage {
     await expect(deleteButton).toBeVisible({ timeout: 10_000 });
     await expect(deleteButton).toBeEnabled({ timeout: 5000 });
 
-    await expect(async () => {
-      await deleteButton.click({ timeout: 5000 });
-      await expect(this.confirmDeleteButton).toBeVisible({ timeout: 5000 });
-    }).toPass({ intervals: [2000], timeout: 30_000 });
+    // Extended timeout: on resource-constrained CI runners, WebKit can take
+    // longer than the default 10s to release the previous dialog's backdrop
+    // pointer-events after close.
+    await deleteButton.click({ timeout: 30_000 });
 
+    await expect(this.confirmDeleteButton).toBeVisible({ timeout: 10_000 });
     await expect(this.confirmDeleteButton).toBeEnabled({ timeout: 5000 });
     await this.confirmDeleteButton.click();
 
@@ -304,17 +305,17 @@ export class ConnectionsPage extends BasePage {
   public async saveConnection(): Promise<void> {
     await expect(this.saveButton).toBeVisible({ timeout: 10_000 });
     await expect(this.saveButton).toBeEnabled({ timeout: 5000 });
+
+    const responsePromise = this.page.waitForResponse(
+      (response) =>
+        /\/api\/v2\/connections(\/[^/]+)?(\?|$)/.test(response.url()) &&
+        ["PATCH", "POST"].includes(response.request().method()) &&
+        response.ok(),
+      { timeout: 15_000 },
+    );
+
     await this.saveButton.click();
-
-    await Promise.race([
-      this.page.waitForURL("**/connections", { timeout: 10_000 }),
-      this.successAlert.waitFor({ state: "visible", timeout: 30_000 }),
-    ]);
-
-    // Ensure the dialog is fully closed before proceeding.
-    // Ark UI may leave the backdrop element in the DOM with data-state="closed",
-    // but it is non-interactive (pointer-events: none) and does not block clicks.
-    await expect(this.connectionForm).toBeHidden({ timeout: 10_000 });
+    await responsePromise;
   }
 
   public async searchConnections(searchTerm: string): Promise<void> {
