@@ -1,3 +1,5 @@
+/* eslint-disable max-lines -- form aggregates date range, reprocess behavior, and param controls in a single UX flow */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
