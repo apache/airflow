@@ -321,7 +321,6 @@ spec:
 ################################
 ## Airflow Dag Processor Deployment
 #################################
-{{- if semverCompare ">=2.3.0" .Values.airflowVersion }}
 {{- $enabled := .Values.dagProcessor.enabled }}
 {{- if eq $enabled nil}}
   {{ $enabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
@@ -353,5 +352,4 @@ spec:
       {{- end }}
     {{- end }}
   {{- end }}
-{{- end }}
 {{- end }}
