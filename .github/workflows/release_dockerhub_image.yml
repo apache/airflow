@@ -58,7 +58,6 @@ jobs:
       AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
       AMD_ONLY: ${{ github.event.inputs.amdOnly }}
       LIMIT_PYTHON_VERSIONS: ${{ github.event.inputs.limitPythonVersions }}
-      UV_VERSION: "0.11.3"  # Keep this comment to allow automatic replacement of uv version
     if: contains(fromJSON('[
       "ashb",
       "bugraoz93",
@@ -93,8 +92,6 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          uv-version: ${{ env.UV_VERSION }}
       - name: Selective checks
         id: selective-checks
         env:

@@ -759,7 +759,7 @@ class KubernetesPodOperator(BaseOperator):
                 result = self.extract_xcom(pod=self.pod)
             istio_enabled = self.is_istio_enabled(self.pod)
             self.remote_pod = self.pod_manager.await_pod_completion(
-                self.pod, istio_enabled, self.base_container_name
+                self.pod, istio_enabled, self.base_container_name, self.do_xcom_push
             )
         finally:
             pod_to_clean = self.pod or self.pod_request_obj
@@ -1025,7 +1025,7 @@ class KubernetesPodOperator(BaseOperator):
         if event["status"] != "timeout":
             try:
                 self.pod = self.pod_manager.await_pod_completion(
-                    self.pod, istio_enabled, self.base_container_name
+                    self.pod, istio_enabled, self.base_container_name, self.do_xcom_push
                 )
             except ApiException as e:
                 if e.status == 404:
@@ -1051,11 +1051,17 @@ class KubernetesPodOperator(BaseOperator):
         reraise=True,
     )
     def _write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
-        since_seconds = (
-            math.ceil((datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds())
-            if since_time
-            else None
-        )
+        since_seconds = None
+        if since_time:
+            try:
+                since_seconds = math.ceil(
+                    (datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds()
+                )
+            except TypeError:
+                self.log.warning(
+                    "Error calculating since_seconds with since_time %s. Using None instead.",
+                    since_time,
+                )
         logs = self.client.read_namespaced_pod_log(
             name=pod.metadata.name,
             namespace=pod.metadata.namespace,
@@ -1110,9 +1116,10 @@ class KubernetesPodOperator(BaseOperator):
         ):
             self.patch_already_checked(remote_pod, reraise=False)
 
-        failed = (pod_phase != PodPhase.SUCCEEDED and not istio_enabled) or (
-            istio_enabled and not container_is_succeeded(remote_pod, self.base_container_name)
-        )
+        if istio_enabled or self.do_xcom_push:
+            failed = not container_is_succeeded(remote_pod, self.base_container_name)
+        else:
+            failed = pod_phase != PodPhase.SUCCEEDED
 
         if failed:
             if self.do_xcom_push and xcom_result and context:

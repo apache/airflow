@@ -18,12 +18,17 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import MutableMapping
+from contextlib import nullcontext
+from threading import RLock
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from cachetools import LRUCache, TTLCache
 from sqlalchemy import String, select
 from sqlalchemy.orm import Mapped, joinedload, mapped_column
 
+from airflow._shared.observability.metrics.stats import Stats
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 
@@ -39,50 +44,117 @@ if TYPE_CHECKING:
 
 class DBDagBag:
     """
-    Internal class for retrieving and caching dags in the scheduler.
+    Internal class for retrieving dags from the database.
+
+    Optionally supports LRU+TTL caching when cache_size is provided.
+    The scheduler uses this without caching, while the API server can
+    enable caching via configuration.
 
     :meta private:
     """
 
-    def __init__(self, load_op_links: bool = True) -> None:
-        self._dags: dict[UUID, SerializedDagModel] = {}  # dag_version_id to dag
-        self.load_op_links = load_op_links
+    def __init__(
+        self,
+        load_op_links: bool = True,
+        cache_size: int | None = None,
+        cache_ttl: int | None = None,
+    ) -> None:
+        """
+        Initialize DBDagBag.
 
-    def _read_dag(self, serialized_dag_model: SerializedDagModel) -> SerializedDAG | None:
-        serialized_dag_model.load_op_links = self.load_op_links
-        if dag := serialized_dag_model.dag:
-            self._dags[serialized_dag_model.dag_version_id] = serialized_dag_model
+        :param load_op_links: Should the extra operator link be loaded when de-serializing the DAG?
+        :param cache_size: Size of LRU cache. If None or 0, uses unbounded dict (no eviction).
+        :param cache_ttl: Time-to-live for cache entries in seconds. If None or 0, no TTL (LRU only).
+        """
+        self.load_op_links = load_op_links
+        self._dags: MutableMapping[UUID | str, SerializedDAG] = {}
+        self._use_cache = False
+
+        # Initialize bounded cache if cache_size is provided and > 0
+        if cache_size and cache_size > 0:
+            if cache_ttl and cache_ttl > 0:
+                self._dags = TTLCache(maxsize=cache_size, ttl=cache_ttl)
+            else:
+                self._dags = LRUCache(maxsize=cache_size)
+            self._use_cache = True
+
+        # Lock required for bounded caches: cachetools caches are NOT thread-safe
+        # (LRU reordering and TTL cleanup mutate internal linked lists).
+        # nullcontext for unbounded dict avoids lock overhead in the scheduler path.
+        self._lock: RLock | nullcontext = RLock() if self._use_cache else nullcontext()
+
+    def _read_dag(self, serdag: SerializedDagModel) -> SerializedDAG | None:
+        """Read and optionally cache a SerializedDAG from a SerializedDagModel."""
+        serdag.load_op_links = self.load_op_links
+        dag = serdag.dag
+        if not dag:
+            return None
+        with self._lock:
+            self._dags[serdag.dag_version_id] = dag
+            cache_size = len(self._dags)
+        if self._use_cache:
+            Stats.gauge("api_server.dag_bag.cache_size", cache_size, rate=0.1)
         return dag
 
-    def get_serialized_dag_model(self, version_id: UUID, session: Session) -> SerializedDagModel | None:
+    def _get_dag(self, version_id: UUID | str, session: Session) -> SerializedDAG | None:
+        # Check cache first
+        with self._lock:
+            dag = self._dags.get(version_id)
+
+        if dag:
+            if self._use_cache:
+                Stats.incr("api_server.dag_bag.cache_hit")
+            return dag
+
+        dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
+        if not dag_version:
+            return None
+        if not (serdag := dag_version.serialized_dag):
+            return None
+
+        # Double-checked locking: another thread may have cached it while we queried DB.
+        # Only emit the miss metric after confirming no other thread cached it, to avoid
+        # counting a single lookup as both a miss and a hit.
+        if self._use_cache:
+            with self._lock:
+                if dag := self._dags.get(version_id):
+                    Stats.incr("api_server.dag_bag.cache_hit")
+                    return dag
+            Stats.incr("api_server.dag_bag.cache_miss")
+        return self._read_dag(serdag)
+
+    def get_dag(self, version_id: UUID | str, session: Session) -> SerializedDAG | None:
+        """Get a dag by its version id, using cache if enabled."""
+        return self._get_dag(version_id=version_id, session=session)
+
+    def get_serialized_dag_model(self, version_id: UUID | str, session: Session) -> SerializedDagModel | None:
         """
         Return the SerializedDagModel for a given dag version id.
 
-        This will first consult the in-memory cache keyed by the dag version id. If the
-        model is not cached, the database is queried for a corresponding :class:`DagVersion`
-        and its associated :class:`SerializedDagModel`.
-
-        :param version_id: The UUID of the dag version to look up.
-        :param session: SQLAlchemy session used to query the database.
-        :return: The serialized DAG model if found either in the cache or the database; ``None``
-                 is returned when no :class:`DagVersion` exists for the given ``version_id`` or
-                 when that :class:`DagVersion` does not have an associated :class:`SerializedDagModel`.
-        :rtype: SerializedDagModel | None
-
-        Note: If a serialized dag model is found in the database it will be stored in the
-        internal cache (``self._dags``) before being returned.
+        Always queries the database. The triggerer needs the full model
+        for ``serialized_dag_model.data``, which cannot be stored in the
+        LRU/TTL cache (it stores deserialized SerializedDAG objects).
         """
-        if not (serialized_dag_model := self._dags.get(version_id)):
-            dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
-            if not dag_version or not (serialized_dag_model := dag_version.serialized_dag):
-                return None
-            self._read_dag(serialized_dag_model)
-        return serialized_dag_model
+        dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
+        if not dag_version or not (serdag := dag_version.serialized_dag):
+            return None
+        serdag.load_op_links = self.load_op_links
+        return serdag
 
-    def get_dag(self, version_id: UUID, session: Session) -> SerializedDAG | None:
-        if serialized_dag_model := self.get_serialized_dag_model(version_id=version_id, session=session):
-            return serialized_dag_model.dag
-        return None
+    def clear_cache(self) -> int:
+        """
+        Clear all cached DAGs and serialized DAG models.
+
+        :return: Number of entries cleared from the DAG cache.
+        """
+        with self._lock:
+            count = len(self._dags)
+            self._dags.clear()
+
+        if self._use_cache:
+            Stats.incr("api_server.dag_bag.cache_clear")
+            Stats.gauge("api_server.dag_bag.cache_size", 0)
+        return count
 
     @staticmethod
     def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> UUID | None:
@@ -94,24 +166,30 @@ class DBDagBag:
 
     def get_dag_for_run(self, dag_run: DagRun, session: Session) -> SerializedDAG | None:
         if version_id := self._version_from_dag_run(dag_run=dag_run, session=session):
-            return self.get_dag(version_id=version_id, session=session)
+            return self._get_dag(version_id=version_id, session=session)
         return None
 
     def iter_all_latest_version_dags(self, *, session: Session) -> Generator[SerializedDAG, None, None]:
-        """Walk through all latest version dags available in the database."""
+        """
+        Walk through all latest version dags available in the database.
+
+        Note: This method does NOT cache the DAGs to avoid cache thrashing when
+        iterating over many DAGs. Each DAG is deserialized fresh from the database.
+        """
         from airflow.models.serialized_dag import SerializedDagModel
 
-        for serialized_dag_model in session.scalars(select(SerializedDagModel)):
-            if dag := self._read_dag(serialized_dag_model):
+        for sdm in session.scalars(select(SerializedDagModel)):
+            sdm.load_op_links = self.load_op_links
+            if dag := sdm.dag:
                 yield dag
 
     def get_latest_version_of_dag(self, dag_id: str, *, session: Session) -> SerializedDAG | None:
         """Get the latest version of a dag by its id."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        if not (serialized_dag_model := SerializedDagModel.get(dag_id, session=session)):
+        if not (serdag := SerializedDagModel.get(dag_id, session=session)):
             return None
-        return self._read_dag(serialized_dag_model)
+        return self._read_dag(serdag)
 
 
 def generate_md5_hash(context):

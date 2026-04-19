@@ -20,12 +20,10 @@
 /**
  * Asset data fixture — triggers asset_produces_1 DAG and waits for success.
  */
-
-/* eslint-disable react-hooks/rules-of-hooks -- Playwright's `use` is not a React Hook. */
 import { test as base } from "tests/e2e/fixtures";
 import {
-  safeCleanupDagRun,
   apiTriggerDagRun,
+  safeCleanupDagRun,
   waitForDagReady,
   waitForDagRunStatus,
 } from "tests/e2e/utils/test-helpers";
@@ -54,6 +52,7 @@ export const test = base.extend<Record<never, never>, { assetData: AssetData }>(
           timeout: 120_000,
         });
 
+        // eslint-disable-next-line react-hooks/rules-of-hooks
         await use({ dagId });
       } finally {
         if (createdRunId !== undefined) {

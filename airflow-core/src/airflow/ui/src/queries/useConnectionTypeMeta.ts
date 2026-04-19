@@ -78,7 +78,9 @@ const convertStandardFields = (
   defaultFields: StandardFieldSpec,
 ): StandardFieldSpec => {
   if (apiFields === null) {
-    return { ...defaultFields };
+    const { url_schema: urlSchema, ...rest } = defaultFields;
+
+    return { ...rest, schema: urlSchema ?? {} };
   }
 
   const result: StandardFieldSpec = {

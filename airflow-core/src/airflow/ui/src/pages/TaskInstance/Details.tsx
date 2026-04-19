@@ -153,6 +153,18 @@ export const Details = () => {
             <Table.Cell>{renderDuration(tryInstance?.duration)}</Table.Cell>
           </Table.Row>
           <Table.Row>
+            <Table.Cell>{translate("taskInstance.scheduledWhen")}</Table.Cell>
+            <Table.Cell>
+              <Time datetime={tryInstance?.scheduled_when} />
+            </Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>{translate("taskInstance.queuedWhen")}</Table.Cell>
+            <Table.Cell>
+              <Time datetime={tryInstance?.queued_when} />
+            </Table.Cell>
+          </Table.Row>
+          <Table.Row>
             <Table.Cell>{translate("startDate")}</Table.Cell>
             <Table.Cell>
               <Time datetime={tryInstance?.start_date} />

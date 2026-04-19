@@ -34,6 +34,7 @@ from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.executors.base_executor import BaseExecutor
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
@@ -773,6 +774,10 @@ def test_celery_tasks_registered_on_import():
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_1_9_PLUS, reason="TaskAlreadyRunningError requires Airflow 3.1.9+")
+@pytest.mark.skipif(
+    not hasattr(BaseExecutor, "run_workload"),
+    reason="BaseExecutor.run_workload not available in this Airflow version",
+)
 def test_execute_workload_ignores_already_running_task():
     """Test that execute_workload raises Celery Ignore when task is already running."""
     import importlib
@@ -790,10 +795,10 @@ def test_execute_workload_ignores_already_running_task():
     mock_app.current_task = mock_current_task
 
     with (
-        mock.patch("airflow.sdk.execution_time.supervisor.supervise") as mock_supervise,
+        mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload") as mock_run_workload,
         mock.patch.object(celery_executor_utils, "app", mock_app),
     ):
-        mock_supervise.side_effect = TaskAlreadyRunningError("Task already running")
+        mock_run_workload.side_effect = TaskAlreadyRunningError("Task already running")
 
         workload_json = """
         {
@@ -874,6 +879,64 @@ class TestAmqpsSslConfig:
 
     @conf_vars(
         {
+            ("celery", "BROKER_URL"): "rediss://redis:6380//",
+            ("celery", "SSL_ACTIVE"): "True",
+            ("celery", "SSL_KEY"): "/path/to/key.pem",
+            ("celery", "SSL_CERT"): "/path/to/cert.pem",
+            ("celery", "SSL_CACERT"): "/path/to/ca.pem",
+        }
+    )
+    def test_redis_mutual_tls_builds_ssl_config(self):
+        """Test mutual TLS: all three SSL keys produce correct broker_use_ssl for Redis."""
+        import importlib
+        import ssl
+
+        importlib.reload(default_celery)
+
+        config = default_celery.DEFAULT_CELERY_CONFIG
+        assert "broker_use_ssl" in config
+        broker_ssl = config["broker_use_ssl"]
+        assert broker_ssl["ssl_keyfile"] == "/path/to/key.pem"
+        assert broker_ssl["ssl_certfile"] == "/path/to/cert.pem"
+        assert broker_ssl["ssl_ca_certs"] == "/path/to/ca.pem"
+        assert broker_ssl["ssl_cert_reqs"] == ssl.CERT_REQUIRED
+
+    @conf_vars(
+        {
+            ("celery", "BROKER_URL"): "amqps://guest:guest@rabbitmq:5671//",
+            ("celery", "SSL_ACTIVE"): "True",
+            ("celery", "SSL_CACERT"): "/path/to/ca.pem",
+        }
+    )
+    def test_amqps_mutual_tls_missing_key_cert_raises(self):
+        """Test that mutual TLS (default) raises error when SSL_KEY/SSL_CERT are missing."""
+        import importlib
+
+        with pytest.raises(ValueError, match="SSL_MUTUAL_TLS is True.*but SSL_KEY and/or SSL_CERT"):
+            importlib.reload(default_celery)
+
+    @conf_vars(
+        {
+            ("celery", "BROKER_URL"): "amqps://guest:guest@rabbitmq:5671//",
+            ("celery", "SSL_ACTIVE"): "True",
+            ("celery", "SSL_KEY"): "/path/to/key",
+            ("celery", "SSL_CERT"): "/path/to/cert",
+            ("celery", "SSL_CACERT"): "",
+        }
+    )
+    def test_ssl_active_without_cacert_uses_system_cas(self):
+        """Test that empty SSL_CACERT falls back to system CAs (ca_certs omitted from config)."""
+        import importlib
+        import ssl
+
+        importlib.reload(default_celery)
+        broker_ssl = default_celery.DEFAULT_CELERY_CONFIG["broker_use_ssl"]
+
+        assert "ca_certs" not in broker_ssl
+        assert broker_ssl["cert_reqs"] == ssl.CERT_REQUIRED
+
+    @conf_vars(
+        {
             ("celery", "BROKER_URL"): "amqps://guest:guest@rabbitmq:5671//",
             ("celery", "SSL_ACTIVE"): "False",
         }
@@ -886,6 +949,77 @@ class TestAmqpsSslConfig:
 
         config = default_celery.DEFAULT_CELERY_CONFIG
         assert "broker_use_ssl" not in config
+
+    @conf_vars(
+        {
+            ("celery", "BROKER_URL"): "amqps://guest:guest@rabbitmq:5671//",
+            ("celery", "SSL_ACTIVE"): "True",
+            ("celery", "SSL_MUTUAL_TLS"): "False",
+            ("celery", "SSL_CACERT"): "/path/to/ca.pem",
+        }
+    )
+    def test_amqps_one_way_tls(self):
+        """Test one-way TLS for AMQP: only ca_certs, no keyfile/certfile."""
+        import importlib
+        import ssl
+
+        importlib.reload(default_celery)
+
+        config = default_celery.DEFAULT_CELERY_CONFIG
+        assert "broker_use_ssl" in config
+        broker_ssl = config["broker_use_ssl"]
+        assert broker_ssl["ca_certs"] == "/path/to/ca.pem"
+        assert broker_ssl["cert_reqs"] == ssl.CERT_REQUIRED
+        assert "keyfile" not in broker_ssl
+        assert "certfile" not in broker_ssl
+
+    @conf_vars(
+        {
+            ("celery", "BROKER_URL"): "rediss://redis:6380//",
+            ("celery", "SSL_ACTIVE"): "True",
+            ("celery", "SSL_MUTUAL_TLS"): "False",
+            ("celery", "SSL_CACERT"): "/path/to/ca.pem",
+        }
+    )
+    def test_redis_one_way_tls(self):
+        """Test one-way TLS for Redis: only ssl_ca_certs, no ssl_keyfile/ssl_certfile."""
+        import importlib
+        import ssl
+
+        importlib.reload(default_celery)
+
+        config = default_celery.DEFAULT_CELERY_CONFIG
+        assert "broker_use_ssl" in config
+        broker_ssl = config["broker_use_ssl"]
+        assert broker_ssl["ssl_ca_certs"] == "/path/to/ca.pem"
+        assert broker_ssl["ssl_cert_reqs"] == ssl.CERT_REQUIRED
+        assert "ssl_keyfile" not in broker_ssl
+        assert "ssl_certfile" not in broker_ssl
+
+    @conf_vars(
+        {
+            ("celery", "BROKER_URL"): "amqps://guest:guest@rabbitmq:5671//",
+            ("celery", "SSL_ACTIVE"): "True",
+            ("celery", "SSL_MUTUAL_TLS"): "False",
+            ("celery", "SSL_KEY"): "/path/to/key.pem",
+            ("celery", "SSL_CERT"): "/path/to/cert.pem",
+            ("celery", "SSL_CACERT"): "/path/to/ca.pem",
+        }
+    )
+    def test_one_way_tls_ignores_key_cert(self):
+        """Test that SSL_KEY/SSL_CERT are ignored when SSL_MUTUAL_TLS is False."""
+        import importlib
+        import ssl
+
+        importlib.reload(default_celery)
+
+        config = default_celery.DEFAULT_CELERY_CONFIG
+        assert "broker_use_ssl" in config
+        broker_ssl = config["broker_use_ssl"]
+        assert broker_ssl["ca_certs"] == "/path/to/ca.pem"
+        assert broker_ssl["cert_reqs"] == ssl.CERT_REQUIRED
+        assert "keyfile" not in broker_ssl
+        assert "certfile" not in broker_ssl
 
 
 class TestCreateCeleryAppTeamIsolation:

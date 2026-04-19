@@ -17,4 +17,17 @@
 # under the License.
 cp -v ./files/constraints-*/constraints*.txt constraints/
 cd constraints || exit 1
-git diff --color --exit-code --ignore-matching-lines="^#.*" || echo "No changes in constraints"
+
+set +e
+git diff --color --exit-code --ignore-matching-lines="^#.*"
+diff_status=$?
+set -e
+
+if [[ ${diff_status} -eq 0 ]]; then
+echo "No changes in constraints"
+elif [[ ${diff_status} -eq 1 ]]; then
+echo "Changes detected in constraints, proceeding..."
+else
+echo "Failed to diff constraints"
+exit "${diff_status}"
+fi
