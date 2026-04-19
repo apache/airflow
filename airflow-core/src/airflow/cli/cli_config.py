@@ -561,6 +561,11 @@ ARG_POOL_DESCRIPTION = Arg(("description",), help="Pool description")
 ARG_POOL_INCLUDE_DEFERRED = Arg(
     ("--include-deferred",), help="Include deferred tasks in calculations for Pool", action="store_true"
 )
+ARG_POOL_TEAM_NAME = Arg(
+    ("--team-name",),
+    help="Team name" if conf.getboolean("core", "multi_team", fallback=False) else argparse.SUPPRESS,
+)
+
 ARG_POOL_IMPORT = Arg(
     ("file",),
     metavar="FILEPATH",
@@ -575,6 +580,12 @@ ARG_POOL_IMPORT = Arg(
         ),
         " " * 4,
     ),
+)
+ARG_POOL_IMPORT_TEAM_NAME = Arg(
+    ("--team-name",),
+    help="Team name to be assigned to pools that don't have a 'team_name' key in the import file"
+    if conf.getboolean("core", "multi_team", fallback=False)
+    else argparse.SUPPRESS,
 )
 
 ARG_POOL_EXPORT = Arg(("file",), metavar="FILEPATH", help="Export all pools to JSON file")
@@ -1431,6 +1442,7 @@ POOLS_COMMANDS = (
             ARG_POOL_SLOTS,
             ARG_POOL_DESCRIPTION,
             ARG_POOL_INCLUDE_DEFERRED,
+            ARG_POOL_TEAM_NAME,
             ARG_OUTPUT,
             ARG_VERBOSE,
         ),
@@ -1445,7 +1457,7 @@ POOLS_COMMANDS = (
         name="import",
         help="Import pools",
         func=lazy_load_command("airflow.cli.commands.pool_command.pool_import"),
-        args=(ARG_POOL_IMPORT, ARG_VERBOSE),
+        args=(ARG_POOL_IMPORT, ARG_POOL_IMPORT_TEAM_NAME, ARG_VERBOSE),
     ),
     ActionCommand(
         name="export",

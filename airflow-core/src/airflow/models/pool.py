@@ -25,6 +25,7 @@ from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, func, select
 from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow._shared.observability.metrics.stats import normalize_name_for_stats
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.base import Base
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
@@ -128,20 +129,33 @@ class Pool(Base):
         slots: int,
         description: str,
         include_deferred: bool,
+        team_name: str | None = None,
         session: Session = NEW_SESSION,
     ) -> Pool:
         """Create a pool with given parameters or update it if it already exists."""
         if not name:
             raise ValueError("Pool name must not be empty")
 
+        if team_name and not conf.getboolean("core", "multi_team", fallback=False):
+            raise ValueError(
+                "Multi-team mode is not configured in the Airflow environment. To assign a team to a pool, multi-team mode must be enabled."
+            )
+
         pool = session.scalar(select(Pool).filter_by(pool=name))
         if pool is None:
-            pool = Pool(pool=name, slots=slots, description=description, include_deferred=include_deferred)
+            pool = Pool(
+                pool=name,
+                slots=slots,
+                description=description,
+                include_deferred=include_deferred,
+                team_name=team_name,
+            )
             session.add(pool)
         else:
             pool.slots = slots
             pool.description = description
             pool.include_deferred = include_deferred
+            pool.team_name = team_name
 
         session.commit()
         return pool

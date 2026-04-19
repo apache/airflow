@@ -25,6 +25,7 @@ from json import JSONDecodeError
 
 from airflow.api.client import get_current_api_client
 from airflow.cli.simple_table import AirflowConsole
+from airflow.configuration import conf
 from airflow.exceptions import PoolNotFound
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
@@ -32,16 +33,18 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 
 
 def _show_pools(pools, output):
-    AirflowConsole().print_as(
-        data=pools,
-        output=output,
-        mapper=lambda x: {
+    def mapper(x):
+        row = {
             "pool": x[0],
             "slots": x[1],
             "description": x[2],
             "include_deferred": x[3],
-        },
-    )
+        }
+        if conf.getboolean("core", "multi_team", fallback=False):
+            row["team_name"] = x[4] if len(x) > 4 else None
+        return row
+
+    AirflowConsole().print_as(data=pools, output=output, mapper=mapper)
 
 
 @suppress_logs_and_warning
@@ -70,9 +73,20 @@ def pool_get(args):
 @providers_configuration_loaded
 def pool_set(args):
     """Create new pool with a given name and slots."""
+    team_name = getattr(args, "team_name", None)
+
+    if team_name and not conf.getboolean("core", "multi_team", fallback=False):
+        raise SystemExit(
+            "Error: team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+        )
+
     api_client = get_current_api_client()
     api_client.create_pool(
-        name=args.pool, slots=args.slots, description=args.description, include_deferred=args.include_deferred
+        name=args.pool,
+        slots=args.slots,
+        description=args.description,
+        include_deferred=args.include_deferred,
+        team_name=team_name,
     )
     print(f"Pool {args.pool} created")
 
@@ -97,7 +111,8 @@ def pool_import(args):
     """Import pools from the file."""
     if not os.path.exists(args.file):
         raise SystemExit(f"Missing pools file {args.file}")
-    pools, failed = pool_import_helper(args.file)
+    fallback_team_name = getattr(args, "team_name", None)
+    pools, failed = pool_import_helper(args.file, fallback_team_name)
     if failed:
         raise SystemExit(f"Failed to update pool(s): {', '.join(failed)}")
     print(f"Uploaded {len(pools)} pool(s)")
@@ -110,7 +125,7 @@ def pool_export(args):
     print(f"Exported {len(pools)} pools to {args.file}")
 
 
-def pool_import_helper(filepath):
+def pool_import_helper(filepath, fallback_team_name=None):
     """Help import pools from the json file."""
     api_client = get_current_api_client()
 
@@ -120,6 +135,20 @@ def pool_import_helper(filepath):
         pools_json = json.loads(data)
     except JSONDecodeError as e:
         raise SystemExit(f"Invalid json file: {e}")
+
+    if not conf.getboolean("core", "multi_team", fallback=False):
+        if fallback_team_name:
+            raise SystemExit(
+                "Error: team_name cannot be set when multi_team mode is disabled. Please contact your administrator. "
+            )
+
+        invalid = [k for k, v in pools_json.items() if isinstance(v, dict) and v.get("team_name") is not None]
+        if invalid:
+            raise SystemExit(
+                f"Error: team_name cannot be set when multi_team mode is disabled. Please contact your administrator. "
+                f"Pools with team_name set: {', '.join(invalid)}"
+            )
+
     pools = []
     failed = []
     for k, v in pools_json.items():
@@ -130,6 +159,7 @@ def pool_import_helper(filepath):
                     slots=v["slots"],
                     description=v["description"],
                     include_deferred=v.get("include_deferred", False),
+                    team_name=v.get("team_name", fallback_team_name),
                 )
             )
         else:
@@ -143,7 +173,13 @@ def pool_export_helper(filepath):
     pool_dict = {}
     pools = api_client.get_pools()
     for pool in pools:
-        pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2], "include_deferred": pool[3]}
+        pool_dict[pool[0]] = {
+            "slots": pool[1],
+            "description": pool[2],
+            "include_deferred": pool[3],
+        }
+        if conf.getboolean("core", "multi_team", fallback=False):
+            pool_dict[pool[0]]["team_name"] = pool[4] if len(pool) > 4 else None
     with open(filepath, "w") as poolfile:
         poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
     return pools
