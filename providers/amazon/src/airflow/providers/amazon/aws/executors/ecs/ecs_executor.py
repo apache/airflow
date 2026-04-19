@@ -46,15 +46,14 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
     exponential_backoff_retry,
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from airflow.executors import workloads
+    from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.providers.amazon.aws.executors.ecs.utils import (
         CommandType,
@@ -91,6 +90,9 @@ class AwsEcsExecutor(BaseExecutor):
     """
 
     supports_multi_team: bool = True
+
+    if AIRFLOW_V_3_3_PLUS:
+        supports_callbacks: bool = True
 
     # AWS limits the maximum number of ARNs in the describe_tasks function.
     DESCRIBE_TASKS_BATCH_SIZE = 99
@@ -131,30 +133,30 @@ class AwsEcsExecutor(BaseExecutor):
             fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS],
         )
 
-    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
+    def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         from airflow.executors import workloads
 
-        if not isinstance(workload, workloads.ExecuteTask):
-            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
-        ti = workload.ti
-        self.queued_tasks[ti.key] = workload
+        for workload in workload_items:
+            if isinstance(workload, workloads.ExecuteTask):
+                command = [workload]
+                key = workload.ti.key
+                queue = workload.ti.queue
+                executor_config = workload.ti.executor_config or {}
 
-    def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
-        from airflow.executors.workloads import ExecuteTask
+                del self.queued_tasks[key]
+                self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)  # type: ignore[arg-type]
+                self.running.add(key)
 
-        # Airflow V3 version
-        for w in workloads:
-            if not isinstance(w, ExecuteTask):
-                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
+            elif AIRFLOW_V_3_3_PLUS and isinstance(workload, workloads.ExecuteCallback):
+                command = [workload]  # type: ignore[list-item]
+                key = workload.callback.id  # type: ignore[assignment]
 
-            command = [w]
-            key = w.ti.key
-            queue = w.ti.queue
-            executor_config = w.ti.executor_config or {}
+                del self.queued_callbacks[key]  # type: ignore[arg-type]
+                self.execute_async(key=key, command=command, queue=None)  # type: ignore[arg-type]
+                self.running.add(key)
 
-            del self.queued_tasks[key]
-            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)  # type: ignore[arg-type]
-            self.running.add(key)
+            else:
+                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
 
     def start(self):
         """Call this when the Executor is run for the first time by the scheduler."""
@@ -262,10 +264,10 @@ class AwsEcsExecutor(BaseExecutor):
             self.log.exception("Failed to sync %s", self.__class__.__name__)
 
     def sync_running_tasks(self):
-        """Check and update state on all running tasks."""
+        """Check and update state on all running workloads (tasks and callbacks)."""
         all_task_arns = self.active_workers.get_all_arns()
         if not all_task_arns:
-            self.log.debug("No active Airflow tasks, skipping sync.")
+            self.log.debug("No active Airflow workloads, skipping sync.")
             return
 
         describe_tasks_response = self.__describe_tasks(all_task_arns)
@@ -292,7 +294,7 @@ class AwsEcsExecutor(BaseExecutor):
             self.__handle_failed_task(task.task_arn, task.stopped_reason)
         elif task_state == State.SUCCESS:
             self.log.debug(
-                "Airflow task %s marked as %s after running on ECS Task (arn) %s",
+                "Airflow workload %s marked as %s after running on ECS Task (arn) %s",
                 task_key,
                 task_state,
                 task.task_arn,
@@ -346,7 +348,7 @@ class AwsEcsExecutor(BaseExecutor):
         failure_count = self.active_workers.failure_count_by_key(task_key)
         if int(failure_count) < int(self.max_run_task_attempts):
             self.log.warning(
-                "Airflow task %s failed due to %s. Failure %s out of %s occurred on %s. Rescheduling.",
+                "Airflow workload %s failed due to %s. Failure %s out of %s occurred on %s. Rescheduling.",
                 task_key,
                 reason,
                 failure_count,
@@ -365,7 +367,7 @@ class AwsEcsExecutor(BaseExecutor):
             )
         else:
             self.log.error(
-                "Airflow task %s has failed a maximum of %s times. Marking as failed",
+                "Airflow workload %s has failed a maximum of %s times. Marking as failed",
                 task_key,
                 failure_count,
             )
@@ -430,7 +432,7 @@ class AwsEcsExecutor(BaseExecutor):
                 else:
                     reasons_str = ", ".join(failure_reasons)
                     self.log.error(
-                        "ECS task %s has failed a maximum of %s times. Marking as failed. Reasons: %s",
+                        "ECS workload %s has failed a maximum of %s times. Marking as failed. Reasons: %s",
                         task_key,
                         attempt_number,
                         reasons_str,
@@ -460,7 +462,11 @@ class AwsEcsExecutor(BaseExecutor):
                 self.running_state(task_key, task.task_arn)
 
     def _run_task(
-        self, task_id: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
+        self,
+        task_id: WorkloadKey,
+        cmd: CommandType,
+        queue: str | None,
+        exec_config: ExecutorConfigType,
     ):
         """
         Run a queued-up Airflow task.
@@ -475,7 +481,11 @@ class AwsEcsExecutor(BaseExecutor):
         return run_task_response
 
     def _run_task_kwargs(
-        self, task_id: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
+        self,
+        task_id: WorkloadKey,
+        cmd: CommandType,
+        queue: str | None,
+        exec_config: ExecutorConfigType,
     ) -> dict:
         """
         Update the Airflow command by modifying container overrides for task-specific kwargs.
@@ -494,14 +504,16 @@ class AwsEcsExecutor(BaseExecutor):
 
         return run_task_kwargs
 
-    def execute_async(self, key: TaskInstanceKey, command: CommandType, queue=None, executor_config=None):
-        """Save the task to be executed in the next sync by inserting the commands into a queue."""
+    def execute_async(self, key: WorkloadKey, command: CommandType, queue=None, executor_config=None):
+        """Save the workload to be executed in the next sync by inserting the commands into a queue."""
         if executor_config and ("name" in executor_config or "command" in executor_config):
             raise ValueError('Executor Config should never override "name" or "command"')
         if len(command) == 1:
-            from airflow.executors.workloads import ExecuteTask
+            from airflow.executors import workloads
 
-            if isinstance(command[0], ExecuteTask):
+            if isinstance(command[0], workloads.ExecuteTask) or (
+                AIRFLOW_V_3_3_PLUS and isinstance(command[0], workloads.ExecuteCallback)
+            ):
                 command = self._serialize_workload_to_command(command[0])
             else:
                 raise ValueError(
@@ -567,9 +579,9 @@ class AwsEcsExecutor(BaseExecutor):
     @staticmethod
     def _serialize_workload_to_command(workload) -> CommandType:
         """
-        Serialize an ExecuteTask workload into a command for the Task SDK.
+        Serialize a workload into a command for the Task SDK.
 
-        :param workload: ExecuteTask workload to serialize
+        :param workload: ExecuteTask or ExecuteCallback workload to serialize
         :return: Command as list of strings for Task SDK execution
         """
         return [
