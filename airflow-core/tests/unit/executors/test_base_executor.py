@@ -41,7 +41,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.sdk import BaseOperator
 from airflow.sdk.execution_time.callback_supervisor import execute_callback
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import CallbackState, State, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -98,6 +98,36 @@ def test_get_event_buffer():
     assert len(executor.get_event_buffer(("my_dag1",))) == 1
     assert len(executor.get_event_buffer()) == 2
     assert len(executor.event_buffer) == 0
+
+
+def test_log_task_event_branches_on_key_type():
+    executor = BaseExecutor()
+    ti_key = TaskInstanceKey("my_dag", "my_task", timezone.utcnow(), 1)
+
+    executor.log_task_event(event="task_event", extra="extra", ti_key=ti_key)
+    assert len(executor._task_event_logs) == 1
+
+    callback_key = str(UUID("00000000-0000-0000-0000-000000000001"))
+    executor.log_task_event(event="callback_event", extra="extra", ti_key=callback_key)
+    assert len(executor._task_event_logs) == 1
+
+
+@pytest.mark.parametrize(
+    ("method_name", "expected_state"),
+    [
+        ("fail", CallbackState.FAILED),
+        ("success", CallbackState.SUCCESS),
+        ("queued", CallbackState.QUEUED),
+        ("running_state", CallbackState.RUNNING),
+    ],
+)
+def test_state_methods_pick_callback_state_for_callback_key(method_name, expected_state):
+    executor = BaseExecutor()
+    callback_key = str(UUID("00000000-0000-0000-0000-000000000002"))
+
+    getattr(executor, method_name)(callback_key)
+
+    assert executor.event_buffer[callback_key] == (expected_state, None)
 
 
 def test_fail_and_success():

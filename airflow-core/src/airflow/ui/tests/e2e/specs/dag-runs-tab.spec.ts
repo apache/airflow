@@ -16,88 +16,58 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from "@playwright/test";
-import { AUTH_FILE, testConfig } from "playwright.config";
-import { DagRunsTabPage } from "tests/e2e/pages/DagRunsTabPage";
+import { expect, test } from "tests/e2e/fixtures";
 
 test.describe("DAG Runs Tab", () => {
   test.setTimeout(60_000);
 
-  let dagRunsTabPage: DagRunsTabPage;
-  const testDagId = testConfig.testDag.id;
-
-  test.beforeAll(async ({ browser }) => {
-    test.setTimeout(3 * 60 * 1000);
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
-    const setupPage = new DagRunsTabPage(page);
-
-    await setupPage.navigateToDag(testDagId);
-    const runId1 = await setupPage.triggerDagRun();
-
-    if (runId1 !== undefined) {
-      await setupPage.navigateToRunDetails(testDagId, runId1);
-      await setupPage.markRunAs("success");
-    }
-
-    await setupPage.navigateToDag(testDagId);
-    const runId2 = await setupPage.triggerDagRun();
-
-    if (runId2 !== undefined) {
-      await setupPage.navigateToRunDetails(testDagId, runId2);
-      await setupPage.markRunAs("failed");
-    }
-
-    await context.close();
-  });
-
-  test.beforeEach(({ page }) => {
-    dagRunsTabPage = new DagRunsTabPage(page);
-  });
-
-  test("navigate to DAG detail page and click Runs tab", async () => {
-    await dagRunsTabPage.navigateToDag(testDagId);
+  test("navigate to DAG detail page and click Runs tab", async ({ dagRunsTabPage, successAndFailedRuns }) => {
+    await dagRunsTabPage.navigateToDag(successAndFailedRuns.dagId);
     await dagRunsTabPage.clickRunsTab();
 
     await expect(dagRunsTabPage.page).toHaveURL(/.*\/dags\/[^/]+\/runs/);
   });
 
-  test("verify run details display correctly", async () => {
-    await dagRunsTabPage.navigateToDag(testDagId);
+  test("verify run details display correctly", async ({ dagRunsTabPage, successAndFailedRuns }) => {
+    await dagRunsTabPage.navigateToDag(successAndFailedRuns.dagId);
     await dagRunsTabPage.clickRunsTab();
     await dagRunsTabPage.verifyRunDetailsDisplay();
   });
 
-  test("verify runs exist in table", async () => {
-    await dagRunsTabPage.navigateToDag(testDagId);
+  test("verify runs exist in table", async ({ dagRunsTabPage, successAndFailedRuns }) => {
+    await dagRunsTabPage.navigateToDag(successAndFailedRuns.dagId);
     await dagRunsTabPage.clickRunsTab();
     await dagRunsTabPage.verifyRunsExist();
   });
 
-  test("click on a run and verify run details page", async () => {
-    await dagRunsTabPage.navigateToDag(testDagId);
+  test("click on a run and verify run details page", async ({ dagRunsTabPage, successAndFailedRuns }) => {
+    await dagRunsTabPage.navigateToDag(successAndFailedRuns.dagId);
     await dagRunsTabPage.clickRunsTab();
     await dagRunsTabPage.clickRunAndVerifyDetails();
   });
 
-  test("filter runs by success state", async () => {
-    await dagRunsTabPage.navigateToDag(testDagId);
+  test("filter runs by success state", async ({ dagRunsTabPage, successAndFailedRuns }) => {
+    await dagRunsTabPage.navigateToDag(successAndFailedRuns.dagId);
     await dagRunsTabPage.clickRunsTab();
     await dagRunsTabPage.filterByState("success");
     await dagRunsTabPage.verifyFilteredByState("success");
   });
 
-  test("filter runs by failed state", async () => {
-    await dagRunsTabPage.navigateToDag(testDagId);
+  test("filter runs by failed state", async ({ dagRunsTabPage, successAndFailedRuns }) => {
+    await dagRunsTabPage.navigateToDag(successAndFailedRuns.dagId);
     await dagRunsTabPage.clickRunsTab();
     await dagRunsTabPage.filterByState("failed");
     await dagRunsTabPage.verifyFilteredByState("failed");
   });
 
-  test("search for dag run by run ID pattern", async () => {
-    await dagRunsTabPage.navigateToDag(testDagId);
+  test("search for dag run by run ID pattern", async ({ dagRunsTabPage, successAndFailedRuns }) => {
+    await dagRunsTabPage.navigateToDag(successAndFailedRuns.dagId);
     await dagRunsTabPage.clickRunsTab();
-    await dagRunsTabPage.searchByRunIdPattern("manual");
-    await dagRunsTabPage.verifySearchResults("manual");
+    // Extract the first 6 chars of the success run ID as a search pattern,
+    // so the test is not coupled to a hardcoded fixture prefix.
+    const searchPattern = successAndFailedRuns.successRun.runId.slice(0, 6);
+
+    await dagRunsTabPage.searchByRunIdPattern(searchPattern);
+    await dagRunsTabPage.verifySearchResults(searchPattern);
   });
 });

@@ -16,26 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from "@playwright/test";
-
-import { ConfigurationPage } from "../pages/ConfigurationPage";
+import { expect, test } from "tests/e2e/fixtures";
 
 test.describe("Configuration Page", () => {
-  let configPage: ConfigurationPage;
-
-  test.beforeEach(async ({ page }) => {
-    configPage = new ConfigurationPage(page);
-    await configPage.navigate();
-    await configPage.waitForLoad();
+  test.beforeEach(async ({ configurationPage }) => {
+    await configurationPage.navigate();
+    await configurationPage.waitForLoad();
   });
 
-  test("verify configuration displays", async () => {
-    await expect(configPage.heading).toBeVisible();
-    await expect(configPage.table).toBeVisible();
+  test("verify configuration displays", async ({ configurationPage }) => {
+    await expect(configurationPage.heading).toBeVisible();
+    await expect(configurationPage.table).toBeVisible();
 
-    await expect(configPage.rows).not.toHaveCount(0);
+    await expect(configurationPage.rows).not.toHaveCount(0);
 
-    const firstRow = configPage.rows.nth(0);
+    const firstRow = configurationPage.rows.nth(0);
 
     await expect(firstRow.locator("td").nth(0)).not.toBeEmpty();
     await expect(firstRow.locator("td").nth(1)).not.toBeEmpty();

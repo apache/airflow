@@ -301,7 +301,14 @@ def _execute_callbacks(
     dagbag: DagBag, callback_requests: list[CallbackRequest], log: FilteringBoundLogger
 ) -> None:
     for request in callback_requests:
-        log.debug("Processing Callback Request", request=request.to_json())
+        if isinstance(request, (TaskCallbackRequest, EmailRequest)):
+            log.debug(
+                "Processing Callback Request",
+                request=request.to_json(),
+                ti_id=str(request.ti.id),
+            )
+        else:
+            log.debug("Processing Callback Request", request=request.to_json())
         with BundleVersionLock(
             bundle_name=request.bundle_name,
             bundle_version=request.bundle_version,
@@ -366,6 +373,7 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
             dag_id=request.ti.dag_id,
             task_id=request.ti.task_id,
             run_id=request.ti.run_id,
+            ti_id=str(request.ti.id),
         )
         return
 
@@ -415,11 +423,21 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
 
     for idx, callback in enumerate(callbacks):
         callback_repr = get_callback_representation(callback)
-        log.info("Executing Task callback at index %d: %s", idx, callback_repr)
+        log.info(
+            "Executing Task callback at index %d: %s (ti_id=%s)",
+            idx,
+            callback_repr,
+            request.ti.id,
+        )
         try:
             callback(context)
         except Exception:
-            log.exception("Error in callback at index %d: %s", idx, callback_repr)
+            log.exception(
+                "Error in callback at index %d: %s (ti_id=%s)",
+                idx,
+                callback_repr,
+                request.ti.id,
+            )
 
 
 def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: FilteringBoundLogger) -> None:
