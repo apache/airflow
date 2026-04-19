@@ -91,9 +91,9 @@ def run_command(*args, **kwargs) -> None:
         print("#" * min(len(text), 200), file=sys.stderr)
         print(text, file=sys.stderr)
         print("#" * min(len(text), 200), file=sys.stderr)
-    time_start = time.time()
+    time_start = time.monotonic()
     subprocess.check_call(*args, **kwargs)
-    time_end = time.time()
+    time_end = time.monotonic()
     if console:
         console.print(f"[green]After {text}[/]")
         console.print(f"[green]Command finished in {time_end - time_start:.2f} seconds[/]")
