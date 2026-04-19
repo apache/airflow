@@ -494,6 +494,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 Choose the tag you used for release:
 
 ```shell
+cd "${AIRFLOW_REPO_ROOT}"
 git fetch apache --tags --force
 git checkout airflow-ctl/${VERSION_RC}
 ```
@@ -559,7 +560,7 @@ tar -xzf /tmp/apache-rat-0.17-bin.tar.gz -C /tmp
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_AIRFLOW_SVN}/${VERSION_RC}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
+rm -rf /tmp/apache-airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_AIRFLOW_SVN}/airflow-ctl/${VERSION_RC}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
 ```
 
 Run the check:
