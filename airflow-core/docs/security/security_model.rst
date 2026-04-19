@@ -153,15 +153,70 @@ Those users should be highly trusted not to misuse this capability.
    case of the sensitive credentials stored in configuration extras. Airflow 3 and later versions mask these sensitive credentials
    at the API level and do not return them in clear text.
 
-About Sensitive information
-...........................
+.. _sensitive-data-exposure-policy:
 
-Sensitive information consists of connection details, variables, and configuration. In versions later than Airflow 3.0
-sensitive information will not be exposed to users via API, UI, and ``airflowctl``.
-However, ``task-sdk`` still provides access to sensitive information (e.g., Use SDK API Client to get
-Variables with task-specific ``JWT`` token). Local CLI will only return keys except when using ``--show_values``.
-Sensitive information has been masked in logs, UI, and API outputs. In case of Dag author expose sensitive
-information in other way (e.g., via environment variables), those values will not be masked.
+Sensitive Data Exposure Policy
+...............................
+
+Airflow treats the following as **sensitive information** that must not be exposed to users
+without appropriate authorization:
+
+* **Connections**: credentials, passwords, tokens, and connection parameters stored in Airflow's
+  connection store or a configured secrets backend.
+* **Variables**: values stored in Airflow Variables (keys are not sensitive, but values may be).
+* **Configuration**: configuration options marked ``sensitive: true`` in Airflow's configuration,
+  such as the Fernet key, database connection string, and JWT signing key.
+
+**Where sensitive data is protected**
+
+Starting with Airflow 3.0, sensitive information is masked or withheld at the API level so that
+it is never returned in clear text to authenticated UI users, regardless of their role:
+
+* **REST API**: Sensitive fields (such as connection passwords and variable values) are not
+  returned by the API. The API returns a masked placeholder instead.
+* **UI**: The Airflow UI relies on the API and therefore also never displays sensitive values in
+  clear text. This is a change from Airflow 2, where connection extras were visible in the UI
+  for users with connection configuration permissions.
+* **``airflowctl`` CLI**: The CLI uses the API and follows the same masking rules. By default,
+  only keys are displayed for variables; values are not shown.
+
+.. note::
+
+   Before Airflow 3, the **Connection configuration users** role had read access to sensitive
+   credential values. This was changed in Airflow 3 to prevent accidental exposure of credentials.
+   In Airflow 2, sensitive values stored in connection extras were visible in plain text in the UI
+   and retrievable via the API for users with the appropriate role.
+
+**Where sensitive data remains accessible (by design)**
+
+Some surfaces still provide access to sensitive data — this is intentional and required for
+Airflow's task execution model to function:
+
+* **Task SDK (Execution API)**: Worker tasks can retrieve connection details and variable values
+  via the Execution API using the short-lived, task-scoped JWT token issued to each task. This is
+  required so that tasks can authenticate with external systems. The token is scoped to the
+  specific task instance and expires after a short period (default: 10 minutes).
+* **``airflow`` CLI with ``--show-values``**: Operators and Deployment Managers may pass the
+  ``--show-values`` flag to CLI commands that list variables to display the actual values. This
+  is an explicit opt-in that requires appropriate access.
+* **Dag author code**: Dag authors can access connections and variables from within task code
+  using the Task SDK. This is the intended mechanism — see :ref:`capabilities-of-dag-authors`.
+
+**Sensitive data masking in logs**
+
+Airflow automatically masks known sensitive values in task logs, UI output, and API responses.
+However, masking has limitations:
+
+* If a Dag author explicitly prints raw environment variables or configuration values
+  (e.g., ``print(os.environ)``), those values may appear in task logs before the masker
+  can intercept them.
+* Masking depends on Airflow knowing which values are sensitive. Custom sensitive values
+  that Airflow is not aware of will not be masked automatically.
+
+Deployment Managers should restrict access to task logs and ensure that sensitive configuration
+is only provided to components that need it. See :ref:`deployment-hardening-for-improved-isolation`
+for guidance.
+
 
 Audit log users
 ...............
