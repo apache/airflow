@@ -23,7 +23,7 @@ Significant Changes
 
 - Add YAML-based help texts for auto-generated airflowctl commands (#65073)
 - Added plugins command to airflowctl (#64935)
-- Allow direct execution from airflowctl via uvx (#64406)
+- Allow direct execution from airflowctl via ``uvx`` (#64406)
 - Python 3.14 support (#63520)
 
 Bug Fixes
@@ -44,9 +44,9 @@ Bug Fixes
 Improvements
 ^^^^^^^^^^^^
 
-- Support cursor-based pagination for ``get_task_instances`` in airflowctl datamodels (#64845)
-- Expose ``is_backfillable`` property on DAG responses in airflowctl datamodels (#64644)
-- Add ``operator`` value to ``DagRunType`` in airflowctl datamodels (#63733)
+- Support cursor-based pagination for ``get_task_instances`` in airflowctl ``datamodels`` (#64845)
+- Expose ``is_backfillable`` property on DAG responses in airflowctl ``datamodels`` (#64644)
+- Add ``operator`` value to ``DagRunType`` in airflowctl ``datamodels`` (#63733)
 - Support clear / mark success / mark fail / delete for multiple task instances (#64141)
 - Use DAG form when materializing assets in airflowctl (#64211)
 - Allow ``null`` ``dag_run_conf`` in ``BackfillResponse`` serialization (#63259)
