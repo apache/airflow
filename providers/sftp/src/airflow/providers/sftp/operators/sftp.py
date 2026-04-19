@@ -28,8 +28,10 @@ from typing import Any
 
 import paramiko
 
+from airflow.configuration import conf
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
+from airflow.providers.sftp.triggers.sftp import SFTPOperatorTrigger
 
 
 class SFTPOperation:
@@ -95,6 +97,7 @@ class SFTPOperator(BaseOperator):
         create_intermediate_dirs: bool = False,
         concurrency: int = 1,
         prefetch: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -108,8 +111,22 @@ class SFTPOperator(BaseOperator):
         self.remote_filepath = remote_filepath
         self.concurrency = concurrency
         self.prefetch = prefetch
+        self.deferrable = deferrable
 
     def execute(self, context: Any) -> str | list[str] | None:
+        if self.deferrable:
+            self.defer(
+                trigger=SFTPOperatorTrigger(
+                    ssh_conn_id=self.ssh_conn_id,
+                    local_filepath=self.local_filepath,
+                    remote_filepath=self.remote_filepath,
+                    operation=self.operation,
+                    confirm=self.confirm,
+                    create_intermediate_dirs=self.create_intermediate_dirs,
+                ),
+                method_name="execute_complete",
+            )
+
         if self.local_filepath is None:
             local_filepath_array = []
         elif isinstance(self.local_filepath, str):
@@ -226,6 +243,21 @@ class SFTPOperator(BaseOperator):
             )
 
         return self.local_filepath
+
+    def execute_complete(self, context: Any, event: dict) -> str | list[str] | None:
+        """
+        Execute when the trigger fires in deferrable mode.
+
+        :param context: The task context.
+        :param event: The event yielded by SFTPOperatorTrigger.
+        :return: The local filepath(s).
+        """
+        if event.get("status") == "error":
+            raise AirflowException(
+                f"Error during deferrable SFTP {self.operation.upper()} operation: {event.get('message')}"
+            )
+        self.log.info("File transfer completed successfully via deferrable mode.")
+        return event.get("local_filepath")
 
     @staticmethod
     def _is_missing_path_error(exc: Exception) -> bool:

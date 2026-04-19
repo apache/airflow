@@ -139,3 +139,102 @@ class SFTPTrigger(BaseTrigger):
 
     def _get_async_hook(self) -> SFTPHookAsync:
         return SFTPHookAsync(sftp_conn_id=self.sftp_conn_id)
+
+
+class SFTPOperatorTrigger(BaseTrigger):
+    """
+    Trigger for SFTPOperator deferrable mode.
+
+    Fires when a file transfer (PUT, GET, or DELETE) completes
+    on the SFTP server, freeing the worker slot during the transfer.
+
+    :param ssh_conn_id: The SSH connection ID to use.
+    :param local_filepath: Local file path(s) to transfer.
+    :param remote_filepath: Remote file path(s) on the SFTP server.
+    :param operation: The SFTP operation - put, get, or delete.
+    :param confirm: Whether to confirm the file transfer.
+    :param create_intermediate_dirs: Whether to create intermediate dirs.
+    """
+
+    def __init__(
+        self,
+        ssh_conn_id=None,
+        local_filepath=None,
+        remote_filepath="",
+        operation="put",
+        confirm=True,
+        create_intermediate_dirs=False,
+    ):
+        super().__init__()
+        self.ssh_conn_id = ssh_conn_id
+        self.local_filepath = local_filepath
+        self.remote_filepath = remote_filepath
+        self.operation = operation
+        self.confirm = confirm
+        self.create_intermediate_dirs = create_intermediate_dirs
+
+    def serialize(self):
+        """Serialize the trigger for storage in the database."""
+        return (
+            "airflow.providers.sftp.triggers.sftp.SFTPOperatorTrigger",
+            {
+                "ssh_conn_id": self.ssh_conn_id,
+                "local_filepath": self.local_filepath,
+                "remote_filepath": self.remote_filepath,
+                "operation": self.operation,
+                "confirm": self.confirm,
+                "create_intermediate_dirs": self.create_intermediate_dirs,
+            },
+        )
+
+    async def run(self):
+        """Run the file transfer asynchronously and yield a TriggerEvent when done."""
+        import asyncio
+
+        try:
+            await asyncio.get_event_loop().run_in_executor(
+                None,
+                self._run_transfer,
+            )
+            yield TriggerEvent(
+                {
+                    "status": "success",
+                    "local_filepath": self.local_filepath,
+                }
+            )
+        except Exception as e:
+            yield TriggerEvent({"status": "error", "message": str(e)})
+
+    def _run_transfer(self):
+        """Run the actual synchronous SFTP transfer in a thread executor."""
+        import os
+        from pathlib import Path
+
+        from airflow.providers.sftp.hooks.sftp import SFTPHook
+        from airflow.providers.sftp.operators.sftp import SFTPOperation
+
+        sftp_hook = SFTPHook(ssh_conn_id=self.ssh_conn_id)
+
+        if isinstance(self.local_filepath, str):
+            local_filepath_array = [self.local_filepath] if self.local_filepath else []
+        else:
+            local_filepath_array = self.local_filepath or []
+
+        if isinstance(self.remote_filepath, str):
+            remote_filepath_array = [self.remote_filepath]
+        else:
+            remote_filepath_array = self.remote_filepath
+
+        if self.operation.lower() == SFTPOperation.GET:
+            for local, remote in zip(local_filepath_array, remote_filepath_array):
+                if self.create_intermediate_dirs:
+                    Path(os.path.dirname(local)).mkdir(parents=True, exist_ok=True)
+                sftp_hook.retrieve_file(remote, local)
+        elif self.operation.lower() == SFTPOperation.PUT:
+            for local, remote in zip(local_filepath_array, remote_filepath_array):
+                if self.create_intermediate_dirs:
+                    sftp_hook.create_directory(os.path.dirname(remote))
+                sftp_hook.store_file(remote, local, confirm=self.confirm)
+        elif self.operation.lower() == SFTPOperation.DELETE:
+            for remote in remote_filepath_array:
+                sftp_hook.delete_file(remote)
