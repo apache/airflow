@@ -1038,12 +1038,12 @@ repos:
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
-      - id: mypy-shared
-        name: Run mypy for shared libraries
+      - id: check-shared-mypy-hooks
+        name: Every shared/<dist> has a mypy-shared-<dist> prek hook
         language: python
-        entry: ./scripts/ci/prek/mypy_local_folder.py shared
+        entry: ./scripts/ci/prek/check_shared_mypy_hooks.py
         pass_filenames: false
-        files: ^.*\.py$
+        files: ^shared/.*|^scripts/ci/prek/check_shared_mypy_hooks\.py$
         require_serial: true
       ## ADD MOST PREK HOOK ABOVE THAT LINE
       # The below prek hooks are those requiring CI image to be built

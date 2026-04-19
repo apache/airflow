@@ -281,10 +281,11 @@ Mypy checks
 -----------
 
 When we run mypy checks locally, the ``mypy-*`` checks run depending on the files you are changing:
-``mypy-airflow-core``, ``mypy-dev``, ``mypy-providers``, ``mypy-task-sdk``, ``mypy-airflow-ctl``,
-``mypy-devel-common``, ``mypy-airflow-ctl-tests``, ``mypy-helm-tests``, ``mypy-airflow-e2e-tests``,
-``mypy-task-sdk-integration-tests``, ``mypy-docker-tests``, ``mypy-kubernetes-tests``,
-``mypy-shared``, etc.
+``mypy-airflow-core``, ``mypy-dev``, ``mypy-providers``, ``mypy-scripts``, ``mypy-task-sdk``,
+``mypy-airflow-ctl``, ``mypy-devel-common``, ``mypy-airflow-ctl-tests``, ``mypy-helm-tests``,
+``mypy-airflow-e2e-tests``, ``mypy-task-sdk-integration-tests``, ``mypy-docker-tests``,
+``mypy-kubernetes-tests``, and one ``mypy-shared-<dist>`` hook per ``shared/<dist>`` workspace
+distribution (e.g. ``mypy-shared-configuration``, ``mypy-shared-logging``).
 
 For **non-provider projects**, mypy runs locally using ``uv`` — no breeze CI image is needed. These
 checks run as regular prek hooks in the ``pre-commit`` stage, checking whole directories at once. This
@@ -298,8 +299,21 @@ dependency set:
 - virtualenvs: ``.build/mypy-venvs/<hook-name>/``
 - mypy caches: ``.build/mypy-caches/<hook-name>/``
 
-The ``mypy-shared`` hook iterates every ``shared/<dist>`` workspace distribution and builds a
-separate venv and cache per distribution (e.g. ``.build/mypy-venvs/shared-configuration/``).
+Adding a new shared library
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every ``shared/<dist>`` workspace member has its own ``mypy-shared-<dist>`` prek hook so it is
+type-checked in isolation against its own dependency set. When you add a new shared library under
+``shared/<new-dist>/``, you also need to:
+
+1. Add a ``[dependency-groups]`` section with ``mypy = ["apache-airflow-devel-common[mypy]"]`` in
+   ``shared/<new-dist>/pyproject.toml`` (so ``uv sync --group mypy`` installs mypy into the hook's
+   dedicated virtualenv).
+2. Create ``shared/<new-dist>/.pre-commit-config.yaml`` with a ``mypy-shared-<new-dist>`` hook
+   entry that calls ``../../scripts/ci/prek/mypy_local_folder.py shared/<new-dist>``.
+
+The ``check-shared-mypy-hooks`` prek hook enforces step 2 — it fails and prints the exact config
+contents to add when any ``shared/<dist>`` is missing its dedicated mypy hook.
 
 To run the prek hook for a specific project (example for ``airflow-core`` files):
 

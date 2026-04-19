@@ -141,7 +141,6 @@ class FileGroupForCi(Enum):
     ALL_AIRFLOW_E2E_TESTS_PYTHON_FILES = auto()
     ALL_DOCKER_TESTS_PYTHON_FILES = auto()
     ALL_KUBERNETES_TESTS_PYTHON_FILES = auto()
-    ALL_SHARED_PYTHON_FILES = auto()
     ALL_PROVIDER_YAML_FILES = auto()
     TESTS_UTILS_FILES = auto()
     ASSET_FILES = auto()
@@ -318,9 +317,6 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.ALL_KUBERNETES_TESTS_PYTHON_FILES: [
             r"^kubernetes-tests/.*\.py$",
-        ],
-        FileGroupForCi.ALL_SHARED_PYTHON_FILES: [
-            r"^shared/.*\.py$",
         ],
         FileGroupForCi.ALL_SOURCE_FILES: [
             r"^.pre-commit-config.yaml$",
@@ -1538,8 +1534,14 @@ class SelectiveChecks:
                 FileGroupForCi.ALL_KUBERNETES_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
             ):
                 prek_hooks_to_skip.add("mypy-kubernetes-tests")
-            if not self._matching_files(FileGroupForCi.ALL_SHARED_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
-                prek_hooks_to_skip.add("mypy-shared")
+            # One mypy-shared-<dist> hook per shared/<dist> workspace member; each is only
+            # kept when that distribution's own files changed.
+            for dist in sorted(
+                p.name for p in (AIRFLOW_ROOT_PATH / "shared").iterdir() if (p / "pyproject.toml").exists()
+            ):
+                pattern = re.compile(rf"^shared/{re.escape(dist)}/.*\.py$")
+                if not any(pattern.match(f) for f in self._files):
+                    prek_hooks_to_skip.add(f"mypy-shared-{dist}")
         return ",".join(sorted(prek_hooks_to_skip))
 
     @cached_property

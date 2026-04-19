@@ -56,7 +56,7 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To run this script, run the ./{__file__} command"
     )
 
-ALLOWED_FOLDERS = [
+_TOP_LEVEL_ALLOWED_FOLDERS = [
     "airflow-core",
     "dev",
     "scripts",
@@ -69,26 +69,19 @@ ALLOWED_FOLDERS = [
     "task-sdk-integration-tests",
     "docker-tests",
     "kubernetes-tests",
-    "shared",
 ]
+
+# Each shared/<dist> workspace member is an allowed folder in its own right, giving
+# every shared library its own dedicated mypy hook / virtualenv / cache.
+_SHARED_DISTS = sorted(
+    f"shared/{p.name}" for p in (AIRFLOW_ROOT_PATH / "shared").iterdir() if (p / "pyproject.toml").exists()
+)
+
+ALLOWED_FOLDERS = _TOP_LEVEL_ALLOWED_FOLDERS + _SHARED_DISTS
 
 # Map folder(s) to the uv project to use for running mypy.
 # When multiple folders are checked together, the first folder's project is used.
-# "shared" is handled specially (per-distribution iteration) and is not in this map.
-FOLDER_TO_PROJECT = {
-    "airflow-core": "airflow-core",
-    "task-sdk": "task-sdk",
-    "airflow-ctl": "airflow-ctl",
-    "devel-common": "devel-common",
-    "dev": "dev",
-    "scripts": "scripts",
-    "airflow-ctl-tests": "airflow-ctl-tests",
-    "helm-tests": "helm-tests",
-    "airflow-e2e-tests": "airflow-e2e-tests",
-    "task-sdk-integration-tests": "task-sdk-integration-tests",
-    "docker-tests": "docker-tests",
-    "kubernetes-tests": "kubernetes-tests",
-}
+FOLDER_TO_PROJECT = {f: f for f in ALLOWED_FOLDERS}
 
 # Projects that ship their own [tool.mypy] configuration in their pyproject.toml;
 # mypy must be invoked with --config-file pointing at that file so those sections
@@ -258,45 +251,6 @@ def run_local_mypy(project: str, hook_name: str, files: list[str], config_file: 
     return result.returncode
 
 
-def run_shared_mypy() -> int:
-    """Iterate every shared/<dist> workspace distribution and run mypy per-dist.
-
-    Each shared library is an independent uv workspace member with its own dependency
-    set, so we build a dedicated venv and mypy cache per distribution under
-    .build/mypy-venvs/shared-<dist>/ and .build/mypy-caches/shared-<dist>/.
-    """
-    shared_root = AIRFLOW_ROOT_PATH / "shared"
-    shared_dists = sorted(p.name for p in shared_root.iterdir() if (p / "pyproject.toml").exists())
-    if console:
-        console.print(f"[magenta]Running mypy for shared distributions: {shared_dists}[/]")
-    else:
-        print(f"Running mypy for shared distributions: {shared_dists}")
-
-    combined_rc = 0
-    failed_dists: list[str] = []
-    for dist in shared_dists:
-        files = get_all_files(f"shared/{dist}")
-        if not files:
-            continue
-        rc = run_local_mypy(
-            project=f"shared/{dist}",
-            hook_name=f"shared-{dist}",
-            files=files,
-        )
-        if rc != 0:
-            failed_dists.append(dist)
-            if combined_rc == 0:
-                combined_rc = rc
-
-    if failed_dists:
-        msg = f"mypy failed for shared distribution(s): {', '.join(failed_dists)}"
-        if console:
-            console.print(f"[red]{msg}")
-        else:
-            print(msg)
-    return combined_rc
-
-
 if console:
     console.print(f"[magenta]Running mypy for folders: {mypy_folders}[/]")
 else:
@@ -312,18 +266,9 @@ if CI:
 
     initialize_breeze_prek(__name__, __file__)
 
-    # For "shared", gather files across every shared distribution into a single list;
-    # CI uses one shared breeze environment so per-dist venvs are not needed.
-    if mypy_folders == ["shared"]:
-        all_files_to_check: list[str] = []
-        for dist in sorted(
-            p.name for p in (AIRFLOW_ROOT_PATH / "shared").iterdir() if (p / "pyproject.toml").exists()
-        ):
-            all_files_to_check.extend(get_all_files(f"shared/{dist}"))
-    else:
-        all_files_to_check = []
-        for mypy_folder in mypy_folders:
-            all_files_to_check.extend(get_all_files(mypy_folder))
+    all_files_to_check = []
+    for mypy_folder in mypy_folders:
+        all_files_to_check.extend(get_all_files(mypy_folder))
 
     if not all_files_to_check:
         print("No files to test. Quitting")
@@ -345,29 +290,30 @@ if CI:
     )
     returncode = result.returncode
 else:
-    if mypy_folders == ["shared"]:
-        returncode = run_shared_mypy()
-    else:
-        all_files_to_check = []
-        for mypy_folder in mypy_folders:
-            all_files_to_check.extend(get_all_files(mypy_folder))
+    all_files_to_check = []
+    for mypy_folder in mypy_folders:
+        all_files_to_check.extend(get_all_files(mypy_folder))
 
-        if not all_files_to_check:
-            print("No files to test. Quitting")
-            sys.exit(0)
+    if not all_files_to_check:
+        print("No files to test. Quitting")
+        sys.exit(0)
 
-        project = FOLDER_TO_PROJECT.get(mypy_folders[0], "devel-common")
-        returncode = run_local_mypy(
-            project=project,
-            hook_name=mypy_folders[0],
-            files=all_files_to_check,
-            config_file=FOLDER_TO_MYPY_CONFIG.get(mypy_folders[0]),
-        )
+    project = FOLDER_TO_PROJECT.get(mypy_folders[0], "devel-common")
+    # hook_name derives venv/cache paths under .build/; replace "/" so "shared/dist"
+    # becomes ".build/mypy-venvs/shared-dist" rather than a nested path.
+    hook_name = mypy_folders[0].replace("/", "-")
+    returncode = run_local_mypy(
+        project=project,
+        hook_name=hook_name,
+        files=all_files_to_check,
+        config_file=FOLDER_TO_MYPY_CONFIG.get(mypy_folders[0]),
+    )
 
 if returncode != 0:
+    hook_label = mypy_folders[0].replace("/", "-")
     msg = (
         "Mypy check failed. You can run mypy locally with:\n"
-        f"  prek run mypy-{mypy_folders[0]} --all-files\n"
+        f"  prek run mypy-{hook_label} --all-files\n"
         "The hook uses dedicated virtualenv(s) and mypy cache(s) under .build/ so it does\n"
         "not touch your regular project .venv. You can clear both with:\n"
         "  breeze down --cleanup-mypy-cache\n"
