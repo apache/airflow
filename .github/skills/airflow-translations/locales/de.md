@@ -17,7 +17,7 @@ These terms are defined as untranslatable across **all** Airflow locales.
 Do not translate them regardless of language:
 
 - `Airflow` — Product name
-- `Dag` / `Dags` — Airflow concept; never write "DAG"
+- `Dag` / `Dags` — Airflow concept; never write "DAG". Use neuter form (not male, female).
 - `PID` — Unix process identifier
 - `ID` — Universal abbreviation
 - `UTC` — Time standard
@@ -105,7 +105,7 @@ that **must be used consistently**:
 ### Gender and Articles
 
 - German nouns have grammatical gender; match articles and adjectives accordingly:
-  - "Dag" is treated as **masculine**: "der Dag", "ein Dag"
+  - "Dag" is treated as **neuter**: "das Dag", "ein Dag"
   - "Task" is treated as **masculine**: "der Task"
   - "Lauf" (Run) is **masculine**: "der Lauf", plural: "die Läufe"
   - "Verbindung" is **feminine**: "die Verbindung"
@@ -237,10 +237,6 @@ Unhealthy → "Fehlerhaft"
 
 ## 7. Rationale for Translation Choices
 
-This section documents *why* each translation decision was made. It is derived
-from `airflow-core/src/airflow/ui/public/i18n/locales/de/README.md`, which is
-now superseded by this skill file as the single source of truth.
-
 ### Formal register ("Sie")
 
 German distinguishes formal from informal address. Because the user group is
@@ -255,8 +251,8 @@ unknown, the formal "Sie" register was chosen throughout.
   treated as neuter in German ("der Dag").
 - **Log levels (CRITICAL, ERROR, WARNING, INFO, DEBUG)** — These strings also
   appear verbatim in log output, so they must not be translated.
-- **Pool / Pools** — Directly understood in German; "Schwimmbad" would be
-  absurd, and "Ressourcen-Pool" is too verbose.
+- **Pool / Pools** — Directly understood in German; "Schwimmbad" (swimming pool)
+  would be absurd, and "Ressourcen-Pool" is too verbose.
 - **Provider / Providers** — Translating this does not improve comprehension;
   the English term is well understood in German.
 - **Operator / Operatoren** — Mathematical/technical term that also appears in
@@ -277,6 +273,8 @@ unknown, the formal "Sie" register was chosen throughout.
 - **`Catchup` → `Nachholen`** — Direct translation.
 - **`Connection` → `Verbindung`** — Although a technical Airflow construct, the
   direct translation is immediately accessible to new users.
+- **`Dag ID`**: No translation. `ID` should be favored to be upper case following German Duden.
+- **`Task ID`**: No translation. `ID` should be favored to be upper case following German Duden.
 - **`Dag Run` → `Dag Lauf`** — While "Run" appears in code and logs, a German
   equivalent improves the overall UI experience. "Dag" is kept untranslated.
 - **`Deferred` → `Delegiert`** — The closest German equivalent: a task is
@@ -297,6 +295,7 @@ unknown, the formal "Sie" register was chosen throughout.
   "Auslöse-Regel" (Trigger Rule).
 - **`Trigger Rule` → `Auslöse-Regel`** — Consistent with the verb choice above;
   describes the condition that starts a task within a Dag Run.
+- **`Try Number` → `Versuch Nummer`**: direct translation is matching.
 - **`XCom` → `Task Kommunikation (XCom)`** — Translating the concept improves
   navigation for new users; the original `XCom` is kept in parentheses because
   it appears frequently in code and logs.
