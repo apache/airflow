@@ -6590,8 +6590,8 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
     BASE_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskGroupInstances"
     ENDPOINT_URL = f"{BASE_URL}/{GROUP_ID}"
 
-    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
-    def test_patch_task_group_success(self, mock_set_ti_state, test_client, session):
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    def test_patch_task_group_success(self, mock_set_tg_state, test_client, session):
         """Test that patching a task group sets state for all tasks in the group."""
         self.create_task_instances(session, dag_id=self.DAG_ID)
 
@@ -6609,8 +6609,7 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
             .all()
         )
 
-        ti_map = {ti.task_id: ti for ti in tis}
-        mock_set_ti_state.side_effect = lambda task_id, **kwargs: [ti_map[task_id]]
+        mock_set_tg_state.return_value = list(tis)
 
         response = test_client.patch(
             self.ENDPOINT_URL,
@@ -6618,10 +6617,10 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         response_data = response.json()
-        assert mock_set_ti_state.call_count == 3
-        called_task_ids = sorted(call.kwargs["task_id"] for call in mock_set_ti_state.call_args_list)
-        assert called_task_ids == ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
-        assert mock_set_ti_state.call_args_list[0].kwargs["state"] == "success"
+        assert mock_set_tg_state.call_count == 1
+        call_kwargs = mock_set_tg_state.call_args.kwargs
+        assert call_kwargs["group_id"] == self.GROUP_ID
+        assert call_kwargs["state"] == "success"
         assert response_data["total_entries"] == 3
         response_task_ids = sorted(ti["task_id"] for ti in response_data["task_instances"])
         assert response_task_ids == ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
@@ -6629,8 +6628,8 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
             assert ti["dag_id"] == self.DAG_ID
             assert ti["dag_run_id"] == self.RUN_ID
 
-    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
-    def test_patch_task_group_failed_state(self, mock_set_ti_state, test_client, session):
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    def test_patch_task_group_failed_state(self, mock_set_tg_state, test_client, session):
         """Test that patching a task group with failed state works."""
         self.create_task_instances(session, dag_id=self.DAG_ID)
 
@@ -6648,15 +6647,15 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
             .all()
         )
 
-        ti_map = {ti.task_id: ti for ti in tis}
-        mock_set_ti_state.side_effect = lambda task_id, **kwargs: [ti_map[task_id]]
+        mock_set_tg_state.return_value = list(tis)
 
         response = test_client.patch(
             self.ENDPOINT_URL,
             json={"new_state": "failed"},
         )
         assert response.status_code == 200
-        assert mock_set_ti_state.call_args_list[0].kwargs["state"] == "failed"
+        call_kwargs = mock_set_tg_state.call_args.kwargs
+        assert call_kwargs["state"] == "failed"
         response_data = response.json()
         assert response_data["total_entries"] == 3
         response_task_ids = sorted(ti["task_id"] for ti in response_data["task_instances"])
@@ -6665,8 +6664,8 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
             assert ti["dag_id"] == self.DAG_ID
             assert ti["dag_run_id"] == self.RUN_ID
 
-    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
-    def test_patch_task_group_nested(self, mock_set_ti_state, test_client, session):
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    def test_patch_task_group_nested(self, mock_set_tg_state, test_client, session):
         """Test that patching a nested task group includes tasks from inner groups."""
         self.create_task_instances(session, dag_id=self.DAG_ID)
 
@@ -6683,8 +6682,7 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
             .all()
         )
 
-        ti_map = {ti.task_id: ti for ti in tis}
-        mock_set_ti_state.side_effect = lambda task_id, **kwargs: [ti_map[task_id]]
+        mock_set_tg_state.return_value = list(tis)
 
         # section_2 contains task_1, and inner_section_2 which contains task_2, task_3, task_4
         url = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskGroupInstances/section_2"
@@ -6693,14 +6691,9 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
             json={"new_state": "success"},
         )
         assert response.status_code == 200
-        assert mock_set_ti_state.call_count == 4
-        called_task_ids = sorted(call.kwargs["task_id"] for call in mock_set_ti_state.call_args_list)
-        assert called_task_ids == [
-            "section_2.inner_section_2.task_2",
-            "section_2.inner_section_2.task_3",
-            "section_2.inner_section_2.task_4",
-            "section_2.task_1",
-        ]
+        assert mock_set_tg_state.call_count == 1
+        call_kwargs = mock_set_tg_state.call_args.kwargs
+        assert call_kwargs["group_id"] == "section_2"
 
     def test_patch_task_group_not_found(self, test_client, session):
         """Test that requesting a non-existent task group returns 404."""
@@ -6768,13 +6761,50 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
         count_section_1 = sum(result_section_1.values())
         count_section_2 = sum(result_section_2.values())
         per_task_overhead = count_section_2 - count_section_1
-        assert per_task_overhead <= 10, (
+        assert per_task_overhead <= 2, (
             f"Adding one task should add at most a few queries for per-TI state updates, "
             f"got {per_task_overhead} (section_1={count_section_1}, section_2={count_section_2})"
         )
 
-    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
-    def test_includes_upstream_downstream_parameters(self, mock_set_ti_state, test_client, session):
+    def test_patch_task_group_updates_ti_states_in_db(self, test_client, session):
+        """Test that patching a task group actually updates task instance states in the database."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        group_task_ids = ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+
+        # Verify all TIs in the group start as RUNNING
+        tis_before = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+        ).all()
+        assert all(ti.state == State.RUNNING for ti in tis_before)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+
+        # Verify states were actually updated in the database
+        session.expire_all()
+        tis_after = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+        ).all()
+        assert len(tis_after) == 3
+        for ti in tis_after:
+            assert ti.state == TaskInstanceState.SUCCESS, (
+                f"Expected {ti.task_id} to be SUCCESS, got {ti.state}"
+            )
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    def test_includes_upstream_downstream_parameters(self, mock_set_tg_state, test_client, session):
         """Test that include_upstream and include_downstream parameters are passed through."""
         self.create_task_instances(session, dag_id=self.DAG_ID)
 
@@ -6792,8 +6822,7 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
             .all()
         )
 
-        ti_map = {ti.task_id: ti for ti in tis}
-        mock_set_ti_state.side_effect = lambda task_id, **kwargs: [ti_map[task_id]]
+        mock_set_tg_state.return_value = list(tis[:1])
 
         response = test_client.patch(
             self.ENDPOINT_URL,
@@ -6807,8 +6836,8 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
 
-        # Verify the parameters were passed to set_task_instance_state
-        call_kwargs = mock_set_ti_state.call_args_list[0].kwargs
+        # Verify the parameters were passed to set_task_group_state
+        call_kwargs = mock_set_tg_state.call_args.kwargs
         assert call_kwargs["upstream"] is True
         assert call_kwargs["downstream"] is True
         assert call_kwargs["future"] is True
@@ -6822,8 +6851,8 @@ class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
     BASE_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskGroupInstances"
     ENDPOINT_URL = f"{BASE_URL}/{GROUP_ID}/dry_run"
 
-    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
-    def test_dry_run_returns_affected_tis_without_committing(self, mock_set_ti_state, test_client, session):
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    def test_dry_run_returns_affected_tis_without_committing(self, mock_set_tg_state, test_client, session):
         """Test that dry run returns TIs that would be affected without committing."""
         self.create_task_instances(session, dag_id=self.DAG_ID)
 
@@ -6841,17 +6870,16 @@ class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
             .all()
         )
 
-        ti_map = {ti.task_id: ti for ti in tis}
-        mock_set_ti_state.side_effect = lambda task_id, **kwargs: [ti_map[task_id]]
+        mock_set_tg_state.return_value = list(tis)
 
         response = test_client.patch(
             self.ENDPOINT_URL,
             json={"new_state": "success"},
         )
         assert response.status_code == 200
-        assert mock_set_ti_state.call_count == 3
+        assert mock_set_tg_state.call_count == 1
         # Verify commit=False was passed for dry run
-        call_kwargs = mock_set_ti_state.call_args_list[0].kwargs
+        call_kwargs = mock_set_tg_state.call_args.kwargs
         assert call_kwargs["commit"] is False
 
     def test_dry_run_query_count_does_not_scale(self, test_client, session):
@@ -6874,10 +6902,36 @@ class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
         count_section_1 = sum(result_section_1.values())
         count_section_2 = sum(result_section_2.values())
         per_task_overhead = count_section_2 - count_section_1
-        assert per_task_overhead <= 10, (
+        assert per_task_overhead <= 2, (
             f"Adding one task should add at most a few queries for per-TI state updates, "
             f"got {per_task_overhead} (section_1={count_section_1}, section_2={count_section_2})"
         )
+
+    def test_dry_run_does_not_update_ti_states_in_db(self, test_client, session):
+        """Test that dry run does not actually modify task instance states in the database."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        group_task_ids = ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+
+        # Verify states were NOT changed in the database
+        session.expire_all()
+        tis_after = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+        ).all()
+        for ti in tis_after:
+            assert ti.state == State.RUNNING, (
+                f"Expected {ti.task_id} to remain RUNNING after dry run, got {ti.state}"
+            )
 
     def test_dry_run_task_group_not_found(self, test_client, session):
         """Test that requesting a non-existent task group returns 404."""

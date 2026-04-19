@@ -98,6 +98,7 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
     _collect_unique_tis,
     _get_task_group_task_instances,
+    _patch_task_group_state,
     _patch_task_instance_note,
     _patch_task_instance_state,
     _patch_ti_group_validate_request,
@@ -993,28 +994,15 @@ def patch_task_group_instances(
 
     for key, _ in data.items():
         if key == "new_state":
-            for ti in tis:
-                bulk_ti_body = BulkTaskInstanceBody(
-                    task_id=ti.task_id,
-                    map_index=ti.map_index,
-                    new_state=body.new_state,
-                    note=body.note,
-                    include_upstream=body.include_upstream,
-                    include_downstream=body.include_downstream,
-                    include_future=body.include_future,
-                    include_past=body.include_past,
-                )
-
-                updated_tis = _patch_task_instance_state(
-                    task_id=ti.task_id,
-                    dag_run_id=dag_run_id,
-                    dag=dag,
-                    task_instance_body=bulk_ti_body,
-                    data=data,
-                    session=session,
-                )
-
-                _collect_unique_tis(affected_tis_dict, updated_tis)
+            updated_tis = _patch_task_group_state(
+                group_id=group_id,
+                dag_run_id=dag_run_id,
+                dag=dag,
+                body=body,
+                data=data,
+                session=session,
+            )
+            _collect_unique_tis(affected_tis_dict, updated_tis)
 
         elif key == "note":
             _patch_task_instance_note(
@@ -1026,7 +1014,7 @@ def patch_task_group_instances(
             _collect_unique_tis(affected_tis_dict, tis)
 
     # Eagerly load rendered_task_instance_fields for serialization (lazy='raise' prevents lazy access).
-    # set_task_instance_state() returns TIs without this relationship loaded; re-query with joinedload.
+    # set_task_group_state() returns TIs without this relationship loaded; re-query with joinedload.
     # populate_existing=True ensures the joinedload updates TIs already in the identity map.
     all_tis = list(affected_tis_dict.values())
     if all_tis:
@@ -1068,28 +1056,23 @@ def patch_task_group_instances_dry_run(
     tis = _get_task_group_task_instances(dag_id, dag_run_id, group_id, dag, session)
 
     if body.new_state:
-        affected_tis_dict: dict[tuple[str, str, str, int], TI] = {}
-        for ti in tis:
-            affected_tis = (
-                dag.set_task_instance_state(
-                    task_id=ti.task_id,
-                    run_id=dag_run_id,
-                    map_indexes=[ti.map_index],
-                    state=body.new_state,
-                    upstream=body.include_upstream,
-                    downstream=body.include_downstream,
-                    future=body.include_future,
-                    past=body.include_past,
-                    commit=False,
-                    session=session,
-                )
-                or []
+        tis = (
+            dag.set_task_group_state(
+                group_id=group_id,
+                run_id=dag_run_id,
+                state=body.new_state,
+                upstream=body.include_upstream,
+                downstream=body.include_downstream,
+                future=body.include_future,
+                past=body.include_past,
+                commit=False,
+                session=session,
             )
-            _collect_unique_tis(affected_tis_dict, affected_tis)
-        tis = list(affected_tis_dict.values())
+            or []
+        )
 
     # Eagerly load rendered_task_instance_fields for serialization (lazy='raise' prevents lazy access).
-    # set_task_instance_state() returns TIs without this relationship loaded; re-query with joinedload.
+    # set_task_group_state() returns TIs without this relationship loaded; re-query with joinedload.
     # populate_existing=True ensures the joinedload updates TIs already in the identity map.
     if tis:
         tis = list(
