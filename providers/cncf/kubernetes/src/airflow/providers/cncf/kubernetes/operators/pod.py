@@ -1054,10 +1054,12 @@ class KubernetesPodOperator(BaseOperator):
         since_seconds = None
         if since_time:
             try:
+                if isinstance(since_time, str):
+                    since_time = datetime.datetime.fromisoformat(since_time.replace("Z", "+00:00"))
                 since_seconds = math.ceil(
                     (datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds()
                 )
-            except TypeError:
+            except (TypeError, ValueError):
                 self.log.warning(
                     "Error calculating since_seconds with since_time %s. Using None instead.",
                     since_time,
