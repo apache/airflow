@@ -13,6 +13,7 @@
     "permissionDenied": "Testlauf fehlgeschlagen: Benutzer hat keine Berechtigung, Auffüllungen zu erstellen.",
     "reprocessBehavior": "Auffüll-Modus",
     "run": "Auffüllung starten",
+    "scheduleNotBackfillable": "Der Zeitplan des Dags unterstützt keine Auffüllungen.",
     "selectDescription": "Dieses Dag für einen Datumsbereich in der Vergangenheit ausführen",
     "selectLabel": "Auffüllen",
     "title": "Auffüllung starten",

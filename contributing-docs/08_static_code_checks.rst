@@ -287,7 +287,16 @@ For **non-provider projects** (airflow-core, task-sdk, airflow-ctl, dev, scripts
 runs locally using the ``uv`` virtualenv — no breeze CI image is needed. These checks run as regular
 prek hooks in the ``pre-commit`` stage, checking whole directories at once. This means they run both
 as part of local commits and as part of regular static checks in CI (not as separate mypy CI jobs).
-You can also run mypy directly. Use ``--frozen`` to avoid updating ``uv.lock``:
+
+Before running mypy directly (or via the ``mypy-*`` prek hooks), synchronize your local virtualenv
+with ``uv.lock`` so it matches the dependency set CI uses — otherwise mypy may pick up a different
+set of installed packages than CI and produce results that diverge from CI:
+
+.. code-block:: bash
+
+  uv sync --frozen --project <PROJECT>
+
+Then run mypy directly. Use ``--frozen`` so ``uv`` does not update ``uv.lock``:
 
 .. code-block:: bash
 

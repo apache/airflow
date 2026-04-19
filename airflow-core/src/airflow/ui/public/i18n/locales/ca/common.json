@@ -28,6 +28,7 @@
   },
   "collapseAllExtra": "Col·lapsar tots els camps extra json",
   "collapseDetailsPanel": "Col·lapsar el panell de detalls",
+  "consumingAsset": "Asset consumidor",
   "createdAssetEvent_one": "Esdeveniment d'Asset creat",
   "createdAssetEvent_other": "Esdeveniments d'Asset creats",
   "dag_one": "Dag",
@@ -103,6 +104,12 @@
     "notFound": "Pàgina no trobada",
     "title": "Error"
   },
+  "errors": {
+    "forbidden": {
+      "description": "No teniu permisos per a realitzar aquesta acció.",
+      "title": "Accés denegat"
+    }
+  },
   "expand": {
     "collapse": "Col·lapsar",
     "expand": "Expandir",
@@ -125,9 +132,11 @@
     "logicalDateTo": "Data Lògica Fins a",
     "runAfterFrom": "Executar Després de",
     "runAfterTo": "Executar Després de",
+    "searchAsset": "Cercar Asset",
     "selectDateRange": "Seleccionar interval de dates",
     "startTime": "Hora d'inici"
   },
+  "generateToken": "Generar token",
   "logicalDate": "Data Lògica",
   "logout": "Tancar sessió",
   "logoutConfirmation": "Està a punt de tancar sessió de l'aplicació.",
@@ -171,6 +180,7 @@
   "reset": "Restablir",
   "runId": "ID de l'execució",
   "runTypes": {
+    "asset_materialization": "Materialització d'Asset",
     "asset_triggered": "Executat per Asset",
     "backfill": "Reomplir",
     "manual": "Manual",
@@ -191,6 +201,7 @@
     "users": "Usuaris"
   },
   "selectLanguage": "Seleccionar idioma",
+  "selected": "Seleccionat",
   "showDetailsPanel": "Mostrar panell de detalls",
   "signedInAs": "Sessió iniciada com a",
   "source": {
@@ -291,11 +302,25 @@
     "utc": "UTC (Temps Universal Coordinat)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Error en la sol·licitud de neteja massiva de {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} s'han netejat correctament. Claus: {{keys}}",
+        "title": "Sol·licitud de neteja massiva de {{resourceName}} enviada"
+      }
+    },
     "bulkDelete": {
       "error": "Error en la sol·licitud de supressió massiva de {{resourceName}}",
       "success": {
         "description": "{{count}} {{resourceName}} s'han suprimit correctament. Claus: {{keys}}",
         "title": "Sol·licitud de supressió massiva de {{resourceName}} enviada"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Error en la sol·licitud d'actualització massiva de {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} s'han actualitzat correctament. Claus: {{keys}}",
+        "title": "Sol·licitud d'actualització massiva de {{resourceName}} enviada"
       }
     },
     "create": {
@@ -327,10 +352,26 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "Token d'API",
+    "cliToken": "Token de CLI",
+    "errorDescription": "S'ha produït un error en generar el token. Torneu-ho a provar.",
+    "errorTitle": "Ha fallat la generació del token",
+    "generate": "Generar",
+    "selectType": "Seleccioneu el tipus de token que voleu generar.",
+    "title": "Generar token",
+    "tokenExpiresIn": "Aquest token caduca en {{duration}}.",
+    "tokenGenerated": "S'ha generat el vostre token.",
+    "tokenShownOnce": "Aquest token només es mostrarà una vegada. Copieu-lo ara."
+  },
   "total": "Total {{state}}",
   "triggered": "Executat",
   "tryNumber": "Número d'intent",
   "user": "Usuari",
+  "validation": {
+    "mustBeAtLeast": "Ha de ser com a mínim {{min}}.",
+    "mustBeValidNumber": "Ha de ser un número vàlid."
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Premeu {{hotkey}} per alternar l'ajust de línia",
