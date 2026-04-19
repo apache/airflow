@@ -49,8 +49,10 @@ class GitHook(BaseHook):
     * ``ssh_config_file`` — path to a custom SSH config file.
     * ``host_proxy_cmd`` — SSH ProxyCommand string (e.g. for bastion/jump hosts).
     * ``ssh_port`` — non-default SSH port.
-    * ``github_app_id`` — App ID needed for GitHub App Authentication.
-    * ``github_installation_id`` — Installation ID needed for GitHub App Authentication.
+    * ``github_app_id`` — GitHub App ID used for GitHub App authentication. Requires the GitHub App
+      private key to be provided as a PEM-encoded key via either ``private_key`` (inline) or
+      ``key_file`` (path to key file).
+    * ``github_installation_id`` — GitHub App installation ID used for GitHub App authentication.
     """
 
     conn_name_attr = "git_conn_id"
