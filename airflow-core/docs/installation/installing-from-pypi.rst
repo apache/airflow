@@ -159,7 +159,7 @@ Build constraints
 
 In addition to runtime constraints, Airflow publishes **build constraints** files on the same constraint
 branches. Build constraints pin the versions of build-time dependencies (such as ``setuptools``,
-``hatchling``, ``maturin``) that are used when compiling packages from source distributions (sdists)
+``hatchling``, ``maturin``) that are used when compiling packages from source distributions
 via `build isolation <https://pip.pypa.io/en/stable/reference/build-system/pyproject-toml/#build-isolation>`_.
 
 Build constraints are useful when you install Airflow or its providers from source and want fully
