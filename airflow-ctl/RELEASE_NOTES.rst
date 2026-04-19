@@ -29,6 +29,7 @@ Significant Changes
 Bug Fixes
 ^^^^^^^^^
 
+- Declare ``pyyaml`` as a runtime dependency so ``airflowctl`` starts without crashing on ``ModuleNotFoundError``
 - Prevent path traversal via AIRFLOW_CLI_ENVIRONMENT in airflowctl (#64618)
 - Fix ``is_alive`` default in ``airflowctl jobs list`` to show all jobs (#65065)
 - Fix CLI error handling and exit codes for failed commands (#65052)
