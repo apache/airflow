@@ -200,7 +200,7 @@ class GitHook(BaseHook):
             app_id=self.github_app_id, private_key=self.private_key
         ).get_installation_auth(installation_id=self.github_installation_id)
 
-        # Client is needed to generate the token
+        # Client is needed to generate the token even though we don't use the client directly
         GithubClient(auth=github_auth)
         return "x-access-token", github_auth.token
 
