@@ -2313,7 +2313,7 @@ def override_caplog(request):
 @pytest.fixture
 def mock_supervisor_comms(monkeypatch):
     # for back-compat
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 
     if not AIRFLOW_V_3_0_PLUS:
         yield None
@@ -2330,7 +2330,7 @@ def mock_supervisor_comms(monkeypatch):
         comms = mock.create_autospec(CommsDecoder)
         comms.send = comms.get_message
 
-    if AIRFLOW_V_3_2_PLUS:
+    if AIRFLOW_V_3_3_PLUS:
         svcomms = task_runner.SupervisorComms()
         old = svcomms.get_comms()
         svcomms.set_comms(comms)
@@ -2344,7 +2344,7 @@ def mock_supervisor_comms(monkeypatch):
 @pytest.fixture
 def mock_unset_supervisor_comms(monkeypatch):
     # for back-compat
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 
     if not AIRFLOW_V_3_0_PLUS:
         yield None
@@ -2352,7 +2352,7 @@ def mock_unset_supervisor_comms(monkeypatch):
 
     from airflow.sdk.execution_time import comms, task_runner
 
-    if AIRFLOW_V_3_2_PLUS:
+    if AIRFLOW_V_3_3_PLUS:
         svcomms = task_runner.SupervisorComms()
         old = svcomms.get_comms()
         svcomms.reset_comms()

@@ -2840,9 +2840,9 @@ class TestRuntimeTaskInstance:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         msg = next(
-            c.kwargs["msg"]
+            c.args[0]
             for c in mock_supervisor_comms.send.mock_calls
-            if c.kwargs.get("msg") and getattr(c.kwargs["msg"], "type", None) == "SetRenderedFields"
+            if c.args and getattr(c.args[0], "type", None) == "SetRenderedFields"
         )
         rendered_fields = msg.rendered_fields
 
@@ -2896,7 +2896,7 @@ class TestRuntimeTaskInstance:
         runtime_ti = create_runtime_ti(task=task, dag_id="test_complex_object_dag")
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        rendered_fields = mock_supervisor_comms.send.mock_calls[0].kwargs["msg"].rendered_fields
+        rendered_fields = mock_supervisor_comms.send.mock_calls[0].args[0].rendered_fields
         assert rendered_fields is not None
         assert (
             rendered_fields["env_vars"]
@@ -2938,9 +2938,9 @@ class TestRuntimeTaskInstance:
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         assert any(
-            "config.nested.secret" in call.kwargs.get("msg").rendered_fields
+            "config.nested.secret" in call.args[0].rendered_fields
             for call in mock_supervisor_comms.send.mock_calls
-            if hasattr(call.kwargs.get("msg"), "rendered_fields")
+            if hasattr(call.args[0], "rendered_fields")
         )
 
     def test_rendered_fields_validates_json_value_types(self, create_runtime_ti, mock_supervisor_comms):
@@ -2970,9 +2970,9 @@ class TestRuntimeTaskInstance:
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         assert any(
-            call.kwargs.get("msg").rendered_fields["data"] == complex_value
+            call.args[0].rendered_fields["data"] == complex_value
             for call in mock_supervisor_comms.send.mock_calls
-            if hasattr(call.kwargs.get("msg"), "rendered_fields")
+            if hasattr(call.args[0], "rendered_fields")
         )
 
     def test_get_dag(self, mock_supervisor_comms):
