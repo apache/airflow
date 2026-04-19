@@ -64,10 +64,11 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek hook
-version = "3.2.0"
+version = "3.3.0"
 
 dependencies = [
     "a2wsgi>=1.10.8",
+    "cachetools>=6.0.0",
     # aiosqlite 0.22.0 has a problem with hanging pytest sessions and we excluded it
     # See https://github.com/omnilib/aiosqlite/issues/369
     # It seems that while our test issues are fixed in 0.22.1, sqlalchemy 2 itself
@@ -146,10 +147,9 @@ dependencies = [
     "tenacity>=8.3.0",
     "termcolor>=3.0.0",
     "typing-extensions>=4.14.1",
-    # https://github.com/apache/airflow/issues/56369 , rework universal-pathlib usage
     "universal-pathlib>=0.3.8",
     "uuid6>=2024.7.10",
-    "apache-airflow-task-sdk<1.3.0,>=1.2.0",
+    "apache-airflow-task-sdk<1.4.0,>=1.3.0",
     # pre-installed providers
     "apache-airflow-providers-common-compat>=1.7.4",
     "apache-airflow-providers-common-io>=1.6.3",

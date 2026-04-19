@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import smtplib
+import ssl
 import tempfile
 from email.mime.application import MIMEApplication
 from unittest import mock
@@ -535,9 +536,15 @@ class TestSmtpHook:
         with SmtpHook(smtp_conn_id=CONN_ID_NONSSL):
             pass
 
-        # Verify ehlo is called after starttls and before login
-        expected_calls = [call.starttls(), call.ehlo(), call.login(SMTP_LOGIN, SMTP_PASSWORD)]
-        assert manager.mock_calls == expected_calls
+        # Verify ehlo is called after starttls and before login,
+        # and starttls is invoked with an SSL context so certificate validation
+        # happens on the TLS upgrade.
+        assert len(manager.mock_calls) == 3
+        starttls_call, ehlo_call, login_call = manager.mock_calls
+        assert starttls_call[0] == "starttls"
+        assert isinstance(starttls_call.kwargs.get("context"), ssl.SSLContext)
+        assert ehlo_call == call.ehlo()
+        assert login_call == call.login(SMTP_LOGIN, SMTP_PASSWORD)
 
 
 @pytest.mark.asyncio
@@ -626,13 +633,14 @@ class TestSmtpHookAsync:
         async with SmtpHook(smtp_conn_id=conn_id) as hook:
             assert hook is not None
 
-        mock_smtp.assert_called_once_with(
-            hostname=SMTP_HOST,
-            port=expected_port,
-            timeout=DEFAULT_TIMEOUT,
-            use_tls=expected_ssl,
-            start_tls=None if expected_ssl else True,
-        )
+        mock_smtp.assert_called_once()
+        call_kwargs = mock_smtp.call_args.kwargs
+        assert call_kwargs["hostname"] == SMTP_HOST
+        assert call_kwargs["port"] == expected_port
+        assert call_kwargs["timeout"] == DEFAULT_TIMEOUT
+        assert call_kwargs["use_tls"] == expected_ssl
+        assert call_kwargs["start_tls"] == (None if expected_ssl else True)
+        assert isinstance(call_kwargs["tls_context"], ssl.SSLContext)
 
         if expected_ssl:
             assert mock_smtp_client.starttls.await_count == 1

@@ -72,10 +72,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv in the image"
         required: true
         type: string
-      uv-version:
-        description: 'uv version to use'
-        default: "0.11.3"  # Keep this comment to allow automatic replacement of uv version
-        type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
         required: true
@@ -143,9 +139,16 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: "Install uv"
-        run: pip install "uv==${UV_VERSION}"
-        env:
-          UV_VERSION: ${{ inputs.uv-version }}
+        # Extract uv version from uv.lock. The format is stable: the line
+        # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.
+        run: |
+          UV_VERSION=$(sed -n '/^name = "uv"$/{n;s/^version = "\(.*\)"$/\1/p;}' uv.lock)
+          if [[ -z "${UV_VERSION}" ]]; then
+            echo "Failed to extract uv version from uv.lock" >&2
+            exit 1
+          fi
+          echo "Installing uv==${UV_VERSION}"
+          pip install "uv==${UV_VERSION}"
       - name: "Run shared ${{ matrix.shared-distribution }} tests"
         run: uv run --group dev pytest --color=yes -n auto
         working-directory: shared/${{ matrix.shared-distribution }}
@@ -161,9 +164,16 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: "Install uv"
-        run: pip install "uv==${UV_VERSION}"
-        env:
-          UV_VERSION: ${{ inputs.uv-version }}
+        # Extract uv version from uv.lock. The format is stable: the line
+        # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.
+        run: |
+          UV_VERSION=$(sed -n '/^name = "uv"$/{n;s/^version = "\(.*\)"$/\1/p;}' uv.lock)
+          if [[ -z "${UV_VERSION}" ]]; then
+            echo "Failed to extract uv version from uv.lock" >&2
+            exit 1
+          fi
+          echo "Installing uv==${UV_VERSION}"
+          pip install "uv==${UV_VERSION}"
       - name: "Run scripts tests"
         run: uv run --project . pytest --color=yes -n auto
         working-directory: ./scripts/
@@ -193,7 +203,7 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: 'airflow-core/src/airflow/**/pnpm-lock.yaml'
       - name: "Restore eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
         with:
           path: airflow-core/src/airflow/ui/node_modules/
           # yamllint disable-line rule:line-length
@@ -204,7 +214,7 @@ jobs:
         env:
           FORCE_COLOR: 2
       - name: "Save eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
         with:
           path: airflow-core/src/airflow/ui/node_modules/
           key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
@@ -212,7 +222,7 @@ jobs:
           retention-days: '2'
         if: steps.restore-eslint-cache-ui.outputs.stash-hit != 'true'
       - name: "Restore eslint cache (simple auth manager UI)"
-        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
         with:
           path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >
@@ -224,7 +234,7 @@ jobs:
         env:
           FORCE_COLOR: 2
       - name: "Save eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
         with:
           path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >
@@ -368,9 +378,16 @@ jobs:
         with:
           persist-credentials: false
       - name: "Install uv"
-        run: pip install "uv==${UV_VERSION}"
-        env:
-          UV_VERSION: ${{ inputs.uv-version }}
+        # Extract uv version from uv.lock. The format is stable: the line
+        # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.
+        run: |
+          UV_VERSION=$(sed -n '/^name = "uv"$/{n;s/^version = "\(.*\)"$/\1/p;}' uv.lock)
+          if [[ -z "${UV_VERSION}" ]]; then
+            echo "Failed to extract uv version from uv.lock" >&2
+            exit 1
+          fi
+          echo "Installing uv==${UV_VERSION}"
+          pip install "uv==${UV_VERSION}"
       - name: "Set up Airflow home directory"
         run: |
           echo "Setting AIRFLOW_HOME to $AIRFLOW_HOME"

@@ -34,6 +34,7 @@ from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.executors.base_executor import BaseExecutor
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
@@ -773,6 +774,10 @@ def test_celery_tasks_registered_on_import():
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_1_9_PLUS, reason="TaskAlreadyRunningError requires Airflow 3.1.9+")
+@pytest.mark.skipif(
+    not hasattr(BaseExecutor, "run_workload"),
+    reason="BaseExecutor.run_workload not available in this Airflow version",
+)
 def test_execute_workload_ignores_already_running_task():
     """Test that execute_workload raises Celery Ignore when task is already running."""
     import importlib
@@ -790,10 +795,10 @@ def test_execute_workload_ignores_already_running_task():
     mock_app.current_task = mock_current_task
 
     with (
-        mock.patch("airflow.sdk.execution_time.supervisor.supervise") as mock_supervise,
+        mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload") as mock_run_workload,
         mock.patch.object(celery_executor_utils, "app", mock_app),
     ):
-        mock_supervise.side_effect = TaskAlreadyRunningError("Task already running")
+        mock_run_workload.side_effect = TaskAlreadyRunningError("Task already running")
 
         workload_json = """
         {

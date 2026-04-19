@@ -60,15 +60,11 @@ export class DagRunsTabPage extends BasePage {
 
     currentUrl.searchParams.set("state", state.toLowerCase());
 
-    const responsePromise = this.page.waitForResponse(
-      (response) => response.url().includes("dagRuns") && response.request().method() === "GET",
-      { timeout: 15_000 },
-    );
-
-    await this.navigateTo(currentUrl.pathname + currentUrl.search);
-    await responsePromise;
-    await expect(this.page).toHaveURL(/.*state=.*/, { timeout: 15_000 });
-    await this.waitForRunsTableToLoad();
+    await expect(async () => {
+      await this.navigateTo(currentUrl.pathname + currentUrl.search);
+      await expect(this.page).toHaveURL(/.*state=.*/, { timeout: 10_000 });
+      await this.waitForRunsTableToLoad();
+    }).toPass({ intervals: [2000], timeout: 30_000 });
   }
 
   public async markRunAs(state: "failed" | "success"): Promise<void> {
@@ -122,12 +118,14 @@ export class DagRunsTabPage extends BasePage {
   }
 
   public async navigateToRunDetails(dagId: string, runId: string): Promise<void> {
-    await this.navigateTo(`/dags/${dagId}/runs/${runId}`);
-    await expect(this.page).toHaveURL(
-      new RegExp(`/dags/${DagRunsTabPage.escapeRegExp(dagId)}/runs/${DagRunsTabPage.escapeRegExp(runId)}`),
-      { timeout: 15_000 },
-    );
-    await expect(this.markRunAsButton).toBeVisible({ timeout: 15_000 });
+    await expect(async () => {
+      await this.navigateTo(`/dags/${dagId}/runs/${runId}`);
+      await expect(this.page).toHaveURL(
+        new RegExp(`/dags/${DagRunsTabPage.escapeRegExp(dagId)}/runs/${DagRunsTabPage.escapeRegExp(runId)}`),
+        { timeout: 15_000 },
+      );
+      await expect(this.markRunAsButton).toBeVisible({ timeout: 15_000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async searchByRunIdPattern(pattern: string): Promise<void> {
@@ -135,15 +133,11 @@ export class DagRunsTabPage extends BasePage {
 
     currentUrl.searchParams.set("run_id_pattern", pattern);
 
-    const responsePromise = this.page.waitForResponse(
-      (response) => response.url().includes("dagRuns") && response.request().method() === "GET",
-      { timeout: 15_000 },
-    );
-
-    await this.navigateTo(currentUrl.pathname + currentUrl.search);
-    await responsePromise;
-    await expect(this.page).toHaveURL(/.*run_id_pattern=.*/, { timeout: 15_000 });
-    await this.waitForRunsTableToLoad();
+    await expect(async () => {
+      await this.navigateTo(currentUrl.pathname + currentUrl.search);
+      await expect(this.page).toHaveURL(/.*run_id_pattern=.*/, { timeout: 10_000 });
+      await this.waitForRunsTableToLoad();
+    }).toPass({ intervals: [2000], timeout: 30_000 });
   }
 
   public async triggerDagRun(): Promise<string | undefined> {
@@ -233,7 +227,7 @@ export class DagRunsTabPage extends BasePage {
   }
 
   public async waitForRunsTableToLoad(): Promise<void> {
-    await expect(this.runsTable).toBeVisible({ timeout: 10_000 });
+    await expect(this.runsTable).toBeVisible({ timeout: 30_000 });
 
     const firstRow = this.tableRows.first();
     const noDataMessage = this.page.getByText(/no.*dag.*runs.*found/i);

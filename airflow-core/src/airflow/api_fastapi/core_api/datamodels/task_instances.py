@@ -83,10 +83,33 @@ class TaskInstanceResponse(BaseModel):
 
 
 class TaskInstanceCollectionResponse(BaseModel):
-    """Task Instance Collection serializer for responses."""
+    """
+    Task instance collection response supporting both offset and cursor pagination.
+
+    A single flat model is used instead of a discriminated union
+    (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because
+    the OpenAPI ``oneOf`` + ``discriminator`` construct is not handled
+    correctly by ``@hey-api/openapi-ts`` / ``@7nohe/openapi-react-query-codegen``:
+    return types degrade to ``unknown`` in JSDoc and can produce
+    incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).
+    """
 
     task_instances: Iterable[TaskInstanceResponse]
-    total_entries: int
+    total_entries: int | None = Field(
+        default=None,
+        description="Total number of matching items. Populated for offset pagination, "
+        "``null`` when using cursor pagination.",
+    )
+    next_cursor: str | None = Field(
+        default=None,
+        description="Token pointing to the next page. Populated for cursor pagination, "
+        "``null`` when using offset pagination or when there is no next page.",
+    )
+    previous_cursor: str | None = Field(
+        default=None,
+        description="Token pointing to the previous page. Populated for cursor pagination, "
+        "``null`` when using offset pagination or when on the first page.",
+    )
 
 
 class TaskDependencyResponse(BaseModel):

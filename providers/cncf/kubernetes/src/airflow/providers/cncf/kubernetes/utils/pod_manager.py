@@ -21,7 +21,9 @@ from __future__ import annotations
 import asyncio
 import enum
 import json
+import logging
 import math
+import re
 import time
 from collections.abc import Callable, Generator, Iterable
 from contextlib import closing
@@ -73,6 +75,33 @@ Sentinel for no xcom result.
 
 :meta private:
 """
+
+_POD_LOG_LEVEL_PATTERN = re.compile(
+    r"^\s*(?:\[)?(DEBUG|INFO|WARNING|WARN|ERROR|CRITICAL|FATAL)(?:\])?\s*[:\-]?\s*",
+    re.IGNORECASE,
+)
+_POD_LOG_LEVEL_MAP: dict[str, int] = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "WARN": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+    "FATAL": logging.CRITICAL,
+}
+
+
+def _parse_log_level(message: str) -> int:
+    """
+    Detect the Python logging level from a pod log line's prefix.
+
+    Recognises common formats: ``ERROR:``, ``[ERROR]``, ``WARNING -``, etc.
+    Returns ``logging.INFO`` when no known prefix is found (backwards-compatible).
+    """
+    match = _POD_LOG_LEVEL_PATTERN.match(message)
+    if match:
+        return _POD_LOG_LEVEL_MAP.get(match.group(1).upper(), logging.INFO)
+    return logging.INFO
 
 
 class XComRetrievalError(AirflowException):
@@ -145,7 +174,7 @@ async def await_pod_start(
         else:
             remote_pod = pod_manager.read_pod(pod)
         pod_status = remote_pod.status
-        if pod_status.phase != PodPhase.PENDING:
+        if pod_status.phase not in (PodPhase.PENDING, PodPhase.UNKNOWN):
             pod_manager.stop_watching_events = True
             pod_manager.log.info("::endgroup::")
             break
@@ -436,18 +465,18 @@ class PodManager(LoggingMixin):
         container_name_log_prefix_enabled: bool,
         log_formatter: Callable[[str, str], str] | None,
     ) -> None:
-        """Log a message with appropriate formatting."""
+        """Log a message at the level detected from its prefix, with appropriate formatting."""
         if is_log_group_marker(message):
             print(message)
         else:
+            level = _parse_log_level(message)
             if log_formatter:
                 formatted_message = log_formatter(container_name, message)
-                self.log.info("%s", formatted_message)
             else:
-                log_message = (
+                formatted_message = (
                     f"[{container_name}] {message}" if container_name_log_prefix_enabled else message
                 )
-                self.log.info("%s", log_message)
+            self.log.log(level, formatted_message)
 
     def fetch_container_logs(
         self,
@@ -741,7 +770,11 @@ class PodManager(LoggingMixin):
             time.sleep(polling_time)
 
     def await_pod_completion(
-        self, pod: V1Pod, istio_enabled: bool = False, container_name: str = "base"
+        self,
+        pod: V1Pod,
+        istio_enabled: bool = False,
+        container_name: str = "base",
+        do_xcom_push: bool = False,
     ) -> V1Pod:
         """
         Monitor a pod and return the final state.
@@ -749,13 +782,21 @@ class PodManager(LoggingMixin):
         :param istio_enabled: whether istio is enabled in the namespace
         :param pod: pod spec that will be monitored
         :param container_name: name of the container within the pod
-        :return: tuple[State, str | None]
+        :param do_xcom_push: whether to push XComs
+        :return: V1Pod
         """
         while True:
             remote_pod = self.read_pod(pod)
             if remote_pod.status.phase in PodPhase.terminal_states:
                 break
-            if istio_enabled and container_is_completed(remote_pod, container_name):
+            if (istio_enabled or do_xcom_push) and container_is_completed(remote_pod, container_name):
+                self.log.info(
+                    "Container '%s' completed but pod %s still has phase %s "
+                    "(likely due to a sidecar container). Skipping waiting for pod completion.",
+                    container_name,
+                    pod.metadata.name,
+                    remote_pod.status.phase,
+                )
                 break
             # abort waiting if defined issues are detected
             if detect_pod_terminate_early_issues(remote_pod):
@@ -1168,7 +1209,8 @@ class AsyncPodManager(LoggingMixin):
                             if is_log_group_marker(message_to_log):
                                 print(message_to_log)
                             else:
-                                self.log.info("[%s] %s", container_name, message_to_log)
+                                level = _parse_log_level(message_to_log)
+                                self.log.log(level, "[%s] %s", container_name, message_to_log)
                         message_to_log = message
                 elif message_to_log:  # continuation of the previous log line
                     message_to_log = f"{message_to_log}\n{message}"
@@ -1178,5 +1220,6 @@ class AsyncPodManager(LoggingMixin):
                 if is_log_group_marker(message_to_log):
                     print(message_to_log)
                 else:
-                    self.log.info("[%s] %s", container_name, message_to_log)
+                    level = _parse_log_level(message_to_log)
+                    self.log.log(level, "[%s] %s", container_name, message_to_log)
         return now  # Return the current time as the last log time to ensure logs from the current second are read in the next fetch.
