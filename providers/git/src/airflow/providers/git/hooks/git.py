@@ -116,7 +116,7 @@ class GitHook(BaseHook):
             try:
                 self.github_app_id: int | None = int(raw_github_app_id)
             except (TypeError, ValueError) as exc:
-                raise AirflowException(
+                raise ValueError(
                     f"Invalid 'github_app_id' value {raw_github_app_id!r}. It must be an integer."
                 ) from exc
         else:
@@ -127,7 +127,7 @@ class GitHook(BaseHook):
             try:
                 self.github_installation_id: int | None = int(raw_github_installation_id)
             except (TypeError, ValueError) as exc:
-                raise AirflowException(
+                raise ValueError(
                     f"Invalid 'github_installation_id' value {raw_github_installation_id!r}. It must be an integer."
                 ) from exc
         else:
@@ -139,24 +139,23 @@ class GitHook(BaseHook):
         if (self.github_app_id and not self.github_installation_id) or (
             not self.github_app_id and self.github_installation_id
         ):
-            raise AirflowException(
+            raise ValueError(
                 "Both 'github_app_id' and 'github_installation_id' must be provided to use GitHub App Authentication"
             )
         if self.github_app_id and self.github_installation_id:
             if not self.key_file and not self.private_key:
-                raise AirflowException("Missing inline private_key or key_file for GitHub App Auth")
+                raise ValueError("Missing inline private_key or key_file for GitHub App Auth")
             if self.key_file and not self.private_key:
                 try:
                     with open(self.key_file, encoding="utf-8") as key_file:
                         self.private_key = key_file.read()
                 except OSError as exc:
-                    raise AirflowException(
+                    raise OSError(
                         f"Failed to read GitHub App private key file {self.key_file!r}: {exc}"
                     ) from exc
             if not (self.repo_url or "").startswith(("https://", "http://")):
-                raise AirflowException(
-                    "GitHub App authentication requires an HTTPS repository URL, "
-                    f"but got: {self.repo_url!r}"
+                raise ValueError(
+                    f"GitHub App authentication requires an HTTPS repository URL, but got: {self.repo_url!r}"
                 )
             # Store the PEM separately so configure_hook_env() does not treat it as an SSH key.
             self.github_app_private_key: str | None = self.private_key
@@ -203,7 +202,7 @@ class GitHook(BaseHook):
         try:
             from github import Auth as GithubAuth, Github as GithubClient
         except ImportError as exc:
-            raise AirflowException(
+            raise ImportError(
                 "The PyGithub library is required for GitHub App authentication. Please install it with 'pip install apache-airflow-providers-git[github]'"
             ) from exc
 
