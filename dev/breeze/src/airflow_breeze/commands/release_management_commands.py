@@ -76,6 +76,7 @@ from airflow_breeze.commands.common_options import (
     option_version_suffix,
 )
 from airflow_breeze.commands.common_package_installation_options import (
+    option_airflow_build_constraints_location,
     option_airflow_constraints_location,
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_mode_update,
@@ -1576,6 +1577,7 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
     name="install-provider-distributions",
     help="Installs provider distributions that can be found in dist.",
 )
+@option_airflow_build_constraints_location
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_location
 @option_airflow_constraints_reference
@@ -1602,6 +1604,7 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 @option_use_distributions_from_dist
 @option_verbose
 def install_provider_distributions(
+    airflow_build_constraints_location: str,
     airflow_constraints_location: str,
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
@@ -1630,6 +1633,7 @@ def install_provider_distributions(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     shell_params = ShellParams(
+        airflow_build_constraints_location=airflow_build_constraints_location,
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
@@ -1726,6 +1730,7 @@ def install_provider_distributions(
     name="verify-provider-distributions",
     help="Verifies if all provider code is following expectations for providers.",
 )
+@option_airflow_build_constraints_location
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_location
 @option_airflow_constraints_reference
@@ -1747,6 +1752,7 @@ def install_provider_distributions(
 @option_use_distributions_from_dist
 @option_verbose
 def verify_provider_distributions(
+    airflow_build_constraints_location: str,
     airflow_constraints_location: str,
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
@@ -1773,6 +1779,7 @@ def verify_provider_distributions(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     shell_params = ShellParams(
+        airflow_build_constraints_location=airflow_build_constraints_location,
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,

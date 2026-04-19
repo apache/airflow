@@ -30,8 +30,10 @@ function install_additional_dependencies() {
         echo "${COLOR_BLUE}Installing additional dependencies while upgrading to newer dependencies${COLOR_RESET}"
         echo
         set -x
+        # shellcheck disable=SC2046
         ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_TO_HIGHEST_RESOLUTION} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            $(common::get_build_constraints_install_flags) \
             ${ADDITIONAL_PYTHON_DEPS}
         set +x
         common::install_packaging_tools
@@ -45,8 +47,10 @@ function install_additional_dependencies() {
         echo "${COLOR_BLUE}Installing additional dependencies upgrading only if needed${COLOR_RESET}"
         echo
         set -x
+        # shellcheck disable=SC2046
         ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_IF_NEEDED} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            $(common::get_build_constraints_install_flags) \
             ${ADDITIONAL_PYTHON_DEPS}
         set +x
         common::install_packaging_tools
@@ -62,6 +66,7 @@ common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
 common::get_constraints_location
+common::get_build_constraints_location
 common::show_packaging_tool_version_and_location
 
 install_additional_dependencies
