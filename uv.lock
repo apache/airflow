@@ -12,7 +12,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-15T09:48:49.574343Z"
+exclude-newer = "2026-04-15T13:52:22.676684Z"
 exclude-newer-span = "P4D"
 
 [options.exclude-newer-package]
@@ -1958,6 +1958,7 @@ dependencies = [
     { name = "methodtools" },
     { name = "platformdirs" },
     { name = "pydantic" },
+    { name = "pyyaml" },
     { name = "rich-argparse" },
     { name = "structlog" },
     { name = "tabulate" },
@@ -1996,6 +1997,7 @@ requires-dist = [
     { name = "methodtools", specifier = ">=0.4.7" },
     { name = "platformdirs", specifier = ">=4.3.6" },
     { name = "pydantic", specifier = ">=2.11.0" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "rich-argparse", specifier = ">=1.0.0" },
     { name = "structlog", specifier = ">=25.4.0" },
     { name = "tabulate", specifier = ">=0.9.0" },
