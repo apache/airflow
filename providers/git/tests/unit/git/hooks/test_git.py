@@ -489,11 +489,14 @@ class TestGitHook:
                 },
             )
         )
-        with pytest.raises(Exception):
-            # PyGithub not available or auth fails, but key should be read
+        with pytest.MonkeyPatch().context() as mp:
+            mp.setattr(
+                "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
+                lambda self: ("x-access-token", "ghs_test_token"),
+            )
             hook = GitHook(git_conn_id="git_app_key_file")
-            assert hook.private_key == "file_pem_key_content"
 
+        assert hook.private_key == "file_pem_key_content"
     def test_app_auth_with_missing_key_file_raises(self, create_connection_without_db):
         create_connection_without_db(
             Connection(
