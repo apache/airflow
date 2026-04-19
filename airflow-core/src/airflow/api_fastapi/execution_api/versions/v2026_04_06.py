@@ -185,7 +185,7 @@ class AddDagEndpoint(VersionChange):
 
     instructions_to_migrate_to_previous_version = (endpoint("/dags/{dag_id}", ["GET"]).didnt_exist,)
 
-    
+
 class AddBundleVersionField(VersionChange):
     """Add the `bundle_version` field to DagRun model."""
 
@@ -203,11 +203,3 @@ class AddBundleVersionField(VersionChange):
     def remove_bundle_version_from_dag_run_response(response: ResponseInfo) -> None:  # type: ignore[misc]
         """Remove the `bundle_version` field from direct DagRun responses for previous API versions."""
         response.body.pop("bundle_version", None)
-
-
-class MakeDagRunStartDateNullable(VersionChange):
-    """Make DagRun.start_date field nullable for runs that haven't started yet."""
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (endpoint("/dags/{dag_id}", ["GET"]).didnt_exist,)
