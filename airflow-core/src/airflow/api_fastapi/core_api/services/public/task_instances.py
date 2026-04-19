@@ -217,51 +217,6 @@ def _patch_task_instance_state(
     return updated_tis
 
 
-def _patch_task_group_state(
-    tis: list[TI],
-    dag_run_id: str,
-    dag: SerializedDAG,
-    body: PatchTaskInstanceBody,
-    data: dict,
-    *,
-    session: Session,
-) -> list[TI]:
-    """Batch-update the state of all task instances in a task group with a single query."""
-    updated_tis = dag.set_multiple_task_instances_state(
-        task_ids_with_map_indexes=[(ti.task_id, ti.map_index) for ti in tis],
-        run_id=dag_run_id,
-        state=data["new_state"],
-        upstream=body.include_upstream,
-        downstream=body.include_downstream,
-        future=body.include_future,
-        past=body.include_past,
-        commit=True,
-        session=session,
-    )
-    if not updated_tis:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"All task instances in the group are already in {data['new_state']} state",
-        )
-
-    for ti in updated_tis:
-        try:
-            if data["new_state"] == TaskInstanceState.SUCCESS:
-                get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
-            elif data["new_state"] == TaskInstanceState.FAILED:
-                get_listener_manager().hook.on_task_instance_failed(
-                    previous_state=None,
-                    task_instance=ti,
-                    error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
-                )
-            elif data["new_state"] == TaskInstanceState.SKIPPED:
-                get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
-        except Exception:
-            log.exception("error calling listener")
-
-    return updated_tis
-
-
 def _patch_task_instance_note(
     task_instance_body: BulkTaskInstanceBody | ClearTaskInstancesBody | PatchTaskInstanceBody,
     tis: list[TI],
