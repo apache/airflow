@@ -111,11 +111,27 @@ class GitHook(BaseHook):
         self.ssh_port: int | None = int(extra["ssh_port"]) if extra.get("ssh_port") else None
 
         # GitHub App Auth Options
-        self.github_app_id = extra.get("github_app_id")
-        self.github_installation_id: int | None = (
-            int(extra["github_installation_id"]) if extra.get("github_installation_id") else None
-        )
+        raw_github_app_id = extra.get("github_app_id")
+        if raw_github_app_id is not None:
+            try:
+                self.github_app_id: int | None = int(raw_github_app_id)
+            except (TypeError, ValueError) as exc:
+                raise AirflowException(
+                    f"Invalid 'github_app_id' value {raw_github_app_id!r}. It must be an integer."
+                ) from exc
+        else:
+            self.github_app_id = None
 
+        raw_github_installation_id = extra.get("github_installation_id")
+        if raw_github_installation_id is not None:
+            try:
+                self.github_installation_id: int | None = int(raw_github_installation_id)
+            except (TypeError, ValueError) as exc:
+                raise AirflowException(
+                    f"Invalid 'github_installation_id' value {raw_github_installation_id!r}. It must be an integer."
+                ) from exc
+        else:
+            self.github_installation_id = None
         self.env: dict[str, str] = {}
 
         if self.key_file and self.private_key:
