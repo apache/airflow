@@ -143,3 +143,8 @@ ignore_errors = true
 [[tool.mypy.overrides]]
 module="airflowctl.api.datamodels.*"
 ignore_errors = true
+
+[dependency-groups]
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]

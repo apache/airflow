@@ -12,7 +12,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-15T13:08:58.648422Z"
+exclude-newer = "2026-04-15T09:48:49.574343Z"
 exclude-newer-span = "P4D"
 
 [options.exclude-newer-package]
@@ -1840,6 +1840,9 @@ dev = [
 docs = [
     { name = "apache-airflow-devel-common", extra = ["docs"] },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -1942,6 +1945,7 @@ dev = [
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-ctl"
@@ -1954,7 +1958,6 @@ dependencies = [
     { name = "methodtools" },
     { name = "platformdirs" },
     { name = "pydantic" },
-    { name = "pyyaml" },
     { name = "rich-argparse" },
     { name = "structlog" },
     { name = "tabulate" },
@@ -1979,6 +1982,9 @@ dev = [
 docs = [
     { name = "apache-airflow-devel-common", extra = ["docs"] },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -1990,7 +1996,6 @@ requires-dist = [
     { name = "methodtools", specifier = ">=0.4.7" },
     { name = "platformdirs", specifier = ">=4.3.6" },
     { name = "pydantic", specifier = ">=2.11.0" },
-    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "rich-argparse", specifier = ">=1.0.0" },
     { name = "structlog", specifier = ">=25.4.0" },
     { name = "tabulate", specifier = ">=0.9.0" },
@@ -2009,6 +2014,7 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-ctl-tests"
@@ -2019,11 +2025,19 @@ dependencies = [
     { name = "apache-airflow-devel-common" },
 ]
 
+[package.dev-dependencies]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "apache-airflow-ctl", editable = "airflow-ctl" },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
 ]
+
+[package.metadata.requires-dev]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-dev"
@@ -2048,6 +2062,11 @@ dependencies = [
     { name = "tabulate" },
 ]
 
+[package.dev-dependencies]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.12.0" },
@@ -2067,6 +2086,9 @@ requires-dist = [
     { name = "semver", specifier = ">=3.0.2" },
     { name = "tabulate", specifier = ">=0.9.0" },
 ]
+
+[package.metadata.requires-dev]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-devel-common"
@@ -2379,6 +2401,9 @@ docs = [
 docs-gen = [
     { name = "apache-airflow-devel-common", extra = ["docs-gen"] },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -2484,6 +2509,7 @@ provides-extras = ["all", "basic", "coverage", "duckdb", "debuggers", "devscript
 dev = [{ name = "apache-airflow-core", editable = "airflow-core" }]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 docs-gen = [{ name = "apache-airflow-devel-common", extras = ["docs-gen"], editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-docker-tests"
@@ -2493,8 +2519,16 @@ dependencies = [
     { name = "apache-airflow-devel-common" },
 ]
 
+[package.dev-dependencies]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
+
 [package.metadata]
 requires-dist = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+
+[package.metadata.requires-dev]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-e2e-tests"
@@ -2507,6 +2541,11 @@ dependencies = [
     { name = "testcontainers" },
 ]
 
+[package.dev-dependencies]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "apache-airflow-core", editable = "airflow-core" },
@@ -2514,6 +2553,9 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.37.2" },
     { name = "testcontainers", specifier = ">=4.12.0" },
 ]
+
+[package.metadata.requires-dev]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-helm-tests"
@@ -2524,11 +2566,19 @@ dependencies = [
     { name = "apache-airflow-providers-cncf-kubernetes" },
 ]
 
+[package.dev-dependencies]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-cncf-kubernetes", editable = "providers/cncf/kubernetes" },
 ]
+
+[package.metadata.requires-dev]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-kubernetes-tests"
@@ -2544,6 +2594,11 @@ dependencies = [
     { name = "urllib3" },
 ]
 
+[package.dev-dependencies]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "apache-airflow-core", editable = "airflow-core" },
@@ -2554,6 +2609,9 @@ requires-dist = [
     { name = "requests", specifier = ">=2.32.0,<3" },
     { name = "urllib3", specifier = ">=2.1.0,!=2.6.0" },
 ]
+
+[package.metadata.requires-dev]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-providers"
@@ -7777,6 +7835,9 @@ dependencies = [
 dev = [
     { name = "apache-airflow-devel-common" },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -7796,6 +7857,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-shared-configuration"
@@ -7813,6 +7875,9 @@ dev = [
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-shared-module-loading" },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -7827,6 +7892,7 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-shared-module-loading", editable = "shared/module_loading" },
 ]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-shared-dagnode"
@@ -7840,12 +7906,16 @@ dependencies = [
 dev = [
     { name = "apache-airflow-devel-common" },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 requires-dist = [{ name = "structlog", specifier = ">=25.4.0" }]
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-shared-listeners"
@@ -7860,6 +7930,9 @@ dependencies = [
 dev = [
     { name = "apache-airflow-devel-common" },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -7869,6 +7942,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-shared-logging"
@@ -7884,6 +7958,9 @@ dependencies = [
 dev = [
     { name = "apache-airflow-devel-common" },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -7894,6 +7971,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-shared-module-loading"
@@ -7908,6 +7986,9 @@ dependencies = [
 dev = [
     { name = "apache-airflow-devel-common" },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -7917,6 +7998,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-shared-observability"
@@ -7954,6 +8036,9 @@ dev = [
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-shared-observability", extra = ["all"] },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -7975,6 +8060,7 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-shared-observability", extras = ["all"], editable = "shared/observability" },
 ]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-shared-plugins-manager"
@@ -7992,6 +8078,9 @@ dev = [
     { name = "apache-airflow-shared-listeners" },
     { name = "apache-airflow-shared-module-loading" },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -8007,6 +8096,7 @@ dev = [
     { name = "apache-airflow-shared-listeners", editable = "shared/listeners" },
     { name = "apache-airflow-shared-module-loading", editable = "shared/module_loading" },
 ]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-shared-providers-discovery"
@@ -8027,6 +8117,9 @@ dev = [
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-shared-module-loading" },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -8045,6 +8138,7 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-shared-module-loading", editable = "shared/module_loading" },
 ]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-shared-secrets-backend"
@@ -8055,11 +8149,15 @@ source = { editable = "shared/secrets_backend" }
 dev = [
     { name = "apache-airflow-devel-common" },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-shared-secrets-masker"
@@ -8076,6 +8174,9 @@ dependencies = [
 dev = [
     { name = "apache-airflow-devel-common" },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -8087,6 +8188,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-shared-serialization"
@@ -8097,11 +8199,15 @@ source = { editable = "shared/serialization" }
 dev = [
     { name = "apache-airflow-devel-common" },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-shared-template-rendering"
@@ -8112,11 +8218,15 @@ source = { editable = "shared/template_rendering" }
 dev = [
     { name = "apache-airflow-devel-common" },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-shared-timezones"
@@ -8131,6 +8241,9 @@ dependencies = [
 dev = [
     { name = "apache-airflow-devel-common" },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -8140,6 +8253,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-task-sdk"
@@ -8211,6 +8325,9 @@ dev = [
 docs = [
     { name = "apache-airflow-devel-common", extra = ["docs"] },
 ]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -8270,6 +8387,7 @@ dev = [
     { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-task-sdk-integration-tests"
@@ -8280,11 +8398,19 @@ dependencies = [
     { name = "apache-airflow-devel-common" },
 ]
 
+[package.dev-dependencies]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "apache-airflow-core", editable = "airflow-core" },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
 ]
+
+[package.metadata.requires-dev]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apispec"

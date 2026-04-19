@@ -49,6 +49,10 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-shared-observability[all]",
 ]
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]
+
 
 [build-system]
 requires = [

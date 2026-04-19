@@ -61,6 +61,10 @@ dependencies = [
 dev = [
     "apache-airflow-devel-common",
 ]
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]
+
 
 [tool.uv.sources]
 apache-airflow-devel-common = {workspace = true}

@@ -195,7 +195,7 @@ def run_local_mypy(project: str, hook_name: str, files: list[str], config_file: 
         "UV_PROJECT_ENVIRONMENT": str(mypy_venv_dir),
     }
 
-    sync_cmd = ["uv", "sync", "--frozen", "--project", project]
+    sync_cmd = ["uv", "sync", "--frozen", "--project", project, "--group", "mypy"]
     if console:
         console.print(
             f"[magenta]Syncing dedicated mypy virtualenv ({mypy_venv_dir}) "
@@ -238,8 +238,8 @@ def run_local_mypy(project: str, hook_name: str, files: list[str], config_file: 
         "--frozen",
         "--project",
         project,
-        "--with",
-        "apache-airflow-devel-common[mypy]",
+        "--group",
+        "mypy",
         "mypy",
         "--cache-dir",
         str(mypy_cache_dir),
