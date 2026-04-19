@@ -1633,6 +1633,7 @@ class TestWorkerSets:
 
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == "test"
 
+    @pytest.mark.parametrize("enable_default", [False, True])
     @pytest.mark.parametrize(
         ("queue", "expected_in_query"),
         [
@@ -1640,14 +1641,14 @@ class TestWorkerSets:
             ("highcpu,highmem", "queue IN ('highcpu','highmem')"),
         ],
     )
-    def test_overwrite_queue_keda_query(self, queue, expected_in_query):
+    def test_overwrite_queue_keda_query(self, enable_default, queue, expected_in_query):
         docs = render_chart(
             name="test",
             values={
                 "workers": {
                     "celery": {
                         "keda": {"enabled": True},
-                        "enableDefault": False,
+                        "enableDefault": enable_default,
                         "sets": [{"name": "worker-set", "queue": queue}],
                     },
                 },
@@ -1655,10 +1656,15 @@ class TestWorkerSets:
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
 
-        assert len(docs) == 1
-        query = jmespath.search("spec.triggers[0].metadata.query", docs[0])
-        assert expected_in_query in query
-        assert "queue IN ('default')" not in query
+        assert len(docs) == (2 if enable_default else 1)
+        by_name = {d["metadata"]["name"]: d for d in docs}
+        set_query = jmespath.search("spec.triggers[0].metadata.query", by_name["test-worker-worker-set"])
+        assert expected_in_query in set_query
+        assert "queue IN ('default')" not in set_query
+        if enable_default:
+            default_query = jmespath.search("spec.triggers[0].metadata.query", by_name["test-worker"])
+            assert "queue IN ('default')" in default_query
+            assert expected_in_query not in default_query
 
     @pytest.mark.parametrize(
         "workers_values",
