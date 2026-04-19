@@ -81,8 +81,6 @@ def _edge_hostname() -> str:
 class EdgeWorker:
     """Runner instance which executes the Edge Worker."""
 
-    start_time: datetime = datetime.now()
-    """Startup time of the worker."""
     jobs: list[Job] = []
     """List of jobs that the worker is running currently."""
     drain: bool = False
@@ -108,6 +106,8 @@ class EdgeWorker:
         self.concurrency = concurrency
         self.daemon = daemon
         self.team_name = team_name
+
+        self.worker_start_time: datetime = datetime.now()
 
         if TYPE_CHECKING:
             self.conf: ExecutorConf | AirflowConfigParser
@@ -209,7 +209,7 @@ class EdgeWorker:
             "airflow_version": airflow_version,
             "edge_provider_version": edge_provider_version,
             "python_version": sys.version,
-            "worker_start_time": self.start_time,
+            "worker_start_time": self.worker_start_time,
             "concurrency": self.concurrency,
             "free_concurrency": self.free_concurrency,
         }

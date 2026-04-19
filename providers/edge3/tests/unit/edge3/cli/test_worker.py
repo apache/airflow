@@ -524,7 +524,7 @@ class TestEdgeWorker:
         assert "python_version" in sysinfo
         assert "concurrency" in sysinfo
         assert "worker_start_time" in sysinfo
-        assert sysinfo["worker_start_time"] == worker_with_job.start_time
+        assert sysinfo["worker_start_time"] == worker_with_job.worker_start_time
         assert "status" in sysinfo
         assert "status_text" not in sysinfo  # is only defined if extended sysinfo provides this field
         assert sysinfo["concurrency"] == concurrency
@@ -539,7 +539,7 @@ class TestEdgeWorker:
         assert "python_version" in sysinfo
         assert "concurrency" in sysinfo
         assert "worker_start_time" in sysinfo
-        assert sysinfo["worker_start_time"] == worker_with_job_and_sysinfo.start_time
+        assert sysinfo["worker_start_time"] == worker_with_job_and_sysinfo.worker_start_time
         assert "status" in sysinfo
         assert "status_text" in sysinfo
         assert "disk_free_gb" in sysinfo
