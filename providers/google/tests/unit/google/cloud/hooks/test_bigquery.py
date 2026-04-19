@@ -36,6 +36,7 @@ from google.cloud.bigquery import (
     TableReference,
 )
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
+from google.cloud.bigquery.routine import Routine
 from google.cloud.bigquery.table import _EmptyRowIterator
 from google.cloud.exceptions import NotFound
 
@@ -1005,6 +1006,7 @@ class TestTableOperations(_BigQueryBaseTestClass):
         )
 
 
+@pytest.mark.db_test
 class TestRoutineOperations(_BigQueryBaseTestClass):
     ROUTINE_ID = "bq_routine"
     ROUTINE_REF_REPR = {
@@ -1102,13 +1104,30 @@ class TestRoutineOperations(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     def test_update_routine(self, mock_client):
+        existing_repr = dict(self.ROUTINE_RESOURCE)
+        existing_repr["description"] = "original"
+        mock_client.return_value.get_routine.return_value = Routine.from_api_repr(existing_repr)
+
         self.hook.update_routine(
-            routine=dict(self.ROUTINE_RESOURCE),
-            fields=["body", "description"],
+            routine={"description": "new", "definitionBody": "x + 2"},
+            fields=["description", "definitionBody"],
+            dataset_id=DATASET_ID,
+            routine_id=self.ROUTINE_ID,
             project_id=PROJECT_ID,
         )
+
+        mock_client.return_value.get_routine.assert_called_once()
         update_call = mock_client.return_value.update_routine.call_args
-        assert update_call.args[1] == ["body", "description"]
+        sent_routine = update_call.args[0] if update_call.args else update_call.kwargs["routine"]
+        sent_fields = update_call.args[1] if len(update_call.args) > 1 else update_call.kwargs["fields"]
+        # Merged resource carries the updated values plus the untouched original metadata.
+        assert sent_routine.description == "new"
+        assert sent_routine.body == "x + 2"
+        assert sent_routine.type_ == "SCALAR_FUNCTION"
+        # Full-resource PUT: all writable properties are included in the outbound fields list.
+        assert "description" in sent_fields
+        assert "body" in sent_fields
+        assert "type_" in sent_fields
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     def test_delete_routine(self, mock_client):

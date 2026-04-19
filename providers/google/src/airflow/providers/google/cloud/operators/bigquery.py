@@ -2653,7 +2653,7 @@ class BigQueryCreateRoutineOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: Retry = DEFAULT_RETRY,
         timeout: float | None = None,
         **kwargs,
     ) -> None:
@@ -2788,7 +2788,7 @@ class BigQueryUpdateRoutineOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: Retry = DEFAULT_RETRY,
         timeout: float | None = None,
         **kwargs,
     ) -> None:
@@ -2870,7 +2870,7 @@ class BigQueryDeleteRoutineOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: Retry = DEFAULT_RETRY,
         timeout: float | None = None,
         **kwargs,
     ) -> None:
@@ -2943,7 +2943,7 @@ class BigQueryGetRoutineOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: Retry = DEFAULT_RETRY,
         timeout: float | None = None,
         **kwargs,
     ) -> None:
@@ -3020,7 +3020,7 @@ class BigQueryListRoutinesOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: Retry = DEFAULT_RETRY,
         timeout: float | None = None,
         **kwargs,
     ) -> None:

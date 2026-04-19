@@ -97,6 +97,21 @@ log = logging.getLogger(__name__)
 
 BigQueryJob = CopyJob | QueryJob | LoadJob | ExtractJob
 
+_ROUTINE_WRITABLE_PROPERTIES: tuple[str, ...] = (
+    "type_",
+    "language",
+    "arguments",
+    "return_type",
+    "return_table_type",
+    "imported_libraries",
+    "body",
+    "description",
+    "determinism_level",
+    "remote_function_options",
+    "data_governance_type",
+    "external_runtime_options",
+)
+
 
 class BigQueryHook(GoogleBaseHook, DbApiHook):
     """
@@ -1235,23 +1250,52 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         Update specified fields of an existing routine.
 
-        :param routine: The routine with updated values, as a
-            :class:`~google.cloud.bigquery.routine.Routine` or an API dict.
-        :param fields: The routine properties to update (e.g. ``["body", "description"]``).
-            Properties that are listed but are ``None`` in ``routine`` will be cleared.
+        BigQuery's ``routines.update`` endpoint is a full-resource PUT (not a PATCH), so
+        this method fetches the existing routine, merges in the requested field changes,
+        and sends the complete resource back. A field listed in ``fields`` but absent in
+        ``routine`` is cleared on the server.
+
+        :param routine: The routine providing new values for the listed fields, either a
+            :class:`~google.cloud.bigquery.routine.Routine` or a Routine API dict (keys in
+            camelCase, e.g. ``{"description": ..., "definitionBody": ...}``).
+        :param fields: The routine properties to update, given as Routine API field names
+            (e.g. ``["description", "definitionBody"]``).
         :param dataset_id: Optional. Used to complete the routine reference if missing.
         :param routine_id: Optional. Used to complete the routine reference if missing.
         :param project_id: Optional. The project that owns the dataset.
         :param retry: Optional. A retry object used to retry requests.
         :param timeout: Optional. The amount of time, in seconds, to wait for the request.
         """
-        routine = self._build_routine(
-            routine, project_id=project_id, dataset_id=dataset_id, routine_id=routine_id
-        )
+        if not fields:
+            raise ValueError("`fields` must be a non-empty sequence of routine properties to update.")
+
+        if isinstance(routine, Routine):
+            updates_repr = routine.to_api_repr()
+        else:
+            updates_repr = dict(routine)
+
+        ref_repr = dict(updates_repr.get("routineReference") or {})
+        ref_repr.setdefault("projectId", project_id)
+        if dataset_id:
+            ref_repr.setdefault("datasetId", dataset_id)
+        if routine_id:
+            ref_repr.setdefault("routineId", routine_id)
+
         client = self.get_client(project_id=project_id)
-        result = client.update_routine(routine, list(fields), retry=retry, timeout=timeout)
-        ref = result.reference
-        self.log.info("Updated routine: %s.%s.%s", ref.project, ref.dataset_id, ref.routine_id)
+        existing = client.get_routine(RoutineReference.from_api_repr(ref_repr), retry=retry, timeout=timeout)
+        merged_repr = existing.to_api_repr()
+        for field in fields:
+            if field in updates_repr:
+                merged_repr[field] = updates_repr[field]
+            else:
+                merged_repr.pop(field, None)
+
+        merged = Routine.from_api_repr(merged_repr)
+        result = client.update_routine(
+            merged, list(_ROUTINE_WRITABLE_PROPERTIES), retry=retry, timeout=timeout
+        )
+        out_ref = result.reference
+        self.log.info("Updated routine: %s.%s.%s", out_ref.project, out_ref.dataset_id, out_ref.routine_id)
         return result
 
     @GoogleBaseHook.fallback_to_default_project_id
