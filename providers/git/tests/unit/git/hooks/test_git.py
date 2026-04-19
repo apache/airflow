@@ -441,7 +441,9 @@ class TestGitHook:
     # --- GitHub App auth tests ---
 
     def test_only_app_id_without_installation_id_raises(self):
-        with pytest.raises(AirflowException, match="Both 'github_app_id' and 'github_installation_id' must be provided"):
+        with pytest.raises(
+            AirflowException, match="Both 'github_app_id' and 'github_installation_id' must be provided"
+        ):
             GitHook(git_conn_id=CONN_APP_ONLY_APP_ID)
 
     def test_only_installation_id_without_app_id_raises(self):

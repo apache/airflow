@@ -147,7 +147,7 @@ class GitHook(BaseHook):
                 raise AirflowException("Missing inline private_key or key_file for GitHub App Auth")
             if self.key_file and not self.private_key:
                 try:
-                    with open(self.key_file, "r", encoding="utf-8") as key_file:
+                    with open(self.key_file, encoding="utf-8") as key_file:
                         self.private_key = key_file.read()
                 except OSError as exc:
                     raise AirflowException(
