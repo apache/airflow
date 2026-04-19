@@ -1255,6 +1255,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "false",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "run-remote-logging-opensearch-e2e-tests": "false",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
@@ -1267,6 +1268,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "false",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "run-remote-logging-opensearch-e2e-tests": "false",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
@@ -1275,10 +1277,37 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                ("providers/opensearch/src/airflow/providers/opensearch/log/os_task_handler.py",),
+                {
+                    "run-remote-logging-s3-e2e-tests": "false",
+                    "run-remote-logging-elasticsearch-e2e-tests": "false",
+                    "run-remote-logging-opensearch-e2e-tests": "true",
+                    "ci-image-build": "true",
+                    "prod-image-build": "true",
+                },
+                id="OpenSearch remote logging changes enable only OpenSearch e2e",
+            )
+        ),
+        (
+            pytest.param(
+                ("providers/opensearch/src/airflow/providers/opensearch/log/os_json_formatter.py",),
+                {
+                    "run-remote-logging-s3-e2e-tests": "false",
+                    "run-remote-logging-elasticsearch-e2e-tests": "false",
+                    "run-remote-logging-opensearch-e2e-tests": "true",
+                    "ci-image-build": "true",
+                    "prod-image-build": "true",
+                },
+                id="OpenSearch helper changes enable OpenSearch e2e",
+            )
+        ),
+        (
+            pytest.param(
                 ("airflow-core/src/airflow/config_templates/airflow_local_settings.py",),
                 {
                     "run-remote-logging-s3-e2e-tests": "true",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "run-remote-logging-opensearch-e2e-tests": "true",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
@@ -1291,6 +1320,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "true",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "run-remote-logging-opensearch-e2e-tests": "true",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                 },

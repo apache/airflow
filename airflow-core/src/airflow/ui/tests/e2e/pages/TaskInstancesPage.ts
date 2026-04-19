@@ -28,19 +28,21 @@ export class TaskInstancesPage extends BasePage {
 
   public constructor(page: Page) {
     super(page);
-    this.taskInstancesTable = page.locator('table, div[role="table"]');
+    this.taskInstancesTable = page.getByRole("table");
   }
 
   /**
    * Navigate to Task Instances page and wait for data to load
    */
   public async navigate(): Promise<void> {
-    await this.navigateTo(TaskInstancesPage.taskInstancesUrl);
-    await this.page.waitForURL(/.*task_instances/, { timeout: 15_000 });
-    await this.taskInstancesTable.waitFor({ state: "visible", timeout: 30_000 });
+    await expect(async () => {
+      await this.navigateTo(TaskInstancesPage.taskInstancesUrl);
+      await this.page.waitForURL(/.*task_instances/, { timeout: 15_000 });
+      await expect(this.taskInstancesTable).toBeVisible({ timeout: 10_000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
 
-    const dataLink = this.taskInstancesTable.locator("a[href*='/dags/']").first();
-    const noDataMessage = this.page.locator('text="No Task Instances found"');
+    const dataLink = this.taskInstancesTable.getByRole("link").first();
+    const noDataMessage = this.page.getByText("No Task Instances found");
 
     await expect(dataLink.or(noDataMessage)).toBeVisible({ timeout: 30_000 });
   }
@@ -48,20 +50,27 @@ export class TaskInstancesPage extends BasePage {
   /**
    * Verify state filtering via URL parameters
    */
-  public async verifyStateFiltering(expectedState: string): Promise<void> {
-    await this.navigateTo(`${TaskInstancesPage.taskInstancesUrl}?task_state=${expectedState.toLowerCase()}`);
-    await this.page.waitForURL(/.*task_state=.*/, { timeout: 15_000 });
-    await this.page.waitForLoadState("networkidle");
+  public async verifyStateFiltering(expectedState: string, dagId?: string): Promise<void> {
+    const params = new URLSearchParams({ task_state: expectedState.toLowerCase() });
 
-    const dataLink = this.taskInstancesTable.locator("a[href*='/dags/']").first();
+    if (dagId !== undefined) {
+      params.set("dag_id", dagId);
+    }
+    await expect(async () => {
+      await this.navigateTo(`${TaskInstancesPage.taskInstancesUrl}?${params.toString()}`);
+      await this.page.waitForURL(/.*task_state=.*/, { timeout: 15_000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
+
+    const dataLink = this.taskInstancesTable.getByRole("link").first();
 
     await expect(dataLink).toBeVisible({ timeout: 30_000 });
     await expect(this.taskInstancesTable).toBeVisible();
 
-    const rowsAfterFilter = this.taskInstancesTable.locator(
-      'tbody tr:not(.no-data), div[role="row"]:not(:first-child)',
-    );
-    const noDataMessage = this.page.locator("text=/No.*found/i, text=/No.*results/i, text=/Empty/i");
+    // getByRole("row") returns all rows including the header; filter to data rows only.
+    const rowsAfterFilter = this.taskInstancesTable
+      .getByRole("row")
+      .filter({ hasNot: this.taskInstancesTable.getByRole("columnheader") });
+    const noDataMessage = this.page.getByText(/no .* found|no .* results/i);
     const stateBadges = this.taskInstancesTable.locator('[class*="badge"], [class*="Badge"]');
 
     await expect(stateBadges.first().or(noDataMessage.first())).toBeVisible({ timeout: 30_000 });
@@ -89,21 +98,21 @@ export class TaskInstancesPage extends BasePage {
    * Verify that task instance details are displayed correctly
    */
   public async verifyTaskDetailsDisplay(): Promise<void> {
-    const firstRow = this.taskInstancesTable.locator("tbody tr, div[role='row']:not(:first-child)").first();
+    const firstRow = this.taskInstancesTable.getByRole("row").nth(1);
 
-    const dagIdLink = firstRow.locator("a[href*='/dags/']").first();
+    const dagIdLink = firstRow.getByRole("link").first();
 
     if ((await dagIdLink.count()) > 0) {
       await expect(dagIdLink).toBeVisible();
       expect((await dagIdLink.textContent())?.trim()).toBeTruthy();
     }
 
-    const allCells = firstRow.locator('td, div[role="cell"]');
+    const allCells = firstRow.getByRole("cell");
     const cellCount = await allCells.count();
 
     expect(cellCount).toBeGreaterThan(1);
 
-    const runIdLink = firstRow.locator("a[href*='/runs/']").first();
+    const runIdLink = firstRow.getByRole("link").nth(1);
 
     if ((await runIdLink.count()) > 0) {
       await expect(runIdLink).toBeVisible();
@@ -117,7 +126,7 @@ export class TaskInstancesPage extends BasePage {
     if (hasStateBadge) {
       await expect(stateBadge.first()).toBeVisible();
     } else {
-      const allCellsForState = firstRow.locator('td, div[role="cell"]');
+      const allCellsForState = firstRow.getByRole("cell");
 
       expect(await allCellsForState.count()).toBeGreaterThan(2);
     }
@@ -127,7 +136,7 @@ export class TaskInstancesPage extends BasePage {
     if ((await timeElements.count()) > 0) {
       await expect(timeElements.first()).toBeVisible();
     } else {
-      const dateCells = firstRow.locator('td, div[role="cell"]');
+      const dateCells = firstRow.getByRole("cell");
       const dateCellCount = await dateCells.count();
 
       expect(dateCellCount).toBeGreaterThan(3);
@@ -138,7 +147,10 @@ export class TaskInstancesPage extends BasePage {
    * Verify that task instances exist in the table
    */
   public async verifyTaskInstancesExist(): Promise<void> {
-    const rows = this.taskInstancesTable.locator('tbody tr:not(.no-data), div[role="row"]:not(:first-child)');
+    // Skip the header row (index 0); all subsequent rows are data rows.
+    const rows = this.taskInstancesTable
+      .getByRole("row")
+      .filter({ hasNot: this.taskInstancesTable.getByRole("columnheader") });
 
     expect(await rows.count()).toBeGreaterThan(0);
   }

@@ -227,8 +227,12 @@ You can exit k9s by pressing Ctrl-C.
 Typical testing pattern for Kubernetes tests
 --------------------------------------------
 
-The typical session for tests with Kubernetes looks like follows:
+.. note::
 
+   Steps 1-6 from below instruction can be done by using one command ``breeze k8s deploy-cluster``.
+   For details visit `Test commands <../../dev/breeze/doc/05_test_commands.rst>`__.
+
+The typical session for tests with Kubernetes looks like follows:
 
 1. Prepare the environment:
 
@@ -431,7 +435,7 @@ Should show the status of current KinD cluster.
     breeze k8s upload-k8s-image
 
 
-5. Upload the image to KinD cluster - this uploads your image to make it available for the KinD cluster.
+6. Upload the image to KinD cluster - this uploads your image to make it available for the KinD cluster.
 
 .. code-block:: bash
 

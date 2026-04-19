@@ -395,8 +395,13 @@ export class BackfillPage extends BasePage {
   }
 
   public async openFilterMenu(): Promise<void> {
-    await this.getFilterButton().click();
-    await expect(this.page.getByRole("menu")).toBeVisible({ timeout: 5000 });
+    await expect(async () => {
+      if (!(await this.page.getByRole("menu").isVisible())) {
+        await this.getFilterButton().click();
+      }
+      await expect(this.page.getByRole("menu")).toBeVisible({ timeout: 3000 });
+      await this.page.getByRole("menuitem").first().click({ timeout: 3000, trial: true });
+    }).toPass({ intervals: [1000], timeout: 15_000 });
   }
 
   public async pauseBackfillViaApi(backfillId: number): Promise<boolean> {

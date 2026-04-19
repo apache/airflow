@@ -99,7 +99,16 @@ class TestKubernetesDecoratorsBase:
         self.mock_extract_xcom.return_value = '{"key1": "value1", "key2": "value2"}'
 
         self.mock_await_pod_completion = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion").start()
-        self.mock_await_pod_completion.return_value = mock.MagicMock(**{"status.phase": "Succeeded"})
+        base_container_status = mock.MagicMock()
+        base_container_status.name = "base"
+        base_container_status.state.terminated.exit_code = 0
+        self.mock_await_pod_completion.return_value = mock.MagicMock(
+            **{
+                "status.phase": "Succeeded",
+                "status.container_statuses": [base_container_status],
+                "status.init_container_statuses": None,
+            }
+        )
         self.mock_hook = mock.patch(HOOK_CLASS).start()
 
         # Without this patch each time pod manager would try to extract logs from the pod

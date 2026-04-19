@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { BasePage } from "./BasePage";
 
@@ -33,12 +33,12 @@ export class AssetDetailPage extends BasePage {
     await this.page.getByRole("link", { exact: true, name }).click();
   }
 
-  public async goto(): Promise<void> {
-    await this.navigateTo(AssetDetailPage.url);
+  public getHeading(name: string): Locator {
+    return this.page.getByRole("heading", { name });
   }
 
-  public async verifyAssetDetails(name: string): Promise<void> {
-    await expect(this.page.getByRole("heading", { name })).toBeVisible();
+  public async goto(): Promise<void> {
+    await this.navigateTo(AssetDetailPage.url);
   }
 
   public async verifyProducingTasks(): Promise<void> {
