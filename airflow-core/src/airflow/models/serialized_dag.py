@@ -23,7 +23,7 @@ import logging
 import zlib
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 from uuid import UUID
 
 import uuid6
@@ -68,6 +68,14 @@ log = logging.getLogger(__name__)
 
 # If set to True, serialized DAGs is compressed before writing to DB,
 _COMPRESS_SERIALIZED_DAGS = conf.getboolean("core", "compress_serialized_dags", fallback=False)
+
+
+class DagWriteMetadata(NamedTuple):
+    """Pre-fetched metadata for write_dag to avoid per-DAG queries."""
+
+    last_updated: datetime | None
+    dag_hash: str | None
+    dag_version: DagVersion | None
 
 
 class _DagDependenciesResolver:
@@ -375,7 +383,7 @@ class SerializedDagModel(Base):
         """Recursively sort json_dict and its nested dictionaries and lists."""
         if isinstance(serialized_dag, dict):
             return {k: cls._sort_serialized_dag_dict(v) for k, v in sorted(serialized_dag.items())}
-        if isinstance(serialized_dag, list):
+        if isinstance(serialized_dag, (list, tuple)):
             if all(isinstance(i, dict) for i in serialized_dag):
                 if all(
                     isinstance(i.get("__var", {}), Iterable) and "task_id" in i.get("__var", {})
@@ -509,6 +517,70 @@ class SerializedDagModel(Base):
             serialized_dag.deadline_alerts.append(alert)
 
     @classmethod
+    def _prefetch_dag_write_metadata(
+        cls, dag_ids: Iterable[str], *, session: Session
+    ) -> dict[str, DagWriteMetadata]:
+        """
+        Bulk-fetch metadata needed by write_dag for multiple DAGs in two queries.
+
+        Instead of running 3 SELECTs per DAG in write_dag (update interval check,
+        hash comparison, version fetch), this fetches all needed data upfront.
+
+        :param dag_ids: DAG IDs to prefetch metadata for
+        :param session: ORM Session
+        :returns: dict mapping dag_id to DagWriteMetadata
+        """
+        dag_id_list = list(set(dag_ids))
+        if not dag_id_list:
+            return {}
+
+        # Fetch latest serialized_dag (last_updated, dag_hash) per dag_id
+        # using a window function to pick the most recent row.
+        sd_subq = (
+            select(
+                cls.dag_id.label("dag_id"),
+                cls.last_updated.label("last_updated"),
+                cls.dag_hash.label("dag_hash"),
+                func.row_number().over(partition_by=cls.dag_id, order_by=cls.created_at.desc()).label("rn"),
+            )
+            .where(cls.dag_id.in_(dag_id_list))
+            .subquery()
+        )
+        sd_rows = session.execute(
+            select(sd_subq.c.dag_id, sd_subq.c.last_updated, sd_subq.c.dag_hash).where(sd_subq.c.rn == 1)
+        ).all()
+        sd_by_dag_id: dict[str, tuple[datetime, str]] = {
+            row.dag_id: (row.last_updated, row.dag_hash) for row in sd_rows
+        }
+
+        # Fetch latest DagVersion per dag_id using a window function,
+        # matching the original write_dag ordering (ORDER BY created_at DESC).
+        dv_subq = (
+            select(
+                DagVersion.id.label("id"),
+                DagVersion.dag_id.label("dag_id"),
+                func.row_number()
+                .over(partition_by=DagVersion.dag_id, order_by=DagVersion.created_at.desc())
+                .label("rn"),
+            )
+            .where(DagVersion.dag_id.in_(dag_id_list))
+            .subquery()
+        )
+        dag_versions = session.scalars(
+            select(DagVersion).join(dv_subq, DagVersion.id == dv_subq.c.id).where(dv_subq.c.rn == 1)
+        ).all()
+        dv_by_dag_id: dict[str, DagVersion] = {dv.dag_id: dv for dv in dag_versions}
+
+        return {
+            dag_id: DagWriteMetadata(
+                last_updated=sd_by_dag_id[dag_id][0] if dag_id in sd_by_dag_id else None,
+                dag_hash=sd_by_dag_id[dag_id][1] if dag_id in sd_by_dag_id else None,
+                dag_version=dv_by_dag_id.get(dag_id),
+            )
+            for dag_id in dag_id_list
+        }
+
+    @classmethod
     @provide_session
     def write_dag(
         cls,
@@ -517,6 +589,7 @@ class SerializedDagModel(Base):
         bundle_version: str | None = None,
         min_update_interval: int | None = None,
         session: Session = NEW_SESSION,
+        _prefetched: DagWriteMetadata | None = None,
     ) -> bool:
         """
         Serialize a DAG and writes it into database.
@@ -529,33 +602,28 @@ class SerializedDagModel(Base):
         :param bundle_version: bundle version of the DAG
         :param min_update_interval: minimal interval in seconds to update serialized DAG
         :param session: ORM Session
+        :param _prefetched: Pre-fetched metadata to skip per-DAG queries; used by bulk callers
 
         :returns: Boolean indicating if the DAG was written to the DB
         """
+        if _prefetched is None:
+            _prefetched = cls._prefetch_dag_write_metadata([dag.dag_id], session=session).get(
+                dag.dag_id, DagWriteMetadata(last_updated=None, dag_hash=None, dag_version=None)
+            )
+
         # Checks if (Current Time - Time when the DAG was written to DB) < min_update_interval
         # If Yes, does nothing
         # If No or the DAG does not exists, updates / writes Serialized DAG to DB
         if min_update_interval is not None:
-            if session.scalar(
-                select(literal(True))
-                .where(
-                    cls.dag_id == dag.dag_id,
-                    (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
-                )
-                .select_from(cls)
+            if (
+                _prefetched.last_updated is not None
+                and (timezone.utcnow() - timedelta(seconds=min_update_interval)) < _prefetched.last_updated
             ):
                 return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
-        serialized_dag_hash = session.scalars(
-            select(cls.dag_hash).where(cls.dag_id == dag.dag_id).order_by(cls.created_at.desc())
-        ).first()
-        dag_version = session.scalar(
-            select(DagVersion)
-            .where(DagVersion.dag_id == dag.dag_id)
-            .order_by(DagVersion.created_at.desc())
-            .limit(1)
-        )
+        serialized_dag_hash = _prefetched.dag_hash
+        dag_version = _prefetched.dag_version
 
         if dag.data.get("dag", {}).get("deadline"):
             # Try to reuse existing deadline UUIDs if the deadline definitions haven't changed.

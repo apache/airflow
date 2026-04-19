@@ -36,6 +36,8 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodManager,
     PodPhase,
     XComRetrievalError,
+    _parse_log_level,
+    detect_pod_terminate_early_issues,
     log_pod_event,
     parse_log_line,
 )
@@ -145,6 +147,61 @@ def test_log_pod_event_multiple_events():
     assert mock_pod_manager.log.info.call_count == 2
 
 
+def _pod_with_waiting_container(reason: str, message: str):
+    pod = mock.MagicMock()
+    container_status = mock.MagicMock()
+    waiting_state = mock.MagicMock()
+    waiting_state.reason = reason
+    waiting_state.message = message
+    container_status.state.waiting = waiting_state
+    pod.status.container_statuses = [container_status]
+    return pod
+
+
+@pytest.mark.parametrize(
+    ("reason", "message"),
+    [
+        ("ErrImagePull", "rpc error: 502 Bad Gateway from auth.docker.io"),
+        ("ErrImagePull", "registry returned 503 Service Unavailable"),
+        ("ErrImagePull", "got 504 Gateway Timeout"),
+        # kubelet >= 1.32 appends the previous pull error to the
+        # ImagePullBackOff message, so the 5xx patterns still match.
+        ("ImagePullBackOff", 'Back-off pulling image "ubuntu:latest": 502 Bad Gateway'),
+        ("ErrImagePull", "too many requests"),
+        ("ErrImagePull", "pull QPS exceeded"),
+    ],
+)
+def test_detect_pod_terminate_early_issues_returns_none_for_transient_messages(reason, message):
+    """Transient registry/network errors should not trigger early termination.
+
+    kubelet retries image pulls automatically; `startup_timeout` bounds the
+    total wait. Returning None here keeps the monitoring loop going so those
+    retries have a chance to succeed.
+    """
+    pod = _pod_with_waiting_container(reason, message)
+    assert detect_pod_terminate_early_issues(pod) is None
+
+
+@pytest.mark.parametrize(
+    ("reason", "message"),
+    [
+        ("InvalidImageName", "Failed to apply default image tag"),
+        ("ErrImageNeverPull", "Container image pull policy is Never"),
+        ("ErrImagePull", "manifest unknown"),
+        ("ImagePullBackOff", "unauthorized: authentication required"),
+        # Bare ImagePullBackOff message (kubelet < 1.32) — must fail fast so
+        # a genuinely missing image doesn't wait out startup_timeout.
+        ("ImagePullBackOff", 'Back-off pulling image "nonexistent:latest"'),
+    ],
+)
+def test_detect_pod_terminate_early_issues_returns_error_for_fatal_messages(reason, message):
+    pod = _pod_with_waiting_container(reason, message)
+    error = detect_pod_terminate_early_issues(pod)
+    assert error is not None
+    assert reason in error
+    assert message in error
+
+
 class TestPodManager:
     def setup_method(self):
         self.mock_kube_client = mock.Mock()
@@ -152,6 +209,48 @@ class TestPodManager:
             kube_client=self.mock_kube_client,
             callbacks=[MockKubernetesPodOperatorCallback],
         )
+
+    @pytest.mark.parametrize(
+        ("message", "expected_level"),
+        [
+            ("ERROR: something went wrong", logging.ERROR),
+            ("WARNING: low disk space", logging.WARNING),
+            ("WARN: deprecated usage", logging.WARNING),
+            ("DEBUG: entering function", logging.DEBUG),
+            ("CRITICAL: system failure", logging.CRITICAL),
+            ("FATAL: unrecoverable error", logging.CRITICAL),
+            ("INFO: starting up", logging.INFO),
+            ("[ERROR] bracketed prefix", logging.ERROR),
+            ("plain log line with no level", logging.INFO),
+            ("", logging.INFO),
+        ],
+    )
+    def test_parse_log_level(self, message, expected_level):
+        assert _parse_log_level(message) == expected_level
+
+    def test_log_message_uses_detected_log_level(self):
+        """_log_message should forward ERROR lines at ERROR level, not INFO."""
+        with mock.patch.object(self.pod_manager.log, "log") as mock_log:
+            self.pod_manager._log_message(
+                message="ERROR: something failed",
+                container_name="base",
+                container_name_log_prefix_enabled=True,
+                log_formatter=None,
+            )
+        mock_log.assert_called_once()
+        assert mock_log.call_args[0][0] == logging.ERROR
+
+    def test_log_message_defaults_to_info_for_plain_lines(self):
+        """_log_message should use INFO for lines without a known level prefix."""
+        with mock.patch.object(self.pod_manager.log, "log") as mock_log:
+            self.pod_manager._log_message(
+                message="Starting application",
+                container_name="base",
+                container_name_log_prefix_enabled=True,
+                log_formatter=None,
+            )
+        mock_log.assert_called_once()
+        assert mock_log.call_args[0][0] == logging.INFO
 
     def test_read_pod_logs_successfully_returns_logs(self):
         mock.sentinel.metadata = mock.MagicMock()
@@ -1080,6 +1179,36 @@ class TestPodManager:
         assert mock_sleep.call_count == 1
 
     @mock.patch("time.sleep")
+    def test_await_pod_completion_breaks_on_xcom_sidecar_container_completed(self, mock_sleep, pod_factory):
+        """When do_xcom_push=True and base container has completed, stop waiting even if pod is still Running."""
+        running1 = pod_factory(pod_phase=PodPhase.RUNNING, container_name="base", terminated=False)
+        running2 = pod_factory(pod_phase=PodPhase.RUNNING, container_name="base", terminated=True)
+
+        self.pod_manager.read_pod = mock.MagicMock(side_effect=[running1, running2])
+
+        result = self.pod_manager.await_pod_completion(
+            pod=mock.MagicMock(), istio_enabled=False, container_name="base", do_xcom_push=True
+        )
+
+        assert result is running2
+        assert mock_sleep.call_count == 1
+
+    @mock.patch("time.sleep")
+    def test_await_pod_completion_waits_for_pod_phase_without_sidecars(self, mock_sleep, pod_factory):
+        """Without istio or xcom sidecar, await_pod_completion waits for terminal pod phase."""
+        running1 = pod_factory(pod_phase=PodPhase.RUNNING, container_name="base", terminated=True)
+        succeeded = pod_factory(pod_phase=PodPhase.SUCCEEDED, container_name="base", terminated=True)
+
+        self.pod_manager.read_pod = mock.MagicMock(side_effect=[running1, succeeded])
+
+        result = self.pod_manager.await_pod_completion(
+            pod=mock.MagicMock(), istio_enabled=False, container_name="base", do_xcom_push=False
+        )
+
+        assert result is succeeded
+        assert mock_sleep.call_count == 1
+
+    @mock.patch("time.sleep")
     def test_await_pod_completion_breaks_on_early_termination_issue(self, mock_sleep, pod_factory):
         running1 = pod_factory(pod_phase=PodPhase.PENDING, container_name="base")
         running2 = pod_factory(
@@ -1473,17 +1602,19 @@ class TestAsyncPodManager:
                 async_hook=mock_async_hook,
                 callbacks=[],
             )
-            with mock.patch.object(async_pod_manager.log, "info") as mock_log_info:
+            with mock.patch.object(async_pod_manager.log, "log") as mock_log:
                 result = await async_pod_manager.fetch_container_logs_before_current_sec(
                     pod=pod, container_name=container_name, since_time=since_time
                 )
                 assert result == now
 
                 for expected in expected_log_messages:
-                    mock_log_info.assert_any_call("[%s] %s", container_name, expected)
+                    mock_log.assert_any_call(_parse_log_level(expected), "[%s] %s", container_name, expected)
                 for not_expected in not_expected_log_messages:
-                    unexpected_call = mock.call("[%s] %s", container_name, not_expected)
-                    assert unexpected_call not in mock_log_info.mock_calls
+                    unexpected_call = mock.call(
+                        _parse_log_level(not_expected), "[%s] %s", container_name, not_expected
+                    )
+                    assert unexpected_call not in mock_log.mock_calls
 
     @pytest.mark.asyncio
     async def test_fetch_container_logs_before_current_sec_error_handling(self):

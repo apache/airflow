@@ -76,6 +76,7 @@ export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: Flex
       isClearable
       isDisabled={disabled}
       isMulti
+      menuPosition="fixed"
       name={`element_${name}`}
       onChange={handleChange}
       options={

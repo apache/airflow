@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import pluggy
 from packaging.version import Version
 from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession as SAAsyncSession,
@@ -481,6 +482,20 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         register_at_fork(after_in_child=clean_in_fork)
 
 
+def _is_sqlite_in_memory(url: str) -> bool:
+    """
+    Check if a SQLAlchemy connection URL points to an in-memory SQLite database.
+
+    Handles driver prefixes (e.g. ``sqlite+pysqlite://``), query parameters, and
+    various in-memory forms like ``:memory:`` and ``file::memory:``.
+    """
+    parsed = make_url(url)
+    if parsed.get_backend_name() != "sqlite":
+        return False
+    db = parsed.database
+    return not db or db == ":memory:" or ":memory:" in db
+
+
 def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     """Prepare SQLAlchemy engine args."""
     DEFAULT_ENGINE_ARGS: dict[str, dict[str, Any]] = {
@@ -510,8 +525,12 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     elif disable_connection_pool or not conf.getboolean("database", "SQL_ALCHEMY_POOL_ENABLED"):
         engine_args["poolclass"] = NullPool
         log.debug("settings.prepare_engine_args(): Using NullPool")
-    elif not SQL_ALCHEMY_CONN.startswith("sqlite"):
-        # Pool size engine args not supported by sqlite.
+    elif _is_sqlite_in_memory(SQL_ALCHEMY_CONN):
+        # In-memory SQLite uses SingletonThreadPool which doesn't support pool_size/max_overflow.
+        log.debug("settings.prepare_engine_args(): Skipping pool settings for in-memory SQLite")
+    else:
+        # Pool settings for all file-based databases including SQLite.
+        # SQLAlchemy 2.0+ uses QueuePool by default for file-based SQLite.
         # If no config value is defined for the pool size, select a reasonable value.
         # 0 means no limit, which could lead to exceeding the Database connection limit.
         pool_size = conf.getint("database", "SQL_ALCHEMY_POOL_SIZE", fallback=5)
@@ -538,7 +557,7 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
         # Typically, this is a simple statement like "SELECT 1", but may also make use
         # of some DBAPI-specific method to test the connection for liveness.
         # More information here:
-        # https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic
+        # https://docs.sqlalchemy.org/en/20/core/pooling.html#disconnect-handling-pessimistic
         pool_pre_ping = conf.getboolean("database", "SQL_ALCHEMY_POOL_PRE_PING", fallback=True)
 
         log.debug(
@@ -567,10 +586,14 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
 
 def dispose_orm(do_log: bool = True):
     """Properly close pooled database connections."""
-    global Session, engine, NonScopedSession
+    global Session, engine, NonScopedSession, async_engine, AsyncSession
 
     _globals = globals()
-    if _globals.get("engine") is None and _globals.get("Session") is None:
+    if (
+        _globals.get("engine") is None
+        and _globals.get("Session") is None
+        and _globals.get("async_engine") is None
+    ):
         return
 
     if do_log:
@@ -587,6 +610,11 @@ def dispose_orm(do_log: bool = True):
     if "engine" in _globals and engine is not None:
         engine.dispose()
         engine = None
+
+    if "async_engine" in _globals and async_engine is not None:
+        async_engine.sync_engine.dispose()
+        async_engine = None
+        AsyncSession = None
 
 
 def reconfigure_orm(disable_connection_pool=False, pool_class=None):

@@ -49,7 +49,7 @@ from airflow.models.backfill import (
     AlreadyRunningBackfill,
     Backfill,
     BackfillDagRun,
-    DagNoScheduleException,
+    DagNonPeriodicScheduleException,
     InvalidBackfillDate,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
@@ -262,7 +262,7 @@ def create_backfill(
     except (
         InvalidReprocessBehavior,
         InvalidBackfillDirection,
-        DagNoScheduleException,
+        DagNonPeriodicScheduleException,
         InvalidBackfillDate,
     ) as e:
         raise RequestValidationError(str(e))
@@ -305,11 +305,16 @@ def create_backfill_dry_run(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Could not find dag {body.dag_id}",
         )
+    except DagRunTypeNotAllowed as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
 
     except (
         InvalidReprocessBehavior,
         InvalidBackfillDirection,
-        DagNoScheduleException,
+        DagNonPeriodicScheduleException,
         InvalidBackfillDate,
     ) as e:
         raise RequestValidationError(str(e))

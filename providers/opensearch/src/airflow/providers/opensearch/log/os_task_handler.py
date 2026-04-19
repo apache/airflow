@@ -44,7 +44,6 @@ from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.opensearch.log.os_json_formatter import OpensearchJSONFormatter
 from airflow.providers.opensearch.log.os_response import Hit, OpensearchResponse
 from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
-from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.session import create_session
@@ -61,6 +60,10 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     OsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,misc]
 
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.sdk import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
@@ -192,6 +195,28 @@ def _create_opensearch_client(
         http_auth=(username, password),
         **os_kwargs,
     )
+
+
+def _strip_userinfo(url: str) -> str:
+    """
+    Return ``url`` with any ``user:password@`` userinfo removed.
+
+    The OpenSearch ``[opensearch] host`` config commonly embeds
+    credentials (``https://user:password@opensearch.example.com:9200``).
+    This value is reused as a display label for log-source grouping, so
+    the credentials would otherwise end up in task logs. Anything that
+    is not a valid URL is returned unchanged.
+    """
+    try:
+        parsed = urlparse(url)
+    except (TypeError, ValueError):
+        return url
+    if not parsed.hostname or (not parsed.username and not parsed.password):
+        return url
+    netloc = parsed.hostname
+    if parsed.port is not None:
+        netloc = f"{netloc}:{parsed.port}"
+    return parsed._replace(netloc=netloc).geturl()
 
 
 def _render_log_id(
@@ -710,8 +735,9 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
     def _group_logs_by_host(self, response: OpensearchResponse) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
+        host_fallback = _strip_userinfo(self.host)
         for hit in response:
-            key = getattr_nested(hit, self.host_field, None) or self.host
+            key = getattr_nested(hit, self.host_field, None) or host_fallback
             grouped_logs[key].append(hit)
         return grouped_logs
 
@@ -934,8 +960,9 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def _group_logs_by_host(self, response: OpensearchResponse) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
+        host_fallback = _strip_userinfo(self.host)
         for hit in response:
-            key = getattr_nested(hit, self.host_field, None) or self.host
+            key = getattr_nested(hit, self.host_field, None) or host_fallback
             grouped_logs[key].append(hit)
         return grouped_logs
 

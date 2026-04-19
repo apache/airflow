@@ -142,6 +142,8 @@ The following configuration options are available in the ``[api]`` section:
 - ``server_type``: ``uvicorn`` (default) or ``gunicorn``
 - ``worker_refresh_interval``: Seconds between worker refresh cycles (0 = disabled, default)
 - ``worker_refresh_batch_size``: Number of workers to refresh per cycle (default: 1)
+- ``dag_cache_size``: Max cached SerializedDAG versions in the API server (default: 64, 0 = unbounded)
+- ``dag_cache_ttl``: TTL in seconds for cached DAGs (default: 3600, 0 = LRU only)
 - ``reload_on_plugin_change``: Reload when plugin files change (default: False)
 
 When to Use Gunicorn
@@ -186,6 +188,10 @@ For example, to trigger a rolling restart of the API server pods:
 .. code-block:: bash
 
    kubectl rollout restart deployment airflow-api-server
+
+The API server also supports bounded DAG caching via ``dag_cache_size`` and
+``dag_cache_ttl``, which limits memory consumed by cached SerializedDAG objects.
+This reduces memory growth from DAG version accumulation regardless of server type.
 
 In many Kubernetes environments, relying solely on Kubernetes OOM kills or
 crash restarts is not recommended, as memory growth may not always trigger an

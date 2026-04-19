@@ -41,6 +41,7 @@ Bug Fixes
 
 * ``Fix AwsBaseWaiterTrigger losing error details on deferred task failure (#64085)``
 * ``Fix assume_role_with_web_identity not using botocore config for STS calls (#64216)``
+* ``Fix GlueJobOperator verbose logs not showing in deferrable mode (#64342)``
 
 Misc
 ~~~~
@@ -53,12 +54,15 @@ Misc
 * ``Add OpenLineage parent info injection to GlueJobOperator (#64513)``
 * ``Remove obsolete boto3 extra from aiobotocore dependency (#64330)``
 * ``Replace AWS keys with placeholder text in documentation and code examples (#63577)``
+* ``Fix stale system test documentation links (#65071)``
+* ``add more debugging logs when emr_eks system tests fail (#64817)``
+* ``Compat sdk conf follow-up for multiple providers (#64161)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Revert "fix(glue): Fix GlueJobOperator verbose logs not showing in deferrable mode (#63086)" (#64340)``
    * ``fix(glue): Fix GlueJobOperator verbose logs not showing in deferrable mode (#63086)``
-   * ``Compat sdk conf follow-up for multiple providers (#64161)``
+   * ``Prepare providers release 2026-04-07 (#64864)``
 
 9.24.0
 ......

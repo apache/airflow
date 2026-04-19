@@ -20,15 +20,13 @@
 /**
  * Calendar data fixture — creates success + failed DAG runs for calendar tests.
  */
-
-/* eslint-disable react-hooks/rules-of-hooks -- Playwright's `use` is not a React Hook. */
 import dayjs from "dayjs";
 import { testConfig } from "playwright.config";
 import { test as base } from "tests/e2e/fixtures";
 import {
   apiCreateDagRun,
-  safeCleanupDagRun,
   apiSetDagRunState,
+  safeCleanupDagRun,
   uniqueRunId,
   waitForDagReady,
 } from "tests/e2e/utils/test-helpers";
@@ -63,20 +61,31 @@ export const test = base.extend<Record<never, never>, { calendarRunsData: Calend
       const failedRunId = uniqueRunId("cal_failed");
 
       try {
-        await apiCreateDagRun(authenticatedRequest, dagId, {
+        const actualSuccessRunId = await apiCreateDagRun(authenticatedRequest, dagId, {
           dag_run_id: successRunId,
           logical_date: successIso,
         });
-        createdRunIds.push(successRunId);
-        await apiSetDagRunState(authenticatedRequest, { dagId, runId: successRunId, state: "success" });
 
-        await apiCreateDagRun(authenticatedRequest, dagId, {
+        createdRunIds.push(actualSuccessRunId);
+        await apiSetDagRunState(authenticatedRequest, {
+          dagId,
+          runId: actualSuccessRunId,
+          state: "success",
+        });
+
+        const actualFailedRunId = await apiCreateDagRun(authenticatedRequest, dagId, {
           dag_run_id: failedRunId,
           logical_date: failedIso,
         });
-        createdRunIds.push(failedRunId);
-        await apiSetDagRunState(authenticatedRequest, { dagId, runId: failedRunId, state: "failed" });
 
+        createdRunIds.push(actualFailedRunId);
+        await apiSetDagRunState(authenticatedRequest, {
+          dagId,
+          runId: actualFailedRunId,
+          state: "failed",
+        });
+
+        // eslint-disable-next-line react-hooks/rules-of-hooks
         await use({ dagId });
       } finally {
         for (const runId of createdRunIds) {

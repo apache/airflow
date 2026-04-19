@@ -38,6 +38,7 @@ import structlog
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
+from structlog.contextvars import bind_contextvars
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -924,6 +925,17 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
 
         setproctitle(f"airflow worker -- {msg.ti.id}")
 
+    # Bind TI identifiers so every subsequent log line from this worker process
+    # carries ti_id, enabling single-grep lifecycle reconstruction across components.
+    bind_contextvars(
+        ti_id=str(msg.ti.id),
+        dag_id=msg.ti.dag_id,
+        task_id=msg.ti.task_id,
+        run_id=msg.ti.run_id,
+        try_number=msg.ti.try_number,
+        map_index=msg.ti.map_index,
+    )
+
     try:
         get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
     except Exception:
@@ -1170,8 +1182,6 @@ def _validate_task_inlets_and_outlets(*, ti: RuntimeTaskInstance, log: Logger) -
 def _defer_task(
     defer: TaskDeferred, ti: RuntimeTaskInstance, log: Logger
 ) -> tuple[ToSupervisor, TaskInstanceState]:
-    # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
-
     log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
     classpath, trigger_kwargs = defer.trigger.serialize()
     queue: str | None = None

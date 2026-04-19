@@ -52,6 +52,9 @@
     "buttons": {
       "advanced": "Erweitert",
       "dagDocs": "Dag Dokumentation"
+    },
+    "status": {
+      "deactivated": "Deaktiviert"
     }
   },
   "logs": {
@@ -66,6 +69,11 @@
     },
     "info": "INFO",
     "noTryNumber": "Keine Versuchsnummer",
+    "search": {
+      "matchCount": "{{current}} von {{total}}",
+      "noMatches": "Keine Treffer",
+      "placeholder": "Protokolle durchsuchen..."
+    },
     "settings": "Protokoll-Ansicht",
     "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen",
     "warning": "WARNING"

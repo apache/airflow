@@ -242,6 +242,33 @@ class TestRedshiftSQLHookConn:
                 AutoCreate=False,
             )
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
+    def test_get_conn_iam_does_not_mutate_connection(self, mock_connect, mock_aws_hook_conn):
+        self.connection.extra = json.dumps(
+            {"iam": True, "profile": "default", "cluster_identifier": "my-test-cluster"}
+        )
+
+        mock_db_user = f"IAM:{LOGIN_USER}"
+        mock_db_pass = "aws_token"
+
+        mock_aws_hook_conn.get_cluster_credentials.return_value = {
+            "DbPassword": mock_db_pass,
+            "DbUser": mock_db_user,
+        }
+        self.db_hook.get_conn()
+        self.db_hook.get_conn()
+        assert mock_aws_hook_conn.get_cluster_credentials.call_count == 2
+        for call in mock_aws_hook_conn.get_cluster_credentials.call_args_list:
+            assert call == mock.call(
+                DbUser=LOGIN_USER,
+                DbName=LOGIN_SCHEMA,
+                ClusterIdentifier="my-test-cluster",
+                AutoCreate=False,
+            )
+
+        assert self.connection.login == LOGIN_USER
+
     @mock.patch.dict("os.environ", AIRFLOW_CONN_AWS_DEFAULT=f"aws://?region_name={MOCK_REGION_NAME}")
     @pytest.mark.parametrize(
         ("connection_host", "connection_extra", "expected_identity"),
