@@ -1640,7 +1640,7 @@ class TestWorkerSets:
             ("highcpu,highmem", "queue IN ('highcpu','highmem')"),
         ],
     )
-    def test_per_set_queue_renders_in_default_keda_query(self, queue, expected_in_query):
+    def test_overwrite_queue_keda_query(self, queue, expected_in_query):
         docs = render_chart(
             name="test",
             values={
