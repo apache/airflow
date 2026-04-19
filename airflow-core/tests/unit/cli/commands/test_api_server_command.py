@@ -207,11 +207,11 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
     )
     @mock.patch("airflow.cli.commands.daemon_utils.TimeoutPIDLockFile")
     @mock.patch("airflow.cli.commands.daemon_utils.setup_locations")
-    @mock.patch("airflow.cli.commands.daemon_utils.daemon")
+    @mock.patch("airflow.cli.commands.daemon_utils.DaemonContext")
     @mock.patch("airflow.cli.commands.daemon_utils.check_if_pidfile_process_is_running")
     @mock.patch("airflow.cli.commands.api_server_command.uvicorn")
     def test_run_command_daemon(
-        self, mock_uvicorn, _, mock_daemon, mock_setup_locations, mock_pid_file, demonize
+        self, mock_uvicorn, _, mock_daemon_context, mock_setup_locations, mock_pid_file, demonize
     ):
         mock_setup_locations.return_value = (
             mock.MagicMock(name="pidfile"),
@@ -254,16 +254,16 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
         )
 
         if demonize:
-            assert mock_daemon.mock_calls[:3] == [
-                mock.call.DaemonContext(
+            assert mock_daemon_context.mock_calls[:3] == [
+                mock.call(
                     pidfile=mock_pid_file.return_value,
                     files_preserve=None,
                     stdout=mock_open.return_value,
                     stderr=mock_open.return_value,
                     umask=0o077,
                 ),
-                mock.call.DaemonContext().__enter__(),
-                mock.call.DaemonContext().__exit__(None, None, None),
+                mock.call().__enter__(),
+                mock.call().__exit__(None, None, None),
             ]
             assert mock_setup_locations.mock_calls == [
                 mock.call(
@@ -301,7 +301,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                     mock.call().__exit__(None, None, None),
                 ]
         else:
-            assert mock_daemon.mock_calls == []
+            assert mock_daemon_context.mock_calls == []
             mock_setup_locations.mock_calls == []
             mock_pid_file.assert_not_called()
             mock_open.assert_not_called()

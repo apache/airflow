@@ -32,15 +32,25 @@ from celery import Celery, maybe_patch_concurrency
 from celery.app.defaults import DEFAULT_TASK_LOG_FMT
 from celery.app.log import TaskFormatter
 from celery.signals import after_setup_logger
-from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
 from airflow.exceptions import AirflowConfigException
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from airflow.providers.celery.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_2_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+)
 from airflow.providers.common.compat.sdk import conf
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
+
+if AIRFLOW_V_3_2_2_PLUS:
+    # Airflow 3.2.2 has dropped dependency to lockfile and vendored-in the package
+    from airflow.utils.pidfile import read_pid_from_pidfile, remove_existing_pidfile
+else:
+    # For Airflow versions < 3.2.2, we need to import from lockfile package
+    from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile  # type: ignore
 
 WORKER_PROCESS_NAME = "worker"
 

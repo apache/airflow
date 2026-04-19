@@ -108,7 +108,6 @@ dependencies = [
     'libcst >=1.8.2; python_version < "3.14"',
     'libcst >=1.8.6; python_version >= "3.14"',
     "linkify-it-py>=2.0.0",
-    "lockfile>=0.12.2",
     "methodtools>=0.4.7",
     "natsort>=8.4.0",
     "opentelemetry-api>=1.27.0",
@@ -133,7 +132,6 @@ dependencies = [
     # See https://github.com/pygments/pygments/issues/2834
     "pygments>=2.0.1,!=2.19.0",
     "pyjwt>=2.11.0",
-    "python-daemon>=3.0.0",
     "python-dateutil>=2.7.0",
     "python-slugify>=5.0",
     # Requests 3 if it will be released, will be heavily breaking.

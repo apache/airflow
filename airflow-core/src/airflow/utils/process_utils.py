@@ -42,10 +42,10 @@ from collections.abc import Generator
 from contextlib import contextmanager
 
 import psutil
-from lockfile.pidlockfile import PIDLockFile
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.utils.pidfile import PIDLockFile
 
 log = logging.getLogger(__name__)
 

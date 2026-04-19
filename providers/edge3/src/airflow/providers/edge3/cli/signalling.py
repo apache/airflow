@@ -23,14 +23,25 @@ import sys
 from pathlib import Path
 
 import psutil
-from lockfile.pidlockfile import (
-    read_pid_from_pidfile,
-    remove_existing_pidfile,
-    write_pid_to_pidfile as write_pid,
-)
 
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_2_PLUS
 from airflow.utils import cli as cli_utils
 from airflow.utils.platform import IS_WINDOWS
+
+if AIRFLOW_V_3_2_2_PLUS:
+    # Airflow 3.2.2 has dropped dependency to lockfile and vendored-in the package
+    from airflow.utils.pidfile import (
+        read_pid_from_pidfile,
+        remove_existing_pidfile,
+        write_pid_to_pidfile as write_pid,
+    )
+else:
+    # For Airflow versions < 3.2.2, we need to import from lockfile package
+    from lockfile.pidlockfile import (  # type: ignore
+        read_pid_from_pidfile,
+        remove_existing_pidfile,
+        write_pid_to_pidfile as write_pid,
+    )
 
 EDGE_WORKER_PROCESS_NAME = "edge-worker"
 
