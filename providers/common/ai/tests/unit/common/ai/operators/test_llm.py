@@ -96,6 +96,27 @@ class TestLLMOperator:
             model_settings={"temperature": 0.9},
         )
 
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_forwards_input_guard(self, mock_hook_cls):
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("guarded")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(
+            task_id="test",
+            prompt="Send with masking",
+            llm_conn_id="my_llm",
+            input_guard={"enabled": True},
+        )
+        result = op.execute(context=MagicMock())
+
+        assert result == "guarded"
+        mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
+            output_type=str,
+            instructions="",
+            input_guard={"enabled": True},
+        )
+
 
 def _make_context(ti_id=None):
     ti_id = ti_id or uuid4()

@@ -33,6 +33,7 @@ from airflow.providers.common.compat.sdk import BaseOperator
 if TYPE_CHECKING:
     from pydantic_ai import Agent
 
+    from airflow.providers.common.ai.privacy.config import InputGuardConfig
     from airflow.sdk import Context
 
 
@@ -83,6 +84,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         system_prompt: str = "",
         output_type: type = str,
         agent_params: dict[str, Any] | None = None,
+        input_guard: InputGuardConfig | dict[str, Any] | None = None,
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
         allow_modifications: bool = False,
@@ -95,6 +97,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.agent_params = agent_params or {}
+        self.input_guard = input_guard
         self.require_approval = require_approval
         self.approval_timeout = approval_timeout
         self.allow_modifications = allow_modifications
@@ -114,10 +117,24 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         }
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
-    def execute(self, context: Context) -> Any:
-        agent: Agent[None, Any] = self.llm_hook.create_agent(
-            output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
+    def _create_agent(
+        self,
+        *,
+        output_type: type[Any] | None = None,
+        instructions: str | None = None,
+        **agent_kwargs: Any,
+    ) -> Agent[None, Any]:
+        """Create the pydantic-ai Agent with optional outbound input guarding."""
+        if self.input_guard is not None:
+            agent_kwargs["input_guard"] = self.input_guard
+        return self.llm_hook.create_agent(
+            output_type=output_type or self.output_type,
+            instructions=instructions if instructions is not None else self.system_prompt,
+            **agent_kwargs,
         )
+
+    def execute(self, context: Context) -> Any:
+        agent = self._create_agent(**self.agent_params)
         result = agent.run_sync(self.prompt)
         log_run_summary(self.log, result)
         output = result.output

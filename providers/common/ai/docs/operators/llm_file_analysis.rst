@@ -83,6 +83,34 @@ back from the LLM instead of a plain string:
     :start-after: [START howto_operator_llm_file_analysis_structured]
     :end-before: [END howto_operator_llm_file_analysis_structured]
 
+Input Guard
+-----------
+
+Set ``input_guard`` to sanitize the prompt text and normalized file text before
+the request is sent to the model:
+
+.. code-block:: python
+
+    LLMFileAnalysisOperator(
+        task_id="scan_logs",
+        llm_conn_id="pydanticai_default",
+        file_path="file:///tmp/logs",
+        prompt="Find incidents involving alice@example.com",
+        input_guard={
+            "enabled": True,
+            "mode": "replace",
+            "entities": ("EMAIL_ADDRESS",),
+        },
+    )
+
+When input guarding is enabled, binary multimodal attachments are rejected by
+default because Presidio only sanitizes text. Set
+``attachment_policy="allow_unmodified"`` only if you are comfortable sending
+the binary payload unchanged.
+
+Like the other AI operators, v1 only sanitizes model-bound text. Local Airflow
+artifacts such as XCom or logs are not yet redacted. See :doc:`../privacy`.
+
 TaskFlow Decorator
 ------------------
 
@@ -123,6 +151,7 @@ Parameters
   ``BaseModel`` for structured output.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+- ``input_guard``: Optional Presidio-based outbound text sanitization config.
 
 Supported Formats
 -----------------

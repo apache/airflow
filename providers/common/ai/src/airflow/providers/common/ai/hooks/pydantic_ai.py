@@ -22,6 +22,9 @@ from pydantic_ai import Agent
 from pydantic_ai.models import infer_model
 from pydantic_ai.providers import infer_provider, infer_provider_class
 
+from airflow.providers.common.ai.privacy.config import InputGuardConfig
+from airflow.providers.common.ai.privacy.history import build_history_processor
+from airflow.providers.common.ai.privacy.presidio_guard import PresidioInputGuard
 from airflow.providers.common.compat.sdk import BaseHook
 
 OutputT = TypeVar("OutputT")
@@ -180,15 +183,35 @@ class PydanticAIHook(BaseHook):
     def create_agent(self, *, instructions: str, **agent_kwargs) -> Agent[None, str]: ...
 
     def create_agent(
-        self, output_type: type[Any] = str, *, instructions: str, **agent_kwargs
+        self,
+        output_type: type[Any] = str,
+        *,
+        instructions: str,
+        input_guard: InputGuardConfig | dict[str, Any] | None = None,
+        **agent_kwargs,
     ) -> Agent[None, Any]:
         """
         Create a pydantic-ai Agent configured with this hook's model.
 
         :param output_type: The expected output type from the agent (default: ``str``).
         :param instructions: System-level instructions for the agent.
+        :param input_guard: Optional outbound input-sanitization configuration.
         :param agent_kwargs: Additional keyword arguments passed to the Agent constructor.
         """
+        config = InputGuardConfig.from_value(input_guard)
+        if config.enabled:
+            instructions = PresidioInputGuard(config, logger=self.log).sanitize_text(
+                instructions,
+                source="instructions",
+            )
+            # Prepend so guarding runs before any user-supplied history processors.
+            # Explicit None is treated as empty (caller may pass history_processors=None).
+            existing = agent_kwargs.pop("history_processors", None) or []
+            agent_kwargs["history_processors"] = [
+                build_history_processor(config, logger=self.log),
+                *existing,
+            ]
+
         return Agent(self.get_conn(), output_type=output_type, instructions=instructions, **agent_kwargs)
 
     def test_connection(self) -> tuple[bool, str]:

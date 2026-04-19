@@ -24,12 +24,11 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
+from airflow.providers.common.ai.privacy.history import sanitize_file_content
 from airflow.providers.common.ai.utils.file_analysis import build_file_analysis_request
 from airflow.providers.common.ai.utils.logging import log_run_summary
 
 if TYPE_CHECKING:
-    from pydantic_ai import Agent
-
     from airflow.sdk import Context
 
 
@@ -116,6 +115,10 @@ class LLMFileAnalysisOperator(LLMOperator):
             max_text_chars=self.max_text_chars,
             sample_rows=self.sample_rows,
         )
+        if self.input_guard is not None:
+            request.user_content = sanitize_file_content(
+                request.user_content, self.input_guard, logger=self.log
+            )
         self.log.info(
             "Calling model for file analysis: files=%s, attachments=%s, text_files=%s, total_size_bytes=%s, "
             "omitted_files=%s, text_truncated=%s, multi_modal=%s, sample_rows=%s",
@@ -129,11 +132,7 @@ class LLMFileAnalysisOperator(LLMOperator):
             self.sample_rows,
         )
         self.log.debug("Resolved file analysis paths: %s", request.resolved_paths)
-        agent: Agent[None, Any] = self.llm_hook.create_agent(
-            output_type=self.output_type,
-            instructions=self._build_system_prompt(),
-            **self.agent_params,
-        )
+        agent = self._create_agent(instructions=self._build_system_prompt(), **self.agent_params)
         result = agent.run_sync(request.user_content)
         log_run_summary(self.log, result)
         output = result.output

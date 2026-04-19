@@ -191,6 +191,21 @@ class TestAgentOperatorExecute:
 
         mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": "openai:gpt-5"})
 
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_forwards_input_guard(self, mock_hook_cls):
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent("ok")
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="test",
+            llm_conn_id="my_llm",
+            input_guard={"enabled": True},
+        )
+        op.execute(context=MagicMock())
+
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        assert create_call[1]["input_guard"] == {"enabled": True}
+
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
     )

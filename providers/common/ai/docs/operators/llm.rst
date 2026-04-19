@@ -61,6 +61,29 @@ via ``agent_params`` — for example, ``retries``, ``model_settings``, or ``tool
 See the `pydantic-ai Agent docs <https://ai.pydantic.dev/api/agent/>`__ for
 the full list of supported parameters.
 
+Input Guard
+-----------
+
+Set ``input_guard`` to sanitize model-bound text with Presidio before the
+request is sent to the LLM:
+
+.. code-block:: python
+
+    LLMOperator(
+        task_id="summarize",
+        llm_conn_id="pydanticai_default",
+        prompt="Email alice@example.com about card 4111 1111 1111 1111",
+        input_guard={
+            "enabled": True,
+            "mode": "replace",
+            "entities": ("EMAIL_ADDRESS", "CREDIT_CARD"),
+        },
+    )
+
+This first iteration sanitizes text sent to the model only. It does not yet
+redact approval, XCom, or log artifacts stored inside Airflow. See
+:doc:`../privacy`.
+
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python
     :start-after: [START howto_operator_llm_agent_params]
@@ -132,6 +155,9 @@ Parameters
   for structured output.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
   constructor (e.g. ``retries``, ``model_settings``, ``tools``). Supports Jinja templating.
+- ``input_guard``: Optional Presidio-based outbound text sanitization config.
+  Supports ``enabled``, ``entities``, ``mode``, ``score_threshold``, and
+  ``attachment_policy``.
 - ``require_approval``: If ``True``, the task defers after generating output and waits
   for human review.  Default ``False``.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``

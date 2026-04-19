@@ -22,8 +22,10 @@ from uuid import uuid4
 
 import pytest
 from pydantic import BaseModel
+from pydantic_ai.messages import BinaryContent
 
 from airflow.providers.common.ai.operators.llm_file_analysis import LLMFileAnalysisOperator
+from airflow.providers.common.ai.privacy.exceptions import InputGuardAttachmentError
 from airflow.providers.common.ai.utils.file_analysis import FileAnalysisRequest
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
@@ -152,6 +154,35 @@ class TestLLMFileAnalysisOperator:
                 sample_rows=0,
             )
         mock_build_request.assert_not_called()
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch(
+        "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
+    )
+    def test_execute_rejects_binary_attachments_when_input_guard_is_enabled(
+        self, mock_build_request, mock_hook_cls
+    ):
+        mock_build_request.return_value = FileAnalysisRequest(
+            user_content=[
+                "prepared prompt",
+                BinaryContent(data=b"image-bytes", media_type="image/png"),
+            ],
+            resolved_paths=["/tmp/app.png"],
+            total_size_bytes=10,
+        )
+
+        op = LLMFileAnalysisOperator(
+            task_id="test",
+            prompt="Inspect image",
+            llm_conn_id="my_llm",
+            file_path="/tmp/app.png",
+            input_guard={"enabled": True},
+        )
+
+        with pytest.raises(InputGuardAttachmentError, match="cannot sanitize binary multimodal attachments"):
+            op.execute(context={})
+
+        mock_hook_cls.get_hook.return_value.create_agent.assert_not_called()
 
 
 @pytest.mark.skipif(

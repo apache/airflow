@@ -43,6 +43,7 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
     from airflow.providers.common.ai.durable.storage import DurableStorage
+    from airflow.providers.common.ai.privacy.config import InputGuardConfig
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
 
@@ -147,6 +148,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         toolsets: list[AbstractToolset] | None = None,
         enable_tool_logging: bool = True,
         agent_params: dict[str, Any] | None = None,
+        input_guard: InputGuardConfig | dict[str, Any] | None = None,
         durable: bool = False,
         # Agent feedback parameters
         enable_hitl_review: bool = False,
@@ -165,6 +167,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.toolsets = toolsets
         self.enable_tool_logging = enable_tool_logging
         self.agent_params = agent_params or {}
+        self.input_guard = input_guard
 
         self.durable = durable
 
@@ -201,6 +204,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             if self.enable_tool_logging:
                 toolsets = wrap_toolsets_for_logging(toolsets, self.log)
             extra_kwargs["toolsets"] = toolsets
+        if self.input_guard is not None:
+            extra_kwargs["input_guard"] = self.input_guard
         return self.llm_hook.create_agent(
             output_type=self.output_type,
             instructions=self.system_prompt,
