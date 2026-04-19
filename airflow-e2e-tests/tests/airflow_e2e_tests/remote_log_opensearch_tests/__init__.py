@@ -14,10 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from airflow_e2e_tests.e2e_test_utils.base_remote_log_search_test import BaseRemoteLoggingSearchTest
-
-
-class TestRemoteLoggingElasticsearch(BaseRemoteLoggingSearchTest):
-    search_url = "http://localhost:9200"

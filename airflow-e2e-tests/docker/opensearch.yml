@@ -14,10 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
+---
+services:
+  opensearch:
+    image: opensearchproject/opensearch:2.19.0
+    environment:
+      - discovery.type=single-node
+      - DISABLE_SECURITY_PLUGIN=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - opensearch-db-volume:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 30s
+      start_period: 60s
+      retries: 50
+    restart: "on-failure"
 
-from airflow_e2e_tests.e2e_test_utils.base_remote_log_search_test import BaseRemoteLoggingSearchTest
-
-
-class TestRemoteLoggingElasticsearch(BaseRemoteLoggingSearchTest):
-    search_url = "http://localhost:9200"
+volumes:
+  opensearch-db-volume:
