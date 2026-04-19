@@ -124,9 +124,17 @@ class GitHook(BaseHook):
             raise AirflowException(
                 "Both 'github_app_id' and 'github_installation_id' must be provided to use GitHub App Authentication"
             )
-        if self.github_app_id and self.github_installation_id and self.private_key:
+        if self.github_app_id and self.github_installation_id:
             if not self.key_file and not self.private_key:
                 raise AirflowException("Missing inline private_key or key_file for GitHub App Auth")
+            if self.key_file and not self.private_key:
+                try:
+                    with open(self.key_file, "r", encoding="utf-8") as key_file:
+                        self.private_key = key_file.read()
+                except OSError as exc:
+                    raise AirflowException(
+                        f"Failed to read GitHub App private key file {self.key_file!r}: {exc}"
+                    ) from exc
             self.user_name, self.auth_token = self._get_github_app_token()
         self._process_git_auth_url()
 
