@@ -107,6 +107,14 @@ class InvalidBackfillDate(AirflowException):
     """
 
 
+class InvalidBackfillConf(AirflowException):
+    """
+    Raised when the provided ``dag_run_conf`` fails validation against the DAG's params.
+
+    :meta private:
+    """
+
+
 class UnknownActiveBackfills(AirflowException):
     """
     Raised when the quantity of active backfills cannot be determined.
@@ -273,7 +281,10 @@ def _validate_backfill_params(
     if from_date >= current_time and to_date >= current_time:
         raise InvalidBackfillDate("Backfill cannot be executed for future dates.")
     if dag_run_conf is not None:
-        dag.params.deep_merge(dag_run_conf).validate()
+        try:
+            dag.params.deep_merge(dag_run_conf).validate()
+        except ValueError as e:
+            raise InvalidBackfillConf(str(e)) from e
 
 
 def _do_dry_run(
@@ -444,6 +455,10 @@ def _create_backfill_dag_run_partitioned(
     triggering_user_name: str | None,
     session: Session,
 ) -> None:
+    # Partitioned backfills don't currently reprocess existing runs — if a run exists
+    # for this partition, it's recorded as skipped via exception_reason rather than
+    # cleared and re-queued. As a result, this function never calls ``_handle_clear_run``
+    # and therefore doesn't need to forward ``dag_run_conf`` for the reprocess path.
     stmt = _get_latest_dag_run_row_query(dag_id=dag.dag_id, info=info)
     dr = session.scalar(stmt)
     if dr:

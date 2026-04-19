@@ -33,6 +33,7 @@ from airflow.models.backfill import (
     BackfillDagRun,
     BackfillDagRunExceptionReason,
     DagNonPeriodicScheduleException,
+    InvalidBackfillConf,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
     ReprocessBehavior,
@@ -523,7 +524,7 @@ def test_backfill_rejects_invalid_conf(dag_maker, session):
     ) as dag:
         PythonOperator(task_id="hi", python_callable=print)
 
-    with pytest.raises(ValueError, match="Invalid input for param validated_number"):
+    with pytest.raises(InvalidBackfillConf, match="Invalid input for param validated_number"):
         _create_backfill(
             dag_id=dag.dag_id,
             from_date=pendulum.parse("2021-01-01"),
