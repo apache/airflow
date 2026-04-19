@@ -36,7 +36,7 @@ from airflow.version import version as airflow_version_str
 
 from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
@@ -176,7 +176,7 @@ class TestAwsLambdaExecutor:
             workload.ti.key, TaskInstanceState.RUNNING, ser_airflow_key, remove_running=False
         )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     def test_task_sdk_callback(self, mock_executor):
         """Test task sdk callback execution end-to-end."""
         from airflow.executors.workloads import ExecuteCallback
@@ -185,7 +185,7 @@ class TestAwsLambdaExecutor:
 
         workload = mock.Mock(spec=ExecuteCallback)
         workload.callback = mock.Mock()
-        workload.callback.id = callback_id
+        workload.callback.key = callback_id
         workload.callback.data = {}
 
         ser_workload = json.dumps({"test_key": "test_value"})
@@ -225,7 +225,7 @@ class TestAwsLambdaExecutor:
         assert len(mock_executor.running_workloads) == 1
         assert callback_id in mock_executor.running_workloads
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     def test_task_sdk_callback_with_queue(self, mock_airflow_key, mock_executor):
         """Test callback workload execution with queue override."""
         from airflow.executors.workloads import ExecuteCallback
@@ -234,7 +234,7 @@ class TestAwsLambdaExecutor:
 
         workload = mock.Mock(spec=ExecuteCallback)
         workload.callback = mock.Mock()
-        workload.callback.id = callback_id
+        workload.callback.key = callback_id
         workload.callback.data = {"queue": "fast-queue"}
 
         ser_workload = json.dumps({"test_key": "test_value"})
@@ -1062,7 +1062,7 @@ class TestAwsLambdaExecutor:
         fail_mock.assert_not_called()
         assert mock_executor.sqs_client.delete_message.call_count == 1
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     def test_try_adopt_task_instances_callback(self, mock_executor):
         """Test adoption of callback workloads using string external_executor_id."""
 

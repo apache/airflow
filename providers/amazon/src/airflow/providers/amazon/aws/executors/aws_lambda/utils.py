@@ -22,10 +22,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseConfigKeys
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_2_PLUS
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
-    if AIRFLOW_V_3_2_PLUS:
+    if AIRFLOW_V_3_3_PLUS:
         from airflow.executors.workloads.types import WorkloadKey
 
 CONFIG_GROUP_NAME = "aws_lambda_executor"
@@ -67,7 +67,7 @@ class AllLambdaConfigKeys(InvokeLambdaKwargsConfigKeys):
     END_WAIT_TIMEOUT = "end_wait_timeout"
 
 
-if AIRFLOW_V_3_2_PLUS:
+if AIRFLOW_V_3_3_PLUS:
     from airflow.executors.workloads import ExecuteCallback, ExecuteTask
 
     CommandType: TypeAlias = Sequence[str] | Sequence[ExecuteTask | ExecuteCallback]

@@ -18,13 +18,15 @@ from __future__ import annotations
 
 import json
 import time
+import warnings
 from collections import deque
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, TypeAlias, cast
+from typing import TYPE_CHECKING, TypeAlias
 
 from boto3.session import NoCredentialsError
 from botocore.utils import ClientError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.aws_lambda.utils import (
@@ -40,7 +42,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 
 if TYPE_CHECKING:
@@ -49,7 +51,7 @@ if TYPE_CHECKING:
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
 
-    if AIRFLOW_V_3_2_PLUS:
+    if AIRFLOW_V_3_3_PLUS:
         from airflow.executors.workloads.types import WorkloadKey as _WorkloadKey
 
         WorkloadKey: TypeAlias = _WorkloadKey
@@ -70,7 +72,7 @@ class AwsLambdaExecutor(BaseExecutor):
 
     supports_multi_team: bool = True
 
-    if AIRFLOW_V_3_2_PLUS:
+    if AIRFLOW_V_3_3_PLUS:
         supports_callbacks: bool = True
 
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
@@ -214,18 +216,16 @@ class AwsLambdaExecutor(BaseExecutor):
         except Exception:
             self.log.exception("An error occurred while syncing workloads.")
 
+    # TODO: Remove this once the minimum supported version is 3.2+, and defer to BaseExecutor.queue_workload.
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
 
         if isinstance(workload, workloads.ExecuteTask):
-            ti = workload.ti
-            self.queued_tasks[ti.key] = workload
+            self.queued_tasks[workload.ti.key] = workload
             return
-
-        if AIRFLOW_V_3_2_PLUS and isinstance(workload, workloads.ExecuteCallback):
-            self.queued_callbacks[workload.callback.id] = workload
+        if AIRFLOW_V_3_3_PLUS and isinstance(workload, workloads.ExecuteCallback):
+            self.queued_callbacks[workload.callback.key] = workload
             return
-
         raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
 
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
@@ -253,9 +253,9 @@ class AwsLambdaExecutor(BaseExecutor):
                 self.running.add(key)
                 continue
 
-            if AIRFLOW_V_3_2_PLUS and isinstance(workload, workloads.ExecuteCallback):
+            if AIRFLOW_V_3_3_PLUS and isinstance(workload, workloads.ExecuteCallback):
                 command = [workload]
-                key = workload.callback.id
+                key = workload.callback.key
                 queue = None
 
                 if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
@@ -294,7 +294,7 @@ class AwsLambdaExecutor(BaseExecutor):
 
             workload = command[0]
 
-            if AIRFLOW_V_3_2_PLUS:
+            if AIRFLOW_V_3_3_PLUS:
                 if not isinstance(workload, (workloads.ExecuteTask, workloads.ExecuteCallback)):
                     raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
             else:
@@ -408,6 +408,15 @@ class AwsLambdaExecutor(BaseExecutor):
                 # Add the serialized workload key as the info, this will be assigned on the ti as the external_executor_id.
                 self.running_state(workload_key, ser_workload_key)
 
+    def attempt_task_runs(self):
+        """Use attempt_workload_runs as attempt_task_runs is deprecated."""
+        warnings.warn(
+            "attempt_task_runs is deprecated, use attempt_workload_runs instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.attempt_workload_runs()
+
     def sync_running_workloads(self):
         """
         Poll the SQS queue for messages indicating workload completion.
@@ -422,6 +431,15 @@ class AwsLambdaExecutor(BaseExecutor):
         self.process_queue(self.sqs_queue_url)
         if self.dlq_url and self.running_workloads:
             self.process_queue(self.dlq_url)
+
+    def sync_running_tasks(self):
+        """Use sync_running_workloads as sync_running_tasks is deprecated."""
+        warnings.warn(
+            "sync_running_tasks is deprecated, use sync_running_workloads instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.sync_running_workloads()
 
     def process_queue(self, queue_url: str):
         """
@@ -490,13 +508,13 @@ class AwsLambdaExecutor(BaseExecutor):
 
             if workload_key:
                 if return_code == 0:
-                    self.success(cast("TaskInstanceKey", workload_key))
+                    self.success(workload_key)
                     self.log.info(
                         "Successful Lambda invocation for workload %s received from SQS queue.",
                         workload_key,
                     )
                 else:
-                    self.fail(cast("TaskInstanceKey", workload_key))
+                    self.fail(workload_key)
                     if queue_url == self.dlq_url and return_code is None:
                         self.log.error(
                             "DLQ message received: Lambda invocation for workload %s was unable to "
@@ -521,8 +539,8 @@ class AwsLambdaExecutor(BaseExecutor):
         """
         Adopt task instances which have an external_executor_id (the serialized workload key).
 
-        The external_executor_id represents the workload identifier. In legacy executors (Airflow < 3.2)
-        this is the serialized TaskInstanceKey. In the workload-based executor model (Airflow ≥ 3.2)
+        The external_executor_id represents the workload identifier. In legacy executors (Airflow < 3.3)
+        this is the serialized TaskInstanceKey. In the workload-based executor model (Airflow ≥ 3.3)
         this corresponds to the WorkloadKey.
 
         Anything that is not adopted will be cleared by the scheduler and becomes eligible for re-scheduling.
@@ -539,7 +557,13 @@ class AwsLambdaExecutor(BaseExecutor):
                     try:
                         data = json.loads(ser_workload_key)
                         workload_key = TaskInstanceKey.from_dict(data)
-                    except Exception:
+                    except (json.JSONDecodeError, KeyError, TypeError) as e:
+                        self.log.warning(
+                            "Failed to deserialize workload_key '%s' (%s); "
+                            "skipping deserialization and treating as callback id.",
+                            ser_workload_key,
+                            str(e),
+                        )
                         # Callback workloads use string keys.
                         workload_key = ser_workload_key
 
