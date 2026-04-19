@@ -24,7 +24,7 @@ from alembic import context
 
 from airflow import settings
 from airflow.providers.fab.auth_manager.models.db import FABDBManager
-from airflow.providers.fab.version_compat import AIRFLOW_V_3_2_1_PLUS
+from airflow.providers.fab.version_compat import AIRFLOW_V_3_2_2_PLUS
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -68,7 +68,7 @@ def run_migrations_offline():
     script output.
 
     """
-    url: str = settings.get_sql_alchemy_conn() if AIRFLOW_V_3_2_1_PLUS else settings.SQL_ALCHEMY_CONN  # type: ignore
+    url: str = settings.get_sql_alchemy_conn() if AIRFLOW_V_3_2_2_PLUS else str(settings.SQL_ALCHEMY_CONN)
     context.configure(
         url=url,
         target_metadata=target_metadata,
