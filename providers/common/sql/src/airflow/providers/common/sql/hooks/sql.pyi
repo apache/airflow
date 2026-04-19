@@ -186,37 +186,7 @@ class DbApiHook(BaseHook):
     @staticmethod
     def get_openlineage_authority_part(connection, default_port: int | None = None) -> str: ...
     def get_db_log_messages(self, conn) -> None: ...
-    @overload
-    def run(
-        self,
-        sql: str | Iterable[str],
-        autocommit: bool = ...,
-        parameters: Iterable | Mapping[str, Any] | None = ...,
-        handler: None = ...,
-        split_statements: bool = ...,
-        return_last: bool = ...,
-    ) -> None: ...
-    @overload
-    def run(
-        self,
-        sql: str | Iterable[str],
-        autocommit: bool = ...,
-        parameters: Iterable | Mapping[str, Any] | None = ...,
-        handler: Callable[[Any], T] = ...,
-        split_statements: bool = ...,
-        return_last: bool = ...,
-    ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None: ...
-
-    class DbApiHookAsync(DbApiHook):
-    conn_name_attr: str
-    default_conn_name: str
-    strip_semicolon: bool
-    supports_autocommit: bool
-    supports_executemany: bool
-    connector: ConnectorProtocol | None
-
-    def __init__(self, *args, schema: str | None = ..., log_sql: bool = ..., **kwargs: Any) -> None: ...
-    async def get_conn(self) -> Any: ...
+    async def async_get_conn(self) -> Any: ...
     @overload
     async def run_async(
         self,
@@ -234,6 +204,26 @@ class DbApiHook(BaseHook):
         autocommit: bool = ...,
         parameters: Iterable | Mapping[str, Any] | None = ...,
         handler: HANDLER = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None: ...
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: None = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> None: ...
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
     ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None: ...

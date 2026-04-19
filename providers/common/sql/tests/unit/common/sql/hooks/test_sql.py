@@ -20,13 +20,14 @@ from __future__ import annotations
 
 import inspect
 import logging
-from unittest.mock import MagicMock, PropertyMock, patch
+from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pandas as pd
 import polars as pl
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowNotFoundException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
@@ -64,7 +65,21 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
     return [(field,) for field in fields]
 
 
-index = 0
+def _make_async_cursor(descriptions_per_call, fetchall_results):
+    """Cursor mock whose description advances on each async execute call."""
+    cur = MagicMock()
+    cur.rowcount = 2
+    cur.description = None
+    call_idx = 0
+
+    async def _execute(*args, **kwargs):
+        nonlocal call_idx
+        cur.description = descriptions_per_call[call_idx]
+        call_idx += 1
+
+    cur.execute = _execute
+    cur.fetchall.side_effect = fetchall_results
+    return cur
 
 
 @pytest.mark.db_test
@@ -332,6 +347,551 @@ class TestDbApiHook:
         else:
             df = dbapi_hook.get_df("SQL", df_type=df_type)
             assert isinstance(df, expected_type)
+
+    @pytest.mark.db_test
+    def test_build_conn_kwargs_basic_mapping(self):
+        hook = mock_db_hook(DbApiHook)
+        db = Connection(
+            conn_id="c",
+            conn_type="test",
+            host="dbhost",
+            login="user",
+            password="secret",
+            schema="mydb",
+            port=5432,
+        )
+        result = hook._build_conn_kwargs_from_airflow_connection(db)
+        assert result["host"] == "dbhost"
+        assert result["port"] == 5432
+        assert result["username"] == "user"
+        assert result["password"] == "secret"
+        assert result["schema"] == "mydb"
+        assert result["raw_connection"] is db
+
+    @pytest.mark.db_test
+    def test_build_conn_kwargs_none_values_become_empty(self):
+        hook = mock_db_hook(DbApiHook)
+        db = Connection(conn_id="c", conn_type="test")
+        result = hook._build_conn_kwargs_from_airflow_connection(db)
+        assert result["host"] == ""
+        assert result["username"] == ""
+        assert result["schema"] == ""
+        assert result["port"] is None
+
+    @pytest.mark.db_test
+    def test_build_conn_kwargs_uses_extra_database(self):
+        hook = mock_db_hook(DbApiHook)
+        db = Connection(conn_id="c", conn_type="test", extra='{"database": "myschema"}')
+        assert hook._build_conn_kwargs_from_airflow_connection(db)["database"] == "myschema"
+
+    @pytest.mark.db_test
+    def test_build_conn_kwargs_falls_back_to_dbname(self):
+        hook = mock_db_hook(DbApiHook)
+        db = Connection(conn_id="c", conn_type="test", extra='{"dbname": "altdb"}')
+        assert hook._build_conn_kwargs_from_airflow_connection(db)["database"] == "altdb"
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_get_conn_success(self):
+        hook = mock_db_hook(DbApiHook)
+        mock_db_conn = MagicMock()
+        hook.connector = AsyncMock()
+        hook.connector.connect.return_value = mock_db_conn
+        assert await hook.async_get_conn() is mock_db_conn
+        hook.connector.connect.assert_awaited_once()
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_get_conn_raises_without_connector(self):
+        hook = mock_db_hook(DbApiHook)
+        hook.connector = None
+        with pytest.raises(RuntimeError, match="didn't have `self.connector` set"):
+            await hook.async_get_conn()
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_get_conn_caches_airflow_connection(self):
+        hook = mock_db_hook(DbApiHook)
+        hook.connector = AsyncMock()
+        hook.connector.connect.return_value = MagicMock()
+        await hook.async_get_conn()
+        await hook.async_get_conn()
+        assert hook.connection_invocations == 1
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_call_awaits_coroutine_function(self):
+        hook = mock_db_hook(DbApiHook)
+
+        async def fn(x):
+            return x * 3
+
+        assert await hook._call(fn, 4) == 12
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_call_runs_sync_function(self):
+        hook = mock_db_hook(DbApiHook)
+
+        def fn(x):
+            return x + 1
+
+        assert await hook._call(fn, 9) == 10
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_create_connection_yields_conn(self):
+        hook = mock_db_hook(DbApiHook)
+        mock_conn = MagicMock()
+        mock_conn.close = MagicMock()
+        with patch.object(hook, "async_get_conn", AsyncMock(return_value=mock_conn)):
+            async with hook._async_create_autocommit_connection() as conn:
+                assert conn is mock_conn
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_create_connection_calls_close(self):
+        hook = mock_db_hook(DbApiHook)
+        mock_conn = MagicMock()
+        mock_conn.close = MagicMock()
+        del mock_conn.aclose
+        with patch.object(hook, "async_get_conn", AsyncMock(return_value=mock_conn)):
+            async with hook._async_create_autocommit_connection():
+                pass
+        mock_conn.close.assert_called_once()
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_create_connection_prefers_aclose(self):
+        hook = mock_db_hook(DbApiHook)
+        mock_conn = MagicMock()
+        mock_conn.aclose = AsyncMock()
+        mock_conn.close = MagicMock()
+        with patch.object(hook, "async_get_conn", AsyncMock(return_value=mock_conn)):
+            async with hook._async_create_autocommit_connection():
+                pass
+        mock_conn.aclose.assert_awaited_once()
+        mock_conn.close.assert_not_called()
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_create_connection_sets_sync_autocommit(self):
+        hook = mock_db_hook(DbApiHook)
+        hook.supports_autocommit = True
+        mock_conn = MagicMock()
+        mock_conn.close = MagicMock()
+        del mock_conn.set_autocommit
+        with patch.object(hook, "async_get_conn", AsyncMock(return_value=mock_conn)):
+            async with hook._async_create_autocommit_connection(autocommit=True):
+                pass
+        assert mock_conn.autocommit is True
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_create_connection_sets_async_autocommit(self):
+        hook = mock_db_hook(DbApiHook)
+        hook.supports_autocommit = True
+        mock_conn = MagicMock()
+        mock_conn.close = MagicMock()
+        mock_conn.set_autocommit = AsyncMock()
+        with patch.object(hook, "async_get_conn", AsyncMock(return_value=mock_conn)):
+            async with hook._async_create_autocommit_connection(autocommit=True):
+                pass
+        mock_conn.set_autocommit.assert_awaited_once_with(True)
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_get_cursor_raises_without_cursor_method(self):
+        hook = mock_db_hook(DbApiHook)
+        with pytest.raises(AirflowNotFoundException, match="has no cursor\\(\\) method"):
+            async with hook._async_get_cursor(MagicMock(spec=[])):
+                pass
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_get_cursor_uses_async_context_manager(self):
+        hook = mock_db_hook(DbApiHook)
+        mock_cur = MagicMock()
+        cursor_cm = AsyncMock()
+        cursor_cm.__aenter__ = AsyncMock(return_value=mock_cur)
+        cursor_cm.__aexit__ = AsyncMock(return_value=False)
+        conn = MagicMock()
+        conn.cursor.return_value = cursor_cm
+        async with hook._async_get_cursor(conn) as cur:
+            assert cur is mock_cur
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_get_cursor_awaits_cursor_then_uses_async_cm(self):
+        hook = mock_db_hook(DbApiHook)
+        mock_cur = MagicMock()
+        cursor_cm = AsyncMock()
+        cursor_cm.__aenter__ = AsyncMock(return_value=mock_cur)
+        cursor_cm.__aexit__ = AsyncMock(return_value=False)
+
+        async def async_cursor():
+            return cursor_cm
+
+        conn = MagicMock()
+        conn.cursor = async_cursor
+        async with hook._async_get_cursor(conn) as cur:
+            assert cur is mock_cur
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_get_cursor_yields_cursor_with_async_execute(self):
+        hook = mock_db_hook(DbApiHook)
+        mock_cur = MagicMock()
+        mock_cur.execute = AsyncMock()
+        mock_cur.close = MagicMock()
+        del mock_cur.__aenter__
+        del mock_cur.__aexit__
+        del mock_cur.aclose
+        conn = MagicMock()
+        conn.cursor.return_value = mock_cur
+        async with hook._async_get_cursor(conn) as cur:
+            assert cur is mock_cur
+        mock_cur.close.assert_called_once()
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_get_cursor_raises_for_unsupported_type(self):
+        hook = mock_db_hook(DbApiHook)
+        mock_cur = MagicMock()
+        mock_cur.execute = MagicMock()
+        del mock_cur.__aenter__
+        del mock_cur.__aexit__
+        conn = MagicMock()
+        conn.cursor.return_value = mock_cur
+        with pytest.raises(RuntimeError, match="Unsupported cursor type"):
+            async with hook._async_get_cursor(conn) as _:
+                pass
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_run_command_no_params(self):
+        hook = mock_db_hook(DbApiHook)
+        cur = AsyncMock()
+        cur.rowcount = 0
+        await hook._async_run_command(cur, "SELECT 1", None)
+        cur.execute.assert_awaited_once_with("SELECT 1")
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_run_command_with_params(self):
+        hook = mock_db_hook(DbApiHook)
+        cur = AsyncMock()
+        cur.rowcount = 3
+        await hook._async_run_command(cur, "SELECT * FROM t WHERE id=%s", (42,))
+        cur.execute.assert_awaited_once_with("SELECT * FROM t WHERE id=%s", (42,))
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_run_command_logs_rowcount(self):
+        hook = mock_db_hook(DbApiHook)
+        cur = AsyncMock()
+        cur.rowcount = 5
+        mock_log = MagicMock()
+        with patch.object(hook, "_log", mock_log):
+            await hook._async_run_command(cur, "DELETE FROM t", None)
+        mock_log.info.assert_any_call("Rows affected: %s", 5)
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_async_run_command_skips_rowcount_when_negative(self):
+        hook = mock_db_hook(DbApiHook)
+        cur = AsyncMock()
+        cur.rowcount = -1
+        mock_log = MagicMock()
+        with patch.object(hook, "_log", mock_log):
+            await hook._async_run_command(cur, "SELECT 1", None)
+        assert not any(call.args[0] == "Rows affected: %s" for call in mock_log.info.call_args_list)
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("empty_sql", [[], "", "\n"])
+    async def test_run_async_empty_sql_raises(self, empty_sql):
+        hook = mock_db_hook(DbApiHook)
+        mock_conn = MagicMock()
+        mock_conn.autocommit = False
+
+        @asynccontextmanager
+        async def _conn_cm(autocommit=False):
+            yield mock_conn
+
+        @asynccontextmanager
+        async def _cursor_cm(conn):
+            yield AsyncMock()
+
+        with (
+            patch.object(hook, "_async_create_autocommit_connection", _conn_cm),
+            patch.object(hook, "_async_get_cursor", _cursor_cm),
+        ):
+            with pytest.raises(ValueError, match="List of SQL statements is empty"):
+                await hook.run_async(sql=empty_sql)
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_run_async_no_handler_returns_none(self):
+        hook = mock_db_hook(DbApiHook)
+        cur = AsyncMock()
+        cur.rowcount = 0
+        mock_conn = MagicMock()
+        mock_conn.autocommit = False
+        mock_conn.commit = MagicMock()
+
+        @asynccontextmanager
+        async def _conn_cm(autocommit=False):
+            yield mock_conn
+
+        @asynccontextmanager
+        async def _cursor_cm(conn):
+            yield cur
+
+        with (
+            patch.object(hook, "_async_create_autocommit_connection", _conn_cm),
+            patch.object(hook, "_async_get_cursor", _cursor_cm),
+        ):
+            assert await hook.run_async(sql="INSERT INTO t VALUES (1)") is None
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        (
+            "return_last",
+            "split_statements",
+            "sql",
+            "cursor_descriptions",
+            "cursor_results",
+            "hook_descriptions",
+            "hook_results",
+        ),
+        [
+            pytest.param(
+                True,
+                False,
+                "select * from test.test",
+                [["id", "value"]],
+                ([[1, 2], [11, 12]],),
+                [[("id",), ("value",)]],
+                [[1, 2], [11, 12]],
+                id="The return_last set and no split statements set on single query in string",
+            ),
+            pytest.param(
+                False,
+                False,
+                "select * from test.test;",
+                [["id", "value"]],
+                ([[1, 2], [11, 12]],),
+                [[("id",), ("value",)]],
+                [[1, 2], [11, 12]],
+                id="The return_last not set and no split statements set on single query in string",
+            ),
+            pytest.param(
+                True,
+                True,
+                "select * from test.test;",
+                [["id", "value"]],
+                ([[1, 2], [11, 12]],),
+                [[("id",), ("value",)]],
+                [[1, 2], [11, 12]],
+                id="The return_last set and split statements set on single query in string",
+            ),
+            pytest.param(
+                False,
+                True,
+                "select * from test.test;",
+                [["id", "value"]],
+                ([[1, 2], [11, 12]],),
+                [[("id",), ("value",)]],
+                [[[1, 2], [11, 12]]],
+                id="The return_last not set and split statements set on single query in string",
+            ),
+            pytest.param(
+                True,
+                True,
+                "select * from test.test;select * from test.test2;",
+                [["id", "value"], ["id2", "value2"]],
+                ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
+                [[("id2",), ("value2",)]],
+                [[3, 4], [13, 14]],
+                id="The return_last set and split statements set on multiple queries in string",
+            ),
+            pytest.param(
+                False,
+                True,
+                "select * from test.test;select * from test.test2;",
+                [["id", "value"], ["id2", "value2"]],
+                ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
+                [[("id",), ("value",)], [("id2",), ("value2",)]],
+                [[[1, 2], [11, 12]], [[3, 4], [13, 14]]],
+                id="The return_last not set and split statements set on multiple queries in string",
+            ),
+            pytest.param(
+                True,
+                True,
+                ["select * from test.test;"],
+                [["id", "value"]],
+                ([[1, 2], [11, 12]],),
+                [[("id",), ("value",)]],
+                [[[1, 2], [11, 12]]],
+                id="The return_last set on single query in list",
+            ),
+            pytest.param(
+                False,
+                True,
+                ["select * from test.test;"],
+                [["id", "value"]],
+                ([[1, 2], [11, 12]],),
+                [[("id",), ("value",)]],
+                [[[1, 2], [11, 12]]],
+                id="The return_last not set on single query in list",
+            ),
+            pytest.param(
+                True,
+                True,
+                "select * from test.test;select * from test.test2;",
+                [["id", "value"], ["id2", "value2"]],
+                ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
+                [[("id2",), ("value2",)]],
+                [[3, 4], [13, 14]],
+                id="The return_last set on multiple queries in list",
+            ),
+            pytest.param(
+                False,
+                True,
+                "select * from test.test;select * from test.test2;",
+                [["id", "value"], ["id2", "value2"]],
+                ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
+                [[("id",), ("value",)], [("id2",), ("value2",)]],
+                [[[1, 2], [11, 12]], [[3, 4], [13, 14]]],
+                id="The return_last not set on multiple queries not set",
+            ),
+        ],
+    )
+    async def test_run_async_query(
+        self,
+        return_last,
+        split_statements,
+        sql,
+        cursor_descriptions,
+        cursor_results,
+        hook_descriptions,
+        hook_results,
+    ):
+        modified = [get_cursor_descriptions(d) for d in cursor_descriptions]
+        cur = _make_async_cursor(modified, cursor_results)
+        mock_conn = MagicMock()
+        mock_conn.autocommit = False
+        mock_conn.commit = MagicMock()
+        hook = mock_db_hook(DbApiHook)
+
+        @asynccontextmanager
+        async def _conn_cm(autocommit=False):
+            yield mock_conn
+
+        @asynccontextmanager
+        async def _cursor_cm(conn):
+            yield cur
+
+        with (
+            patch.object(hook, "_async_create_autocommit_connection", _conn_cm),
+            patch.object(hook, "_async_get_cursor", _cursor_cm),
+        ):
+            results = await hook.run_async(
+                sql=sql,
+                handler=fetch_all_handler,
+                return_last=return_last,
+                split_statements=split_statements,
+            )
+
+        assert hook.descriptions == hook_descriptions
+        assert hook.last_description == hook_descriptions[-1]
+        assert results == hook_results
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_run_async_commits_on_success(self):
+        hook = mock_db_hook(DbApiHook)
+        cur = AsyncMock()
+        cur.rowcount = 0
+        mock_conn = MagicMock()
+        mock_conn.autocommit = False
+        mock_conn.commit = MagicMock()
+
+        @asynccontextmanager
+        async def _conn_cm(autocommit=False):
+            yield mock_conn
+
+        @asynccontextmanager
+        async def _cursor_cm(conn):
+            yield cur
+
+        with (
+            patch.object(hook, "_async_create_autocommit_connection", _conn_cm),
+            patch.object(hook, "_async_get_cursor", _cursor_cm),
+        ):
+            await hook.run_async(sql="INSERT INTO t VALUES (1)")
+
+        mock_conn.commit.assert_called_once()
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_run_async_rollback_on_exception(self):
+        hook = mock_db_hook(DbApiHook)
+        cur = AsyncMock()
+        cur.execute.side_effect = RuntimeError("DB error")
+        mock_conn = MagicMock()
+        mock_conn.autocommit = False
+        mock_conn.rollback = MagicMock()
+
+        @asynccontextmanager
+        async def _conn_cm(autocommit=False):
+            yield mock_conn
+
+        @asynccontextmanager
+        async def _cursor_cm(conn):
+            yield cur
+
+        with (
+            patch.object(hook, "_async_create_autocommit_connection", _conn_cm),
+            patch.object(hook, "_async_get_cursor", _cursor_cm),
+        ):
+            with pytest.raises(RuntimeError, match="DB error"):
+                await hook.run_async(sql="SELECT fail")
+
+        mock_conn.rollback.assert_called_once()
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_run_async_awaits_async_handler(self):
+        hook = mock_db_hook(DbApiHook)
+        rows = [(1, "a"), (2, "b")]
+        cur = AsyncMock()
+        cur.rowcount = 2
+        cur.description = [("id",), ("name",)]
+        mock_conn = MagicMock()
+        mock_conn.autocommit = False
+        mock_conn.commit = MagicMock()
+
+        async def async_handler(cursor):
+            return rows
+
+        @asynccontextmanager
+        async def _conn_cm(autocommit=False):
+            yield mock_conn
+
+        @asynccontextmanager
+        async def _cursor_cm(conn):
+            yield cur
+
+        with (
+            patch.object(hook, "_async_create_autocommit_connection", _conn_cm),
+            patch.object(hook, "_async_get_cursor", _cursor_cm),
+        ):
+            result = await hook.run_async(sql="SELECT 1", handler=async_handler)
+
+        assert result == rows
 
 
 class TestDbApiHookGetTableSchema:

@@ -25,7 +25,7 @@ from asgiref.sync import sync_to_async
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
-from airflow.providers.common.sql.hooks.sql import DbApiHook, DbApiHookAsync
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
@@ -169,20 +169,20 @@ class SQLExecuteQueryTrigger(BaseTrigger):
             obj = getattr(obj, part)
         return obj
 
-    async def get_hook(self) -> DbApiHookAsync:
+    async def get_hook(self) -> DbApiHook:
         """
-        Return DbApiHookAsync.
+        Return DbApiHook.
 
-        :return: DbApiHookAsync for this connection
+        :return: DbApiHook for this connection
         """
         connection = await sync_to_async(BaseHook.get_connection)(self.conn_id)
         hook = await sync_to_async(connection.get_hook)()
-        if not isinstance(hook, DbApiHookAsync):
+        if not isinstance(hook, DbApiHook) or not hasattr(hook, "run_async"):
             raise AirflowException(
                 f"You are trying to use `common-sql` with {hook.__class__.__name__},"
                 " but its provider does not support it. Please upgrade the provider to a version that"
-                " supports `common-sql`. The hook class should be a subclass of DbApiHookAsync"
-                f" Got {hook.__class__.__name__} hook with class hierarchy: {hook.__class__.mro()}"
+                " supports `common-sql`. The hook class should be a subclass of DbApiHook"
+                f" and implement run_async. Got {hook.__class__.__name__} hook with class hierarchy: {hook.__class__.mro()}"
             )
         return hook
 
@@ -224,5 +224,5 @@ class SQLExecuteQueryTrigger(BaseTrigger):
                 yield TriggerEvent({"status": "success"})
 
         except Exception as e:
-            self.log.exception("An error occurred: %s", e)
-            yield TriggerEvent({"status": "failure", "message": str(e)})
+            self.log.error("status: error, message: %s", str(e))
+            yield TriggerEvent({"status": "error", "message": str(e)})

@@ -430,9 +430,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             if self.handler:
                 handler_path = self._get_handler_import_path()
             self.defer(
-                timeout=self.timeout,
                 trigger=SQLExecuteQueryTrigger(
                     sql=self.sql,
+                    conn_id=self.conn_id,
                     autocommit=self.autocommit,
                     parameters=self.parameters,
                     handler_path=handler_path
@@ -441,6 +441,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
                     split_statements=self.split_statements,
                     return_last=self.return_last,
                 ),
+                method_name="execute_complete",
             )
         else:
             hook = self.get_db_hook()
@@ -468,6 +469,19 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             result = self._process_output(output, hook.descriptions)
             self.log.info("result: %s", result)
             return result
+
+    def execute_complete(self, context: dict[str, Any], event: Any = None) -> Any:
+        if event is None or event.get("status") == "error":
+            raise AirflowException(event.get("message", "Unknown error in SQLExecuteQueryTrigger"))
+        self.log.info("SQL query executed successfully.")
+        results = event.get("results")
+        if not self._should_run_output_processing() or results is None:
+            return None
+        if return_single_query_results(self.sql, self.return_last, self.split_statements):
+            return self._process_output([results], [None])[-1]
+        result = self._process_output(results, [None] * len(results))
+        self.log.info("result: %s", result)
+        return result
 
     def prepare_template(self) -> None:
         """Parse template file for attribute parameters."""
