@@ -2626,6 +2626,7 @@ class BigQueryCreateRoutineOperator(GoogleCloudBaseOperator):
         "impersonation_chain",
     )
     template_fields_renderers = {"routine_resource": "json", "arguments": "json"}
+    template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.TABLE.value
 
     def __init__(
@@ -2773,6 +2774,7 @@ class BigQueryUpdateRoutineOperator(GoogleCloudBaseOperator):
         "impersonation_chain",
     )
     template_fields_renderers = {"routine_resource": "json"}
+    template_ext: Sequence[str] = (".json", ".sql")
     ui_color = BigQueryUIColors.TABLE.value
 
     def __init__(
