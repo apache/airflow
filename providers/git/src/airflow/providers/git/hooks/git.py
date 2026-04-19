@@ -153,7 +153,18 @@ class GitHook(BaseHook):
                     raise AirflowException(
                         f"Failed to read GitHub App private key file {self.key_file!r}: {exc}"
                     ) from exc
+            if not (self.repo_url or "").startswith(("https://", "http://")):
+                raise AirflowException(
+                    "GitHub App authentication requires an HTTPS repository URL, "
+                    f"but got: {self.repo_url!r}"
+                )
+            # Store the PEM separately so configure_hook_env() does not treat it as an SSH key.
+            self.github_app_private_key: str | None = self.private_key
+            self.private_key = None
+            self.key_file = None
             self.user_name, self.auth_token = self._get_github_app_token()
+        else:
+            self.github_app_private_key = None
         self._process_git_auth_url()
 
     _VALID_STRICT_HOST_KEY_CHECKING = frozenset({"yes", "no", "accept-new", "off", "ask"})
@@ -197,7 +208,7 @@ class GitHook(BaseHook):
             ) from exc
 
         github_auth = GithubAuth.AppAuth(
-            app_id=self.github_app_id, private_key=self.private_key
+            app_id=self.github_app_id, private_key=self.github_app_private_key
         ).get_installation_auth(installation_id=self.github_installation_id)
 
         # Client is needed to generate the token even though we don't use the client directly
