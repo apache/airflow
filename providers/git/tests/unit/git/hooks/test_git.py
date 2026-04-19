@@ -497,6 +497,7 @@ class TestGitHook:
             hook = GitHook(git_conn_id="git_app_key_file")
 
         assert hook.private_key == "file_pem_key_content"
+
     def test_app_auth_with_missing_key_file_raises(self, create_connection_without_db):
         create_connection_without_db(
             Connection(
