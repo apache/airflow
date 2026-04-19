@@ -1634,6 +1634,33 @@ class TestWorkerSets:
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == "test"
 
     @pytest.mark.parametrize(
+        ("queue", "expected_in_query"),
+        [
+            ("cpu", "queue IN ('cpu')"),
+            ("highcpu,highmem", "queue IN ('highcpu','highmem')"),
+        ],
+    )
+    def test_per_set_queue_renders_in_default_keda_query(self, queue, expected_in_query):
+        docs = render_chart(
+            name="test",
+            values={
+                "workers": {
+                    "celery": {
+                        "keda": {"enabled": True},
+                        "enableDefault": False,
+                        "sets": [{"name": "worker-set", "queue": queue}],
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+
+        assert len(docs) == 1
+        query = jmespath.search("spec.triggers[0].metadata.query", docs[0])
+        assert expected_in_query in query
+        assert "queue IN ('default')" not in query
+
+    @pytest.mark.parametrize(
         "workers_values",
         [
             {
