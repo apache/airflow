@@ -189,7 +189,12 @@ class GitHook(BaseHook):
         return " ".join(parts)
 
     def _get_github_app_token(self):
-        from github import Auth as GithubAuth, Github as GithubClient
+        try:
+            from github import Auth as GithubAuth, Github as GithubClient
+        except ImportError as exc:
+            raise AirflowException(
+                "The PyGithub library is required for GitHub App authentication. Please install it with 'pip install apache-airflow-providers-git[github]'"
+            ) from exc
 
         github_auth = GithubAuth.AppAuth(
             app_id=self.github_app_id, private_key=self.private_key
