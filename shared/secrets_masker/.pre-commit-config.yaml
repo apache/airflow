@@ -25,7 +25,7 @@ repos:
       - id: mypy-shared-secrets_masker
         name: Run mypy for shared-secrets_masker
         language: python
-        entry: ../../scripts/ci/prek/mypy_local_folder.py shared/secrets_masker
+        entry: ../../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py shared/secrets_masker
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

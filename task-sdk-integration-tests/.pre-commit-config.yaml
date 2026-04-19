@@ -25,7 +25,7 @@ repos:
       - id: mypy-task-sdk-integration-tests
         name: Run mypy for task-sdk-integration-tests
         language: python
-        entry: ../scripts/ci/prek/mypy_local_folder.py task-sdk-integration-tests
+        entry: ../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py task-sdk-integration-tests
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

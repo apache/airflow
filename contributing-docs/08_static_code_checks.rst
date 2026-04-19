@@ -310,7 +310,7 @@ type-checked in isolation against its own dependency set. When you add a new sha
    ``shared/<new-dist>/pyproject.toml`` (so ``uv sync --group mypy`` installs mypy into the hook's
    dedicated virtualenv).
 2. Create ``shared/<new-dist>/.pre-commit-config.yaml`` with a ``mypy-shared-<new-dist>`` hook
-   entry that calls ``../../scripts/ci/prek/mypy_local_folder.py shared/<new-dist>``.
+   entry that calls ``../../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py shared/<new-dist>``.
 
 The ``check-shared-mypy-hooks`` prek hook enforces step 2 — it fails and prints the exact config
 contents to add when any ``shared/<dist>`` is missing its dedicated mypy hook.

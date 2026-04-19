@@ -25,7 +25,9 @@ repos:
       - id: mypy-shared-template_rendering
         name: Run mypy for shared-template_rendering
         language: python
-        entry: ../../scripts/ci/prek/mypy_local_folder.py shared/template_rendering
+        entry: >-
+          ../../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py
+          shared/template_rendering
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

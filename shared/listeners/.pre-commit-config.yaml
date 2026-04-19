@@ -25,7 +25,7 @@ repos:
       - id: mypy-shared-listeners
         name: Run mypy for shared-listeners
         language: python
-        entry: ../../scripts/ci/prek/mypy_local_folder.py shared/listeners
+        entry: ../../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py shared/listeners
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

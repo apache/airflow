@@ -39,7 +39,7 @@ EXPECTED_TEMPLATE = """\
 # <license header>
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.2.0'
+minimum_prek_version: '0.3.4'
 default_language_version:
   python: python3
 repos:
@@ -48,7 +48,9 @@ repos:
       - id: mypy-shared-{dist}
         name: Run mypy for shared-{dist}
         language: python
-        entry: ../../scripts/ci/prek/mypy_local_folder.py shared/{dist}
+        entry: >-
+          ../../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py
+          shared/{dist}
         pass_filenames: false
         files: ^.*\\.py$
         require_serial: true

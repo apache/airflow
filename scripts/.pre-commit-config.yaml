@@ -25,7 +25,7 @@ repos:
       - id: mypy-scripts
         name: Run mypy for scripts
         language: python
-        entry: ./ci/prek/mypy_local_folder.py scripts
+        entry: ./ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py scripts
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

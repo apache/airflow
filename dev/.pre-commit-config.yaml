@@ -25,7 +25,7 @@ repos:
       - id: mypy-dev
         name: Run mypy for dev
         language: python
-        entry: ../scripts/ci/prek/mypy_local_folder.py dev
+        entry: ../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py dev
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

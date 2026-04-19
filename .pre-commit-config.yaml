@@ -1034,7 +1034,7 @@ repos:
       - id: mypy-devel-common
         name: Run mypy for devel-common
         language: python
-        entry: ./scripts/ci/prek/mypy_local_folder.py devel-common
+        entry: ./scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py devel-common
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

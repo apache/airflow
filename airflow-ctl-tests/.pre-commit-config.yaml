@@ -33,7 +33,7 @@ repos:
       - id: mypy-airflow-ctl-tests
         name: Run mypy for airflow-ctl-tests
         language: python
-        entry: ../scripts/ci/prek/mypy_local_folder.py airflow-ctl-tests
+        entry: ../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py airflow-ctl-tests
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

@@ -25,7 +25,9 @@ repos:
       - id: mypy-shared-providers_discovery
         name: Run mypy for shared-providers_discovery
         language: python
-        entry: ../../scripts/ci/prek/mypy_local_folder.py shared/providers_discovery
+        entry: >-
+          ../../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py
+          shared/providers_discovery
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

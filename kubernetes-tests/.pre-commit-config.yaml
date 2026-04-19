@@ -25,7 +25,7 @@ repos:
       - id: mypy-kubernetes-tests
         name: Run mypy for kubernetes-tests
         language: python
-        entry: ../scripts/ci/prek/mypy_local_folder.py kubernetes-tests
+        entry: ../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py kubernetes-tests
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
