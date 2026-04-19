@@ -68,7 +68,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 github = [
-    "pygithub>=2.1.1",
+    "PyGithub>=2.1.1",
 ]
 
 [dependency-groups]
