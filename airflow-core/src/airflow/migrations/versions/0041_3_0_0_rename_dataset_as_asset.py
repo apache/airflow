@@ -102,18 +102,18 @@ def _drop_fkey_if_exists(table, constraint_name):
     conn = op.get_bind()
     dialect_name = conn.dialect.name
 
-    if dialect_name == "sqlite":
-        # SQLite requires foreign key constraints to be disabled during batch operations
+    if dialect_name == "mysql":
+        mysql_drop_foreignkey_if_exists(constraint_name, table, op)
+    elif dialect_name == "postgresql":
+        op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")
+    else:
+        # SQLite requires foreign key constraints to be disabled during batch operations.
         with disable_sqlite_fkeys(op):
             try:
                 with op.batch_alter_table(table, schema=None) as batch_op:
                     batch_op.drop_constraint(op.f(constraint_name), type_="foreignkey")
             except ValueError:
                 pass
-    elif dialect_name == "mysql":
-        mysql_drop_foreignkey_if_exists(constraint_name, table, op)
-    else:
-        op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")
 
 
 # original table name to new table name

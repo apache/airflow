@@ -62,16 +62,16 @@ def upgrade():
                     """)
         )
 
-    with disable_sqlite_fkeys(op):
-        if dialect_name == "sqlite":
-            op.execute(
-                text("""
-                        INSERT OR IGNORE INTO dag_bundle (name) VALUES
-                        ('example_dags'),
-                        ('dags-folder');
-                        """)
-            )
+    if dialect_name == "sqlite":
+        op.execute(
+            text("""
+                    INSERT OR IGNORE INTO dag_bundle (name) VALUES
+                    ('example_dags'),
+                    ('dags-folder');
+                    """)
+        )
 
+    with disable_sqlite_fkeys(op):
         conn = op.get_bind()
         with ignore_sqlite_value_error(), op.batch_alter_table("dag", schema=None) as batch_op:
             conn.execute(
