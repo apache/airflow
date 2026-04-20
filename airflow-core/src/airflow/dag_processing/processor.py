@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib
+import logging
 import os
 import traceback
 from collections.abc import Callable, Sequence
@@ -531,6 +532,9 @@ class DagFileProcessorProcess(WatchedSubprocess):
     client: Client
     """The HTTP client to use for communication with the API server."""
 
+    bundle_name: str
+    dag_file_rel_path: str
+
     @classmethod
     def start(  # type: ignore[override]
         cls,
@@ -547,7 +551,13 @@ class DagFileProcessorProcess(WatchedSubprocess):
 
         _pre_import_airflow_modules(os.fspath(path), logger)
 
-        proc: Self = super().start(target=target, client=client, **kwargs)
+        proc: Self = super().start(
+            target=target,
+            client=client,
+            bundle_name=bundle_name,
+            dag_file_rel_path=str(Path(path).relative_to(bundle_path)),
+            **kwargs,
+        )
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
         proc._on_child_started(callbacks, path, bundle_path, bundle_name)
         return proc
@@ -566,6 +576,17 @@ class DagFileProcessorProcess(WatchedSubprocess):
             callback_requests=callbacks,
         )
         self.send_msg(msg, request_id=0)
+
+    def _get_target_loggers(self):
+        base = super()._get_target_loggers()
+        if not self.subprocess_logs_to_stdout:
+            return base
+        return tuple(
+            logger.bind(dag_file=self.dag_file_rel_path, bundle_name=self.bundle_name) for logger in base
+        )
+
+    def _create_log_forwarder(self, loggers, name, log_level=logging.INFO):
+        return super()._create_log_forwarder(loggers, name.replace("task.", "dag_processor.", 1), log_level)
 
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import (

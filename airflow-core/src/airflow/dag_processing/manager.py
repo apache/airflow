@@ -1172,6 +1172,7 @@ class DagFileProcessorManager(LoggingMixin):
             selector=self.selector,
             logger=logger,
             logger_filehandle=logger_filehandle,
+            subprocess_logs_to_stdout=conf.get("logging", "dag_processor_log_target") == "stdout",
             client=self.client,
         )
 
