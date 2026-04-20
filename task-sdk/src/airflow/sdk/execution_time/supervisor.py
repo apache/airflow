@@ -550,7 +550,8 @@ class WatchedSubprocess:
         use_exec: bool = False,
         **constructor_kwargs,
     ) -> Self:
-        """Fork and start a new subprocess with the specified target function.
+        """
+        Fork and start a new subprocess with the specified target function.
 
         :param use_exec: If True, on platforms that need it (currently macOS),
             immediately ``os.execv`` a fresh Python interpreter after ``os.fork``.
@@ -587,12 +588,15 @@ class WatchedSubprocess:
                     os.dup2(child_requests.fileno(), 0)
                     os.dup2(child_stdout.fileno(), 1)
                     os.dup2(child_stderr.fileno(), 2)
-                    os.execv(sys.executable, [
+                    os.execv(
                         sys.executable,
-                        "-c",
-                        "from airflow.sdk.execution_time.supervisor import _child_exec_main;"
-                        " _child_exec_main()",
-                    ])
+                        [
+                            sys.executable,
+                            "-c",
+                            "from airflow.sdk.execution_time.supervisor import _child_exec_main;"
+                            " _child_exec_main()",
+                        ],
+                    )
                     # execv replaces the process -- unreachable on success
                 else:
                     # Run the child entrypoint
