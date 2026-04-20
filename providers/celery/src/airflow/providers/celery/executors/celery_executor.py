@@ -64,11 +64,16 @@ if TYPE_CHECKING:
     from airflow.providers.celery.executors.celery_executor_utils import TaskTuple, WorkloadInCelery
 
     if AIRFLOW_V_3_2_PLUS:
-        from airflow.executors.workloads.types import WorkloadKey as _WorkloadKey
+        from airflow.executors.workloads.types import (
+            WorkloadKey as _WorkloadKey,
+            WorkloadState as _WorkloadState,
+        )
 
         WorkloadKey: TypeAlias = _WorkloadKey
+        WorkloadState: TypeAlias = _WorkloadState
     else:
         WorkloadKey: TypeAlias = TaskInstanceKey  # type: ignore[no-redef, misc]
+        WorkloadState: TypeAlias = TaskInstanceState  # type: ignore[no-redef, misc]
 
 
 # PEP562
@@ -277,9 +282,7 @@ class CeleryExecutor(BaseExecutor):
             if state:
                 self.update_task_state(cast("TaskInstanceKey", key), state, info)
 
-    def change_state(
-        self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
-    ) -> None:
+    def change_state(self, key: WorkloadKey, state: WorkloadState, info=None, remove_running=True) -> None:
         super().change_state(key, state, info, remove_running=remove_running)
         self.workloads.pop(key, None)
 

@@ -369,13 +369,14 @@ repos:
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
-          ^\.github/skills/airflow-translations/
+          ^\.github/skills/airflow-translations/|
+          ^scripts/docker/keys/.*\.asc$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: ea2eb407b4cbce87cf0d502f36578950494f5ac9  # frozen: v1.23.1
+    rev: 0703f40666c15722d5402120b1bbd61bc3503772  # frozen: v1.24.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -925,6 +926,14 @@ repos:
         language: python
         pass_filenames: false
         files: ^Dockerfile$|^Dockerfile\.ci$|^scripts/docker/.*$
+        require_serial: true
+      - id: update-docker-gpg-keys
+        name: Update Docker build GPG keys (manual)
+        entry: ./scripts/ci/prek/update_docker_gpg_keys.py
+        stages: ['manual']
+        language: python
+        pass_filenames: false
+        files: ^scripts/docker/keys/.*$|^scripts/ci/prek/update_docker_gpg_keys\.py$
         require_serial: true
       - id: check-changelog-has-no-duplicates
         name: Check changelogs for duplicate entries
