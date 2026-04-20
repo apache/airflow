@@ -566,10 +566,7 @@ class WatchedSubprocess:
             )
         )
 
-        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
-
-        if self.subprocess_logs_to_stdout:
-            target_loggers += (log,)
+        target_loggers = self._get_target_loggers()
 
         self.selector.register(
             stdout, selectors.EVENT_READ, self._create_log_forwarder(target_loggers, "task.stdout")
@@ -591,6 +588,13 @@ class WatchedSubprocess:
             selectors.EVENT_READ,
             length_prefixed_frame_reader(self.handle_requests(log), on_close=self._on_socket_closed),
         )
+
+    def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
+        """Return the loggers that child process output should be forwarded to."""
+        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
+        if self.subprocess_logs_to_stdout:
+            target_loggers += (log,)
+        return target_loggers
 
     def _create_log_forwarder(self, loggers, name, log_level=logging.INFO) -> Callable[[socket], bool]:
         """Create a socket handler that forwards logs to a logger."""
