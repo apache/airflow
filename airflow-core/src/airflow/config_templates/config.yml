@@ -1609,10 +1609,11 @@ api:
     dag_cache_size:
       description: |
         Size of the LRU cache for SerializedDAG objects in the API server.
-        Set to 0 to use an unbounded dict (no eviction, pre-3.2 behavior). The cache is keyed by DAG version ID,
-        so lookups by DAG ID (e.g., viewing a DAG's details) always query
-        the database for the latest version, but the deserialized result is
-        cached for subsequent version-specific lookups.
+        Set to 0 to use an unbounded dict (no eviction, matching pre-3.2 behavior).
+        The cache is keyed by Dag version ID, so lookups by Dag ID
+        (e.g., viewing a Dag's details) always query the database for the latest
+        version, but the deserialized result is cached for subsequent
+        version-specific lookups.
       version_added: 3.3.0
       type: integer
       example: ~

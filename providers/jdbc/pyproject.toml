@@ -63,6 +63,13 @@ dependencies = [
     "apache-airflow-providers-common-compat>=1.14.0",
     "apache-airflow-providers-common-sql>=1.32.0",
     "jaydebeapi>=1.1.1",
+    # jpype1 1.7.0 stopped shipping prebuilt macOS arm64 wheels and requires compilation
+    # against a properly configured JDK on Apple Silicon, which breaks `uv sync` out of
+    # the box. Exclude only 1.7.0 on darwin-arm64 — upstream is planning to restore the
+    # wheels in 1.7.1 (see https://github.com/jpype-project/jpype/issues/1357). Other
+    # platforms (including macOS x86_64) still get all published versions.
+    "jpype1>=1.4.0,!=1.7.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "jpype1>=1.4.0; sys_platform != 'darwin' or platform_machine != 'arm64'",
 ]
 
 [dependency-groups]

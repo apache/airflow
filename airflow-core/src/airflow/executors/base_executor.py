@@ -24,7 +24,7 @@ from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pendulum
 
@@ -35,13 +35,33 @@ from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads.callback import ExecuteCallback
 from airflow.executors.workloads.task import ExecuteTask
+from airflow.executors.workloads.types import state_class_for_key
 from airflow.models import Log
 from airflow.models.callback import CallbackKey
 from airflow.observability.metrics import stats_utils
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import TaskInstanceState
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
+
+
+def get_execution_api_server_url(conf_source: AirflowConfigParser | ExecutorConf = conf) -> str:
+    """
+    Resolve the execution API server URL from configuration.
+
+    :param conf_source: Configuration source to read from. Defaults to the global ``conf``.
+        Team-specific executors can pass their own config (e.g. ``ExecutorConf``) to resolve
+        a team-specific URL.
+    """
+    base_url = conf_source.get("api", "base_url", fallback="/")
+    # ExecutorConf.get() is typed as str | None even when fallback= guarantees a str,
+    # so the `not base_url` guard and the cast() below keep mypy happy.
+    if not base_url or base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
+    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+    return cast(
+        "str", conf_source.get("core", "execution_api_server_url", fallback=default_execution_api_server)
+    )
+
 
 if TYPE_CHECKING:
     import argparse
@@ -53,9 +73,10 @@ if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
+    from airflow.configuration import AirflowConfigParser
     from airflow.executors.executor_utils import ExecutorName
     from airflow.executors.workloads import ExecutorWorkload
-    from airflow.executors.workloads.types import WorkloadKey
+    from airflow.executors.workloads.types import WorkloadKey, WorkloadState
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -219,8 +240,11 @@ class BaseExecutor(LoggingMixin):
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
 
-    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
+    def log_task_event(self, *, event: str, extra: str, ti_key: WorkloadKey):
         """Add an event to the log table."""
+        if isinstance(ti_key, CallbackKey):
+            self.log.debug("Skipping log_task_event for callback key %s (event=%s)", ti_key, event)
+            return
         self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
 
     def queue_workload(self, workload: ExecutorWorkload, session: Session) -> None:
@@ -407,9 +431,7 @@ class BaseExecutor(LoggingMixin):
     # TODO: This should not be using `TaskInstanceState` here, this is just "did the process complete, or did
     # it die". It is possible for the task itself to finish with success, but the state of the task to be set
     # to FAILED. By using TaskInstanceState enum here it confuses matters!
-    def change_state(
-        self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
-    ) -> None:
+    def change_state(self, key: WorkloadKey, state: WorkloadState, info=None, remove_running=True) -> None:
         """
         Change state of the task.
 
@@ -426,41 +448,41 @@ class BaseExecutor(LoggingMixin):
                 self.log.debug("Could not find key: %s", key)
         self.event_buffer[key] = state, info
 
-    def fail(self, key: TaskInstanceKey, info=None) -> None:
+    def fail(self, key: WorkloadKey, info=None) -> None:
         """
         Set fail state for the event.
 
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, TaskInstanceState.FAILED, info)
+        self.change_state(key, state_class_for_key(key).FAILED, info)
 
-    def success(self, key: TaskInstanceKey, info=None) -> None:
+    def success(self, key: WorkloadKey, info=None) -> None:
         """
         Set success state for the event.
 
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, TaskInstanceState.SUCCESS, info)
+        self.change_state(key, state_class_for_key(key).SUCCESS, info)
 
-    def queued(self, key: TaskInstanceKey, info=None) -> None:
+    def queued(self, key: WorkloadKey, info=None) -> None:
         """
         Set queued state for the event.
 
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, TaskInstanceState.QUEUED, info)
+        self.change_state(key, state_class_for_key(key).QUEUED, info)
 
-    def running_state(self, key: TaskInstanceKey, info=None) -> None:
+    def running_state(self, key: WorkloadKey, info=None) -> None:
         """
         Set running state for the event.
 
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, TaskInstanceState.RUNNING, info, remove_running=False)
+        self.change_state(key, state_class_for_key(key).RUNNING, info, remove_running=False)
 
     def get_event_buffer(self, dag_ids=None) -> dict[WorkloadKey, EventBufferValueType]:
         """
@@ -617,14 +639,7 @@ class BaseExecutor(LoggingMixin):
         # Resolve server URL from config when not explicitly provided.
         # For example, team-specific executors may wish to pass their own server URL.
         if server is None:
-            base_url = conf.get("api", "base_url", fallback="/")
-            if base_url.startswith("/"):
-                base_url = f"http://localhost:8080{base_url}"
-            server = conf.get(
-                "core",
-                "execution_api_server_url",
-                fallback=f"{base_url.rstrip('/')}/execution/",
-            )
+            server = get_execution_api_server_url()
 
         if isinstance(workload, ExecuteTask):
             from airflow.sdk.execution_time.supervisor import supervise_task

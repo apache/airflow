@@ -31,7 +31,7 @@ repos:
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: 8c02ba71e7e9c5c90d85f05b676523cb8fd897c6  # frozen: v2.4.0
+    rev: d77825acdc8ca194308680fa4f8385ae5bb61cb4  # frozen: v2.4.1
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -369,13 +369,14 @@ repos:
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
-          ^\.github/skills/airflow-translations/
+          ^\.github/skills/airflow-translations/|
+          ^scripts/docker/keys/.*\.asc$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: ea2eb407b4cbce87cf0d502f36578950494f5ac9  # frozen: v1.23.1
+    rev: a4727cbbcd26d7098e96b9cb738169b59711ae51  # frozen: v1.24.1
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -926,6 +927,14 @@ repos:
         pass_filenames: false
         files: ^Dockerfile$|^Dockerfile\.ci$|^scripts/docker/.*$
         require_serial: true
+      - id: update-docker-gpg-keys
+        name: Update Docker build GPG keys (manual)
+        entry: ./scripts/ci/prek/update_docker_gpg_keys.py
+        stages: ['manual']
+        language: python
+        pass_filenames: false
+        files: ^scripts/docker/keys/.*$|^scripts/ci/prek/update_docker_gpg_keys\.py$
+        require_serial: true
       - id: check-changelog-has-no-duplicates
         name: Check changelogs for duplicate entries
         language: python
@@ -1022,19 +1031,19 @@ repos:
           ^uv\.lock$
         pass_filenames: false
         require_serial: true
-      - id: mypy-dev
-        name: Run mypy for dev
-        language: python
-        entry: ./scripts/ci/prek/mypy_local_folder.py dev scripts
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true
       - id: mypy-devel-common
         name: Run mypy for devel-common
         language: python
-        entry: ./scripts/ci/prek/mypy_local_folder.py devel-common
+        entry: ./scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py devel-common
         pass_filenames: false
         files: ^.*\.py$
+        require_serial: true
+      - id: check-shared-mypy-hooks
+        name: Every shared/<dist> has a mypy-shared-<dist> prek hook
+        language: python
+        entry: ./scripts/ci/prek/check_shared_mypy_hooks.py
+        pass_filenames: false
+        files: ^shared/.*|^scripts/ci/prek/check_shared_mypy_hooks\.py$
         require_serial: true
       ## ADD MOST PREK HOOK ABOVE THAT LINE
       # The below prek hooks are those requiring CI image to be built
