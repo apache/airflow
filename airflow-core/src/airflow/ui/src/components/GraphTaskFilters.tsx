@@ -94,7 +94,7 @@ export const GraphTaskFilters = () => {
 
   const [isOpen, setIsOpen] = useState(false);
 
-  useHotkeys("mod+f", () => setIsOpen(true), { preventDefault: true });
+  useHotkeys("mod+shift+f", () => setIsOpen(true), { preventDefault: true });
 
   const tooltipContent = translate("dag:panel.graphFilters.title");
 
