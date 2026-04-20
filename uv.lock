@@ -22,7 +22,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-16T19:13:06.968011Z"
+exclude-newer = "2026-04-16T14:57:18.176731926Z"
 exclude-newer-span = "P4D"
 
 [options.exclude-newer-package]
@@ -101,9 +101,9 @@ apache-airflow-providers-mongo = false
 apache-airflow-providers-apprise = false
 apache-airflow-providers-apache-impala = false
 apache-airflow-ctl = false
+apache-airflow-providers-zendesk = false
 apache-airflow-providers-github = false
 apache-airflow-providers-snowflake = false
-apache-airflow-providers-zendesk = false
 apache-airflow-providers-presto = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-apache-hive = false
@@ -5486,6 +5486,8 @@ dependencies = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
     { name = "jaydebeapi" },
+    { name = "jpype1", version = "1.6.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
+    { name = "jpype1", version = "1.7.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'darwin'" },
 ]
 
 [package.dev-dependencies]
@@ -5506,6 +5508,8 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "jaydebeapi", specifier = ">=1.1.1" },
+    { name = "jpype1", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'", specifier = ">=1.4.0" },
+    { name = "jpype1", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'", specifier = ">=1.4.0,!=1.7.0" },
 ]
 
 [package.metadata.requires-dev]
