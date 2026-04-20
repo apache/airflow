@@ -1003,7 +1003,7 @@ class TestGitDagBundle:
         mock_git.custom_environment.assert_called_once_with(**full_hook_env)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
-    def test_fetch_submodules_skips_custom_environment_without_git_ssh_command(self, mock_githook_class):
+    def test_fetch_submodules_skips_custom_environment_when_hook_env_empty(self, mock_githook_class):
         """When hook.env is empty, submodule update does not use custom_environment."""
         mock_hook = mock_githook_class.return_value
         mock_hook.repo_url = "git@github.com:apache/airflow.git"
