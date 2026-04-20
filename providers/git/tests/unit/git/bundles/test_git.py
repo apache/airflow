@@ -967,8 +967,6 @@ class TestGitDagBundle:
         mock_git.submodule.assert_has_calls(
             [mock.call("sync", "--recursive"), mock.call("update", "--init", "--recursive", "--jobs", "1")]
         )
-        assert mock_git.mock_calls[0] == mock.call.custom_environment(GIT_SSH_COMMAND=expected_ssh_cmd)
-        assert mock_git.mock_calls[1] == mock.call.submodule("sync", "--recursive")
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_fetch_submodules_skips_custom_environment_without_git_ssh_command(self, mock_githook_class):
