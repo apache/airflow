@@ -17,39 +17,46 @@
 # under the License.
 
 """
-Add partial index on task_instance (state, updated_at) for terminal states.
+Add composite index on task_instance(updated_at, dag_id).
 
-Revision ID: c4f5e6d7a8b9
-Revises: 9fabad868fdb
+Without this index, GET /dags/~/dagRuns/~/taskInstances filtered by an
+updated_at range (e.g. hourly polling windows) plus the dag_id IN (...)
+clause injected by PermittedTIFilter causes a full sequential scan on
+task_instance, observed at ~39s avg latency in RDS Performance Insights.
+
+Putting updated_at first lets Postgres bound the scan to the time window,
+then use dag_id as a secondary filter within that range. A partial index
+(as used in 0112) would not help here because this query has no state
+filter and must cover task instances in all states.
+
+Revision ID: d1e2f3a4b5c6
+Revises: b0c1d2e3f4a5
 Create Date: 2026-04-20 00:00:00.000000
 
 """
 
 from __future__ import annotations
 
-import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "c4f5e6d7a8b9"
-down_revision = "9fabad868fdb"
+revision = "d1e2f3a4b5c6"
+down_revision = "b0c1d2e3f4a5"
 branch_labels = None
 depends_on = None
-airflow_version = "3.2.0"
+airflow_version = "3.3.0"
 
 
 def upgrade():
-    """Add partial index on task_instance (state, updated_at) for terminal states."""
+    """Add composite index on task_instance(updated_at, dag_id)."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.create_index(
-            "ti_state_updated_at",
-            ["state", "updated_at"],
-            postgresql_where=sa.text("state IN ('success', 'failed')"),
-            sqlite_where=sa.text("state IN ('success', 'failed')"),
+            "ti_updated_at_dag_id",
+            ["updated_at", "dag_id"],
         )
 
 
 def downgrade():
-    """Remove partial index on task_instance (state, updated_at) for terminal states."""
+    """Remove composite index on task_instance(updated_at, dag_id)."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.drop_index("ti_state_updated_at")
+        batch_op.drop_index("ti_updated_at_dag_id")

@@ -39,12 +39,12 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``d1e2f3a4b5c6`` (head) | ``b0c1d2e3f4a5`` | ``3.2.0``         | Add composite index on task_instance(updated_at, dag_id).    |
+| ``d1e2f3a4b5c6`` (head) | ``b0c1d2e3f4a5`` | ``3.3.0``         | Add composite index on task_instance(updated_at, dag_id).    |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
-| ``b0c1d2e3f4a5``        | ``c4f5e6d7a8b9`` | ``3.2.0``         | Add partial index on task_instance (span_status) for         |
+| ``b0c1d2e3f4a5``        | ``c4f5e6d7a8b9`` | ``3.3.0``         | Add partial index on task_instance (span_status) for         |
 |                         |                  |                   | should_end spans.                                            |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
-| ``c4f5e6d7a8b9``        | ``9fabad868fdb`` | ``3.2.0``         | Add partial index on task_instance (state, updated_at) for   |
+| ``c4f5e6d7a8b9``        | ``9fabad868fdb`` | ``3.3.0``         | Add partial index on task_instance (state, updated_at) for   |
 |                         |                  |                   | terminal states.                                             |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``9fabad868fdb``        | ``a4c2d171ae18`` | ``3.3.0``         | Add timetable_periodic to DagModel.                          |
