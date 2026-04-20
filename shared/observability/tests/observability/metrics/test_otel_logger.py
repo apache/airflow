@@ -25,8 +25,7 @@ from unittest import mock
 
 import pytest
 from opentelemetry.metrics import MeterProvider
-from opentelemetry.sdk.metrics._internal.aggregation import ExponentialBucketHistogramAggregation
-from opentelemetry.sdk.metrics.view import View
+from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation, View
 
 from airflow_shared.observability.common import get_otel_data_exporter
 from airflow_shared.observability.exceptions import InvalidStatsNameException
