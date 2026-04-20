@@ -186,8 +186,7 @@ class EdgeExecutor(BaseExecutor):
             # Reset presented status
             sysinfo = dict(worker.sysinfo or {})  # copy needed to have alembic detect change in content
             sysinfo["status"] = logging.NOTSET
-            if "status_text" in sysinfo:
-                del sysinfo["status_text"]  # Remove old status text if exists
+            sysinfo.pop("status_text", None)  # Remove old status text if exists
             worker.sysinfo = sysinfo
             self.log.warning("Worker %s is lifeless. Setting state to %s", worker.worker_name, worker.state)
             reset_metrics(worker.worker_name)
