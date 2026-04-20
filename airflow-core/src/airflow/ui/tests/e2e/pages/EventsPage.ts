@@ -52,11 +52,12 @@ export class EventsPage extends BasePage {
   public async addFilter(filterName: string): Promise<void> {
     const filterButton = this.page.getByTestId("add-filter-button");
 
+    await expect(filterButton).toBeVisible({ timeout: 30_000 });
     await filterButton.click();
 
     const filterMenu = this.page.getByRole("menu");
 
-    await expect(filterMenu).toBeVisible({ timeout: 10_000 });
+    await expect(filterMenu).toBeVisible({ timeout: 30_000 });
 
     const menuItem = filterMenu.getByRole("menuitem", { name: filterName });
 
@@ -114,17 +115,19 @@ export class EventsPage extends BasePage {
   }
 
   public async navigate(): Promise<void> {
-    await this.navigateTo("/events");
-    await this.waitForTableLoad();
+    await expect(async () => {
+      await this.navigateTo("/events");
+      await this.waitForTableLoad();
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async navigateToAuditLog(dagId: string): Promise<void> {
     await expect(async () => {
-      await this.safeGoto(EventsPage.getEventsUrl(dagId), {
+      await this.page.goto(EventsPage.getEventsUrl(dagId), {
         timeout: 10_000,
         waitUntil: "domcontentloaded",
       });
-      await this.eventsTable.waitFor({ state: "visible", timeout: 5000 });
+      await expect(this.eventsTable).toBeVisible({ timeout: 10_000 });
     }).toPass({ intervals: [2000], timeout: 60_000 });
     await this.waitForTableLoad();
   }
@@ -142,10 +145,39 @@ export class EventsPage extends BasePage {
       .locator("input")
       .first();
 
-    await expect(filterInput).toBeVisible({ timeout: 10_000 });
+    await expect(filterInput).toBeVisible({ timeout: 30_000 });
     await filterInput.fill(value);
+
+    const responsePromise = this.page.waitForResponse(
+      (res) => res.url().includes("/api/v2/eventLogs") && res.ok(),
+      { timeout: 30_000 },
+    );
+
     await filterInput.press("Enter");
+    await responsePromise;
     await this.waitForTableLoad();
+  }
+
+  public async verifyFilterMenuHasOptions(): Promise<void> {
+    const filterButton = this.page.getByTestId("add-filter-button");
+
+    await expect(filterButton).toBeVisible();
+    await filterButton.click();
+
+    const filterMenu = this.page.getByRole("menu");
+
+    await expect(filterMenu).toBeVisible({ timeout: 5000 });
+
+    const textSearchOptions = this.page.getByRole("menuitem").filter({
+      hasText: /DAG ID|Event Type|User/,
+    });
+
+    const textSearchOptionsCount = await textSearchOptions.count();
+
+    expect(textSearchOptionsCount).toBeGreaterThan(0);
+    await expect(textSearchOptions.first()).toBeVisible();
+
+    await this.page.keyboard.press("Escape");
   }
 
   public async verifyLogEntriesWithData(): Promise<void> {

@@ -65,8 +65,13 @@ def escape_slack_mrkdwn(text: str) -> str:
 
 
 def gh_api(endpoint: str, **kwargs: str) -> str | None:
-    """Call GitHub API via gh CLI."""
-    cmd = ["gh", "api", endpoint]
+    """Call GitHub API via gh CLI.
+
+    Forces ``--method GET``: ``gh api`` defaults to POST whenever ``-f``
+    parameters are present, which makes read-only endpoints (such as the
+    workflow runs list) return 404.
+    """
+    cmd = ["gh", "api", "--method", "GET", endpoint]
     for key, value in kwargs.items():
         cmd.extend(["-f", f"{key}={value}"])
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)

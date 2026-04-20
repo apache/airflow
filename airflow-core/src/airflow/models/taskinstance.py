@@ -794,6 +794,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             select(TaskInstance)
             .options(lazyload(TaskInstance.dag_run))  # lazy load dag run to avoid locking it
             .filter_by(
+                dag_id=dag_id,
                 run_id=run_id,
                 task_id=task_id,
                 map_index=map_index,
@@ -1096,7 +1097,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         prefix = f"<TaskInstance: {self.dag_id}.{self.task_id} {self.run_id} "
         if self.map_index != -1:
             prefix += f"map_index={self.map_index} "
-        return prefix + f"[{self.state}]>"
+        return prefix + f"[{self.state}] ti_id={self.id}>"
 
     def next_retry_datetime(self):
         """

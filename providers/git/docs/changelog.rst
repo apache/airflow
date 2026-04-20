@@ -19,6 +19,18 @@
 Changelog
 ---------
 
+0.3.1
+.....
+
+Misc
+~~~~
+
+* ``Harden GitHook SSH command building and URL construction (#64756)``
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.3.0
 .....
 

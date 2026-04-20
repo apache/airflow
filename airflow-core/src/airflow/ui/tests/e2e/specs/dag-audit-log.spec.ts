@@ -16,54 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from "@playwright/test";
-import { AUTH_FILE, testConfig } from "playwright.config";
-import { DagsPage } from "tests/e2e/pages/DagsPage";
-import { EventsPage } from "tests/e2e/pages/EventsPage";
+import { expect } from "tests/e2e/fixtures";
+import { test } from "tests/e2e/fixtures/audit-log-data";
 
 test.describe("DAG Audit Log", () => {
-  let eventsPage: EventsPage;
+  test.setTimeout(60_000);
 
-  const testDagId = testConfig.testDag.id;
-  const triggerCount = 3;
-  const expectedEventCount = triggerCount + 1;
-
-  test.setTimeout(120_000);
-
-  test.beforeAll(async ({ browser }) => {
-    test.setTimeout(3 * 60 * 1000);
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
-    const setupDagsPage = new DagsPage(page);
-    const setupEventsPage = new EventsPage(page);
-
-    for (let i = 0; i < triggerCount; i++) {
-      await setupDagsPage.triggerDag(testDagId);
-    }
-
-    await setupEventsPage.navigateToAuditLog(testDagId);
-    await expect(async () => {
-      const count = await setupEventsPage.tableRows.count();
-
-      expect(count).toBeGreaterThanOrEqual(expectedEventCount);
-    }).toPass({ timeout: 60_000 });
-
-    await context.close();
-  });
-
-  test.beforeEach(({ page }) => {
-    eventsPage = new EventsPage(page);
-  });
-
-  test("verify audit log table displays", async () => {
-    await eventsPage.navigateToAuditLog(testDagId);
+  test("verify audit log table displays", async ({ auditLogData, eventsPage }) => {
+    await eventsPage.navigateToAuditLog(auditLogData.dagId);
 
     await expect(eventsPage.eventsTable).toBeVisible();
     await expect(eventsPage.tableRows).not.toHaveCount(0);
   });
 
-  test("verify expected columns are visible", async () => {
-    await eventsPage.navigateToAuditLog(testDagId);
+  test("verify expected columns are visible", async ({ auditLogData, eventsPage }) => {
+    await eventsPage.navigateToAuditLog(auditLogData.dagId);
 
     await expect(eventsPage.whenColumn).toBeVisible();
     await expect(eventsPage.eventColumn).toBeVisible();
@@ -75,8 +42,8 @@ test.describe("DAG Audit Log", () => {
     await expect(dagIdColumn).not.toBeVisible();
   });
 
-  test.fixme("verify audit log entries display valid data", async () => {
-    await eventsPage.navigateToAuditLog(testDagId);
+  test("verify audit log entries display valid data", async ({ auditLogData, eventsPage }) => {
+    await eventsPage.navigateToAuditLog(auditLogData.dagId);
 
     await expect(eventsPage.tableRows).not.toHaveCount(0);
 

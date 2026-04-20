@@ -89,6 +89,11 @@ export const useEditConnection = (
     if (requestBody.schema !== initialConnection.schema) {
       updateMask.push("schema");
     }
+    if (requestBody.team_name !== initialConnection.team_name) {
+      updateMask.push("team_name");
+    }
+
+    const teamName = requestBody.team_name === "" ? undefined : requestBody.team_name;
 
     mutate({
       connectionId: initialConnection.connection_id,
@@ -99,6 +104,7 @@ export const useEditConnection = (
         extra: requestBody.extra === "{}" ? undefined : requestBody.extra,
         // eslint-disable-next-line unicorn/no-null
         port: requestBody.port === "" ? null : Number(requestBody.port),
+        team_name: teamName,
       },
       updateMask,
     });

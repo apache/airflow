@@ -1136,6 +1136,7 @@ class TestDagDetails(TestDagEndpoint):
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
+            "is_backfillable": False,
             "is_favorite": False,
             "is_paused": False,
             "is_paused_upon_creation": None,
@@ -1178,6 +1179,7 @@ class TestDagDetails(TestDagEndpoint):
             "template_search_path": None,
             "timetable_description": "Never, external triggers only",
             "timetable_partitioned": False,
+            "timetable_periodic": False,
             "timetable_summary": None,
             "timezone": UTC_JSON_REPR,
         }
@@ -1235,6 +1237,7 @@ class TestDagDetails(TestDagEndpoint):
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
+            "is_backfillable": False,
             "is_favorite": False,
             "is_stale": False,
             "is_paused": False,
@@ -1278,6 +1281,7 @@ class TestDagDetails(TestDagEndpoint):
             "timetable_summary": None,
             "timetable_description": "Never, external triggers only",
             "timetable_partitioned": False,
+            "timetable_periodic": False,
             "timezone": UTC_JSON_REPR,
         }
         assert res_json == expected
@@ -1437,6 +1441,7 @@ class TestGetDag(TestDagEndpoint):
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
+            "is_backfillable": False,
             "is_paused": False,
             "is_stale": False,
             "last_expired": None,
@@ -1454,6 +1459,7 @@ class TestGetDag(TestDagEndpoint):
             "tags": tags,
             "timetable_description": "Never, external triggers only",
             "timetable_partitioned": False,
+            "timetable_periodic": False,
             "timetable_summary": None,
         }
         assert res_json == expected

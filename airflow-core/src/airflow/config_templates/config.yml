@@ -1606,6 +1606,31 @@ api:
       type: string
       example: ~
       default: "False"
+    dag_cache_size:
+      description: |
+        Size of the LRU cache for SerializedDAG objects in the API server.
+        Set to 0 to use an unbounded dict (no eviction, matching pre-3.2 behavior).
+        The cache is keyed by Dag version ID, so lookups by Dag ID
+        (e.g., viewing a Dag's details) always query the database for the latest
+        version, but the deserialized result is cached for subsequent
+        version-specific lookups.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "64"
+    dag_cache_ttl:
+      description: |
+        Time-to-live (seconds) for cached SerializedDAG objects in the API server.
+        After this time, cached DAGs will be re-fetched from the database on next access.
+        Set to 0 to disable TTL (cache entries will only be evicted by LRU policy).
+
+        Note: After a DAG is updated, the API server may serve the previous version
+        until the cached entry expires. Lower values reduce staleness but increase
+        database load.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "3600"
     base_url:
       description: |
         The base url of the API server. Airflow cannot guess what domain or CNAME you are using.
@@ -1987,8 +2012,14 @@ api_auth:
       description: |
         Secret key used to encode and decode JWTs to authenticate to public and private APIs.
 
-        It should be as random as possible. However, when running more than 1 instances of API services,
-        make sure all of them use the same ``jwt_secret`` otherwise calls will fail on authentication.
+        It should be as random as possible. This key must be consistent across all components that
+        generate or validate JWT tokens (Scheduler, API Server). For improved security, consider
+        using asymmetric keys (``jwt_private_key_path``) instead, which allow you to restrict the
+        signing key to only the components that need to generate tokens.
+
+        For security-sensitive deployments, pass this value via environment variable
+        (``AIRFLOW__API_AUTH__JWT_SECRET``) rather than storing it in a configuration file, and
+        restrict it to only the components that need it.
 
         Mutually exclusive with ``jwt_private_key_path``.
       version_added: 3.0.0

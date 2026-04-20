@@ -49,19 +49,6 @@ updates:
     schedule:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
-    target-branch: v3-1-test
-    groups:
-      github-actions-updates:
-        patterns:
-          - "*"
-
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    cooldown:
-      default-days: 4
-    schedule:
-      # Check for updates to GitHub Actions every week
-      interval: "weekly"
     target-branch: v2-11-test
     groups:
       github-actions-updates:
@@ -264,66 +251,6 @@ updates:
     target-branch: v3-2-test
     groups:
       3-2-auth-ui-package-updates:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-
-  # Repeat dependency updates on v3-1-test branch as well
-  - package-ecosystem: pip
-    cooldown:
-      default-days: 4
-    directories:
-      - /airflow-core
-      - /airflow-ctl
-      - /clients/python
-      - /dev/breeze
-      - /docker-tests
-      - /kubernetes-tests
-      - /helm-tests
-      - /task-sdk
-      - /
-    schedule:
-      interval: daily
-    target-branch: v3-1-test
-    groups:
-      pip-dependency-updates:
-        patterns:
-          - "*"
-
-  - package-ecosystem: npm
-    cooldown:
-      default-days: 4
-    directories:
-      - /airflow-core/src/airflow/ui
-    schedule:
-      interval: "weekly"
-    target-branch: v3-1-test
-    groups:
-      3-1-core-ui-package-updates:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-
-  - package-ecosystem: npm
-    cooldown:
-      default-days: 4
-    directories:
-      - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
-    schedule:
-      interval: "weekly"
-    target-branch: v3-1-test
-    groups:
-      3-1-auth-ui-package-updates:
         patterns:
           - "*"
         update-types:

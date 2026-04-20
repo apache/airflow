@@ -1,0 +1,1 @@
+``workers.extraContainers`` field is now deprecated in favor of ``workers.celery.extraContainers`` and ``workers.kubernetes.extraContainers``. Please update your configuration accordingly.

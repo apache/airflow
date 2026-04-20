@@ -1,0 +1,1 @@
+``workers.env`` field is now deprecated in favor of ``workers.celery.env`` and ``workers.kubernetes.env``. Please update your configuration accordingly.

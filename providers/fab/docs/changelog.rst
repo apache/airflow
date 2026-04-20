@@ -20,6 +20,31 @@
 Changelog
 ---------
 
+3.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add authlib as optional oauth extra in fab provider (#64457)``
+* ``Prevent AppBuilder re-initialization race in FastAPI login (#64151) (#64418)``
+
+Misc
+~~~~
+
+* ``Remove dependabot alarms in fab provider npm dependencies (#64789)``
+* ``Add 4-day cooldown for pnpm dependency resolution (#64337)``
+* ``Fix dependabot alarms in FAB provider (#64369)``
+* ``Fix NPM security issues in FAB provider (#64308)``
+* ``chore(deps-dev): bump eslint (#64171)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``CI: Upgrade important CI environment (#64451)``
+   * ``Compat sdk conf follow-up: Celery, Common AI, FAB, Edge3 (#64292)``
+   * ``[main] Upgrade important CI environment (#64239)``
+   * ``Add 4-day cooldown for uv dependency resolution (#64249)``
+
 3.6.0
 .....
 

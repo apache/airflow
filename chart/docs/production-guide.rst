@@ -265,6 +265,17 @@ generated using the secret key has a short expiry time though. Make sure that ti
 that you run Airflow components on is synchronized (for example using ntpd). You might get
 "forbidden" errors when the logs are accessed otherwise.
 
+JWT Secret
+----------
+
+You should set a static JWT Secret key when deploying with Airflow chart as it will increase environment
+stability. It can be achieved by using ``jwtSecretName`` field in the ``values.yaml`` file.
+
+.. note::
+
+   For increase security of production setup, consider creating custom JWT Secret rollover procedure which will
+   not cause failures in dag runs due to mismatch in tokens.
+
 Eviction configuration
 ----------------------
 When running Airflow along with the `Kubernetes Cluster Autoscaler <https://github.com/kubernetes/autoscaler>`_, it is important to configure whether pods can be safely evicted.

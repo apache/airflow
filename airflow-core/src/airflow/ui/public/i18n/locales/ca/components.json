@@ -22,7 +22,6 @@
         "title": "Reompliment generat"
       }
     },
-    "tooltip": "El reompliment necessita una programació",
     "unpause": "Reactivar {{dag_display_name}} a l'executar",
     "validation": {
       "datesRequired": "S'ha de proporcionar tant la data d'inici com la data de finalització.",
@@ -46,7 +45,6 @@
   },
   "dagWarnings": {
     "error_one": "1 Error",
-    "error_other": "{{count}} Errors",
     "errorAndWarning": "1 Error i {{warningText}}",
     "warning_one": "1 Advertència",
     "warning_other": "{{count}} Advertències"

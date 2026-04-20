@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+When the ``[opensearch] host`` config embeds credentials
+(``https://user:password@opensearch.example.com:9200``), the log-source
+label shown in task logs is now the host URL with the ``user:password@``
+portion stripped. Previously the full URL (including credentials) could
+appear as a dictionary key in the task-log output when log-hits did not
+carry a ``host`` field. The OpenSearch client is still connected using
+the full URL, so authentication is unaffected.
+
+1.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'write_to_os' writing task logs to opensearch (#64364)``
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.8.5
 .....
 
