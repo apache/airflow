@@ -47,3 +47,25 @@ AWS_INIT_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "scripts" / "init-aws.
 
 # s3 bucket name for XComObjectStorageBackend tests. This bucket will be created in the `init-aws.sh` script that is run as part of the LocalStack container initialization.
 XCOM_BUCKET = "test-xcom-objectstorage-backend"
+
+# Java SDK e2e test paths
+JAVA_SDK_PATH = AIRFLOW_ROOT_PATH / "java-sdk"
+JAVA_SDK_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "java-sdk.yml"
+JAVA_SDK_DAGS_FOLDER = (
+    AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "tests" / "airflow_e2e_tests" / "java_sdk_tests" / "dags"
+)
+
+# Java SDK bundle names (used in DAG bundle config and docker-compose env vars)
+JAVA_STUB_BUNDLE_NAME = "python-stub-java-tasks"
+JAVA_PURE_BUNDLE_NAME = "pure-java"
+
+# Java SDK DAG IDs (sed-replaced from the original "java_example" in JavaExample.java / stub_dag.py)
+JAVA_STUB_DAG_ID = "java_sdk_stub_example"
+JAVA_PURE_DAG_ID = "java_sdk_pure_java_example"
+
+# In-container paths for Java SDK volumes (mounted by java-sdk.yml)
+JAVA_CONTAINER_OPENJDK_PATH = "/files/openjdk"
+JAVA_CONTAINER_STUB_BUNDLE_PATH = f"/files/{JAVA_STUB_BUNDLE_NAME}"
+JAVA_CONTAINER_STUB_DAG_BUNDLE_PATH = f"/files/{JAVA_STUB_BUNDLE_NAME}/dags"
+JAVA_CONTAINER_STUB_JAVA_BUNDLES_FOLDER_PATH = f"/files/{JAVA_STUB_BUNDLE_NAME}/jar-bundles"
+JAVA_CONTAINER_PURE_BUNDLE_PATH = f"/files/{JAVA_PURE_BUNDLE_NAME}"
