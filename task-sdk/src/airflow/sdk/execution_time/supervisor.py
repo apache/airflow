@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import atexit
 import contextlib
+import functools
 import io
 import logging
 import os
@@ -138,8 +139,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
-
-__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
+__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "supervise_task"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
@@ -1023,18 +1023,23 @@ class ActivitySubprocess(WatchedSubprocess):
     ) -> None:
         """Send startup message to the subprocess."""
         self.ti = ti  # type: ignore[assignment]
-        start_date = datetime.now(tz=timezone.utc)
         try:
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
-            ti_context = self.client.task_instances.start(ti.id, self.pid, start_date)
+            ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
             self._should_retry = ti_context.should_retry
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
             # On any error kill that subprocess!
             self.kill(signal.SIGKILL)
             raise
+
+        # ti_context.start_date is only populated by the server when resuming from a deferral (to preserve the
+        # original start_date rather than using the resume time). We fall back to now() otherwise. This ensures
+        # that `context["ti"].start_date` always reflects the *first* start time. See TIRunContext.start_date
+        # for more context. Do not remove this without updating related comments and deferral handling.
+        start_date = ti_context.start_date or datetime.now(tz=timezone.utc)
 
         msg = StartupDetails.model_construct(
             ti=ti,
@@ -1097,8 +1102,11 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         from airflow.sdk.log import upload_to_remote
 
-        with _remote_logging_conn(self.client):
-            upload_to_remote(self.process_log, self.ti)
+        try:
+            with _remote_logging_conn(self.client):
+                upload_to_remote(self.process_log, self.ti)
+        except Exception:
+            self.process_log.exception("Failed to upload remote logs", ti_id=self.id, pid=self.pid)
 
     def _monitor_subprocess(self):
         """
@@ -1531,6 +1539,7 @@ class ActivitySubprocess(WatchedSubprocess):
         child_logs.close()  # Close this end now.
 
 
+@functools.lru_cache(maxsize=1)
 def in_process_api_server():
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
@@ -1692,8 +1701,9 @@ class InProcessTestSupervisor(ActivitySubprocess):
     @staticmethod
     def _api_client(dag=None):
         api = in_process_api_server()
+        from airflow.api_fastapi.common.dagbag import dag_bag_from_app
+
         if dag is not None:
-            from airflow.api_fastapi.common.dagbag import dag_bag_from_app
             from airflow.models.dagbag import DBDagBag
 
             # This is needed since the Execution API server uses the DBDagBag in its "state".
@@ -1701,6 +1711,8 @@ class InProcessTestSupervisor(ActivitySubprocess):
             dag_bag = DBDagBag()
 
             api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
+        else:
+            api.app.dependency_overrides.pop(dag_bag_from_app, None)
 
         client = InProcessTestSupervisor._Client(
             base_url=None, token="", dry_run=True, transport=api.transport
@@ -2007,7 +2019,7 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
     return logger, log_file_descriptor
 
 
-def supervise(
+def supervise_task(
     *,
     ti: TaskInstance,
     bundle_info: BundleInfo,
@@ -2114,8 +2126,9 @@ def supervise(
         exit_code = process.wait()
         end = time.monotonic()
         log.info(
-            "Task finished",
-            task_instance_id=str(ti.id),
+            "Workload finished",
+            workload_type="ExecuteTask",
+            workload_id=str(ti.id),
             exit_code=exit_code,
             duration=end - start,
             final_state=process.final_state,
@@ -2127,3 +2140,22 @@ def supervise(
         if close_client and client:
             with suppress(Exception):
                 client.close()
+
+
+def supervise(**kwargs) -> int:
+    """
+    Call ``supervise_task()`` with a deprecation warning.
+
+    This wrapper exists for backward compatibility with provider packages that may import ``supervise`` directly.
+
+    .. deprecated::
+        Use :func:`supervise_task` instead.
+    """
+    import warnings
+
+    warnings.warn(
+        "supervise() is deprecated, use supervise_task() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return supervise_task(**kwargs)

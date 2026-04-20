@@ -74,8 +74,9 @@ def save_prs_batch(github_repository: str, prs) -> int:
 
 # ── Check status vault ───────────────────────────────────────────
 # Keyed by head_sha. Only caches fully-completed check results (no
-# IN_PROGRESS or QUEUED). Completed results never change for the same SHA.
-_check_vault = CacheStore("check_vault")
+# IN_PROGRESS or QUEUED). Uses a 4-hour TTL because checks can be
+# re-run on the same commit without a force push.
+_check_vault = CacheStore("check_vault", ttl_seconds=4 * 3600)
 
 # Statuses that indicate checks are still running
 _INCOMPLETE_STATUSES = {"IN_PROGRESS", "QUEUED", "PENDING"}

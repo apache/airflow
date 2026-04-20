@@ -84,11 +84,12 @@ CUT_OFF_TIMEDELTA = timedelta(days=6 * 30)
 # minimum versions for compatibility with Airflow 3
 MIN_VERSION_OVERRIDE: dict[str, Version] = {
     "amazon": parse_version("2.1.3"),
-    "fab": parse_version("2.2.0"),
+    "fab": parse_version("3.6.0"),
     "openlineage": parse_version("2.3.0"),
     "git": parse_version("0.0.2"),
     "common.messaging": parse_version("2.0.0"),
     "elasticsearch": parse_version("6.5.0"),
+    "opensearch": parse_version("1.9.0"),
 }
 
 

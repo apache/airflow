@@ -84,6 +84,11 @@ export const handlers: Array<HttpHandler> = [
         },
         {
           event:
+            "[2025-02-28T10:49:09.673+0530] {taskinstance.py:2340} INFO - ::group::Dependency check details",
+          timestamp: "2025-02-28T10:49:09.673000+05:30",
+        },
+        {
+          event:
             "[2025-02-28T10:49:09.674+0530] {taskinstance.py:2348} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: tutorial_dag.load manual__2025-02-28T05:18:54.249762+00:00 [queued]>",
           timestamp: "2025-02-28T10:49:09.674000+05:30",
         },
@@ -91,6 +96,10 @@ export const handlers: Array<HttpHandler> = [
           event:
             "[2025-02-28T10:49:09.678+0530] {taskinstance.py:2348} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: tutorial_dag.load manual__2025-02-28T05:18:54.249762+00:00 [queued]>",
           timestamp: "2025-02-28T10:49:09.678000+05:30",
+        },
+        {
+          event: "[2025-02-28T10:49:09.679+0530] {taskinstance.py:2349} INFO - ::endgroup::",
+          timestamp: "2025-02-28T10:49:09.679000+05:30",
         },
         {
           event: "[2025-02-28T10:49:09.679+0530] {taskinstance.py:2589} INFO - Starting attempt 1 of 3",

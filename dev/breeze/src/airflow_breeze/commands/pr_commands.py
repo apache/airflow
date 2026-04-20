@@ -248,9 +248,9 @@ def _cached_assess_pr(
         return result
 
     # Generate directed review questions from the diff if available.
-    # Note: diff_text is not yet passed by the background thread-pool submissions
-    # (the diff may not be fetched at LLM submission time). Review questions are
-    # active when diff_text is provided explicitly (e.g. sequential review mode).
+    # In the TUI, diff_text is passed when the diff has been fetched by the
+    # background executor before the LLM submission. In the non-TUI flow,
+    # it is passed explicitly during sequential review.
     review_questions: list[str] | None = None
     if diff_text:
         from airflow_breeze.utils.pr_vault import generate_review_questions
@@ -1856,6 +1856,42 @@ def _fetch_single_pr_graphql(token: str, github_repository: str, pr_number: int)
         labels=[lbl["name"] for lbl in (node.get("labels") or {}).get("nodes", []) if lbl],
         unresolved_threads=[],
         review_decisions=_extract_review_decisions(node),
+    )
+
+
+def _load_pr_from_vault(github_repository: str, pr_number: int) -> PRData | None:
+    """Try to load a PR from the vault. Returns None on miss or expired TTL.
+
+    The returned PRData has ``unresolved_threads=[]``, ``review_decisions=[]``,
+    and ``has_collaborator_review=False``. These are backfilled by
+    ``_enrich_candidate_details`` which runs during triage/review regardless
+    of whether the PR came from vault or the API.
+    """
+    from airflow_breeze.utils.pr_vault import load_pr
+
+    data = load_pr(github_repository, pr_number)
+    if data is None:
+        return None
+    return PRData(
+        number=data["number"],
+        title=data["title"],
+        body=data.get("body", ""),
+        url=data["url"],
+        created_at=data["created_at"],
+        updated_at=data["updated_at"],
+        node_id=data.get("node_id", ""),
+        author_login=data["author_login"],
+        author_association=data.get("author_association", "NONE"),
+        head_sha=data["head_sha"],
+        base_ref=data.get("base_ref", "main"),
+        check_summary=data.get("check_summary", ""),
+        checks_state=data.get("checks_state", "UNKNOWN"),
+        failed_checks=data.get("failed_checks", []),
+        commits_behind=data.get("commits_behind", 0),
+        is_draft=data.get("is_draft", False),
+        mergeable=data.get("mergeable", "UNKNOWN"),
+        labels=data.get("labels", []),
+        unresolved_threads=[],
     )
 
 
@@ -3561,7 +3597,9 @@ def _prompt_and_execute_flagged_pr(
             if action == TriageAction.CLOSE:
                 console_print(Panel(close_comment, title="Comment to be posted", border_style="red"))
             elif action == TriageAction.COMMENT:
-                console_print(Panel(comment_only_text, title="Comment to be posted", border_style="green"))
+                console_print(
+                    Panel(comment_only_text or "", title="Comment to be posted", border_style="green")
+                )
             else:
                 console_print(Panel(draft_comment, title="Comment to be posted", border_style="green"))
 
@@ -4723,7 +4761,7 @@ def _run_tui_triage(
                 except Exception:
                     result = None
                 if result:
-                    diff_cache[num] = result
+                    diff_cache[num] = result  # type: ignore[assignment]
                     paths = extract_file_paths_from_diff(result)
                     if paths:
                         _pr_file_paths[num] = paths
@@ -5322,6 +5360,7 @@ def _run_tui_triage(
                                     pr_body=cur_pr.body,
                                     check_status_summary=cur_pr.check_summary,
                                     llm_model=llm_model,
+                                    diff_text=diff_cache.get(cur_pr.number),
                                 )
                             ctx.llm_future_to_pr[fut] = cur_pr
                             # Keep as PASSING with LLM in progress
@@ -6345,7 +6384,7 @@ def _review_deterministic_flagged_prs(
 
         if pr.author_login != current_author:
             current_author = pr.author_login
-            count = ctx.author_flagged_count[current_author]
+            count = ctx.author_flagged_count[current_author] if current_author else 0
             console_print()
             get_console().rule(
                 f"[bold]Author: {current_author}[/] ({count} PR{'s' if count != 1 else ''} with issues)",
@@ -10041,9 +10080,15 @@ def _fetch_initial_prs(
     _initial_review_requested_user: str | None = None if review_mode else review_requested_user
 
     if pr_number:
-        if not quiet:
-            console_print(f"[info]Fetching PR #{pr_number} via GraphQL...[/]")
-        all_prs = [_fetch_single_pr_graphql(token, github_repository, pr_number)]
+        cached = _load_pr_from_vault(github_repository, pr_number)
+        if cached is not None:
+            if not quiet:
+                console_print(f"[info]Loaded PR #{pr_number} from vault cache.[/]")
+            all_prs = [cached]
+        else:
+            if not quiet:
+                console_print(f"[info]Fetching PR #{pr_number} via GraphQL...[/]")
+            all_prs = [_fetch_single_pr_graphql(token, github_repository, pr_number)]
         total_matching_prs = 1
     elif len(review_requested_users) > 1 and not review_mode:
         if not quiet:

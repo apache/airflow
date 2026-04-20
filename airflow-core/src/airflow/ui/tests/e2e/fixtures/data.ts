@@ -85,22 +85,21 @@ async function createAndSetupDagRun(
   const offsetMs = options.parallelIndex * 7_200_000;
   const logicalDate = options.logicalDate ?? new Date(Date.now() - offsetMs).toISOString();
 
-  await apiCreateDagRun(request, dagId, {
+  const actualRunId = await apiCreateDagRun(request, dagId, {
     dag_run_id: runId,
     logical_date: logicalDate,
   });
-  await apiSetDagRunState(request, { dagId, runId, state: options.state });
 
-  return { dagId, logicalDate, runId };
+  await apiSetDagRunState(request, { dagId, runId: actualRunId, state: options.state });
+
+  return { dagId, logicalDate, runId: actualRunId };
 }
 
 async function cleanupMultipleRuns(
   request: APIRequestContext,
   runs: Array<{ dagId: string; runId: string }>,
 ): Promise<void> {
-  for (const { dagId, runId } of runs) {
-    await safeCleanupDagRun(request, dagId, runId);
-  }
+  await Promise.all(runs.map(({ dagId, runId }) => safeCleanupDagRun(request, dagId, runId)));
 }
 
 export const test = base.extend<DataTestFixtures, DataWorkerFixtures>({

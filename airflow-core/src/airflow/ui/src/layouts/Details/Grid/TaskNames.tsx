@@ -27,6 +27,7 @@ import { TaskName } from "src/components/TaskName";
 import { useHover } from "src/context/hover";
 import { useOpenGroups } from "src/context/openGroups";
 
+import { ROW_HEIGHT } from "./constants";
 import type { GridTask } from "./utils";
 
 type Props = {
@@ -35,8 +36,6 @@ type Props = {
   readonly onRowClick?: () => void;
   readonly virtualItems?: Array<VirtualItem>;
 };
-
-const ROW_HEIGHT = 20;
 
 const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 

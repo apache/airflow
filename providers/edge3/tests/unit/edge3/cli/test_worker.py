@@ -140,6 +140,20 @@ class TestEdgeWorker:
         return test_worker
 
     @pytest.fixture
+    def worker_with_job_and_sysinfo(self, tmp_path: Path, mock_joblist: list[Job]) -> EdgeWorker:
+        with conf_vars(
+            {
+                (
+                    "edge",
+                    "extended_system_info_function",
+                ): "airflow.providers.edge3.cli.example_extended_sysinfo.get_example_extended_sysinfo"
+            }
+        ):
+            test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
+            EdgeWorker.jobs = mock_joblist
+            return test_worker
+
+    @pytest.fixture
     def mock_edgeworker(self) -> EdgeWorkerModel:
         test_edgeworker = EdgeWorkerModel(
             worker_name="test_edge_worker",
@@ -500,13 +514,35 @@ class TestEdgeWorker:
         mock_loop.assert_called_once()
         assert mock_set_state.call_count == 1
 
-    def test_get_sysinfo(self, worker_with_job: EdgeWorker):
+    @pytest.mark.asyncio
+    async def test_get_sysinfo(self, worker_with_job: EdgeWorker):
         concurrency = 8
         worker_with_job.concurrency = concurrency
-        sysinfo = worker_with_job._get_sysinfo()
+        sysinfo = await worker_with_job._get_sysinfo()
         assert "airflow_version" in sysinfo
         assert "edge_provider_version" in sysinfo
+        assert "python_version" in sysinfo
         assert "concurrency" in sysinfo
+        assert "worker_start_time" in sysinfo
+        assert sysinfo["worker_start_time"] == worker_with_job.worker_start_time
+        assert "status" in sysinfo
+        assert "status_text" not in sysinfo  # is only defined if extended sysinfo provides this field
+        assert sysinfo["concurrency"] == concurrency
+
+    @pytest.mark.asyncio
+    async def test_get_sysinfo_extended(self, worker_with_job_and_sysinfo: EdgeWorker):
+        concurrency = 42
+        worker_with_job_and_sysinfo.concurrency = concurrency
+        sysinfo = await worker_with_job_and_sysinfo._get_sysinfo()
+        assert "airflow_version" in sysinfo
+        assert "edge_provider_version" in sysinfo
+        assert "python_version" in sysinfo
+        assert "concurrency" in sysinfo
+        assert "worker_start_time" in sysinfo
+        assert sysinfo["worker_start_time"] == worker_with_job_and_sysinfo.worker_start_time
+        assert "status" in sysinfo
+        assert "status_text" in sysinfo
+        assert "disk_free_gb" in sysinfo
         assert sysinfo["concurrency"] == concurrency
 
     @pytest.mark.db_test

@@ -421,9 +421,9 @@ You can:
 
 * Setup environment for k8s tests with ``breeze k8s setup-env``
 * Build Airflow k8S images with ``breeze k8s build-k8s-image``
-* Manage KinD Kubernetes cluster and upload image and deploy Airflow to KinD cluster via
+* Manage KinD Kubernetes cluster, upload Airflow image, deploy Airflow to the cluster and check its status with
   ``breeze k8s create-cluster``, ``breeze k8s configure-cluster``, ``breeze k8s deploy-airflow``, ``breeze k8s status``,
-  ``breeze k8s upload-k8s-image``, ``breeze k8s delete-cluster`` commands
+  ``breeze k8s upload-k8s-image``, ``breeze k8s delete-cluster`` and ``breeze k8s deploy-cluster`` commands
 * Hot-reload DAGs and core sources (scheduler/triggerer/dag-processor) with ``breeze k8s dev`` (skaffold sync)
 * Run Kubernetes tests  specified with ``breeze k8s tests`` command
 * Run complete test run with ``breeze k8s run-complete-tests`` - performing the full cycle of creating
@@ -530,6 +530,23 @@ All parameters of the command are here:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_k8s_configure-cluster.svg
   :width: 100%
   :alt: Breeze k8s configure-cluster
+
+Prepare Kind Cluster with Airflow image build
+.............................................
+
+In order to not execute every KinD cluster-related command and building Airflow image separately, use
+``breeze k8s deploy-cluster`` command for running:
+1. Local environment setup for KinD cluster and Airflow deployment
+2. KinD cluster creation and configuration
+3. Airflow UI asset compilation
+4. Airflow image build and upload
+
+All parameters of the command are here:
+
+.. image:: ./images/output_k8s_deploy-cluster.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_k8s_deploy-cluster.svg
+  :width: 100%
+  :alt: Breeze k8s deploy-cluster
 
 Deploying Airflow to the Cluster
 ................................

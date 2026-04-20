@@ -172,3 +172,19 @@ config:
         type: string
         default: ~
         example: ~
+      extended_system_info_function:
+        description: |
+          The function to call to get extended system information for the worker.
+
+          The function must be async and return a ``dict[str, str | int | float | datetime]``.
+          The information will be sent to the central site with each heartbeat and can be used for monitoring
+          and debugging purposes. All int and float values will also be published to metric collection systems
+          like statsd or otel.
+
+          Function must be provided as a string with the full path to the function. See
+          https://github.com/apache/airflow/blob/main/providers/edge3/src/airflow/providers/edge3/cli/example_extended_sysinfo.py
+          for an example implementation.
+        version_added: 3.5.0
+        type: string
+        default: ~
+        example: airflow.providers.edge3.cli.example_extended_sysinfo.get_example_extended_sysinfo
