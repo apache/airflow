@@ -24,7 +24,12 @@ import pytest
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import select
 
-from airflow.api_fastapi.common.parameters import FilterParam, SortParam, _SearchParam, filter_param_factory
+from airflow.api_fastapi.common.parameters import (
+    FilterParam,
+    SortParam,
+    _SearchParam,
+    filter_param_factory,
+)
 from airflow.models import DagModel, DagRun, Log
 
 

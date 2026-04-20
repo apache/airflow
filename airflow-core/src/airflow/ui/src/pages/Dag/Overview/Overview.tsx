@@ -60,6 +60,8 @@ export const Overview = () => {
     state: ["failed"],
   });
 
+  const failedTaskCount = failedTasks?.total_entries ?? 0;
+
   const [limit] = useLocalStorage<number>(dagRunsLimitKey(dagId ?? ""), 10);
   const { data: failedRuns, isLoading: isLoadingFailedRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
@@ -94,14 +96,14 @@ export const Overview = () => {
       </Box>
       <HStack flexWrap="wrap">
         <TrendCountButton
-          colorPalette={(failedTasks?.total_entries ?? 0) === 0 ? "green" : "failed"}
-          count={failedTasks?.total_entries ?? 0}
+          colorPalette={failedTaskCount === 0 ? "green" : "failed"}
+          count={failedTaskCount}
           endDate={endDate}
           events={(failedTasks?.task_instances ?? []).map((ti) => ({
             timestamp: ti.start_date ?? ti.logical_date,
           }))}
           isLoading={isLoading}
-          label={translate("overview.buttons.failedTask", { count: failedTasks?.total_entries ?? 0 })}
+          label={translate("overview.buttons.failedTask", { count: failedTaskCount })}
           route={{
             pathname: "tasks",
             search: `${SearchParamsKeys.STATE}=failed`,

@@ -117,7 +117,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
             <Heading size="xl">
               <strong>
                 {translate("dags:runAndTaskActions.clear.title", {
-                  type: translate("taskInstance", { count: affectedTasks.total_entries }),
+                  type: translate("taskInstance", { count: affectedTasks.total_entries ?? 0 }),
                 })}
                 :
               </strong>{" "}
