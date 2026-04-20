@@ -65,7 +65,7 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
                 displayMode="table"
                 modelName="common:taskInstance"
                 noRowsMessage={translate("dags:runAndTaskActions.affectedTasks.noItemsFound")}
-                total={affectedTasks.total_entries}
+                total={affectedTasks.total_entries ?? 0}
               />
             </Box>
           </Accordion.ItemContent>

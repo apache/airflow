@@ -223,6 +223,7 @@ export const TaskInstances = () => {
   const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
+
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
       dag_version: false,
@@ -233,7 +234,7 @@ export const TaskInstances = () => {
       queue: false,
     },
   });
-  const { pagination, sorting } = tableURLState;
+  const { cursor, pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-id"];
 
@@ -259,6 +260,7 @@ export const TaskInstances = () => {
 
   const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
+      cursor: cursor ?? "",
       dagId: dagId ?? "~",
       dagIdPattern: filteredDagIdPattern ?? undefined,
       dagRunId: runId ?? "~",
@@ -269,7 +271,6 @@ export const TaskInstances = () => {
       logicalDateGte: logicalDateGte ?? undefined,
       logicalDateLte: logicalDateLte ?? undefined,
       mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
-      offset: pagination.pageIndex * pagination.pageSize,
       operatorNamePattern: operatorNamePattern ?? undefined,
       orderBy,
       poolNamePattern: poolNamePattern ?? undefined,
@@ -292,6 +293,9 @@ export const TaskInstances = () => {
     },
   );
 
+  const nextCursor = data && "next_cursor" in data ? data.next_cursor : undefined;
+  const previousCursor = data && "previous_cursor" in data ? data.previous_cursor : undefined;
+
   const columns = taskInstanceColumns({
     dagId,
     runId,
@@ -309,8 +313,9 @@ export const TaskInstances = () => {
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="common:taskInstance"
+        nextCursor={nextCursor}
         onStateChange={setTableURLState}
-        total={data?.total_entries ?? undefined}
+        previousCursor={previousCursor}
       />
     </>
   );
