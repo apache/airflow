@@ -26,6 +26,7 @@ from airflow_breeze.utils.docker_command_utils import (
     autodetect_docker_context,
     check_docker_compose_version,
     check_docker_version,
+    check_uv_version,
 )
 
 
@@ -215,6 +216,60 @@ def test_check_docker_compose_version_ok(mock_console_print, mock_run_command):
         dry_run_override=False,
     )
     mock_console_print.assert_called_with("[success]Good version of docker-compose: 2.20.2[/]")
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils._read_required_uv_version")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+def test_check_uv_version_ok(mock_console_print, mock_run_command, mock_required_version):
+    mock_required_version.return_value = "0.9.17"
+    mock_run_command.return_value.returncode = 0
+    mock_run_command.return_value.stdout = "uv 0.11.6 (abc 2026-03-26 aarch64-apple-darwin)"
+    check_uv_version()
+    mock_run_command.assert_called_with(
+        ["uv", "--version"],
+        no_output_dump_on_exception=True,
+        capture_output=True,
+        text=True,
+        check=False,
+        dry_run_override=False,
+    )
+    mock_console_print.assert_called_with("[success]Good version of uv: 0.11.6.[/]")
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils._read_required_uv_version")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+def test_check_uv_version_too_low(mock_console_print, mock_run_command, mock_required_version):
+    mock_required_version.return_value = "0.9.17"
+    mock_run_command.return_value.returncode = 0
+    mock_run_command.return_value.stdout = "uv 0.8.0 (fake)"
+    with pytest.raises(SystemExit) as e:
+        check_uv_version()
+    assert e.value.code == 1
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils._read_required_uv_version")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+def test_check_uv_version_not_installed(mock_console_print, mock_run_command, mock_required_version):
+    mock_required_version.return_value = "0.9.17"
+    mock_run_command.return_value.returncode = 1
+    mock_run_command.return_value.stdout = ""
+    with pytest.raises(SystemExit) as e:
+        check_uv_version()
+    assert e.value.code == 1
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils._read_required_uv_version")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+def test_check_uv_version_missing_declaration_skips(
+    mock_console_print, mock_run_command, mock_required_version
+):
+    mock_required_version.return_value = None
+    check_uv_version()
+    mock_run_command.assert_not_called()
 
 
 def _fake_ctx_output(*names: str) -> str:
