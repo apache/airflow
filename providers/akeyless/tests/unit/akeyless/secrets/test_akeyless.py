@@ -23,6 +23,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests_common.test_utils.config import conf_vars
+
 BACKEND_MODULE = "airflow.providers.akeyless.secrets.akeyless"
 
 
@@ -194,3 +196,82 @@ class TestAkeylessBackend:
         backend.get_variable("a")
         backend.get_variable("a")
         assert api.auth.call_count == 1
+
+    # ------------------------------------------------------------------
+    # Multi-team tests
+    # ------------------------------------------------------------------
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_get_variable_team_scoped(self, mock_sdk):
+        """When multi_team is enabled, look up under {base}/{team}/{key}."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {"/airflow/variables/analytics/my_var": "team-val"}
+        with conf_vars({("core", "multi_team"): "True"}):
+            backend = _backend()
+            val = backend.get_variable("my_var", team_name="analytics")
+        assert val == "team-val"
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_get_variable_team_fallback_to_global(self, mock_sdk):
+        """Team lookup misses, falls back to {base}/{key}."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        mock_sdk.ApiException = Exception
+        api.get_secret_value.side_effect = [
+            Exception("not found"),
+            {"/airflow/variables/my_var": "global-val"},
+        ]
+        with conf_vars({("core", "multi_team"): "True"}):
+            backend = _backend()
+            val = backend.get_variable("my_var", team_name="analytics")
+        assert val == "global-val"
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_get_variable_team_fallback_to_global_path(self, mock_sdk):
+        """Team lookup misses, falls back to {base}/{global_path}/{key}."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        mock_sdk.ApiException = Exception
+        api.get_secret_value.side_effect = [
+            Exception("not found"),
+            {"/airflow/variables/global/my_var": "shared-val"},
+        ]
+        with conf_vars({("core", "multi_team"): "True"}):
+            backend = _backend(global_secrets_path="global")
+            val = backend.get_variable("my_var", team_name="analytics")
+        assert val == "shared-val"
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_get_variable_no_team_separation(self, mock_sdk):
+        """use_team_secrets_path=False skips team prefix even with team_name."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {"/airflow/variables/my_var": "plain"}
+        with conf_vars({("core", "multi_team"): "True"}):
+            backend = _backend(use_team_secrets_path=False)
+            val = backend.get_variable("my_var", team_name="analytics")
+        assert val == "plain"
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_get_connection_team_scoped(self, mock_sdk):
+        """Team-scoped connection lookup."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {"/airflow/connections/team_a/pg": "postgresql://u:p@h/d"}
+        with conf_vars({("core", "multi_team"): "True"}):
+            backend = _backend()
+            conn = backend.get_connection("pg", team_name="team_a")
+        assert conn is not None
+        assert conn.host == "h"
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_get_variable_no_team_when_multi_team_off(self, mock_sdk):
+        """Without multi_team config, team_name is ignored."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {"/airflow/variables/my_var": "plain"}
+        backend = _backend()
+        val = backend.get_variable("my_var", team_name="analytics")
+        assert val == "plain"
+        mock_sdk.GetSecretValue.assert_called_with(names=["/airflow/variables/my_var"], token="t")

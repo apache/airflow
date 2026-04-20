@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 import akeyless
 
+from airflow.providers.common.compat.sdk import conf
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -55,6 +56,12 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
 
     Secrets are looked up by joining ``<base_path>/<key>``.
 
+    In multi-team deployments (``core.multi_team = True``), secrets are first
+    looked up under ``{base_path}/{team_name}/{key}``.  If not found, the
+    backend falls back to a global path: ``{base_path}/{global_secrets_path}/{key}``
+    (when ``global_secrets_path`` is set) or ``{base_path}/{key}`` (default).
+    Team-scoped lookup can be disabled with ``use_team_secrets_path = False``.
+
     Only ``api_key`` and ``uid`` authentication types are supported in the
     secrets backend.  For cloud-based authentication (``aws_iam``, ``gcp``,
     ``azure_ad``) or other advanced methods, use ``AkeylessHook`` directly.
@@ -63,6 +70,10 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
     :param variables_path: Akeyless path prefix for Variables (None to disable).
     :param config_path: Akeyless path prefix for Config (None to disable).
     :param sep: Separator between base path and key.
+    :param use_team_secrets_path: When True (default), look up secrets under
+        ``{base_path}/{team_name}/{key}`` in multi-team mode before falling back.
+    :param global_secrets_path: Optional path segment inserted between base path
+        and key for the global fallback in multi-team mode (e.g. ``"global"``).
     :param api_url: Akeyless API endpoint.
     :param access_id: Access ID.
     :param access_key: Access Key (for ``api_key`` auth).
@@ -76,6 +87,8 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
         variables_path: str | None = "/airflow/variables",
         config_path: str | None = "/airflow/config",
         sep: str = "/",
+        use_team_secrets_path: bool = True,
+        global_secrets_path: str | None = None,
         api_url: str = "https://api.akeyless.io",
         access_id: str | None = None,
         access_key: str | None = None,
@@ -94,6 +107,10 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
         self.variables_path = variables_path.rstrip("/") if variables_path else None
         self.config_path = config_path.rstrip("/") if config_path else None
         self.sep = sep
+        self.use_team_secrets_path = use_team_secrets_path
+        self.global_secrets_path = (
+            global_secrets_path.rstrip("/") if global_secrets_path is not None else None
+        )
         self._api_url = api_url
         self._access_id = access_id
         self._access_key = access_key
@@ -135,6 +152,22 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
             self.log.debug("Secret not found: %s", path)
             return None
 
+    def _get_team_or_global_secret(
+        self, base_path: str | None, team_name: str | None, key: str
+    ) -> str | None:
+        """Look up a secret with team-scoped path, falling back to global."""
+        if base_path is None:
+            return None
+        multi_team = conf.get("core", "multi_team", fallback=False)
+        if multi_team and self.use_team_secrets_path and team_name is not None:
+            team_path = f"{base_path}{self.sep}{team_name}"
+            response = self._get_secret(team_path, key)
+            if response is not None:
+                return response
+        if multi_team and self.global_secrets_path is not None:
+            return self._get_secret(f"{base_path}{self.sep}{self.global_secrets_path}", key)
+        return self._get_secret(base_path, key)
+
     # ------------------------------------------------------------------
     # BaseSecretsBackend interface
     # ------------------------------------------------------------------
@@ -143,7 +176,7 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
         """Build a ``Connection`` from an Akeyless secret (URI or JSON dict)."""
         from airflow.models.connection import Connection
 
-        raw = self._get_secret(self.connections_path, conn_id)
+        raw = self._get_team_or_global_secret(self.connections_path, team_name, conn_id)
         if raw is None:
             return None
         try:
@@ -157,7 +190,7 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """Retrieve an Airflow Variable from Akeyless."""
-        raw = self._get_secret(self.variables_path, key)
+        raw = self._get_team_or_global_secret(self.variables_path, team_name, key)
         if raw is None:
             return None
         try:
