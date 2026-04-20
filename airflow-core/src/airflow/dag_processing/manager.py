@@ -471,7 +471,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._collect_results()
 
-            for callback in self._fetch_callbacks():
+            for callback in self.fetch_callbacks():
                 self._add_callback_to_queue(callback)
             self._scan_stale_dags()
             self._cleanup_stale_bundle_versions()
@@ -568,13 +568,21 @@ class DagFileProcessorManager(LoggingMixin):
             session.delete(request)
         return files
 
+    def fetch_callbacks(self) -> list[CallbackRequest]:
+        """
+        Fetch and claim callbacks for this manager's bundles.
+
+        Default implementation reads from the metadata DB; override to source callbacks from an API.
+        """
+        return self._fetch_callbacks()
+
     @provide_session
     @retry_db_transaction
     def _fetch_callbacks(
         self,
         session: Session = NEW_SESSION,
     ) -> list[CallbackRequest]:
-        """Fetch callbacks from database and add them to the internal queue for execution."""
+        """Fetch callbacks from the metadata database."""
         self.log.debug("Fetching callbacks from the database.")
 
         callback_queue: list[CallbackRequest] = []
@@ -602,14 +610,26 @@ class DagFileProcessorManager(LoggingMixin):
             guard.commit()
         return callback_queue
 
-    def _add_callback_to_queue(self, request: CallbackRequest):
-        self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
+    def resolve_callback_bundle(self, request: CallbackRequest) -> BaseDagBundle | None:
+        """
+        Resolve the bundle required to execute a callback request.
+
+        Returns ``None`` if the bundle is no longer configured.
+        """
         try:
-            bundle = DagBundlesManager().get_bundle(name=request.bundle_name, version=request.bundle_version)
+            return DagBundlesManager().get_bundle(name=request.bundle_name, version=request.bundle_version)
         except ValueError:
-            # Bundle no longer configured
             self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
             return None
+
+    def initialize_callback_bundle(self, request: CallbackRequest, bundle: BaseDagBundle) -> bool:
+        """
+        Prepare ``bundle`` so the callback can run against it.
+
+        Returns ``True`` when the callback can proceed (either initialization succeeded or was not
+        required), ``False`` when preparation failed and the callback should be skipped. Override
+        to change how bundles are materialized (for example, via an API).
+        """
         if bundle.supports_versioning and request.bundle_version:
             try:
                 bundle.initialize()
@@ -619,7 +639,16 @@ class DagFileProcessorManager(LoggingMixin):
                     request.bundle_name,
                     request.bundle_version,
                 )
-                return None
+                return False
+        return True
+
+    def _add_callback_to_queue(self, request: CallbackRequest):
+        self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
+        bundle = self.resolve_callback_bundle(request)
+        if bundle is None:
+            return None
+        if not self.initialize_callback_bundle(request, bundle):
+            return None
 
         file_info = DagFileInfo(
             rel_path=Path(request.filepath),
