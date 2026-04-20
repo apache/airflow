@@ -1970,8 +1970,8 @@ export type DeadlineResponse = {
     deadline_time: string;
     missed: boolean;
     created_at: string;
+    alert_id?: string | null;
     alert_name?: string | null;
-    alert_description?: string | null;
 };
 
 /**
