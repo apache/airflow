@@ -36,10 +36,8 @@ from airflow.sdk.execution_time.comms import (
     GetAssetByUri,
     GetConnection,
     GetVariable,
-    GetXCom,
     MaskSecret,
     VariableResult,
-    XComResult,
     _RequestFrame,
 )
 
@@ -183,15 +181,6 @@ class TestCallbackHandleRequest:
                 method_path="variables.get",
                 args=("test_key",),
                 response=VariableResult(key="test_key", value="test_value"),
-            ),
-        ),
-        RequestCase(
-            message=GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
-            test_id="get_xcom",
-            client_mock=ClientMock(
-                method_path="xcoms.get",
-                args=("test_dag", "test_run", "test_task", "test_key", None, False),
-                response=XComResult(key="test_key", value="test_value"),
             ),
         ),
         RequestCase(

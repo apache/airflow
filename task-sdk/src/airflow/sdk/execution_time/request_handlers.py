@@ -33,7 +33,6 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
     VariableResponse,
-    XComResponse,
 )
 from airflow.sdk.execution_time.comms import (
     AssetResult,
@@ -42,10 +41,8 @@ from airflow.sdk.execution_time.comms import (
     GetAssetByUri,
     GetConnection,
     GetVariable,
-    GetXCom,
     MaskSecret,
     VariableResult,
-    XComResult,
 )
 from airflow.sdk.log import mask_secret
 
@@ -75,16 +72,6 @@ def handle_get_variable(client: Client, msg: GetVariable) -> tuple[BaseModel | N
             mask_secret(var.value, var.key)
         return VariableResult.from_variable_response(var), {"exclude_unset": True}
     return var, {}
-
-
-def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
-    """Fetch a single XCom value."""
-    xcom = client.xcoms.get(
-        msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
-    )
-    if isinstance(xcom, XComResponse):
-        return XComResult.from_xcom_response(xcom), {}
-    return xcom, {}
 
 
 def handle_get_asset_by_name(client: Client, msg: GetAssetByName) -> tuple[BaseModel | None, dict[str, bool]]:

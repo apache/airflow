@@ -36,7 +36,6 @@ from airflow.sdk.execution_time.comms import (
     GetAssetByUri,
     GetConnection,
     GetVariable,
-    GetXCom,
     MaskSecret,
 )
 from airflow.sdk.execution_time.request_handlers import (
@@ -44,7 +43,6 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_asset_by_uri,
     handle_get_connection,
     handle_get_variable,
-    handle_get_xcom,
     handle_mask_secret,
 )
 from airflow.sdk.execution_time.supervisor import (
@@ -76,9 +74,9 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_superviso
 
 # The set of messages that a callback subprocess can send to the supervisor.
 # This is a minimal subset of ToSupervisor: read-only access to Connections,
-# Variables, XCom, and Assets, plus MaskSecret for the secrets masker.
+# Variables, and Assets, plus MaskSecret for the secrets masker.
 CallbackToSupervisor = Annotated[
-    GetAssetByName | GetAssetByUri | GetConnection | GetVariable | GetXCom | MaskSecret,
+    GetAssetByName | GetAssetByUri | GetConnection | GetVariable | MaskSecret,
     Field(discriminator="type"),
 ]
 
@@ -162,7 +160,7 @@ class CallbackSubprocess(WatchedSubprocess):
     Uses the WatchedSubprocess infrastructure for fork/monitor/signal handling
     while keeping a simple lifecycle: start, run callback, exit.
 
-    Provides a limited set of comms channels (Connections, Variables, XCom,
+    Provides a limited set of comms channels (Connections, Variables,
     Assets) so that callback code can access runtime services like
     ``Connection.get()`` and ``Variable.get()`` via the supervisor's API client.
     """
@@ -291,8 +289,6 @@ class CallbackSubprocess(WatchedSubprocess):
             resp, dump_opts = handle_get_connection(self.client, msg)
         elif isinstance(msg, GetVariable):
             resp, dump_opts = handle_get_variable(self.client, msg)
-        elif isinstance(msg, GetXCom):
-            resp, dump_opts = handle_get_xcom(self.client, msg)
         elif isinstance(msg, GetAssetByName):
             resp, dump_opts = handle_get_asset_by_name(self.client, msg)
         elif isinstance(msg, GetAssetByUri):
