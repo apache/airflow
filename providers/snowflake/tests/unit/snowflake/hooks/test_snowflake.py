@@ -1800,6 +1800,7 @@ class TestPytestSnowflakeHook:
         pytest.importorskip("flask_babel")
         Form = pytest.importorskip("wtforms").Form
         Optional = pytest.importorskip("wtforms.validators").Optional
+        MultiDict = pytest.importorskip("werkzeug.datastructures").MultiDict
 
         widgets = SnowflakeHook.get_connection_form_widgets()
         assert "proxy_port" in widgets
@@ -1809,14 +1810,14 @@ class TestPytestSnowflakeHook:
 
         form_cls = type("_SnowflakeConnForm", (Form,), dict(widgets))
 
-        empty_form = form_cls(data={"proxy_port": ""})
+        empty_form = form_cls(MultiDict([("proxy_port", "")]))
         assert empty_form.validate() is True, empty_form.errors
         assert empty_form.proxy_port.data is None
 
-        populated_form = form_cls(data={"proxy_port": "8080"})
+        populated_form = form_cls(MultiDict([("proxy_port", "8080")]))
         assert populated_form.validate() is True, populated_form.errors
         assert populated_form.proxy_port.data == 8080
 
-        invalid_form = form_cls(data={"proxy_port": "not-an-int"})
+        invalid_form = form_cls(MultiDict([("proxy_port", "not-an-int")]))
         assert invalid_form.validate() is False
         assert "proxy_port" in invalid_form.errors
