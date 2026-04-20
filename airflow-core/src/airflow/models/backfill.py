@@ -553,11 +553,11 @@ def _handle_clear_run(
     )
 
     # Update backfill_id, run_type, and optionally conf in DagRun table
-    update_values: dict = dict(
-        backfill_id=backfill_id,
-        run_type=DagRunType.BACKFILL_JOB,
-        triggered_by=DagRunTriggeredByType.BACKFILL,
-    )
+    update_values: dict = {
+        "backfill_id": backfill_id,
+        "run_type": DagRunType.BACKFILL_JOB,
+        "triggered_by": DagRunTriggeredByType.BACKFILL,
+    }
     if dag_run_conf is not None:
         update_values["conf"] = dag_run_conf
     session.execute(
