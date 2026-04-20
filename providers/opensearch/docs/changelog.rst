@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+When the ``[opensearch] host`` config embeds credentials
+(``https://user:password@opensearch.example.com:9200``), the log-source
+label shown in task logs is now the host URL with the ``user:password@``
+portion stripped. Previously the full URL (including credentials) could
+appear as a dictionary key in the task-log output when log-hits did not
+carry a ``host`` field. The OpenSearch client is still connected using
+the full URL, so authentication is unaffected.
+
 1.9.0
 .....
 

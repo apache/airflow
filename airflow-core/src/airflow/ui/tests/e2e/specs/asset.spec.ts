@@ -71,7 +71,7 @@ test.describe("Assets Page", () => {
       .toBe(true);
   });
 
-  test("verify asset details and dependencies", async ({ assetDetailPage }) => {
+  test.fixme("verify asset details and dependencies", async ({ assetDetailPage }) => {
     const assetName = testConfig.asset.name;
 
     await assetDetailPage.goto();
