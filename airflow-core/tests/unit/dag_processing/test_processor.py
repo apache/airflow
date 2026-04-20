@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import pathlib
 import sys
 import textwrap
@@ -164,6 +165,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -200,6 +202,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -234,6 +237,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -278,6 +282,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -316,6 +321,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -346,6 +352,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -380,6 +387,7 @@ class TestDagFileProcessor:
             path=dag1_path,
             bundle_path=tmp_path,
             bundle_name="testing",
+            dag_file_rel_path=str(dag1_path.relative_to(tmp_path)),
             callbacks=[],
             logger=MagicMock(spec=FilteringBoundLogger),
             logger_filehandle=MagicMock(spec=BinaryIO),
@@ -1967,3 +1975,54 @@ class TestDagProcessingMessageTypes:
             + "\n".join(f"  - {t}" for t in sorted(task_diff))
             + "\n\nEither handle these types in ToDagProcessor or update in_task_runner_but_not_in_dag_processing_process list."
         )
+
+
+class TestDagFileProcessorProcess:
+    @pytest.fixture
+    def proc(self):
+        from socket import socketpair
+        from unittest.mock import MagicMock
+
+        proc_mock = MagicMock()
+        proc_mock.create_time.return_value = 0.0
+        r, w = socketpair()
+        instance = DagFileProcessorProcess(
+            process_log=structlog.get_logger().bind(),
+            id=uuid.uuid4(),
+            pid=1234,
+            process=proc_mock,
+            stdin=w,
+            logger_filehandle=MagicMock(spec=BinaryIO),
+            client=MagicMock(spec=Client),
+            bundle_name="mybundle",
+            dag_file_rel_path="dags/my_dag.py",
+        )
+        instance._open_sockets.clear()
+        r.close()
+        w.close()
+        return instance
+
+    def test_get_target_loggers_file_mode_no_context_added(self, proc):
+        proc.subprocess_logs_to_stdout = False
+        loggers = proc._get_target_loggers()
+        assert len(loggers) == 1
+        with structlog.testing.capture_logs() as cap:
+            loggers[0].info("test")
+        assert "dag_file" not in cap[0]
+        assert "bundle_name" not in cap[0]
+
+    def test_get_target_loggers_stdout_mode_binds_dag_file_context(self, proc):
+        proc.subprocess_logs_to_stdout = True
+        loggers = proc._get_target_loggers()
+        with structlog.testing.capture_logs() as cap:
+            for bound_logger in loggers:
+                bound_logger.info("test")
+        assert all(e.get("dag_file") == "dags/my_dag.py" for e in cap)
+        assert all(e.get("bundle_name") == "mybundle" for e in cap)
+
+    def test_create_log_forwarder_rewrites_task_prefix_to_dag_processor(self, proc):
+        from airflow.sdk.execution_time.supervisor import WatchedSubprocess
+
+        with patch.object(WatchedSubprocess, "_create_log_forwarder") as mock_base:
+            proc._create_log_forwarder((), "task.stdout")
+        mock_base.assert_called_once_with((), "dag_processor.stdout", logging.INFO)
