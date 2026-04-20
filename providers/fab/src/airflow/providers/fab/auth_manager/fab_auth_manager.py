@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import warnings
 from contextlib import suppress
 from functools import cached_property
@@ -177,6 +178,7 @@ class FabAuthManager(BaseAuthManager[User]):
     cache: TTLCache = TTLCache(maxsize=1024, ttl=CACHE_TTL)
     appbuilder: AirflowAppBuilder | None = None
     flask_app: Flask | None = None
+    _flask_app_lock = threading.Lock()
 
     def init_flask_resources(self) -> None:
         self._sync_appbuilder_roles()

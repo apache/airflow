@@ -130,7 +130,7 @@ If release name contains chart name it will be used as a full name.
   - name: AIRFLOW__CELERY__BROKER_URL
     valueFrom:
       secretKeyRef:
-        name: {{ default (printf "%s-broker-url" .Release.Name) .Values.data.brokerUrlSecretName }}
+        name: {{ template "airflow_broker_url_secret" . }}
         key: connection
     {{- end }}
   {{- end }}
@@ -429,6 +429,10 @@ If release name contains chart name it will be used as a full name.
 
 {{- define "redis_password_secret" -}}
   {{- default (printf "%s-redis-password" (include "airflow.fullname" .)) .Values.redis.passwordSecretName }}
+{{- end }}
+
+{{- define "airflow_broker_url_secret" -}}
+  {{- default (printf "%s-broker-url" (include "airflow.fullname" .)) .Values.data.brokerUrlSecretName }}
 {{- end }}
 
 {{- define "airflow_metadata_secret" -}}
@@ -928,8 +932,6 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
       {{ pluck "runAsUser" $.Values.securityContext | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContext | first | default $.Values.gid }}
     {{- else if $.Values.securityContexts.pod -}}
       {{ pluck "runAsUser" $.Values.securityContexts.pod | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContexts.pod | first | default $.Values.gid }}
-    {{- else if $.Values.securityContext -}}
-      {{ pluck "runAsUser" $.Values.securityContext | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContext | first | default $.Values.gid }}
     {{- else -}}
 {{ $.Values.uid }}:{{ $.Values.gid }}
     {{- end -}}
@@ -938,7 +940,7 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
 
 {{/*
 Set the default value for container securityContext
-If no value is passed for securityContexts.container or <node>.securityContexts.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
+If no value is passed for securityContexts.container or <node>.securityContexts.container, defaults to deny privileges escalation and dropping all POSIX capabilities.
 
     +-----------------------------------+      +-----------------------------+      +------------------------------------------------------------+
     | <node>.securityContexts.container |  ->  | securityContexts.containers |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL] |
@@ -973,7 +975,7 @@ capabilities:
 
 {{/*
 Set the default value for external container securityContext(redis and statsd).
-If no value is passed for <node>.securityContexts.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
+If no value is passed for <node>.securityContexts.container, defaults to deny privileges escalation and dropping all POSIX capabilities.
 
     +-----------------------------------+      +------------------------------------------------------------+
     | <node>.securityContexts.container |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL] |

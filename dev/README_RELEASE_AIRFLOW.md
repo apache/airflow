@@ -470,6 +470,9 @@ uv tool install -e ./dev/breeze
     ```
 
 - Update `.github/boring-cyborg.yml` and add `backport-to-vX-Y-test` auto-assignment for the new branch.
+- Update the `DEFAULT_BRANCHES` list in `dev/sync_fork.sh` to replace the previous `vX-Y-test` entry
+  with the newly cut `vX-Y-test` branch so contributors using the helper sync the current release branch
+  by default.
 - Update `.github/` configuration on `main` to add the new `vX-Y-test` branch (you can use the
   `uv run dev/update_github_branch_config.py X Y` helper script for this). The following files need updating:
   - `.github/dependabot.yml` — add `target-branch: vX-Y-test` entries for github-actions, pip, and npm ecosystems.
@@ -500,6 +503,23 @@ uv tool install -e ./dev/breeze
 - Commit the release note change.
 
 - PR from the 'test' branch to the 'stable' branch
+
+  Cherry-picked commits often include provider dependency bumps (changes to `>=` constraints on
+  `apache-airflow-providers-*` packages in `pyproject.toml`). CI blocks such changes by default —
+  only Release Managers should perform them. To allow the PR to pass, add the
+  `allow provider dependency bump` label (and `skip common compat check` if common.compat files
+  changed). For example:
+
+  ```shell script
+  gh pr create \
+    --base v3-2-stable \
+    --head v3-2-test \
+    --title "Airflow ${VERSION}: test to stable" \
+    --label "allow provider dependency bump" \
+    --label "skip common compat check" \
+    --body "Sync v3-2-test into v3-2-stable for Airflow ${VERSION} release." \
+    --web
+  ```
 
 > [!TIP]
 > **Shortcut for first RC candidates:** When preparing the first RC candidate for a new minor release
@@ -1534,7 +1554,8 @@ If you don't have access to the account ask a PMC member to post.
 This includes:
 
 - Modify `./scripts/ci/prek/supported_versions.py` and let prek do the job.
-- For major/minor release, update version in `airflow/__init__.py` and `docs/docker-stack/` to the next likely minor version release.
+- For major/minor release, update version in `airflow/__init__.py` and `docker-stack-docs/` to the next likely major version release.
+  - New version should be, current major release + 1.0
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.
 - Updating `1-airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.

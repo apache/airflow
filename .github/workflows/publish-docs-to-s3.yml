@@ -167,13 +167,21 @@ jobs:
              echo "airflow-base-version=no-airflow" >> ${GITHUB_OUTPUT}
           fi
           # Extract provider IDs for registry update
-          # include-docs contains package names like "apache-airflow-providers-amazon"
-          # Strip the "apache-airflow-providers-" prefix to get provider IDs
+          # include-docs contains short names like "amazon", "common.ai", "openlineage"
+          # or full package names like "apache-airflow-providers-amazon"
           REGISTRY_PROVIDERS=""
           for pkg in ${INCLUDE_DOCS}; do
             case "${pkg}" in
               apache-airflow-providers-*)
                 PROVIDER_ID="${pkg#apache-airflow-providers-}"
+                REGISTRY_PROVIDERS="${REGISTRY_PROVIDERS:+${REGISTRY_PROVIDERS} }${PROVIDER_ID}"
+                ;;
+              apache-airflow|all-providers|apache-airflow-providers|helm-chart|docker-stack|apache-airflow-ctl|apache-airflow-task-sdk)
+                # Not a provider package, skip
+                ;;
+              *)
+                # Short name like "amazon" or "common.ai" -- convert dots to hyphens
+                PROVIDER_ID="${pkg//./-}"
                 REGISTRY_PROVIDERS="${REGISTRY_PROVIDERS:+${REGISTRY_PROVIDERS} }${PROVIDER_ID}"
                 ;;
             esac
@@ -271,7 +279,7 @@ jobs:
           -t "ghcr.io/apache/airflow/main/ci/python${PYTHON_MAJOR_MINOR_VERSION}:latest" --target main .
           -f Dockerfile.ci --platform linux/amd64
       - name: "Restore docs inventory cache"
-        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -284,7 +292,7 @@ jobs:
         run: >
           breeze build-docs ${INCLUDE_DOCS} --docs-only ${FAIL_ON_INVENTORIES}
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
         if: steps.restore-docs-inventory-cache.outputs.stash-hit != 'true'
         with:
           path: ./generated/_inventory_cache/

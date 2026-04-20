@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import pathlib
 import sys
 import textwrap
@@ -49,7 +50,7 @@ from airflow.callbacks.callback_requests import (
     TaskCallbackRequest,
 )
 from airflow.dag_processing.dagbag import DagBag
-from airflow.dag_processing.manager import process_parse_results
+from airflow.dag_processing.manager import DagFileProcessorManager, process_parse_results
 from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
@@ -164,6 +165,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -200,6 +202,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -234,6 +237,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -278,6 +282,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -316,6 +321,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -346,6 +352,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -380,6 +387,7 @@ class TestDagFileProcessor:
             path=dag1_path,
             bundle_path=tmp_path,
             bundle_name="testing",
+            dag_file_rel_path=str(dag1_path.relative_to(tmp_path)),
             callbacks=[],
             logger=MagicMock(spec=FilteringBoundLogger),
             logger_filehandle=MagicMock(spec=BinaryIO),
@@ -645,7 +653,7 @@ def test_parse_file_static_check_with_default_warning():
     )
 
 
-def test_callback_processing_does_not_update_timestamps(session):
+def test_callback_processing_does_not_update_timestamps():
     """Callback processing should not update last_finish_time to prevent stale DAG detection."""
     stat = process_parse_results(
         run_duration=1.0,
@@ -654,7 +662,6 @@ def test_callback_processing_does_not_update_timestamps(session):
         bundle_name="test",
         bundle_version=None,
         parsing_result=None,
-        session=session,
         is_callback_only=True,
     )
 
@@ -662,7 +669,7 @@ def test_callback_processing_does_not_update_timestamps(session):
     assert stat.run_count == 5
 
 
-def test_normal_parsing_updates_timestamps(session):
+def test_normal_parsing_updates_timestamps():
     """last_finish_time should be updated when parsing a dag file."""
     finish_time = timezone.utcnow()
 
@@ -673,7 +680,6 @@ def test_normal_parsing_updates_timestamps(session):
         bundle_name="test-bundle",
         bundle_version="v1",
         parsing_result=DagFileParsingResult(fileloc="test.py", serialized_dags=[]),
-        session=session,
         is_callback_only=False,
     )
 
@@ -682,7 +688,7 @@ def test_normal_parsing_updates_timestamps(session):
     assert stat.import_errors == 0
 
 
-def test_import_error_updates_timestamps(session):
+def test_import_error_updates_timestamps():
     """last_finish_time should be updated when parsing a dag file results in import errors."""
     finish_time = timezone.utcnow()
 
@@ -693,13 +699,48 @@ def test_import_error_updates_timestamps(session):
         bundle_name="test-bundle",
         bundle_version="v1",
         parsing_result=None,
-        session=session,
         is_callback_only=False,
     )
 
     assert stat.last_finish_time == finish_time
     assert stat.run_count == 3
     assert stat.import_errors == 1
+
+
+def test_persist_parsing_result_calls_update_db():
+    """persist_parsing_result should delegate to update_dag_parsing_results_in_db with transformed args."""
+    parsing_result = DagFileParsingResult(
+        fileloc="test.py",
+        serialized_dags=[],
+        import_errors={"dags/broken.py": "SyntaxError"},
+        warnings=[],
+    )
+
+    manager = MagicMock(spec=DagFileProcessorManager)
+    session = MagicMock()
+    # Call the real method on the mock instance
+    with patch(
+        "airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True
+    ) as mock_update:
+        DagFileProcessorManager.persist_parsing_result(
+            manager,
+            bundle_name="test-bundle",
+            bundle_version="v1",
+            parsing_result=parsing_result,
+            run_duration=1.5,
+            relative_fileloc="dags/test.py",
+            session=session,
+        )
+
+    mock_update.assert_called_once()
+    call_kwargs = mock_update.call_args.kwargs
+    assert call_kwargs["bundle_name"] == "test-bundle"
+    assert call_kwargs["bundle_version"] == "v1"
+    assert call_kwargs["parse_duration"] == 1.5
+    assert call_kwargs["session"] is session
+    assert call_kwargs["import_errors"] == {("test-bundle", "dags/broken.py"): "SyntaxError"}
+    assert ("test-bundle", "dags/test.py") in call_kwargs["files_parsed"]
+    assert ("test-bundle", "dags/broken.py") in call_kwargs["files_parsed"]
 
 
 class TestExecuteCallbacks:
@@ -1967,3 +2008,54 @@ class TestDagProcessingMessageTypes:
             + "\n".join(f"  - {t}" for t in sorted(task_diff))
             + "\n\nEither handle these types in ToDagProcessor or update in_task_runner_but_not_in_dag_processing_process list."
         )
+
+
+class TestDagFileProcessorProcess:
+    @pytest.fixture
+    def proc(self):
+        from socket import socketpair
+        from unittest.mock import MagicMock
+
+        proc_mock = MagicMock()
+        proc_mock.create_time.return_value = 0.0
+        r, w = socketpair()
+        instance = DagFileProcessorProcess(
+            process_log=structlog.get_logger().bind(),
+            id=uuid.uuid4(),
+            pid=1234,
+            process=proc_mock,
+            stdin=w,
+            logger_filehandle=MagicMock(spec=BinaryIO),
+            client=MagicMock(spec=Client),
+            bundle_name="mybundle",
+            dag_file_rel_path="dags/my_dag.py",
+        )
+        instance._open_sockets.clear()
+        r.close()
+        w.close()
+        return instance
+
+    def test_get_target_loggers_file_mode_no_context_added(self, proc):
+        proc.subprocess_logs_to_stdout = False
+        loggers = proc._get_target_loggers()
+        assert len(loggers) == 1
+        with structlog.testing.capture_logs() as cap:
+            loggers[0].info("test")
+        assert "dag_file" not in cap[0]
+        assert "bundle_name" not in cap[0]
+
+    def test_get_target_loggers_stdout_mode_binds_dag_file_context(self, proc):
+        proc.subprocess_logs_to_stdout = True
+        loggers = proc._get_target_loggers()
+        with structlog.testing.capture_logs() as cap:
+            for bound_logger in loggers:
+                bound_logger.info("test")
+        assert all(e.get("dag_file") == "dags/my_dag.py" for e in cap)
+        assert all(e.get("bundle_name") == "mybundle" for e in cap)
+
+    def test_create_log_forwarder_rewrites_task_prefix_to_dag_processor(self, proc):
+        from airflow.sdk.execution_time.supervisor import WatchedSubprocess
+
+        with patch.object(WatchedSubprocess, "_create_log_forwarder") as mock_base:
+            proc._create_log_forwarder((), "task.stdout")
+        mock_base.assert_called_once_with((), "dag_processor.stdout", logging.INFO)
