@@ -42,6 +42,7 @@ from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_s
 from airflow.exceptions import AirflowSkipException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.dag import DagModel
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -232,6 +233,7 @@ class TestTIRunState:
                 "consumed_asset_events": [],
                 "partition_key": None,
                 "note": None,
+                "team_name": None,
             },
             "task_reschedule_count": 0,
             "max_tries": max_tries,
@@ -884,6 +886,62 @@ class TestTIRunState:
         assert dag_run["dag_id"] == ti.dag_id
         assert dag_run["run_id"] == "test"
         assert dag_run["state"] == "running"
+
+    @pytest.mark.parametrize(
+        ("multi_team_enabled", "expect_team"),
+        [
+            pytest.param("False", False, id="multi-team-disabled"),
+            pytest.param("True", True, id="multi-team-enabled"),
+        ],
+    )
+    def test_ti_run_populates_team_name(
+        self,
+        client,
+        session,
+        dag_maker,
+        time_machine,
+        multi_team_enabled,
+        expect_team,
+    ):
+        """``team_name`` is resolved from the DAG's bundle when multi-team is enabled."""
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        instant = timezone.parse("2024-09-30T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        dag_id = str(uuid4())
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(
+            run_id="test", logical_date=instant, state=DagRunState.RUNNING, start_date=instant
+        )
+        ti = dr.get_task_instance(task_id="task")
+        ti.set_state(State.QUEUED)
+
+        bundle_name = f"bundle-{dag_id}"
+        team_name = f"team-{dag_id[:8]}"
+        bundle = DagBundleModel(name=bundle_name)
+        bundle.teams.append(Team(name=team_name))
+        session.add(bundle)
+        session.flush()
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle_name))
+        session.commit()
+
+        with conf_vars({("core", "multi_team"): multi_team_enabled}):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "h",
+                    "unixname": "u",
+                    "pid": 1,
+                    "start_date": "2024-09-30T12:00:00Z",
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json()["dag_run"]["team_name"] == (team_name if expect_team else None)
 
     def test_ti_run_creates_audit_log(self, client, session, create_task_instance, time_machine):
         """Test that transitioning to RUNNING creates an audit log record."""

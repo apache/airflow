@@ -2213,6 +2213,7 @@ REQUEST_TEST_CASES = [
             "triggering_user_name": None,
             "type": "DagRunResult",
             "note": None,
+            "team_name": None,
         },
         client_mock=ClientMock(
             method_path="dag_runs.get_detail",
@@ -2264,6 +2265,7 @@ REQUEST_TEST_CASES = [
                 "conf": None,
                 "triggering_user_name": None,
                 "note": None,
+                "team_name": None,
             },
             "type": "PreviousDagRunResult",
         },

@@ -39,9 +39,14 @@ from airflow.api_fastapi.execution_api.versions.v2026_04_06 import (
     MovePreviousRunEndpoint,
     RemoveUpstreamMapIndexesField,
 )
+from airflow.api_fastapi.execution_api.versions.v2026_04_17 import AddTeamNameField
 
 bundle = VersionBundle(
     HeadVersion(),
+    Version(
+        "2026-04-17",
+        AddTeamNameField,
+    ),
     Version(
         "2026-04-06",
         AddPartitionKeyField,

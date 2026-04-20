@@ -273,6 +273,10 @@ def ti_run(
             or 0
         )
 
+        from airflow.api_fastapi.execution_api.security import get_team_name_for_ti
+
+        dr.team_name = get_team_name_for_ti(task_instance_id, session)
+
         context = TIRunContext(
             dag_run=dr,
             task_reschedule_count=task_reschedule_count,
