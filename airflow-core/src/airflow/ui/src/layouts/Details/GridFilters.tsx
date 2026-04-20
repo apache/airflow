@@ -16,28 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { SimpleGridProps } from "@chakra-ui/react";
-import type { ColumnDef, PaginationState, SortingState, VisibilityState } from "@tanstack/react-table";
-import type { JSX, ReactNode } from "react";
+import { FilterBar } from "src/components/FilterBar";
+import { SearchParamsKeys } from "src/constants/searchParams";
+import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
-export type TableState = {
-  columnVisibility?: VisibilityState;
-  cursor?: string;
-  pagination: PaginationState;
-  sorting: SortingState;
+const searchParamKeys: Array<FilterableSearchParamsKeys> = [
+  SearchParamsKeys.STATE,
+  SearchParamsKeys.RUN_TYPE,
+  SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN,
+  SearchParamsKeys.RUN_AFTER_RANGE,
+];
+
+export const GridFilters = () => {
+  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
+
+  return (
+    <FilterBar configs={filterConfigs} initialValues={initialValues} onFiltersChange={handleFiltersChange} />
+  );
 };
-
-export type CardDef<TData> = {
-  card: (props: { row: TData }) => ReactNode;
-  gridProps?: SimpleGridProps;
-  meta?: {
-    customSkeleton?: JSX.Element;
-  };
-};
-
-export type MetaColumn<TData> = {
-  meta?: {
-    customSkeleton?: ReactNode;
-    skeletonWidth?: number;
-  } & ColumnDef<TData>["meta"];
-} & ColumnDef<TData>;
