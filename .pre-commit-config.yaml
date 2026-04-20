@@ -1117,6 +1117,22 @@ repos:
         files: ^airflow-core/src/airflow/migrations/versions/.*\.py$
         additional_dependencies: [rich>=13.6.0]
         require_serial: true
+      - id: check-java-serialization-compatibility
+        name: Check Java SDK serialization compatibility
+        description: >-
+          Verify that the Java and Python SDKs produce identical DAG serialization
+          for all test cases defined in java-sdk/validation/serialization/test_dags.yaml
+        entry: ./scripts/ci/prek/check_java_serialization_compatibility.py
+        language: python
+        stages: ['manual']
+        pass_filenames: false
+        require_serial: true
+        files: >
+          (?x)
+          ^java-sdk/sdk/src/.*\.(kt|java)$|
+          ^java-sdk/validation/serialization/.*$|
+          ^airflow-core/src/airflow/serialization/.*\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/.*\.py$
       ## ADD MOST PREK HOOK ABOVE THAT LINE
       # The below prek hooks are those requiring CI image to be built
       ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
