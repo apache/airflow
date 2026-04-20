@@ -26,6 +26,7 @@ import pytest
 
 from airflow.providers.smtp.notifications.smtp import SmtpNotifier, send_smtp_notification
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 TRY_NUMBER = 0
@@ -209,6 +210,30 @@ class TestSmtpNotifier:
                 smtp_conn_id=SMTP_CONN_ID,
                 **DEFAULT_EMAIL_PARAMS,
             )
+
+    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
+    def test_notifier_with_custom_smtp_conn_id(self, mock_smtphook_hook, create_dag_without_db):
+        """Test that a custom smtp_conn_id is correctly passed to SmtpHook."""
+        custom_conn_id = "my_custom_smtp"
+        notifier = SmtpNotifier(**NOTIFIER_DEFAULT_PARAMS, smtp_conn_id=custom_conn_id)
+        notifier({"dag": create_dag_without_db(TEST_DAG_ID)})
+        mock_smtphook_hook.assert_called_once_with(smtp_conn_id=custom_conn_id, auth_type="basic")
+        mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
+            **NOTIFIER_DEFAULT_PARAMS,
+            smtp_conn_id=custom_conn_id,
+            **DEFAULT_EMAIL_PARAMS,
+        )
+
+    def test_notifier_default_smtp_conn_id_from_config(self):
+        """Test that smtp_conn_id defaults to email.email_conn_id from config."""
+        with conf_vars({("email", "email_conn_id"): "config_smtp_conn"}):
+            notifier = SmtpNotifier(
+                to=TEST_RECEIVER,
+                from_email=TEST_SENDER,
+                subject=TEST_SUBJECT,
+                html_content=TEST_BODY,
+            )
+            assert notifier.smtp_conn_id == "config_smtp_conn"
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_oauth2_passes_auth_type(self, mock_smtphook_hook, create_dag_without_db):
