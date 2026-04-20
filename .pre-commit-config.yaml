@@ -963,12 +963,13 @@ repos:
       - id: check-agent-skills-drift
         name: Check agent skills are in sync with SKILL.md
         description: Fails if skills.json has drifted from agent-skill-sync markers in SKILL.md
-        entry: python3 scripts/ci/prek/extract_agent_skills.py --check
+        entry: python scripts/ci/prek/extract_agent_skills.py --check
         language: python
         files: >
           (?x)
           ^\.github/skills/breeze-contribution/SKILL\.md$|
-          ^\.github/skills/breeze-contribution/skills\.json$
+          ^\.github/skills/breeze-contribution/skills\.json$|
+          ^contributing-docs/03_contributors_quick_start\.rst$
         pass_filenames: false
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions

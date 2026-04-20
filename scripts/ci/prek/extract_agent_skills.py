@@ -83,7 +83,7 @@ def parse_marker(line: str) -> dict[str, str] | None:
     return fields
 
 
-RST_SKILL_RE = re.compile(r"[.][.] agent-skill::[ ]*\n(?P<fields>(?:[ ]{3}:[^:]+: .+\n)+)", re.MULTILINE)
+RST_SKILL_RE = re.compile(r"[.][.] agent-skill::[ ]*\n(?P<fields>(?:[ ]{3}:[^:]+:.*\n)+)", re.MULTILINE)
 RST_FIELD_RE = re.compile(r"[ ]{3}:([^:]+): (.+)")
 
 
@@ -93,7 +93,7 @@ def extract_skills_from_rst(rst_path: Path) -> list[dict[str, str]]:
         return []
     skills = []
     for match in RST_SKILL_RE.finditer(rst_path.read_text(encoding="utf-8")):
-        fields = dict(RST_FIELD_RE.findall(match.group("fields")))
+        fields = {k: v.strip() for k, v in RST_FIELD_RE.findall(match.group("fields"))}
         if "id" in fields:
             fields["workflow"] = fields.pop("id")
             skills.append(fields)
