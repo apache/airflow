@@ -102,7 +102,7 @@ describe("computePaginationState", () => {
       expect(hasOlderRuns).toBe(false);
     });
 
-    it("is true when the page is exactly full (may be more runs beyond)", () => {
+    it("is false when the page is exactly full", () => {
       const { hasOlderRuns } = computePaginationState({
         gridRuns: TEN_RUNS,
         latestRunId: undefined,
@@ -110,7 +110,7 @@ describe("computePaginationState", () => {
         offset: 0,
       });
 
-      expect(hasOlderRuns).toBe(true);
+      expect(hasOlderRuns).toBe(false);
     });
 
     it("is false when gridRuns is undefined", () => {
@@ -122,6 +122,17 @@ describe("computePaginationState", () => {
       });
 
       expect(hasOlderRuns).toBe(false);
+    });
+
+    it("is true when gridRuns has more runs than limit", () => {
+      const { hasOlderRuns } = computePaginationState({
+        gridRuns: [...TEN_RUNS, makeRun("run_10")],
+        latestRunId: undefined,
+        limit: 10,
+        offset: 0,
+      });
+
+      expect(hasOlderRuns).toBe(true);
     });
   });
 

@@ -53,7 +53,7 @@ export const computePaginationState = ({
   offset: number;
 }): PaginationState => ({
   hasNewerRuns: offset > 0,
-  hasOlderRuns: (gridRuns?.length ?? 0) >= limit,
+  hasOlderRuns: (gridRuns?.length ?? 0) > limit,
   latestNotVisible:
     latestRunId !== undefined && gridRuns !== undefined && !gridRuns.some((dr) => dr.run_id === latestRunId),
 });

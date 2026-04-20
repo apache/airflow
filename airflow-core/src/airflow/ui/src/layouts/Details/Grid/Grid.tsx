@@ -92,18 +92,20 @@ export const Grid = ({
   const depthParam = searchParams.get("depth");
   const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
 
-  const { data: gridRuns, isLoading } = useGridRuns({
+  // Over fetch gridRuns and then truncate to limit, in order to check pagination
+  const { data: dataGridRuns, isLoading } = useGridRuns({
     dagRunState,
-    limit,
+    limit: limit + 1,
     offset,
     runAfterGte,
     runAfterLte,
     runType,
     triggeringUser,
   });
+  const gridRuns = dataGridRuns?.slice(0, limit);
 
   const { handleNewerRuns, handleOlderRuns, hasNewerRuns, hasOlderRuns, latestNotVisible } =
-    useGridPagination({ gridRuns, limit, offset, setOffset });
+    useGridPagination({ gridRuns: dataGridRuns, limit, offset, setOffset });
 
   const { summariesByRunId } = useGridTiSummariesStream({
     dagId,
