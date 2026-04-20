@@ -517,11 +517,21 @@ class TestWatchedSubprocess:
 
         assert rc == -9
 
-    def test_last_chance_exception_handling(self, capfd):
+    @pytest.mark.parametrize(
+        "start_date",
+        [
+            pytest.param(None, id="start_date_is_none"),
+            pytest.param(timezone.datetime(2025, 3, 28, tzinfo=timezone.utc), id="start_date_from_context"),
+        ],
+    )
+    def test_last_chance_exception_handling(self, capfd, start_date, make_ti_context):
         def subprocess_main():
             # The real main() in task_runner catches exceptions! This is what would happen if we had a syntax
             # or import error for instance - a very early exception
             raise RuntimeError("Fake syntax error")
+
+        mock_client = MagicMock(spec=sdk_client.Client)
+        mock_client.task_instances.start.return_value = make_ti_context(start_date=start_date)
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
@@ -529,7 +539,7 @@ class TestWatchedSubprocess:
             what=TaskInstance(
                 id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
             ),
-            client=MagicMock(spec=sdk_client.Client),
+            client=mock_client,
             target=subprocess_main,
         )
 
@@ -540,6 +550,53 @@ class TestWatchedSubprocess:
         captured = capfd.readouterr()
         assert "Last chance exception handler" in captured.err
         assert "RuntimeError: Fake syntax error" in captured.err
+
+    @pytest.mark.parametrize(
+        "start_date",
+        [
+            pytest.param(timezone.datetime(2025, 3, 28, tzinfo=timezone.utc), id="start_date_from_context"),
+            pytest.param(None, id="start_date_missing_in_context"),
+        ],
+    )
+    def test_resume_start_date_from_context(self, mocker, make_ti_context, start_date, time_machine):
+        """Verify that start_date from ti_context (e.g. for deferral resume) is used in the
+        StartupDetails message instead of computing a new datetime.now(). This test is kept
+        separate from test_last_chance_exception_handling as their purposes do not overlap.
+        """
+        fallback_now = timezone.datetime(2026, 1, 1, tzinfo=timezone.utc)
+        time_machine.move_to(fallback_now, tick=False)
+
+        mock_client = MagicMock(spec=sdk_client.Client)
+        ti_context = make_ti_context()
+        ti_context.start_date = start_date
+        mock_client.task_instances.start.return_value = ti_context
+
+        mock_send = mocker.patch.object(ActivitySubprocess, "send_msg", autospec=True)
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+            ),
+            client=mock_client,
+            target=lambda: None,
+        )
+        rc = proc.wait()
+        assert rc == 0
+
+        # The startup message is sent via send_msg(StartupDetails(...), request_id=0)
+        startup_calls = [
+            c for c in mock_send.call_args_list if len(c.args) > 1 and hasattr(c.args[1], "start_date")
+        ]
+        assert len(startup_calls) >= 1
+        msg = startup_calls[0].args[1]
+        expected_start_date = start_date or fallback_now
+        assert msg.start_date == expected_start_date
 
     def test_regular_heartbeat(self, spy_agency: kgb.SpyAgency, monkeypatch, mocker, make_ti_context):
         """Test that the WatchedSubprocess class regularly sends heartbeat requests, up to a certain frequency"""

@@ -8076,17 +8076,6 @@ export const $DeadlineAlertResponse = {
             ],
             title: 'Name'
         },
-        description: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Description'
-        },
         reference_type: {
             type: 'string',
             title: 'Reference Type'
@@ -8157,6 +8146,18 @@ export const $DeadlineResponse = {
             type: 'string',
             title: 'Dag Run Id'
         },
+        alert_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Alert Id'
+        },
         alert_name: {
             anyOf: [
                 {
@@ -8167,17 +8168,6 @@ export const $DeadlineResponse = {
                 }
             ],
             title: 'Alert Name'
-        },
-        alert_description: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Alert Description'
         }
     },
     type: 'object',
