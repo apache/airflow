@@ -1796,8 +1796,10 @@ class TestPytestSnowflakeHook:
         validation on empty input by default, so `Optional()` is required to
         preserve the documented optional semantics.
         """
-        from wtforms import Form
-        from wtforms.validators import Optional
+        pytest.importorskip("flask_appbuilder")
+        pytest.importorskip("flask_babel")
+        Form = pytest.importorskip("wtforms").Form
+        Optional = pytest.importorskip("wtforms.validators").Optional
 
         widgets = SnowflakeHook.get_connection_form_widgets()
         assert "proxy_port" in widgets
