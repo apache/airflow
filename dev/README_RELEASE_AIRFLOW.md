@@ -475,6 +475,22 @@ uv tool install -e ./dev/breeze
   with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
+- Create `backport-to-vX-Y-test` label:
+
+    ```shell script
+    gh label create 'backport-to-vX-Y-test' --repo apache/airflow --description 'Backport to vX-Y-test' --color 0e8a16
+    ```
+
+- Update `.github/boring-cyborg.yml` and add `backport-to-vX-Y-test` auto-assignment for the new branch.
+- Update the `DEFAULT_BRANCHES` list in `dev/sync_fork.sh` to replace the previous `vX-Y-test` entry
+  with the newly cut `vX-Y-test` branch so contributors using the helper sync the current release branch
+  by default.
+- Update `.github/` configuration on `main` to add the new `vX-Y-test` branch (you can use the
+  `uv run dev/update_github_branch_config.py X Y` helper script for this). The following files need updating:
+  - `.github/dependabot.yml` — add `target-branch: vX-Y-test` entries for github-actions, pip, and npm ecosystems.
+  - `.github/workflows/milestone-tag-assistant.yml` — add `vX-Y-test` to the push branches list.
+  - `.github/workflows/basic-tests.yml` — update the release-management dry-run commands to test the new version.
+  - `.github/workflows/ci-notification.yml` — switch the `workflow-status` matrix branch to the new branch.
 - Commit the above changes with the message `Update version to ${VERSION}`.
 - Build the release notes:
 
