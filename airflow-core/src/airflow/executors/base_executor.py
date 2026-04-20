@@ -24,7 +24,7 @@ from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pendulum
 
@@ -43,6 +43,26 @@ from airflow.utils.state import TaskInstanceState
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
+
+def get_execution_api_server_url(conf_source: AirflowConfigParser | ExecutorConf = conf) -> str:
+    """
+    Resolve the execution API server URL from configuration.
+
+    :param conf_source: Configuration source to read from. Defaults to the global ``conf``.
+        Team-specific executors can pass their own config (e.g. ``ExecutorConf``) to resolve
+        a team-specific URL.
+    """
+    base_url = conf_source.get("api", "base_url", fallback="/")
+    # ExecutorConf.get() is typed as str | None even when fallback= guarantees a str,
+    # so the `not base_url` guard and the cast() below keep mypy happy.
+    if not base_url or base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
+    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+    return cast(
+        "str", conf_source.get("core", "execution_api_server_url", fallback=default_execution_api_server)
+    )
+
+
 if TYPE_CHECKING:
     import argparse
     from datetime import datetime
@@ -53,6 +73,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
+    from airflow.configuration import AirflowConfigParser
     from airflow.executors.executor_utils import ExecutorName
     from airflow.executors.workloads import ExecutorWorkload
     from airflow.executors.workloads.types import WorkloadKey
@@ -617,14 +638,7 @@ class BaseExecutor(LoggingMixin):
         # Resolve server URL from config when not explicitly provided.
         # For example, team-specific executors may wish to pass their own server URL.
         if server is None:
-            base_url = conf.get("api", "base_url", fallback="/")
-            if base_url.startswith("/"):
-                base_url = f"http://localhost:8080{base_url}"
-            server = conf.get(
-                "core",
-                "execution_api_server_url",
-                fallback=f"{base_url.rstrip('/')}/execution/",
-            )
+            server = get_execution_api_server_url()
 
         if isinstance(workload, ExecuteTask):
             from airflow.sdk.execution_time.supervisor import supervise_task
