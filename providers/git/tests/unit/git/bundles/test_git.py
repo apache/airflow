@@ -976,6 +976,7 @@ class TestGitDagBundle:
             mock.call.submodule("update", "--init", "--recursive", "--jobs", "1"),
             mock.call.exit(None, None, None),
         ]
+
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_fetch_submodules_forwards_full_hook_env_including_passphrase_vars(
         self, mock_githook_class
