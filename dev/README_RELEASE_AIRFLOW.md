@@ -470,6 +470,9 @@ uv tool install -e ./dev/breeze
     ```
 
 - Update `.github/boring-cyborg.yml` and add `backport-to-vX-Y-test` auto-assignment for the new branch.
+- Update the `DEFAULT_BRANCHES` list in `dev/sync_fork.sh` to replace the previous `vX-Y-test` entry
+  with the newly cut `vX-Y-test` branch so contributors using the helper sync the current release branch
+  by default.
 - Update `.github/` configuration on `main` to add the new `vX-Y-test` branch (you can use the
   `uv run dev/update_github_branch_config.py X Y` helper script for this). The following files need updating:
   - `.github/dependabot.yml` — add `target-branch: vX-Y-test` entries for github-actions, pip, and npm ecosystems.

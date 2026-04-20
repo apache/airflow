@@ -19,16 +19,17 @@ from __future__ import annotations
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
+from starlette.routing import Mount
 
 from airflow.api_fastapi.app import cached_app
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import _jwt_bearer
 
 
 def _get_execution_api_app(root_app: FastAPI) -> FastAPI:
     """Find the mounted execution API sub-app."""
     for route in root_app.routes:
-        if hasattr(route, "path") and route.path == "/execution":
+        if isinstance(route, Mount) and route.path == "/execution" and isinstance(route.app, FastAPI):
             return route.app
     raise RuntimeError("Execution API sub-app not found")
 
@@ -48,7 +49,8 @@ def client(request: pytest.FixtureRequest):
         from uuid import UUID
 
         ti_id = UUID(request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000"))
-        return TIToken(id=ti_id, claims={"sub": str(ti_id), "scope": "execution"})
+        claims = TIClaims(scope="execution")
+        return TIToken(id=ti_id, claims=claims)
 
     exec_app.dependency_overrides[_jwt_bearer] = mock_jwt_bearer
 

@@ -130,8 +130,8 @@ class BaseK8STest:
     @staticmethod
     def _num_pods_in_namespace(namespace: str):
         air_pod = check_output(["kubectl", "get", "pods", "-n", namespace]).decode()
-        air_pod = air_pod.splitlines()
-        names = [re.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" in x]
+        pod_lines = air_pod.splitlines()
+        names = [re.compile(r"\s+").split(x)[0] for x in pod_lines if "airflow" in x]
         return len(names)
 
     @staticmethod

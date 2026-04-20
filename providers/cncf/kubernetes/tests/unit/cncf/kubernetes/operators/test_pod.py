@@ -26,6 +26,7 @@ from unittest.mock import MagicMock, mock_open, patch
 import pendulum
 import pytest
 import tenacity
+import time_machine
 from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
 from kubernetes.client.exceptions import ApiException
 
@@ -2916,6 +2917,35 @@ class TestKubernetesPodOperatorAsync:
         # trigger_reentry catches the error and continues; post_complete_action still called via _clean
         post_complete_action.assert_called_once()
         assert "Reading of logs interrupted with error" in caplog.text
+
+    @time_machine.travel("2026-01-01 00:00:00", tick=False)
+    @patch(KUB_OP_PATH.format("client"))
+    def test_write_logs_with_valid_since_time(self, mocked_client):
+        """Test that since_seconds is calculated correctly when since_time is a valid datetime."""
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE))
+        since_time = datetime.datetime(
+            2026, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc
+        ) - datetime.timedelta(seconds=30)
+        k = KubernetesPodOperator(task_id="task", get_logs=True)
+        k._write_logs(pod, since_time=since_time)
+        _, call_kwargs = mocked_client.read_namespaced_pod_log.call_args
+        assert call_kwargs["since_seconds"] == 30
+
+    @patch(KUB_OP_PATH.format("client"))
+    def test_write_logs_with_invalid_since_time_falls_back_to_none(self, mocked_client):
+        """Test that a TypeError from an invalid since_time is caught, warns, and uses since_seconds=None."""
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE))
+        k = KubernetesPodOperator(task_id="task", get_logs=True)
+
+        with patch.object(k.log, "warning") as mock_warning:
+            k._write_logs(pod, since_time="not-a-datetime")
+
+        _, call_kwargs = mocked_client.read_namespaced_pod_log.call_args
+        assert call_kwargs["since_seconds"] is None
+        mock_warning.assert_called_once_with(
+            "Error calculating since_seconds with since_time %s. Using None instead.",
+            "not-a-datetime",
+        )
 
     @pytest.mark.parametrize(
         ("log_pod_spec_on_failure", "expect_match"),
