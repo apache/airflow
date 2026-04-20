@@ -42,7 +42,7 @@ def upgrade():
     """Add partial index on task_instance (state, updated_at) for terminal states."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.create_index(
-            "idx_CRE_ti_state_updated_at",
+            "ti_state_updated_at",
             ["state", "updated_at"],
             postgresql_where=sa.text("state IN ('success', 'failed')"),
             sqlite_where=sa.text("state IN ('success', 'failed')"),
@@ -52,4 +52,4 @@ def upgrade():
 def downgrade():
     """Remove partial index on task_instance (state, updated_at) for terminal states."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.drop_index("idx_CRE_ti_state_updated_at")
+        batch_op.drop_index("ti_state_updated_at")

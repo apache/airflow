@@ -42,7 +42,7 @@ def upgrade():
     """Add partial index on task_instance (span_status) for should_end spans."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.create_index(
-            "idx_CRE_ti_span_status",
+            "ti_span_status",
             ["span_status"],
             postgresql_where=sa.text("span_status = 'should_end'"),
             sqlite_where=sa.text("span_status = 'should_end'"),
@@ -52,4 +52,4 @@ def upgrade():
 def downgrade():
     """Remove partial index on task_instance (span_status) for should_end spans."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.drop_index("idx_CRE_ti_span_status")
+        batch_op.drop_index("ti_span_status")
