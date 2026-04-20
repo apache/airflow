@@ -66,3 +66,73 @@ exclude = ["*"]
 
 [tool.hatch.build.targets.wheel]
 bypass-selection = true
+
+[tool.mypy]
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+plugins = [
+    "airflow_mypy/plugin/decorators.py",
+    "airflow_mypy/plugin/outputs.py",
+]
+pretty = true
+show_error_codes = true
+disable_error_code = [
+    "annotation-unchecked",
+]
+namespace_packages = true
+explicit_package_bases = true
+exclude = [
+    ".*/node_modules/.*",
+    # Exclude hidden files and directories
+    ".*/\\..*"
+]
+# Workspace packages (airflow_breeze, airflow_perf, airflow_mypy, etc.) are installed
+# editable into the hook's virtualenv by `uv sync`, so mypy resolves them via
+# site-packages — no mypy_path entries needed.
+
+[[tool.mypy.overrides]]
+module="airflow.config_templates.default_webserver_config"
+disable_error_code = [
+    "var-annotated",
+]
+
+[[tool.mypy.overrides]]
+module="airflow.migrations.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module="airflow.*._vendor.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module= [
+    "google.cloud.*",
+    "azure.*",
+]
+no_implicit_optional = false
+
+[[tool.mypy.overrides]]
+module = "google.api_core.gapic_v1"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module=[
+    "referencing.*",
+    # Beam has some old type annotations, and they introduced an error recently with bad signature of
+    # a function. This is captured in https://github.com/apache/beam/issues/29927
+    # and we should remove this exclusion when it is fixed.
+    "apache_beam.*"
+]
+ignore_errors = true
+
+# airflowctl autogenered datamodels
+[[tool.mypy.overrides]]
+module="airflowctl.api.datamodels.*"
+ignore_errors = true
+
+[dependency-groups]
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]

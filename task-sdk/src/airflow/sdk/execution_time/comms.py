@@ -133,7 +133,7 @@ def _new_encoder() -> msgspec.msgpack.Encoder:
     return msgspec.msgpack.Encoder(enc_hook=_msgpack_enc_hook)
 
 
-class _RequestFrame(msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):
+class _RequestFrame(msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):  # type: ignore[call-arg]
     id: int
     """
     The request id, set by the sender.
@@ -159,7 +159,7 @@ class _RequestFrame(msgspec.Struct, array_like=True, frozen=True, omit_defaults=
         return buffer
 
 
-class _ResponseFrame(_RequestFrame, frozen=True):
+class _ResponseFrame(_RequestFrame, frozen=True):  # type: ignore[call-arg]
     id: int
     """
     The id of the request this is a response to

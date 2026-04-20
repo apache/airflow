@@ -375,6 +375,7 @@ paths:
                 - large_node
                 - wisconsin_site
                 sysinfo:
+                  status: 20
                   concurrency: 4
                   airflow_version: 2.10.0
                   edge_provider_version: 1.0.0
@@ -447,6 +448,7 @@ paths:
                 - large_node
                 - wisconsin_site
                 sysinfo:
+                  status: 20
                   concurrency: 4
                   airflow_version: 2.10.0
                   edge_provider_version: 1.0.0
@@ -1336,6 +1338,9 @@ components:
             anyOf:
             - type: string
             - type: integer
+            - type: number
+            - type: string
+              format: date-time
           type: object
           title: Sysinfo
           description: System information of the worker.
@@ -1344,6 +1349,7 @@ components:
             concurrency: 4
             edge_provider_version: 1.0.0
             free_concurrency: 3
+            status: 20
         maintenance_comments:
           anyOf:
           - type: string
@@ -1518,6 +1524,9 @@ components:
             anyOf:
             - type: string
             - type: integer
+            - type: number
+            - type: string
+              format: date-time
           type: object
           title: Sysinfo
           description: System information of the worker.
@@ -1526,6 +1535,7 @@ components:
             concurrency: 4
             edge_provider_version: 1.0.0
             free_concurrency: 3
+            status: 20
         maintenance_comments:
           anyOf:
           - type: string
