@@ -32,13 +32,16 @@ from airflow.models.backfill import (
     Backfill,
     BackfillDagRun,
     BackfillDagRunExceptionReason,
+    DagNonPeriodicScheduleException,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
     ReprocessBehavior,
     _create_backfill,
+    _do_dry_run,
     _get_latest_dag_run_row_query,
 )
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import Asset
 from airflow.ti_deps.dep_context import DepContext
 from airflow.timetables.base import DagRunInfo
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -593,3 +596,60 @@ def test_get_latest_dag_run_row_partitioned(session: Session):
     dr = session.scalar(stmt)
     assert dr is not None
     assert dr.start_date == timezone.parse("2026-02-23")
+
+
+@pytest.mark.parametrize(
+    ("schedule", "dag_kwargs"),
+    [
+        pytest.param(None, {}, id="no-schedule"),
+        pytest.param("@once", {}, id="once"),
+        pytest.param("@continuous", {"max_active_runs": 1}, id="continuous"),
+        pytest.param([Asset(uri="test://asset", name="test-asset")], {}, id="asset-scheduled"),
+    ],
+)
+def test_create_backfill_non_periodic_schedule_rejected(schedule, dag_kwargs, dag_maker, session):
+    with dag_maker(schedule=schedule, **dag_kwargs) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+    with pytest.raises(
+        DagNonPeriodicScheduleException,
+        match="has a non-periodic schedule that does not support backfills",
+    ):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-05"),
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf={},
+        )
+
+
+@pytest.mark.parametrize(
+    ("schedule", "dag_kwargs"),
+    [
+        pytest.param(None, {}, id="no-schedule"),
+        pytest.param("@once", {}, id="once"),
+        pytest.param("@continuous", {"max_active_runs": 1}, id="continuous"),
+        pytest.param([Asset(uri="test://asset", name="test-asset")], {}, id="asset-scheduled"),
+    ],
+)
+def test_do_dry_run_non_periodic_schedule_rejected(schedule, dag_kwargs, dag_maker, session):
+    with dag_maker(schedule=schedule, **dag_kwargs) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+    with pytest.raises(
+        DagNonPeriodicScheduleException,
+        match="has a non-periodic schedule that does not support backfills",
+    ):
+        list(
+            _do_dry_run(
+                dag_id=dag.dag_id,
+                from_date=pendulum.parse("2021-01-01"),
+                to_date=pendulum.parse("2021-01-05"),
+                reverse=False,
+                reprocess_behavior=ReprocessBehavior.NONE,
+                session=session,
+            )
+        )

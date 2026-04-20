@@ -28,8 +28,17 @@ import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
 import { getDuration, renderDuration, sortStateEntries } from "src/utils";
 
+/** Grid summary plus optional schedule/queue hints (e.g. Gantt segment tooltips). */
+type LightGridTaskInstanceSummaryWithWhen = {
+  readonly queued_when?: string | null;
+  readonly scheduled_when?: string | null;
+} & LightGridTaskInstanceSummary;
+
 type Props = {
-  readonly taskInstance?: LightGridTaskInstanceSummary | TaskInstanceHistoryResponse | TaskInstanceResponse;
+  readonly taskInstance?:
+    | LightGridTaskInstanceSummaryWithWhen
+    | TaskInstanceHistoryResponse
+    | TaskInstanceResponse;
   readonly tooltip?: string | null;
 } & Omit<TooltipProps, "content">;
 
@@ -65,6 +74,20 @@ const TaskInstanceTooltip = ({ children, positioning, taskInstance, tooltip, ...
               {"dag_run_id" in taskInstance ? (
                 <Text>
                   {translate("runId")}: {taskInstance.dag_run_id}
+                </Text>
+              ) : undefined}
+              {"scheduled_when" in taskInstance &&
+              taskInstance.scheduled_when !== null &&
+              taskInstance.scheduled_when !== "" ? (
+                <Text>
+                  {translate("taskInstance.scheduledWhen")}: <Time datetime={taskInstance.scheduled_when} />
+                </Text>
+              ) : undefined}
+              {"queued_when" in taskInstance &&
+              taskInstance.queued_when !== null &&
+              taskInstance.queued_when !== "" ? (
+                <Text>
+                  {translate("taskInstance.queuedWhen")}: <Time datetime={taskInstance.queued_when} />
                 </Text>
               ) : undefined}
               {"start_date" in taskInstance ? (

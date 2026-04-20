@@ -17,23 +17,18 @@
 from __future__ import annotations
 
 import ast
-import json
 import logging
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Integer, String, delete, select
+from sqlalchemy import JSON, Integer, String, delete, select
 from sqlalchemy.orm import Mapped
 
-from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
-from airflow.providers.edge3.models.edge_base import Base
-
-try:
-    from airflow.sdk.observability.stats import DualStatsManager
-except ImportError:
-    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
+from airflow.providers.edge3.models.edge_base import Base
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -99,10 +94,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
     first_online: Mapped[datetime | None] = mapped_column(UtcDateTime)
     last_update: Mapped[datetime | None] = mapped_column(UtcDateTime)
     jobs_active: Mapped[int] = mapped_column(Integer, default=0)
-    jobs_taken: Mapped[int] = mapped_column(Integer, default=0)
-    jobs_success: Mapped[int] = mapped_column(Integer, default=0)
-    jobs_failed: Mapped[int] = mapped_column(Integer, default=0)
-    sysinfo: Mapped[str | None] = mapped_column(String(256))
+    sysinfo: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     team_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     concurrency: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
@@ -124,10 +116,6 @@ class EdgeWorkerModel(Base, LoggingMixin):
         self.maintenance_comment = maintenance_comment
         self.team_name = team_name
         super().__init__()
-
-    @property
-    def sysinfo_json(self) -> dict | None:
-        return json.loads(self.sysinfo) if self.sysinfo else None
 
     @property
     def queues(self) -> list[str] | None:
@@ -168,6 +156,7 @@ def set_metrics(
     concurrency: int,
     free_concurrency: int,
     queues: list[str] | None,
+    sysinfo: dict[str, str | int | float | datetime],
 ) -> None:
     """Set metric of edge worker."""
     queues = queues if queues else []
@@ -181,8 +170,31 @@ def set_metrics(
         EdgeWorkerState.MAINTENANCE_EXIT,
         EdgeWorkerState.OFFLINE_MAINTENANCE,
     )
+    additional_keys = set(sysinfo or ()) - {
+        "status",
+        "airflow_version",
+        "edge_provider_version",
+        "python_version",
+        "worker_start_time",
+        "concurrency",
+        "free_concurrency",
+    }
 
-    if DualStatsManager is not None:
+    if AIRFLOW_V_3_2_PLUS:
+        from airflow.sdk.observability.stats import DualStatsManager
+
+        try:
+            DualStatsManager.gauge(
+                "edge_worker.status",
+                sysinfo.get("status", logging.NOTSET),  # type: ignore
+                tags={},
+                extra_tags={"worker_name": worker_name},
+            )
+        except ValueError:
+            logger.warning(
+                "Failed to set metric edge_worker.status. Mapping is missing in metrics_template.yaml"
+            )
+
         DualStatsManager.gauge(
             "edge_worker.connected",
             int(connected),
@@ -224,7 +236,34 @@ def set_metrics(
             tags={},
             extra_tags={"worker_name": worker_name, "queues": ",".join(queues)},
         )
+
+        for key in additional_keys:
+            value = sysinfo.get(key)
+            if isinstance(value, (int, float)):
+                try:
+                    DualStatsManager.gauge(
+                        f"edge_worker.{key}",
+                        value,
+                        tags={},
+                        extra_tags={"worker_name": worker_name},
+                    )
+                except ValueError as e:
+                    logger.warning(
+                        "Failed to set metric for key %s with value %s: %s",
+                        key,
+                        value,
+                        e,
+                    )
     else:
+        from airflow.providers.common.compat.sdk import Stats
+
+        Stats.gauge(f"edge_worker.status.{worker_name}", sysinfo.get("status", logging.NOTSET))  # type: ignore
+        Stats.gauge(
+            "edge_worker.status",
+            sysinfo.get("status", logging.NOTSET),  # type: ignore
+            tags={"worker_name": worker_name},
+        )
+
         Stats.gauge(f"edge_worker.connected.{worker_name}", int(connected))
         Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
 
@@ -247,6 +286,12 @@ def set_metrics(
             tags={"worker_name": worker_name, "queues": ",".join(queues)},
         )
 
+        for key in additional_keys:
+            value = sysinfo.get(key)
+            if isinstance(value, (int, float)):
+                Stats.gauge(f"edge_worker.{key}.{worker_name}", value)
+                Stats.gauge(f"edge_worker.{key}", value, tags={"worker_name": worker_name})
+
 
 def reset_metrics(worker_name: str) -> None:
     """Reset metrics of worker."""
@@ -257,6 +302,9 @@ def reset_metrics(worker_name: str) -> None:
         concurrency=0,
         free_concurrency=-1,
         queues=None,
+        sysinfo={
+            "status": logging.NOTSET,
+        },
     )
 
 

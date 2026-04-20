@@ -209,7 +209,7 @@ Generating Airflow core Issue
 
 You can use Breeze to generate a Airflow core issue when you release new airflow.
 
-.. image:: ./images/output_release-management_generate-issue-content-providers.svg
+.. image:: ./images/output_release-management_generate-issue-content-core.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-core.svg
   :width: 100%
   :alt: Breeze generate-issue-content-core
@@ -416,7 +416,7 @@ Generating helm chart Issue
 
 You can use Breeze to generate a helm chart issue when you release new helm chart.
 
-.. image:: ./images/output_release-management_generate-issue-content-providers.svg
+.. image:: ./images/output_release-management_generate-issue-content-helm-chart.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-helm-chart.svg
   :width: 100%
   :alt: Breeze generate-issue-content-helm-chart
@@ -893,6 +893,35 @@ If you pass ``--tag`` fag, the distribution will create a source tarball release
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-ctl-distributions.svg
   :width: 100%
   :alt: Breeze release-management prepare-airflow-ctl-distributions
+
+Generating airflowctl changelog
+""""""""""""""""""""""""""""""""
+
+You can generate the RST changelog for an airflowctl release and have it automatically prepended to
+``airflow-ctl/RELEASE_NOTES.rst``. The command reads the git log between two refs filtered to the
+``airflow-ctl/`` directory, fetches PR metadata from GitHub, and categorises each PR by title prefix.
+
+.. code-block:: bash
+
+     breeze release-management generate-airflowctl-changelog --previous-release "airflow-ctl/0.1.3" --version "0.1.4"
+
+``--current-release`` defaults to ``HEAD`` so you do not need to create the tag first. Pass
+``--output-file -`` to print to stdout instead of modifying ``RELEASE_NOTES.rst``.
+
+.. image:: ./images/output_release-management_generate-airflowctl-changelog.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-airflowctl-changelog.svg
+  :width: 100%
+  :alt: Breeze release-management generate-airflowctl-changelog
+
+Generating airflow-ctl issue
+""""""""""""""""""""""""""""
+
+You can use Breeze to generate an airflow-ctl issue when you release new airflow-ctl.
+
+.. image:: ./images/output_release-management_generate-issue-content-airflow-ctl.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-airflow-ctl.svg
+  :width: 100%
+  :alt: Breeze release-management generate-issue-content-airflow-ctl
 
 Publishing the documentation to S3
 """"""""""""""""""""""""""""""""""

@@ -1043,6 +1043,143 @@ class TestPytestSnowflakeHook:
             with pytest.raises(ValueError, match="List of SQL statements is empty"):
                 hook.run(sql=empty_statement)
 
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_multi_statement_with_split_statements_false(self, mock_conn):
+        """When split_statements=False, cursor.execute() receives num_statements=0."""
+        hook = SnowflakeHook()
+        conn = mock_conn.return_value
+        cur = mock.MagicMock(rowcount=0)
+        conn.cursor.return_value = cur
+        type(cur).sfqid = mock.PropertyMock(return_value="multi_query_id")
+
+        sql = "BEGIN; CREATE TABLE t(id INT); INSERT INTO t VALUES(1); COMMIT;"
+        hook.run(sql, split_statements=False)
+
+        # Entire SQL block sent as one execute with num_statements=0
+        cur.execute.assert_called_once_with(
+            "BEGIN; CREATE TABLE t(id INT); INSERT INTO t VALUES(1); COMMIT",
+            num_statements=0,
+        )
+        assert hook.query_ids == ["multi_query_id"]
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_split_statements_true_does_not_pass_num_statements(self, mock_conn):
+        """When split_statements=True, cursor.execute() does not receive num_statements."""
+        hook = SnowflakeHook()
+        conn = mock_conn.return_value
+        cur = mock.MagicMock(rowcount=0)
+        conn.cursor.return_value = cur
+        type(cur).sfqid = mock.PropertyMock(side_effect=["id1", "id2"])
+
+        hook.run("SELECT 1; SELECT 2", split_statements=True)
+
+        assert cur.execute.call_count == 2
+        for call in cur.execute.call_args_list:
+            assert "num_statements" not in call.kwargs
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_sql_list_does_not_pass_num_statements(self, mock_conn):
+        """When sql is a list, cursor.execute() does not receive num_statements."""
+        hook = SnowflakeHook()
+        conn = mock_conn.return_value
+        cur = mock.MagicMock(rowcount=0)
+        conn.cursor.return_value = cur
+        type(cur).sfqid = mock.PropertyMock(side_effect=["id1", "id2"])
+
+        hook.run(["SELECT 1;", "SELECT 2;"])
+
+        assert cur.execute.call_count == 2
+        for call in cur.execute.call_args_list:
+            assert "num_statements" not in call.kwargs
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_respects_autocommit_session_parameter(self, mock_conn):
+        """When session_parameters has AUTOCOMMIT, set_autocommit is skipped and no commit."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["session_parameters"] = {"AUTOCOMMIT": True}
+        with mock.patch.dict(
+            "os.environ",
+            AIRFLOW_CONN_SNOWFLAKE_DEFAULT=Connection(**connection_kwargs).get_uri(),
+        ):
+            hook = SnowflakeHook()
+            conn = mock_conn.return_value
+            cur = mock.MagicMock(rowcount=0)
+            conn.cursor.return_value = cur
+            type(cur).sfqid = mock.PropertyMock(return_value="qid")
+
+            hook.run("SELECT 1", autocommit=False)
+
+            # set_autocommit should NOT have been called
+            conn.autocommit.assert_not_called()
+            # No manual commit since AUTOCOMMIT session param is in effect
+            conn.commit.assert_not_called()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_respects_autocommit_session_parameter_case_insensitive(self, mock_conn):
+        """AUTOCOMMIT check is case-insensitive (Snowflake params are case-insensitive)."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["session_parameters"] = {"autocommit": True}
+        with mock.patch.dict(
+            "os.environ",
+            AIRFLOW_CONN_SNOWFLAKE_DEFAULT=Connection(**connection_kwargs).get_uri(),
+        ):
+            hook = SnowflakeHook()
+            conn = mock_conn.return_value
+            cur = mock.MagicMock(rowcount=0)
+            conn.cursor.return_value = cur
+            type(cur).sfqid = mock.PropertyMock(return_value="qid")
+
+            hook.run("SELECT 1", autocommit=False)
+
+            conn.autocommit.assert_not_called()
+            conn.commit.assert_not_called()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_respects_autocommit_from_hook_session_parameters(self, mock_conn):
+        """AUTOCOMMIT from hook constructor session_parameters is respected."""
+        hook = SnowflakeHook(session_parameters={"AUTOCOMMIT": True})
+        conn = mock_conn.return_value
+        cur = mock.MagicMock(rowcount=0)
+        conn.cursor.return_value = cur
+        type(cur).sfqid = mock.PropertyMock(return_value="qid")
+
+        hook.run("SELECT 1", autocommit=False)
+
+        conn.autocommit.assert_not_called()
+        conn.commit.assert_not_called()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_explicit_autocommit_true_overrides_session_parameter(self, mock_conn):
+        """When autocommit=True is explicit, it overrides session_parameters."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["session_parameters"] = {"AUTOCOMMIT": False}
+        with mock.patch.dict(
+            "os.environ",
+            AIRFLOW_CONN_SNOWFLAKE_DEFAULT=Connection(**connection_kwargs).get_uri(),
+        ):
+            hook = SnowflakeHook()
+            conn = mock_conn.return_value
+            cur = mock.MagicMock(rowcount=0)
+            conn.cursor.return_value = cur
+            type(cur).sfqid = mock.PropertyMock(return_value="qid")
+
+            hook.run("SELECT 1", autocommit=True)
+
+            conn.autocommit.assert_called_once_with(True)
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_default_autocommit_without_session_parameter(self, mock_conn):
+        """Without AUTOCOMMIT in session_parameters, default (False) is applied."""
+        hook = SnowflakeHook()
+        conn = mock_conn.return_value
+        cur = mock.MagicMock(rowcount=0)
+        conn.cursor.return_value = cur
+        type(cur).sfqid = mock.PropertyMock(return_value="qid")
+
+        hook.run("SELECT 1")
+
+        conn.autocommit.assert_called_once_with(False)
+
     def test_get_openlineage_default_schema_with_no_schema_set(self):
         connection_kwargs = {
             **BASE_CONNECTION_KWARGS,

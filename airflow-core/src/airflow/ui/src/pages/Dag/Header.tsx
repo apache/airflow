@@ -26,6 +26,7 @@ import { DagIcon } from "src/assets/DagIcon";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import { ParseDagButton } from "src/components/DagActions/ParseDagButton";
+import { DagDeactivatedBadge } from "src/components/DagDeactivatedBadge";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DagVersion } from "src/components/DagVersion";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
@@ -56,6 +57,21 @@ export const Header = ({
   const { t: translate } = useTranslation(["common", "dag"]);
   // We would still like to show the dagId even if the dag object hasn't loaded yet
   const { dagId } = useParams();
+  const isStale = dag?.is_stale;
+
+  const nextRunStat = isStale
+    ? []
+    : [
+        {
+          label: translate("dagDetails.nextRun"),
+          value: Boolean(dag?.next_dagrun_run_after) ? (
+            <DagRunInfo
+              logicalDate={dag?.next_dagrun_logical_date}
+              runAfter={dag?.next_dagrun_run_after as string}
+            />
+          ) : undefined,
+        },
+      ];
 
   const stats = [
     {
@@ -88,15 +104,7 @@ export const Header = ({
           </Link>
         ) : undefined,
     },
-    {
-      label: translate("dagDetails.nextRun"),
-      value: Boolean(dag?.next_dagrun_run_after) ? (
-        <DagRunInfo
-          logicalDate={dag?.next_dagrun_logical_date}
-          runAfter={dag?.next_dagrun_run_after as string}
-        />
-      ) : undefined,
-    },
+    ...nextRunStat,
     {
       label: translate("dagDetails.maxActiveRuns"),
       value:
@@ -132,7 +140,7 @@ export const Header = ({
               />
             )}
             <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} />
-            <ParseDagButton dagId={dag.dag_id} fileToken={dag.file_token} />
+            {isStale ? undefined : <ParseDagButton dagId={dag.dag_id} fileToken={dag.file_token} />}
             <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} />
           </>
         )
@@ -140,8 +148,12 @@ export const Header = ({
       icon={<DagIcon />}
       stats={stats}
       subTitle={
-        dag !== undefined && (
-          <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
+        isStale ? (
+          <DagDeactivatedBadge />
+        ) : (
+          dag !== undefined && (
+            <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
+          )
         )
       }
       title={dag?.dag_display_name ?? dagId}
