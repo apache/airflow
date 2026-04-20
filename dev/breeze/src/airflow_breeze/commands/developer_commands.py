@@ -936,6 +936,11 @@ def down(preserve_volumes: bool, cleanup_mypy_cache: bool, cleanup_build_cache: 
         if local_mypy_cache.exists():
             console_print(f"\n[info]Removing local mypy cache: {local_mypy_cache}\n")
             shutil.rmtree(local_mypy_cache)
+        for subdir in ("mypy-venvs", "mypy-caches"):
+            hook_dir = AIRFLOW_ROOT_PATH / ".build" / subdir
+            if hook_dir.exists():
+                console_print(f"\n[info]Removing dedicated mypy {subdir}: {hook_dir}\n")
+                shutil.rmtree(hook_dir)
     if cleanup_build_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "airflow-cache-volume"]
         run_command(command_to_execute)

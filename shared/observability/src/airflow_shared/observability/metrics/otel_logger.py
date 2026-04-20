@@ -418,7 +418,7 @@ def get_otel_logger(
 
     readers = [
         PeriodicExportingMetricReader(
-            exporter=metric_exporter,
+            exporter=metric_exporter,  # type: ignore[arg-type]
             export_interval_millis=interval,  # type: ignore[arg-type]
         )
     ]

@@ -77,3 +77,8 @@ exclude = ["*"]
 
 [tool.hatch.build.targets.wheel]
 bypass-selection = true
+
+[dependency-groups]
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]

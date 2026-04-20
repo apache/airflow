@@ -36,6 +36,10 @@ dev = [
     "apache-airflow-shared-module-loading",
     "apache-airflow-shared-listeners",
 ]
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]
+
 
 [build-system]
 requires = [

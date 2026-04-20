@@ -171,6 +171,10 @@ docs = [
 docs-gen = [
     "apache-airflow-devel-common[docs-gen]",
 ]
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]
+
 
 [project.scripts]
 build-docs = "docs.build_docs:build_docs"

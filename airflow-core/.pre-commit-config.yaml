@@ -16,7 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.2.0'
+minimum_prek_version: '0.3.4'
 default_language_version:
   python: python3
   node: 22.19.0
@@ -224,7 +224,7 @@ repos:
       - id: mypy-airflow-core
         name: Run mypy for airflow-core
         language: python
-        entry: ../scripts/ci/prek/mypy_local_folder.py airflow-core
+        entry: ../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py airflow-core
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

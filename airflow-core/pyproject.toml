@@ -311,6 +311,10 @@ dev = [
 docs = [
     "apache-airflow-devel-common[docs]"
 ]
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]
+
 
 
 [tool.uv]

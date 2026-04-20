@@ -32,6 +32,10 @@ dependencies = [
 dev = [
     "apache-airflow-devel-common",
 ]
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]
+
 
 [build-system]
 requires = [
