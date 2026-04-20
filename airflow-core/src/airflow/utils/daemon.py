@@ -28,10 +28,19 @@ from __future__ import annotations
 
 import atexit
 import os
-import pwd
-import resource
 import signal
+import socket
 import sys
+
+try:
+    import pwd
+except ModuleNotFoundError:  # pragma: no cover
+    pwd = None
+
+try:
+    import resource
+except ModuleNotFoundError:  # pragma: no cover
+    resource = None
 
 
 class DaemonContext:
@@ -207,6 +216,9 @@ def _change_file_creation_mask(mask: int) -> None:
 
 
 def _change_process_owner(uid: int, gid: int, initgroups: bool = False) -> None:
+    if pwd is None:
+        raise OSError("Unable to change process owner (pwd module is not available on this platform)")
+
     try:
         username = pwd.getpwuid(uid).pw_name
     except KeyError:
@@ -224,6 +236,9 @@ def _change_process_owner(uid: int, gid: int, initgroups: bool = False) -> None:
 
 
 def _prevent_core_dump() -> None:
+    if resource is None:
+        raise OSError("System does not support RLIMIT_CORE resource limit (resource module unavailable)")
+
     core_resource = resource.RLIMIT_CORE
     try:
         resource.getrlimit(core_resource)
@@ -252,11 +267,9 @@ def _is_detach_process_context_required() -> bool:
     try:
         if sys.__stdin__ is not None and hasattr(sys.__stdin__, "fileno"):
             fd = sys.__stdin__.fileno()
-            import socket
-
-            sock = socket.fromfd(fd, socket.AF_INET, socket.SOCK_RAW)
-            sock.getsockopt(socket.SOL_SOCKET, socket.SO_TYPE)
-            return False
+            with socket.fromfd(fd, socket.AF_INET, socket.SOCK_RAW) as sock:
+                sock.getsockopt(socket.SOL_SOCKET, socket.SO_TYPE)
+                return False
     except (OSError, ValueError):
         pass
     return True
@@ -266,6 +279,9 @@ _MAXFD = 2048
 
 
 def _get_maximum_file_descriptors() -> int:
+    if resource is None:
+        return _MAXFD
+
     __, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
     if hard_limit == resource.RLIM_INFINITY:
         return _MAXFD
@@ -293,11 +309,18 @@ def _close_all_open_files(exclude: set[int] | None = None) -> None:
 
 
 def _redirect_stream(system_stream, target_stream) -> None:
+    system_fd = system_stream.fileno()
     if target_stream is None:
         target_fd = os.open(os.devnull, os.O_RDWR)
-    else:
-        target_fd = target_stream.fileno()
-    os.dup2(target_fd, system_stream.fileno())
+        try:
+            if target_fd != system_fd:
+                os.dup2(target_fd, system_fd)
+        finally:
+            if target_fd != system_fd:
+                os.close(target_fd)
+        return
+
+    os.dup2(target_stream.fileno(), system_fd)
 
 
 def _make_default_signal_map() -> dict:

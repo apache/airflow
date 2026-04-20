@@ -63,7 +63,8 @@ class TestWritePidToPidfile:
     def test_writes_current_pid(self, tmp_path):
         pidfile = str(tmp_path / "test.pid")
         write_pid_to_pidfile(pidfile)
-        content = open(pidfile).read()
+        with open(pidfile) as file:
+            content = file.read()
         assert content.strip() == str(os.getpid())
 
     def test_raises_on_existing_file(self, tmp_path):
@@ -74,7 +75,11 @@ class TestWritePidToPidfile:
 
     def test_creates_file_with_correct_permissions(self, tmp_path):
         pidfile = str(tmp_path / "test.pid")
-        write_pid_to_pidfile(pidfile)
+        previous_umask = os.umask(0o022)
+        try:
+            write_pid_to_pidfile(pidfile)
+        finally:
+            os.umask(previous_umask)
         mode = os.stat(pidfile).st_mode & 0o777
         assert mode == 0o644
 

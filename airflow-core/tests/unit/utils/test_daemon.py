@@ -136,8 +136,6 @@ class TestRedirectStream:
         assert "redirected" in target_path.read_text()
 
     def test_redirects_to_devnull_when_none(self):
-        import sys
-
         original_fd = os.dup(sys.stdout.fileno())
         try:
             _redirect_stream(sys.stdout, None)
