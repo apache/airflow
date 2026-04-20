@@ -449,8 +449,8 @@ def _fork_main(
             exit(125)
 
 
-_USE_FORK_EXEC = sys.platform == "darwin"
-"""On macOS, use fork + exec (``os.fork`` then ``os.execv``) instead of bare ``os.fork``.
+_FORK_EXEC_PLATFORMS = {"darwin"}
+"""Platforms where we fork+exec instead of bare ``os.fork`` for task execution.
 
 macOS system libraries (Security.framework, CoreFoundation, ``_scproxy``) use
 Objective-C, which is not fork-safe.  A bare ``os.fork()`` copies the parent's
@@ -459,19 +459,20 @@ ObjC runtime state; if the child then triggers ObjC class initialization
 runtime detects the corrupted state and crashes with SIGABRT.
 
 Calling ``os.execv`` immediately after ``os.fork`` replaces the child's address
-space, giving it clean ObjC state.  Before exec, the supervisor dup2s the
-socketpairs onto FDs 0 (requests/stdin), 1 (stdout), 2 (stderr) -- these are
-inheritable by default and survive across exec.  The log channel is obtained
-after startup via the existing ``ResendLoggingFD`` mechanism.
+space, giving it clean ObjC state.  Before exec, the supervisor ``dup2``s the
+socketpairs onto FDs 0 (requests/stdin), 1 (stdout), 2 (stderr).  The duplicated
+FDs survive the upcoming exec because ``os.dup2(inheritable=True)`` (the default)
+clears ``FD_CLOEXEC`` on the destination FDs.  The log channel is obtained after
+startup via the existing ``ResendLoggingFD`` mechanism.
 
-This applies to all executors (Local, Celery, etc.) but only on macOS and only
-for task execution (``target is _subprocess_main``).  DAG processor and triggerer
-use different targets and keep bare fork -- they don't make network calls that
+Only task execution opts in (via ``use_exec=True`` in ``ActivitySubprocess.start``).
+DAG processor and triggerer keep bare fork -- they don't make network calls that
 trigger the macOS crash.
 
 See: https://github.com/python/cpython/issues/105912
      https://github.com/apache/airflow/discussions/24463
 """
+
 
 def _child_exec_main():
     """
@@ -546,9 +547,16 @@ class WatchedSubprocess:
         *,
         target: Callable[[], None] = _subprocess_main,
         logger: FilteringBoundLogger | None = None,
+        use_exec: bool = False,
         **constructor_kwargs,
     ) -> Self:
-        """Fork and start a new subprocess with the specified target function."""
+        """Fork and start a new subprocess with the specified target function.
+
+        :param use_exec: If True, on platforms that need it (currently macOS),
+            immediately ``os.execv`` a fresh Python interpreter after ``os.fork``.
+            This avoids macOS fork-safety issues with Objective-C frameworks.
+            Task execution opts in; DAG processor and triggerer do not.
+        """
         # Create socketpairs/"pipes" to connect to the stdin and out from the subprocess
         child_stdout, read_stdout = socketpair()
         child_stderr, read_stderr = socketpair()
@@ -569,46 +577,33 @@ class WatchedSubprocess:
             del constructor_kwargs
             del logger
 
-            if _USE_FORK_EXEC and target is _subprocess_main:
-                # macOS: immediately exec a fresh Python interpreter to replace the
-                # inherited ObjC/CoreFoundation state that is not fork-safe.  Only
-                # for task execution (_subprocess_main); DAG processor and triggerer
-                # use different targets and keep bare fork.
-                #
-                # dup2 the socketpairs onto FDs 0/1/2 (which are inheritable by
-                # default and survive across exec).  Only the log FD needs to be
-                # passed explicitly.
-                try:
+            try:
+                if use_exec and sys.platform in _FORK_EXEC_PLATFORMS:
+                    # macOS: exec a fresh Python interpreter to replace the
+                    # inherited ObjC/CoreFoundation state that is not fork-safe.
+                    # dup2 copies the socketpairs onto FDs 0/1/2; os.dup2 clears
+                    # FD_CLOEXEC on the destination FDs, so they survive exec.
+                    # The log channel is requested later via ResendLoggingFD.
                     os.dup2(child_requests.fileno(), 0)
                     os.dup2(child_stdout.fileno(), 1)
                     os.dup2(child_stderr.fileno(), 2)
-
-                    # Log channel FD is NOT passed to the child. The task
-                    # runner will request it via ResendLoggingFD after startup.
                     os.execv(sys.executable, [
                         sys.executable,
                         "-c",
                         "from airflow.sdk.execution_time.supervisor import _child_exec_main;"
                         " _child_exec_main()",
                     ])
-                    # execv replaces the process -- we never reach here
-                except BaseException as e:
-                    import traceback
-
-                    with suppress(BaseException):
-                        print(f"execv failed, exiting with code 124: {e}", file=sys.stderr)
-                        traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
-            else:
-                try:
+                    # execv replaces the process -- unreachable on success
+                else:
                     # Run the child entrypoint
                     _fork_main(child_requests, child_stdout, child_stderr, child_logs.fileno(), target)
-                except BaseException as e:
-                    import traceback
+            except BaseException as e:
+                import traceback
 
-                    with suppress(BaseException):
-                        # We can't use log here, as if we except out of _fork_main something _weird_ went on.
-                        print("Exception in _fork_main, exiting with code 124", file=sys.stderr)
-                        traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
+                with suppress(BaseException):
+                    # We can't use log here, as if we except out of the child something _weird_ went on.
+                    print("Exception in child process, exiting with code 124", file=sys.stderr)
+                    traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
 
             # It's really super super important we never exit this block. We are in the forked child, and if we
             # do then _THINGS GET WEIRD_.. (Normally `_fork_main` itself will `_exit()` so we never get here)
@@ -1095,7 +1090,9 @@ class ActivitySubprocess(WatchedSubprocess):
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
-        proc: Self = super().start(id=what.id, client=client, target=target, logger=logger, **kwargs)
+        proc: Self = super().start(
+            id=what.id, client=client, target=target, logger=logger, use_exec=True, **kwargs
+        )
         # Tell the task process what it needs to do!
         proc._on_child_started(
             ti=what,
