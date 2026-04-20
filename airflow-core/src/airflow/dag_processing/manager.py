@@ -496,11 +496,19 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _queue_requested_files_for_parsing(self) -> None:
         """Queue any files requested for parsing as requested by users via UI/API."""
-        files = self._get_priority_files()
+        files = self.claim_priority_files()
         self._add_files_to_queue(files, mode="frontprio")
         self._force_refresh_bundles |= {file.bundle_name for file in files}
         if self._force_refresh_bundles:
             self.log.info("Bundles being force refreshed: %s", ", ".join(self._force_refresh_bundles))
+
+    def claim_priority_files(self) -> list[DagFileInfo]:
+        """
+        Fetch and claim files requested for priority parsing.
+
+        Default implementation reads from the metadata DB; override to source requests from an API.
+        """
+        return self._claim_priority_files()
 
     def should_skip_refresh(
         self,
@@ -519,7 +527,8 @@ class DagFileProcessorManager(LoggingMixin):
         )
 
     @provide_session
-    def _get_priority_files(self, session: Session = NEW_SESSION) -> list[DagFileInfo]:
+    def _claim_priority_files(self, session: Session = NEW_SESSION) -> list[DagFileInfo]:
+        """Fetch priority parsing requests from the metadata database."""
         files: list[DagFileInfo] = []
         bundles = {b.name: b for b in self._dag_bundles}
         requests = session.scalars(

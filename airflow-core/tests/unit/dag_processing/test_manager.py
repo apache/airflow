@@ -713,6 +713,26 @@ class TestDagFileProcessorManager:
         assert len(parsing_request_after) == 1
         assert parsing_request_after[0].relative_fileloc == "file_x.py"
 
+    def test_queue_requested_files_for_parsing_uses_public_claim_hook(self):
+        file1 = DagFileInfo(
+            bundle_name="dags-folder", rel_path=Path("file_1.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        file2 = DagFileInfo(
+            bundle_name="dags-folder", rel_path=Path("file_2.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+
+        class ApiBackedManager(DagFileProcessorManager):
+            def claim_priority_files(self) -> list[DagFileInfo]:
+                return [file1]
+
+        manager = ApiBackedManager(max_runs=1)
+        manager._file_queue = deque([file2])
+
+        manager._queue_requested_files_for_parsing()
+
+        assert manager._file_queue == deque([file1, file2])
+        assert manager._force_refresh_bundles == {"dags-folder"}
+
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_scan_stale_dags(self, session):
         """
