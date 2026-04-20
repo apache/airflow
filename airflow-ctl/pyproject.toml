@@ -35,6 +35,7 @@ dependencies = [
     "methodtools>=0.4.7",
     "platformdirs>=4.3.6",
     "pydantic>=2.11.0", # https://github.com/apache/airflow/issues/56482
+    "pyyaml>=6.0.3",
     "rich-argparse>=1.0.0",
     "structlog>=25.4.0",
     "uuid6>=2024.7.10",
@@ -151,6 +152,10 @@ codegen = [
 ]
 
 # uv run --verbose --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --url="http://0.0.0.0:28080/auth/openapi.json" --output=src/airflowctl/api/datamodels/auth_generated.py
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]
+
 [tool.datamodel-codegen]
 capitalise-enum-members=true # `State.RUNNING` not `State.running`
 disable-timestamp=true

@@ -2319,11 +2319,6 @@ components:
           - type: string
           - type: 'null'
           title: Name
-        description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Description
         reference_type:
           type: string
           title: Reference Type
@@ -2382,16 +2377,17 @@ components:
         dag_run_id:
           type: string
           title: Dag Run Id
+        alert_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Alert Id
         alert_name:
           anyOf:
           - type: string
           - type: 'null'
           title: Alert Name
-        alert_description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Alert Description
       type: object
       required:
       - id

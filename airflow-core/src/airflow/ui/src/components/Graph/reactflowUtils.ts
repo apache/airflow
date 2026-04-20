@@ -51,7 +51,9 @@ type FlattenNodesProps = {
   parent?: NodeType;
 };
 
-// Generate a flattened list of nodes for react-flow to render
+// Generate a flattened list of nodes for react-flow to render.
+// Uses push() throughout to avoid the O(n²) spread-in-loop pattern that the
+// previous implementation had (edges = [...edges, ...newEdges] per node).
 export const flattenGraph = ({
   children,
   level = 0,
@@ -60,8 +62,8 @@ export const flattenGraph = ({
   edges: Array<ElkExtendedEdge>;
   nodes: Array<NodeType>;
 } => {
-  let nodes: Array<NodeType> = [];
-  let edges: Array<ElkExtendedEdge> = [];
+  const nodes: Array<NodeType> = [];
+  const edges: Array<ElkExtendedEdge> = [];
 
   if (!children) {
     return { edges, nodes };
@@ -75,18 +77,16 @@ export const flattenGraph = ({
       data: { ...node, depth: level },
       height: node.height,
       id: node.id,
-      position: {
-        x,
-        y,
-      },
+      position: { x, y },
       type: node.type,
       width: node.width,
       ...parentNode,
     } satisfies NodeType;
 
-    edges = [
-      ...edges,
-      ...(node.edges ?? []).map((edge) => ({
+    nodes.push(newNode);
+
+    for (const edge of node.edges ?? []) {
+      edges.push({
         ...edge,
         labels: edge.labels?.map((label) => ({
           ...label,
@@ -95,24 +95,12 @@ export const flattenGraph = ({
         })),
         sections: edge.sections?.map((section) => ({
           ...section,
-          // eslint-disable-next-line max-nested-callbacks
-          bendPoints: section.bendPoints?.map((bp) => ({
-            x: bp.x + x,
-            y: bp.y + y,
-          })),
-          endPoint: {
-            x: section.endPoint.x + x,
-            y: section.endPoint.y + y,
-          },
-          startPoint: {
-            x: section.startPoint.x + x,
-            y: section.startPoint.y + y,
-          },
+          bendPoints: section.bendPoints?.map((bp) => ({ x: bp.x + x, y: bp.y + y })),
+          endPoint: { x: section.endPoint.x + x, y: section.endPoint.y + y },
+          startPoint: { x: section.startPoint.x + x, y: section.startPoint.y + y },
         })),
-      })),
-    ];
-
-    nodes.push(newNode);
+      });
+    }
 
     if (node.children) {
       const { edges: childEdges, nodes: childNodes } = flattenGraph({
@@ -121,15 +109,12 @@ export const flattenGraph = ({
         parent: newNode,
       });
 
-      nodes = [...nodes, ...childNodes];
-      edges = [...edges, ...childEdges];
+      nodes.push(...childNodes);
+      edges.push(...childEdges);
     }
   });
 
-  return {
-    edges,
-    nodes,
-  };
+  return { edges, nodes };
 };
 
 type Edge = {

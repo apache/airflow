@@ -1305,7 +1305,16 @@ class TriggerRunner:
 
             await greenback.ensure_portal()
 
-        bind_log_contextvars(trigger_id=trigger_id)
+        ti = trigger.task_instance
+        bind_log_contextvars(
+            trigger_id=trigger_id,
+            ti_id=str(ti.id) if ti else None,
+            dag_id=ti.dag_id if ti else None,
+            task_id=ti.task_id if ti else None,
+            run_id=ti.run_id if ti else None,
+            try_number=ti.try_number if ti else None,
+            map_index=ti.map_index if ti else None,
+        )
 
         name = self.triggers[trigger_id]["name"]
         self.log.info("trigger %s starting", name)

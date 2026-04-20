@@ -27,6 +27,7 @@ export enum SearchParamsKeys {
   CREATED_AT_GTE = "created_at_gte",
   CREATED_AT_LTE = "created_at_lte",
   CREATED_AT_RANGE = "created_at_range",
+  CURSOR = "cursor",
   DAG_DISPLAY_NAME_PATTERN = "dag_display_name_pattern",
   DAG_ID = "dag_id",
   DAG_ID_PATTERN = "dag_id_pattern",

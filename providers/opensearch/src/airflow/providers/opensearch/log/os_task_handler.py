@@ -197,6 +197,28 @@ def _create_opensearch_client(
     )
 
 
+def _strip_userinfo(url: str) -> str:
+    """
+    Return ``url`` with any ``user:password@`` userinfo removed.
+
+    The OpenSearch ``[opensearch] host`` config commonly embeds
+    credentials (``https://user:password@opensearch.example.com:9200``).
+    This value is reused as a display label for log-source grouping, so
+    the credentials would otherwise end up in task logs. Anything that
+    is not a valid URL is returned unchanged.
+    """
+    try:
+        parsed = urlparse(url)
+    except (TypeError, ValueError):
+        return url
+    if not parsed.hostname or (not parsed.username and not parsed.password):
+        return url
+    netloc = parsed.hostname
+    if parsed.port is not None:
+        netloc = f"{netloc}:{parsed.port}"
+    return parsed._replace(netloc=netloc).geturl()
+
+
 def _render_log_id(
     log_id_template: str, ti: TaskInstance | TaskInstanceKey | RuntimeTI, try_number: int
 ) -> str:
@@ -713,8 +735,9 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
     def _group_logs_by_host(self, response: OpensearchResponse) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
+        host_fallback = _strip_userinfo(self.host)
         for hit in response:
-            key = getattr_nested(hit, self.host_field, None) or self.host
+            key = getattr_nested(hit, self.host_field, None) or host_fallback
             grouped_logs[key].append(hit)
         return grouped_logs
 
@@ -937,8 +960,9 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def _group_logs_by_host(self, response: OpensearchResponse) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
+        host_fallback = _strip_userinfo(self.host)
         for hit in response:
-            key = getattr_nested(hit, self.host_field, None) or self.host
+            key = getattr_nested(hit, self.host_field, None) or host_fallback
             grouped_logs[key].append(hit)
         return grouped_logs
 

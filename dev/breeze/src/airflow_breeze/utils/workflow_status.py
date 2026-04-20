@@ -33,6 +33,13 @@ from rich.console import Console
 console = Console(width=400, color_system="standard")
 
 
+def format_failed_jobs_lookup_error(run_id: int) -> str:
+    return (
+        "ERROR: failed to fetch failed jobs for workflow run "
+        f"{run_id}; inspect it directly with: gh run view {run_id} --json jobs --repo apache/airflow"
+    )
+
+
 def workflow_status(
     branch: str,
     workflow_id: str,
@@ -93,7 +100,7 @@ def get_failed_jobs(run_id: int) -> list[str]:
     )
     if result.returncode != 0:
         console.print(f"[red]Error fetching failed jobs: {result.stderr}[/red]")
-        return []
+        return [format_failed_jobs_lookup_error(run_id)]
 
     return [line.strip() for line in result.stdout.strip().splitlines() if line.strip()]
 
