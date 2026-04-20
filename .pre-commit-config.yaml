@@ -1021,19 +1021,19 @@ repos:
           ^uv\.lock$
         pass_filenames: false
         require_serial: true
-      - id: mypy-dev
-        name: Run mypy for dev
-        language: python
-        entry: ./scripts/ci/prek/mypy_local_folder.py dev scripts
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true
       - id: mypy-devel-common
         name: Run mypy for devel-common
         language: python
-        entry: ./scripts/ci/prek/mypy_local_folder.py devel-common
+        entry: ./scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py devel-common
         pass_filenames: false
         files: ^.*\.py$
+        require_serial: true
+      - id: check-shared-mypy-hooks
+        name: Every shared/<dist> has a mypy-shared-<dist> prek hook
+        language: python
+        entry: ./scripts/ci/prek/check_shared_mypy_hooks.py
+        pass_filenames: false
+        files: ^shared/.*|^scripts/ci/prek/check_shared_mypy_hooks\.py$
         require_serial: true
       ## ADD MOST PREK HOOK ABOVE THAT LINE
       # The below prek hooks are those requiring CI image to be built
