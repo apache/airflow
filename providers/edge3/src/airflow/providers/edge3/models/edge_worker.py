@@ -170,7 +170,7 @@ def set_metrics(
         EdgeWorkerState.MAINTENANCE_EXIT,
         EdgeWorkerState.OFFLINE_MAINTENANCE,
     )
-    additional_keys = set(sysinfo.keys() if sysinfo else []) - {
+    additional_keys = set(sysinfo or ()) - {
         "status",
         "airflow_version",
         "edge_provider_version",
