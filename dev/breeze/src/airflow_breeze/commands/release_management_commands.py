@@ -3026,18 +3026,29 @@ def _build_changelog_content(
     improvements: list[str] = []
     misc: list[str] = []
 
+    # Strip leaked branch prefixes like "[main]" or "[v3-2-test]" from PR
+    # titles before both categorisation and output — these are maintenance
+    # artefacts that should not be user-visible in release notes.
+    branch_prefix = re.compile(r"^\s*\[(?:main|v\d+(?:-\d+)*-test)\]\s*", re.IGNORECASE)
+
     for pr_number in prs:
         if pr_number not in pr_titles:
             continue
-        title = pr_titles[pr_number]
+        title = branch_prefix.sub("", pr_titles[pr_number]).strip()
         entry = f"{title} (#{pr_number})"
         lower = title.lower()
-        if lower.startswith(("feat", "add", "allow")):
-            significant.append(entry)
-        elif lower.startswith("fix"):
-            bug_fixes.append(entry)
-        elif lower.startswith(("ci:", "build", "upgrade")):
+        if lower.startswith(("ci:", "ci ", "build", "upgrade", "bump")) or "cooldown" in lower:
+            # CI / build / dependency-bump items land in Miscellaneous. Check
+            # before the "add"/"feat"/"allow" branch below, because titles like
+            # "Add 4-day cooldown for uv dependency resolution" are CI and
+            # should not sneak into Significant Changes.
             misc.append(entry)
+        elif lower.startswith(("feat", "add", "allow")):
+            significant.append(entry)
+        elif lower.startswith("fix") or lower.startswith(("prevent ", "security:")):
+            # Security fixes (e.g. "Prevent path traversal …") are bug fixes,
+            # not improvements.
+            bug_fixes.append(entry)
         else:
             improvements.append(entry)
 
@@ -4323,6 +4334,7 @@ def generate_issue_content(
         excluded_prs = []
     prs = [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
 
+    github_token = _get_github_token(github_token)
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
     pull_requests: dict[int, PullRequestOrIssue] = {}

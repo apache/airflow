@@ -14,37 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-[tool.towncrier]
-name = "Airflow CTL"
-filename = "RELEASE_NOTES.rst"
-underlines = ["-", '^']
-
-[[tool.towncrier.type]]
-directory = "significant"
-name = "Significant Changes"
-showcontent = true
-
-[[tool.towncrier.type]]
-directory = "feature"
-name = "Features"
-showcontent = true
-
-[[tool.towncrier.type]]
-directory = "improvement"
-name = "Improvements"
-showcontent = true
-
-[[tool.towncrier.type]]
-directory = "bugfix"
-name = "Bug Fixes"
-showcontent = true
-
-[[tool.towncrier.type]]
-directory = "doc"
-name = "Doc only Changes"
-showcontent = true
-
-[[tool.towncrier.type]]
-directory = "misc"
-name = "Misc"
-showcontent = true

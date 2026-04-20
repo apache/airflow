@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
+from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient, create_request_session_with_retries
 
 
 class BaseRemoteLoggingSearchTest:
@@ -30,7 +30,6 @@ class BaseRemoteLoggingSearchTest:
 
     Subclasses must set:
         - ``search_url``: base URL of the search backend, e.g. ``"http://localhost:9200"``
-        - ``_get_session``: zero-arg callable returning a requests.Session with retry logic
     """
 
     airflow_client = AirflowClient()
@@ -44,7 +43,7 @@ class BaseRemoteLoggingSearchTest:
     expected_log_id_prefix = f"{dag_id}-{task_id}-"
 
     def _get_session(self):
-        raise NotImplementedError
+        return create_request_session_with_retries(status_forcelist=[429, 500, 502, 503, 504])
 
     def _matches_expected_log(self, log_source: dict, run_id: str) -> bool:
         log_id = log_source.get("log_id", "")
