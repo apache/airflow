@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pendulum
 import pytest
 from sqlalchemy import select
@@ -57,7 +59,7 @@ class TestGetPartitionedDagRuns:
         dag_maker.create_dagrun()
         dag_maker.sync_dagbag_to_db()
 
-        with assert_queries_count(2):
+        with assert_queries_count(3):
             resp = test_client.get("/partitioned_dag_runs?dag_id=normal&has_created_dag_run_id=false")
         assert resp.status_code == 200
         assert resp.json() == {"partitioned_dag_runs": [], "total": 0, "asset_expressions": None}
@@ -144,7 +146,7 @@ class TestGetPartitionedDagRuns:
             )
         session.commit()
 
-        with assert_queries_count(2):
+        with assert_queries_count(3):
             resp = test_client.get(
                 f"/partitioned_dag_runs?dag_id=list_dag"
                 f"&has_created_dag_run_id={str(has_created_dag_run_id).lower()}"
@@ -217,6 +219,24 @@ class TestGetPartitionedDagRuns:
         pdr_resp = resp.json()["partitioned_dag_runs"][0]
         assert pdr_resp["total_required"] == num_target_assets
         assert pdr_resp["total_received"] == received_count
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        return_value={"other_dag"},
+    )
+    def test_partitioned_dag_runs_filters_unreadable_dags(self, _, test_client, dag_maker, session):
+        schedule = PartitionedAssetTimetable(assets=Asset(uri="s3://bucket/a", name="a"))
+        with dag_maker(dag_id="restricted_dag", schedule=schedule, serialized=True):
+            EmptyOperator(task_id="t")
+        dag_maker.sync_dagbag_to_db()
+        session.add(AssetPartitionDagRun(target_dag_id="restricted_dag", partition_key="2024-06-01"))
+        session.commit()
+
+        resp = test_client.get("/partitioned_dag_runs?has_created_dag_run_id=false")
+        assert resp.status_code == 200
+        body = resp.json()
+        dag_ids = {r["dag_id"] for r in body["partitioned_dag_runs"]}
+        assert "restricted_dag" not in dag_ids
 
 
 class TestGetPendingPartitionedDagRun:
