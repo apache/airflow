@@ -21,10 +21,8 @@ services:
     labels:
       breeze.description: "Integration required for Kafka hooks."
     hostname: broker
-    container_name: broker
     ports:
       - "9092:9092"
-      - "9101:9101"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: >

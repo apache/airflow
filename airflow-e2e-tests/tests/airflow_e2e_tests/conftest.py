@@ -169,11 +169,14 @@ def _create_kafka_topics(compose_instance):
                 "--create",
                 "--topic",
                 topic,
+                "--partitions",
+                "1",
+                "--replication-factor",
+                "1",
                 "--if-not-exists",
             ],
             service_name="broker",
         )
-
 
 
 def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):

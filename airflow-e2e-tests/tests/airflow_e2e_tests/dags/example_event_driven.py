@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pendulum
@@ -125,7 +126,7 @@ kafka_cdc_asset = Asset("kafka_cdc_asset", watchers=[AssetWatcher(name="kafka_cd
 )
 def event_driven_consumer():
 
-    @task(retries=RETRY_COUNT, retry_delay=1)
+    @task(retries=RETRY_COUNT, retry_delay=timedelta(seconds=1))
     def process_message(**context) -> bool:
         # Extract the triggering asset events from the context
         triggering_asset_events: TriggeringAssetEventsAccessor = context["triggering_asset_events"]

@@ -53,6 +53,27 @@ class TestEventDrivenDag:
     # Helpers
     # ------------------------------------------------------------------
 
+    def _wait_for_kafka_consumer_group(
+        self, compose_instance, group_id: str, timeout: int = 60, check_interval: int = 3
+    ):
+        """Poll until the Kafka consumer group is registered, indicating the trigger is active."""
+        start = time.monotonic()
+        while time.monotonic() - start < timeout:
+            stdout, _ = compose_instance.exec_in_container(
+                command=[
+                    "kafka-consumer-groups",
+                    "--bootstrap-server",
+                    "broker:29092",
+                    "--list",
+                ],
+                service_name="broker",
+            )
+            output = stdout.decode() if isinstance(stdout, bytes) else stdout
+            if group_id in output:
+                return
+            time.sleep(check_interval)
+        raise TimeoutError(f"Kafka consumer group '{group_id}' not registered within {timeout}s")
+
     def _wait_for_consumer_dag_runs(
         self, expected_count: int, timeout: int = 600, check_interval: int = 10
     ) -> list[dict]:
@@ -63,7 +84,18 @@ class TestEventDrivenDag:
             runs = response.get("dag_runs", [])
             terminal_runs = [r for r in runs if r["state"] in ("success", "failed")]
             if len(terminal_runs) >= expected_count:
-                return terminal_runs
+                # Return only the most recent expected_count runs to avoid
+                # assertion failures if extra runs exist from retries or prior state.
+                terminal_runs.sort(
+                    key=lambda r: (
+                        r.get("end_date") or "",
+                        r.get("start_date") or "",
+                        r.get("logical_date") or "",
+                        r.get("dag_run_id") or "",
+                    ),
+                    reverse=True,
+                )
+                return terminal_runs[:expected_count]
             time.sleep(check_interval)
 
         # Timed out — gather diagnostics
@@ -109,10 +141,10 @@ class TestEventDrivenDag:
         # 1. Unpause consumer so the triggerer registers the AssetWatcher
         self.airflow_client.un_pause_dag(CONSUMER_DAG_ID)
 
-        # 2. Give the triggerer time to start the MessageQueueTrigger and subscribe.
+        # 2. Wait for the triggerer to start the MessageQueueTrigger and subscribe.
         #    The trigger uses poll_interval=1 and auto.offset.reset=latest so it
         #    must be actively polling before the producer writes.
-        time.sleep(30)
+        self._wait_for_kafka_consumer_group(compose_instance, "kafka_default_group")
 
         # 3. Trigger producer and wait for it to complete
         producer_state = self.airflow_client.trigger_dag_and_wait(PRODUCER_DAG_ID)

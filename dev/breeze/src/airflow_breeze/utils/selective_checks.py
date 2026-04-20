@@ -209,6 +209,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/event_driven_tests/.*",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/dags/example_event_driven\.py$",
             r"^airflow-e2e-tests/docker/kafka/.*",
+            r"^airflow-e2e-tests/docker/kafka\.yml$",
             r"^providers/apache-kafka/.*",
             r"^providers/common-messaging/.*",
         ],
