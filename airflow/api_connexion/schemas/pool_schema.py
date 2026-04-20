@@ -71,7 +71,8 @@ class PoolSchema(SQLAlchemySchema):
 
     @staticmethod
     def get_open_slots(obj: Pool) -> int:
-        """Return the open slots of the pool.
+        """
+        Return the open slots of the pool.
 
         Unlimited pools (``slots == -1``) use ``float('inf')`` internally; the REST API
         schema requires an integer, so we serialize that as ``-1`` (same convention as
