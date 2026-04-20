@@ -120,6 +120,7 @@ class MenuItem(Enum):
     CONFIG = "Config"
     CONNECTIONS = "Connections"
     DAGS = "Dags"
+    DEADLINES = "Deadlines"
     DOCS = "Docs"
     JOBS = "Jobs"
     PLUGINS = "Plugins"
