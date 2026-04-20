@@ -1023,18 +1023,23 @@ class ActivitySubprocess(WatchedSubprocess):
     ) -> None:
         """Send startup message to the subprocess."""
         self.ti = ti  # type: ignore[assignment]
-        start_date = datetime.now(tz=timezone.utc)
         try:
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
-            ti_context = self.client.task_instances.start(ti.id, self.pid, start_date)
+            ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
             self._should_retry = ti_context.should_retry
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
             # On any error kill that subprocess!
             self.kill(signal.SIGKILL)
             raise
+
+        # ti_context.start_date is only populated by the server when resuming from a deferral (to preserve the
+        # original start_date rather than using the resume time). We fall back to now() otherwise. This ensures
+        # that `context["ti"].start_date` always reflects the *first* start time. See TIRunContext.start_date
+        # for more context. Do not remove this without updating related comments and deferral handling.
+        start_date = ti_context.start_date or datetime.now(tz=timezone.utc)
 
         msg = StartupDetails.model_construct(
             ti=ti,

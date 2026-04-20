@@ -663,3 +663,4 @@ class TIRunContext(BaseModel):
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
     should_retry: Annotated[bool | None, Field(title="Should Retry")] = False
+    start_date: Annotated[AwareDatetime | None, Field(title="Start Date")] = None

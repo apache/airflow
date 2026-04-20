@@ -313,7 +313,7 @@ class InProcessExecutionAPI:
         if not self._app:
             from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
-            from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+            from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
@@ -330,7 +330,8 @@ class InProcessExecutionAPI:
                 ti_id = UUID(
                     request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000")
                 )
-                return TIToken(id=ti_id, claims={"scope": "execution"})
+                claims = TIClaims(scope="execution")
+                return TIToken(id=ti_id, claims=claims)
 
             self._app.dependency_overrides[_jwt_bearer] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
