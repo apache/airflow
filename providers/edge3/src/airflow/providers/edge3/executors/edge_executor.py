@@ -184,8 +184,7 @@ class EdgeExecutor(BaseExecutor):
                 else EdgeWorkerState.UNKNOWN
             )
             # Reset presented status
-            sysinfo = {}
-            sysinfo.update(worker.sysinfo or {})  # copy needed to have alembic detect change in content
+            sysinfo = dict(worker.sysinfo or {})  # copy needed to have alembic detect change in content
             sysinfo["status"] = logging.NOTSET
             if "status_text" in sysinfo:
                 del sysinfo["status_text"]  # Remove old status text if exists
