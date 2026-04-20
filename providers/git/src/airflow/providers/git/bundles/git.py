@@ -300,9 +300,12 @@ class GitDagBundle(BaseDagBundle):
         reraise=True,
     )
     def _fetch_submodules(self) -> None:
+        # Forward full hook.env: submodule subprocesses need SSH_ASKPASS/DISPLAY/etc., not only
+        # GIT_SSH_COMMAND (passphrase keys); do not rely on the outer configure_hook_env os.environ alone.
+        hook_env = getattr(self.hook, "env", None) if self.hook else None
         ssh_env_cm = nullcontext()
-        if self.hook and (cmd := self.hook.env.get("GIT_SSH_COMMAND")):
-            ssh_env_cm = self.repo.git.custom_environment(GIT_SSH_COMMAND=cmd)
+        if isinstance(hook_env, dict) and hook_env:
+            ssh_env_cm = self.repo.git.custom_environment(**hook_env)
         with ssh_env_cm:
             self._log.info("Initializing and updating submodules", repo_path=self.repo_path)
             self.repo.git.submodule("sync", "--recursive")

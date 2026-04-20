@@ -936,7 +936,7 @@ class TestGitDagBundle:
     def test_fetch_submodules_uses_custom_environment_when_git_ssh_command_set(
         self, mock_githook_class
     ):
-        """GIT_SSH_COMMAND from hook.env is passed to custom_environment; submodule runs inside that context."""
+        """Non-empty hook.env is passed to custom_environment; submodule runs inside that context."""
         expected_ssh_cmd = (
             "ssh -i /path/key -o IdentitiesOnly=yes -o UserKnownHostsFile=/path/known_hosts"
         )
@@ -969,8 +969,42 @@ class TestGitDagBundle:
         )
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_fetch_submodules_forwards_full_hook_env_including_passphrase_vars(
+        self, mock_githook_class
+    ):
+        """SSH_ASKPASS / DISPLAY etc. must reach git subprocesses, not only GIT_SSH_COMMAND."""
+        full_hook_env = {
+            "GIT_SSH_COMMAND": "ssh -i /path/key -o IdentitiesOnly=yes",
+            "SSH_ASKPASS": "/tmp/airflow-git-askpass.sh",
+            "SSH_ASKPASS_REQUIRE": "force",
+            "DISPLAY": ":0",
+        }
+        mock_hook = mock_githook_class.return_value
+        mock_hook.repo_url = "git@github.com:apache/airflow.git"
+        mock_hook.env = full_hook_env
+
+        mock_git = mock.create_autospec(Git, instance=True)
+        ssh_ctx = mock.create_autospec(_GitCustomEnvContextManager, instance=True)
+        mock_git.custom_environment.return_value = ssh_ctx
+        mock_repo = mock.MagicMock(spec=Repo)
+        mock_repo.git = mock_git
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            version="123456",
+            submodules=True,
+        )
+        bundle.repo = mock_repo
+
+        bundle._fetch_submodules()
+
+        mock_git.custom_environment.assert_called_once_with(**full_hook_env)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_fetch_submodules_skips_custom_environment_without_git_ssh_command(self, mock_githook_class):
-        """When hook.env has no GIT_SSH_COMMAND, submodule update does not use custom_environment."""
+        """When hook.env is empty, submodule update does not use custom_environment."""
         mock_hook = mock_githook_class.return_value
         mock_hook.repo_url = "git@github.com:apache/airflow.git"
         mock_hook.env = {}
