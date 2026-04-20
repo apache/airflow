@@ -235,6 +235,18 @@ repos:
           ^pyproject\.toml$
         pass_filenames: false
         require_serial: true
+      - id: sync-uv-min-version-markers
+        name: Sync `# sync-uv-min-version` markers with [tool.uv] required-version
+        entry: ./scripts/ci/prek/sync_uv_min_version_markers.py
+        language: python
+        # Hook reads pyproject.toml itself; the file list selects places that may carry
+        # the `# sync-uv-min-version` marker. Any new test/file using the marker should
+        # be added here.
+        files: >
+          (?x)
+          ^pyproject\.toml$|
+          ^dev/breeze/tests/test_environment_check\.py$
+        require_serial: true
       - id: check-distribution-gitignore
         name: Check distribution .gitignore files have *.iml
         entry: ./scripts/ci/prek/check_distribution_gitignore.py
