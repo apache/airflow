@@ -23,7 +23,7 @@ import { useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import { useStructureServiceStructureData } from "openapi/queries";
+import { useDagRunServiceGetDagRun, useStructureServiceStructureData } from "openapi/queries";
 import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
@@ -134,7 +134,15 @@ export const Graph = () => {
     versionNumber: selectedVersion,
   });
 
-  const { summariesByRunId } = useGridTiSummariesStream({ dagId, runIds: runId ? [runId] : [] });
+  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId }, undefined, {
+    enabled: Boolean(runId),
+  });
+
+  const { summariesByRunId } = useGridTiSummariesStream({
+    dagId,
+    runIds: runId ? [runId] : [],
+    states: dagRun ? [dagRun.state] : undefined,
+  });
   const gridTISummaries = runId ? summariesByRunId.get(runId) : undefined;
 
   // Add task instances to the node data but without having to recalculate how the graph is laid out
