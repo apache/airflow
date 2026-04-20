@@ -1,0 +1,1 @@
+Fixed broker URL secret name resolution to use ``airflow.fullname`` consistently. This fixes deployments where ``useStandardNaming=True`` and ``airflow.fullname != .Release.Name``, for example when using ``fullnameOverride``, ``nameOverride``, or the Airflow Helm chart as a dependency.

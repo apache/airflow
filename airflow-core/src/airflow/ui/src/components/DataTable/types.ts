@@ -22,6 +22,7 @@ import type { JSX, ReactNode } from "react";
 
 export type TableState = {
   columnVisibility?: VisibilityState;
+  cursor?: string;
   pagination: PaginationState;
   sorting: SortingState;
 };

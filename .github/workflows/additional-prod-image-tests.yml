@@ -44,6 +44,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run Elasticsearch remote logging e2e tests (true/false)"
         required: true
         type: string
+      run-remote-logging-opensearch-e2e-tests:
+        description: "Whether to run OpenSearch remote logging e2e tests (true/false)"
+        required: true
+        type: string
       constraints-branch:
         description: "Branch used to construct constraints URL from."
         required: true
@@ -246,6 +250,18 @@ jobs:
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "remote_log_elasticsearch"
     if: inputs.canary-run == 'true' || inputs.run-remote-logging-elasticsearch-e2e-tests == 'true'
+
+  test-e2e-integration-tests-remote-log-opensearch:
+    name: "OpenSearch remote logging tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      workflow-name: "OpenSearch remote logging e2e test"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "remote_log_opensearch"
+    if: inputs.canary-run == 'true' || inputs.run-remote-logging-opensearch-e2e-tests == 'true'
 
   test-e2e-integration-tests-xcom-object-storage:
     name: "XCom object storage backend tests with PROD image"

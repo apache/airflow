@@ -41,7 +41,7 @@ from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
 from airflow.sdk.definitions.context import Context
-from airflow.utils import timezone
+from airflow.utils import timezone  # type: ignore[attr-defined]
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
 from kubernetes_tests.test_base import BaseK8STest, StringContainingId
@@ -554,7 +554,7 @@ class TestKubernetesPodOperatorSystem:
             )
             context = create_context(k)
             k.execute(context=context)
-            mock_logger.info.assert_any_call("%s", StringContainingId("retrieved from mount"))
+            mock_logger.log.assert_any_call(logging.INFO, StringContainingId("retrieved from mount"))
             actual_pod = self.api_client.sanitize_for_serialization(k.pod)
             self.expected_pod["spec"]["containers"][0]["args"] = args
             self.expected_pod["spec"]["containers"][0]["volumeMounts"] = [
@@ -1480,7 +1480,7 @@ class TestKubernetesPodOperatorSystem:
         )
 
         # Test the _log_message method directly
-        with mock.patch.object(k.pod_manager.log, "info") as mock_info:
+        with mock.patch.object(k.pod_manager.log, "log") as mock_log:
             k.pod_manager._log_message(
                 message=marker,
                 container_name="base",
@@ -1489,8 +1489,8 @@ class TestKubernetesPodOperatorSystem:
             )
 
             # Check that the message was logged with the expected format
-            mock_info.assert_called_once()
-            logged_message = mock_info.call_args[0][1]  # Second argument is the message
+            mock_log.assert_called_once()
+            logged_message = mock_log.call_args[0][1]  # Second argument is the message
             assert expected_log_message_check(marker, logged_message)
 
 
