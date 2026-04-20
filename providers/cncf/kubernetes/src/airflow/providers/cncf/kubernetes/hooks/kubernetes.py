@@ -853,7 +853,12 @@ class AsyncKubernetesHook(KubernetesHook):
     """Hook to use Kubernetes SDK asynchronously."""
 
     def __init__(
-        self, config_dict: dict | None = None, connection_extras: dict | None = None, *args, **kwargs
+        self,
+        config_dict: dict | None = None,
+        connection_extras: dict | None = None,
+        client_configuration: async_client.Configuration | None = None,
+        *args,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
 
@@ -861,6 +866,8 @@ class AsyncKubernetesHook(KubernetesHook):
         self._extras: dict | None = connection_extras
         self._event_polling_fallback = False
         self._config_loaded = False
+        # Override the parent's sync-typed client_configuration with the async type.
+        self.client_configuration: async_client.Configuration | None = client_configuration
         # Cached result of exec-auth detection. None means not yet detected.
         # This is to optimise and not calling _uses_exec_auth repeatedly on every _load_config() call.
         self._is_exec_auth: bool | None = None

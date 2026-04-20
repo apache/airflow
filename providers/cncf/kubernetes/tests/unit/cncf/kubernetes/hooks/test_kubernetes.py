@@ -2023,7 +2023,9 @@ class TestAsyncKubernetesHook:
         """
 
         async def populate_config(config_dict, context, client_configuration):
-            # Simulate the library writing connection data into the supplied object.
+            # Yield to the event loop so concurrent coroutines can interleave,
+            # simulating the await points inside the real load_kube_config_from_dict.
+            await asyncio.sleep(0)
             client_configuration.host = config_dict["server"]
 
         mock_load.side_effect = populate_config
