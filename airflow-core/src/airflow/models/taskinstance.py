@@ -587,6 +587,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         Index("ti_pool", pool, state, priority_weight),
         Index("ti_trigger_id", trigger_id),
         Index("ti_heartbeat", last_heartbeat_at),
+        Index("ti_updated_at_dag_id", updated_at, dag_id),
         PrimaryKeyConstraint("id", name="task_instance_pkey"),
         UniqueConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_composite_key"),
         ForeignKeyConstraint(
