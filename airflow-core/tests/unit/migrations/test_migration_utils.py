@@ -68,7 +68,7 @@ def _get_revisions_in_order() -> list[str]:
         )
 
     base_index = revision_ids.index(_STAIRWAY_START_REVISION)
-    return revision_ids[base_index + 1:]
+    return revision_ids[base_index + 1 :]
 
 
 @pytest.fixture(scope="module")
