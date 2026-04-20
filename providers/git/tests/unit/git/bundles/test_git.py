@@ -962,12 +962,20 @@ class TestGitDagBundle:
         bundle._fetch_submodules()
 
         mock_git.custom_environment.assert_called_once_with(GIT_SSH_COMMAND=expected_ssh_cmd)
-        ssh_ctx.__enter__.assert_called_once()
-        ssh_ctx.__exit__.assert_called_once()
-        mock_git.submodule.assert_has_calls(
-            [mock.call("sync", "--recursive"), mock.call("update", "--init", "--recursive", "--jobs", "1")]
-        )
 
+        parent = mock.Mock()
+        parent.attach_mock(mock_git.custom_environment, "custom_environment")
+        parent.attach_mock(ssh_ctx.__enter__, "enter")
+        parent.attach_mock(mock_git.submodule, "submodule")
+        parent.attach_mock(ssh_ctx.__exit__, "exit")
+
+        assert parent.mock_calls == [
+            mock.call.custom_environment(GIT_SSH_COMMAND=expected_ssh_cmd),
+            mock.call.enter(),
+            mock.call.submodule("sync", "--recursive"),
+            mock.call.submodule("update", "--init", "--recursive", "--jobs", "1"),
+            mock.call.exit(None, None, None),
+        ]
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_fetch_submodules_forwards_full_hook_env_including_passphrase_vars(
         self, mock_githook_class
