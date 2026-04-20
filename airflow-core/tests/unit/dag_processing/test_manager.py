@@ -810,7 +810,7 @@ class TestDagFileProcessorManager:
     )
     @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file")
     def test_create_process_subprocess_logs_to_stdout(
-        self, mock_get_logger, configure_testing_dag_bundle, log_target, expected_subprocess_logs_to_stdout
+        self, mock_get_logger, log_target, expected_subprocess_logs_to_stdout
     ):
         mock_logger = MagicMock()
         mock_filehandle = MagicMock()
@@ -1517,6 +1517,7 @@ class TestDagFileProcessorManager:
                     path=Path(dag2_path.bundle_path, dag2_path.rel_path),
                     bundle_path=dag2_path.bundle_path,
                     bundle_name="testing",
+                    dag_file_rel_path=str(dag2_path.rel_path),
                     callbacks=[dag2_req1],
                     selector=mock.ANY,
                     logger=mock_logger,
@@ -1529,6 +1530,7 @@ class TestDagFileProcessorManager:
                     path=Path(dag1_path.bundle_path, dag1_path.rel_path),
                     bundle_path=dag1_path.bundle_path,
                     bundle_name="testing",
+                    dag_file_rel_path=str(dag1_path.rel_path),
                     callbacks=[dag1_req1, dag1_req2],
                     selector=mock.ANY,
                     logger=mock_logger,
