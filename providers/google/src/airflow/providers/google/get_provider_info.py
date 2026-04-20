@@ -52,7 +52,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Google BigQuery",
-                "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/bigquery.rst"],
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-google/operators/cloud/bigquery.rst",
+                    "/docs/apache-airflow-providers-google/operators/cloud/bigquery_routines.rst",
+                ],
                 "external-doc-url": "https://cloud.google.com/bigquery/",
                 "logo": "/docs/integration-logos/BigQuery.png",
                 "tags": ["gcp"],
