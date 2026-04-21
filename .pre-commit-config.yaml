@@ -412,11 +412,11 @@ repos:
         pass_filenames: false
         files: >
           (?x)
-          ^shared/.*$||
-          ^.*/pyproject.toml$|
+          ^shared/.*$|
+          ^.*/pyproject\.toml$|
           ^.*/_shared/.*$|
-          ^airflow-core/.*.py$|
-          ^task-sdk/.*.py$
+          ^airflow-core/.*\.py$|
+          ^task-sdk/.*\.py$
       - id: check-shared-distributions-usage
         name: Check shared distributions usage
         entry: ./scripts/ci/prek/check_shared_distributions_usage.py

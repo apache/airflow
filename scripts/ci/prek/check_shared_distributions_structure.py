@@ -192,6 +192,26 @@ def _parse_python_file(py_file: Path, base_path: Path) -> ast.Module | None:
         return None
 
 
+def _is_type_checking_guard(node: ast.If) -> bool:
+    """Check if an ``If`` node is a ``TYPE_CHECKING`` guard."""
+    test = node.test
+    if isinstance(test, ast.Name) and test.id == "TYPE_CHECKING":
+        return True
+    if isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING":
+        return True
+    return False
+
+
+def _collect_type_checking_node_ids(tree: ast.AST) -> set[int]:
+    """Return the ``id()`` of every AST node nested inside an ``if TYPE_CHECKING`` block."""
+    guarded: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.If) and _is_type_checking_guard(node):
+            for child in ast.walk(node):
+                guarded.add(id(child))
+    return guarded
+
+
 def _check_imports_in_files(
     py_files: list[Path],
     base_path: Path,
@@ -200,6 +220,10 @@ def _check_imports_in_files(
 ) -> list[tuple[Path, int, str]]:
     """
     Check imports in Python files based on a predicate function.
+
+    Imports nested inside ``if TYPE_CHECKING:`` blocks are skipped — they are type-only
+    and never resolved at runtime, so they cannot create real dependencies between
+    distributions.
 
     Args:
         py_files: List of Python files to check
@@ -217,7 +241,11 @@ def _check_imports_in_files(
         if tree is None:
             continue
 
+        type_checking_ids = _collect_type_checking_node_ids(tree)
+
         for node in ast.walk(tree):
+            if id(node) in type_checking_ids:
+                continue
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     should_report, import_stmt = import_predicate(node, alias.name, is_from_import=False)
