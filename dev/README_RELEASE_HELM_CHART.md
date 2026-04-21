@@ -20,6 +20,7 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Collect ambiguities during the release (for a follow-up doc PR)](#collect-ambiguities-during-the-release-for-a-follow-up-doc-pr)
 - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Prepare the Apache Airflow Helm Chart Release Candidate](#prepare-the-apache-airflow-helm-chart-release-candidate)
   - [Pre-requisites](#pre-requisites)
@@ -64,6 +65,21 @@
 
 You can find the prerequisites to release Apache Airflow in [README.md](README.md). This document
 details the steps for releasing Helm Chart.
+
+# Collect ambiguities during the release (for a follow-up doc PR)
+
+These instructions are imperfect. Every release uncovers at least one command
+that has drifted, one step that is under-documented, or one automation that
+silently did the wrong thing. As you run through this document, jot down any
+such observations in a scratch file kept **outside** the repo (anywhere that
+is not tracked by git — a note in your home directory, a scratchpad, a
+gist). Once the release has landed, turn those notes into a follow-up PR
+against this document.
+
+Keeping the scratch file out of the repo avoids accidentally committing
+release-manager notes along with the release-prep PR, and makes it obvious
+that the notes are input to the next doc PR rather than something to keep
+around long-term.
 
 # Perform review of security issues that are marked for the release
 
@@ -219,6 +235,39 @@ git checkout apache/main
 git clean -fxd
 rm -rf dist/*
 ```
+
+- Verify your GPG signing key is ready.
+
+  Before you spend 10+ minutes building artifacts only to discover that signing
+  fails, run these checks once:
+
+  ```shell
+  # 1. The apache.org key has a secret signing subkey available locally.
+  gpg --list-secret-keys apache.org
+
+  # 2. Signing actually works (exits 0, writes a .asc, verifies cleanly).
+  echo test > /tmp/sign-check && \
+      gpg --yes --armor --local-user apache.org \
+          --output /tmp/sign-check.asc --detach-sig /tmp/sign-check && \
+      gpg --verify /tmp/sign-check.asc /tmp/sign-check && \
+      rm -f /tmp/sign-check /tmp/sign-check.asc && \
+      echo "GPG signing OK"
+
+  # 3. The fingerprint of your signing (sub)key appears in the Airflow KEYS file.
+  #    Without this, PMC verifiers cannot validate the release.
+  FINGERPRINT=$(gpg --list-keys --with-colons apache.org | awk -F: '/^fpr:/ {print $10; exit}')
+  curl -fsS https://dist.apache.org/repos/dist/release/airflow/KEYS | \
+      grep -q "${FINGERPRINT}" && echo "Key ${FINGERPRINT} is in KEYS" || \
+      echo "MISSING: add your key to KEYS before releasing"
+  ```
+
+  If any of these fail, fix them before the build step. For first-time release
+  managers, adding your key to the `KEYS` file is a separate PR against
+  `https://dist.apache.org/repos/dist/release/airflow/` (SVN).
+
+  `sign.sh` defaults to `SIGN_WITH=apache.org`. If your `apache.org` uid resolves
+  to multiple keys (rare), set `SIGN_WITH` explicitly to the fingerprint of the
+  key you want to use.
 
 - Generate the source tarball:
 
