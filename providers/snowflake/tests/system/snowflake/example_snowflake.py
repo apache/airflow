@@ -92,6 +92,8 @@ with DAG(
         sql="example_snowflake_snowflake_op_template_file.sql",
     )
 
+    # Create and populate a small dataset for the data quality operator examples.
+    # We insert one row for `ds` and one for `ds - 1`, each with value = 4.
     create_check_table = SQLExecuteQueryOperator(
         task_id="create_check_table",
         sql=CREATE_CHECK_TABLE_SQL_STRING,
@@ -144,10 +146,10 @@ with DAG(
             snowflake_op_template_file,
             snowflake_op_sql_multiple_stmts,
             snowflake_sql_api_op_sql_multiple_stmt,
-            create_check_table,
         ]
     )
 
+    snowflake_op_sql_str >> create_check_table
     create_check_table >> populate_check_table >> [
         snowflake_check,
         snowflake_value_check,

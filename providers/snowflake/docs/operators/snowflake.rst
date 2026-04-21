@@ -59,14 +59,10 @@ An example usage of the SQLExecuteQueryOperator to connect to Snowflake is as fo
   Parameters that can be passed onto the operator will be given priority over the parameters already given
   in the Airflow connection metadata (such as ``schema``, ``role``, ``database`` and so forth).
 
-
-Validate data
-^^^^^^^^^^^^^
-
 .. _howto/operator:SnowflakeCheckOperator:
 
-Check if query result has data
-""""""""""""""""""""""""""""""
+SnowflakeCheckOperator
+^^^^^^^^^^^^^^^^^^^^^^
 
 To perform checks against Snowflake you can use
 :class:`~airflow.providers.snowflake.operators.snowflake.SnowflakeCheckOperator`
@@ -83,8 +79,8 @@ return ``False`` the check fails and errors out.
 
 .. _howto/operator:SnowflakeValueCheckOperator:
 
-Compare query result to pass value
-""""""""""""""""""""""""""""""""""
+SnowflakeValueCheckOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To perform a simple value check using SQL code you can use
 :class:`~airflow.providers.snowflake.operators.snowflake.SnowflakeValueCheckOperator`
@@ -101,8 +97,8 @@ If numeric, you can also specify ``tolerance``.
 
 .. _howto/operator:SnowflakeIntervalCheckOperator:
 
-Compare metrics over time
-"""""""""""""""""""""""""
+SnowflakeIntervalCheckOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To check that the values of metrics given as SQL expressions are within a certain
 tolerance of the ones from ``days_back`` before you can use
