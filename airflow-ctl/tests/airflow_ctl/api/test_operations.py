@@ -1135,6 +1135,20 @@ class TestDagRunOperations:
         )
         assert response == self.dag_run_collection_response
 
+    def test_list_without_state_does_not_send_state_param(self):
+        """`state` is optional: omitting it must not send ``state=None`` to the API."""
+        captured_params: dict[str, str] = {}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            captured_params.update(dict(request.url.params))
+            return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.list(limit=5)
+        assert response == self.dag_run_collection_response
+        assert "state" not in captured_params
+        assert captured_params["limit"] == "5"
+
 
 class TestJobsOperations:
     job_response = JobResponse(
