@@ -95,7 +95,7 @@ The Release Manager can use the `breeze` tool to build the package:
 ```bash
 breeze release-management prepare-mypy-distributions \
     --distribution-format both \
-    --version-suffix-for-pypi rc1
+    --version-suffix rc1
 ```
 
 ## Build and sign the source and convenience packages
