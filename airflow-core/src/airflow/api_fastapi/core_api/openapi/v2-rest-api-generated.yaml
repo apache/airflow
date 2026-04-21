@@ -9281,10 +9281,11 @@ components:
           title: Run Backwards
           default: false
         dag_run_conf:
-          additionalProperties: true
-          type: object
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
           title: Dag Run Conf
-          default: {}
         reprocess_behavior:
           $ref: '#/components/schemas/ReprocessBehavior'
           default: none

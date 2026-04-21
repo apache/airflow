@@ -10,6 +10,7 @@
     "maxRuns": "Max Active Runs",
     "missingAndErroredRuns": "Missing and Errored Runs",
     "missingRuns": "Missing Runs",
+    "overrideExistingParams": "Override parameters on existing runs",
     "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
     "reprocessBehavior": "Reprocess Behavior",
     "run": "Run Backfill",
