@@ -763,6 +763,28 @@ The following agent-skill documents the recommended way to run tests (uv first, 
       PASSED
 
 .. agent-skill::
+   :id: run-tests-in-breeze
+   :context: either
+   :category: testing
+   :prereqs: setup-breeze-environment
+   :validates: tests-pass
+   :description: Run targeted tests — uses uv on host,
+                 pytest directly in Breeze
+   :fallback: breeze exec pytest {test_path} -xvs
+   :fallback_condition: missing_system_deps
+
+   .. code-block:: bash
+
+      # On host: uv-first
+      uv run --project {project} pytest {test_path} -xvs
+      # Inside Breeze: direct pytest
+      pytest {test_path} -xvs
+
+   .. agent-skill-expected-output::
+
+      PASSED
+
+.. agent-skill::
    :id: run-static-checks-prek
    :context: host
    :category: linting

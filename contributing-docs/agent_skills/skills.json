@@ -2,7 +2,7 @@
   "version": "1.0",
   "generated_by": "extract_agent_skills.py",
   "generated_from": "AGENTS.md, contributing-docs/*.rst",
-  "skill_count": 9,
+  "skill_count": 10,
   "skills": [
     {
       "id": "setup-breeze-environment",
@@ -84,6 +84,18 @@
       "validates": "tests-pass",
       "description": "Run tests with uv, fall back to Breeze if system deps missing",
       "command": "uv run --project {project} pytest {test_path} -xvs\n# fallback: breeze run pytest {test_path} -xvs",
+      "expected_output": "PASSED"
+    },
+    {
+      "id": "run-tests-in-breeze",
+      "context": "either",
+      "category": "testing",
+      "prereqs": "setup-breeze-environment",
+      "validates": "tests-pass",
+      "description": "Run targeted tests \u2014 uses uv on host, pytest directly in Breeze",
+      "fallback": "breeze exec pytest {test_path} -xvs",
+      "fallback_condition": "missing_system_deps",
+      "command": "# On host: uv-first\nuv run --project {project} pytest {test_path} -xvs\n# Inside Breeze: direct pytest\npytest {test_path} -xvs",
       "expected_output": "PASSED"
     },
     {

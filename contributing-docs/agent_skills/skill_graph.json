@@ -34,6 +34,21 @@
       "id": "run-type-check",
       "category": "linting",
       "context": "host"
+    },
+    {
+      "id": "run-tests-uv-first",
+      "category": "testing",
+      "context": "host"
+    },
+    {
+      "id": "run-tests-in-breeze",
+      "category": "testing",
+      "context": "either"
+    },
+    {
+      "id": "run-static-checks-prek",
+      "category": "linting",
+      "context": "host"
     }
   ],
   "edges": [
@@ -64,6 +79,21 @@
     },
     {
       "from": "run-type-check",
+      "to": "setup-breeze-environment",
+      "type": "requires"
+    },
+    {
+      "from": "run-tests-uv-first",
+      "to": "setup-breeze-environment",
+      "type": "requires"
+    },
+    {
+      "from": "run-tests-in-breeze",
+      "to": "setup-breeze-environment",
+      "type": "requires"
+    },
+    {
+      "from": "run-static-checks-prek",
       "to": "setup-breeze-environment",
       "type": "requires"
     }
