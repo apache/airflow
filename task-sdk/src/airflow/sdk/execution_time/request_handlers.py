@@ -37,9 +37,11 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
+    DagRunStateResult,
     DeleteVariable,
     DeleteXCom,
     GetConnection,
+    GetDagRunState,
     GetDRCount,
     GetPreviousTI,
     GetTaskStates,
@@ -184,6 +186,12 @@ def handle_get_dr_count(client: Client, msg: GetDRCount) -> tuple[BaseModel | No
         states=msg.states,
     )
     return resp, {}
+
+
+def handle_get_dag_run_state(client: Client, msg: GetDagRunState) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch dag run state."""
+    dr_resp = client.dag_runs.get_state(msg.dag_id, msg.run_id)
+    return DagRunStateResult.from_api_response(dr_resp), {}
 
 
 def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
