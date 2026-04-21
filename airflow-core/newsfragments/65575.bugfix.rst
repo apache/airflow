@@ -1,1 +1,0 @@
-Forward MySQL SSL/TLS query parameters (``ssl_ca``, ``ssl_cert``, ``ssl_key``, ``ssl_cipher``, ``ssl_mode``) and ``charset`` from ``sql_alchemy_conn`` into the temporary ``my.cnf`` used by ``airflow db shell``, so it can authenticate against MySQL backends configured for certificate-based auth (e.g. ``REQUIRE X509``) the same way the rest of Airflow does.
