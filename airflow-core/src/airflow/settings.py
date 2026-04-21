@@ -432,7 +432,8 @@ def _configure_async_session() -> None:
     """
     global AsyncSession, async_engine
 
-    if not _AirflowSettings.sql_alchemy_conn_async:
+    async_conn = _AirflowSettings.sql_alchemy_conn_async
+    if not async_conn:
         async_engine = None
         AsyncSession = None
         return
@@ -444,14 +445,14 @@ def _configure_async_session() -> None:
     engine_args: dict[str, Any] = {}
     if not conf.getboolean("database", "SQL_ALCHEMY_POOL_ENABLED"):
         engine_args["poolclass"] = NullPool
-    elif not SQL_ALCHEMY_CONN_ASYNC.startswith("sqlite"):
+    elif not async_conn.startswith("sqlite"):
         engine_args["pool_size"] = conf.getint("database", "SQL_ALCHEMY_POOL_SIZE", fallback=5)
         engine_args["pool_recycle"] = conf.getint("database", "SQL_ALCHEMY_POOL_RECYCLE", fallback=1800)
         engine_args["pool_pre_ping"] = conf.getboolean("database", "SQL_ALCHEMY_POOL_PRE_PING", fallback=True)
         engine_args["max_overflow"] = conf.getint("database", "SQL_ALCHEMY_MAX_OVERFLOW", fallback=10)
 
     async_engine = create_async_metadata_engine(
-        _AirflowSettings.sql_alchemy_conn_async,
+        async_conn,
         connect_args=_get_connect_args("async"),
         engine_args=engine_args,
     )

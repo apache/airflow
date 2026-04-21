@@ -291,7 +291,10 @@ class TestMetadataEngineHooks:
         mock_create_async_engine.return_value = MagicMock()
 
         with (
-            patch("airflow.settings._AirflowSettings.sql_alchemy_conn_async", "postgresql+asyncpg://localhost/airflow"),
+            patch(
+                "airflow.settings._AirflowSettings.sql_alchemy_conn_async",
+                "postgresql+asyncpg://localhost/airflow",
+            ),
             patch("airflow.settings.conf") as mock_conf,
         ):
             mock_conf.getint.side_effect = lambda section, key, fallback=None: {
@@ -317,7 +320,10 @@ class TestMetadataEngineHooks:
         mock_create_async_engine.return_value = MagicMock()
 
         with (
-            patch("airflow.settings.SQL_ALCHEMY_CONN_ASYNC", "postgresql+asyncpg://localhost/airflow"),
+            patch(
+                "airflow.settings._AirflowSettings.sql_alchemy_conn_async",
+                "postgresql+asyncpg://localhost/airflow",
+            ),
             patch("airflow.settings.conf") as mock_conf,
         ):
             mock_conf.getboolean.return_value = False
