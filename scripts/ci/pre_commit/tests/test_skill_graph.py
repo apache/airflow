@@ -23,8 +23,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -32,7 +30,7 @@ def _run_skill_graph(skills_json: Path, output_json: Path | None = None) -> subp
     cmd = [sys.executable, str(SCRIPT_DIR / "skill_graph.py"), "--skills-json", str(skills_json)]
     if output_json is not None:
         cmd.extend(["--output", str(output_json)])
-    return subprocess.run(cmd, capture_output=True, text=True)
+    return subprocess.run(cmd, capture_output=True, text=True, check=False)
 
 
 def test_graph_built_correctly(tmp_path):

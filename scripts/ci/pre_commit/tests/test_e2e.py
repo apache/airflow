@@ -22,8 +22,10 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import pytest
+if TYPE_CHECKING:
+    import pytest
 
 PRE_COMMIT_DIR = Path(__file__).resolve().parents[1]
 CI_DIR = Path(__file__).resolve().parents[2]
@@ -49,6 +51,7 @@ def _extract_skills_to_file(skills_file: Path) -> subprocess.CompletedProcess[st
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
+        check=False,
     )
 
 
@@ -88,6 +91,7 @@ def test_full_pipeline_rst_to_command(tmp_path: Path, monkeypatch: pytest.Monkey
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
+        check=False,
     )
     assert check_result.returncode == 0, check_result.stdout + check_result.stderr
     assert "OK: skills.json is in sync" in check_result.stdout

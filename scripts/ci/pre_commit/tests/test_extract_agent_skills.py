@@ -28,7 +28,7 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from extract_agent_skills import extract_all_skills, parse_skills, validate_skill
+from extract_agent_skills import extract_all_skills, parse_skills, validate_skill  # noqa: E402
 
 VALID_SKILL_RST = """
 .. agent-skill::
@@ -96,6 +96,7 @@ def test_invalid_context_fails(tmp_path):
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode == 1
     assert "context" in result.stderr
@@ -132,6 +133,7 @@ def test_invalid_id_fails(tmp_path):
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode == 1
     assert "id" in result.stderr
@@ -167,6 +169,7 @@ def test_missing_description_fails(tmp_path):
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode == 1
     assert "description" in result.stderr
@@ -218,6 +221,7 @@ def test_check_mode_passes_when_in_sync(tmp_path):
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode == 0
     assert "OK: skills.json is in sync" in result.stdout
@@ -273,6 +277,7 @@ def test_check_mode_fails_when_drifted(tmp_path):
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode == 1
     assert "Skills modified" in result.stdout or "DRIFT DETECTED" in result.stdout
@@ -313,6 +318,7 @@ def test_check_mode_prints_diff(tmp_path):
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode == 1
     assert "DRIFT DETECTED" in result.stdout
@@ -353,6 +359,7 @@ def test_extracts_from_rst_file(tmp_path):
         capture_output=True,
         text=True,
         cwd=tmp_path,
+        check=False,
     )
     assert result.returncode == 0
     data = json.loads(out_file.read_text())
@@ -412,6 +419,7 @@ def test_extracts_from_both_sources(tmp_path):
         capture_output=True,
         text=True,
         cwd=tmp_path,
+        check=False,
     )
     assert result.returncode == 0
     data = json.loads(out_file.read_text())
