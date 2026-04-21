@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import sys
 import warnings
 from contextlib import suppress
 from json import JSONDecodeError
@@ -52,6 +51,7 @@ except ImportError:
 
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.process_context import should_use_task_sdk_api_path
 from airflow.utils.session import NEW_SESSION, provide_session
 
 log = logging.getLogger(__name__)
@@ -475,7 +475,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
 
         # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if should_use_task_sdk_api_path():
             from airflow.sdk import Connection as TaskSDKConnection
             from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
@@ -566,7 +566,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
 
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if should_use_task_sdk_api_path():
             from airflow.sdk import Connection as TaskSDKConnection
 
             warnings.warn(
