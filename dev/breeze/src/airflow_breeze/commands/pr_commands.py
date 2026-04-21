@@ -3597,7 +3597,9 @@ def _prompt_and_execute_flagged_pr(
             if action == TriageAction.CLOSE:
                 console_print(Panel(close_comment, title="Comment to be posted", border_style="red"))
             elif action == TriageAction.COMMENT:
-                console_print(Panel(comment_only_text, title="Comment to be posted", border_style="green"))
+                console_print(
+                    Panel(comment_only_text or "", title="Comment to be posted", border_style="green")
+                )
             else:
                 console_print(Panel(draft_comment, title="Comment to be posted", border_style="green"))
 
@@ -4759,7 +4761,7 @@ def _run_tui_triage(
                 except Exception:
                     result = None
                 if result:
-                    diff_cache[num] = result
+                    diff_cache[num] = result  # type: ignore[assignment]
                     paths = extract_file_paths_from_diff(result)
                     if paths:
                         _pr_file_paths[num] = paths
@@ -6382,7 +6384,7 @@ def _review_deterministic_flagged_prs(
 
         if pr.author_login != current_author:
             current_author = pr.author_login
-            count = ctx.author_flagged_count[current_author]
+            count = ctx.author_flagged_count[current_author] if current_author else 0
             console_print()
             get_console().rule(
                 f"[bold]Author: {current_author}[/] ({count} PR{'s' if count != 1 else ''} with issues)",

@@ -33,6 +33,7 @@ from airflow.models.backfill import (
     BackfillDagRun,
     BackfillDagRunExceptionReason,
     DagNonPeriodicScheduleException,
+    InvalidBackfillConf,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
     ReprocessBehavior,
@@ -387,6 +388,155 @@ def test_reprocess_behavior(reprocess_behavior, num_in_b, exc_reasons, dag_maker
     assert actual == exc_reasons
     # all the runs created by the backfill should have state queued
     assert all(x.state == DagRunState.QUEUED for x in dag_runs_in_b)
+
+
+@pytest.mark.parametrize(
+    "reprocess_behavior",
+    [ReprocessBehavior.FAILED, ReprocessBehavior.COMPLETED],
+)
+def test_backfill_conf_overrides_existing_dag_run(reprocess_behavior, dag_maker, session):
+    """When reprocessing an existing DagRun, the backfill's dag_run_conf should override the existing conf."""
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    existing_date = "2021-01-03"
+    dag_maker.create_dagrun(
+        run_id=f"scheduled_{existing_date}",
+        logical_date=timezone.parse(existing_date),
+        session=session,
+        state=DagRunState.FAILED,
+        conf={"old_key": "old_value"},
+    )
+    session.commit()
+
+    new_conf = {"new_key": "new_value"}
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=10,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf=new_conf,
+        reprocess_behavior=reprocess_behavior,
+    )
+
+    session.expunge_all()
+
+    # The reprocessed existing run should have the new conf
+    reprocessed_dr = session.scalar(
+        select(DagRun).where(
+            DagRun.dag_id == dag.dag_id,
+            DagRun.logical_date == timezone.parse(existing_date),
+        )
+    )
+    assert reprocessed_dr.conf == new_conf
+
+    # New runs created by the backfill should also have the new conf
+    all_backfill_runs = session.scalars(
+        select(DagRun).join(BackfillDagRun.dag_run).where(BackfillDagRun.backfill_id == b.id)
+    ).all()
+    assert all(x.conf == new_conf for x in all_backfill_runs)
+
+
+def test_backfill_none_conf_preserves_existing_dag_run_conf(dag_maker, session):
+    """When backfill dag_run_conf is None, existing DagRun conf should be preserved."""
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    existing_date = "2021-01-03"
+    original_conf = {"keep": "this"}
+    dag_maker.create_dagrun(
+        run_id=f"scheduled_{existing_date}",
+        logical_date=timezone.parse(existing_date),
+        session=session,
+        state=DagRunState.FAILED,
+        conf=original_conf,
+    )
+    session.commit()
+
+    _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=10,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf=None,
+        reprocess_behavior=ReprocessBehavior.FAILED,
+    )
+
+    session.expunge_all()
+
+    reprocessed_dr = session.scalar(
+        select(DagRun).where(
+            DagRun.dag_id == dag.dag_id,
+            DagRun.logical_date == timezone.parse(existing_date),
+        )
+    )
+    assert reprocessed_dr.conf == original_conf
+
+
+def test_backfill_empty_conf_overrides_existing_dag_run(dag_maker, session):
+    """When backfill dag_run_conf is {}, existing DagRun conf should be updated to {}."""
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    existing_date = "2021-01-03"
+    dag_maker.create_dagrun(
+        run_id=f"scheduled_{existing_date}",
+        logical_date=timezone.parse(existing_date),
+        session=session,
+        state=DagRunState.FAILED,
+        conf={"old_key": "old_value"},
+    )
+    session.commit()
+
+    _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=10,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+        reprocess_behavior=ReprocessBehavior.FAILED,
+    )
+
+    session.expunge_all()
+
+    reprocessed_dr = session.scalar(
+        select(DagRun).where(
+            DagRun.dag_id == dag.dag_id,
+            DagRun.logical_date == timezone.parse(existing_date),
+        )
+    )
+    assert reprocessed_dr.conf == {}
+
+
+def test_backfill_rejects_invalid_conf(dag_maker, session):
+    """Backfill with invalid conf should fail validation before creating any runs."""
+    from airflow.sdk import Param
+
+    with dag_maker(
+        schedule="@daily",
+        params={"validated_number": Param(1, type="integer", minimum=1, maximum=10)},
+    ) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    with pytest.raises(InvalidBackfillConf, match="Invalid input for param validated_number"):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-05"),
+            max_active_runs=10,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf={"validated_number": 99},
+        )
+
+    # No runs should have been created
+    assert session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id)) is None
 
 
 def test_params_stored_correctly(dag_maker, session):

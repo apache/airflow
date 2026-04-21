@@ -483,6 +483,13 @@ class TestBaseChartTest:
                 (f"{release_name}-ingress", "Ingress", "airflow-ingress"),
             ]
 
+        cleanup_kubernetes_executor_only_objects = {
+            (f"{release_name}-airflow-cleanup", "ServiceAccount"),
+            (f"{release_name}-cleanup", "CronJob"),
+            (f"{release_name}-cleanup-role", "Role"),
+            (f"{release_name}-cleanup-rolebinding", "RoleBinding"),
+        }
+
         for k8s_object_name, kind, component in kind_names_tuples:
             expected_labels = {
                 "label1": "value1",
@@ -499,7 +506,10 @@ class TestBaseChartTest:
                 if executor == "CeleryExecutor,KubernetesExecutor":
                     expected_labels["executor"] = "CeleryExecutor-KubernetesExecutor"
 
-            if component and component == "airflow-cleanup-pods" and executor == "CeleryExecutor":
+            if (
+                executor == "CeleryExecutor"
+                and (k8s_object_name, kind) in cleanup_kubernetes_executor_only_objects
+            ):
                 assert (k8s_object_name, kind) not in kind_k8s_obj_labels_tuples
             else:
                 actual_labels = kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind))

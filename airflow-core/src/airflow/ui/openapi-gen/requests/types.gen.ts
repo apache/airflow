@@ -122,8 +122,8 @@ export type BackfillPostBody = {
     to_date: string;
     run_backwards?: boolean;
     dag_run_conf?: {
-        [key: string]: unknown;
-    };
+    [key: string]: unknown;
+} | null;
     reprocess_behavior?: ReprocessBehavior;
     max_active_runs?: number;
     run_on_latest_version?: boolean;
@@ -1984,7 +1984,6 @@ export type DeadlineAlertCollectionResponse = {
 export type DeadlineAlertResponse = {
     id: string;
     name?: string | null;
-    description?: string | null;
     reference_type: string;
     /**
      * Interval in seconds between deadline evaluations.
@@ -2011,8 +2010,8 @@ export type DeadlineResponse = {
     created_at: string;
     dag_id: string;
     dag_run_id: string;
+    alert_id?: string | null;
     alert_name?: string | null;
-    alert_description?: string | null;
 };
 
 /**
@@ -2026,6 +2025,9 @@ export type EdgeResponse = {
     is_source_asset?: boolean | null;
 };
 
+/**
+ * Define a menu item that can be added to the menu by auth managers or plugins.
+ */
 export type ExtraMenuItem = {
     text: string;
     href: string;
