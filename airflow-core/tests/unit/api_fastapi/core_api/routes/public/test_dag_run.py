@@ -1783,45 +1783,14 @@ class TestClearDagRun:
         assert body["detail"][0]["msg"] == "Field required"
         assert body["detail"][0]["loc"][0] == "body"
 
-    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_clear_dag_run_only_new_dry_run(self, mock_clear, test_client, session):
-        """Test that only_new dry_run returns placeholder task instances for new tasks."""
-        mock_clear.return_value = {"new_task_1", "new_task_2", "new_task_3"}
-        response = test_client.post(
-            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
-            json={"dry_run": True, "only_new": True},
-        )
-        assert response.status_code == 200
-        body = response.json()
-        assert body["total_entries"] == 3
-        # Verify new tasks are returned with correct task_ids in task_instances
-        task_ids = sorted(t["task_id"] for t in body["task_instances"])
-        assert task_ids == ["new_task_1", "new_task_2", "new_task_3"]
-        # Verify task_display_name defaults to task_id
-        for task in body["task_instances"]:
-            assert task["task_display_name"] == task["task_id"]
-        mock_clear.assert_called_once_with(
-            run_id=DAG1_RUN1_ID,
-            task_ids=None,
-            only_new=True,
-            only_failed=False,
-            run_on_latest_version=False,
-            dry_run=True,
-            session=mock.ANY,
-        )
-        logs = session.scalar(
-            select(func.count())
-            .select_from(Log)
-            .where(Log.dag_id == DAG1_ID, Log.run_id == DAG1_RUN1_ID, Log.event == "clear_dag_run")
-        )
-        assert logs == 0
+    def test_clear_dag_run_only_new_dry_run(self, test_client, session):
+        """Test that only_new dry_run returns 0 new tasks when all tasks already have TIs.
 
-    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_clear_dag_run_only_new_dry_run_no_new_tasks(self, mock_clear, test_client, session):
-        """Test that only_new dry_run returns 0 total_entries when there are no new tasks."""
-        mock_clear.return_value = set()
+        The new implementation uses TI-existence checks rather than DAG version comparison.
+        DAG1_RUN1_ID already has TIs for every task in the latest DAG version, so there are
+        no new tasks to queue and dag.clear() is not called for the dry-run path.
+        """
         response = test_client.post(
             f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
             json={"dry_run": True, "only_new": True},
@@ -1830,6 +1799,12 @@ class TestClearDagRun:
         body = response.json()
         assert body["task_instances"] == []
         assert body["total_entries"] == 0
+        logs = session.scalar(
+            select(func.count())
+            .select_from(Log)
+            .where(Log.dag_id == DAG1_ID, Log.run_id == DAG1_RUN1_ID, Log.event == "clear_dag_run")
+        )
+        assert logs == 0
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -1871,9 +1846,8 @@ class TestClearDagRun:
 class TestClearDagRunOnlyNew:
     """Integration tests for only_new=True using a real two-version DAG.
 
-    All existing only_new tests mock dag.clear(), so they never verify the DB.
     These tests use real serialised DAG versions to confirm that:
-      - the dry-run preview lists the correct new task IDs, and
+      - the dry-run preview lists the correct new task IDs (TI-existence check), and
       - the actual action creates the new TI in the task_instance table.
     """
 
@@ -1949,34 +1923,30 @@ class TestClearDagRunOnlyNew:
         }
         assert "task_b" in task_ids, "task_b TI was not created after only_new clear"
 
-    def test_only_new_skips_task_that_already_has_ti(self, test_client, session, dag_two_versions):
+    def test_only_new_skips_task_that_already_has_ti(self, test_client, dag_two_versions):
         """Tasks with an existing TI must NOT appear in the only_new preview, regardless of version.
 
-        This verifies that _get_new_task_ids uses TI existence rather than version comparison:
-        even though task_b was added in v2, if a TI for task_b already exists in the run it
-        must not be returned as "new".
+        This verifies the TI-existence check: even though task_b was added in v2, once its TI
+        exists in the run it must not be returned as "new". We create the TI by running the
+        non-dry-run endpoint first, then confirm the dry-run preview shows 0 new tasks.
         """
         dag_id = dag_two_versions["dag_id"]
         run_id = dag_two_versions["run_id"]
 
-        # Manually insert a TI for task_b so it already exists in this run
-        ti_b = TaskInstance(
-            task_id="task_b",
-            dag_id=dag_id,
-            run_id=run_id,
-            state=State.SUCCESS,
-            map_index=-1,
+        # Create task_b's TI by executing the actual only_new clear (non-dry-run)
+        resp = test_client.post(
+            f"/dags/{dag_id}/dagRuns/{run_id}/clear",
+            json={"dry_run": False, "only_new": True},
         )
-        session.add(ti_b)
-        session.commit()
+        assert resp.status_code == 200
 
+        # Now the dry-run preview should show 0 new tasks — task_b already has a TI
         response = test_client.post(
             f"/dags/{dag_id}/dagRuns/{run_id}/clear",
             json={"dry_run": True, "only_new": True},
         )
         assert response.status_code == 200
         body = response.json()
-        # task_b already has a TI, so only_new should find nothing new
         assert body["total_entries"] == 0, (
             f"Expected 0 new tasks but got {body['total_entries']}: {body['task_instances']}"
         )
