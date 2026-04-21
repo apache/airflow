@@ -1335,6 +1335,7 @@ dev = [
     "apache-airflow-shared-state",
     "apache-airflow-shared-template-rendering",
     "apache-airflow-shared-timezones",
+    "apache-airflow-shared-workloads",
 ]
 
 # To build docs:
@@ -1503,6 +1504,7 @@ apache-airflow-shared-serialization = false
 apache-airflow-shared-state = false
 apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
+apache-airflow-shared-workloads = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
 apache-aurflow-docker-stack = false
@@ -1655,6 +1657,7 @@ apache-airflow-shared-serialization = false
 apache-airflow-shared-state = false
 apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
+apache-airflow-shared-workloads = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
 apache-aurflow-docker-stack = false
@@ -1700,6 +1703,7 @@ apache-airflow-shared-serialization = { workspace = true }
 apache-airflow-shared-state = { workspace = true }
 apache-airflow-shared-template-rendering = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
+apache-airflow-shared-workloads = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-akeyless = { workspace = true }
@@ -1838,6 +1842,7 @@ members = [
     "shared/state",
     "shared/template_rendering",
     "shared/timezones",
+    "shared/workloads",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/akeyless",

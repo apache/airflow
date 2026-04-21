@@ -51,7 +51,8 @@ from typing import TYPE_CHECKING, NamedTuple
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
-    from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+    from airflow.sdk._shared.workloads import TaskInstanceDTO
+    from airflow.sdk.api.datamodels._generated import BundleInfo
     from airflow.sdk.execution_time.comms import StartupDetails
 
 
@@ -195,7 +196,7 @@ class BaseRuntimeCoordinator:
     class TaskExecutionInfo(NamedTuple):
         """Information needed for runtime task execution."""
 
-        what: TaskInstance
+        what: TaskInstanceDTO
         dag_rel_path: str | os.PathLike[str]
         bundle_info: BundleInfo
         startup_details: StartupDetails
@@ -259,7 +260,7 @@ class BaseRuntimeCoordinator:
     def task_execution_runtime_cmd(
         cls,
         *,
-        what: TaskInstance,
+        what: TaskInstanceDTO,
         dag_file_path: str,
         bundle_path: str,
         bundle_info: BundleInfo,
@@ -296,7 +297,7 @@ class BaseRuntimeCoordinator:
     def run_task_execution(
         cls,
         *,
-        what: TaskInstance,
+        what: TaskInstanceDTO,
         dag_rel_path: str | os.PathLike[str],
         bundle_info: BundleInfo,
         startup_details: StartupDetails,
