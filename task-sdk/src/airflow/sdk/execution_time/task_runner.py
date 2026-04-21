@@ -30,7 +30,7 @@ from contextlib import ExitStack, contextmanager, suppress
 from datetime import datetime, timedelta, timezone
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 from urllib.parse import quote
 
 import attrs
@@ -146,6 +146,7 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
+    from airflow._shared.workloads import TaskInstanceDTO
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.retry_policy import RetryDecision
@@ -2124,7 +2125,7 @@ def _resolve_runtime_entrypoint(startup_details: StartupDetails, log: Logger) ->
         )
         return functools.partial(
             coordinator_cls.run_task_execution,
-            what=startup_details.ti,
+            what=cast("TaskInstanceDTO", startup_details.ti),
             dag_rel_path=startup_details.dag_rel_path,
             bundle_info=startup_details.bundle_info,
             startup_details=startup_details,

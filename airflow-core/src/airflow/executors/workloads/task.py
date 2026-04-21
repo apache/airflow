@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -28,6 +27,8 @@ from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    import uuid
+
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.models.taskinstance import TaskInstance as TIModel
     from airflow.models.taskinstancekey import TaskInstanceKey

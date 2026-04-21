@@ -167,6 +167,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
     from typing_extensions import Self
 
+    from airflow._shared.workloads import TaskInstanceDTO
     from airflow.executors.workloads import BundleInfo
     from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
@@ -1203,7 +1204,7 @@ class ActivitySubprocess(WatchedSubprocess):
     def start(  # type: ignore[override]
         cls,
         *,
-        what: TaskInstance,
+        what: TaskInstanceDTO,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         client: Client,
@@ -1232,7 +1233,7 @@ class ActivitySubprocess(WatchedSubprocess):
     def _on_child_started(
         self,
         *,
-        ti: TaskInstance,
+        ti: TaskInstanceDTO,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         sentry_integration: str,
@@ -2216,7 +2217,7 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
 
 def supervise_task(
     *,
-    ti: TaskInstance,
+    ti: TaskInstanceDTO,
     bundle_info: BundleInfo,
     dag_rel_path: str | os.PathLike[str],
     token: str,

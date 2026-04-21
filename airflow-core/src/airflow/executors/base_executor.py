@@ -70,6 +70,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow._shared.workloads import TaskInstanceDTO
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
@@ -653,10 +654,8 @@ class BaseExecutor(LoggingMixin):
         if isinstance(workload, ExecuteTask):
             from airflow.sdk.execution_time.supervisor import supervise_task
 
-            # workload.ti is a TaskInstanceDTO which duck-types as TaskInstance.
-            # TODO: Create a protocol for this.
             return supervise_task(
-                ti=workload.ti,  # type: ignore[arg-type]
+                ti=cast("TaskInstanceDTO", workload.ti),
                 bundle_info=workload.bundle_info,
                 dag_rel_path=workload.dag_rel_path,
                 token=workload.token,
