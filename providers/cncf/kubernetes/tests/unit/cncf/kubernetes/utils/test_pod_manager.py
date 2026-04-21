@@ -37,6 +37,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
     XComRetrievalError,
     _parse_log_level,
+    detect_pod_terminate_early_issues,
     log_pod_event,
     parse_log_line,
 )
@@ -144,6 +145,61 @@ def test_log_pod_event_multiple_events():
     assert "event-uid-2" in seen_events
     assert len(seen_events) == 2
     assert mock_pod_manager.log.info.call_count == 2
+
+
+def _pod_with_waiting_container(reason: str, message: str):
+    pod = mock.MagicMock()
+    container_status = mock.MagicMock()
+    waiting_state = mock.MagicMock()
+    waiting_state.reason = reason
+    waiting_state.message = message
+    container_status.state.waiting = waiting_state
+    pod.status.container_statuses = [container_status]
+    return pod
+
+
+@pytest.mark.parametrize(
+    ("reason", "message"),
+    [
+        ("ErrImagePull", "rpc error: 502 Bad Gateway from auth.docker.io"),
+        ("ErrImagePull", "registry returned 503 Service Unavailable"),
+        ("ErrImagePull", "got 504 Gateway Timeout"),
+        # kubelet >= 1.32 appends the previous pull error to the
+        # ImagePullBackOff message, so the 5xx patterns still match.
+        ("ImagePullBackOff", 'Back-off pulling image "ubuntu:latest": 502 Bad Gateway'),
+        ("ErrImagePull", "too many requests"),
+        ("ErrImagePull", "pull QPS exceeded"),
+    ],
+)
+def test_detect_pod_terminate_early_issues_returns_none_for_transient_messages(reason, message):
+    """Transient registry/network errors should not trigger early termination.
+
+    kubelet retries image pulls automatically; `startup_timeout` bounds the
+    total wait. Returning None here keeps the monitoring loop going so those
+    retries have a chance to succeed.
+    """
+    pod = _pod_with_waiting_container(reason, message)
+    assert detect_pod_terminate_early_issues(pod) is None
+
+
+@pytest.mark.parametrize(
+    ("reason", "message"),
+    [
+        ("InvalidImageName", "Failed to apply default image tag"),
+        ("ErrImageNeverPull", "Container image pull policy is Never"),
+        ("ErrImagePull", "manifest unknown"),
+        ("ImagePullBackOff", "unauthorized: authentication required"),
+        # Bare ImagePullBackOff message (kubelet < 1.32) — must fail fast so
+        # a genuinely missing image doesn't wait out startup_timeout.
+        ("ImagePullBackOff", 'Back-off pulling image "nonexistent:latest"'),
+    ],
+)
+def test_detect_pod_terminate_early_issues_returns_error_for_fatal_messages(reason, message):
+    pod = _pod_with_waiting_container(reason, message)
+    error = detect_pod_terminate_early_issues(pod)
+    assert error is not None
+    assert reason in error
+    assert message in error
 
 
 class TestPodManager:

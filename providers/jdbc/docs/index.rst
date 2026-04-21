@@ -98,14 +98,23 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  ==================
+==========================================  ==========================================================================================================
 PIP package                                 Version required
-==========================================  ==================
+==========================================  ==========================================================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.14.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``jaydebeapi``                              ``>=1.1.1``
-==========================================  ==================
+``jpype1``                                  ``>=1.4.0,!=1.7.0; python_version == "3.10" and sys_platform == "darwin" and platform_machine == "arm64"``
+``jpype1``                                  ``>=1.4.0; python_version == "3.10" and (sys_platform != "darwin" or platform_machine != "arm64")``
+``jpype1``                                  ``>=1.4.1,!=1.7.0; python_version == "3.11" and sys_platform == "darwin" and platform_machine == "arm64"``
+``jpype1``                                  ``>=1.4.1; python_version == "3.11" and (sys_platform != "darwin" or platform_machine != "arm64")``
+``jpype1``                                  ``>=1.5.0,!=1.7.0; python_version == "3.12" and sys_platform == "darwin" and platform_machine == "arm64"``
+``jpype1``                                  ``>=1.5.0; python_version == "3.12" and (sys_platform != "darwin" or platform_machine != "arm64")``
+``jpype1``                                  ``>=1.5.1,!=1.7.0; python_version == "3.13" and sys_platform == "darwin" and platform_machine == "arm64"``
+``jpype1``                                  ``>=1.5.1; python_version == "3.13" and (sys_platform != "darwin" or platform_machine != "arm64")``
+``jpype1``                                  ``>=1.7.0; python_version >= "3.14"``
+==========================================  ==========================================================================================================
 
 Cross provider package dependencies
 -----------------------------------

@@ -15,17 +15,17 @@
     specific language governing permissions and limitations
     under the License.
 
-Google Cloud Composer Operators
-===============================
+Managed Service for Apache Airflow (formerly Cloud Composer) Operators
+======================================================================
 
-Cloud Composer is a fully managed workflow orchestration service, enabling you to create, schedule, monitor,
+Managed Service for Apache Airflow (formerly Cloud Composer) is a fully managed workflow orchestration service, enabling you to create, schedule, monitor,
 and manage workflows that span across clouds and on-premises data centers.
 
-Cloud Composer is built on the popular Apache Airflow open source project and operates using the
+Managed Service for Apache Airflow (formerly Cloud Composer) is built on the popular Apache Airflow open source project and operates using the
 Python programming language.
 
-By using Cloud Composer instead of a local instance of Apache Airflow, you can benefit from the best of
-Airflow with no installation or management overhead. Cloud Composer helps you create Airflow
+By using Managed Service for Apache Airflow (formerly Cloud Composer) instead of a local instance of Apache Airflow, you can benefit from the best of
+Airflow with no installation or management overhead. Managed Service for Apache Airflow (formerly Cloud Composer) helps you create Airflow
 environments quickly and use Airflow-native tools, such as the powerful Airflow web interface and
 command-line tools, so you can focus on your workflows and not your infrastructure.
 

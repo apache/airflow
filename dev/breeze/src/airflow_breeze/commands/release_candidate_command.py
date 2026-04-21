@@ -349,6 +349,9 @@ def create_tarball_release(
         console_print(f"[error]Unsupported tarball type: {tarball_type}")
         exit(1)
     source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
+    if version is None:
+        console_print("[error]Version must be set before creating the tarball")
+        exit(1)
     # Create the tarball
     tarball_release(
         version=version,

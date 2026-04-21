@@ -1454,7 +1454,7 @@ def airflow_e2e_tests(
 
     console_print(f"[info]Running Airflow E2E tests with PROD image: {image_name}[/]")
     # If the image is used from docker hub, test container will pull that part of test.
-    skip_image_check = True if image_name.startswith("apache/airflow") else False
+    skip_image_check = bool(image_name and image_name.startswith("apache/airflow"))
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
         python_version=python,
