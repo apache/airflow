@@ -25,7 +25,11 @@ import time_machine
 
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import CloudDataTransferServiceHook
-from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator
+from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
+from airflow.providers.google.cloud.transfers.s3_to_gcs import (
+    _RETURN_GCS_URIS_FALSE_DEPRECATION_MSG,
+    S3ToGCSOperator,
+)
 from airflow.utils.timezone import utcnow
 
 PROJECT_ID = "test-project-id"
@@ -84,6 +88,7 @@ class TestS3ToGoogleCloudStorageOperator:
             apply_gcs_prefix=APPLY_GCS_PREFIX,
             deferrable=DEFERRABLE,
             poll_interval=POLL_INTERVAL,
+            return_gcs_uris=True,
         )
 
         assert operator.task_id == TASK_ID
@@ -96,6 +101,7 @@ class TestS3ToGoogleCloudStorageOperator:
         assert operator.apply_gcs_prefix == APPLY_GCS_PREFIX
         assert operator.deferrable == DEFERRABLE
         assert operator.poll_interval == POLL_INTERVAL
+        assert operator.return_gcs_uris is True
 
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook")
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook")
@@ -110,6 +116,7 @@ class TestS3ToGoogleCloudStorageOperator:
             gcp_conn_id=GCS_CONN_ID,
             dest_gcs=GCS_PATH_PREFIX,
             google_impersonation_chain=IMPERSONATION_CHAIN,
+            return_gcs_uris=True,
         )
         operator.hook = mock.MagicMock()
 
@@ -132,8 +139,71 @@ class TestS3ToGoogleCloudStorageOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        # we expect MOCK_FILES to be uploaded
-        assert sorted(MOCK_FILES) == sorted(uploaded_files)
+        expected_uris = [f"gs://{GCS_BUCKET}/{GCS_PREFIX}{f}" for f in MOCK_FILES]
+        assert sorted(expected_uris) == sorted(uploaded_files)
+
+    @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook")
+    @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook")
+    def test_execute_legacy_returns_s3_keys(self, gcs_mock_hook, s3_mock_hook):
+        """When return_gcs_uris=False, execute returns raw S3 keys for backward compatibility."""
+        with pytest.warns(FutureWarning, match="S3ToGCSOperator"):
+            operator = S3ToGCSOperator(
+                task_id=TASK_ID,
+                bucket=S3_BUCKET,
+                prefix=S3_PREFIX,
+                delimiter=S3_DELIMITER,
+                gcp_conn_id=GCS_CONN_ID,
+                dest_gcs=GCS_PATH_PREFIX,
+                google_impersonation_chain=IMPERSONATION_CHAIN,
+                return_gcs_uris=False,
+            )
+        operator.hook = mock.MagicMock()
+        operator.hook.list_keys.return_value = MOCK_FILES
+
+        uploaded_files = operator.execute(context={})
+        assert sorted(uploaded_files) == sorted(MOCK_FILES)
+
+    def test_init_emits_deprecation_warning_when_return_gcs_uris_false_default(self):
+        """``return_gcs_uris`` defaults to ``False`` and emits a deprecation warning at init."""
+        with pytest.warns(FutureWarning, match="S3ToGCSOperator"):
+            operator = S3ToGCSOperator(
+                task_id=TASK_ID,
+                bucket=S3_BUCKET,
+                prefix=S3_PREFIX,
+                delimiter=S3_DELIMITER,
+                gcp_conn_id=GCS_CONN_ID,
+                dest_gcs=GCS_PATH_PREFIX,
+            )
+        assert operator.return_gcs_uris is False
+
+    def test_init_emits_deprecation_warning_when_return_gcs_uris_false_explicit(self):
+        """Explicit ``return_gcs_uris=False`` still emits the deprecation warning."""
+        with pytest.warns(FutureWarning, match="S3ToGCSOperator"):
+            S3ToGCSOperator(
+                task_id=TASK_ID,
+                bucket=S3_BUCKET,
+                prefix=S3_PREFIX,
+                delimiter=S3_DELIMITER,
+                gcp_conn_id=GCS_CONN_ID,
+                dest_gcs=GCS_PATH_PREFIX,
+                return_gcs_uris=False,
+            )
+
+    def test_init_no_warning_when_return_gcs_uris_true(self, recwarn):
+        """``return_gcs_uris=True`` opts into the new behavior and silences the warning."""
+        S3ToGCSOperator(
+            task_id=TASK_ID,
+            bucket=S3_BUCKET,
+            prefix=S3_PREFIX,
+            delimiter=S3_DELIMITER,
+            gcp_conn_id=GCS_CONN_ID,
+            dest_gcs=GCS_PATH_PREFIX,
+            return_gcs_uris=True,
+        )
+        assert not any(
+            issubclass(w.category, FutureWarning) and _RETURN_GCS_URIS_FALSE_DEPRECATION_MSG in str(w.message)
+            for w in recwarn
+        )
 
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook")
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook")
@@ -245,6 +315,7 @@ class TestS3ToGoogleCloudStorageOperator:
             dest_gcs=gcs_destination,
             google_impersonation_chain=IMPERSONATION_CHAIN,
             apply_gcs_prefix=apply_gcs_prefix,
+            return_gcs_uris=True,
         )
         operator.hook = mock.MagicMock()
         operator.hook.list_keys.return_value = [s3_prefix + s3_object]
@@ -264,7 +335,9 @@ class TestS3ToGoogleCloudStorageOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        assert sorted([s3_prefix + s3_object]) == sorted(uploaded_files)
+        dest_bucket, _ = _parse_gcs_url(gcs_destination)
+        expected_uri = f"gs://{dest_bucket}/{gcs_object}"
+        assert uploaded_files == [expected_uri]
 
     @pytest.mark.parametrize(
         ("s3_prefix", "gcs_destination", "apply_gcs_prefix", "expected_input", "expected_output"),
@@ -499,14 +572,44 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
         "airflow.providers.google.cloud.transfers.s3_to_gcs.S3ToGCSOperator.log", new_callable=PropertyMock
     )
     def test_execute_complete_success_returns_copied_files(self, mock_log):
-        """Deferrable mode returns list of copied files for use in subsequent tasks via XCom."""
+        """Deferrable mode returns destination GCS URIs for XCom when return_gcs_uris=True."""
         expected_files = [MOCK_FILE_1, MOCK_FILE_2]
         event = {
             "status": "success",
             "message": "Transfer completed",
             "files": expected_files,
         }
-        operator = S3ToGCSOperator(task_id=TASK_ID, bucket=S3_BUCKET)
+        operator = S3ToGCSOperator(
+            task_id=TASK_ID,
+            bucket=S3_BUCKET,
+            prefix=S3_PREFIX,
+            dest_gcs=GCS_PATH_PREFIX,
+            return_gcs_uris=True,
+        )
+        result = operator.execute_complete(context={}, event=event)
+
+        expected_uris = [f"gs://{GCS_BUCKET}/{GCS_PREFIX}{f}" for f in expected_files]
+        assert result == expected_uris
+
+    @mock.patch(
+        "airflow.providers.google.cloud.transfers.s3_to_gcs.S3ToGCSOperator.log", new_callable=PropertyMock
+    )
+    def test_execute_complete_legacy_returns_s3_keys(self, mock_log):
+        """When return_gcs_uris is False, execute_complete returns raw S3 keys for backward compatibility."""
+        expected_files = [MOCK_FILE_1, MOCK_FILE_2]
+        event = {
+            "status": "success",
+            "message": "Transfer completed",
+            "files": expected_files,
+        }
+        with pytest.warns(FutureWarning, match="S3ToGCSOperator"):
+            operator = S3ToGCSOperator(
+                task_id=TASK_ID,
+                bucket=S3_BUCKET,
+                prefix=S3_PREFIX,
+                dest_gcs=GCS_PATH_PREFIX,
+                return_gcs_uris=False,
+            )
         result = operator.execute_complete(context={}, event=event)
 
         assert result == expected_files

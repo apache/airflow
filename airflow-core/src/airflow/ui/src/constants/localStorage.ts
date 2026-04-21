@@ -29,14 +29,7 @@ export const LOG_SHOW_SOURCE_KEY = "log_show_source";
 export const VERSION_INDICATOR_DISPLAY_MODE_KEY = "version_indicator_display_mode";
 
 // Dag-scoped keys
-export const dagViewKey = (dagId: string) => `dag_view-${dagId}`;
 export const dagRunsLimitKey = (dagId: string) => `dag_runs_limit-${dagId}`;
-export const runTypeFilterKey = (dagId: string) => `run_type_filter-${dagId}`;
-export const triggeringUserFilterKey = (dagId: string) => `triggering_user_filter-${dagId}`;
-export const dagRunStateFilterKey = (dagId: string) => `dag_run_state_filter-${dagId}`;
-export const runAfterGteKey = (dagId: string) => `run_after_gte-${dagId}`;
-export const runAfterLteKey = (dagId: string) => `run_after_lte-${dagId}`;
-export const showGanttKey = (dagId: string) => `show_gantt-${dagId}`;
 export const dependenciesKey = (dagId: string) => `dependencies-${dagId}`;
 export const directionKey = (dagId: string) => `direction-${dagId}`;
 export const openGroupsKey = (dagId: string) => `${dagId}/open-groups`;
