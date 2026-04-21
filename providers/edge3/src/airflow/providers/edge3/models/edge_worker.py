@@ -156,6 +156,7 @@ def set_metrics(
     concurrency: int,
     free_concurrency: int,
     queues: list[str] | None,
+    sysinfo: dict[str, str | int | float | datetime],
 ) -> None:
     """Set metric of edge worker."""
     queues = queues if queues else []
