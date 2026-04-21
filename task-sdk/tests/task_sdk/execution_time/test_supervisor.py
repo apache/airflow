@@ -3419,6 +3419,7 @@ def test_api_client_clears_dag_bag_override_when_dag_is_none():
         in_process_api_server.cache_clear()
 
 
+@pytest.mark.usefixtures("disable_capturing")
 class TestChildExecMain:
     """Test the macOS fork+exec child entry point."""
 

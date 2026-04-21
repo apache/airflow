@@ -483,12 +483,10 @@ def _child_exec_main():
     instead, the task runner requests it from the supervisor via the existing
     ``ResendLoggingFD`` mechanism after startup.
     """
-    import socket as _socket
-
     # FDs 0, 1, 2 were dup2'd onto the socketpairs before exec.
-    child_requests = _socket.socket(fileno=0)
-    child_stdout = _socket.socket(fileno=1)
-    child_stderr = _socket.socket(fileno=2)
+    child_requests = socket(fileno=0)
+    child_stdout = socket(fileno=1)
+    child_stderr = socket(fileno=2)
 
     # _fork_main always exits via os._exit(), so the socket objects above are
     # never GC'd (which would close their underlying FDs). This is safe but
@@ -557,7 +555,14 @@ class WatchedSubprocess:
             immediately ``os.execv`` a fresh Python interpreter after ``os.fork``.
             This avoids macOS fork-safety issues with Objective-C frameworks.
             Task execution opts in; DAG processor and triggerer do not.
+
+        The exec'd child always runs ``_subprocess_main``, so ``use_exec=True``
+        is only valid when ``target is _subprocess_main``.
         """
+        if use_exec and target is not _subprocess_main:
+            raise ValueError(
+                f"use_exec=True is only supported with target=_subprocess_main; got target={target!r}"
+            )
         # Create socketpairs/"pipes" to connect to the stdin and out from the subprocess
         child_stdout, read_stdout = socketpair()
         child_stderr, read_stderr = socketpair()
