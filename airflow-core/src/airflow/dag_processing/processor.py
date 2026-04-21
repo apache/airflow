@@ -71,6 +71,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
+    handle_get_previous_dag_run,
     handle_get_previous_ti,
     handle_get_task_states,
     handle_get_ti_count,
@@ -648,11 +649,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         elif isinstance(msg, DeleteVariable):
             resp, dump_opts = handle_delete_variable(self.client, msg)
         elif isinstance(msg, GetPreviousDagRun):
-            resp = self.client.dag_runs.get_previous(
-                dag_id=msg.dag_id,
-                logical_date=msg.logical_date,
-                state=msg.state,
-            )
+            resp, dump_opts = handle_get_previous_dag_run(self.client, msg)
         elif isinstance(msg, GetPrevSuccessfulDagRun):
             dagrun_resp = self.client.task_instances.get_previous_successful_dagrun(self.id)
             dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)

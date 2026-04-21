@@ -141,6 +141,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_dag_run_state,
     handle_get_dr_count,
+    handle_get_previous_dag_run,
     handle_get_previous_ti,
     handle_get_task_states,
     handle_get_ti_count,
@@ -1574,11 +1575,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetDagRunState):
             resp, dump_opts = handle_get_dag_run_state(self.client, msg)
         elif isinstance(msg, GetPreviousDagRun):
-            resp = self.client.dag_runs.get_previous(
-                dag_id=msg.dag_id,
-                logical_date=msg.logical_date,
-                state=msg.state,
-            )
+            resp, dump_opts = handle_get_previous_dag_run(self.client, msg)
         elif isinstance(msg, GetPreviousTI):
             resp, dump_opts = handle_get_previous_ti(self.client, msg)
         elif isinstance(msg, DeleteVariable):

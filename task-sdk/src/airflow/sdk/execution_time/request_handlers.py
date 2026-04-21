@@ -43,6 +43,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetPreviousDagRun,
     GetPreviousTI,
     GetTaskStates,
     GetTICount,
@@ -192,6 +193,18 @@ def handle_get_dag_run_state(client: Client, msg: GetDagRunState) -> tuple[BaseM
     """Fetch dag run state."""
     dr_resp = client.dag_runs.get_state(msg.dag_id, msg.run_id)
     return DagRunStateResult.from_api_response(dr_resp), {}
+
+
+def handle_get_previous_dag_run(
+    client: Client, msg: GetPreviousDagRun
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch the previous dag run."""
+    resp = client.dag_runs.get_previous(
+        dag_id=msg.dag_id,
+        logical_date=msg.logical_date,
+        state=msg.state,
+    )
+    return resp, {}
 
 
 def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
