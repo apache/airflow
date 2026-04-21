@@ -497,13 +497,26 @@ class TestGetAssets(TestAssets):
         ("params", "expected_assets"),
         [
             ({"name_pattern": "s3"}, {"s3://folder/key"}),
-            ({"name_pattern": "gcp"}, {"gcp://bucket/key"}),
+            ({"name_pattern": "bucket"}, {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
             (
-                {"name_pattern": "some"},
-                {"somescheme://asset/key"},
+                {"name_pattern": "asset"},
+                {"somescheme://asset/key", "wasb://some_asset_bucket_/key"},
             ),
             (
                 {"name_pattern": ""},
+                {
+                    "gcp://bucket/key",
+                    "s3://folder/key",
+                    "somescheme://asset/key",
+                    "wasb://some_asset_bucket_/key",
+                },
+            ),
+            ({"name_prefix_pattern": "s3"}, {"s3://folder/key"}),
+            ({"name_prefix_pattern": "gcp"}, {"gcp://bucket/key"}),
+            ({"name_prefix_pattern": "some"}, {"somescheme://asset/key"}),
+            ({"name_prefix_pattern": "wasb"}, {"wasb://some_asset_bucket_/key"}),
+            (
+                {"name_prefix_pattern": "~"},
                 {
                     "gcp://bucket/key",
                     "s3://folder/key",
@@ -533,13 +546,26 @@ class TestGetAssets(TestAssets):
         ("params", "expected_assets"),
         [
             ({"uri_pattern": "s3"}, {"s3://folder/key"}),
-            ({"uri_pattern": "gcp"}, {"gcp://bucket/key"}),
+            ({"uri_pattern": "bucket"}, {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
             (
-                {"uri_pattern": "somescheme"},
-                {"somescheme://asset/key"},
+                {"uri_pattern": "asset"},
+                {"somescheme://asset/key", "wasb://some_asset_bucket_/key"},
             ),
             (
                 {"uri_pattern": ""},
+                {
+                    "gcp://bucket/key",
+                    "s3://folder/key",
+                    "somescheme://asset/key",
+                    "wasb://some_asset_bucket_/key",
+                },
+            ),
+            ({"uri_prefix_pattern": "s3://"}, {"s3://folder/key"}),
+            ({"uri_prefix_pattern": "gcp://"}, {"gcp://bucket/key"}),
+            ({"uri_prefix_pattern": "somescheme"}, {"somescheme://asset/key"}),
+            ({"uri_prefix_pattern": "wasb://"}, {"wasb://some_asset_bucket_/key"}),
+            (
+                {"uri_prefix_pattern": "~"},
                 {
                     "gcp://bucket/key",
                     "s3://folder/key",
@@ -603,7 +629,7 @@ class TestGetAssets(TestAssets):
 
     @pytest.mark.parametrize(
         ("dag_ids", "uri_pattern", "expected_num"),
-        [("dag1,dag2", "s3", 1), ("dag3", "nothing", 0), ("dag2,dag3", "gcp|somescheme", 2)],
+        [("dag1,dag2", "folder", 1), ("dag3", "nothing", 0), ("dag2,dag3", "key", 2)],
     )
     @provide_session
     def test_filter_assets_by_dag_ids_and_uri_pattern_works(
@@ -727,8 +753,11 @@ class TestGetAssetAliases(TestAssetAliases):
         ("params", "expected_asset_aliases"),
         [
             ({"name_pattern": "foo"}, {"foo1"}),
-            ({"name_pattern": "bar"}, {"bar12", "bar2", "bar3"}),
+            ({"name_pattern": "1"}, {"foo1", "bar12"}),
             ({"uri_pattern": ""}, {"foo1", "bar12", "bar2", "bar3", "rex23"}),
+            ({"name_prefix_pattern": "foo"}, {"foo1"}),
+            ({"name_prefix_pattern": "bar"}, {"bar12", "bar2", "bar3"}),
+            ({"name_prefix_pattern": "~"}, {"foo1", "bar12", "bar2", "bar3", "rex23"}),
         ],
     )
     @provide_session
@@ -875,6 +904,9 @@ class TestGetAssetEvents(TestAssets):
             ({"name_pattern": "simple1"}, 1),
             ({"name_pattern": "simple%"}, 2),
             ({"name_pattern": "nonexistent"}, 0),
+            ({"name_prefix_pattern": "simple1"}, 1),
+            ({"name_prefix_pattern": "simple"}, 2),
+            ({"name_prefix_pattern": "nonexistent"}, 0),
         ],
     )
     @provide_session

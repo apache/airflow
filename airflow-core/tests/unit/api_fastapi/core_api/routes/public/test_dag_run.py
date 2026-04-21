@@ -806,6 +806,10 @@ class TestGetDagRuns:
                 },
                 [DAG1_RUN1_ID],
             ),
+            # run_id_prefix_pattern counterpart
+            (DAG1_ID, {"run_id_prefix_pattern": DAG1_RUN1_ID}, [DAG1_RUN1_ID]),
+            ("~", {"run_id_prefix_pattern": f"{DAG1_RUN1_ID}|{DAG1_RUN2_ID}"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("~", {"run_id_prefix_pattern": "nonexistent"}, []),
             # Test triggering_user_name_pattern filter
             (DAG1_ID, {"triggering_user_name_pattern": "alice_admin"}, [DAG1_RUN1_ID]),
             (DAG1_ID, {"triggering_user_name_pattern": "bob_service"}, [DAG1_RUN2_ID]),
@@ -821,6 +825,10 @@ class TestGetDagRuns:
                 },
                 [DAG1_RUN1_ID],
             ),
+            # triggering_user_name_prefix_pattern counterpart
+            (DAG1_ID, {"triggering_user_name_prefix_pattern": "alice_admin"}, [DAG1_RUN1_ID]),
+            ("~", {"triggering_user_name_prefix_pattern": "alice"}, [DAG1_RUN1_ID]),
+            ("~", {"triggering_user_name_prefix_pattern": "nonexistent"}, []),
             # Test dag_id_pattern filter
             ("~", {"dag_id_pattern": "test_dag1"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
             ("~", {"dag_id_pattern": "test_dag2"}, [DAG2_RUN1_ID, DAG2_RUN2_ID]),
@@ -837,6 +845,14 @@ class TestGetDagRuns:
                 },
                 [DAG1_RUN1_ID],
             ),
+            # dag_id_prefix_pattern counterpart
+            ("~", {"dag_id_prefix_pattern": "test_dag1"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            (
+                "~",
+                {"dag_id_prefix_pattern": "test_"},
+                [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID],
+            ),
+            ("~", {"dag_id_prefix_pattern": "nonexistent"}, []),
             # Test dag_version filter
             (
                 DAG1_ID,

@@ -337,7 +337,8 @@ class TestGetVariables(TestVariableEndpoint):
                     TEST_VARIABLE_KEY5,
                 ],
             ),
-            ({"variable_key_pattern": "test_variable_search"}, 1, [TEST_VARIABLE_SEARCH_KEY]),
+            ({"variable_key_pattern": "search"}, 1, [TEST_VARIABLE_SEARCH_KEY]),
+            ({"variable_key_prefix_pattern": "test_variable_search"}, 1, [TEST_VARIABLE_SEARCH_KEY]),
         ],
     )
     def test_should_respond_200(
