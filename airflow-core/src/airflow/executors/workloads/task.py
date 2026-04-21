@@ -18,12 +18,12 @@
 
 from __future__ import annotations
 
-import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from airflow._shared.workloads import TaskInstanceDTO as _BaseTaskInstanceDTO
 from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
 from airflow.utils.state import TaskInstanceState
 
@@ -33,8 +33,13 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 
-class TaskInstanceDTO(BaseModel):
-    """Schema for TaskInstance with minimal required fields needed for Executors and Task SDK."""
+class TaskInstanceDTO(_BaseTaskInstanceDTO):
+    """
+    TaskInstanceDTO with executor-specific ``key`` property.
+
+    Extends the shared :class:`~airflow._shared.workloads.TaskInstanceDTO`
+    to add the :attr:`key` property used by executors for workload tracking.
+    """
 
     id: uuid.UUID
     dag_version_id: uuid.UUID
