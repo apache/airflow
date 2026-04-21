@@ -55,7 +55,6 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     TaskInstance,
     TaskInstanceState,
-    TaskStatesResponse,
     XComSequenceIndexResponse,
 )
 from airflow.sdk.configuration import conf
@@ -140,6 +139,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
     handle_get_connection,
+    handle_get_task_states,
     handle_get_ti_count,
     handle_get_variable,
     handle_get_variable_keys,
@@ -1573,18 +1573,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetTICount):
             resp, dump_opts = handle_get_ti_count(self.client, msg)
         elif isinstance(msg, GetTaskStates):
-            task_states_map = self.client.task_instances.get_task_states(
-                dag_id=msg.dag_id,
-                map_index=msg.map_index,
-                task_ids=msg.task_ids,
-                task_group_id=msg.task_group_id,
-                logical_dates=msg.logical_dates,
-                run_ids=msg.run_ids,
-            )
-            if isinstance(task_states_map, TaskStatesResponse):
-                resp = TaskStatesResult.from_api_response(task_states_map)
-            else:
-                resp = task_states_map
+            resp, dump_opts = handle_get_task_states(self.client, msg)
         elif isinstance(msg, GetTaskBreadcrumbs):
             api_resp = self.client.task_instances.get_task_breakcrumbs(dag_id=msg.dag_id, run_id=msg.run_id)
             resp = TaskBreadcrumbsResult.from_api_response(api_resp)

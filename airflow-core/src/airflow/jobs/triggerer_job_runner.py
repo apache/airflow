@@ -92,6 +92,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
     handle_get_connection,
+    handle_get_task_states,
     handle_get_ti_count,
     handle_get_variable,
     handle_get_variable_keys,
@@ -498,9 +499,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return client
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
-        from airflow.sdk.api.datamodels._generated import (
-            TaskStatesResponse,
-        )
 
         resp: BaseModel | None = None
         dump_opts: dict[str, bool] = {}
@@ -577,18 +575,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp, dump_opts = handle_get_ti_count(self.client, msg)
 
         elif isinstance(msg, GetTaskStates):
-            run_id_task_state_map = self.client.task_instances.get_task_states(
-                dag_id=msg.dag_id,
-                map_index=msg.map_index,
-                task_ids=msg.task_ids,
-                task_group_id=msg.task_group_id,
-                logical_dates=msg.logical_dates,
-                run_ids=msg.run_ids,
-            )
-            if isinstance(run_id_task_state_map, TaskStatesResponse):
-                resp = TaskStatesResult.from_api_response(run_id_task_state_map)
-            else:
-                resp = run_id_task_state_map
+            resp, dump_opts = handle_get_task_states(self.client, msg)
         elif isinstance(msg, GetPreviousTI):
             resp = self.client.task_instances.get_previous(
                 dag_id=msg.dag_id,

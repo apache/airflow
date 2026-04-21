@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING
 
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
+    TaskStatesResponse,
     VariableResponse,
     XComResponse,
 )
@@ -38,12 +39,14 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
     GetConnection,
+    GetTaskStates,
     GetTICount,
     GetVariable,
     GetVariableKeys,
     GetXCom,
     MaskSecret,
     PutVariable,
+    TaskStatesResult,
     VariableKeysResult,
     VariableResult,
     XComResult,
@@ -118,6 +121,21 @@ def handle_get_ti_count(client: Client, msg: GetTICount) -> tuple[BaseModel | No
         states=msg.states,
     )
     return resp, {}
+
+
+def handle_get_task_states(client: Client, msg: GetTaskStates) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch task states and normalize them for supervisor response handling."""
+    task_states_map = client.task_instances.get_task_states(
+        dag_id=msg.dag_id,
+        map_index=msg.map_index,
+        task_ids=msg.task_ids,
+        task_group_id=msg.task_group_id,
+        logical_dates=msg.logical_dates,
+        run_ids=msg.run_ids,
+    )
+    if isinstance(task_states_map, TaskStatesResponse):
+        return TaskStatesResult.from_api_response(task_states_map), {}
+    return task_states_map, {}
 
 
 def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
