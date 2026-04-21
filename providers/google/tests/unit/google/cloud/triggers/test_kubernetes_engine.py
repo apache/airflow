@@ -635,7 +635,7 @@ class TestGKEStartJobTrigger:
         job_trigger.do_xcom_push = True
         event = await job_trigger.run().asend(None)
 
-        mock_hook.list_pods.assert_called_once_with(
+        mock_hook.list_pods.assert_awaited_once_with(
             namespace=NAMESPACE,
             label_selector=f"job-name={JOB_NAME}",
         )
