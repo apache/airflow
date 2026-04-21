@@ -143,6 +143,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_variable_keys,
     handle_get_xcom,
     handle_mask_secret,
+    handle_put_variable,
 )
 
 try:
@@ -1504,7 +1505,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, DeleteXCom):
             self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, PutVariable):
-            self.client.variables.set(msg.key, msg.value, msg.description)
+            resp, dump_opts = handle_put_variable(self.client, msg)
         elif isinstance(msg, SetRenderedFields):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
         elif isinstance(msg, SetRenderedMapIndex):

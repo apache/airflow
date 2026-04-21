@@ -41,6 +41,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariableKeys,
     GetXCom,
     MaskSecret,
+    PutVariable,
     VariableKeysResult,
     VariableResult,
     XComResult,
@@ -89,6 +90,12 @@ def handle_get_variable_keys(
 def handle_mask_secret(msg: MaskSecret) -> None:
     """Register a value with the secrets masker."""
     mask_secret(msg.value, msg.name)
+
+
+def handle_put_variable(client: Client, msg: PutVariable) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Store a variable value."""
+    resp = client.variables.set(msg.key, msg.value, msg.description)
+    return resp, {}
 
 
 def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dict[str, bool]]:

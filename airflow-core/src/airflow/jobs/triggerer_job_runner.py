@@ -95,6 +95,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_variable_keys,
     handle_get_xcom,
     handle_mask_secret,
+    handle_put_variable,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
@@ -542,7 +543,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         elif isinstance(msg, GetVariableKeys):
             resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, PutVariable):
-            self.client.variables.set(msg.key, msg.value, msg.description)
+            resp, dump_opts = handle_put_variable(self.client, msg)
         elif isinstance(msg, DeleteXCom):
             self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, GetXCom):
