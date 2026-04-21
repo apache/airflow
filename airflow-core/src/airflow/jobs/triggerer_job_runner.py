@@ -877,7 +877,7 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
         from asgiref.sync import async_to_sync
 
         with self._thread_lock:
-            return async_to_sync(self.asend)(msg)
+            return async_to_sync(self._asend)(msg)
 
     async def _aread_frame(self):
         try:
@@ -899,14 +899,20 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
             raise RuntimeError(f"Response read out of order! Got {frame.id=}, {expect_id=}")
         return self._from_frame(frame)
 
-    async def asend(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
+    async def _asend(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
         frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
         bytes = frame.as_bytes()
+        self._async_writer.write(bytes)
+        return await self._aget_response(frame.id)
 
+    async def asend(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
         async with self._async_lock:
-            self._async_writer.write(bytes)
-
-            return await self._aget_response(frame.id)
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, self._thread_lock.acquire)
+            try:
+                return await self._asend(msg)
+            finally:
+                self._thread_lock.release()
 
 
 class TriggerRunner:
