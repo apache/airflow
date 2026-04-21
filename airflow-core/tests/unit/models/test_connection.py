@@ -49,6 +49,12 @@ class TestConnection:
         yield
         get_fernet.cache_clear()
 
+    @pytest.fixture(autouse=True)
+    def clear_process_context(self, monkeypatch):
+        """Isolate tests from process-wide execution context left behind by other imports."""
+        monkeypatch.delenv("_AIRFLOW_PROCESS_CONTEXT", raising=False)
+        monkeypatch.delitem(sys.modules, "airflow.sdk.execution_time.task_runner", raising=False)
+
     @pytest.mark.parametrize(
         (
             "uri",
