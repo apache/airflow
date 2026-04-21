@@ -19,8 +19,6 @@ Do not translate them regardless of language:
 - `Airflow` — Product name
 - `Dag` / `Dags` — Airflow concept; never write "DAG"
 - `XCom` / `XComs` — Airflow cross-communication mechanism
-- `PID` — Unix process identifier (translated as מזהה תהליך in context labels)
-- `ID` — Universal abbreviation
 - `UTC` — Time standard
 - `JSON` — Standard technical format name
 - `REST API` — Standard technical term
@@ -45,21 +43,21 @@ These established translations **must be used consistently**:
 
 | English Term          | Hebrew Translation            | Notes                                          |
 | --------------------- | ----------------------------- | ---------------------------------------------- |
-| Task                  | משימה                         | Plural: משימות                                 |
-| Task Instance         | מופע משימה                    | Plural: מופעי משימות                           |
+| Task                  | משימה                         |                                                |
+| Task Instance         | מופע משימה                    |                                                |
 | Task Group            | קבוצת משימות                  |                                                |
-| Dag Run               | הרצת Dag                      | Plural: הרצת Dags                              |
+| Dag Run               | הרצת Dag                      |                                                |
 | Trigger (verb)        | הפעלה                         | "מופעל על-ידי" for "Triggered by"              |
 | Trigger Rule          | כלל הפעלה                     |                                                |
 | Scheduler             | מתזמן                         |                                                |
 | Schedule (noun)       | תזמון                         |                                                |
 | Operator              | אופרטור                       |                                                |
-| Connection            | חיבור                         | Plural: חיבורים                                |
-| Variable              | משתנה                         | Plural: משתנים                                 |
+| Connection            | חיבור                         |                                                |
+| Variable              | משתנה                         |                                                |
 | Configuration         | הגדרות                        |                                                |
 | Audit Log             | יומן ביקורת                   |                                                |
 | State                 | מצב                           |                                                |
-| Queue (noun)          | תור                           | "בתור" for "queued"                            |
+| Queue (noun)          | בתור                           | "תור" for "queued"                            |
 | Duration              | משך זמן                       |                                                |
 | Owner                 | בעלים                         |                                                |
 | Tags                  | תגיות                         |                                                |
@@ -68,7 +66,7 @@ These established translations **must be used consistently**:
 | Timezone              | אזור זמן                      |                                                |
 | Dark Mode             | מצב כהה                       |                                                |
 | Light Mode            | מצב בהיר                      |                                                |
-| Asset Event           | אירוע נכס                     | Plural: אירועי נכסים                           |
+| Asset Event           | אירוע נכס                     |                                                |
 | Dag Processor         | מעבד Dag                      |                                                |
 | Try Number            | מספר נסיון                    |                                                |
 
@@ -107,7 +105,8 @@ These established translations **must be used consistently**:
 
 ### Plural Forms
 
-- Hebrew uses i18next plural suffixes `_one` and `_other`:
+- Hebrew uses i18next plural suffixes `_one`, `_two`, and `_other`. For most Airflow UI strings `_two` will be identical to `_other`, but check existing translations and keep the `_two` key when it is present.
+- Note: colloquial Hebrew has a true dual form for things that come in pairs (e.g. one sock = גרב, two socks = גרביים, not "2 גרבים"). This rarely applies to Airflow UI terminology but is worth being aware of.
 
   ```json
   "task_one": "משימה",
@@ -119,17 +118,9 @@ These established translations **must be used consistently**:
   "dagRun_other": "הרצת Dags"
   ```
 
-### Construct State (סמיכות)
+### Capitalization of English terms
 
-- Hebrew uses construct state for compound nouns:
-  - "מופע משימה" (instance of task) — not "מופע של משימה"
-  - "קבוצת משימות" (group of tasks)
-  - "מאגר משאבים" (pool of resources)
-  - "אזור זמן" (time zone)
-
-### Capitalization
-
-- Hebrew has no uppercase/lowercase distinction. For English terms embedded in Hebrew strings, preserve their original casing (e.g., "Dag", "XCom", "Dags").
+- For English terms embedded in Hebrew strings, preserve their original casing (e.g., "Dag", "XCom", "Dags").
 
 ## 5. Examples from Existing Translations
 
@@ -171,9 +162,9 @@ Add      → "הוסף"
 Delete   → "מחק"
 Save     → "שמור"
 Reset    → "אתחל"
-Cancel   → "ביטול"
-Confirm  → "אישור"
-Download → "הורדה"
+Cancel   → "בטל"
+Confirm  → "אשר"
+Download → "הורד"
 Expand   → "הרחב"
 Collapse → "צמצם"
 Filter   → "סנן"
