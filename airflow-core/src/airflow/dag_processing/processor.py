@@ -70,6 +70,7 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.request_handlers import (
+    handle_delete_variable,
     handle_get_xcom,
     handle_put_variable,
 )
@@ -643,7 +644,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         elif isinstance(msg, PutVariable):
             resp, dump_opts = handle_put_variable(self.client, msg)
         elif isinstance(msg, DeleteVariable):
-            resp = self.client.variables.delete(msg.key)
+            resp, dump_opts = handle_delete_variable(self.client, msg)
         elif isinstance(msg, GetPreviousDagRun):
             resp = self.client.dag_runs.get_previous(
                 dag_id=msg.dag_id,

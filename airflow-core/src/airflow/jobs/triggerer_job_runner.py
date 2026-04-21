@@ -90,6 +90,7 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
 )
 from airflow.sdk.execution_time.request_handlers import (
+    handle_delete_variable,
     handle_get_connection,
     handle_get_variable,
     handle_get_variable_keys,
@@ -537,7 +538,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         elif isinstance(msg, GetConnection):
             resp, dump_opts = handle_get_connection(self.client, msg)
         elif isinstance(msg, DeleteVariable):
-            resp = self.client.variables.delete(msg.key)
+            resp, dump_opts = handle_delete_variable(self.client, msg)
         elif isinstance(msg, GetVariable):
             resp, dump_opts = handle_get_variable(self.client, msg)
         elif isinstance(msg, GetVariableKeys):

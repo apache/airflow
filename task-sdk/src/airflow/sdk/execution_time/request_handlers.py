@@ -36,6 +36,7 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
+    DeleteVariable,
     GetConnection,
     GetVariable,
     GetVariableKeys,
@@ -95,6 +96,12 @@ def handle_mask_secret(msg: MaskSecret) -> None:
 def handle_put_variable(client: Client, msg: PutVariable) -> tuple[BaseModel | None, dict[str, bool]]:
     """Store a variable value."""
     resp = client.variables.set(msg.key, msg.value, msg.description)
+    return resp, {}
+
+
+def handle_delete_variable(client: Client, msg: DeleteVariable) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Delete a variable value."""
+    resp = client.variables.delete(msg.key)
     return resp, {}
 
 
