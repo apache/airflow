@@ -15,6 +15,46 @@
     specific language governing permissions and limitations
     under the License.
 
+airflowctl 0.1.4 (2026-04-21)
+-----------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+- Add YAML-based help texts for auto-generated airflowctl commands (#65073)
+- Added plugins command to airflowctl (#64935)
+- Python 3.14 support (#63520)
+
+Bug Fixes
+^^^^^^^^^
+
+- Declare ``pyyaml`` as a runtime dependency so ``airflowctl`` starts without crashing on ``ModuleNotFoundError`` (#65489)
+- Fix ``airflowctl dagrun list`` crash when ``--state`` is omitted (#65608)
+- Prevent path traversal via ``AIRFLOW_CLI_ENVIRONMENT`` in airflowctl (#64618)
+- Fix ``is_alive`` default in ``airflowctl jobs list`` to show all jobs (#65065)
+- Fix CLI error handling and exit codes for failed commands (#65052)
+- Fix ``airflowctl connections import`` to return non-zero exit code on failure (#64416)
+- Fix ``airflowctl variables import`` to correctly handle falsy values (#64362)
+- Fix ``airflowctl version`` command prompting for keyring credentials (#63772)
+- Fix ``airflowctl`` boolean flags on Python 3.14 (#63587)
+- Allow ``null`` ``dag_run_conf`` in ``BackfillResponse`` serialization (#63259)
+
+Improvements
+^^^^^^^^^^^^
+
+- Use DAG form when materializing assets in airflowctl (#64211)
+- Mention Python 3.14 support in docs (#63950)
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- Cap ``httpx`` below 1.0 to avoid pulling the pre-release rewrite on ``--prerelease=allow`` installs (#65607)
+- Run non-provider mypy checks as regular prek static checks (#64780)
+- Add ``*.iml`` to ``.gitignore`` in all distributions (#63636)
+- Sync airflowctl from main to v3-2-test (#65069)
+- CI: Upgrade important CI environment (#64458, #65525)
+
+
 airflowctl 0.1.3 (2026-03-09)
 -----------------------------
 
