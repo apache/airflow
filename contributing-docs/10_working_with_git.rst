@@ -37,8 +37,10 @@ you should configure your local checkout to match:
 * ``origin`` — your personal fork of ``apache/airflow`` (where you push branches
   for PRs).
 
-Never push directly to ``upstream`` and never push directly to ``main`` on either
-remote. PR branches always go to ``origin``.
+Always push PR branches to ``origin``; don't push to ``upstream`` (the branch
+protection on ``apache/airflow`` will reject it anyway). Working on dedicated
+branches is recommended, though developing directly on your fork's ``main`` is
+tolerated — see `Contribution Workflow </contributing-docs/18_contribution_workflow.rst#step-4-prepare-pr>`_.
 
 If your existing checkout uses different names (for example ``apache`` for the
 Apache remote, or ``origin`` pointing at ``apache/airflow`` with your fork under
