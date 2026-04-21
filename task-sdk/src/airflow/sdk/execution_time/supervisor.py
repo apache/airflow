@@ -139,6 +139,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
     handle_get_connection,
+    handle_get_previous_ti,
     handle_get_task_states,
     handle_get_ti_count,
     handle_get_variable,
@@ -1591,13 +1592,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 state=msg.state,
             )
         elif isinstance(msg, GetPreviousTI):
-            resp = self.client.task_instances.get_previous(
-                dag_id=msg.dag_id,
-                task_id=msg.task_id,
-                logical_date=msg.logical_date,
-                map_index=msg.map_index,
-                state=msg.state,
-            )
+            resp, dump_opts = handle_get_previous_ti(self.client, msg)
         elif isinstance(msg, DeleteVariable):
             resp, dump_opts = handle_delete_variable(self.client, msg)
         elif isinstance(msg, ValidateInletsAndOutlets):

@@ -39,6 +39,7 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
     GetConnection,
+    GetPreviousTI,
     GetTaskStates,
     GetTICount,
     GetVariable,
@@ -136,6 +137,18 @@ def handle_get_task_states(client: Client, msg: GetTaskStates) -> tuple[BaseMode
     if isinstance(task_states_map, TaskStatesResponse):
         return TaskStatesResult.from_api_response(task_states_map), {}
     return task_states_map, {}
+
+
+def handle_get_previous_ti(client: Client, msg: GetPreviousTI) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch the previous task instance."""
+    resp = client.task_instances.get_previous(
+        dag_id=msg.dag_id,
+        task_id=msg.task_id,
+        logical_date=msg.logical_date,
+        map_index=msg.map_index,
+        state=msg.state,
+    )
+    return resp, {}
 
 
 def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
