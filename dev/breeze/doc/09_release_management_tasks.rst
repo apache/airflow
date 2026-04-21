@@ -934,15 +934,12 @@ You can prepare Apache Airflow Mypy distributions using Breeze:
 
 This prepares Apache Airflow Mypy .whl package in the dist folder.
 
-Again, you can specify optional ``--distribution-format`` flag to build selected formats of the Mypy distributions,
-default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
+You can specify the optional ``--distribution-format`` flag to build selected formats of the Mypy distributions.
+The default is ``wheel``.
 
 .. code-block:: bash
 
-     breeze release-management prepare-mypy-distributions --distribution-format=wheel
-
-If you pass ``--tag`` fag, the distribution will create a source tarball release along with sdist.
-``--tag`` flag corresponds to actual tag in git.
+     breeze release-management prepare-mypy-distributions --distribution-format=both
 
 .. image:: ./images/output_release-management_prepare-mypy-distributions.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-mypy-distributions.svg

@@ -128,7 +128,7 @@ Follow the standard Apache release process for committing to the SVN repository.
 Release candidates should be published to TestPyPI first:
 
 ```bash
-twine upload --repository testpypi dist/apache_airflow.mypy-<VERSION>rc<RC>*
+twine upload --repository testpypi dist/apache_airflow_mypy-<VERSION>rc<RC>*
 ```
 
 ## Prepare voting email
@@ -174,7 +174,7 @@ Verify the release by:
 
    ```ini
    [mypy]
-   plugins = airflow.mypy.plugins.decorators, airflow.mypy.plugins.outputs
+   plugins = airflow_mypy.plugins.decorators, airflow_mypy.plugins.outputs
    ```
 
 3. Running the test suite if available
@@ -200,8 +200,8 @@ svn mv https://dist.apache.org/repos/dist/dev/airflow/apache-airflow-mypy-<VERSI
 Publish the final release to PyPI:
 
 ```bash
-twine upload dist/apache_airflow.mypy-<VERSION>-py3-none-any.whl
-twine upload dist/apache_airflow.mypy-<VERSION>.tar.gz
+twine upload dist/apache_airflow_mypy-<VERSION>-py3-none-any.whl
+twine upload dist/apache_airflow_mypy-<VERSION>.tar.gz
 ```
 
 ## Add tags in git
@@ -236,7 +236,7 @@ pip install apache-airflow-mypy
 Usage:
 Add to your mypy configuration:
 [mypy]
-plugins = airflow.mypy.plugins.decorators, airflow.mypy.plugins.outputs
+plugins = airflow_mypy.plugins.decorators, airflow_mypy.plugins.outputs
 
 Cheers,
 The Apache Airflow Team

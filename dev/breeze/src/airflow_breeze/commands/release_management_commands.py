@@ -340,6 +340,8 @@ class DistributionPackageInfo(NamedTuple):
             default_glob_patterns = ["apache_airflow_task_sdk"]
         elif build_type == DistributionBuildType.AIRFLOW_CTL:
             default_glob_patterns = ["apache_airflow_ctl"]
+        elif build_type == DistributionBuildType.MYPY:
+            default_glob_patterns = ["apache_airflow_mypy"]
         else:
             default_glob_patterns = ["apache_airflow_providers"]
         dists_info = []
@@ -634,6 +636,7 @@ def _prepare_non_core_distributions(
             command += "-t sdist "
         if build_distribution_format == "wheel" or build_distribution_format == "both":
             command += "-t wheel "
+        docker_workdir = f"/opt/airflow/{root_path.relative_to(AIRFLOW_ROOT_PATH).as_posix()}"
         container_id = f"airflow-{distribution_name}-build-{random.getrandbits(64):08x}"
         result = run_command(
             cmd=[
@@ -649,7 +652,7 @@ def _prepare_non_core_distributions(
                 "-e",
                 "GITHUB_ACTIONS",
                 "-w",
-                f"/opt/airflow/{distribution_name}",
+                docker_workdir,
                 AIRFLOW_BUILD_IMAGE_TAG,
                 "bash",
                 "-c",
@@ -664,9 +667,7 @@ def _prepare_non_core_distributions(
         AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
         console_print()
         # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
-        run_command(
-            ["docker", "cp", f"{container_id}:/opt/airflow/{distribution_name}/dist/.", "./dist"], check=True
-        )
+        run_command(["docker", "cp", f"{container_id}:{docker_workdir}/dist/.", "./dist"], check=True)
         run_command(["docker", "rm", "--force", container_id], check=False, stdout=DEVNULL, stderr=DEVNULL)
 
     if use_local_hatch:
