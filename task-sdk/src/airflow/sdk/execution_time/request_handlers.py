@@ -28,6 +28,7 @@ via ``send_msg``.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
@@ -51,6 +52,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariableKeys,
     GetXCom,
     MaskSecret,
+    PrevSuccessfulDagRunResult,
     PutVariable,
     SetXCom,
     TaskStatesResult,
@@ -205,6 +207,15 @@ def handle_get_previous_dag_run(
         state=msg.state,
     )
     return resp, {}
+
+
+def handle_get_prev_successful_dag_run(
+    client: Client, subprocess_id: UUID
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch the previous successful dag run using the caller's current id."""
+    dagrun_resp = client.task_instances.get_previous_successful_dagrun(subprocess_id)
+    dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
+    return dagrun_result, {"exclude_unset": True}
 
 
 def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
