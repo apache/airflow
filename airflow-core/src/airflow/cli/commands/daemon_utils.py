@@ -74,8 +74,6 @@ def run_command_with_daemon_option(
             )
 
             with ctx:
-                # in daemon context stats client needs to be reinitialized.
-                # The stats module auto-detects fork via PID and re-initializes lazily.
                 callback()
     else:
         signal.signal(signal.SIGINT, sigint_handler)
