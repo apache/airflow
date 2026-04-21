@@ -56,15 +56,21 @@ from airflow.utils.state import TaskInstanceState
 log = structlog.get_logger(__name__)
 
 
-def _collect_unique_tis(
-    affected_tis_dict: dict[tuple[str, str, str, int], TI],
-    tis: list[TI] | None,
-) -> None:
-    """Collect unique task instances into a dictionary keyed by (dag_id, run_id, task_id, map_index)."""
-    if tis:
-        for ti in tis:
-            key = (ti.dag_id, ti.run_id, ti.task_id, ti.map_index)
-            affected_tis_dict[key] = ti
+def _validate_patch_body(
+    body: PatchTaskInstanceBody,
+    update_mask: list[str] | None,
+) -> dict:
+    """Validate the patch body and return the fields to update as a dict."""
+    fields_to_update = body.model_fields_set
+    if update_mask:
+        fields_to_update = fields_to_update.intersection(update_mask)
+    else:
+        try:
+            PatchTaskInstanceBody.model_validate(body)
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+
+    return body.model_dump(include=fields_to_update, by_alias=True)
 
 
 def _patch_ti_validate_request(
@@ -75,7 +81,7 @@ def _patch_ti_validate_request(
     body: PatchTaskInstanceBody,
     session: SessionDep,
     map_index: int | None = -1,
-    update_mask: list[str] | None = Query(None),
+    update_mask: list[str] | None = None,
 ) -> tuple[SerializedDAG, list[TI], dict]:
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     if not dag.has_task(task_id):
@@ -84,7 +90,6 @@ def _patch_ti_validate_request(
     query = (
         select(TI)
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
-        .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
     )
     if map_index is not None:
@@ -100,16 +105,8 @@ def _patch_ti_validate_request(
     if len(tis) == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
 
-    fields_to_update = body.model_fields_set
-    if update_mask:
-        fields_to_update = fields_to_update.intersection(update_mask)
-    else:
-        try:
-            PatchTaskInstanceBody.model_validate(body)
-        except ValidationError as e:
-            raise RequestValidationError(errors=e.errors())
-
-    return dag, list(tis), body.model_dump(include=fields_to_update, by_alias=True)
+    data = _validate_patch_body(body, update_mask)
+    return dag, list(tis), data
 
 
 def _get_task_group_task_instances(
@@ -135,8 +132,6 @@ def _get_task_group_task_instances(
             TI.run_id == dag_run_id,
             TI.task_id.in_(task_ids),
         )
-        .join(TI.dag_run)
-        .options(joinedload(TI.rendered_task_instance_fields))
         .order_by(TI.task_id, TI.map_index)
     )
 
@@ -158,16 +153,8 @@ def _patch_ti_group_validate_request(
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     tis = _get_task_group_task_instances(dag_id, dag_run_id, task_group_id, dag, session)
 
-    fields_to_update = body.model_fields_set
-    if update_mask:
-        fields_to_update = fields_to_update.intersection(update_mask)
-    else:
-        try:
-            PatchTaskInstanceBody.model_validate(body)
-        except ValidationError as e:
-            raise RequestValidationError(errors=e.errors())
-
-    return dag, tis, body.model_dump(include=fields_to_update, by_alias=True)
+    data = _validate_patch_body(body, update_mask)
+    return dag, tis, data
 
 
 def _patch_task_instance_state(

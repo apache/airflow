@@ -6803,6 +6803,127 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
                 f"Expected {ti.task_id} to be SUCCESS, got {ti.state}"
             )
 
+    def test_include_downstream_affects_downstream_tis(self, test_client, session):
+        """Test that include_downstream=True also sets state on downstream task instances."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        # section_1 is upstream of section_2 and end
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success", "include_downstream": True},
+        )
+        assert response.status_code == 200
+
+        session.expire_all()
+        # section_2 tasks and end are downstream of section_1 and should be affected
+        downstream_task_ids = [
+            "section_2.task_1",
+            "section_2.inner_section_2.task_2",
+            "section_2.inner_section_2.task_3",
+            "section_2.inner_section_2.task_4",
+            "end",
+        ]
+        downstream_tis = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(downstream_task_ids),
+            )
+        ).all()
+        assert len(downstream_tis) > 0
+        for ti in downstream_tis:
+            assert ti.state == TaskInstanceState.SUCCESS, (
+                f"Expected downstream {ti.task_id} to be SUCCESS, got {ti.state}"
+            )
+
+    def test_include_upstream_affects_upstream_tis(self, test_client, session):
+        """Test that include_upstream=True also sets state on upstream task instances."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        # section_1 is downstream of start
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success", "include_upstream": True},
+        )
+        assert response.status_code == 200
+
+        session.expire_all()
+        start_ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id == "start",
+            )
+        )
+        assert start_ti is not None
+        assert start_ti.state == TaskInstanceState.SUCCESS, (
+            f"Expected upstream 'start' to be SUCCESS, got {start_ti.state}"
+        )
+
+    def test_clears_failed_downstream_tasks(self, test_client, session):
+        """Test that setting a group to success clears failed downstream tasks."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        # Put downstream tasks in failed/upstream_failed state
+        downstream_task_ids = [
+            "section_2.task_1",
+            "section_2.inner_section_2.task_2",
+            "section_2.inner_section_2.task_3",
+            "section_2.inner_section_2.task_4",
+        ]
+        session.execute(
+            update(TaskInstance)
+            .where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(downstream_task_ids),
+            )
+            .values(state=TaskInstanceState.UPSTREAM_FAILED)
+        )
+        session.commit()
+
+        # Set section_1 to success — should clear downstream failed tasks
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+
+        session.expire_all()
+        downstream_tis = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(downstream_task_ids),
+            )
+        ).all()
+        for ti in downstream_tis:
+            assert ti.state != TaskInstanceState.UPSTREAM_FAILED, (
+                f"Expected {ti.task_id} to be cleared from upstream_failed, got {ti.state}"
+            )
+
+    def test_409_when_all_tis_already_in_target_state(self, test_client, session):
+        """Test that 409 is returned when all TIs are already in the target state."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        group_task_ids = ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+        session.execute(
+            update(TaskInstance)
+            .where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+            .values(state=TaskInstanceState.SUCCESS)
+        )
+        session.commit()
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 409
+
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
     def test_includes_upstream_downstream_parameters(self, mock_set_tg_state, test_client, session):
         """Test that include_upstream and include_downstream parameters are passed through."""

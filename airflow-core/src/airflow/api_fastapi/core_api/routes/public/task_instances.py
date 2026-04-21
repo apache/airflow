@@ -96,7 +96,6 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
-    _collect_unique_tis,
     _get_task_group_task_instances,
     _patch_task_group_state,
     _patch_task_instance_note,
@@ -990,11 +989,11 @@ def patch_task_group_instances(
     dag, tis, data = _patch_ti_group_validate_request(
         dag_id, dag_run_id, group_id, dag_bag, body, session, update_mask
     )
-    affected_tis_dict: dict[tuple[str, str, str, int], TI] = {}
+    all_tis: list[TI] = []
 
     for key, _ in data.items():
         if key == "new_state":
-            updated_tis = _patch_task_group_state(
+            all_tis = _patch_task_group_state(
                 group_id=group_id,
                 dag_run_id=dag_run_id,
                 dag=dag,
@@ -1002,7 +1001,6 @@ def patch_task_group_instances(
                 data=data,
                 session=session,
             )
-            _collect_unique_tis(affected_tis_dict, updated_tis)
 
         elif key == "note":
             _patch_task_instance_note(
@@ -1011,12 +1009,12 @@ def patch_task_group_instances(
                 user=user,
                 update_mask=update_mask,
             )
-            _collect_unique_tis(affected_tis_dict, tis)
+            if not all_tis:
+                all_tis = tis
 
     # Eagerly load rendered_task_instance_fields for serialization (lazy='raise' prevents lazy access).
     # set_task_group_state() returns TIs without this relationship loaded; re-query with joinedload.
     # populate_existing=True ensures the joinedload updates TIs already in the identity map.
-    all_tis = list(affected_tis_dict.values())
     if all_tis:
         all_tis = list(
             session.scalars(
