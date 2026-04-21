@@ -35,6 +35,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskStatesResponse,
     VariableResponse,
     XComResponse,
+    XComSequenceIndexResponse,
 )
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
@@ -52,6 +53,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariableKeys,
     GetXCom,
     GetXComCount,
+    GetXComSequenceItem,
     MaskSecret,
     PrevSuccessfulDagRunResult,
     PutVariable,
@@ -60,6 +62,7 @@ from airflow.sdk.execution_time.comms import (
     VariableKeysResult,
     VariableResult,
     XComResult,
+    XComSequenceIndexResult,
 )
 from airflow.sdk.log import mask_secret
 
@@ -223,6 +226,16 @@ def handle_get_xcom_count(client: Client, msg: GetXComCount) -> tuple[BaseModel 
     """Fetch XCom count metadata."""
     resp = client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
     return resp, {}
+
+
+def handle_get_xcom_sequence_item(
+    client: Client, msg: GetXComSequenceItem
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch an XCom sequence item and normalize it for supervisor response handling."""
+    xcom = client.xcoms.get_sequence_item(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset)
+    if isinstance(xcom, XComSequenceIndexResponse):
+        return XComSequenceIndexResult.from_response(xcom), {}
+    return xcom, {}
 
 
 def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dict[str, bool]]:

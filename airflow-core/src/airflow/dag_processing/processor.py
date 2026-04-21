@@ -78,6 +78,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_ti_count,
     handle_get_xcom,
     handle_get_xcom_count,
+    handle_get_xcom_sequence_item,
     handle_put_variable,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
@@ -613,7 +614,6 @@ class DagFileProcessorProcess(WatchedSubprocess):
         from airflow.sdk.api.datamodels._generated import (
             ConnectionResponse,
             VariableResponse,
-            XComSequenceIndexResponse,
         )
 
         resp: BaseModel | None = None
@@ -659,13 +659,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         elif isinstance(msg, GetXComCount):
             resp, dump_opts = handle_get_xcom_count(self.client, msg)
         elif isinstance(msg, GetXComSequenceItem):
-            xcom = self.client.xcoms.get_sequence_item(
-                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
-            )
-            if isinstance(xcom, XComSequenceIndexResponse):
-                resp = XComSequenceIndexResult.from_response(xcom)
-            else:
-                resp = xcom
+            resp, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
         elif isinstance(msg, GetXComSequenceSlice):
             xcoms = self.client.xcoms.get_sequence_slice(
                 msg.dag_id,

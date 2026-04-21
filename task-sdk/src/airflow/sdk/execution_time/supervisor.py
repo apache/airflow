@@ -55,7 +55,6 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     TaskInstance,
     TaskInstanceState,
-    XComSequenceIndexResponse,
 )
 from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType
@@ -129,7 +128,6 @@ from airflow.sdk.execution_time.comms import (
     ToSupervisor,
     TriggerDagRun,
     ValidateInletsAndOutlets,
-    XComSequenceIndexResult,
     XComSequenceSliceResult,
     _RequestFrame,
     _ResponseFrame,
@@ -149,6 +147,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_variable_keys,
     handle_get_xcom,
     handle_get_xcom_count,
+    handle_get_xcom_sequence_item,
     handle_mask_secret,
     handle_put_variable,
     handle_set_xcom,
@@ -1469,13 +1468,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetXCom):
             resp, dump_opts = handle_get_xcom(self.client, msg)
         elif isinstance(msg, GetXComSequenceItem):
-            xcom = self.client.xcoms.get_sequence_item(
-                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
-            )
-            if isinstance(xcom, XComSequenceIndexResponse):
-                resp = XComSequenceIndexResult.from_response(xcom)
-            else:
-                resp = xcom
+            resp, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
         elif isinstance(msg, GetXComSequenceSlice):
             xcoms = self.client.xcoms.get_sequence_slice(
                 msg.dag_id,
