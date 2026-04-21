@@ -180,18 +180,6 @@ class _StubSelector(selectors.BaseSelector):
     def get_map(self): ...
 
 
-class CallbackBundleUnavailable(Exception):
-    """
-    Raised when the bundle required by a callback request cannot be prepared.
-
-    Used as a control-flow signal between the callback seam methods
-    (:meth:`DagFileProcessorManager.resolve_callback_bundle`,
-    :meth:`DagFileProcessorManager.initialize_callback_bundle`) and their caller.
-    Overrides that source callbacks from an API should raise this to signal the
-    caller to skip the callback.
-    """
-
-
 @attrs.define(kw_only=True)
 class DagFileProcessorManager(LoggingMixin):
     """
@@ -622,45 +610,35 @@ class DagFileProcessorManager(LoggingMixin):
             guard.commit()
         return callback_queue
 
-    def resolve_callback_bundle(self, request: CallbackRequest) -> BaseDagBundle:
+    def prepare_callback_bundle(self, request: CallbackRequest) -> BaseDagBundle | None:
         """
-        Resolve the bundle required to execute a callback request.
+        Return the bundle to run the callback against, or ``None`` to skip the callback.
 
-        Raises :class:`CallbackBundleUnavailable` if the bundle cannot be resolved.
+        Default implementation looks the bundle up via :class:`DagBundlesManager` and, for
+        versioned requests on bundles that support versioning, calls ``bundle.initialize()``.
         Override to source the bundle from an API.
         """
         try:
-            return DagBundlesManager().get_bundle(name=request.bundle_name, version=request.bundle_version)
-        except ValueError as e:
+            bundle = DagBundlesManager().get_bundle(name=request.bundle_name, version=request.bundle_version)
+        except ValueError:
             self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
-            raise CallbackBundleUnavailable(f"Bundle {request.bundle_name!r} no longer configured") from e
-
-    def initialize_callback_bundle(self, request: CallbackRequest, bundle: BaseDagBundle) -> None:
-        """
-        Prepare ``bundle`` so the callback can run against it.
-
-        Raises :class:`CallbackBundleUnavailable` if preparation fails and the callback should
-        be skipped. Override to change how bundles are materialized (for example, via an API).
-        """
+            return None
         if bundle.supports_versioning and request.bundle_version:
             try:
                 bundle.initialize()
-            except Exception as e:
+            except Exception:
                 self.log.exception(
                     "Error initializing bundle %s version %s for callback, skipping",
                     request.bundle_name,
                     request.bundle_version,
                 )
-                raise CallbackBundleUnavailable(
-                    f"Failed to initialize bundle {request.bundle_name!r} version {request.bundle_version!r}"
-                ) from e
+                return None
+        return bundle
 
     def _add_callback_to_queue(self, request: CallbackRequest) -> None:
         self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
-        try:
-            bundle = self.resolve_callback_bundle(request)
-            self.initialize_callback_bundle(request, bundle)
-        except CallbackBundleUnavailable:
+        bundle = self.prepare_callback_bundle(request)
+        if bundle is None:
             return
 
         file_info = DagFileInfo(
