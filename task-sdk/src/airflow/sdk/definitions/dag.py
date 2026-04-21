@@ -439,6 +439,10 @@ class DAG:
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(str)),
     )
+    team_name: str | None = attrs.field(
+        default=None,
+        validator=attrs.validators.optional(attrs.validators.instance_of(str)),
+    )
     default_args: dict[str, Any] = attrs.field(
         factory=dict, validator=attrs.validators.instance_of(dict), converter=dict_copy
     )
@@ -1551,6 +1555,7 @@ if TYPE_CHECKING:
         dag_id: str = "",
         *,
         description: str | None = None,
+        team_name: str | None = None,
         schedule: ScheduleArg = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,

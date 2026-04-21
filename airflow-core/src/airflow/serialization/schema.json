@@ -165,6 +165,7 @@
       "properties": {
         "params": { "$ref": "#/definitions/params" },
         "dag_id": { "type": "string" },
+        "team_name": { "type": ["string", "null"] },
         "tasks": {  "$ref": "#/definitions/tasks" },
         "timezone": { "$ref": "#/definitions/timezone" },
         "owner_links": { "type": "object" },

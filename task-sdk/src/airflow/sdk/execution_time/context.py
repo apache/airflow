@@ -803,6 +803,9 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
     This method should be called once per Task execution, before calling operator.execute.
     """
     _CURRENT_CONTEXT.append(context)
+
+    context["team_name"] = getattr(context.get("dag", None), "team_name", None)
+    
     try:
         yield context
     finally:
