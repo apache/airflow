@@ -471,7 +471,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             return result
 
     def execute_complete(self, context: dict[str, Any], event: Any = None) -> Any:
-        if event is None or event.get("status") == "error":
+        if event is None:
+            raise AirflowException("Unknown error in SQLExecuteQueryTrigger")
+        if event.get("status") == "error":
             raise AirflowException(event.get("message", "Unknown error in SQLExecuteQueryTrigger"))
         self.log.info("SQL query executed successfully.")
         results = event.get("results")
