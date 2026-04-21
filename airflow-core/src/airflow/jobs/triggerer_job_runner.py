@@ -105,6 +105,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
+USER_ACTION_INDICATOR = "user-action"
 
 
 def _make_trigger_span(
@@ -1137,12 +1138,15 @@ class TriggerRunner:
         Drain the to_cancel queue and ensure all triggers that are not in the DB are cancelled.
 
         This allows the cleanup job to delete them.
+        Passes "user-action" as the cancel message so that run_trigger() knows to invoke
+        on_cancel(). Triggers in this queue are always removed because this is the path in which
+        the user performed some action on the task. Trigger redistribution goes through a separate
+        path.
         """
         while self.to_cancel:
             trigger_id = self.to_cancel.popleft()
             if trigger_id in self.triggers:
-                # We only delete if it did not exit already
-                self.triggers[trigger_id]["task"].cancel()
+                self.triggers[trigger_id]["task"].cancel(USER_ACTION_INDICATOR)
             await asyncio.sleep(0)
 
     async def cleanup_finished_triggers(self) -> list[int]:
@@ -1331,14 +1335,27 @@ class TriggerRunner:
                     self.events.append((trigger_id, event))
                 span.set_status(Status(StatusCode.OK))
             except asyncio.CancelledError as e:
-                # We get cancelled by the scheduler changing the task state. But if we do lets give a nice error
-                # message about it
+                # A trigger can be cancelled for two reasons:
+                #   - The user acted on the task (mark failed / clear / mark succeeded).
+                #   - The triggerer is shutting down, here cancel_triggers() is not
+                #     involved — the shutdown path cancels tasks directly without a message.
+                # Only first case should invoke on_cancel().
+                #
+                # For timeout, raise immediately without calling on_cancel().
                 if timeout := timeout_after:
                     timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
                     if timeout < timezone.utcnow():
                         await self.log.aerror("Trigger cancelled due to timeout")
                         span.set_status(Status(StatusCode.ERROR), description=str(e))
                         raise
+                if e.args and e.args[0] == USER_ACTION_INDICATOR:
+                    # Suppress exceptions from on_cancel() so they do not digest the
+                    # CancelledError errors.
+                    with suppress(BaseException):
+                        await self.log.ainfo(
+                            "Trigger cancelled by user action, invoking on_cancel", name=name
+                        )
+                        await trigger.on_cancel()
                 span.set_status(Status(StatusCode.OK), description=str(e))
                 raise
             except Exception as e:

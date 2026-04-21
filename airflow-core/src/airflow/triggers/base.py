@@ -192,6 +192,9 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         and handle it appropriately (in async-compatible way).
         """
 
+    async def on_cancel(self) -> None:
+        """Override to cancel external jobs when a user cancels the deferred task."""
+
     @staticmethod
     def repr(classpath: str, kwargs: dict[str, Any]):
         kwargs_str = ", ".join(f"{k}={v}" for k, v in kwargs.items())
