@@ -300,6 +300,34 @@ class DagFileProcessorManager(LoggingMixin):
         By processing them in separate processes, we can get parallelism and isolation
         from potentially harmful user code.
         """
+        self.before_run()
+        try:
+            return self._run_parsing_loop()
+        finally:
+            self.after_run()
+
+    def before_run(self) -> None:
+        """Set up state required before the parsing loop starts. Default implementation; override to customize."""
+        self.prepare_server_process_context()
+        self.prepare_process_context()
+        self.register_exit_signals()
+        self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
+        self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
+        self.prepare_bundles()
+        self._symlink_latest_log_directory()
+        # To prevent COW in forked process parsing dag file
+        gc.freeze()
+
+    def after_run(self) -> None:
+        """Tear down state after the parsing loop exits. Default no-op; override to customize."""
+
+    def prepare_server_process_context(self) -> None:
+        """
+        Mark this process as running in "server" context so MetastoreBackend is available.
+
+        Override to a no-op in subclasses that do not require direct DB access (e.g. API-backed
+        deployments under AIP-92).
+        """
         # TODO: Temporary until AIP-92 removes DB access from DagProcessorManager.
         # The manager needs MetastoreBackend to retrieve connections from the database
         # during bundle initialization (e.g., GitDagBundle.__init__ → GitHook needs git credentials).
@@ -310,6 +338,8 @@ class DagFileProcessorManager(LoggingMixin):
         # Related: https://github.com/apache/airflow/pull/57459
         os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
 
+    def prepare_process_context(self) -> None:
+        """Initialize transport-neutral process state (selector, stats) before the parsing loop starts."""
         # Initialization is delayed until here to avoid fork issues in some
         # selector implementations. Also see _StubSelector documentation.
         self.selector = selectors.DefaultSelector()
@@ -317,12 +347,13 @@ class DagFileProcessorManager(LoggingMixin):
         stats_factory = stats_utils.get_stats_factory(Stats)
         Stats.initialize(factory=stats_factory)
 
-        self.register_exit_signals()
-
-        self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
-        self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
-
+    def prepare_bundles(self) -> None:
+        """Sync bundle configuration to the DB and load bundles for parsing."""
         self.sync_bundles()
+        self.load_dag_bundles()
+
+    def load_dag_bundles(self) -> None:
+        """Populate ``self._dag_bundles`` via ``get_all_bundles()`` (may hit the DB), filtered by ``bundle_names_to_parse``."""
         dag_bundles = self.get_all_bundles()
         if self.bundle_names_to_parse:
             dag_bundles = [b for b in dag_bundles if b.name in self.bundle_names_to_parse]
@@ -332,13 +363,6 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.info(
                 "Checking for new files in bundle %s every %s seconds", bundle.name, bundle.refresh_interval
             )
-
-        self._symlink_latest_log_directory()
-
-        # To prevent COW in forked process parsing dag file
-        gc.freeze()
-
-        return self._run_parsing_loop()
 
     def _scan_stale_dags(self):
         """Scan and deactivate DAGs which are no longer present in files."""

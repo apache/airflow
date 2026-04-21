@@ -1978,6 +1978,57 @@ class TestDagFileProcessorManager:
         call_kwargs = stats_init_mock.call_args.kwargs
         assert "factory" in call_kwargs
 
+    def test_run_invokes_before_and_after_hooks(self, tmp_path, configure_testing_dag_bundle):
+        """`run()` should call `before_run` then `after_run`, even if the loop raises."""
+        with configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=1)
+            calls: list[str] = []
+            with (
+                mock.patch.object(manager, "before_run", side_effect=lambda: calls.append("before")),
+                mock.patch.object(manager, "after_run", side_effect=lambda: calls.append("after")),
+                mock.patch.object(
+                    manager,
+                    "_run_parsing_loop",
+                    side_effect=lambda: calls.append("loop"),
+                ),
+            ):
+                manager.run()
+            assert calls == ["before", "loop", "after"]
+
+    def test_after_run_runs_when_parsing_loop_raises(self, tmp_path, configure_testing_dag_bundle):
+        """`after_run` must execute even when the parsing loop raises."""
+        with configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=1)
+            with (
+                mock.patch.object(manager, "before_run"),
+                mock.patch.object(manager, "after_run") as after_run_mock,
+                mock.patch.object(manager, "_run_parsing_loop", side_effect=RuntimeError("boom")),
+                pytest.raises(RuntimeError, match="boom"),
+            ):
+                manager.run()
+            after_run_mock.assert_called_once_with()
+
+    def test_prepare_server_process_context_can_be_skipped(self, tmp_path, configure_testing_dag_bundle):
+        """API-backed subclasses can skip server-context setup without losing selector/stats init."""
+        with configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=1)
+            with mock.patch.object(manager, "prepare_server_process_context") as server_ctx_mock:
+                manager.run()
+            server_ctx_mock.assert_called_once_with()
+            assert manager.selector is not None
+
+    def test_prepare_bundles_can_be_overridden_without_sync(self, tmp_path, configure_testing_dag_bundle):
+        """Subclasses can override `prepare_bundles` to skip `sync_bundles` (AIP-92 seam)."""
+        with configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=1)
+            with (
+                mock.patch.object(manager, "sync_bundles") as sync_mock,
+                mock.patch.object(manager, "prepare_bundles", side_effect=manager.load_dag_bundles),
+            ):
+                manager.run()
+            sync_mock.assert_not_called()
+            assert [b.name for b in manager._dag_bundles] == ["testing"]
+
     @mock.patch("airflow.dag_processing.manager.Stats.gauge")
     def test_stats_total_parse_time(self, statsd_gauge_mock, tmp_path, configure_testing_dag_bundle):
         key = "dag_processing.total_parse_time"
