@@ -23,18 +23,19 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import delete, select
 
+from airflow.providers.common.compat.sdk import Stats
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueuesBody
 from airflow.providers.edge3.worker_api.routes.jobs import fetch, state
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_1_PLUS
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-from airflow.providers.common.compat.sdk import Stats
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_1_PLUS
+pytestmark = pytest.mark.db_test
 
 stats_reference = f"{Stats.__module__}.Stats"
 expected_call_count = 1 if AIRFLOW_V_3_2_1_PLUS else 2
