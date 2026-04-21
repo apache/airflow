@@ -93,6 +93,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
     handle_delete_xcom,
     handle_get_connection,
+    handle_get_dr_count,
     handle_get_previous_ti,
     handle_get_task_states,
     handle_get_ti_count,
@@ -554,13 +555,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         elif isinstance(msg, SetXCom):
             resp, dump_opts = handle_set_xcom(self.client, msg)
         elif isinstance(msg, GetDRCount):
-            dr_count = self.client.dag_runs.get_count(
-                dag_id=msg.dag_id,
-                logical_dates=msg.logical_dates,
-                run_ids=msg.run_ids,
-                states=msg.states,
-            )
-            resp = dr_count
+            resp, dump_opts = handle_get_dr_count(self.client, msg)
         elif isinstance(msg, GetDagRunState):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
             resp = DagRunStateResult.from_api_response(dr_resp)

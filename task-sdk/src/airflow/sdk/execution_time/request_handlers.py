@@ -40,6 +40,7 @@ from airflow.sdk.execution_time.comms import (
     DeleteVariable,
     DeleteXCom,
     GetConnection,
+    GetDRCount,
     GetPreviousTI,
     GetTaskStates,
     GetTICount,
@@ -171,6 +172,17 @@ def handle_set_xcom(client: Client, msg: SetXCom) -> tuple[BaseModel | None, dic
 def handle_delete_xcom(client: Client, msg: DeleteXCom) -> tuple[BaseModel | None, dict[str, bool]]:
     """Delete an XCom value."""
     resp = client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+    return resp, {}
+
+
+def handle_get_dr_count(client: Client, msg: GetDRCount) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch dag run counts."""
+    resp = client.dag_runs.get_count(
+        dag_id=msg.dag_id,
+        logical_dates=msg.logical_dates,
+        run_ids=msg.run_ids,
+        states=msg.states,
+    )
     return resp, {}
 
 
