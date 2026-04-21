@@ -124,22 +124,6 @@ before running ``pip install`` commands:
    .. code-block:: bash
 
       airflow standalone
-   
-   .. note::
-
-   In Airflow 3.x, the admin password may not always be displayed in the terminal output when running ``airflow standalone``.
-
-   The password is automatically generated and stored in the file:
-
-   ``~/airflow/simple_auth_manager_passwords.json.generated``
-
-   To retrieve it, run:
-
-   .. code-block:: bash
-
-      cat ~/airflow/simple_auth_manager_passwords.json.generated
-
-   Use this password to log into the web interface instead of default credentials.
 
    .. note::
 
@@ -155,7 +139,7 @@ before running ``pip install`` commands:
 
          cat ~/airflow/simple_auth_manager_passwords.json.generated
 
-      Use this password to log into the web interface instead of default credentials.
+      Use this password to log in to the web interface instead of default credentials.
 
 5. Access the Airflow UI:
 
