@@ -34,7 +34,10 @@ import json
 import os
 import pathlib
 
-SKILLS_JSON = pathlib.Path("contributing-docs/agent_skills/skills.json")
+_REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
+_DEFAULT_SKILLS_JSON = _REPO_ROOT / "contributing-docs/agent_skills/skills.json"
+_SKILLS_JSON_OVERRIDE = os.environ.get("AIRFLOW_AGENT_SKILLS_JSON")
+SKILLS_JSON = pathlib.Path(_SKILLS_JSON_OVERRIDE) if _SKILLS_JSON_OVERRIDE else _DEFAULT_SKILLS_JSON
 
 
 def get_context(force: str | None = None) -> str:

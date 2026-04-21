@@ -98,7 +98,18 @@ def validate_skill(skill: dict, index: int) -> None:
 
 def _skill_key_set(skill: dict) -> set[str]:
     """Return set of keys that define skill identity and content for comparison."""
-    return {"id", "context", "category", "prereqs", "validates", "description", "command", "expected_output"}
+    return {
+        "id",
+        "context",
+        "category",
+        "prereqs",
+        "validates",
+        "description",
+        "command",
+        "expected_output",
+        "fallback",
+        "fallback_condition",
+    }
 
 
 def _normalize_skill_for_compare(skill: dict) -> dict:
@@ -108,15 +119,22 @@ def _normalize_skill_for_compare(skill: dict) -> dict:
 
 
 def extract_all_skills(root: Path, docs_file: str, docs_dir: str) -> list[dict]:
-    """Collect skills from AGENTS.md and all .rst under docs_dir; later occurrence wins on duplicate id."""
+    """Collect skills from AGENTS.md and all .rst under docs_dir; raise on duplicate id."""
     sources = collect_source_texts(root, docs_file, docs_dir)
     by_id: dict[str, dict] = {}
+    seen_paths: dict[str, Path] = {}
     for path, text in sources:
         try:
             for skill in parse_skills(text):
                 sid = skill.get("id")
                 if sid:
+                    if sid in by_id:
+                        raise ValueError(
+                            f"Duplicate skill id '{sid}' found in {path}; "
+                            f"already defined in {seen_paths[sid]}"
+                        )
                     by_id[sid] = skill
+                    seen_paths[sid] = path
         except Exception as e:
             raise RuntimeError(f"Failed to parse {path}: {e}") from e
     return list(by_id.values())

@@ -52,6 +52,7 @@ def _extract_skills_to_file(skills_file: Path) -> subprocess.CompletedProcess[st
         text=True,
         cwd=REPO_ROOT,
         check=False,
+        timeout=30,
     )
 
 
@@ -92,6 +93,7 @@ def test_full_pipeline_rst_to_command(tmp_path: Path, monkeypatch: pytest.Monkey
         text=True,
         cwd=REPO_ROOT,
         check=False,
+        timeout=30,
     )
     assert check_result.returncode == 0, check_result.stdout + check_result.stderr
     assert "OK: skills.json is in sync" in check_result.stdout

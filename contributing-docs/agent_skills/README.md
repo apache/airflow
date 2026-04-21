@@ -18,9 +18,11 @@ command runs on the HOST or inside BREEZE:
 - `breeze` — run inside `breeze shell`
 - `either` — works in both
 
-This directly addresses the warning in AGENTS.md:
-"Never run pytest, python, or airflow commands directly
-on the host — always use breeze."
+This helps clarify the warning in AGENTS.md: do not run
+bare ``pytest``, ``python``, or ``airflow`` commands directly on
+the host. On the host, use the documented wrapper commands
+such as ``uv run ...`` when a skill marks the context as
+``host``; otherwise use Breeze.
 
 ## How skills.json is generated
 

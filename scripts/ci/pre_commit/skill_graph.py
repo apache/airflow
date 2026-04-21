@@ -73,6 +73,11 @@ def build_graph(skills: list[dict]) -> tuple[list[dict], list[dict], dict[str, d
     Build nodes (for JSON), edges (for JSON), and id->skill for tree.
     Edges: from skill_id to prereq_id (skill_id requires prereq_id).
     """
+    for index, s in enumerate(skills):
+        if not isinstance(s, dict):
+            raise ValueError(f"Skill entry at index {index} is not a mapping: {s!r}")
+        if "id" not in s:
+            raise ValueError(f"Skill entry at index {index} is missing required 'id' field: {s!r}")
     skill_ids = {s["id"] for s in skills}
     id_to_skill = {s["id"]: s for s in skills}
     nodes = [
