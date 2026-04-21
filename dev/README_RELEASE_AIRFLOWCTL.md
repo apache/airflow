@@ -147,22 +147,28 @@ If the branches for the line you are about to release do not yet exist,
 create them (and their branch protection) before continuing with any
 other release step.
 
-Both branches are created from the **latest core Airflow `vX-Y-test`
-branch** (the currently active core Airflow test branch — e.g. `v3-2-test`
-while 3.2.x is the in-development minor), so that the airflow-ctl line is
-anchored to the Airflow minor it ships alongside. Do **not** branch from
-`main` — `main` may already contain core Airflow changes belonging to the
-next minor that are not compatible with the airflow-ctl version you are
-cutting.
+Both branches are created from the **latest core Airflow `vX-Y-stable`
+branch** (the branch that anchors the most recently released core Airflow
+X.Y.Z — e.g. `v3-2-stable` after 3.2.1 has shipped), so that the
+airflow-ctl line is anchored to the Airflow minor it ships alongside.
+
+Branch from `vX-Y-stable`, **not** `vX-Y-test`: `vX-Y-test` may already
+contain cherry-picks destined for the next core Airflow patch (e.g.
+3.2.2) that have not been released yet and are not compatible with the
+airflow-ctl version you are cutting. Similarly, do **not** branch from
+`main` — `main` may already contain core Airflow changes belonging to
+the next minor that are not compatible with the airflow-ctl version you
+are cutting.
 
 ```shell script
 # CTL_VERSION_BRANCH: the airflow-ctl X-Y line, e.g. 0-2 for the 0.2.x line.
 export CTL_VERSION_BRANCH=0-2
-# AIRFLOW_TEST_BRANCH: the current active core Airflow vX-Y-test branch, e.g. v3-2-test.
-export AIRFLOW_TEST_BRANCH=v3-2-test
+# AIRFLOW_STABLE_BRANCH: the core Airflow vX-Y-stable branch anchoring the
+# most recently released X.Y.Z, e.g. v3-2-stable.
+export AIRFLOW_STABLE_BRANCH=v3-2-stable
 
 git fetch apache
-git checkout -b "airflow-ctl/v${CTL_VERSION_BRANCH}-test" "apache/${AIRFLOW_TEST_BRANCH}"
+git checkout -b "airflow-ctl/v${CTL_VERSION_BRANCH}-test" "apache/${AIRFLOW_STABLE_BRANCH}"
 git push apache "airflow-ctl/v${CTL_VERSION_BRANCH}-test"
 git checkout -b "airflow-ctl/v${CTL_VERSION_BRANCH}-stable" "airflow-ctl/v${CTL_VERSION_BRANCH}-test"
 git push apache "airflow-ctl/v${CTL_VERSION_BRANCH}-stable"
