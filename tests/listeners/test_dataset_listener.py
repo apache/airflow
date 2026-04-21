@@ -24,6 +24,7 @@ from airflow.models.dataset import DatasetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from tests.listeners import dataset_listener
+from tests.test_utils.db import clear_db_datasets
 
 
 @pytest.fixture(autouse=True)
@@ -35,6 +36,13 @@ def clean_listener_manager():
     lm = get_listener_manager()
     lm.clear()
     dataset_listener.clear()
+
+
+@pytest.fixture(autouse=True)
+def clear_datasets():
+    clear_db_datasets()
+    yield
+    clear_db_datasets()
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode

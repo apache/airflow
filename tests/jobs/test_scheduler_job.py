@@ -4479,7 +4479,10 @@ class TestSchedulerJob:
             session=session,
         )
         assert session.scalars(dse_q).one().source_run_id == dr1.run_id
-        assert session.scalars(ddrq_q).one_or_none() is None
+        if "is_active" in disable:
+            assert session.scalars(ddrq_q).one_or_none() is not None
+        else:
+            assert session.scalars(ddrq_q).one_or_none() is None
 
         # Simulate the consumer DAG being enabled.
         session.execute(update(DagModel).where(DagModel.dag_id == "consumer").values(**enable))
