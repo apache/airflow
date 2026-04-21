@@ -1099,8 +1099,12 @@ class ActivitySubprocess(WatchedSubprocess):
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
+        # Tests override `target` with a local stub to exercise the base
+        # infrastructure; keep bare fork for those. Only the real task runner
+        # path opts in to fork+exec.
+        use_exec = target is _subprocess_main
         proc: Self = super().start(
-            id=what.id, client=client, target=target, logger=logger, use_exec=True, **kwargs
+            id=what.id, client=client, target=target, logger=logger, use_exec=use_exec, **kwargs
         )
         # Tell the task process what it needs to do!
         proc._on_child_started(
