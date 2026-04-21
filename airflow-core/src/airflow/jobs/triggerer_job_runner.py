@@ -108,7 +108,7 @@ tracer = trace.get_tracer(__name__)
 # Private sentinel passed as the cancel message when a trigger is cancelled by user action
 _USER_ACTION_CANCEL_MSG = "__airflow_user_action__"
 
-# Maximum seconds to wait for on_cancel() before giving up. Prevents a slow or stuck
+# Maximum seconds to wait for on_kill() before giving up. Prevents a slow or stuck
 # external API call from blocking triggerer shutdown indefinitely.
 _ON_CANCEL_TIMEOUT = 30
 
@@ -1144,7 +1144,7 @@ class TriggerRunner:
 
         This allows the cleanup job to delete them.
         Passes "user-action" as the cancel message so that run_trigger() knows to invoke
-        on_cancel(). Triggers in this queue are always removed because this is the path in which
+        on_kill(). Triggers in this queue are always removed because this is the path in which
         the user performed some action on the task. Trigger redistribution goes through a separate
         path.
         """
@@ -1344,9 +1344,9 @@ class TriggerRunner:
                 #   - The user acted on the task (mark failed / clear / mark succeeded).
                 #   - The triggerer is shutting down, here cancel_triggers() is not
                 #     involved — the shutdown path cancels tasks directly without a message.
-                # Only first case should invoke on_cancel().
+                # Only first case should invoke on_kill().
                 #
-                # For timeout, raise immediately without calling on_cancel().
+                # For timeout, raise immediately without calling on_kill().
                 if timeout := timeout_after:
                     timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
                     if timeout < timezone.utcnow():
@@ -1354,20 +1354,20 @@ class TriggerRunner:
                         span.set_status(Status(StatusCode.ERROR), description=str(e))
                         raise
                 if e.args and e.args[0] == _USER_ACTION_CANCEL_MSG:
-                    await self.log.ainfo("Trigger cancelled by user action, invoking on_cancel", name=name)
+                    await self.log.ainfo("Trigger cancelled by user action, invoking on_kill", name=name)
                     try:
-                        await asyncio.wait_for(trigger.on_cancel(), timeout=_ON_CANCEL_TIMEOUT)
+                        await asyncio.wait_for(trigger.on_kill(), timeout=_ON_CANCEL_TIMEOUT)
                     except TimeoutError:
                         await self.log.awarning(
-                            "on_cancel() timed out after %ds", _ON_CANCEL_TIMEOUT, name=name
+                            "on_kill() timed out after %ds", _ON_CANCEL_TIMEOUT, name=name
                         )
                     except asyncio.CancelledError:
-                        # on_cancel() was itself cancelled (e.g. triggerer shutting down
-                        # while on_cancel() was running). Swallow it so the outer
+                        # on_kill() was itself cancelled (e.g. triggerer shutting down
+                        # while on_kill() was running). Swallow it so the outer
                         # CancelledError (variable `e`) can be re-raised below.
                         pass
                     except Exception:
-                        await self.log.awarning("on_cancel() raised an exception", name=name, exc_info=True)
+                        await self.log.awarning("on_kill() raised an exception", name=name, exc_info=True)
                 span.set_status(Status(StatusCode.OK), description=str(e))
                 raise
             except Exception as e:

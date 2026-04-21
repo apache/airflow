@@ -192,13 +192,22 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         and handle it appropriately (in async-compatible way).
         """
 
-    async def on_cancel(self) -> None:
+    async def on_kill(self) -> None:
         """
-        Cancel any external job started by this trigger when the task is cancelled by a user.
+        Kill the external job managed by this trigger when the task is killed by a user.
 
-        Override this method to clean up external resources (e.g. cancel a BigQuery job,
-        terminate a Databricks run) when a user explicitly acts on the deferred task via
-        mark-failed, clear, or mark-succeeded.
+        Symmetric with ``BaseOperator.on_kill()`` on the worker side: override this method
+        to stop external work (e.g. cancel a BigQuery job, terminate a Databricks run) when
+        a user explicitly acts on the deferred task via mark-failed, clear, or mark-succeeded.
+
+        **Distinction from** ``cleanup()``:
+
+        - ``cleanup()`` runs on every trigger exit — success, timeout, shutdown, and user
+          kill. It is meant for releasing local resources held by this trigger instance.
+          Putting external job cancellation in ``cleanup()`` would cancel in-flight work
+          on every triggerer restart or rolling deploy.
+        - ``on_kill()`` runs only when a user explicitly kills the task. It is the right
+          place to cancel external work you do not want to keep running after the user performs an action.
 
         This only fires when a user acts on the task. It does not fire on:
 
@@ -214,7 +223,7 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         propagate — they will not affect the task state or the triggerer. Implement your
         own retry or error handling inside this method if needed.
 
-        ``on_cancel()`` is given a bounded time to complete. Implementations
+        ``on_kill()`` is given a bounded time to complete. Implementations
         that call slow external APIs should apply their own timeouts rather than relying on
         the framework bound.
         """

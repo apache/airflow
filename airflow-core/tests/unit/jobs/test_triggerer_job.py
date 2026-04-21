@@ -383,8 +383,8 @@ class TestTriggerRunner:
             )
         assert {"event": "Trigger cancelled due to timeout", "log_level": "error"} in cap_structlog
 
-    def test_run_trigger_calls_on_cancel_for_user_action(self, session, cap_structlog) -> None:
-        """on_cancel() is called when CancelledError carries the user-action sentinel."""
+    def test_run_trigger_calls_on_kill_for_user_action(self, session, cap_structlog) -> None:
+        """on_kill() is called when CancelledError carries the user-action sentinel."""
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
             1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
@@ -393,20 +393,20 @@ class TestTriggerRunner:
         mock_trigger.run.side_effect = asyncio.CancelledError(_USER_ACTION_CANCEL_MSG)
         mock_trigger.task_instance = MagicMock()
         mock_trigger.task_instance.map_index = -1
-        mock_trigger.on_cancel = AsyncMock()
+        mock_trigger.on_kill = AsyncMock()
 
         with pytest.raises(asyncio.CancelledError):
             asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
 
-        mock_trigger.on_cancel.assert_awaited_once()
+        mock_trigger.on_kill.assert_awaited_once()
         assert {
-            "event": "Trigger cancelled by user action, invoking on_cancel",
+            "event": "Trigger cancelled by user action, invoking on_kill",
             "log_level": "info",
             "name": "mock_name",
         } in cap_structlog
 
-    def test_run_trigger_skips_on_cancel_without_user_action_message(self, session) -> None:
-        """on_cancel() is not called when CancelledError has no user-action sentinel (shutdown/EOF)."""
+    def test_run_trigger_skips_on_kill_without_user_action_message(self, session) -> None:
+        """on_kill() is not called when CancelledError has no user-action sentinel (shutdown/EOF)."""
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
             1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
@@ -415,15 +415,15 @@ class TestTriggerRunner:
         mock_trigger.run.side_effect = asyncio.CancelledError()
         mock_trigger.task_instance = MagicMock()
         mock_trigger.task_instance.map_index = -1
-        mock_trigger.on_cancel = AsyncMock()
+        mock_trigger.on_kill = AsyncMock()
 
         with pytest.raises(asyncio.CancelledError):
             asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
 
-        mock_trigger.on_cancel.assert_not_called()
+        mock_trigger.on_kill.assert_not_called()
 
-    def test_run_trigger_on_cancel_exception_does_not_swallow_cancelled_error(self, session) -> None:
-        """CancelledError propagates even if on_cancel() raises."""
+    def test_run_trigger_on_kill_exception_does_not_swallow_cancelled_error(self, session) -> None:
+        """CancelledError propagates even if on_kill() raises."""
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
             1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
@@ -432,13 +432,13 @@ class TestTriggerRunner:
         mock_trigger.run.side_effect = asyncio.CancelledError(_USER_ACTION_CANCEL_MSG)
         mock_trigger.task_instance = MagicMock()
         mock_trigger.task_instance.map_index = -1
-        mock_trigger.on_cancel = AsyncMock(side_effect=RuntimeError("external API down"))
+        mock_trigger.on_kill = AsyncMock(side_effect=RuntimeError("external API down"))
         mock_trigger.cleanup = AsyncMock()
 
         with pytest.raises(asyncio.CancelledError):
             asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
 
-        mock_trigger.on_cancel.assert_awaited_once()
+        mock_trigger.on_kill.assert_awaited_once()
         mock_trigger.cleanup.assert_awaited_once()
 
     @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs")
