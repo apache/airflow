@@ -259,7 +259,8 @@ _MYSQL_URL_QUERY_TO_CNF: dict[str, str] = {
 
 
 def _build_mysql_cnf(url: URL) -> bytes:
-    """Render the ``[client]`` section of a mysql option file from a SQLAlchemy URL.
+    """
+    Render the ``[client]`` section of a mysql option file from a SQLAlchemy URL.
 
     Produces the bytes that ``airflow db shell`` writes to the temporary file
     passed to ``mysql --defaults-extra-file=…``. Beyond the core connection

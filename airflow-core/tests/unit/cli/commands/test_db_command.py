@@ -396,7 +396,8 @@ class TestCliDb:
         ],
     )
     def test_build_mysql_cnf(self, sql_alchemy_conn, expected_cnf):
-        """Pure-function test of the my.cnf builder — no mocking of ``shell()`` needed.
+        """
+        Pure-function test of the my.cnf builder — no mocking of ``shell()`` needed.
 
         Exercises every behavior we care about: bare URL, missing-port default,
         SSL params forwarded with underscore→hyphen translation, query-string
