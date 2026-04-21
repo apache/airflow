@@ -662,6 +662,11 @@ class TestGetDagRuns:
             (DAG1_ID, {"run_id_pattern": "run_1"}, [DAG1_RUN1_ID]),
             (DAG1_ID, {"run_id_pattern": "dag_%_1"}, [DAG1_RUN1_ID]),
             ("~", {"run_id_pattern": "dag_run_"}, [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            # Pipe (OR) operator returns results matching either term
+            ("~", {"run_id_pattern": f"{DAG1_RUN1_ID}|{DAG1_RUN2_ID}"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            # Trailing/leading pipe should not leak into the LIKE pattern
+            ("~", {"run_id_pattern": f"{DAG1_RUN1_ID}|"}, [DAG1_RUN1_ID]),
+            ("~", {"run_id_pattern": f"|{DAG1_RUN1_ID}"}, [DAG1_RUN1_ID]),
             (
                 DAG1_ID,
                 {

@@ -16,7 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.2.0'
+minimum_prek_version: '0.3.4'
 default_language_version:
   python: python3
   node: 22.19.0
@@ -59,7 +59,7 @@ repos:
       - id: mypy-task-sdk
         name: Run mypy for task-sdk
         language: python
-        entry: ../scripts/ci/prek/mypy_local_folder.py task-sdk
+        entry: ../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py task-sdk
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
