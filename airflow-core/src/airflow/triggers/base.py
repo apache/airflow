@@ -193,7 +193,31 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         """
 
     async def on_cancel(self) -> None:
-        """Override to cancel external jobs when a user cancels the deferred task."""
+        """
+        Cancel any external job started by this trigger when the task is cancelled by a user.
+
+        Override this method to clean up external resources (e.g. cancel a BigQuery job,
+        terminate a Databricks run) when a user explicitly acts on the deferred task via
+        mark-failed, clear, or mark-succeeded.
+
+        This only fires when a user acts on the task. It does not fire on:
+
+        - Triggerer shutdown or restart — the trigger is redistributed, not cancelled.
+        - Triggerer redistribution to another triggerer process.
+        - Trigger timeout — the trigger is killed, not cancelled by user.
+        - Normal trigger completion (the trigger fired an event).
+
+        This method runs in the triggerer's asyncio event loop, so
+        it must be async-safe. Use ``await`` for any I/O; do not block the event loop.
+
+        Exceptions raised here are logged as warnings and do not
+        propagate — they will not affect the task state or the triggerer. Implement your
+        own retry or error handling inside this method if needed.
+
+        ``on_cancel()`` is given a bounded time to complete. Implementations
+        that call slow external APIs should apply their own timeouts rather than relying on
+        the framework bound.
+        """
 
     @staticmethod
     def repr(classpath: str, kwargs: dict[str, Any]):
