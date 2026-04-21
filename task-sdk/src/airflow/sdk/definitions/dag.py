@@ -43,7 +43,7 @@ from airflow import settings
 from airflow.sdk import TaskInstanceState, TriggerRule, XComArg
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
-from airflow.sdk.definitions._internal.node import validate_key
+from airflow.sdk.definitions._internal.node import DAGNode, validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.context import Context
@@ -1033,12 +1033,13 @@ class DAG:
             return self.task_dict[task_id]
         raise TaskNotFound(f"Task {task_id} not found")
 
-    def __getitem__(self, task_id: str) -> Operator:
-        """Return a task by its fully-qualified task_id. Use TaskGroup.__getitem__ to access groups."""
-        try:
-            return self.get_task(task_id)
-        except TaskNotFound:
-            raise TaskItemNotFound(f"Task {task_id!r} not found")
+    def __getitem__(self, node_id: str) -> DAGNode:
+        """Return a task or task group by its fully-qualified ID."""
+        if (node := self.task_dict.get(node_id)) is not None:
+            return node
+        if (tg := self.task_group_dict.get(node_id)) is not None:
+            return tg
+        raise TaskItemNotFound(f"Task or group {node_id!r} not found")
 
     @property
     def task(self) -> TaskDecoratorCollection:

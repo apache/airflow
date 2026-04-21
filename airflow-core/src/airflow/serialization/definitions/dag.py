@@ -246,12 +246,13 @@ class SerializedDAG:
             return self.task_dict[task_id]
         raise TaskNotFound(f"Task {task_id} not found")
 
-    def __getitem__(self, task_id: str) -> SerializedOperator:
-        """Return a task by its fully-qualified task_id."""
-        try:
-            return self.get_task(task_id)
-        except TaskNotFound:
-            raise TaskItemNotFound(f"Task {task_id!r} not found")
+    def __getitem__(self, node_id: str) -> SerializedOperator | SerializedTaskGroup:
+        """Return a task or task group by its fully-qualified ID."""
+        if (node := self.task_dict.get(node_id)) is not None:
+            return node
+        if (tg := self.task_group_dict.get(node_id)) is not None:
+            return tg
+        raise TaskItemNotFound(f"Task or group {node_id!r} not found")
 
     @property
     def task_group_dict(self):
