@@ -48,6 +48,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import (
     BundleState,
+    CallbackBundleUnavailable,
     DagFileInfo,
     DagFileProcessorManager,
     DagFileStat,
@@ -1585,7 +1586,7 @@ class TestDagFileProcessorManager:
         )
 
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
-    def test_resolve_callback_bundle_returns_none_for_unconfigured_bundle(self, mock_bundle_manager):
+    def test_resolve_callback_bundle_raises_for_unconfigured_bundle(self, mock_bundle_manager):
         manager = DagFileProcessorManager(max_runs=1)
         mock_bundle_manager.return_value.get_bundle.side_effect = ValueError("missing bundle")
 
@@ -1599,7 +1600,8 @@ class TestDagFileProcessorManager:
             msg=None,
         )
 
-        assert manager.resolve_callback_bundle(request) is None
+        with pytest.raises(CallbackBundleUnavailable, match="no longer configured"):
+            manager.resolve_callback_bundle(request)
 
     def test_initialize_callback_bundle_skips_unversioned_callback(self):
         manager = DagFileProcessorManager(max_runs=1)
@@ -1616,7 +1618,7 @@ class TestDagFileProcessorManager:
             msg=None,
         )
 
-        assert manager.initialize_callback_bundle(request, bundle) is True
+        manager.initialize_callback_bundle(request, bundle)
         bundle.initialize.assert_not_called()
 
     def test_initialize_callback_bundle_skips_non_versioned_bundle(self):
@@ -1634,7 +1636,7 @@ class TestDagFileProcessorManager:
             msg=None,
         )
 
-        assert manager.initialize_callback_bundle(request, bundle) is True
+        manager.initialize_callback_bundle(request, bundle)
         bundle.initialize.assert_not_called()
 
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
@@ -1659,11 +1661,11 @@ class TestDagFileProcessorManager:
 
         bundle.initialize.assert_called_once()
 
-    def test_initialize_callback_bundle_returns_false_when_initialization_fails(self):
+    def test_initialize_callback_bundle_raises_when_initialization_fails(self):
         manager = DagFileProcessorManager(max_runs=1)
         bundle = MagicMock(spec=BaseDagBundle)
         bundle.supports_versioning = True
-        bundle.initialize.side_effect = Exception("clone failed")
+        bundle.initialize.side_effect = RuntimeError("clone failed")
 
         request = DagCallbackRequest(
             filepath="file1.py",
@@ -1675,7 +1677,8 @@ class TestDagFileProcessorManager:
             msg=None,
         )
 
-        assert manager.initialize_callback_bundle(request, bundle) is False
+        with pytest.raises(CallbackBundleUnavailable, match="Failed to initialize bundle"):
+            manager.initialize_callback_bundle(request, bundle)
         bundle.initialize.assert_called_once()
 
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
@@ -1699,7 +1702,26 @@ class TestDagFileProcessorManager:
         manager._add_callback_to_queue(request)
 
         bundle.initialize.assert_called_once()
-        assert len(manager._callback_to_execute) == 0
+        assert not manager._callback_to_execute
+
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
+    def test_add_callback_skips_when_bundle_unconfigured(self, mock_bundle_manager):
+        manager = DagFileProcessorManager(max_runs=1)
+        mock_bundle_manager.return_value.get_bundle.side_effect = ValueError("missing bundle")
+
+        request = DagCallbackRequest(
+            filepath="file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version="some_commit_hash",
+            msg=None,
+        )
+
+        manager._add_callback_to_queue(request)
+
+        assert not manager._callback_to_execute
 
     def test_dag_with_assets(self, session, configure_testing_dag_bundle):
         """'Integration' test to ensure that the assets get parsed and stored correctly for parsed dags."""
