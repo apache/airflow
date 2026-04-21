@@ -2933,7 +2933,7 @@ class TestKubernetesPodOperatorAsync:
 
     @patch(KUB_OP_PATH.format("client"))
     def test_write_logs_with_invalid_since_time_falls_back_to_none(self, mocked_client):
-        """Test that an invalid since_time is caught, warns, and since_seconds is not passed."""
+        """Test that an invalid since_time is caught, warns, and since_seconds is passed as None."""
         pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE))
         k = KubernetesPodOperator(task_id="task", get_logs=True)
 
@@ -2952,8 +2952,6 @@ class TestKubernetesPodOperatorAsync:
     def test_write_logs_with_string_since_time_converts_to_datetime(self, mocked_client):
         """Test that a valid ISO string since_time is converted to datetime and since_seconds is calculated."""
         pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE))
-        k = KubernetesPodOperator(task_id="task", get_logs=True)
-
         since_time = "2025-12-31T23:59:30Z"
         k = KubernetesPodOperator(task_id="task", get_logs=True)
         with patch.object(k.log, "warning") as mock_warning:

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone as dt_timezone
 from json.decoder import JSONDecodeError
 from typing import TYPE_CHECKING, cast
 from unittest import mock
@@ -995,7 +995,7 @@ class TestPodManager:
     def test_fetch_container_with_valid_since_time(self, logs_available, container_running):
         """Test that since_seconds is calculated correctly when since_time is a valid datetime."""
         mock_pod = MagicMock()
-        since_time = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc) - timedelta(seconds=30)
+        since_time = datetime(2026, 1, 1, 0, 0, 0, tzinfo=dt_timezone.utc) - timedelta(seconds=30)
         logs_available.return_value = True
         container_running.return_value = False
         self.mock_kube_client.read_namespaced_pod_log.return_value = mock.MagicMock(
@@ -1010,7 +1010,7 @@ class TestPodManager:
     def test_fetch_container_with_invalid_since_time_falls_back_to_none(
         self, logs_available, container_running
     ):
-        """Test that an invalid since_time is caught, warns, and since_seconds is not passed."""
+        """Test that an invalid since_time is caught, warns, and since_seconds is passed as None."""
         mock_pod = MagicMock()
         logs_available.return_value = True
         container_running.return_value = False
