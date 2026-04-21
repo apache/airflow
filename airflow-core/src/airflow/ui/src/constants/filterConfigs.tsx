@@ -128,6 +128,13 @@ export const useFilterConfigs = () => {
       min: 1,
       type: FilterTypes.NUMBER,
     },
+    [SearchParamsKeys.DEADLINE_TIME_RANGE]: {
+      endKey: SearchParamsKeys.DEADLINE_TIME_LTE,
+      icon: <MdDateRange />,
+      label: translate("browse:deadlines.columns.deadlineTime"),
+      startKey: SearchParamsKeys.DEADLINE_TIME_GTE,
+      type: FilterTypes.DATERANGE,
+    },
     [SearchParamsKeys.DURATION_GTE]: {
       icon: <MdHourglassEmpty />,
       label: translate("common:filters.durationFrom"),

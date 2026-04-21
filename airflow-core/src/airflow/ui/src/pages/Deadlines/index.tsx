@@ -94,6 +94,7 @@ const createColumns = (translate: TFunction): Array<ColumnDef<DeadlineResponse>>
 
 const deadlinesFilterKeys: Array<FilterableSearchParamsKeys> = [
   SearchParamsKeys.DAG_ID,
+  SearchParamsKeys.DEADLINE_TIME_RANGE,
   SearchParamsKeys.MISSED,
 ];
 
@@ -112,12 +113,16 @@ export const Deadlines = () => {
 
   const filteredDagId = searchParams.get(SearchParamsKeys.DAG_ID);
   const filteredMissed = searchParams.get(SearchParamsKeys.MISSED);
+  const deadlineTimeGte = searchParams.get(SearchParamsKeys.DEADLINE_TIME_GTE);
+  const deadlineTimeLte = searchParams.get(SearchParamsKeys.DEADLINE_TIME_LTE);
 
   const missedFilter = filteredMissed === "true" ? true : filteredMissed === "false" ? false : undefined;
 
   const { data, error, isFetching, isLoading } = useDeadlinesServiceGetDeadlines({
     dagId: filteredDagId !== null && filteredDagId !== "" ? filteredDagId : "~",
     dagRunId: "~",
+    deadlineTimeGte: deadlineTimeGte ?? undefined,
+    deadlineTimeLte: deadlineTimeLte ?? undefined,
     limit: pagination.pageSize,
     missed: missedFilter,
     offset: pagination.pageIndex * pagination.pageSize,
