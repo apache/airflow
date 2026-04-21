@@ -26,10 +26,11 @@ from typing import TYPE_CHECKING, Any, cast
 
 from .base_stats_logger import NoStatsLogger
 from .metrics_registry import MetricsRegistry
+from .protocols import Timer
 
 if TYPE_CHECKING:
     from .base_stats_logger import StatsLogger
-    from .protocols import DeltaType, Timer
+    from .protocols import DeltaType
 
 log = logging.getLogger(__name__)
 
@@ -291,10 +292,22 @@ def timer(
                 _get_backend().timer(_emit_legacy(stat, legacy_name_tags), **legacy_kw),
             )
         )
-        stack.enter_context(_get_backend().timer(stat, **regular_kw))
-        return cast("Timer", stack)
+        real_timer = stack.enter_context(_get_backend().timer(stat, **regular_kw))
+        return _ExitStackTimer(stack, real_timer)
 
     return _get_backend().timer(stat, **regular_kw)
+
+
+class _ExitStackTimer(Timer):
+    """Timer wrapper that delegates to a real timer and closes an ExitStack on exit."""
+
+    def __init__(self, stack: ExitStack, real_timer: Timer) -> None:
+        super().__init__(real_timer)
+        self._stack = stack
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        self.stop(send=False)
+        self._stack.__exit__(exc_type, exc_value, traceback)
 
 
 class Stats:
