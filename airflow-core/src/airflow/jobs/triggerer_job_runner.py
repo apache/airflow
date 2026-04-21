@@ -244,7 +244,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             raise
         finally:
             self.log.info("Waiting for triggers to clean up")
-            # Tell the subtproc to stop and then wait for it.
+            # Tell the subprocess to stop and then wait for it.
             # If the user interrupts/terms again, _graceful_exit will allow them
             # to force-kill here.
             if self.trigger_runner is not None:
