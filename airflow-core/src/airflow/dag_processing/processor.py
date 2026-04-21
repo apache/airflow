@@ -71,6 +71,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
+    handle_get_ti_count,
     handle_get_xcom,
     handle_put_variable,
 )
@@ -684,15 +685,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
             # Use sdk masker in dag processor and triggerer because those use the task sdk machinery
             mask_secret(msg.value, msg.name)
         elif isinstance(msg, GetTICount):
-            resp = self.client.task_instances.get_count(
-                dag_id=msg.dag_id,
-                map_index=msg.map_index,
-                task_ids=msg.task_ids,
-                task_group_id=msg.task_group_id,
-                logical_dates=msg.logical_dates,
-                run_ids=msg.run_ids,
-                states=msg.states,
-            )
+            resp, dump_opts = handle_get_ti_count(self.client, msg)
         elif isinstance(msg, GetTaskStates):
             task_states_map = self.client.task_instances.get_task_states(
                 dag_id=msg.dag_id,

@@ -38,6 +38,7 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
     GetConnection,
+    GetTICount,
     GetVariable,
     GetVariableKeys,
     GetXCom,
@@ -102,6 +103,20 @@ def handle_put_variable(client: Client, msg: PutVariable) -> tuple[BaseModel | N
 def handle_delete_variable(client: Client, msg: DeleteVariable) -> tuple[BaseModel | None, dict[str, bool]]:
     """Delete a variable value."""
     resp = client.variables.delete(msg.key)
+    return resp, {}
+
+
+def handle_get_ti_count(client: Client, msg: GetTICount) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch task instance counts."""
+    resp = client.task_instances.get_count(
+        dag_id=msg.dag_id,
+        map_index=msg.map_index,
+        task_ids=msg.task_ids,
+        task_group_id=msg.task_group_id,
+        logical_dates=msg.logical_dates,
+        run_ids=msg.run_ids,
+        states=msg.states,
+    )
     return resp, {}
 
 

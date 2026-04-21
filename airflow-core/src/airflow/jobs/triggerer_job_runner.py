@@ -92,6 +92,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
     handle_get_connection,
+    handle_get_ti_count,
     handle_get_variable,
     handle_get_variable_keys,
     handle_get_xcom,
@@ -573,15 +574,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp = DagRunStateResult.from_api_response(dr_resp)
 
         elif isinstance(msg, GetTICount):
-            resp = self.client.task_instances.get_count(
-                dag_id=msg.dag_id,
-                map_index=msg.map_index,
-                task_ids=msg.task_ids,
-                task_group_id=msg.task_group_id,
-                logical_dates=msg.logical_dates,
-                run_ids=msg.run_ids,
-                states=msg.states,
-            )
+            resp, dump_opts = handle_get_ti_count(self.client, msg)
 
         elif isinstance(msg, GetTaskStates):
             run_id_task_state_map = self.client.task_instances.get_task_states(
