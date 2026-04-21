@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Extract and validate .. agent-skill:: blocks from AGENTS.md and contributing-docs/*.rst into skills.json."""
+
 from __future__ import annotations
 
 import argparse
@@ -38,6 +39,7 @@ def collect_source_texts(root: Path, docs_file: str, docs_dir: str) -> list[tupl
             result.append((rst_path, rst_path.read_text(encoding="utf-8")))
     return result
 
+
 VALID_CONTEXTS = {"host", "breeze", "either"}
 VALID_CATEGORIES = {"environment", "testing", "linting", "providers", "dags", "documentation"}
 ID_RE = re.compile(r"^[a-z][a-z0-9-]*$")
@@ -56,9 +58,15 @@ def parse_skills(text: str) -> list[dict]:
         # code-block content
         cb = re.search(r"\.\. code-block::\s*\w+\s*\n(.*?)(?=\n   \.\.|\Z)", block, re.S)
         skill["command"] = re.sub(r"^      ", "", cb.group(1).strip()).replace("\n      ", "\n") if cb else ""
-        # expected output
-        eo = re.search(r"\.\. agent-skill-expected-output::\s*\n(.*?)(?=\n\.\. agent-skill|\Z)", block, re.S)
-        skill["expected_output"] = re.sub(r"^      ", "", eo.group(1).strip()).replace("\n      ", "\n") if eo else ""
+        # expected output: content is 6-space-indented under the directive;
+        # terminate at the next .. agent-skill directive, a line starting at
+        # column 0 (end of the indented directive body), or end of block.
+        eo = re.search(
+            r"\.\. agent-skill-expected-output::\s*\n(.*?)(?=\n\.\. agent-skill|\n\S|\Z)", block, re.S
+        )
+        skill["expected_output"] = (
+            re.sub(r"^      ", "", eo.group(1).strip()).replace("\n      ", "\n") if eo else ""
+        )
         skills.append(skill)
     return skills
 
@@ -179,7 +187,9 @@ def main() -> int:
         default="contributing-docs/",
         help="Directory to scan for .rst files (default: contributing-docs/)",
     )
-    parser.add_argument("--output", default="contributing-docs/agent_skills/skills.json", help="Output JSON path")
+    parser.add_argument(
+        "--output", default="contributing-docs/agent_skills/skills.json", help="Output JSON path"
+    )
     parser.add_argument(
         "--check",
         action="store_true",
