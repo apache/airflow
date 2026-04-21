@@ -642,13 +642,13 @@ class DagFileProcessorManager(LoggingMixin):
                 return False
         return True
 
-    def _add_callback_to_queue(self, request: CallbackRequest):
+    def _add_callback_to_queue(self, request: CallbackRequest) -> None:
         self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
         bundle = self.resolve_callback_bundle(request)
         if bundle is None:
-            return None
+            return
         if not self.initialize_callback_bundle(request, bundle):
-            return None
+            return
 
         file_info = DagFileInfo(
             rel_path=Path(request.filepath),

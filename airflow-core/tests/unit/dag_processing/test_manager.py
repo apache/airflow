@@ -1566,7 +1566,7 @@ class TestDagFileProcessorManager:
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
     def test_resolve_callback_bundle(self, mock_bundle_manager):
         manager = DagFileProcessorManager(max_runs=1)
-        bundle = MagicMock()
+        bundle = MagicMock(spec=BaseDagBundle)
         mock_bundle_manager.return_value.get_bundle.return_value = bundle
 
         request = DagCallbackRequest(
@@ -1603,7 +1603,7 @@ class TestDagFileProcessorManager:
 
     def test_initialize_callback_bundle_skips_unversioned_callback(self):
         manager = DagFileProcessorManager(max_runs=1)
-        bundle = MagicMock()
+        bundle = MagicMock(spec=BaseDagBundle)
         bundle.supports_versioning = True
 
         request = DagCallbackRequest(
@@ -1621,7 +1621,7 @@ class TestDagFileProcessorManager:
 
     def test_initialize_callback_bundle_skips_non_versioned_bundle(self):
         manager = DagFileProcessorManager(max_runs=1)
-        bundle = MagicMock()
+        bundle = MagicMock(spec=BaseDagBundle)
         bundle.supports_versioning = False
 
         request = DagCallbackRequest(
@@ -1640,7 +1640,7 @@ class TestDagFileProcessorManager:
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
     def test_add_callback_initializes_versioned_bundle(self, mock_bundle_manager):
         manager = DagFileProcessorManager(max_runs=1)
-        bundle = MagicMock()
+        bundle = MagicMock(spec=BaseDagBundle)
         bundle.supports_versioning = True
         bundle.path = Path("/tmp/bundle")
         mock_bundle_manager.return_value.get_bundle.return_value = bundle
@@ -1661,7 +1661,7 @@ class TestDagFileProcessorManager:
 
     def test_initialize_callback_bundle_returns_false_when_initialization_fails(self):
         manager = DagFileProcessorManager(max_runs=1)
-        bundle = MagicMock()
+        bundle = MagicMock(spec=BaseDagBundle)
         bundle.supports_versioning = True
         bundle.initialize.side_effect = Exception("clone failed")
 
@@ -1681,7 +1681,7 @@ class TestDagFileProcessorManager:
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
     def test_add_callback_skips_when_bundle_init_fails(self, mock_bundle_manager):
         manager = DagFileProcessorManager(max_runs=1)
-        bundle = MagicMock()
+        bundle = MagicMock(spec=BaseDagBundle)
         bundle.supports_versioning = True
         bundle.initialize.side_effect = Exception("clone failed")
         mock_bundle_manager.return_value.get_bundle.return_value = bundle
