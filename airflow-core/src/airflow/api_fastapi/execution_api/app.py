@@ -38,6 +38,7 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
+from airflow.utils.process_context import override_process_context
 
 if TYPE_CHECKING:
     import httpx
@@ -300,6 +301,17 @@ def get_extra_schemas() -> dict[str, dict]:
     }
 
 
+class _RequestScopedServerContextApp:
+    """Wrap an ASGI app so in-process requests behave like server-side API handling."""
+
+    def __init__(self, app: FastAPI) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        with override_process_context("server"):
+            await self.app(scope, receive, send)
+
+
 @attrs.define()
 class InProcessExecutionAPI:
     """
@@ -313,7 +325,7 @@ class InProcessExecutionAPI:
     _cm: AsyncExitStack | None = None
 
     @cached_property
-    def app(self):
+    def app(self) -> FastAPI:
         if not self._app:
             from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
@@ -344,13 +356,17 @@ class InProcessExecutionAPI:
         return self._app
 
     @cached_property
+    def request_scoped_app(self) -> _RequestScopedServerContextApp:
+        return _RequestScopedServerContextApp(self.app)
+
+    @cached_property
     def transport(self) -> httpx.WSGITransport:
         import asyncio
 
         import httpx
         from a2wsgi import ASGIMiddleware
 
-        middleware = ASGIMiddleware(self.app)
+        middleware = ASGIMiddleware(self.request_scoped_app)
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
@@ -365,4 +381,4 @@ class InProcessExecutionAPI:
     def atransport(self) -> httpx.ASGITransport:
         import httpx
 
-        return httpx.ASGITransport(app=self.app)
+        return httpx.ASGITransport(app=self.request_scoped_app)

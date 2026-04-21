@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import sys
 from unittest import mock
 
 import pytest
@@ -96,6 +97,40 @@ class TestGetConnection:
         assert response.status_code == 200
         assert response.json() == {
             "conn_id": "test_conn2",
+            "conn_type": "http",
+            "host": "localhost",
+            "login": "root",
+            "password": "admin",
+            "schema": "https",
+            "port": 8080,
+            "extra": '{"headers": "header"}',
+        }
+
+    @mock.patch.dict(
+        "os.environ",
+        {
+            "AIRFLOW_CONN_TEST_CONN_SERVER": '{"uri": "http://root:admin@localhost:8080/https?headers=header"}',
+            "_AIRFLOW_PROCESS_CONTEXT": "server",
+        },
+    )
+    def test_connection_get_uses_server_path_when_supervisor_comms_exists(self, client):
+        fake_task_runner = mock.Mock()
+        fake_task_runner.SUPERVISOR_COMMS = object()
+
+        with (
+            mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": fake_task_runner}),
+            mock.patch(
+                "airflow.sdk.Connection.get",
+                side_effect=AssertionError(
+                    "Execution API should not route through Task SDK Connection.get in server context"
+                ),
+            ),
+        ):
+            response = client.get("/execution/connections/test_conn_server")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "conn_id": "test_conn_server",
             "conn_type": "http",
             "host": "localhost",
             "login": "root",

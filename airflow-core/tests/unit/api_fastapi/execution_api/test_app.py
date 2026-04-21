@@ -16,10 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+import sys
+from unittest import mock
+
+import httpx
 import pytest
 
+from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
 from airflow.api_fastapi.execution_api.versions import bundle
+from airflow.utils.process_context import get_process_context, override_process_context
 
 pytestmark = pytest.mark.db_test
 
@@ -111,3 +117,32 @@ class TestCorrelationIdMiddleware:
 
         # Verify they didn't interfere with each other
         assert correlation_id_1 != correlation_id_2
+
+
+def test_in_process_execution_api_uses_request_scoped_server_context(monkeypatch):
+    api = InProcessExecutionAPI()
+    fake_task_runner = mock.Mock()
+    fake_task_runner.SUPERVISOR_COMMS = object()
+
+    monkeypatch.setenv("AIRFLOW_VAR_KEY1", "VALUE")
+
+    with (
+        override_process_context("client"),
+        mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": fake_task_runner}),
+        mock.patch(
+            "airflow.sdk.Variable.get",
+            side_effect=AssertionError(
+                "In-process Execution API requests should not route through Task SDK Variable.get"
+            ),
+        ),
+        httpx.Client(transport=api.transport, base_url="http://in-process.invalid") as client,
+    ):
+        assert get_process_context() == "client"
+
+        response = client.get("/variables/key1")
+
+        assert response.status_code == 200
+        assert response.json() == {"key": "key1", "value": "VALUE"}
+        assert get_process_context() == "client"
+
+    assert get_process_context() is None
