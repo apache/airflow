@@ -56,7 +56,7 @@ from airflow.utils.state import TaskInstanceState
 log = structlog.get_logger(__name__)
 
 
-def _validate_patch_body(
+def _validate_patch_task_instance_body(
     body: PatchTaskInstanceBody,
     update_mask: list[str] | None,
 ) -> dict:
@@ -105,7 +105,7 @@ def _patch_ti_validate_request(
     if len(tis) == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
 
-    data = _validate_patch_body(body, update_mask)
+    data = _validate_patch_task_instance_body(body, update_mask)
     return dag, list(tis), data
 
 
@@ -153,7 +153,7 @@ def _patch_ti_group_validate_request(
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     tis = _get_task_group_task_instances(dag_id, dag_run_id, task_group_id, dag, session)
 
-    data = _validate_patch_body(body, update_mask)
+    data = _validate_patch_task_instance_body(body, update_mask)
     return dag, tis, data
 
 
