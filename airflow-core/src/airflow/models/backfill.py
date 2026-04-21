@@ -100,6 +100,14 @@ class InvalidBackfillDate(AirflowException):
     """
 
 
+class InvalidBackfillConf(AirflowException):
+    """
+    Raised when the provided ``dag_run_conf`` fails validation against the DAG's params.
+
+    :meta private:
+    """
+
+
 class UnknownActiveBackfills(AirflowException):
     """
     Raised when the quantity of active backfills cannot be determined.
@@ -249,6 +257,7 @@ def _validate_backfill_params(
     from_date: datetime,
     to_date: datetime,
     reprocess_behavior: ReprocessBehavior | None,
+    dag_run_conf: dict | None = None,
 ) -> None:
     depends_on_past = any(x.depends_on_past for x in dag.tasks)
     if depends_on_past:
@@ -264,6 +273,11 @@ def _validate_backfill_params(
     current_time = timezone.utcnow()
     if from_date >= current_time and to_date >= current_time:
         raise InvalidBackfillDate("Backfill cannot be executed for future dates.")
+    if dag_run_conf is not None:
+        try:
+            dag.params.deep_merge(dag_run_conf).validate()
+        except ValueError as e:
+            raise InvalidBackfillConf(str(e)) from e
 
 
 def _do_dry_run(
@@ -359,6 +373,7 @@ def _create_backfill_dag_run_non_partitioned(
                     backfill_id=backfill_id,
                     sort_ordinal=backfill_sort_ordinal,
                     run_on_latest=run_on_latest_version,
+                    dag_run_conf=dag_run_conf,
                 )
             else:
                 session.add(
@@ -432,6 +447,10 @@ def _create_backfill_dag_run_partitioned(
     triggering_user_name: str | None,
     session: Session,
 ) -> None:
+    # Partitioned backfills don't currently reprocess existing runs — if a run exists
+    # for this partition, it's recorded as skipped via exception_reason rather than
+    # cleared and re-queued. As a result, this function never calls ``_handle_clear_run``
+    # and therefore doesn't need to forward ``dag_run_conf`` for the reprocess path.
     stmt = _get_latest_dag_run_row_query(dag_id=dag.dag_id, info=info)
     dr = session.scalar(stmt)
     if dr:
@@ -508,6 +527,7 @@ def _handle_clear_run(
     backfill_id: int,
     sort_ordinal: int,
     run_on_latest: bool = False,
+    dag_run_conf: dict | None = None,
 ) -> None:
     """Clear the existing Dag run and update backfill metadata."""
     from sqlalchemy.sql import update
@@ -524,8 +544,8 @@ def _handle_clear_run(
         run_on_latest_version=run_on_latest,
     )
 
-    # Update backfill_id and run_type in DagRun table
-    session.execute(
+    # Update backfill_id, run_type, and optionally conf in DagRun table
+    stmt = (
         update(DagRun)
         .where(DagRun.logical_date == info.logical_date, DagRun.dag_id == dag.dag_id)
         .values(
@@ -534,6 +554,9 @@ def _handle_clear_run(
             triggered_by=DagRunTriggeredByType.BACKFILL,
         )
     )
+    if dag_run_conf is not None:
+        stmt = stmt.values(conf=dag_run_conf)
+    session.execute(stmt)
     session.add(
         BackfillDagRun(
             backfill_id=backfill_id,
@@ -589,7 +612,7 @@ def _create_backfill(
             )
 
         dag = serdag.dag
-        _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior)
+        _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior, dag_run_conf)
 
         br = Backfill(
             dag_id=dag_id,
