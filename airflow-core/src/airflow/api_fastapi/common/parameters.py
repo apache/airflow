@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from datetime import datetime
 from enum import Enum
 from typing import (
@@ -364,14 +364,21 @@ class SortParam(BaseParam[list[str]]):
     def depends(cls, *args: Any, **kwargs: Any) -> Self:
         raise NotImplementedError("Use dynamic_depends, depends not implemented.")
 
-    def dynamic_depends(self, default: str | None = None) -> Callable:
+    def dynamic_depends(self, default: str | Sequence[str] | None = None) -> Callable:
         to_replace_attrs = list(self.to_replace.keys()) if self.to_replace else []
 
         all_attrs = self.allowed_attrs + to_replace_attrs
 
+        if default is None:
+            default_list = [self.get_primary_key_string()]
+        elif isinstance(default, str):
+            default_list = [default]
+        else:
+            default_list = list(default)
+
         def inner(
             order_by: list[str] = Query(
-                default=[default] if default is not None else [self.get_primary_key_string()],
+                default=default_list,
                 description=f"Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. "
                 f"Supported attributes: `{', '.join(all_attrs) if all_attrs else self.get_primary_key_string()}`",
             ),

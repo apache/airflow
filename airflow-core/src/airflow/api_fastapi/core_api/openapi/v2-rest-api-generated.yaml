@@ -5348,6 +5348,26 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lt
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `key, dag_id,
+            run_id, task_id, map_index, timestamp, run_after`'
+          default:
+          - dag_id
+          - task_id
+          - run_id
+          - map_index
+          - key
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `key, dag_id, run_id,
+          task_id, map_index, timestamp, run_after`'
       responses:
         '200':
           description: Successful Response
