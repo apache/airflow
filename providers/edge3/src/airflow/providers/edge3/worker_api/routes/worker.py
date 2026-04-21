@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-import json
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import Body, Depends, HTTPException, Path, status
@@ -26,13 +26,9 @@ from sqlalchemy import select
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.providers.common.compat.sdk import Stats, timezone
-
-try:
-    from airflow.sdk.observability.stats import DualStatsManager
-except ImportError:
-    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, set_metrics
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
     WorkerQueueUpdateBody,
@@ -54,7 +50,7 @@ worker_router = AirflowRouter(
 )
 
 
-def _assert_version(sysinfo: dict[str, str | int]) -> None:
+def _assert_version(sysinfo: dict[str, str | int | float | datetime]) -> None:
     """Check if the Edge Worker version matches the central API site."""
     from airflow import __version__ as airflow_version
     from airflow.providers.edge3 import __version__ as edge_provider_version
@@ -98,6 +94,7 @@ _worker_state_doc = Body(
             "jobs_active": 3,
             "queues": ["large_node", "wisconsin_site"],
             "sysinfo": {
+                "status": 20,
                 "concurrency": 4,
                 "airflow_version": "2.10.0",
                 "edge_provider_version": "1.0.0",
@@ -194,7 +191,7 @@ def register(
         worker.maintenance_comment, body.maintenance_comments
     )
     worker.queues = body.queues
-    worker.sysinfo = json.dumps(body.sysinfo)
+    worker.sysinfo = body.sysinfo
     worker.last_update = timezone.utcnow()
     worker.team_name = body.team_name
     session.add(worker)
@@ -217,10 +214,12 @@ def set_state(
         worker.maintenance_comment, body.maintenance_comments
     )
     worker.jobs_active = body.jobs_active
-    worker.sysinfo = json.dumps(body.sysinfo)
+    worker.sysinfo = body.sysinfo
     worker.last_update = timezone.utcnow()
     session.commit()
-    if DualStatsManager is not None:
+    if AIRFLOW_V_3_2_PLUS:
+        from airflow.sdk.observability.stats import DualStatsManager
+
         DualStatsManager.incr(
             "edge_worker.heartbeat_count",
             1,
@@ -229,15 +228,20 @@ def set_state(
             extra_tags={"worker_name": worker_name},
         )
     else:
+        from airflow.providers.common.compat.sdk import Stats
+
         Stats.incr(f"edge_worker.heartbeat_count.{worker_name}", 1, 1)
         Stats.incr("edge_worker.heartbeat_count", 1, 1, tags={"worker_name": worker_name})
+    concurrency: int = body.sysinfo.get("concurrency", -1)  # type: ignore
+    free_concurrency: int = body.sysinfo.get("free_concurrency", -1)  # type: ignore
     set_metrics(
         worker_name=worker_name,
         state=body.state,
         jobs_active=body.jobs_active,
-        concurrency=int(body.sysinfo.get("concurrency", -1)),
-        free_concurrency=int(body.sysinfo["free_concurrency"]),
+        concurrency=concurrency,
+        free_concurrency=free_concurrency,
         queues=worker.queues,
+        sysinfo=body.sysinfo,
     )
     _assert_version(body.sysinfo)  # Exception only after worker state is in the DB
     return WorkerSetStateReturn(

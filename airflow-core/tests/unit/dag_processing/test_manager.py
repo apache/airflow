@@ -187,6 +187,8 @@ class TestDagFileProcessorManager:
             stdin=write_end,
             logger_filehandle=logger_filehandle,
             client=MagicMock(),
+            bundle_name="testing",
+            dag_file_rel_path="test_dag.py",
         )
         if start_time:
             ret.start_time = start_time
@@ -798,6 +800,32 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(max_runs=1)
         manager.cleanup_stale_bundle_versions()
         mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_called_once_with()
+
+    @pytest.mark.parametrize(
+        ("log_target", "expected_subprocess_logs_to_stdout"),
+        [
+            ("stdout", True),
+            ("file", False),
+        ],
+    )
+    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file")
+    def test_create_process_subprocess_logs_to_stdout(
+        self, mock_get_logger, log_target, expected_subprocess_logs_to_stdout
+    ):
+        mock_logger = MagicMock()
+        mock_filehandle = MagicMock()
+        mock_get_logger.return_value = [mock_logger, mock_filehandle]
+
+        with conf_vars({("logging", "dag_processor_log_target"): log_target}):
+            manager = DagFileProcessorManager(max_runs=1, processor_timeout=60)
+            dag_file = DagFileInfo(
+                bundle_name="testing", rel_path=Path("my_dag.py"), bundle_path=Path("/tmp")
+            )
+            with mock.patch.object(DagFileProcessorProcess, "start") as mock_start:
+                manager._create_process(dag_file)
+
+        _, kwargs = mock_start.call_args
+        assert kwargs["subprocess_logs_to_stdout"] is expected_subprocess_logs_to_stdout
 
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
@@ -1489,10 +1517,12 @@ class TestDagFileProcessorManager:
                     path=Path(dag2_path.bundle_path, dag2_path.rel_path),
                     bundle_path=dag2_path.bundle_path,
                     bundle_name="testing",
+                    dag_file_rel_path=str(dag2_path.rel_path),
                     callbacks=[dag2_req1],
                     selector=mock.ANY,
                     logger=mock_logger,
                     logger_filehandle=mock_filehandle,
+                    subprocess_logs_to_stdout=False,
                     client=mock.ANY,
                 ),
                 mock.call(
@@ -1500,10 +1530,12 @@ class TestDagFileProcessorManager:
                     path=Path(dag1_path.bundle_path, dag1_path.rel_path),
                     bundle_path=dag1_path.bundle_path,
                     bundle_name="testing",
+                    dag_file_rel_path=str(dag1_path.rel_path),
                     callbacks=[dag1_req1, dag1_req2],
                     selector=mock.ANY,
                     logger=mock_logger,
                     logger_filehandle=mock_filehandle,
+                    subprocess_logs_to_stdout=False,
                     client=mock.ANY,
                 ),
             ]
