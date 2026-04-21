@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import textwrap
-from typing import Annotated, Literal, cast
+from typing import Annotated, Literal
 
 import structlog
 from fastapi import Depends, HTTPException, Query, Request, status
@@ -41,6 +41,7 @@ from airflow.api_fastapi.common.db.dag_runs import (
     attach_dag_versions_to_runs,
     eager_load_dag_run_for_list,
 )
+from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -92,7 +93,8 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
 from airflow.models.dag_version import DagVersion
-from airflow.utils.state import DagRunState
+from airflow.models.taskinstance import TaskInstance
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 log = structlog.get_logger(__name__)
@@ -303,25 +305,40 @@ def clear_dag_run(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
     if body.dry_run:
-        task_instances_or_ids = dag.clear(
-            run_id=dag_run_id,
-            task_ids=None,
-            only_new=body.only_new,
-            only_failed=body.only_failed,
-            run_on_latest_version=body.run_on_latest_version,
-            dry_run=True,
-            session=session,
-        )
-
         if body.only_new:
-            # Create lightweight NewTaskResponse objects for new tasks
-            new_task_ids = cast("set[str]", task_instances_or_ids)
+            # Determine "new" tasks by TI existence: a task is new when the latest DAG
+            # version contains it but the current run has no TaskInstance row for it yet.
+            # This is more reliable than the version-comparison approach used by
+            # dag.clear(only_new=True, dry_run=True) which returns an empty set when
+            # created_dag_version_id is None (e.g. LocalDagBundle).
+            latest_dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+            existing_task_ids = set(
+                session.scalars(
+                    select(TaskInstance.task_id).where(
+                        TaskInstance.dag_id == dag_id,
+                        TaskInstance.run_id == dag_run_id,
+                    )
+                ).all()
+            )
+            new_task_ids = sorted(set(latest_dag.task_ids) - existing_task_ids)
             task_instances: list[TaskInstanceResponse | NewTaskResponse] = [
-                NewTaskResponse(task_id=task_id, task_display_name=task_id)
-                for task_id in sorted(new_task_ids)
+                NewTaskResponse(task_id=task_id, task_display_name=task_id) for task_id in new_task_ids
             ]
         else:
-            task_instances = cast("list[TaskInstanceResponse | NewTaskResponse]", task_instances_or_ids)
+            # Query task instances directly with proper eager loading so that all
+            # relationships required by TaskInstanceResponse (dag_run, dag_model,
+            # dag_version, rendered_task_instance_fields) are populated.
+            # dag.clear(dry_run=True) returns raw ORM objects without these joins.
+            ti_query = eager_load_TI_and_TIH_for_validation(select(TaskInstance))
+            ti_query = ti_query.where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == dag_run_id,
+            )
+            if body.only_failed:
+                ti_query = ti_query.where(
+                    TaskInstance.state.in_([TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED])
+                )
+            task_instances = list(session.scalars(ti_query))
 
         return ClearTaskInstanceCollectionResponse(
             task_instances=task_instances,
