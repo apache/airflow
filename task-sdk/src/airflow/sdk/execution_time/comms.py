@@ -64,6 +64,7 @@ import msgspec
 import structlog
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
+from airflow.sdk._shared.workloads import TaskInstanceDTO  # noqa: TC001 -- Pydantic needs this at runtime
 from airflow.sdk.api.datamodels._generated import (
     AssetEventDagRunReference,
     AssetEventResponse,
@@ -79,7 +80,6 @@ from airflow.sdk.api.datamodels._generated import (
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
-    TaskInstance,
     TaskInstanceState,
     TaskStatesResponse,
     TIDeferredStatePayload,
@@ -316,7 +316,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 class StartupDetails(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    ti: TaskInstance
+    ti: TaskInstanceDTO
     dag_rel_path: str
     bundle_info: BundleInfo
     start_date: datetime
