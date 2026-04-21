@@ -148,6 +148,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_variable,
     handle_get_variable_keys,
     handle_get_xcom,
+    handle_get_xcom_count,
     handle_mask_secret,
     handle_put_variable,
     handle_set_xcom,
@@ -1467,8 +1468,6 @@ class ActivitySubprocess(WatchedSubprocess):
             resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, GetXCom):
             resp, dump_opts = handle_get_xcom(self.client, msg)
-        elif isinstance(msg, GetXComCount):
-            resp = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
         elif isinstance(msg, GetXComSequenceItem):
             xcom = self.client.xcoms.get_sequence_item(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
@@ -1551,6 +1550,8 @@ class ActivitySubprocess(WatchedSubprocess):
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, GetPrevSuccessfulDagRun):
             resp, dump_opts = handle_get_prev_successful_dag_run(self.client, self.id)
+        elif isinstance(msg, GetXComCount):
+            resp, dump_opts = handle_get_xcom_count(self.client, msg)
         elif isinstance(msg, TriggerDagRun):
             resp = self.client.dag_runs.trigger(
                 msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.run_after, msg.reset_dag_run, msg.note
