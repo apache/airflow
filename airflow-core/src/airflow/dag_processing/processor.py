@@ -79,6 +79,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_xcom,
     handle_get_xcom_count,
     handle_get_xcom_sequence_item,
+    handle_get_xcom_sequence_slice,
     handle_put_variable,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
@@ -661,17 +662,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         elif isinstance(msg, GetXComSequenceItem):
             resp, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
         elif isinstance(msg, GetXComSequenceSlice):
-            xcoms = self.client.xcoms.get_sequence_slice(
-                msg.dag_id,
-                msg.run_id,
-                msg.task_id,
-                msg.key,
-                msg.start,
-                msg.stop,
-                msg.step,
-                msg.include_prior_dates,
-            )
-            resp = XComSequenceSliceResult.from_response(xcoms)
+            resp, dump_opts = handle_get_xcom_sequence_slice(self.client, msg)
         elif isinstance(msg, MaskSecret):
             # Use sdk masker in dag processor and triggerer because those use the task sdk machinery
             mask_secret(msg.value, msg.name)

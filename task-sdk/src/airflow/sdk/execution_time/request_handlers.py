@@ -54,6 +54,7 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
+    GetXComSequenceSlice,
     MaskSecret,
     PrevSuccessfulDagRunResult,
     PutVariable,
@@ -63,6 +64,7 @@ from airflow.sdk.execution_time.comms import (
     VariableResult,
     XComResult,
     XComSequenceIndexResult,
+    XComSequenceSliceResult,
 )
 from airflow.sdk.log import mask_secret
 
@@ -236,6 +238,23 @@ def handle_get_xcom_sequence_item(
     if isinstance(xcom, XComSequenceIndexResponse):
         return XComSequenceIndexResult.from_response(xcom), {}
     return xcom, {}
+
+
+def handle_get_xcom_sequence_slice(
+    client: Client, msg: GetXComSequenceSlice
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch an XCom sequence slice and normalize it for supervisor response handling."""
+    xcoms = client.xcoms.get_sequence_slice(
+        msg.dag_id,
+        msg.run_id,
+        msg.task_id,
+        msg.key,
+        msg.start,
+        msg.stop,
+        msg.step,
+        msg.include_prior_dates,
+    )
+    return XComSequenceSliceResult.from_response(xcoms), {}
 
 
 def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dict[str, bool]]:

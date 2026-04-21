@@ -128,7 +128,6 @@ from airflow.sdk.execution_time.comms import (
     ToSupervisor,
     TriggerDagRun,
     ValidateInletsAndOutlets,
-    XComSequenceSliceResult,
     _RequestFrame,
     _ResponseFrame,
 )
@@ -148,6 +147,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_xcom,
     handle_get_xcom_count,
     handle_get_xcom_sequence_item,
+    handle_get_xcom_sequence_slice,
     handle_mask_secret,
     handle_put_variable,
     handle_set_xcom,
@@ -1470,17 +1470,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetXComSequenceItem):
             resp, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
         elif isinstance(msg, GetXComSequenceSlice):
-            xcoms = self.client.xcoms.get_sequence_slice(
-                msg.dag_id,
-                msg.run_id,
-                msg.task_id,
-                msg.key,
-                msg.start,
-                msg.stop,
-                msg.step,
-                msg.include_prior_dates,
-            )
-            resp = XComSequenceSliceResult.from_response(xcoms)
+            resp, dump_opts = handle_get_xcom_sequence_slice(self.client, msg)
         elif isinstance(msg, DeferTask):
             self._terminal_state = TaskInstanceState.DEFERRED
             self._rendered_map_index = msg.rendered_map_index
