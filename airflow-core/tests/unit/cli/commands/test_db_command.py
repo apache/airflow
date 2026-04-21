@@ -347,7 +347,7 @@ class TestCliDb:
         )
 
     @pytest.mark.parametrize(
-        "sql_alchemy_conn, expected_cnf",
+        ("sql_alchemy_conn", "expected_cnf"),
         [
             pytest.param(
                 "mysql://root@mysql:3306/airflow",
