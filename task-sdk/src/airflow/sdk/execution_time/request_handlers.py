@@ -38,6 +38,7 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
+    DeleteXCom,
     GetConnection,
     GetPreviousTI,
     GetTaskStates,
@@ -164,6 +165,12 @@ def handle_set_xcom(client: Client, msg: SetXCom) -> tuple[BaseModel | None, dic
         dag_result=msg.dag_result,
         mapped_length=msg.mapped_length,
     )
+    return resp, {}
+
+
+def handle_delete_xcom(client: Client, msg: DeleteXCom) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Delete an XCom value."""
+    resp = client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
     return resp, {}
 
 

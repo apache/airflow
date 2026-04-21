@@ -91,6 +91,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
+    handle_delete_xcom,
     handle_get_connection,
     handle_get_previous_ti,
     handle_get_task_states,
@@ -547,7 +548,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         elif isinstance(msg, PutVariable):
             resp, dump_opts = handle_put_variable(self.client, msg)
         elif isinstance(msg, DeleteXCom):
-            self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+            resp, dump_opts = handle_delete_xcom(self.client, msg)
         elif isinstance(msg, GetXCom):
             resp, dump_opts = handle_get_xcom(self.client, msg)
         elif isinstance(msg, SetXCom):
