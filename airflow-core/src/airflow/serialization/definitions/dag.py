@@ -951,6 +951,23 @@ class SerializedDAG:
     def clear(
         self,
         *,
+        dry_run: Literal[True],
+        task_ids: Collection[str | tuple[str, int]] | None = None,
+        run_id: str,
+        only_failed: bool = False,
+        only_running: bool = False,
+        only_new: bool,
+        dag_run_state: DagRunState = DagRunState.QUEUED,
+        session: Session = NEW_SESSION,
+        exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
+        exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
+    ) -> set[str] | list[TaskInstance]: ...  # pragma: no cover
+
+    @overload
+    def clear(
+        self,
+        *,
         task_ids: Collection[str | tuple[str, int]] | None = None,
         run_id: str,
         only_failed: bool = False,

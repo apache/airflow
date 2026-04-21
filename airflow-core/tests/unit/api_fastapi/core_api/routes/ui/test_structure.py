@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+from unittest import mock
 
 import pendulum
 import pytest
@@ -303,7 +304,7 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
-                6,
+                7,
             ),
             (
                 {
@@ -311,7 +312,7 @@ class TestStructureDataEndpoint:
                     "root": "unknown_task",
                 },
                 {"edges": [], "nodes": []},
-                6,
+                7,
             ),
             (
                 {
@@ -336,7 +337,7 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
-                6,
+                7,
             ),
             (
                 {"dag_id": DAG_ID_EXTERNAL_TRIGGER, "external_dependencies": True},
@@ -375,7 +376,7 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
-                13,
+                14,
             ),
         ],
     )
@@ -572,7 +573,7 @@ class TestStructureDataEndpoint:
             ],
         }
 
-        with assert_queries_count(13):
+        with assert_queries_count(14):
             response = test_client.get("/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
@@ -684,6 +685,24 @@ class TestStructureDataEndpoint:
     def test_delete_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/structure/structure_data", params={"dag_id": DAG_ID})
         assert response.status_code == 403
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        return_value={DAG_ID_EXTERNAL_TRIGGER},
+    )
+    @pytest.mark.usefixtures("make_dags")
+    def test_external_deps_filters_unreadable_dags(self, _, test_client):
+        response = test_client.get(
+            "/structure/structure_data",
+            params={"dag_id": DAG_ID_EXTERNAL_TRIGGER, "external_dependencies": True},
+        )
+        assert response.status_code == 200
+        result = response.json()
+        node_ids = {node["id"] for node in result["nodes"]}
+        assert "trigger_dag_run_operator" in node_ids
+        assert not any(DAG_ID in nid for nid in node_ids if nid != "trigger_dag_run_operator")
+        edge_targets = {edge["target_id"] for edge in result["edges"]}
+        assert not any(DAG_ID in tid for tid in edge_targets)
 
     def test_should_return_404(self, test_client):
         response = test_client.get("/structure/structure_data", params={"dag_id": "not_existing"})

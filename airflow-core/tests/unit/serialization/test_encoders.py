@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+from unittest.mock import AsyncMock
+
 import pytest
 from sqlalchemy import delete
 
@@ -25,29 +28,62 @@ from airflow.serialization.encoders import encode_trigger
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.triggers.base import BaseEventTrigger
 
-pytest.importorskip("airflow.providers.apache.kafka")
-from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTrigger
+
+class _CallableKwargsTrigger(BaseEventTrigger):
+    """Mock trigger whose kwargs include non-primitive types (tuples, dicts, lists).
+
+    This exercises the same serialization edge case as real provider triggers
+    (e.g. Kafka's AwaitMessageTrigger) that pass callable-style kwargs, without
+    requiring the provider to be installed.
+    """
+
+    def __init__(
+        self,
+        topics: tuple[str, ...] | list[str] = (),
+        apply_function: str | None = None,
+        apply_function_args: list[Any] | None = None,
+        apply_function_kwargs: dict[str, Any] | None = None,
+        poll_timeout: float = 1,
+    ) -> None:
+        self.topics = topics
+        self.apply_function = apply_function
+        self.apply_function_args = apply_function_args or ()
+        self.apply_function_kwargs = apply_function_kwargs or {}
+        self.poll_timeout = poll_timeout
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            f"{self.__class__.__module__}.{self.__class__.__qualname__}",
+            {
+                "topics": self.topics,
+                "apply_function": self.apply_function,
+                "apply_function_args": self.apply_function_args,
+                "apply_function_kwargs": self.apply_function_kwargs,
+                "poll_timeout": self.poll_timeout,
+            },
+        )
+
+    run = AsyncMock()
+
 
 # Trigger fixtures covering primitive-only kwargs (FileDeleteTrigger) and
-# non-primitive kwargs like tuple/dict (AwaitMessageTrigger).
+# non-primitive kwargs like tuple/dict (_CallableKwargsTrigger).
 _TRIGGER_PARAMS = [
     pytest.param(
         FileDeleteTrigger(filepath="/tmp/test.txt", poke_interval=5.0),
         id="primitive_kwargs_only",
     ),
-    pytest.param(AwaitMessageTrigger(topics=()), id="empty_tuple"),
+    pytest.param(_CallableKwargsTrigger(topics=()), id="empty_tuple"),
     pytest.param(
-        AwaitMessageTrigger(topics=("fizz_buzz",), poll_timeout=1.0, commit_offset=True),
+        _CallableKwargsTrigger(topics=("fizz_buzz",), poll_timeout=1.0),
         id="single_topic_tuple",
     ),
     pytest.param(
-        AwaitMessageTrigger(
+        _CallableKwargsTrigger(
             topics=["t1", "t2"],
             apply_function="my.module.func",
             apply_function_args=["a", "b"],
             apply_function_kwargs={"key": "value"},
-            kafka_config_id="my_kafka",
-            poll_interval=2,
             poll_timeout=3,
         ),
         id="all_non_primitive_kwargs",
@@ -67,17 +103,14 @@ class TestEncodeTrigger:
 
     def test_encode_from_trigger_object(self):
         """Non-primitive kwargs are properly serialized from a trigger object."""
-        trigger = AwaitMessageTrigger(topics=())
+        trigger = _CallableKwargsTrigger(topics=())
         result = encode_trigger(trigger)
 
-        assert (
-            result["classpath"] == "airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger"
-        )
+        assert result["classpath"].endswith("_CallableKwargsTrigger")
         # tuple kwarg is wrapped by BaseSerialization
         assert result["kwargs"]["topics"] == {Encoding.TYPE: DAT.TUPLE, Encoding.VAR: []}
         # Primitives pass through as-is
         assert result["kwargs"]["poll_timeout"] == 1
-        assert result["kwargs"]["commit_offset"] is True
 
     def test_encode_file_delete_trigger(self):
         """Primitive-only kwargs pass through without wrapping."""

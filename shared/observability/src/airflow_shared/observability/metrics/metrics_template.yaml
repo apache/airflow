@@ -474,6 +474,12 @@ metrics:
     legacy_name: "-"
     name_variables: ["event_type", "operator_name"]
 
+  - name: "edge_worker.status"
+    description: "Edge worker status (expressed as Python logging level)."
+    type: "gauge"
+    legacy_name: "edge_worker.status.{worker_name}"
+    name_variables: ["worker_name"]
+
   - name: "edge_worker.connected"
     description: "Edge worker in state connected."
     type: "gauge"

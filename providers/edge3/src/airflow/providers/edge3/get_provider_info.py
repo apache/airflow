@@ -109,6 +109,13 @@ def get_provider_info():
                         "default": None,
                         "example": None,
                     },
+                    "extended_system_info_function": {
+                        "description": "The function to call to get extended system information for the worker.\n\nThe function must be async and return a ``dict[str, str | int | float | datetime]``.\nThe information will be sent to the central site with each heartbeat and can be used for monitoring\nand debugging purposes. All int and float values will also be published to metric collection systems\nlike statsd or otel.\n\nFunction must be provided as a string with the full path to the function. See\nhttps://github.com/apache/airflow/blob/main/providers/edge3/src/airflow/providers/edge3/cli/example_extended_sysinfo.py\nfor an example implementation.\n",
+                        "version_added": "3.5.0",
+                        "type": "string",
+                        "default": None,
+                        "example": "airflow.providers.edge3.cli.example_extended_sysinfo.get_example_extended_sysinfo",
+                    },
                 },
             }
         },
