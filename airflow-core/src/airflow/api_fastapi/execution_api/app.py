@@ -38,7 +38,7 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
-from airflow.utils.process_context import override_process_context
+from airflow.process_context import override_process_context
 
 if TYPE_CHECKING:
     import httpx
@@ -237,7 +237,7 @@ class CadwynWithOpenAPICustomization(Cadwyn):
         return openapi_schema
 
 
-def create_task_execution_api_app() -> FastAPI:
+def create_task_execution_api_app() -> CadwynWithOpenAPICustomization:
     """Create FastAPI app for task execution API."""
     from airflow.api_fastapi.execution_api.routes import execution_api_router
     from airflow.api_fastapi.execution_api.versions import bundle
@@ -321,11 +321,11 @@ class InProcessExecutionAPI:
     needed so that we can use the sync httpx client
     """
 
-    _app: FastAPI | None = None
+    _app: CadwynWithOpenAPICustomization | None = None
     _cm: AsyncExitStack | None = None
 
     @cached_property
-    def app(self) -> FastAPI:
+    def app(self) -> CadwynWithOpenAPICustomization:
         if not self._app:
             from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken

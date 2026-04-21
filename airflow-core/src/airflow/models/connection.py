@@ -34,9 +34,9 @@ from airflow._shared.secrets_masker import mask_secret
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.process_context import should_use_task_sdk_api_path
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.process_context import should_use_task_sdk_api_path
 from airflow.utils.session import NEW_SESSION, provide_session
 
 log = logging.getLogger(__name__)

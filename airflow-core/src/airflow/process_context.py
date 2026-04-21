@@ -23,6 +23,12 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Literal
 
+__all__ = [
+    "get_process_context",
+    "override_process_context",
+    "should_use_task_sdk_api_path",
+]
+
 _PROCESS_CONTEXT_OVERRIDE: ContextVar[str | None] = ContextVar(
     "_AIRFLOW_PROCESS_CONTEXT_OVERRIDE",
     default=None,

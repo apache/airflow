@@ -25,7 +25,7 @@ import pytest
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
 from airflow.api_fastapi.execution_api.versions import bundle
-from airflow.utils.process_context import get_process_context, override_process_context
+from airflow.process_context import get_process_context, override_process_context
 
 pytestmark = pytest.mark.db_test
 
