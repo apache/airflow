@@ -362,6 +362,15 @@ labelPRBasedOnFilePath:
     - .rat-excludes
     - .readthedocs.yml
 
+  # Apply to PRs touching airflow-ctl code so the release manager notices when a
+  # fix should land on the airflow-ctl/v0-1-test maintenance branch.
+  # Scoped to PRs targeting `main` only.
+  backport-to-airflow-ctl-v0-1-test:
+    paths:
+      - airflow-ctl/**/*
+    targetBranchFilter:
+      - ^main$
+
   kind:documentation:
     - airflow-core/docs/**/*
     - chart/docs/**/*
