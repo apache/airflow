@@ -47,6 +47,7 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     MaskSecret,
     PutVariable,
+    SetXCom,
     TaskStatesResult,
     VariableKeysResult,
     VariableResult,
@@ -147,6 +148,21 @@ def handle_get_previous_ti(client: Client, msg: GetPreviousTI) -> tuple[BaseMode
         logical_date=msg.logical_date,
         map_index=msg.map_index,
         state=msg.state,
+    )
+    return resp, {}
+
+
+def handle_set_xcom(client: Client, msg: SetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Store an XCom value."""
+    resp = client.xcoms.set(
+        msg.dag_id,
+        msg.run_id,
+        msg.task_id,
+        msg.key,
+        msg.value,
+        msg.map_index,
+        dag_result=msg.dag_result,
+        mapped_length=msg.mapped_length,
     )
     return resp, {}
 
