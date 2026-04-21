@@ -32,10 +32,12 @@ from uuid import UUID
 
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
+    DagRunStateResponse,
     TaskStatesResponse,
     VariableResponse,
     XComResponse,
     XComSequenceIndexResponse,
+    XComSequenceSliceResponse,
 )
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
@@ -114,8 +116,8 @@ def handle_mask_secret(msg: MaskSecret) -> None:
 
 def handle_put_variable(client: Client, msg: PutVariable) -> tuple[BaseModel | None, dict[str, bool]]:
     """Store a variable value."""
-    resp = client.variables.set(msg.key, msg.value, msg.description)
-    return resp, {}
+    client.variables.set(msg.key, msg.value, msg.description)
+    return None, {}
 
 
 def handle_delete_variable(client: Client, msg: DeleteVariable) -> tuple[BaseModel | None, dict[str, bool]]:
@@ -167,7 +169,7 @@ def handle_get_previous_ti(client: Client, msg: GetPreviousTI) -> tuple[BaseMode
 
 def handle_set_xcom(client: Client, msg: SetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
     """Store an XCom value."""
-    resp = client.xcoms.set(
+    client.xcoms.set(
         msg.dag_id,
         msg.run_id,
         msg.task_id,
@@ -177,13 +179,13 @@ def handle_set_xcom(client: Client, msg: SetXCom) -> tuple[BaseModel | None, dic
         dag_result=msg.dag_result,
         mapped_length=msg.mapped_length,
     )
-    return resp, {}
+    return None, {}
 
 
 def handle_delete_xcom(client: Client, msg: DeleteXCom) -> tuple[BaseModel | None, dict[str, bool]]:
     """Delete an XCom value."""
-    resp = client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
-    return resp, {}
+    client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+    return None, {}
 
 
 def handle_get_dr_count(client: Client, msg: GetDRCount) -> tuple[BaseModel | None, dict[str, bool]]:
@@ -200,7 +202,9 @@ def handle_get_dr_count(client: Client, msg: GetDRCount) -> tuple[BaseModel | No
 def handle_get_dag_run_state(client: Client, msg: GetDagRunState) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch dag run state."""
     dr_resp = client.dag_runs.get_state(msg.dag_id, msg.run_id)
-    return DagRunStateResult.from_api_response(dr_resp), {}
+    if isinstance(dr_resp, DagRunStateResponse):
+        return DagRunStateResult.from_api_response(dr_resp), {}
+    return dr_resp, {}
 
 
 def handle_get_previous_dag_run(
@@ -254,7 +258,9 @@ def handle_get_xcom_sequence_slice(
         msg.step,
         msg.include_prior_dates,
     )
-    return XComSequenceSliceResult.from_response(xcoms), {}
+    if isinstance(xcoms, XComSequenceSliceResponse):
+        return XComSequenceSliceResult.from_response(xcoms), {}
+    return xcoms, {}
 
 
 def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
