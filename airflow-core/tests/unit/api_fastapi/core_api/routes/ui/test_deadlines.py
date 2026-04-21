@@ -52,7 +52,6 @@ RUN_MULTI = "run_multi"  # 3 deadlines added out-of-order (ordering test)
 RUN_OTHER = "run_other"  # has 1 deadline; used to verify per-run isolation
 
 ALERT_NAME = "SLA Breach Alert"
-ALERT_DESCRIPTION = "Fires when SLA is breached"
 
 _CALLBACK_PATH = "tests.unit.api_fastapi.core_api.routes.ui.test_deadlines._noop_callback"
 
@@ -154,7 +153,6 @@ def setup(dag_maker, session):
     alert = DeadlineAlert(
         serialized_dag_id=serialized_dag.id,
         name=ALERT_NAME,
-        description=ALERT_DESCRIPTION,
         reference=DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference(),
         interval=3600.0,
         callback_def={"path": _CALLBACK_PATH},
@@ -226,7 +224,7 @@ class TestGetDagRunDeadlines:
         assert deadline1["deadline_time"] == "2025-01-01T12:00:00Z"
         assert deadline1["missed"] is False
         assert deadline1["alert_name"] is None
-        assert deadline1["alert_description"] is None
+        assert deadline1["alert_id"] is None
         assert "id" in deadline1
         assert "created_at" in deadline1
 
@@ -237,14 +235,16 @@ class TestGetDagRunDeadlines:
         assert data["total_entries"] == 1
         assert data["deadlines"][0]["missed"] is True
 
-    def test_deadline_with_alert_name_and_description(self, test_client):
+    def test_deadline_with_alert_name(self, test_client, session):
+        alert = session.scalar(select(DeadlineAlert).where(DeadlineAlert.name == ALERT_NAME))
         with assert_queries_count(4):
             response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_ALERT}/deadlines")
         assert response.status_code == 200
         data = response.json()
         assert data["total_entries"] == 1
-        assert data["deadlines"][0]["alert_name"] == ALERT_NAME
-        assert data["deadlines"][0]["alert_description"] == ALERT_DESCRIPTION
+        dl = data["deadlines"][0]
+        assert dl["alert_name"] == ALERT_NAME
+        assert dl["alert_id"] == str(alert.id)
 
     def test_deadlines_ordered_by_deadline_time_ascending(self, test_client):
         with assert_queries_count(4):
