@@ -18,12 +18,30 @@
  */
 import { createListCollection } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
-import ELK, { type ElkNode, type ElkExtendedEdge, type ElkShape } from "elkjs";
+import ELK, { type ElkNode } from "elkjs";
+// ?raw imports the file content as a plain string without any transformation.
+// We create a blob: URL from it so the Worker is always same-origin to the
+// page — avoiding the cross-origin SecurityError that occurs in Airflow's dev
+// setup where Vite (5173) and Flask (28080) run on different ports, and all
+// URL-based worker approaches (?worker, ?worker&inline, new URL()) resolve to
+// the Vite origin which browsers reject for Workers.
+import ElkWorkerSource from "elkjs/lib/elk-worker.min.js?raw";
 import type { TFunction } from "i18next";
 
-import type { EdgeResponse, NodeResponse, StructureDataResponse } from "openapi/requests/types.gen";
+import type { NodeResponse, StructureDataResponse } from "openapi/requests/types.gen";
 
+import { generateElkGraph } from "./elkGraphUtils";
 import { flattenGraph, formatFlowEdges } from "./reactflowUtils";
+
+// Blob URL created once at module load. `type: "classic"` preserves the
+// original CJS environment detection in elk-worker: as a classic script
+// `typeof module === "undefined"`, so the worker sets self.onmessage rather
+// than exporting a FakeWorker.
+const elkWorkerBlobUrl = URL.createObjectURL(new Blob([ElkWorkerSource], { type: "application/javascript" }));
+
+const elk = new ELK({
+  workerFactory: () => new Worker(elkWorkerBlobUrl, { type: "classic" }),
+});
 
 export type Direction = "DOWN" | "LEFT" | "RIGHT" | "UP";
 export const directionOptions = (translate: TFunction) =>
@@ -36,211 +54,7 @@ export const directionOptions = (translate: TFunction) =>
     ],
   });
 
-type EdgeLabel = {
-  height: number;
-  id: string;
-  text: string;
-  width: number;
-};
-
-type FormattedNode = {
-  assetCondition?: NodeResponse["asset_condition_type"];
-  childCount?: number;
-  edges?: Array<FormattedEdge>;
-  isGroup: boolean;
-  isMapped?: boolean;
-  isOpen?: boolean;
-  setupTeardownType?: NodeResponse["setup_teardown_type"];
-} & ElkShape &
-  NodeResponse;
-
-type FormattedEdge = {
-  id: string;
-  isSetupTeardown?: boolean;
-  labels?: Array<EdgeLabel>;
-  parentNode?: string;
-} & ElkExtendedEdge;
-
 export type LayoutNode = ElkNode & NodeResponse;
-
-// Take text and font to calculate how long each node should be
-const getTextWidth = (text: string, font: string) => {
-  const context = document.createElement("canvas").getContext("2d");
-
-  if (context) {
-    context.font = font;
-    const metrics = context.measureText(text);
-
-    return metrics.width > 200 ? metrics.width : 200;
-  }
-
-  const length = text.length * 9;
-
-  return length > 200 ? length : 200;
-};
-
-const formatElkEdge = (edge: EdgeResponse, font: string, node?: NodeResponse): FormattedEdge => ({
-  id: `${edge.source_id}-${edge.target_id}`,
-  isSetupTeardown: edge.is_setup_teardown === null ? undefined : edge.is_setup_teardown,
-  // isSourceAsset: e.isSourceAsset,
-  labels:
-    edge.label === undefined || edge.label === null
-      ? []
-      : [
-          {
-            height: 16,
-            id: edge.label,
-            text: edge.label,
-            width: getTextWidth(edge.label, font),
-          },
-        ],
-  parentNode: node?.id,
-  sources: [edge.source_id],
-  targets: [edge.target_id],
-});
-
-const getNestedChildIds = (children: Array<NodeResponse>) => {
-  let childIds: Array<string> = [];
-
-  children.forEach((child) => {
-    childIds.push(child.id);
-    if (child.children) {
-      const nestedChildIds = getNestedChildIds(child.children);
-
-      childIds = [...childIds, ...nestedChildIds];
-    }
-  });
-
-  return childIds;
-};
-
-type GenerateElkProps = {
-  direction: Direction;
-  edges: Array<EdgeResponse>;
-  font: string;
-  nodes: Array<NodeResponse>;
-  openGroupIds?: Array<string>;
-};
-
-const generateElkGraph = ({
-  direction,
-  edges: unformattedEdges,
-  font,
-  nodes,
-  openGroupIds,
-}: GenerateElkProps): ElkNode => {
-  const closedGroupIds: Array<string> = [];
-  let filteredEdges = unformattedEdges;
-
-  const formatChildNode = (node: NodeResponse): FormattedNode => {
-    const isOpen = openGroupIds?.includes(node.id);
-
-    const childCount = node.children?.filter((child) => child.type !== "join").length ?? 0;
-    const childIds =
-      node.children === null || node.children === undefined ? [] : getNestedChildIds(node.children);
-
-    if (isOpen && node.children !== null && node.children !== undefined) {
-      return {
-        ...node,
-        childCount,
-        children: node.children.map(formatChildNode),
-        edges: filteredEdges
-          .filter((edge) => {
-            if (childIds.includes(edge.source_id) && childIds.includes(edge.target_id)) {
-              // Remove edge from array when we add it here
-              filteredEdges = filteredEdges.filter(
-                (fe) => !(fe.source_id === edge.source_id && fe.target_id === edge.target_id),
-              );
-
-              return true;
-            }
-
-            return false;
-          })
-          .map((edge) => formatElkEdge(edge, font, node)),
-        id: node.id,
-        isGroup: true,
-        isOpen,
-        label: node.label,
-        layoutOptions: {
-          "elk.padding": "[top=80,left=15,bottom=15,right=15]",
-          ...(direction === "RIGHT" ? { "elk.portConstraints": "FIXED_SIDE" } : {}),
-        },
-      };
-    }
-
-    if (!Boolean(isOpen) && node.children !== undefined) {
-      const seenEdges = new Set<string>();
-
-      filteredEdges = filteredEdges
-        // Filter out internal group edges
-        .filter((fe) => !(childIds.includes(fe.source_id) && childIds.includes(fe.target_id)))
-        // For external group edges, point to the group itself instead of a child node
-        .map((fe) => ({
-          ...fe,
-          source_id: childIds.includes(fe.source_id) ? node.id : fe.source_id,
-          target_id: childIds.includes(fe.target_id) ? node.id : fe.target_id,
-        }))
-        // Deduplicate edges based on source_id and target_id composite
-        .filter((fe) => {
-          const edgeKey = `${fe.source_id}-${fe.target_id}`;
-
-          if (seenEdges.has(edgeKey)) {
-            return false;
-          }
-          seenEdges.add(edgeKey);
-
-          return true;
-        });
-      closedGroupIds.push(node.id);
-    }
-
-    const label = `${node.label}${node.is_mapped ? "[1000]" : ""}${node.children ? ` + ${node.children.length} tasks` : ""}`;
-    let width = getTextWidth(label, font);
-    const hasStateBar = Boolean(node.is_mapped) || Boolean(node.children);
-    let height = hasStateBar ? 90 : 80;
-
-    if (node.type === "join") {
-      width = 10;
-      height = 10;
-    } else if (node.type === "asset-condition") {
-      width = 30;
-      height = 30;
-    }
-
-    return {
-      assetCondition: node.asset_condition_type,
-      childCount,
-      height,
-      id: node.id,
-      isGroup: Boolean(node.children),
-      isMapped: node.is_mapped === null ? undefined : node.is_mapped,
-      label: node.label,
-      layoutOptions: direction === "RIGHT" ? { "elk.portConstraints": "FIXED_SIDE" } : undefined,
-      operator: node.operator,
-      setupTeardownType: node.setup_teardown_type,
-      tooltip: node.tooltip,
-      type: node.type,
-      width,
-    };
-  };
-
-  const children = nodes.map(formatChildNode);
-
-  const edges = filteredEdges.map((fe) => formatElkEdge(fe, font));
-
-  return {
-    children: children as Array<ElkNode>,
-    edges,
-    id: "root",
-    layoutOptions: {
-      "elk.core.options.EdgeLabelPlacement": "CENTER",
-      "elk.direction": direction,
-      hierarchyHandling: "INCLUDE_CHILDREN",
-      "spacing.edgeLabel": "10.0",
-    },
-  };
-};
 
 type LayoutProps = {
   direction: Direction;
@@ -258,7 +72,6 @@ export const useGraphLayout = ({
   useQuery({
     queryFn: async () => {
       const font = `bold 18px ${globalThis.getComputedStyle(document.body).fontFamily}`;
-      const elk = new ELK();
 
       // 1. Format graph data to pass for elk to process
       const graph = generateElkGraph({
@@ -277,10 +90,18 @@ export const useGraphLayout = ({
         children: (data.children ?? []) as Array<LayoutNode>,
       });
 
-      // merge & dedupe edges
-      const flatEdges = [...(data.edges ?? []), ...flattenedData.edges].filter(
-        (value, index, self) => index === self.findIndex((edge) => edge.id === value.id),
-      );
+      // merge & dedupe edges — O(n) via Map (first occurrence wins) rather than
+      // O(n²) findIndex. Root-level edges from ELK come first; child edges from
+      // flattenedData are skipped when the same id is already present.
+      const seenEdgeIds = new Set<string>();
+      const flatEdges = [...(data.edges ?? []), ...flattenedData.edges].filter((edge) => {
+        if (seenEdgeIds.has(edge.id)) {
+          return false;
+        }
+        seenEdgeIds.add(edge.id);
+
+        return true;
+      });
 
       const formattedEdges = formatFlowEdges({ edges: flatEdges });
 

@@ -92,7 +92,8 @@
     "otherDagRuns": "+Other Dag Runs",
     "taskCount_one": "{{count}} Task",
     "taskCount_other": "{{count}} Tasks",
-    "taskGroup": "Task Group"
+    "taskGroup": "Task Group",
+    "zoomToTask": "Zoom to selected task"
   },
   "limitedList": "+{{count}} more",
   "limitedList.allItems": "All {{count}} items:",
