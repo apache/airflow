@@ -128,3 +128,23 @@ class TestSearchParam:
         assert "OR" in sql
         assert "example_bash" in sql
         assert "example_python" in sql
+
+    def test_to_orm_pipe_with_trailing_pipe(self):
+        """Test that a trailing pipe is ignored and only the valid term is searched."""
+        param = _SearchParam(DagModel.dag_id).set_value("example_bash|")
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = str(statement.compile(compile_kwargs={"literal_binds": True}))
+        assert "example_bash" in sql
+        assert "|" not in sql
+
+    def test_to_orm_pipe_with_leading_pipe(self):
+        """Test that a leading pipe is ignored and only the valid term is searched."""
+        param = _SearchParam(DagModel.dag_id).set_value("|example_bash")
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = str(statement.compile(compile_kwargs={"literal_binds": True}))
+        assert "example_bash" in sql
+        assert "|" not in sql

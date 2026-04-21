@@ -185,7 +185,7 @@ class _SearchParam(BaseParam[str]):
         val_str = str(self.value)
         if "|" in val_str:
             search_terms = [term.strip() for term in val_str.split("|") if term.strip()]
-            if len(search_terms) > 1:
+            if search_terms:
                 return select.where(or_(*(self.attribute.ilike(f"%{term}%") for term in search_terms)))
 
         return select.where(self.attribute.ilike(f"%{self.value}%"))
