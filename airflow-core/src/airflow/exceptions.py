@@ -37,6 +37,7 @@ try:
         AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
         AirflowRescheduleException as AirflowRescheduleException,
         AirflowTimetableInvalid as AirflowTimetableInvalid,
+        TaskItemNotFound as TaskItemNotFound,
         TaskNotFound as TaskNotFound,
     )
 except ModuleNotFoundError:
@@ -53,6 +54,12 @@ except ModuleNotFoundError:
 
     class TaskNotFound(AirflowException):  # type: ignore[no-redef]
         """Raise when a Task is not available in the system."""
+
+    class TaskItemNotFound(TaskNotFound, KeyError):  # type: ignore[no-redef]
+        """Raise when attempting to access an invalid task using [] notation."""
+
+        def __str__(self) -> str:
+            return str(self.args[0]) if self.args else ""
 
     class AirflowRescheduleException(AirflowException):  # type: ignore[no-redef]
         """

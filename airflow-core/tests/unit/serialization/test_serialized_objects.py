@@ -1037,3 +1037,40 @@ class TestKubernetesImportAvoidance:
         result = _has_kubernetes()
 
         assert result is True
+
+
+@pytest.mark.db_test
+def test_serialized_dag_getitem_returns_task(dag_maker):
+    from airflow.serialization.definitions.dag import SerializedDAG
+
+    with dag_maker() as dag:
+        BashOperator(task_id="my_task", bash_command="echo 1")
+
+    ser_dict = DagSerialization.to_dict(dag)
+    ser_dag = DagSerialization.from_dict(ser_dict)
+    assert isinstance(ser_dag, SerializedDAG)
+    assert ser_dag["my_task"].task_id == "my_task"
+
+
+@pytest.mark.db_test
+def test_serialized_dag_getitem_missing_raises_task_item_not_found(dag_maker):
+    from airflow.exceptions import TaskItemNotFound
+
+    with dag_maker() as dag:
+        BashOperator(task_id="my_task", bash_command="echo 1")
+
+    ser_dict = DagSerialization.to_dict(dag)
+    ser_dag = DagSerialization.from_dict(ser_dict)
+    with pytest.raises(TaskItemNotFound):
+        ser_dag["nonexistent"]
+
+
+@pytest.mark.db_test
+def test_serialized_dag_getitem_missing_is_key_error(dag_maker):
+    with dag_maker() as dag:
+        BashOperator(task_id="my_task", bash_command="echo 1")
+
+    ser_dict = DagSerialization.to_dict(dag)
+    ser_dag = DagSerialization.from_dict(ser_dict)
+    with pytest.raises(KeyError):
+        ser_dag["nonexistent"]

@@ -330,6 +330,13 @@ class TaskNotFound(AirflowException):
     """Raise when a Task is not available in the system."""
 
 
+class TaskItemNotFound(TaskNotFound, KeyError):
+    """Raise when attempting to access an invalid task using [] notation."""
+
+    def __str__(self) -> str:
+        return str(self.args[0]) if self.args else ""
+
+
 class TaskAlreadyRunningError(AirflowException):
     """Raised when a task is already running on another worker."""
 

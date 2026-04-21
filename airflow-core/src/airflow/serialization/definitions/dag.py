@@ -32,7 +32,7 @@ from sqlalchemy import func, or_, select, tuple_
 
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, TaskNotFound
+from airflow.exceptions import AirflowException, TaskItemNotFound, TaskNotFound
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -245,6 +245,13 @@ class SerializedDAG:
         if task_id in self.task_dict:
             return self.task_dict[task_id]
         raise TaskNotFound(f"Task {task_id} not found")
+
+    def __getitem__(self, task_id: str) -> SerializedOperator:
+        """Return a task by its fully-qualified task_id."""
+        try:
+            return self.get_task(task_id)
+        except TaskNotFound:
+            raise TaskItemNotFound(f"Task {task_id!r} not found")
 
     @property
     def task_group_dict(self):

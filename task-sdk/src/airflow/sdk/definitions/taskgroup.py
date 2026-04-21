@@ -34,6 +34,7 @@ from airflow.sdk.exceptions import (
     AirflowDagCycleException,
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
+    TaskItemNotFound,
 )
 
 if TYPE_CHECKING:
@@ -140,10 +141,6 @@ class TaskGroup(DAGNode):
     def _validate_dag(self, _attr, dag):
         if not dag:
             raise RuntimeError("TaskGroup can only be used inside a dag")
-
-    def __getitem__(self, key: str) -> DAGNode:
-        """Return a child node by label via ``tg[label]`` syntax. See `get_child_by_label`."""
-        return self.get_child_by_label(key)
 
     def __attrs_post_init__(self):
         # TODO: If attrs supported init only args we could use that here
@@ -495,6 +492,12 @@ class TaskGroup(DAGNode):
     def get_child_by_label(self, label: str) -> DAGNode:
         """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)."""
         return self.children[self.child_id(label)]
+
+    def __getitem__(self, label: str) -> DAGNode:
+        try:
+            return self.get_child_by_label(label)
+        except KeyError:
+            raise TaskItemNotFound(f"Task {label!r} not found")
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Serialize task group; required by DagNode."""

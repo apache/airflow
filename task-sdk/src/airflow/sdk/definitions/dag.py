@@ -57,6 +57,7 @@ from airflow.sdk.exceptions import (
     FailFastDagInvalidTriggerRule,
     ParamValidationError,
     RemovedInAirflow4Warning,
+    TaskItemNotFound,
     TaskNotFound,
 )
 
@@ -1031,6 +1032,13 @@ class DAG:
         if task_id in self.task_dict:
             return self.task_dict[task_id]
         raise TaskNotFound(f"Task {task_id} not found")
+
+    def __getitem__(self, task_id: str) -> Operator:
+        """Return a task by its fully-qualified task_id. Use TaskGroup.__getitem__ to access groups."""
+        try:
+            return self.get_task(task_id)
+        except TaskNotFound:
+            raise TaskItemNotFound(f"Task {task_id!r} not found")
 
     @property
     def task(self) -> TaskDecoratorCollection:
