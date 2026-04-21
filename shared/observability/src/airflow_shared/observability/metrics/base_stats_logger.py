@@ -112,7 +112,7 @@ class NoStatsLogger:
     def gauge(
         cls,
         stat: str,
-        value: int,
+        value: float,
         rate: int = 1,
         delta: bool = False,
         *,

@@ -41,7 +41,7 @@ _factory: Callable[[], StatsLogger | NoStatsLogger] | None = None
 _backend: StatsLogger | NoStatsLogger | None = None
 _instance_pid: int | None = None
 _export_legacy_names: bool = True
-_registry: MetricsRegistry = MetricsRegistry()
+_registry: MetricsRegistry | None = None
 
 
 def normalize_name_for_stats(name: str, log_warning: bool = True) -> str:
@@ -111,6 +111,14 @@ def _get_backend() -> StatsLogger | NoStatsLogger:
     return _backend
 
 
+def _get_registry() -> MetricsRegistry:
+    """Initialize the registry on first use to avoid import-time file I/O."""
+    global _registry
+    if _registry is None:
+        _registry = MetricsRegistry()
+    return _registry
+
+
 def _get_legacy_stat(stat: str, variables: dict[str, Any]) -> str | None:
     """
     Look up and format the legacy name for a metric from the registry.
@@ -118,7 +126,7 @@ def _get_legacy_stat(stat: str, variables: dict[str, Any]) -> str | None:
     Returns the formatted legacy name, or None if the metric has no legacy name.
     Raises ValueError if the metric is not in the registry or required variables are missing.
     """
-    stat_from_registry = _registry.get(name=stat)
+    stat_from_registry = _get_registry().get(name=stat)
 
     if not stat_from_registry:
         raise ValueError(
