@@ -27,15 +27,12 @@ if TYPE_CHECKING:
     from opensearchpy import Connection as OpenSearchConnectionClass
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
-from airflow.utils.strings import to_boolean
 
 
 class OpenSearchClientArguments(TypedDict, total=False):
     """Typed arguments to the open search client."""
 
     hosts: str | list[dict] | None
-    use_ssl: bool
-    verify_certs: bool
     connection_class: type[OpenSearchConnectionClass] | None
     http_auth: tuple[str, str]
 
@@ -64,8 +61,6 @@ class OpenSearchHook(BaseHook):
         self.conn_id = open_search_conn_id
         self.log_query = log_query
 
-        self.use_ssl = to_boolean(str(self.conn.extra_dejson.get("use_ssl", False)))
-        self.verify_certs = to_boolean(str(self.conn.extra_dejson.get("verify_certs", False)))
         self.connection_class = open_search_conn_class
         self.__SERVICE = "es"
 
@@ -78,12 +73,13 @@ class OpenSearchHook(BaseHook):
         """This function is intended for Operators that forward high level client objects."""
         client_args: OpenSearchClientArguments = dict(
             hosts=[{"host": self.conn.host, "port": self.conn.port}],
-            use_ssl=self.use_ssl,
-            verify_certs=self.verify_certs,
             connection_class=self.connection_class,
         )
         if self.conn.login and self.conn.password:
             client_args["http_auth"] = (self.conn.login, self.conn.password)
+
+        client_args.update(self.conn.extra_dejson)
+
         client = OpenSearch(**client_args)
         return client
 
