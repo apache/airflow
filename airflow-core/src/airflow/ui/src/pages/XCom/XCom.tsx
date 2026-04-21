@@ -54,7 +54,6 @@ type ColumnsProps = {
 const getColumns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResponse>> => [
   {
     accessorKey: "key",
-    enableSorting: false,
     header: translate("xcom.columns.key"),
   },
   {
@@ -64,7 +63,6 @@ const getColumns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResp
         <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_display_name}</RouterLink>
       </Link>
     ),
-    enableSorting: false,
     header: translate("xcom.columns.dag"),
   },
   {
@@ -76,7 +74,6 @@ const getColumns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResp
         </RouterLink>
       </Link>
     ),
-    enableSorting: false,
     header: translate("common:dagRunId"),
   },
   {
@@ -88,7 +85,6 @@ const getColumns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResp
         </RouterLink>
       </Link>
     ),
-    enableSorting: false,
     header: translate("common:dagRun.runAfter"),
   },
   {
@@ -107,18 +103,15 @@ const getColumns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResp
         </RouterLink>
       </Link>
     ),
-    enableSorting: false,
     header: translate("common:task_one"),
   },
   {
     accessorKey: "map_index",
-    enableSorting: false,
     header: translate("common:mapIndex"),
   },
   {
     accessorKey: "timestamp",
     cell: ({ row: { original } }) => <Time datetime={original.timestamp} />,
-    enableSorting: false,
     header: translate("dashboard:timestamp"),
   },
   {
@@ -152,7 +145,11 @@ export const XCom = () => {
   const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
   const { t: translate } = useTranslation(["browse", "common"]);
   const { setTableURLState, tableURLState } = useTableURLState();
-  const { pagination } = tableURLState;
+  const { pagination, sorting } = tableURLState;
+  const [sort] = sorting;
+  const orderBy = sort
+    ? [`${sort.desc ? "-" : ""}${sort.id === "task_display_name" ? "task_id" : sort.id}`]
+    : undefined;
   const [searchParams] = useSearchParams();
   const { onClose, onOpen, open } = useDisclosure();
 
@@ -182,6 +179,7 @@ export const XCom = () => {
           ? undefined
           : parseInt(mapIndex, 10),
     offset: pagination.pageIndex * pagination.pageSize,
+    orderBy,
     runAfterGte: runAfterGte ?? undefined,
     runAfterLte: runAfterLte ?? undefined,
     runIdPattern: filteredRunId ?? undefined,
