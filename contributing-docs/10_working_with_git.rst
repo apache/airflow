@@ -75,6 +75,38 @@ way to sync your fork in GitHub's web UI with the `Fetch upstream feature
 This will force-push the ``main`` branch from ``apache/airflow`` to the ``main`` branch
 in your fork. Note that in case you modified the main in your fork, you might loose those changes.
 
+Syncing multiple branches with the helper script
+------------------------------------------------
+
+If you also backport to the current release branch (for example ``v3-2-test``) you usually
+want to keep more than one branch of your fork in sync with upstream. The
+``dev/sync_fork.sh`` helper does that in one go — it fetches ``upstream`` and force-pushes
+each listed branch from ``upstream/<branch>`` directly to ``origin/<branch>`` without
+touching your local working tree or checked-out branch.
+
+.. warning::
+
+   The script uses ``git push --force`` and will **overwrite** the listed branches
+   on your fork. By default it targets ``main`` and the current release branch
+   (currently ``v3-2-test``). Any commits you have on those branches in your fork
+   that are not in upstream will be lost. If you keep work on those branches,
+   commit it to a different branch first.
+
+Assumes your remotes are named ``upstream`` (for ``apache/airflow``) and ``origin``
+(for your fork). Override with the ``UPSTREAM_REMOTE`` and ``ORIGIN_REMOTE``
+environment variables if yours are named differently.
+
+.. code-block:: console
+
+    # Sync the default branches (main and the current release branch)
+    ./dev/sync_fork.sh
+
+    # Sync only main
+    ./dev/sync_fork.sh main
+
+    # Sync a specific set of branches
+    ./dev/sync_fork.sh main v3-2-test v3-1-test
+
 
 How to rebase PR
 ================

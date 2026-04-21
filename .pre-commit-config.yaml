@@ -31,7 +31,7 @@ repos:
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: 8c02ba71e7e9c5c90d85f05b676523cb8fd897c6  # frozen: v2.4.0
+    rev: d77825acdc8ca194308680fa4f8385ae5bb61cb4  # frozen: v2.4.1
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -235,6 +235,18 @@ repos:
           ^pyproject\.toml$
         pass_filenames: false
         require_serial: true
+      - id: sync-uv-min-version-markers
+        name: Sync `# sync-uv-min-version` markers with [tool.uv] required-version
+        entry: ./scripts/ci/prek/sync_uv_min_version_markers.py
+        language: python
+        # Hook reads pyproject.toml itself; the file list selects places that may carry
+        # the `# sync-uv-min-version` marker. Any new test/file using the marker should
+        # be added here.
+        files: >
+          (?x)
+          ^pyproject\.toml$|
+          ^dev/breeze/tests/test_environment_check\.py$
+        require_serial: true
       - id: check-distribution-gitignore
         name: Check distribution .gitignore files have *.iml
         entry: ./scripts/ci/prek/check_distribution_gitignore.py
@@ -376,7 +388,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 0703f40666c15722d5402120b1bbd61bc3503772  # frozen: v1.24.0
+    rev: a4727cbbcd26d7098e96b9cb738169b59711ae51  # frozen: v1.24.1
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
