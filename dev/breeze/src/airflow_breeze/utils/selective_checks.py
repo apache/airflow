@@ -1838,6 +1838,11 @@ class SelectiveChecks:
     @cached_property
     def provider_dependency_bump(self) -> bool:
         """Check for apache-airflow-providers dependency bumps in pyproject.toml files."""
+        # Only enforce on PRs targeting main. On release branches (e.g. v3-X-test)
+        # cherry-picks routinely bump provider dependency lower bounds, and the
+        # override label is meant for that flow on main.
+        if self._default_branch != "main":
+            return False
         pyproject_files = self._matching_files(
             FileGroupForCi.ALL_PYPROJECT_TOML_FILES,
             CI_FILE_GROUP_MATCHES,
@@ -2064,6 +2069,11 @@ class SelectiveChecks:
         comment for their common-compat dependency.
         """
         if self._github_event != GithubEvents.PULL_REQUEST:
+            return False
+        # Only enforce on PRs targeting main. On release branches (e.g. v3-X-test)
+        # cherry-picked common.compat changes don't follow the '# use next version'
+        # convention, and the override label is meant for that flow on main.
+        if self._default_branch != "main":
             return False
 
         if not self._has_common_compat_changed():

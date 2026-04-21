@@ -31,10 +31,14 @@ import {
   PanelGroup,
   PanelResizeHandle,
 } from "react-resizable-panels";
-import { Outlet, useParams } from "react-router-dom";
+import { Outlet, useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import { useDagServiceGetDag, useDagWarningServiceListDagWarnings } from "openapi/queries";
+import {
+  useDagRunServiceGetDagRun,
+  useDagServiceGetDag,
+  useDagWarningServiceListDagWarnings,
+} from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { DAGWarningsModal } from "src/components/DAGWarningsModal";
@@ -44,19 +48,12 @@ import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
 import { Tooltip } from "src/components/ui/Tooltip";
 import type { DagView } from "src/constants/dagView";
-import {
-  dagRunsLimitKey,
-  dagRunStateFilterKey,
-  dagViewKey,
-  DEFAULT_DAG_VIEW_KEY,
-  runAfterGteKey,
-  runAfterLteKey,
-  runTypeFilterKey,
-  triggeringUserFilterKey,
-} from "src/constants/localStorage";
+import { DEFAULT_DAG_VIEW_KEY } from "src/constants/localStorage";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { HoverProvider, useHover } from "src/context/hover";
 import { OpenGroupsProvider } from "src/context/openGroups";
+import { useGridRuns } from "src/queries/useGridRuns.ts";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
@@ -102,24 +99,9 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { t: translate } = useTranslation();
   const { dagId = "", runId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
-  const [defaultDagView] = useLocalStorage<"graph" | "grid">(DEFAULT_DAG_VIEW_KEY, "grid");
+  const [dagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
   const panelGroupRef = useRef<ImperativePanelGroupHandle | null>(null);
-  const [dagView, setDagView] = useLocalStorage<DagView>(dagViewKey(dagId), defaultDagView);
-  const [limit, setLimit] = useLocalStorage(dagRunsLimitKey(dagId), 10);
-  const [runAfterGte, setRunAfterGte] = useLocalStorage<string | undefined>(runAfterGteKey(dagId), undefined);
-  const [runAfterLte, setRunAfterLte] = useLocalStorage<string | undefined>(runAfterLteKey(dagId), undefined);
-  const [runTypeFilter, setRunTypeFilter] = useLocalStorage<DagRunType | undefined>(
-    runTypeFilterKey(dagId),
-    undefined,
-  );
-  const [triggeringUserFilter, setTriggeringUserFilter] = useLocalStorage<string | undefined>(
-    triggeringUserFilterKey(dagId),
-    undefined,
-  );
-  const [dagRunStateFilter, setDagRunStateFilter] = useLocalStorage<DagRunState | undefined>(
-    dagRunStateFilterKey(dagId),
-    undefined,
-  );
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Global setting: applies to all Dags (intentionally not scoped to dagId)
   const [showVersionIndicatorMode, setShowVersionIndicatorMode] = useLocalStorage(
@@ -127,12 +109,101 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
     VersionIndicatorOptions.ALL,
   );
 
-  // Reset to grid when there is no runId. Remove this when we do gantt averages
+  // Helper that updates a single search param without touching the rest.
+  // Uses replace so filter tweaks don't pollute browser history.
+  const setParam = (key: string, value: string | undefined) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+
+        if (value === undefined) {
+          next.delete(key);
+        } else {
+          next.set(key, value);
+        }
+
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  // --- Read state from URL ---
+  const limit = Number(searchParams.get(SearchParamsKeys.LIMIT) ?? "10");
+  const runAfterGte = searchParams.get(SearchParamsKeys.RUN_AFTER_GTE) ?? undefined;
+  const runAfterLte = searchParams.get(SearchParamsKeys.RUN_AFTER_LTE) ?? undefined;
+  const runTypeFilter = (searchParams.get(SearchParamsKeys.RUN_TYPE) as DagRunType | null) ?? undefined;
+  const triggeringUserFilter = searchParams.get(SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN) ?? undefined;
+  const dagRunStateFilter = (searchParams.get(SearchParamsKeys.STATE) as DagRunState | null) ?? undefined;
+
+  // --- Setters that write back to URL ---
+  const setLimit = (value: number) => setParam(SearchParamsKeys.LIMIT, String(value));
+  // Only LTE is needed directly: ceiling logic and jump-to-latest both touch it.
+  // GTE and the filter params (state, run_type, triggering_user) are managed by GridFilters/FilterBar.
+  const setRunAfterLte = (value: string | undefined) => setParam(SearchParamsKeys.RUN_AFTER_LTE, value);
+
+  // Reset to grid when there is no runId. Remove this when we do gantt averages.
   useEffect(() => {
     if (!Boolean(runId) && dagView === "gantt") {
       setDagView("grid");
     }
-  }, [runId, dagView, setDagView]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId, dagView]);
+
+  // Transient pagination offset — reset whenever the user changes filters
+  const [offset, setOffset] = useState(0);
+
+  // Guard so the run_after_lte ceiling is set at most once on initial load —
+  // navigating between runs after the page has loaded should never shift the grid window.
+  const runAfterLteSetRef = useRef(false);
+
+  const noDateFilters = runAfterGte === undefined && runAfterLte === undefined;
+
+  // Initial grid page (no date ceiling) — loaded first so we can check whether
+  // the selected run is already visible before fetching it individually.
+  const { data: initialGridRuns } = useGridRuns({
+    dagRunState: dagRunStateFilter,
+    limit,
+    runType: runTypeFilter,
+    triggeringUser: triggeringUserFilter,
+  });
+
+  // Whether the selected run is absent from the initial grid page and we don't
+  // yet have a ceiling set. Only true once initialGridRuns has loaded.
+  const runMissingFromGrid =
+    Boolean(runId) &&
+    noDateFilters &&
+    !runAfterLteSetRef.current &&
+    initialGridRuns !== undefined &&
+    !initialGridRuns.some((dr) => dr.run_id === runId);
+
+  // Only fetch the individual dag run once we know it isn't already visible.
+  const { data: selectedDagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId ?? "" }, undefined, {
+    enabled: runMissingFromGrid,
+  });
+
+  // Once we have the run's run_after, write it into the URL as the ceiling.
+  // Both deps are needed: dag_run_id so we react when the fetch resolves,
+  // runMissingFromGrid so we react when initialGridRuns loads and confirms
+  // the run is absent (handles the case where selectedDagRun is already cached).
+  useEffect(() => {
+    if (selectedDagRun && runMissingFromGrid) {
+      runAfterLteSetRef.current = true;
+      setRunAfterLte(selectedDagRun.run_after);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDagRun?.dag_run_id, runMissingFromGrid]);
+
+  // Reset offset whenever URL filters change so we start from the top of the new window.
+  useEffect(() => {
+    setOffset(0);
+  }, [runAfterGte, runAfterLte, runTypeFilter, dagRunStateFilter, triggeringUserFilter, limit]);
+
+  // Jump to the very latest runs: clear the URL ceiling and reset offset.
+  const handleJumpToLatest = () => {
+    setOffset(0);
+    setRunAfterLte(undefined);
+  };
 
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
@@ -200,23 +271,13 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
             >
               <Flex flexDirection="column" height="100%">
                 <PanelButtons
-                  dagRunStateFilter={dagRunStateFilter}
                   dagView={dagView}
                   limit={limit}
                   panelGroupRef={panelGroupRef}
-                  runAfterGte={runAfterGte}
-                  runAfterLte={runAfterLte}
-                  runTypeFilter={runTypeFilter}
-                  setDagRunStateFilter={setDagRunStateFilter}
                   setDagView={setDagView}
                   setLimit={setLimit}
-                  setRunAfterGte={setRunAfterGte}
-                  setRunAfterLte={setRunAfterLte}
-                  setRunTypeFilter={setRunTypeFilter}
                   setShowVersionIndicatorMode={setShowVersionIndicatorMode}
-                  setTriggeringUserFilter={setTriggeringUserFilter}
                   showVersionIndicatorMode={showVersionIndicatorMode}
-                  triggeringUserFilter={triggeringUserFilter}
                 />
                 <Box flex={1} minH={0} overflow="hidden">
                   {dagView === "graph" ? (
@@ -227,9 +288,12 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                         <Grid
                           dagRunState={dagRunStateFilter}
                           limit={limit}
+                          offset={offset}
+                          onJumpToLatest={handleJumpToLatest}
                           runAfterGte={runAfterGte}
                           runAfterLte={runAfterLte}
                           runType={runTypeFilter}
+                          setOffset={setOffset}
                           sharedScrollContainerRef={sharedGridGanttScrollRef}
                           showGantt
                           showVersionIndicatorMode={showVersionIndicatorMode}
@@ -238,6 +302,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                         <Gantt
                           dagRunState={dagRunStateFilter}
                           limit={limit}
+                          offset={offset}
                           runAfterGte={runAfterGte}
                           runAfterLte={runAfterLte}
                           runType={runTypeFilter}
@@ -259,9 +324,12 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                       <Grid
                         dagRunState={dagRunStateFilter}
                         limit={limit}
+                        offset={offset}
+                        onJumpToLatest={handleJumpToLatest}
                         runAfterGte={runAfterGte}
                         runAfterLte={runAfterLte}
                         runType={runTypeFilter}
+                        setOffset={setOffset}
                         showVersionIndicatorMode={showVersionIndicatorMode}
                         triggeringUser={triggeringUserFilter}
                       />

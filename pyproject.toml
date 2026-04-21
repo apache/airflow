@@ -18,7 +18,7 @@
 [build-system]
 requires = [
     "hatchling==1.29.0",
-    "packaging==26.0",
+    "packaging==26.1",
     "pathspec==1.0.4",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
@@ -547,7 +547,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.6",
+    "uv>=0.11.7",
 ]
 
 [project.urls]
@@ -1349,6 +1349,11 @@ leveldb = [
 ]
 
 [tool.uv]
+# Bump this only when the project actually relies on a newer uv feature/fix. It is a
+# minimum contributors must install, NOT the uv CI pins to — keeping it in lockstep
+# with AIRFLOW_UV_VERSION would force everyone to upgrade uv on every release. The
+# breeze/prek uv version checks read this value dynamically and tolerate a stale
+# floor; `scripts/ci/prek/upgrade_important_versions.py` deliberately skips it.
 required-version = ">=0.9.17"
 no-build-isolation-package = ["sphinx-redoc"]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
