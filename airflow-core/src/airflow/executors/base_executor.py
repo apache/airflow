@@ -24,7 +24,7 @@ from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import pendulum
 
@@ -172,6 +172,11 @@ class BaseExecutor(LoggingMixin):
 
     is_local: bool = False
     is_production: bool = True
+
+    # When True, the scheduler pre-assigns external_executor_id (a UUID) at queuing time,
+    # committed atomically with the QUEUED state. The executor can then use this ID to
+    # correlate the task with its external representation (e.g. Celery task_id).
+    pre_assigns_external_executor_id: ClassVar[bool] = False
 
     serve_logs: bool = False
 
