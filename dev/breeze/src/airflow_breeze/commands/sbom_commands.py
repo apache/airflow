@@ -198,11 +198,15 @@ SBOM_INDEX_TEMPLATE = """
 )
 @click.option(
     "--remote-name",
-    type=NotVerifiedBetterChoice(["apache", "origin"]),
-    default="apache",
+    type=NotVerifiedBetterChoice(["upstream", "origin"]),
+    default="upstream",
     show_default=True,
     envvar="REMOTE_NAME",
-    help="Remote name to use when pulling the constraints.",
+    help=(
+        "Remote name to use when pulling the constraints. Defaults to 'upstream' per the "
+        "standard remote naming convention (see contributing-docs/10_working_with_git.rst). "
+        "Use 'origin' if your clone of apache/airflow is set up as origin."
+    ),
 )
 @click.option(
     "--add-stable",
