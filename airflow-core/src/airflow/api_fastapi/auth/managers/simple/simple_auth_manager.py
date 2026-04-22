@@ -319,6 +319,14 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         # Delegate to parent class for the actual authorization check
         return super().is_authorized_hitl_task(assigned_users=assigned_users, user=user)
 
+    def get_fastapi_middlewares(self) -> list[tuple[type, dict[str, Any]]]:
+        """Register the all-admins middleware when ``[core] simple_auth_manager_all_admins`` is set."""
+        if not conf.getboolean("core", "simple_auth_manager_all_admins"):
+            return []
+        from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
+
+        return [(SimpleAllAdminMiddleware, {})]
+
     def get_fastapi_app(self) -> FastAPI | None:
         """
         Specify a sub FastAPI application specific to the auth manager.

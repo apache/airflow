@@ -307,23 +307,25 @@ class FabAuthManager(BaseAuthManager[User]):
         """
         Return the role granted to anonymous users, or ``None`` if public access is disabled.
 
-        Prefers the Airflow ``[fab] auth_role_public`` configuration and falls back to the legacy
-        ``AUTH_ROLE_PUBLIC`` entry in ``webserver_config.py`` so existing deployments continue to
-        work.
+        ``providers/fab/www/app.py`` copies ``[fab] auth_role_public`` from the Airflow config
+        into ``AUTH_ROLE_PUBLIC`` on the Flask app when the app is created, so reading the
+        Flask config here covers both the new config key and the legacy
+        ``AUTH_ROLE_PUBLIC`` entry in ``webserver_config.py``.
         """
-        role = conf.get("fab", "auth_role_public", fallback="") or ""
-        if role:
-            return role
         if self.appbuilder is not None:
             return self.appbuilder.app.config.get("AUTH_ROLE_PUBLIC", None)
         return None
 
-    def build_public_user(self) -> AnonymousUser | None:
+    @provide_session
+    def build_public_user(self, *, session: Session = NEW_SESSION) -> AnonymousUser | None:
         """
         Build an :class:`AnonymousUser` pre-populated with the configured public role.
 
-        Returns ``None`` when ``[fab] auth_role_public`` (or the legacy
-        ``AUTH_ROLE_PUBLIC`` entry in ``webserver_config.py``) is not set.
+        Returns ``None`` when neither ``[fab] auth_role_public`` nor the legacy
+        ``AUTH_ROLE_PUBLIC`` entry in ``webserver_config.py`` is set.
+
+        The role and its permissions are resolved via the database so the caller does not
+        need a Flask app/request context to use the returned user (see #60897).
 
         :meta private:
         """
@@ -332,19 +334,13 @@ class FabAuthManager(BaseAuthManager[User]):
             return None
 
         user = AnonymousUser()
-        flask_app = self.flask_app or (self.appbuilder.app if self.appbuilder else None)
-        if flask_app is not None:
-            with flask_app.app_context():
-                flask_app.config["AUTH_ROLE_PUBLIC"] = public_role_name
-                role = flask_app.appbuilder.sm.find_role(public_role_name)
-                if role is not None:
-                    # ``AnonymousUser.roles`` is a lazy property that calls
-                    # ``security_manager.get_public_role()`` on every access, which needs a Flask
-                    # request context we do not have under FastAPI. Writing ``_roles``/``_perms``
-                    # directly freezes a snapshot of the public role's permissions for the
-                    # lifetime of a single FastAPI authorization check (see #60897).
-                    user._roles = {role}
-                    user._perms = {(perm.action.name, perm.resource.name) for perm in role.permissions}
+        role = session.scalar(select(Role).where(Role.name == public_role_name))
+        if role is not None:
+            # ``AnonymousUser.roles``/``perms`` normally resolve lazily through Flask's
+            # ``current_app``. Writing ``_roles``/``_perms`` directly freezes a snapshot for
+            # the lifetime of a single FastAPI authorization check.
+            user._roles = {role}
+            user._perms = {(perm.action.name, perm.resource.name) for perm in role.permissions}
         return user
 
     def get_fastapi_middlewares(self) -> list[tuple[type, dict[str, Any]]]:

@@ -93,4 +93,3 @@ class TestFabAuthRolePublicMiddleware:
 
         assert not hasattr(request.state, "user")
         call_next.assert_awaited_once_with(request)
-

@@ -42,27 +42,9 @@ following CLI commands to create an account:
         --role Admin \
         --email spiderman@superhero.org
 
-To deactivate the authentication and allow users to be identified as Anonymous, set the
-``[fab] auth_role_public`` Airflow configuration to the desired role that anonymous users will have
-by default. For example, in ``airflow.cfg``:
-
-.. code-block:: ini
-
-    [fab]
-    auth_role_public = Admin
-
-or via the equivalent environment variable:
-
-.. code-block:: bash
-
-    export AIRFLOW__FAB__AUTH_ROLE_PUBLIC=Admin
-
-This makes both the FastAPI-based API server and the legacy Flask-based views honor anonymous
-access consistently.
-
-For backwards compatibility, setting ``AUTH_ROLE_PUBLIC`` in ``$AIRFLOW_HOME/webserver_config.py``
-is still supported, but the ``[fab] auth_role_public`` Airflow config takes precedence when both
-are set and is the recommended configuration going forward:
+To deactivate the authentication and allow users to be identified as Anonymous, the following entry
+in ``$AIRFLOW_HOME/webserver_config.py`` needs to be set with the desired role that the Anonymous
+user will have by default:
 
 .. code-block:: ini
 

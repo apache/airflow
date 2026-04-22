@@ -263,33 +263,41 @@ class TestFabAuthManager:
         assert auth_manager_with_appbuilder.is_logged_in() is False
 
     @mock.patch.object(FabAuthManager, "get_user")
-    def test_is_logged_in_with_auth_role_public_conf(self, mock_get_user, auth_manager_with_appbuilder):
-        """``[fab] auth_role_public`` Airflow config is enough to be 'logged in'."""
+    def test_is_logged_in_with_auth_role_public(self, mock_get_user, flask_app, auth_manager_with_appbuilder):
+        """When ``AUTH_ROLE_PUBLIC`` is set on the Flask app, anonymous users are 'logged in'."""
         user = Mock()
         user.is_anonymous.return_value = True
         user.is_active.return_value = False
         mock_get_user.return_value = user
 
-        with conf_vars({("fab", "auth_role_public"): "Admin"}):
-            assert auth_manager_with_appbuilder.is_logged_in() is True
-
-    def test_build_public_user_returns_none_when_not_configured(self, auth_manager_with_appbuilder):
-        """Without ``[fab] auth_role_public`` or ``AUTH_ROLE_PUBLIC``, there is no public user."""
-        flask_app = auth_manager_with_appbuilder.flask_app or (auth_manager_with_appbuilder.appbuilder.app)
         previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
-        flask_app.config["AUTH_ROLE_PUBLIC"] = None
+        flask_app.config["AUTH_ROLE_PUBLIC"] = "Admin"
         try:
-            with conf_vars({("fab", "auth_role_public"): ""}):
-                assert auth_manager_with_appbuilder.build_public_user() is None
+            assert auth_manager_with_appbuilder.is_logged_in() is True
         finally:
             flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
-    def test_build_public_user_returns_anonymous_user_from_conf(self, auth_manager_with_appbuilder):
-        """``[fab] auth_role_public`` yields an :class:`AnonymousUser` with the role resolved."""
+    def test_build_public_user_returns_none_when_not_configured(
+        self, flask_app, auth_manager_with_appbuilder
+    ):
+        """Without ``AUTH_ROLE_PUBLIC`` set on the Flask app, there is no public user."""
+        previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
+        flask_app.config["AUTH_ROLE_PUBLIC"] = None
+        try:
+            assert auth_manager_with_appbuilder.build_public_user() is None
+        finally:
+            flask_app.config["AUTH_ROLE_PUBLIC"] = previous
+
+    def test_build_public_user_returns_anonymous_user(self, flask_app, auth_manager_with_appbuilder):
+        """``AUTH_ROLE_PUBLIC`` yields an :class:`AnonymousUser` with the role resolved from the DB."""
         from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 
-        with conf_vars({("fab", "auth_role_public"): "Admin"}):
+        previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
+        flask_app.config["AUTH_ROLE_PUBLIC"] = "Admin"
+        try:
             user = auth_manager_with_appbuilder.build_public_user()
+        finally:
+            flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
         assert isinstance(user, AnonymousUser)
         assert len(user.roles) == 1
@@ -298,71 +306,42 @@ class TestFabAuthManager:
         # Flask request/app context.
         assert user._perms, "Expected permissions to be pre-populated on the public user"
 
-    def test_build_public_user_falls_back_to_flask_config(self, auth_manager_with_appbuilder):
-        """Legacy ``AUTH_ROLE_PUBLIC`` in ``webserver_config.py`` is still honored."""
-        from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
-
-        flask_app = auth_manager_with_appbuilder.flask_app or (auth_manager_with_appbuilder.appbuilder.app)
-        previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
-        flask_app.config["AUTH_ROLE_PUBLIC"] = "Admin"
-        try:
-            with conf_vars({("fab", "auth_role_public"): ""}):
-                user = auth_manager_with_appbuilder.build_public_user()
-        finally:
-            flask_app.config["AUTH_ROLE_PUBLIC"] = previous
-
-        assert isinstance(user, AnonymousUser)
-        assert len(user.roles) == 1
-        assert user.roles[0].name == "Admin"
-
     def test_build_public_user_with_unknown_role_returns_user_with_empty_perms(
-        self, auth_manager_with_appbuilder
+        self, flask_app, auth_manager_with_appbuilder
     ):
         """A misconfigured role name still yields an :class:`AnonymousUser` with empty perms."""
         from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 
-        with conf_vars({("fab", "auth_role_public"): "DoesNotExist"}):
-            user = auth_manager_with_appbuilder.build_public_user()
-
-        assert isinstance(user, AnonymousUser)
-        # No pre-populated perms means the user has no authorization; the role will also not
-        # be resolved since ``find_role`` returned None for a non-existent role.
-        assert user._perms == set()
-
-    def test_build_public_user_airflow_conf_takes_precedence(self, auth_manager_with_appbuilder):
-        """When both ``[fab] auth_role_public`` and the Flask config are set, Airflow config wins."""
-        from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
-
-        flask_app = auth_manager_with_appbuilder.flask_app or (auth_manager_with_appbuilder.appbuilder.app)
         previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
-        flask_app.config["AUTH_ROLE_PUBLIC"] = "Viewer"
+        flask_app.config["AUTH_ROLE_PUBLIC"] = "DoesNotExist"
         try:
-            with conf_vars({("fab", "auth_role_public"): "Admin"}):
-                user = auth_manager_with_appbuilder.build_public_user()
+            user = auth_manager_with_appbuilder.build_public_user()
         finally:
             flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
         assert isinstance(user, AnonymousUser)
-        assert len(user.roles) == 1
-        assert user.roles[0].name == "Admin"
+        # Role not found in the DB, so no pre-populated perms.
+        assert user._perms == set()
 
-    def test_get_fastapi_middlewares_disabled(self, auth_manager_with_appbuilder):
+    def test_get_fastapi_middlewares_disabled(self, flask_app, auth_manager_with_appbuilder):
         """No middleware is registered when public access is not configured."""
-        flask_app = auth_manager_with_appbuilder.flask_app or (auth_manager_with_appbuilder.appbuilder.app)
         previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
         flask_app.config["AUTH_ROLE_PUBLIC"] = None
         try:
-            with conf_vars({("fab", "auth_role_public"): ""}):
-                assert auth_manager_with_appbuilder.get_fastapi_middlewares() == []
+            assert auth_manager_with_appbuilder.get_fastapi_middlewares() == []
         finally:
             flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
-    def test_get_fastapi_middlewares_enabled(self, auth_manager_with_appbuilder):
+    def test_get_fastapi_middlewares_enabled(self, flask_app, auth_manager_with_appbuilder):
         """``FabAuthRolePublicMiddleware`` is registered when public access is configured."""
         from airflow.providers.fab.auth_manager.middleware import FabAuthRolePublicMiddleware
 
-        with conf_vars({("fab", "auth_role_public"): "Admin"}):
+        previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
+        flask_app.config["AUTH_ROLE_PUBLIC"] = "Admin"
+        try:
             middlewares = auth_manager_with_appbuilder.get_fastapi_middlewares()
+        finally:
+            flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
         assert middlewares == [(FabAuthRolePublicMiddleware, {})]
 
