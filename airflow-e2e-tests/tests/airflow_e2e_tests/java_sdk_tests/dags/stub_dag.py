@@ -31,7 +31,8 @@ def python_task_1(ti):
 def extract(): ...
 
 
-@task.stub(sdk="java")
+# If the worker set [workers/queue_to_runtime_mapping] to map "java-queue" to "java" runtime, then the task with queue="java-queue" will be executed in Java runtime.
+@task.stub(queue="java-queue")
 def transform(): ...
 
 

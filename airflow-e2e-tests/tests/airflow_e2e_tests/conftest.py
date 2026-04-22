@@ -272,10 +272,13 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
             },
         ]
     )
+    queue_to_runtime_mapping = json.dumps({"java-queue": "java"})
 
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
         "AIRFLOW__CORE__LOAD_EXAMPLES=false\n"
+        "AIRFLOW__LOGGING__LOGGING_LEVEL=DEBUG\n"
+        f"AIRFLOW__WORKERS__QUEUE_TO_RUNTIME_MAPPING={queue_to_runtime_mapping}\n"
         f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST={bundle_config}\n"
         f"AIRFLOW__JAVA__BUNDLES_FOLDER={JAVA_CONTAINER_STUB_JAVA_BUNDLES_FOLDER_PATH}\n"
     )

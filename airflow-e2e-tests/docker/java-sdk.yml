@@ -17,7 +17,8 @@
 #
 # Docker Compose override for Java SDK e2e tests.
 #
-# Overrides the dag-processor and worker services to:
+# Overrides the dag-processor and worker services and adds a dedicated
+# Java queue worker to:
 #   1. Mount a pre-downloaded JDK, the Python stub bundle, and the pure Java bundle.
 #   2. Set JAVA_HOME and PATH so the Java coordinator can find the JDK.
 #
@@ -28,25 +29,83 @@
 #   JAVA_STUB_BUNDLE_PATH   – host path to the stub DAG bundle root (dags/ + jar-bundles/)
 #   JAVA_BUNDLES_PATH       – host path to the pure Java DAG bundle (JARs only)
 ---
+x-java-env: &java-env
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  JAVA_HOME: /files/openjdk
+  PATH: /files/openjdk/bin:/home/airflow/.local/bin:/usr/python/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+x-java-volumes: &java-volumes
+  - ${JAVA_OPENJDK_PATH}:/files/openjdk
+  - ${JAVA_STUB_BUNDLE_PATH}:/files/python-stub-java-tasks
+  - ${JAVA_BUNDLES_PATH}:/files/pure-java
+
 services:
   airflow-dag-processor:
     user: "0:0"
     environment:
-      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      JAVA_HOME: /files/openjdk
-      PATH: /files/openjdk/bin:/home/airflow/.local/bin:/usr/python/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-    volumes:
-      - ${JAVA_OPENJDK_PATH}:/files/openjdk
-      - ${JAVA_STUB_BUNDLE_PATH}:/files/python-stub-java-tasks
-      - ${JAVA_BUNDLES_PATH}:/files/pure-java
+      <<: *java-env
+    volumes: *java-volumes
 
   airflow-worker:
     user: "0:0"
     environment:
-      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      JAVA_HOME: /files/openjdk
-      PATH: /files/openjdk/bin:/home/airflow/.local/bin:/usr/python/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      <<: *java-env
+    volumes: *java-volumes
+
+  # Dedicated Celery worker that only consumes from "java-queue".
+  # Since this is a new service (not an override of the base docker-compose),
+  # it needs the full service definition including the common Airflow config
+  # that the base compose provides via x-airflow-common.
+  # AIRFLOW__WORKERS__QUEUE_TO_RUNTIME_MAPPING is picked up from the .env file
+  # via env_file (set by conftest.py).
+  airflow-java-worker:
+    image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:|version|}
+    env_file:
+      - ${ENV_FILE_PATH:-.env}
+    command: celery worker --queues java-queue
+    user: "0:0"
+    environment:
+      <<: *java-env
+      # Mirrors x-airflow-common-env from the base docker-compose.yaml
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
+      AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
+      AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW__API_AUTH__JWT_SECRET:-airflow_jwt_secret}
+      AIRFLOW__API_AUTH__JWT_ISSUER: ${AIRFLOW__API_AUTH__JWT_ISSUER:-airflow}
+      AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
+      _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
+      AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
+      # Required to handle warm shutdown of the celery workers properly
+      # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
+      DUMB_INIT_SETSID: "0"
     volumes:
+      - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+      - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
+      - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
+      - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
       - ${JAVA_OPENJDK_PATH}:/files/openjdk
       - ${JAVA_STUB_BUNDLE_PATH}:/files/python-stub-java-tasks
       - ${JAVA_BUNDLES_PATH}:/files/pure-java
+    healthcheck:
+      # yamllint disable rule:line-length
+      test: ["CMD-SHELL", 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}" || celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"']
+      # yamllint enable rule:line-length
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      airflow-apiserver:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
