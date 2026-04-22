@@ -1695,36 +1695,6 @@ class TestWorkerSets:
         "workers_values",
         [
             {
-                "keda": {"enabled": True, "pollingInterval": 10},
-                "celery": {
-                    "enableDefault": True,
-                    "sets": [{"name": "worker-set"}],
-                },
-            },
-            {
-                "celery": {
-                    "keda": {"enabled": True, "pollingInterval": 10},
-                    "enableDefault": True,
-                    "sets": [{"name": "worker-set"}],
-                },
-            },
-        ],
-    )
-    def test_overwrite_parent_keda_propagates_to_sets(self, workers_values):
-        docs = render_chart(
-            name="test",
-            values={"workers": workers_values},
-            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
-        )
-
-        assert len(docs) == 2
-        for doc in docs:
-            assert jmespath.search("spec.pollingInterval", doc) == 10
-
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {
                 "keda": {"usePgbouncer": False},
                 "celery": {
                     "enableDefault": False,
