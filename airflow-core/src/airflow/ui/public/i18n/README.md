@@ -79,7 +79,7 @@ The PR for a new locale should include:
 - Updates to `.github/CODEOWNERS`.
 - Updates to the table at the bottom of this file.
 
-### Relinquishing ranslation/code ownership
+### Relinquishing translation/code ownership
 
 - When a code owner asks to relinquish their role, or they become inactive, any other committer should:
 
