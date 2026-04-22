@@ -356,7 +356,7 @@ layer. The canonical categories are:
 | `Image build` | `build ci image`, `build prod image`, `ci-image`, `prod-image` | "Check Dockerfiles and dependencies." |
 | `Provider tests` | `provider` | `breeze run pytest <provider-test-path> -xvs` |
 | `Other failing CI checks` | anything uncategorised | `prek run --from-ref <base>` |
-| `Unaddressed Copilot review` | classification `stale_copilot_review` — unresolved review thread by a `copilot*[bot]` login older than 14 days with no author reply | "Please review the Copilot review comments and either address them in a follow-up commit or resolve the thread if the feedback doesn't apply. See [thread](<thread_url>)." |
+| `Unaddressed Copilot review` | classification `stale_copilot_review` — unresolved review thread by a `copilot*[bot]` login older than 7 days with no author reply | "GitHub Copilot posted automated review comments on this PR that have been sitting unaddressed for more than a week. **Some of the Copilot suggestions may be irrelevant or incorrect** — that is expected. However it is the author's responsibility to go through each thread and either apply the fix, reply in-thread with a short explanation of why the suggestion does not apply, or resolve the thread if the feedback is no longer relevant. Please walk through the threads: <thread_urls>." |
 | `Unresolved review comments` | `unresolved_threads > 0` | "Review and resolve all inline comments. Click 'Resolve conversation' after addressing feedback." |
 
 When a category has multiple matching failed check names,

@@ -33,7 +33,7 @@ inspection rubric.
 
 | Rule | Action | Reason |
 |---|---|---|
-| *(always)* | `draft` | "Unaddressed Copilot review ≥ 14 days old — convert to draft so the queue doesn't block on stale automated feedback" |
+| *(always)* | `draft` | "Unaddressed Copilot review ≥ 7 days old — convert to draft so the queue doesn't block on stale automated feedback" |
 
 Body: the `draft` template from
 [`comment-templates.md#draft-comment`](comment-templates.md)

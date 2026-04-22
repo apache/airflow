@@ -39,7 +39,7 @@ the groups in this fixed order:
    "queue pressure" signal from multiple PRs by the same
    author at once).
 3. `(stale_copilot_review, draft)` — batchable. Drafts PRs whose
-   Copilot review has sat unaddressed for ≥ 14 days.
+   Copilot review has sat unaddressed for ≥ 7 days.
 4. `(deterministic_flag, draft)` — batchable.
 5. `(deterministic_flag, comment)` — batchable.
 6. `(deterministic_flag, rebase)` — batchable.

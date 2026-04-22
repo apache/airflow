@@ -226,7 +226,7 @@ Then classify each remaining PR into one of:
 - `pending_workflow_approval` — needs `gh run approve` before
   CI can run (first-time contributor signal)
 - `stale_copilot_review` — unresolved Copilot-review thread
-  older than 14 days with no author reply (evaluated before
+  older than 7 days with no author reply (evaluated before
   `deterministic_flag`; suggested action is `draft`)
 - `deterministic_flag` — has one or more of: merge conflict,
   failing CI past its grace window, unresolved review thread
@@ -254,7 +254,7 @@ string using [`suggested-actions.md`](suggested-actions.md):
 | Classification | Default action |
 |---|---|
 | `pending_workflow_approval` | `approve-workflow` (after diff review) or `flag-suspicious` |
-| `stale_copilot_review` | `draft` (with "Unaddressed Copilot review" violation, 14-day grace) |
+| `stale_copilot_review` | `draft` (with "Unaddressed Copilot review" violation, 7-day grace) |
 | `deterministic_flag` — conflicts (any combination) | `draft` (GitHub update-branch can't resolve conflicts — never attempt `rebase`) |
 | `deterministic_flag` — ≤2 CI failures, no conflicts, no threads, branch up-to-date | `rerun` |
 | `deterministic_flag` — failures all match recent main-branch failures | `rerun` |

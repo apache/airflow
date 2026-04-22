@@ -118,7 +118,7 @@ static-check failures → comment, etc.) — see
 
 **Condition.** The PR has at least one unresolved review thread
 whose first comment's author matches a GitHub Copilot review-bot
-login **and** the comment's `createdAt` is **≥ 14 days** ago
+login **and** the comment's `createdAt` is **≥ 7 days** ago
 **and** no author comment in the same thread (or on the PR
 itself) after that timestamp.
 
@@ -137,14 +137,17 @@ automation posted; a later reply (by anyone) doesn't reset the
 clock unless it comes from the PR author.
 
 **Rationale.** Copilot-review comments are work items queued
-against the author. When they sit unresolved for two weeks the
-PR has effectively stalled — the author is either unaware of
-the feedback or has abandoned the PR. Converting to draft is
-the softer equivalent of the stale-draft sweep: it stops the PR
-from blocking the maintainer review queue while preserving the
-conversation for when the author returns. The suggested action
-is therefore `draft` with a dedicated "Unaddressed Copilot
-review" violation (see
+against the author — even if some of the Copilot suggestions
+turn out to be wrong or irrelevant, the author is still the
+one responsible for replying (accept, reject with a one-line
+explanation, or fix). When Copilot comments sit unresolved for
+a week the PR has effectively stalled — the author is either
+unaware of the feedback or assuming someone else will triage
+it. Converting to draft is the softer equivalent of the stale-
+draft sweep: it stops the PR from blocking the maintainer
+review queue while preserving the conversation for when the
+author returns. The suggested action is therefore `draft` with
+a dedicated "Unaddressed Copilot review" violation (see
 [`suggested-actions.md`](suggested-actions.md) and
 [`comment-templates.md#violations-rendering`](comment-templates.md)).
 
@@ -156,9 +159,9 @@ the Copilot reason — the two violations can be listed together
 in the comment body.
 
 **Do not fire when** the Copilot review is still inside its
-14-day window — the rule is explicitly *not* 24h/96h like the
+7-day window — the rule is explicitly *not* 24h/96h like the
 CI grace period, because review feedback takes longer to
-address and a two-day nudge would be noisy.
+address and a same-week nudge would be noisy.
 
 ### C3. `stale_review`
 
