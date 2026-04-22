@@ -41,16 +41,7 @@ if TYPE_CHECKING:
 
 
 class _AssetSelfProxy:
-    """
-    Proxy for the ``self`` parameter in ``@asset`` and ``@asset.multi`` functions.
-
-    Attribute reads forward to the underlying :class:`Asset`. Assignment to
-    ``partition_keys`` is forwarded to the corresponding
-    :class:`~airflow.sdk.execution_time.context.OutletEventAccessor`, so that
-    ``self.partition_keys = [...]`` inside ``@asset`` behaves the same as
-    ``outlet_events[self].partition_keys = [...]``. Any other write raises
-    :class:`AttributeError`.
-    """
+    """Proxy for ``self`` in ``@asset`` functions; intercepts ``partition_keys`` writes and forwards them to the outlet event accessor."""
 
     def __init__(self, asset: Asset, outlet_events: OutletEventAccessorsProtocol) -> None:
         object.__setattr__(self, "_asset", asset)

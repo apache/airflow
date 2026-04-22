@@ -756,13 +756,12 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
         also supplied, the two metadata dicts are merged with *extra* winning on
         conflict.
         """
-        if isinstance(key, PartitionKey):
-            if extra:
-                self.partition_keys.append(PartitionKey(key=key.key, extra={**key.extra, **extra}))
-            else:
-                self.partition_keys.append(key)
-        else:
+        if isinstance(key, str):
             self.partition_keys.append(PartitionKey(key=key, extra=extra or {}))
+        elif extra is not None:
+            self.partition_keys.append(PartitionKey(key=key.key, extra={**key.extra, **extra}))
+        else:
+            self.partition_keys.append(key)
 
     def add(self, asset: Asset | AssetRef, extra: dict[str, JsonValue] | None = None) -> None:
         """Add an AssetEvent to an existing Asset."""
