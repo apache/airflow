@@ -376,17 +376,17 @@ class BaseExecutor(LoggingMixin):
         stats.gauge(
             open_slots_metric_name,
             value=open_slots,
-            tags={"status": "open", "name": name},
+            tags={"status": "open", "executor_class_name": name},
         )
         stats.gauge(
             queued_tasks_metric_name,
             value=num_queued_tasks,
-            tags={"status": "queued", "name": name},
+            tags={"status": "queued", "executor_class_name": name},
         )
         stats.gauge(
             running_tasks_metric_name,
             value=num_running_tasks,
-            tags={"status": "running", "name": name},
+            tags={"status": "running", "executor_class_name": name},
         )
 
     def order_queued_tasks_by_priority(self) -> list[tuple[TaskInstanceKey, workloads.ExecuteTask]]:
