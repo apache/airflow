@@ -366,6 +366,76 @@ list and stable links should be updated, also Fastly cache will be invalidated.
 
 TODO: prepare an issue
 
+### Carry over checked boxes from the previous RC
+
+When cutting a follow-up RC (e.g. `rc3` after `rc2` was voted down), the
+items that testers already verified on the previous RC should be
+pre-checked in the new issue — otherwise testers waste time retesting
+unchanged fixes, and cross-RC progress is harder to see. Carry the
+state over like this:
+
+```shell script
+# PREVIOUS_RC_ISSUE is the previous-RC testing-status issue number
+# NEW_RC_ISSUE is the issue you just opened above
+PREVIOUS_RC_ISSUE=65497
+NEW_RC_ISSUE=65643
+
+python3 <<PY
+import json, re, subprocess
+
+def body(n):
+    return json.loads(subprocess.check_output(
+        ["gh", "issue", "view", str(n), "--repo", "apache/airflow", "--json", "body"]
+    ))["body"]
+
+prev = body(${PREVIOUS_RC_ISSUE})
+new = body(${NEW_RC_ISSUE})
+
+# PR numbers checked in the previous RC
+prev_checked = set()
+for line in prev.splitlines():
+    if re.match(r'^- \[[xX]\] ', line):
+        prev_checked.update(re.findall(r'#(\d+)', line))
+
+# For each unchecked line in the new RC, pre-check it if any PR number on
+# that line was already verified in the previous RC. Backport lines like
+# "[v3-2-test] X (#orig) (#backport)" match on either number.
+pre_checked = []
+out = []
+for line in new.splitlines():
+    m = re.match(r'^- \[ \] (.*)', line)
+    if m and set(re.findall(r'#(\d+)', m.group(1))) & prev_checked:
+        out.append(f"- [x] {m.group(1)}")
+        pre_checked.append(m.group(1).split('](')[0].lstrip('['))
+    else:
+        out.append(line)
+
+with open("/tmp/rc-body-carried-over.md", "w") as f:
+    f.write("\n".join(out))
+print(f"Pre-checked {len(pre_checked)} items carried over from #${PREVIOUS_RC_ISSUE}:")
+for t in pre_checked:
+    print(f"  ✓ {t[:100]}")
+PY
+
+gh issue edit ${NEW_RC_ISSUE} --repo apache/airflow \
+    --body-file /tmp/rc-body-carried-over.md
+
+# Post a comment explaining what was carried over, so contributors who
+# signed the items off last time are not pinged to retest.
+gh issue comment ${NEW_RC_ISSUE} --repo apache/airflow --body \
+"Pre-checked N items that were already verified on the previous RC \
+(#${PREVIOUS_RC_ISSUE}) and are present in this RC unchanged — direct \
+cherry-picks or \`[v3-2-test]\` backports of the same fix. Items left \
+unchecked are either new in this RC or were not verified on the previous \
+one."
+```
+
+Review the diff after the edit — occasionally a v3-2-test backport PR
+number does not appear on the same line as the original main-branch PR
+(e.g. when the original was squashed to hide its number), in which case
+the carry-over misses it and the release manager must check the box
+manually.
+
 ## Prepare voting email for airflow-ctl release candidate
 
 Make sure the packages are in https://dist.apache.org/repos/dist/dev/airflow/airflow-ctl/
