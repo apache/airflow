@@ -498,7 +498,7 @@ class TestAssetSelfProxy:
         "value",
         [
             pytest.param(["us", "eu"], id="plain-strings"),
-            pytest.param([PartitionKey(key="us", extra={"src": "s3://us"})], id="partition-key-objects"),
+            pytest.param([PartitionKey(key="us")], id="partition-key-objects"),
         ],
     )
     def test_partition_keys_write_forwards_to_accessor(self, asset, outlet_events, value):

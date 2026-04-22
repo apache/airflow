@@ -509,21 +509,13 @@ class TestAllowProducerTeamsField:
 
 
 class TestPartitionKey:
-    def test_default_extra_is_empty_dict(self):
+    def test_key(self):
         pk = PartitionKey(key="region_a")
         assert pk.key == "region_a"
-        assert pk.extra == {}
-
-    def test_with_extra(self):
-        pk = PartitionKey(key="region_a", extra={"source": "s3://bucket"})
-        assert pk.key == "region_a"
-        assert pk.extra == {"source": "s3://bucket"}
 
     def test_equality(self):
         assert PartitionKey(key="a") == PartitionKey(key="a")
-        assert PartitionKey(key="a", extra={"x": 1}) == PartitionKey(key="a", extra={"x": 1})
         assert PartitionKey(key="a") != PartitionKey(key="b")
-        assert PartitionKey(key="a", extra={"x": 1}) != PartitionKey(key="a", extra={"x": 2})
 
     def test_is_frozen(self):
         pk = PartitionKey(key="a")

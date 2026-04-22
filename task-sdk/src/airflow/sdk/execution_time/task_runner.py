@@ -1164,10 +1164,7 @@ def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[d
                 "dest_asset_key": attrs.asdict(key),
                 "extra": accessor.extra,
                 "partition_keys": [
-                    {"key": pk.key, "extra": pk.extra}
-                    if isinstance(pk, PartitionKey)
-                    else {"key": pk, "extra": {}}
-                    for pk in accessor.partition_keys
+                    pk.key if isinstance(pk, PartitionKey) else pk for pk in accessor.partition_keys
                 ],
             }
         for alias_event in accessor.asset_alias_events:

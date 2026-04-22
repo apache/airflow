@@ -536,21 +536,18 @@ class AssetAliasEvent(attrs.AttrsInstance):
 @attrs.define(frozen=True)
 class PartitionKey:
     """
-    A partition key with optional per-partition metadata.
+    A typed partition key.
 
-    Use :class:`PartitionKey` instead of a plain string when you need to attach
-    extra metadata to a specific partition event:
+    Use :class:`PartitionKey` instead of a plain string for explicit typing:
 
     .. code-block:: python
 
         outlet_events[my_asset].partition_keys = [
-            PartitionKey(key="region_a", extra={"source": "s3://bucket/region_a"}),
-            PartitionKey(key="region_b", extra={"source": "s3://bucket/region_b"}),
+            PartitionKey(key="region_a"),
+            PartitionKey(key="region_b"),
         ]
 
-    Plain strings are also accepted and are equivalent to
-    ``PartitionKey(key=..., extra={})``.
+    Plain strings are also accepted and are equivalent to ``PartitionKey(key=...)``.
     """
 
     key: str
-    extra: dict[str, JsonValue] = attrs.field(factory=dict)

@@ -1765,18 +1765,15 @@ class TestSerializeOutletEvents:
             {
                 "dest_asset_key": {"name": "a", "uri": "a"},
                 "extra": {},
-                "partition_keys": [
-                    {"key": "us", "extra": {}},
-                    {"key": "eu", "extra": {}},
-                ],
+                "partition_keys": ["us", "eu"],
             }
         ]
 
     def test_emits_partition_keys_from_partition_key_objects(self):
         accessors = OutletEventAccessors()
         accessors[Asset(name="a")].partition_keys = [
-            PartitionKey(key="us", extra={"source": "s3://us"}),
-            PartitionKey(key="eu", extra={"source": "s3://eu"}),
+            PartitionKey(key="us"),
+            PartitionKey(key="eu"),
         ]
 
         events = list(_serialize_outlet_events(accessors))
@@ -1785,23 +1782,17 @@ class TestSerializeOutletEvents:
             {
                 "dest_asset_key": {"name": "a", "uri": "a"},
                 "extra": {},
-                "partition_keys": [
-                    {"key": "us", "extra": {"source": "s3://us"}},
-                    {"key": "eu", "extra": {"source": "s3://eu"}},
-                ],
+                "partition_keys": ["us", "eu"],
             }
         ]
 
     def test_mixed_string_and_partition_key(self):
         accessors = OutletEventAccessors()
-        accessors[Asset(name="a")].partition_keys = ["us", PartitionKey(key="eu", extra={"x": 1})]
+        accessors[Asset(name="a")].partition_keys = ["us", PartitionKey(key="eu")]
 
         [event] = list(_serialize_outlet_events(accessors))
 
-        assert event["partition_keys"] == [
-            {"key": "us", "extra": {}},
-            {"key": "eu", "extra": {"x": 1}},
-        ]
+        assert event["partition_keys"] == ["us", "eu"]
 
 
 class TestRuntimeTaskInstance:

@@ -470,7 +470,7 @@ class TestOutletEventAccessorPartitionKeys:
         "value",
         [
             pytest.param(["us", "eu"], id="plain-strings"),
-            pytest.param([PartitionKey(key="k1", extra={"a": 1})], id="partition-key-objects"),
+            pytest.param([PartitionKey(key="k1")], id="partition-key-objects"),
         ],
     )
     def test_direct_assignment(self, accessor, value):
@@ -486,8 +486,8 @@ class TestOutletEventAccessorPartitionKeys:
                 id="string",
             ),
             pytest.param(
-                PartitionKey(key="eu", extra={"x": 1}),
-                PartitionKey(key="eu", extra={"x": 1}),
+                PartitionKey(key="eu"),
+                PartitionKey(key="eu"),
                 id="partition-key",
             ),
         ],
