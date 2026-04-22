@@ -274,10 +274,41 @@ gh pr create \
     --body "Sync airflow-ctl/v${CTL_VERSION_BRANCH}-test into airflow-ctl/v${CTL_VERSION_BRANCH}-stable for airflow-ctl ${VERSION} release."
 ```
 
-Wait for CI to pass and for the PR to be merged. After merge, pull
-`airflow-ctl/vX-Y-stable` locally before continuing to the
-"Commit the version bump and release notes via a merged PR" step — the
-release-prep PR also targets `airflow-ctl/vX-Y-stable`.
+Wait for CI to pass and for the PR to be approved.
+
+> [!IMPORTANT]
+> **Merge the sync PR as a fast-forward, not as a squash or rebase.**
+> `airflow-ctl/vX-Y-stable` enforces `required_linear_history: true`,
+> which permits squash, rebase, *and* fast-forward merges. Squash and
+> rebase both **rewrite the commit SHAs** from `-test`, so the rc tag
+> you cut afterwards points at a different commit than the release-prep
+> PR that was reviewed and merged into `-test`. Fast-forward preserves
+> the original SHAs and makes the `-stable` history a clean extension
+> of `-test` — which is what the rc tag, the testing-status issue, and
+> the SVN source tarball all need to agree on.
+>
+> The GitHub web UI does not offer "fast-forward" for protected
+> branches; use the CLI against the unprotected remote ref, then close
+> the PR as merged (GitHub auto-closes the PR once its head commit
+> appears on the target branch):
+>
+> ```shell script
+> git fetch apache
+> git push apache \
+>     "apache/airflow-ctl/v${CTL_VERSION_BRANCH}-test:refs/heads/airflow-ctl/v${CTL_VERSION_BRANCH}-stable"
+> ```
+>
+> The `:refs/heads/…` form pushes the remote-tracking ref of
+> `-test` directly onto `-stable`. Apache INFRA's branch protection
+> allows the release manager this fast-forward push because
+> `required_linear_history: true` is satisfied (no merge commit is
+> introduced) and `required_pull_request_reviews` is satisfied by the
+> PR you opened above.
+
+After the sync lands, pull `airflow-ctl/vX-Y-stable` locally before
+continuing to the "Commit the version bump and release notes via a
+merged PR" step — the release-prep PR also targets
+`airflow-ctl/vX-Y-stable`.
 
 ```shell script
 git fetch apache
