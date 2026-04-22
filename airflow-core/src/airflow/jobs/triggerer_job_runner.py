@@ -108,9 +108,7 @@ tracer = trace.get_tracer(__name__)
 # Private sentinel passed as the cancel message when a trigger is cancelled by user action
 _USER_ACTION_CANCEL_MSG = "__airflow_user_action__"
 
-# Maximum seconds to wait for on_kill() before giving up. Prevents a slow or stuck
-# external API call from blocking triggerer shutdown indefinitely.
-_ON_CANCEL_TIMEOUT = 30
+_ON_CANCEL_TIMEOUT: int = conf.getint("triggerer", "on_kill_timeout", fallback=30)
 
 
 def _make_trigger_span(
@@ -1358,9 +1356,7 @@ class TriggerRunner:
                     try:
                         await asyncio.wait_for(trigger.on_kill(), timeout=_ON_CANCEL_TIMEOUT)
                     except TimeoutError:
-                        await self.log.awarning(
-                            "on_kill() timed out after %ds", _ON_CANCEL_TIMEOUT, name=name
-                        )
+                        await self.log.awarning("on_kill() timed out", timeout=_ON_CANCEL_TIMEOUT, name=name)
                     except asyncio.CancelledError:
                         # on_kill() was itself cancelled (e.g. triggerer shutting down
                         # while on_kill() was running). Swallow it so the outer
