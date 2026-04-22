@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+6.12.1
+......
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+Doc-only
+~~~~~~~~
+
+* ``enhance SnowflakeSqlApi docstring (statement_count) (#64727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.12.0
 ......
 

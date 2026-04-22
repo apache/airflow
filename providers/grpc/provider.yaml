@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1774299308
+source-date-epoch: 1775592370
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 3.9.4
   - 3.9.3
   - 3.9.2
   - 3.9.1
@@ -78,6 +79,7 @@ hooks:
 
 connection-types:
   - hook-class-name: airflow.providers.grpc.hooks.grpc.GrpcHook
+    hook-name: "GRPC Connection"
     connection-type: grpc
     ui-field-behaviour:
       hidden-fields:

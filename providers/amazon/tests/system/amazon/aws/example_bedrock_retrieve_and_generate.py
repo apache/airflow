@@ -73,15 +73,9 @@ except ImportError:
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import SystemTestContextBuilder
+from system.amazon.aws.utils.bedrock import get_text_inference_profile_arn
 
-#######################################################################
-# NOTE:
-#   Access to the following foundation model must be requested via
-#   the Amazon Bedrock console and may take up to 24 hours to apply:
-#######################################################################
-
-TITAN_MODEL_ID = "amazon.titan-embed-text-v1"
-CLAUDE_MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+TITAN_MODEL_ID = "amazon.titan-embed-text-v2:0"
 
 # Externally fetched variables:
 ROLE_ARN_KEY = "ROLE_ARN"
@@ -93,7 +87,7 @@ log = logging.getLogger(__name__)
 
 
 @task_group
-def external_sources_rag_group():
+def external_sources_rag_group(text_model_arn):
     """External Sources were added in boto 1.34.90, skip this operator if the version is below that."""
 
     # [START howto_operator_bedrock_external_sources_rag]
@@ -101,7 +95,7 @@ def external_sources_rag_group():
         task_id="external_sources_rag",
         input="Who was the CEO of Amazon in 2022?",
         source_type="EXTERNAL_SOURCES",
-        model_arn=f"arn:aws:bedrock:{region_name}::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        model_arn=text_model_arn,
         sources=[
             {
                 "sourceType": "S3",
@@ -250,7 +244,7 @@ def create_vector_index(index_name: str, collection_id: str, region: str):
             "properties": {
                 "vector": {
                     "type": "knn_vector",
-                    "dimension": 1536,
+                    "dimension": 1024,
                     "method": {"name": "hnsw", "engine": "faiss", "space_type": "l2"},
                 },
                 "text": {"type": "text"},
@@ -465,6 +459,10 @@ with DAG(
 
     create_bucket = S3CreateBucketOperator(task_id="create_bucket", bucket_name=bucket_name)
 
+    # Note that for Anthropic models, first-time users may need to
+    # submit use case details before they can access the model.
+    text_model_arn = get_text_inference_profile_arn()
+
     opensearch_policies = create_opensearch_policies(
         bedrock_role_arn=test_context[ROLE_ARN_KEY],
         collection_name=vector_store_name,
@@ -545,7 +543,7 @@ with DAG(
         task_id="knowledge_base_rag",
         input="Who was the CEO of Amazon on 2022?",
         source_type="KNOWLEDGE_BASE",
-        model_arn=f"arn:aws:bedrock:{region_name}::foundation-model/{CLAUDE_MODEL_ID}",
+        model_arn=text_model_arn,
         knowledge_base_id=create_knowledge_base.output,
     )
     # [END howto_operator_bedrock_knowledge_base_rag]
@@ -569,6 +567,7 @@ with DAG(
         # TEST SETUP
         test_context,
         create_bucket,
+        text_model_arn,
         opensearch_policies,
         collection,
         await_collection,
@@ -581,7 +580,7 @@ with DAG(
         ingest_data,
         await_ingest,
         knowledge_base_rag,
-        external_sources_rag_group(),
+        external_sources_rag_group(text_model_arn),
         retrieve,
         delete_data_source(
             knowledge_base_id=create_knowledge_base.output,
@@ -603,5 +602,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

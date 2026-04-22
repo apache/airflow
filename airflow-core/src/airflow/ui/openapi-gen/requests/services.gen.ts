@@ -2319,11 +2319,21 @@ export class TaskInstanceService {
      * Get Task Instances
      * Get list of task instances.
      *
-     * This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
-     * and DAG runs.
+     * This endpoint allows specifying `~` as the dag_id, dag_run_id
+     * to retrieve task instances for all DAGs and DAG runs.
+     *
+     * Supports two pagination modes:
+     *
+     * **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+     *
+     * **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
+     * When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
+     * ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
+     * on the first page.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
+     * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
      * @param data.taskId
      * @param data.runAfterGte
      * @param data.runAfterGt
@@ -2379,6 +2389,7 @@ export class TaskInstanceService {
                 dag_run_id: data.dagRunId
             },
             query: {
+                cursor: data.cursor,
                 task_id: data.taskId,
                 run_after_gte: data.runAfterGte,
                 run_after_gt: data.runAfterGt,
@@ -3373,6 +3384,7 @@ export class XcomService {
      * @param data.runAfterGt
      * @param data.runAfterLte
      * @param data.runAfterLt
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, timestamp, run_after`
      * @returns XComCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3402,7 +3414,8 @@ export class XcomService {
                 run_after_gte: data.runAfterGte,
                 run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
-                run_after_lt: data.runAfterLt
+                run_after_lt: data.runAfterLt,
+                order_by: data.orderBy
             },
             errors: {
                 400: 'Bad Request',

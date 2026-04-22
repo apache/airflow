@@ -31,7 +31,7 @@ Possible containers where resources can be configured include:
 * Main Airflow containers and their sidecars. You can add the resources for these containers through the following parameters:
 
    * ``workers.resources``
-   * ``workers.logGroomerSidecar.resources``
+   * ``workers.celery.logGroomerSidecar.resources``
    * ``workers.kerberosSidecar.resources``
    * ``workers.kerberosInitContainer.resources``
    * ``scheduler.resources``

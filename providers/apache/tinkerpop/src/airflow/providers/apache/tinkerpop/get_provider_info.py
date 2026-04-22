@@ -50,6 +50,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apache.tinkerpop.hooks.gremlin.GremlinHook",
+                "hook-name": "Gremlin",
                 "connection-type": "gremlin",
             }
         ],

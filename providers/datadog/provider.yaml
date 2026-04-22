@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1774298983
+source-date-epoch: 1775591970
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 3.10.4
   - 3.10.3
   - 3.10.2
   - 3.10.1
@@ -79,6 +80,7 @@ hooks:
 
 connection-types:
   - hook-class-name: airflow.providers.datadog.hooks.datadog.DatadogHook
+    hook-name: "Datadog"
     connection-type: datadog
     conn-fields:
       api_host:

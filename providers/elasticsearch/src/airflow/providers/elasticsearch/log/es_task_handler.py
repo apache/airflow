@@ -26,7 +26,7 @@ import shutil
 import sys
 import time
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from operator import attrgetter
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -46,13 +46,14 @@ from airflow.providers.common.compat.sdk import conf
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
-from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow._shared.module_loading import import_string
+    from airflow.sdk import timezone
 else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
     from airflow.utils.module_loading import import_string  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
@@ -80,6 +81,11 @@ LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 
 TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger", "error_detail", "message", "levelname"]
+
+
+def _deduplicate_fields(fields: Iterable[str]) -> list[str]:
+    """Return non-empty field names in order without duplicates."""
+    return list(dict.fromkeys(field for field in fields if field))
 
 
 def _format_error_detail(error_detail: Any) -> str | None:
@@ -158,6 +164,28 @@ def getattr_nested(obj, item, default):
         return attrgetter(item)(obj)
     except AttributeError:
         return default
+
+
+def _strip_userinfo(url: str) -> str:
+    """
+    Return ``url`` with any ``user:password@`` userinfo removed.
+
+    The Elasticsearch ``[elasticsearch] host`` config commonly embeds
+    credentials (``https://user:password@elk.example.com:9200``). This
+    value is reused as a display label for log-source grouping, so the
+    credentials would otherwise end up in task logs. Anything that is
+    not a valid URL is returned unchanged.
+    """
+    try:
+        parsed = urlparse(url)
+    except (TypeError, ValueError):
+        return url
+    if not parsed.hostname or (not parsed.username and not parsed.password):
+        return url
+    netloc = parsed.hostname
+    if parsed.port is not None:
+        netloc = f"{netloc}:{parsed.port}"
+    return parsed._replace(netloc=netloc).geturl()
 
 
 def _render_log_id(log_id_template: str, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
@@ -318,6 +346,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def _read_grouped_logs(self):
         return True
 
+    def _get_es_source_includes(self) -> list[str]:
+        extra_fields = self.json_fields if self.json_format and not AIRFLOW_V_3_0_PLUS else []
+        return self.io._get_source_includes(extra_fields=extra_fields)
+
     def _read(
         self, ti: TaskInstance, try_number: int, metadata: LogMetadata | None = None
     ) -> tuple[EsLogMsgType, LogMetadata]:
@@ -339,7 +371,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         offset = metadata["offset"]
         log_id = _render_log_id(self.log_id_template, ti, try_number)
-        response = self.io._es_read(log_id, offset, ti)
+        response = self.io._es_read(log_id, offset, ti, source_includes=self._get_es_source_includes())
         # TODO: Can we skip group logs by host ?
         if response is not None and response.hits:
             logs_by_host = self.io._group_logs_by_host(response)
@@ -629,6 +661,12 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
 
+    def _get_source_includes(self, extra_fields: Iterable[str] = ()) -> list[str]:
+        """Return the Elasticsearch source fields to include when reading task logs."""
+        return _deduplicate_fields(
+            ["@timestamp", *TASK_LOG_FIELDS, self.host_field, self.offset_field, *extra_fields]
+        )
+
     def upload(self, path: os.PathLike | str, ti: RuntimeTI):
         """Write the log to ElasticSearch."""
         path = Path(path)
@@ -693,7 +731,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
         self.log.info("Reading log %s from Elasticsearch", log_id)
         offset = 0
-        response = self._es_read(log_id, offset, ti)
+        response = self._es_read(log_id, offset, ti, source_includes=self._get_source_includes())
         if response is not None and response.hits:
             logs_by_host = self._group_logs_by_host(response)
         else:
@@ -720,7 +758,14 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         return header, message
 
-    def _es_read(self, log_id: str, offset: int | str, ti: RuntimeTI) -> ElasticSearchResponse | None:
+    def _es_read(
+        self,
+        log_id: str,
+        offset: int | str,
+        ti: RuntimeTI,
+        *,
+        source_includes: Iterable[str] | None = None,
+    ) -> ElasticSearchResponse | None:
         """
         Return the logs matching log_id in Elasticsearch and next offset or ''.
 
@@ -730,6 +775,9 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         :meta private:
         """
+        source_includes = _deduplicate_fields(
+            self._get_source_includes() if source_includes is None else source_includes
+        )
         query: dict[Any, Any] = {
             "bool": {
                 "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
@@ -745,6 +793,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
                 sort=[self.offset_field],
                 size=self.MAX_LINE_PER_PAGE,
                 from_=self.MAX_LINE_PER_PAGE * self.PAGE,
+                source_includes=source_includes,
             )
         except NotFoundError:
             self.log.exception("The target index pattern %s does not exist", index_patterns)
@@ -774,8 +823,9 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def _group_logs_by_host(self, response: ElasticSearchResponse) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
+        host_fallback = _strip_userinfo(self.host)
         for hit in response:
-            key = getattr_nested(hit, self.host_field, None) or self.host
+            key = getattr_nested(hit, self.host_field, None) or host_fallback
             grouped_logs[key].append(hit)
         return grouped_logs
 

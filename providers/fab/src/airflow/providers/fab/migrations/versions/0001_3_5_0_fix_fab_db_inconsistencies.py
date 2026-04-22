@@ -39,6 +39,15 @@ branch_labels = None
 depends_on = None
 fab_version = "3.5.0"
 
+# SQLite reflects inline FK/UQ constraints without names, which makes
+# batch_op.drop_constraint(...) fail with "No such constraint". Passing this
+# naming convention to batch_alter_table tells alembic to synthesize names
+# for reflected unnamed constraints that match what batch_op.f() produces.
+_naming_convention = {
+    "fk": "%(table_name)s_%(column_0_name)s_fkey",
+    "uq": "%(table_name)s_%(column_0_N_name)s_uq",
+}
+
 
 def _mysql_run_procedure(procedure_name: str, body: str) -> str:
     return f"""
@@ -238,7 +247,9 @@ def upgrade() -> None:
         op.execute(sa.text(_mysql_create_idx_permission_view_id_if_not_exists()))
         op.execute(sa.text(_mysql_create_idx_role_id_if_not_exists()))
 
-    with op.batch_alter_table("ab_permission_view_role", schema=None) as batch_op:
+    with op.batch_alter_table(
+        "ab_permission_view_role", schema=None, naming_convention=_naming_convention
+    ) as batch_op:
         batch_op.drop_constraint(batch_op.f("ab_permission_view_role_role_id_fkey"), type_="foreignkey")
         batch_op.drop_constraint(
             batch_op.f("ab_permission_view_role_permission_view_id_fkey"), type_="foreignkey"
@@ -274,7 +285,7 @@ def upgrade() -> None:
     with op.batch_alter_table("ab_register_user", schema=None) as batch_op:
         batch_op.create_unique_constraint(batch_op.f("ab_register_user_email_uq"), ["email"])
 
-    with op.batch_alter_table("ab_user_role", schema=None) as batch_op:
+    with op.batch_alter_table("ab_user_role", schema=None, naming_convention=_naming_convention) as batch_op:
         batch_op.drop_constraint(batch_op.f("ab_user_role_role_id_fkey"), type_="foreignkey")
         batch_op.drop_constraint(batch_op.f("ab_user_role_user_id_fkey"), type_="foreignkey")
         batch_op.create_foreign_key(

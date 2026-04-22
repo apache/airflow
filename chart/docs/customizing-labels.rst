@@ -42,7 +42,7 @@ You can also set specific labels for individual Airflow components, which will b
 If the same label key exists in both global and component-specific labels, the component-specific value takes precedence (overrides the global value).
 
 This allows you to customize labels for specific components while still maintaining common global labels across all resources.
-For example, to add specific labels to different components:
+For example, to add specific labels to different components like scheduler or api-server:
 
 .. code-block:: yaml
    :caption: values.yaml
@@ -55,11 +55,6 @@ For example, to add specific labels to different components:
    scheduler:
      labels:
        role: scheduler
-
-   # Worker specific labels
-   workers:
-     labels:
-       role: worker
 
    # API Server specific labels
    apiServer:

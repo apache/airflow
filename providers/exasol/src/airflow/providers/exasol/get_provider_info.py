@@ -44,6 +44,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.exasol.hooks.exasol.ExasolHook",
+                "hook-name": "Exasol",
                 "connection-type": "exasol",
             }
         ],

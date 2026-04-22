@@ -26,7 +26,8 @@ PROVIDERS_DOCKER = """\
 FROM ghcr.io/apache/airflow/main/ci/python3.10
 RUN cd airflow-core; uv sync --no-sources
 
-# Install providers
+# Install providers with providers pre-releases allowed
+COPY pyproject.toml .
 {}
 """
 

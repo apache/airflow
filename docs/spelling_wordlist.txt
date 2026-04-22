@@ -104,6 +104,7 @@ astroid
 Async
 async
 asyncio
+asyncssh
 athena
 Atlassian
 atlassian
@@ -112,6 +113,7 @@ attr
 attrs
 au
 auditability
+auditable
 Auth
 auth
 authenticator
@@ -158,6 +160,7 @@ balancers
 Bas
 BaseClient
 BaseHook
+basename
 BaseOperator
 baseOperator
 BaseOperatorLink
@@ -511,6 +514,7 @@ dttm
 dtypes
 du
 duckdb
+dumpable
 dunder
 dup
 durable
@@ -652,6 +656,7 @@ formatter
 formatters
 forwardability
 forwardable
+fpr
 fqdn
 frontend
 fs
@@ -1133,6 +1138,7 @@ os
 OSS
 oss
 ot
+OTel
 otel
 PaaS
 Pagerduty
@@ -1194,6 +1200,7 @@ pooler
 Popen
 positionally
 POSIX
+posix
 postfix
 Postgres
 postgres
@@ -1218,6 +1225,7 @@ prefetches
 preflight
 prek
 Preload
+preload
 prepend
 prepended
 preprocess
@@ -1279,6 +1287,7 @@ pytest
 pythonic
 PythonOperator
 pythonpath
+pyvespa
 pywinrm
 Qdrant
 qdrant
@@ -1348,6 +1357,7 @@ responder
 reStructuredText
 resultset
 resumable
+retryable
 Reusability
 rfc
 rmse
@@ -1384,6 +1394,7 @@ salesforce
 samesite
 saml
 sandboxed
+sandboxing
 sanitization
 sas
 Sasl
@@ -1503,8 +1514,7 @@ srv
 ssc
 ssd
 SSHClient
-sshtunnel
-SSHTunnelForwarder
+SSHTunnel
 ssl
 sslcert
 sslkey
@@ -1728,6 +1738,7 @@ unpause
 unpaused
 unpausing
 unpredicted
+unsanitized
 untestable
 untransformed
 untrusted
@@ -1775,6 +1786,8 @@ venv
 venvs
 Vertica
 vertica
+Vespa
+vespa
 videointelligence
 views
 virtualenv
@@ -1832,6 +1845,7 @@ Xiaodong
 xlarge
 xml
 xpath
+XSS
 xyz
 yaml
 Yandex

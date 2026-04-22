@@ -75,6 +75,38 @@ way to sync your fork in GitHub's web UI with the `Fetch upstream feature
 This will force-push the ``main`` branch from ``apache/airflow`` to the ``main`` branch
 in your fork. Note that in case you modified the main in your fork, you might loose those changes.
 
+Syncing multiple branches with the helper script
+------------------------------------------------
+
+If you also backport to the current release branch (for example ``v3-2-test``) you usually
+want to keep more than one branch of your fork in sync with upstream. The
+``dev/sync_fork.sh`` helper does that in one go — it fetches ``upstream`` and force-pushes
+each listed branch from ``upstream/<branch>`` directly to ``origin/<branch>`` without
+touching your local working tree or checked-out branch.
+
+.. warning::
+
+   The script uses ``git push --force`` and will **overwrite** the listed branches
+   on your fork. By default it targets ``main`` and the current release branch
+   (currently ``v3-2-test``). Any commits you have on those branches in your fork
+   that are not in upstream will be lost. If you keep work on those branches,
+   commit it to a different branch first.
+
+Assumes your remotes are named ``upstream`` (for ``apache/airflow``) and ``origin``
+(for your fork). Override with the ``UPSTREAM_REMOTE`` and ``ORIGIN_REMOTE``
+environment variables if yours are named differently.
+
+.. code-block:: console
+
+    # Sync the default branches (main and the current release branch)
+    ./dev/sync_fork.sh
+
+    # Sync only main
+    ./dev/sync_fork.sh main
+
+    # Sync a specific set of branches
+    ./dev/sync_fork.sh main v3-2-test v3-1-test
+
 
 How to rebase PR
 ================
@@ -181,7 +213,10 @@ we will be adding the remote as "apache" so you can refer to it easily
    push your changes to your repository. That should trigger the build in our CI if you have a
    Pull Request (PR) opened already
 
-8. While rebasing you might have conflicts. Read carefully what git tells you when it prints information
+8. When you have conflicts with ``uv.lock`` when rebasing, simply delete the ``uv.lock`` file and run
+   ``uv lock`` to regenerate it. This is the recommended way to solve conflicts in ``uv.lock`` file.
+
+9. While rebasing you might have conflicts. Read carefully what git tells you when it prints information
    about the conflicts. You need to solve the conflicts manually. This is sometimes the most difficult
    part and requires deliberately correcting your code and looking at what has changed since you developed your
    changes
@@ -195,7 +230,7 @@ we will be adding the remote as "apache" so you can refer to it easily
    you have a very intuitive and helpful merge tool. For more information, see
    `Resolve conflicts <https://www.jetbrains.com/help/idea/resolving-conflicts.html>`_.
 
-9. After you've solved your conflict run
+10. After you've solved your conflict run
 
    ``git rebase --continue``
 

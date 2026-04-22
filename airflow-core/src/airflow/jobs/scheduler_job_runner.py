@@ -978,9 +978,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
 
             self.log.debug(
-                "Queueing workload for TI: %s id=%s try_number=%d state=%s scheduler_job_id=%s executor=%s",
+                "Queueing workload for TI: %s try_number=%d state=%s scheduler_job_id=%s executor=%s",
                 ti,
-                ti.id,
                 ti.try_number,
                 ti.state,
                 self.job.id,
@@ -1257,12 +1256,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if ti.try_number != try_number:
                 cls.logger().warning(
                     "TI try_number mismatch: db_try_number=%d event_try_number=%d "
-                    "ti=%s ti_id=%s state=%s job_id=%s. "
+                    "ti=%s state=%s job_id=%s. "
                     "Another scheduler may have already modified this TI.",
                     ti.try_number,
                     try_number,
                     ti,
-                    ti.id,
                     ti.state,
                     job_id,
                 )
@@ -1274,7 +1272,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
 
             msg = (
-                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
+                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, ti_id=%s, "
                 "run_start_date=%s, run_end_date=%s, "
                 "run_duration=%s, state=%s, executor=%s, executor_state=%s, try_number=%s, max_tries=%s, "
                 "pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, scheduled_dttm=%s,"
@@ -1286,6 +1284,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.task_id,
                 ti.run_id,
                 ti.map_index,
+                ti.id,
                 ti.start_date,
                 ti.end_date,
                 ti.duration,
@@ -1394,7 +1393,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Handle cleared tasks that were successfully terminated by executor
                 if ti.state == TaskInstanceState.RESTARTING and state == TaskInstanceState.SUCCESS:
                     cls.logger().info(
-                        "Task %s was cleared and successfully terminated. Setting to scheduled for retry.", ti
+                        "Task %s was cleared and successfully terminated. Setting to scheduled for retry.",
+                        ti,
                     )
                     # Adjust max_tries to allow retry beyond normal limits (like clearing does)
                     ti.max_tries = ti.try_number + ti.task.retries
@@ -1631,13 +1631,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         self.log.exception("Something went wrong when trying to save task event logs.")
 
                 with create_session() as session:
-                    # Only retrieve expired deadlines that haven't been processed yet.
-                    # `missed` is False by default until the handler sets it.
-                    for deadline in session.scalars(
+                    # Lock expired, unhandled deadlines with FOR UPDATE SKIP LOCKED so
+                    # concurrent HA scheduler replicas don't both process the same row
+                    # and create duplicate callbacks.
+                    deadline_query = (
                         select(Deadline)
                         .where(Deadline.deadline_time < datetime.now(timezone.utc))
                         .where(~Deadline.missed)
                         .options(selectinload(Deadline.callback), selectinload(Deadline.dagrun))
+                    )
+                    for deadline in session.scalars(
+                        with_row_locks(
+                            deadline_query,
+                            of=Deadline,
+                            session=session,
+                            skip_locked=True,
+                            key_share=False,
+                        )
                     ):
                         deadline.handle_miss(session)
 

@@ -131,17 +131,19 @@ def reinstall_if_setup_changed() -> bool:
     Prints warning if detected airflow sources are not the ones that Breeze was installed with.
     :return: True if warning was printed.
     """
-
-    res = subprocess.run(
-        ["uv", "tool", "upgrade", "apache-airflow-breeze"],
-        cwd=MY_BREEZE_ROOT_PATH,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    if "Modified" in res.stderr:
-        inform_about_self_upgrade()
-        return True
+    try:
+        res = subprocess.run(
+            ["uv", "tool", "upgrade", "apache-airflow-breeze"],
+            cwd=MY_BREEZE_ROOT_PATH,
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        if res.returncode == 0 and "Modified" in res.stderr:
+            inform_about_self_upgrade()
+            return True
+    except FileNotFoundError:
+        pass
     return False
 
 
@@ -259,6 +261,10 @@ TASK_SDK_SOURCES_PATH = TASK_SDK_ROOT_PATH / "src"
 AIRFLOW_CTL_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-ctl"
 AIRFLOW_CTL_SOURCES_PATH = AIRFLOW_CTL_ROOT_PATH / "src"
 AIRFLOW_CTL_DIST_PATH = AIRFLOW_CTL_ROOT_PATH / "dist"
+
+MYPY_ROOT_PATH = AIRFLOW_ROOT_PATH / "dev" / "mypy"
+MYPY_SOURCES_PATH = MYPY_ROOT_PATH / "src"
+MYPY_DIST_PATH = MYPY_ROOT_PATH / "dist"
 
 # Same here - do not remove those this is used for past commit retrieval
 PREVIOUS_AIRFLOW_PROVIDERS_SOURCES_PATH = AIRFLOW_PROVIDERS_ROOT_PATH / "src"
@@ -418,22 +424,26 @@ def cleanup_python_generated_files():
     if get_verbose():
         console_print("[info]Cleaning .pyc and __pycache__")
     permission_errors = []
-    for path in AIRFLOW_ROOT_PATH.rglob("*.pyc"):
-        try:
-            path.unlink()
-        except FileNotFoundError:
-            # File has been removed in the meantime.
-            pass
-        except PermissionError:
-            permission_errors.append(path)
-    for path in AIRFLOW_ROOT_PATH.rglob("__pycache__"):
-        try:
-            shutil.rmtree(path)
-        except FileNotFoundError:
-            # File has been removed in the meantime.
-            pass
-        except PermissionError:
-            permission_errors.append(path)
+    for dirpath, dirnames, filenames in os.walk(AIRFLOW_ROOT_PATH):
+        # Skip node_modules and hidden directories (.*) — modify in place to prune os.walk
+        dirnames[:] = [d for d in dirnames if d != "node_modules" and not d.startswith(".")]
+        for filename in filenames:
+            if filename.endswith(".pyc"):
+                path = Path(dirpath) / filename
+                try:
+                    path.unlink()
+                except FileNotFoundError:
+                    pass
+                except PermissionError:
+                    permission_errors.append(path)
+        if Path(dirpath).name == "__pycache__":
+            try:
+                shutil.rmtree(dirpath)
+            except FileNotFoundError:
+                pass
+            except PermissionError:
+                permission_errors.append(Path(dirpath))
+            dirnames.clear()
     if permission_errors:
         if platform.uname().system.lower() == "linux":
             console_print("[warning]There were files that you could not clean-up:\n")

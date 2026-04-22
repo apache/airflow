@@ -19,25 +19,30 @@ from __future__ import annotations
 
 import datetime as dt
 import itertools
+import math
 import os
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import pendulum
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import delete, func, select, update
 
 from airflow._shared.timezones.timezone import datetime
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import DagRun, Log, TaskInstance
+from airflow.models import DagModel, DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
+from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import BaseOperator, TaskGroup
@@ -50,6 +55,7 @@ from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_runs,
+    clear_db_teams,
     clear_rendered_ti_fields,
 )
 from tests_common.test_utils.logs import check_last_log
@@ -146,7 +152,7 @@ class TestTaskInstanceEndpoint:
                 assert dag_version
 
             for mi in map_indexes:
-                kwargs = self.ti_init | {"map_index": mi}
+                kwargs: dict[str, Any] = self.ti_init | {"map_index": mi}
                 ti = TaskInstance(task=tasks[i], **kwargs, dag_version_id=dag_version.id)
                 session.add(ti)
                 ti.dag_run = dr
@@ -1711,6 +1717,136 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert response_batch1.json()["total_entries"] == response_batch2.json()["total_entries"] == ti_count
         assert (num_entries_batch1 + num_entries_batch2) == ti_count
         assert response_batch1 != response_batch2
+
+    def test_cursor_pagination_first_page(self, test_client, session):
+        """First page with cursor='' returns cursor response without needing a real token."""
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(5)
+            ],
+            dag_id=dag_id,
+        )
+        response = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances",
+            params={"limit": 3, "order_by": ["map_index"], "cursor": ""},
+        )
+        assert response.status_code == 200, response.json()
+        body = response.json()
+        assert body["next_cursor"] is not None
+        assert body["previous_cursor"] is None
+        assert body["total_entries"] is None
+        assert len(body["task_instances"]) == 3
+
+    def test_cursor_pagination_returns_cursor_response(self, test_client, session):
+        """When cursor param is provided, response has cursor fields and no total_entries."""
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(5)
+            ],
+            dag_id=dag_id,
+        )
+        # First page in cursor mode (empty cursor)
+        response1 = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances",
+            params={"limit": 3, "order_by": ["map_index"], "cursor": ""},
+        )
+        assert response1.status_code == 200
+        body1 = response1.json()
+        assert body1["total_entries"] is None
+        assert len(body1["task_instances"]) == 3
+        next_cursor = body1["next_cursor"]
+        assert next_cursor is not None
+
+        # Second (last) page using next_cursor from first page — only 2 TIs remain
+        response2 = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances",
+            params={"limit": 100, "cursor": next_cursor, "order_by": ["map_index"]},
+        )
+        assert response2.status_code == 200
+        body2 = response2.json()
+        assert body2["next_cursor"] is None
+        assert body2["previous_cursor"] is not None
+        assert body2["total_entries"] is None
+
+    def test_cursor_pagination_forward_and_backward_consistency(self, test_client, session):
+        """Walk all pages forward via next_cursor, then backward via previous_cursor, and compare."""
+        dag_id = "example_python_operator"
+        total_tis = 13
+        page_size = 4
+        max_pages = math.ceil(total_tis / page_size)
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(total_tis)
+            ],
+            dag_id=dag_id,
+        )
+
+        # -- Walk forward collecting pages --
+        forward_ids: list[str] = []
+        forward_pages: list[dict] = []
+        cursor_token = ""
+        for _ in range(max_pages):
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances",
+                params={"limit": page_size, "order_by": ["map_index"], "cursor": cursor_token},
+            )
+            assert response.status_code == 200, response.json()
+            body = response.json()
+            assert body["total_entries"] is None
+            forward_pages.append(body)
+            forward_ids.extend(ti["id"] for ti in body["task_instances"])
+
+            cursor_token = body.get("next_cursor")
+            if cursor_token is None:
+                break
+
+        # Sanity: all TIs collected, no overlaps, multiple pages
+        assert len(forward_ids) == total_tis
+        assert len(forward_ids) == len(set(forward_ids)), "Forward pages should not overlap"
+        assert len(forward_pages) == 4
+
+        # Boundary cursors
+        assert forward_pages[0]["previous_cursor"] is None, "First page should have no previous_cursor"
+        assert forward_pages[-1]["next_cursor"] is None, "Last page should have no next_cursor"
+
+        # -- Walk backward from the last page using previous_cursor --
+        backward_ids: list[str] = []
+        cursor_token = forward_pages[-1]["previous_cursor"]
+        assert cursor_token is not None, "Last page should provide a previous_cursor"
+
+        for _ in range(max_pages):
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances",
+                params={"limit": page_size, "order_by": ["map_index"], "cursor": cursor_token},
+            )
+            assert response.status_code == 200, response.json()
+            body = response.json()
+            backward_ids = [ti["id"] for ti in body["task_instances"]] + backward_ids
+
+            cursor_token = body.get("previous_cursor")
+            if cursor_token is None:
+                break
+
+        # Backward walk covers all items except the last page (already collected).
+        # Order must match exactly — no re-sorting needed if pagination is correct.
+        all_backward = backward_ids + [ti["id"] for ti in forward_pages[-1]["task_instances"]]
+        assert all_backward == forward_ids, (
+            "Walking backward + last page should produce the same TIs in the same order as walking forward"
+        )
+
+    def test_cursor_pagination_invalid_token(self, test_client, session):
+        """Invalid cursor token returns 400."""
+        self.create_task_instances(session)
+        response = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances",
+            params={"cursor": "this-is-not-valid", "order_by": ["map_index"]},
+        )
+        assert response.status_code == 400
 
     def test_task_group_filter_uses_run_version_not_latest(self, test_client, dag_maker, session):
         """
@@ -4242,6 +4378,8 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "next_cursor": None,
+            "previous_cursor": None,
         }
 
         mock_set_ti_state.assert_called_once_with(
@@ -4516,6 +4654,8 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         }
                     ],
                     "total_entries": 1,
+                    "next_cursor": None,
+                    "previous_cursor": None,
                 },
                 1,
             ),
@@ -4652,6 +4792,8 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "next_cursor": None,
+            "previous_cursor": None,
         }
         _check_task_instance_note(session, response_data["task_instances"][0]["id"], ti_note_data)
 
@@ -4713,6 +4855,8 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "next_cursor": None,
+            "previous_cursor": None,
         }
 
         _check_task_instance_note(
@@ -4792,6 +4936,8 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     }
                 ],
                 "total_entries": 1,
+                "next_cursor": None,
+                "previous_cursor": None,
             }
 
             _check_task_instance_note(
@@ -4989,6 +5135,8 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                 }
             ],
             "total_entries": 1,
+            "next_cursor": None,
+            "previous_cursor": None,
         }
 
         mock_set_ti_state.assert_called_once_with(
@@ -5275,6 +5423,8 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                         }
                     ],
                     "total_entries": 1,
+                    "next_cursor": None,
+                    "previous_cursor": None,
                 },
                 1,
             ),
@@ -5353,7 +5503,12 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 200
-        assert response.json() == {"task_instances": [], "total_entries": 0}
+        assert response.json() == {
+            "task_instances": [],
+            "total_entries": 0,
+            "next_cursor": None,
+            "previous_cursor": None,
+        }
 
 
 class TestDeleteTaskInstance(TestTaskInstanceEndpoint):
@@ -5501,6 +5656,14 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     BASH_DAG_ID = "example_bash_operator"
     BASH_TASK_ID = "also_run_this"
     WILDCARD_ENDPOINT = "/dags/~/dagRuns/~/taskInstances"
+
+    @pytest.fixture(autouse=True)
+    def clean_db(self, session):
+        clear_db_runs()
+        clear_db_teams()
+        yield
+        clear_db_teams()
+        clear_db_runs()
 
     @pytest.mark.parametrize(
         ("default_ti", "actions", "expected_results", "endpoint_url", "setup_dags"),
@@ -6069,10 +6232,24 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     ):
         # Setup task instances
         if setup_dags:
-            for dag_id in setup_dags:
+            if setup_dags == [self.BASH_DAG_ID, self.DAG_ID]:
                 self.create_task_instances(
-                    session, task_instances=default_ti, dag_id=dag_id, update_extras=True
+                    session,
+                    task_instances=[{"task_id": self.BASH_TASK_ID, "state": default_ti[0]["state"]}],
+                    dag_id=self.BASH_DAG_ID,
+                    update_extras=True,
                 )
+                self.create_task_instances(
+                    session,
+                    task_instances=[{"task_id": self.TASK_ID, "state": default_ti[1]["state"]}],
+                    dag_id=self.DAG_ID,
+                    update_extras=True,
+                )
+            else:
+                for dag_id in setup_dags:
+                    self.create_task_instances(
+                        session, task_instances=default_ti, dag_id=dag_id, update_extras=True
+                    )
         else:
             self.create_task_instances(session, task_instances=default_ti)
 
@@ -6140,6 +6317,154 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 assert ti.state == State.RUNNING, (
                     f"Expected map_index={mi} to remain running, got {ti.state!r}"
                 )
+
+    def test_bulk_task_instances_rejects_unauthorized_dag_ids_from_request_body(self, test_client, session):
+        restricted_bundle_name = "restricted-bundle-update"
+        restricted_team_name = "restricted-team-update"
+        self.create_task_instances(
+            session,
+            task_instances=[{"task_id": self.BASH_TASK_ID, "state": State.RUNNING}],
+            dag_id=self.BASH_DAG_ID,
+            update_extras=True,
+        )
+        self.create_task_instances(
+            session,
+            task_instances=[{"task_id": self.TASK_ID, "state": State.RUNNING}],
+            dag_id=self.DAG_ID,
+            update_extras=True,
+        )
+        restricted_bundle = DagBundleModel(name=restricted_bundle_name)
+        restricted_team = Team(name=restricted_team_name)
+        restricted_bundle.teams.append(restricted_team)
+        session.add_all([restricted_bundle, restricted_team])
+        session.flush()
+        session.execute(
+            update(DagModel)
+            .where(DagModel.dag_id == self.BASH_DAG_ID)
+            .values(bundle_name=restricted_bundle_name)
+        )
+        session.commit()
+
+        auth_manager = test_client.app.state.auth_manager
+        token = auth_manager._get_token_signer().generate(
+            auth_manager.serialize_user(
+                SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
+            )
+        )
+        with (
+            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
+            TestClient(
+                test_client.app,
+                headers={"Authorization": f"Bearer {token}"},
+                base_url=str(test_client.base_url),
+            ) as limited_test_client,
+        ):
+            response = limited_test_client.patch(
+                self.WILDCARD_ENDPOINT,
+                json={
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "dag_id": self.BASH_DAG_ID,
+                                    "dag_run_id": self.RUN_ID,
+                                    "task_id": self.BASH_TASK_ID,
+                                    "new_state": "success",
+                                },
+                                {
+                                    "dag_id": self.DAG_ID,
+                                    "dag_run_id": self.RUN_ID,
+                                    "task_id": self.TASK_ID,
+                                    "new_state": "success",
+                                },
+                            ],
+                        }
+                    ]
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json()["update"]["success"] == [f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[-1]"]
+        assert response.json()["update"]["errors"] == [
+            {
+                "error": f"User is not authorized to update task instances for DAG '{self.BASH_DAG_ID}'",
+                "status_code": 403,
+            }
+        ]
+
+    def test_bulk_delete_rejects_unauthorized_dag_ids_from_request_body(self, test_client, session):
+        restricted_bundle_name = "restricted-bundle-delete"
+        restricted_team_name = "restricted-team-delete"
+        self.create_task_instances(
+            session,
+            task_instances=[{"task_id": self.BASH_TASK_ID, "state": State.SUCCESS}],
+            dag_id=self.BASH_DAG_ID,
+            update_extras=True,
+        )
+        self.create_task_instances(
+            session,
+            task_instances=[{"task_id": self.TASK_ID, "state": State.SUCCESS}],
+            dag_id=self.DAG_ID,
+            update_extras=True,
+        )
+        restricted_bundle = DagBundleModel(name=restricted_bundle_name)
+        restricted_team = Team(name=restricted_team_name)
+        restricted_bundle.teams.append(restricted_team)
+        session.add_all([restricted_bundle, restricted_team])
+        session.flush()
+        session.execute(
+            update(DagModel)
+            .where(DagModel.dag_id == self.BASH_DAG_ID)
+            .values(bundle_name=restricted_bundle_name)
+        )
+        session.commit()
+
+        auth_manager = test_client.app.state.auth_manager
+        token = auth_manager._get_token_signer().generate(
+            auth_manager.serialize_user(
+                SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
+            )
+        )
+        with (
+            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
+            TestClient(
+                test_client.app,
+                headers={"Authorization": f"Bearer {token}"},
+                base_url=str(test_client.base_url),
+            ) as limited_test_client,
+        ):
+            response = limited_test_client.patch(
+                self.WILDCARD_ENDPOINT,
+                json={
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {
+                                    "dag_id": self.BASH_DAG_ID,
+                                    "dag_run_id": self.RUN_ID,
+                                    "task_id": self.BASH_TASK_ID,
+                                },
+                                {
+                                    "dag_id": self.DAG_ID,
+                                    "dag_run_id": self.RUN_ID,
+                                    "task_id": self.TASK_ID,
+                                },
+                            ],
+                        }
+                    ]
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json()["delete"]["success"] == [f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[-1]"]
+        assert response.json()["delete"]["errors"] == [
+            {
+                "error": f"User is not authorized to delete task instances for DAG '{self.BASH_DAG_ID}'",
+                "status_code": 403,
+            }
+        ]
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={})
