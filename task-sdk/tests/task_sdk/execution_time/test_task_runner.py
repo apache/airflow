@@ -1745,13 +1745,15 @@ def test_rendered_map_index_updates_sent_progressively(create_runtime_ti, mock_s
 class TestSerializeOutletEvents:
     """Tests for the wire format produced by ``_serialize_outlet_events``."""
 
-    def test_omits_partition_keys_when_empty(self):
+    def test_emits_empty_partition_keys_when_none_set(self):
         accessors = OutletEventAccessors()
         accessors[Asset(name="a")].extra = {"x": 1}
 
         events = list(_serialize_outlet_events(accessors))
 
-        assert events == [{"dest_asset_key": {"name": "a", "uri": "a"}, "extra": {"x": 1}}]
+        assert events == [
+            {"dest_asset_key": {"name": "a", "uri": "a"}, "extra": {"x": 1}, "partition_keys": []}
+        ]
 
     def test_emits_partition_keys_from_strings(self):
         accessors = OutletEventAccessors()

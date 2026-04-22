@@ -1160,18 +1160,16 @@ def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[d
     # Further filtering will be done in the API server.
     for key, accessor in events._dict.items():
         if isinstance(key, AssetUniqueKey):
-            event: dict[str, JsonValue] = {
+            yield {
                 "dest_asset_key": attrs.asdict(key),
                 "extra": accessor.extra,
-            }
-            if accessor.partition_keys:
-                event["partition_keys"] = [
+                "partition_keys": [
                     {"key": pk.key, "extra": pk.extra}
                     if isinstance(pk, PartitionKey)
                     else {"key": pk, "extra": {}}
                     for pk in accessor.partition_keys
-                ]
-            yield event
+                ],
+            }
         for alias_event in accessor.asset_alias_events:
             yield attrs.asdict(alias_event)
 

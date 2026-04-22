@@ -163,6 +163,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
         AssetOrTimeSchedule,
+        PartitionAtRuntime,
         PartitionedAssetTimetable,
     )
     from airflow.sdk.definitions.timetables.events import EventsTimetable
@@ -170,7 +171,6 @@ if TYPE_CHECKING:
         CronDataIntervalTimetable,
         DeltaDataIntervalTimetable,
     )
-    from airflow.sdk.definitions.timetables.simple import PartitionAtRuntime
     from airflow.sdk.definitions.timetables.trigger import (
         CronPartitionTimetable,
         CronTriggerTimetable,
@@ -225,7 +225,7 @@ __lazy_imports: dict[str, str] = {
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "ParamsDict": ".definitions.param",
-    "PartitionAtRuntime": ".definitions.timetables.simple",
+    "PartitionAtRuntime": ".definitions.timetables.assets",
     "PartitionedAssetTimetable": ".definitions.timetables.assets",
     "PartitionKey": ".definitions.asset",
     "PartitionMapper": ".definitions.partition_mappers.base",

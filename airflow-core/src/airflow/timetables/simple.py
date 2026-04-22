@@ -183,6 +183,20 @@ class ContinuousTimetable(_TrivialTimetable):
         return DagRunInfo.interval(start, end)
 
 
+class PartitionAtRuntime(NullTimetable):
+    """
+    Timetable that never schedules anything; partition keys are set at runtime.
+
+    This corresponds to ``schedule=PartitionAtRuntime()``.
+    """
+
+    description: str = "Never, partition key(s) set at runtime"
+
+    @property
+    def summary(self) -> str:
+        return "PartitionAtRuntime"
+
+
 class AssetTriggeredTimetable(_TrivialTimetable):
     """
     Timetable that never schedules anything.
