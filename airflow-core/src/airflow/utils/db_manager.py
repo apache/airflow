@@ -20,7 +20,6 @@ import inspect as _inspect
 import os
 from typing import TYPE_CHECKING
 
-from alembic import command
 from sqlalchemy import inspect
 
 from airflow import settings
@@ -48,6 +47,12 @@ def _callable_accepts_use_migration_files(callable_) -> bool:
     return any(
         parameter.kind == _inspect.Parameter.VAR_KEYWORD for parameter in signature.parameters.values()
     )
+
+
+def _get_alembic_command():
+    from alembic import command
+
+    return command
 
 
 class BaseDBManager(LoggingMixin):
@@ -126,7 +131,7 @@ class BaseDBManager(LoggingMixin):
         engine = self.session.get_bind().engine
         self.metadata.create_all(engine)
         config = self.get_alembic_config()
-        command.stamp(config, "head")
+        _get_alembic_command().stamp(config, "head")
         self.log.info("%s tables have been created from the ORM", self.__class__.__name__)
 
     def drop_tables(self, connection):
@@ -180,7 +185,7 @@ class BaseDBManager(LoggingMixin):
             return
 
         config = self.get_alembic_config()
-        command.upgrade(config, revision=to_revision or "heads", sql=show_sql_only)
+        _get_alembic_command().upgrade(config, revision=to_revision or "heads", sql=show_sql_only)
         self.log.info("Migrated the %s database", self.__class__.__name__)
 
     def downgrade(self, to_revision, from_revision=None, show_sql_only=False):
