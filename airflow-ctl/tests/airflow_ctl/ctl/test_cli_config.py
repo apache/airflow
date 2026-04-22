@@ -177,11 +177,12 @@ def test_args_get():
         ),
     ]
 
+
 @pytest.fixture(scope="module")
 def test_args_delete():
     return [
         (
-            "backfill-id", 
+            "backfill-id",
             {
                 "help": "backfill_id for delete operation in BackfillsOperations",
                 "default": None,
@@ -669,6 +670,7 @@ class TestCliConfigMethods:
                             "Help message should match the help_text.yaml"
                         )
                         return
+
     def test_positional_args(self):
         """Test that required parameters are created as positional arguments."""
         command_factory = CommandFactory(file_path="")
