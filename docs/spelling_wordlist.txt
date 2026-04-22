@@ -1636,6 +1636,7 @@ tbuild
 TCP
 tcp
 tdload
+teamless
 teardown
 teardowns
 templatable
@@ -1746,6 +1747,7 @@ unpaused
 unpausing
 unpredicted
 unsanitized
+unscoped
 untestable
 untransformed
 untrusted
