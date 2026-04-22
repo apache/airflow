@@ -57,7 +57,7 @@ Translation owners are responsible for language quality, consistency, and keepin
 Code owners are responsible for technical review, merge decisions, and making sure the locale still has active
 maintainers.
 
-Having more than one active reviewer for a locale is recommended, but not required.
+Having more than one translation owner for a locale is recommended, but not required.
 
 ## Adding or removing a supported locale
 
