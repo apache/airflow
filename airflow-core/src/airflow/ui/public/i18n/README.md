@@ -42,6 +42,9 @@ It applies to:
 - **Code owner**: The committer responsible for technical review and merge decisions for that locale.
 - **Translation sponsor**: A committer supporting a non-committer translation owner.
 - **Complete translation**: A locale that covers at least 90% of the terms in the default locale.
+- **Inactive owner**: A translation owner or code owner who is no longer actively maintaining the locale, for
+  example because they have not contributed to Airflow for more than 12 months or the locale has remained
+  incomplete for two consecutive major or minor releases.
 
 ## Ownership
 
@@ -77,8 +80,6 @@ A new locale may be added when all of the following are true:
 - The ownership arrangement has been approved through the dev list process described below before merge.
 - The locale is added to the repository and UI configuration.
 - The locale follows the translation guidance in this document and the locale-specific guide, if one exists.
-- The locale owners are prepared to coordinate in the `#i18n` Slack channel for ongoing translation work and
-  release-time notifications.
 
 The PR for a new locale should include:
 
@@ -98,10 +99,10 @@ The PR for a new locale should include:
 
 - When a translation owner asks to relinquish their role, or they become inactive, and there are no other active translation owners, the code owner should:
 
-- Raise a PR for removal of the translation owner from the `.github/CODEOWNERS` file.
-- Post a thread in the dev list that they are looking for assigning someone else as the translation owner within 30 days.
-- If a replacement is found within this time, they should be approved according to the ownership approval procedure below.
-- Otherwise, the code owner should raise a vote in the dev list for the removal of the translation from the codebase, with PMC and committers' votes counted as binding.
+  - Raise a PR for removal of the translation owner from the `.github/CODEOWNERS` file.
+  - Post a thread in the dev list that they are looking for assigning someone else as the translation owner within 30 days.
+  - If a replacement is found within this time, they should be approved according to the ownership approval procedure below.
+  - Otherwise, the code owner should raise a vote in the dev list for the removal of the translation from the codebase, with PMC and committers' votes counted as binding.
 
 ## Procedures
 
@@ -111,7 +112,9 @@ The PR for a new locale should include:
   - The locale being suggested, including a link to the PR.
   - Designated code owner(s) and translation owner(s) in the suggested locale.
   - If the code owner is sponsored, they should indicate this as well. Specifically, if there is only one translation owner, the code owner should also declare how they plan to approve the language aspects of PRs.
-- Within the thread, the code owner should demonstrate that the translation owner is suitable for the role.
+- Within the thread, the code owner should demonstrate that the translation owner is suitable for the role,
+  including sufficient proficiency in the target language and, for non-committers, the ability to maintain
+  translation files through the normal PR process.
 - Approval of any translation owner who is not a committer requires at least one binding vote of 1 PMC member, and no objections from other committers or PMC.
 - Approval of any translation owner who is also a code owner (committer) does not need to be voted on.
 
@@ -155,10 +158,14 @@ If a locale has only one translation owner and that person authors the PR, an ad
 When that is not practical, the code owner may use a trusted third-party review method, including LLM-assisted
 review, before merging (for example, GitHub Copilot or Claude).
 
+When review relies on a single translation owner together with a translation sponsor, the code owner should use
+a trusted neutral third-party opinion for language questions when needed.
+
 When a translation dispute cannot be resolved in the PR discussion:
 
 - A translation owner resolves language questions for their locale.
-- If multiple translation owners disagree, the code owner decides.
+- If multiple translation owners disagree, the code owner decides, using a trusted neutral third-party opinion
+  when needed.
 - If code owners disagree, a PMC member should be involved to resolve the conflict.
 
 For RTL languages, languages with significantly different word order, or languages that typically require much longer text, a UI check is strongly recommended in addition to file-level review.
