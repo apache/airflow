@@ -106,6 +106,19 @@ class TestSortParam:
         ):
             param.to_orm(None)
 
+    def test_resolved_attr_name_matches_model_attribute_for_aliased_sort(self):
+        """
+        Resolved ``attr_name`` must be the model attribute — not the user-facing alias.
+
+        Keyset cursor encoding calls ``getattr(row, attr_name, None)``; using the alias
+        (e.g. ``dag_run_id``) would silently yield ``None`` and break pagination.
+        """
+        param = SortParam(["id", "run_id"], DagRun, {"dag_run_id": "run_id"}).set_value(["dag_run_id"])
+        resolved = param.get_resolved_columns()
+        attr_names = [name for name, _col, _desc in resolved]
+        assert "run_id" in attr_names
+        assert "dag_run_id" not in attr_names
+
 
 class TestSearchParam:
     def test_to_orm_single_value(self):

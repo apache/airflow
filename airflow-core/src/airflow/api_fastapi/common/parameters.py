@@ -308,7 +308,6 @@ class SortParam(BaseParam[list[str]]):
         resolved: list[tuple[str, ColumnElement, bool]] = []
         for order_by_value in order_by_values:
             lstriped_orderby = order_by_value.lstrip("-")
-            attr_name = lstriped_orderby
             column: Column | None = None
             if self.to_replace:
                 replacement = self.to_replace.get(lstriped_orderby, lstriped_orderby)
@@ -326,6 +325,7 @@ class SortParam(BaseParam[list[str]]):
             if column is None:
                 column = getattr(self.model, lstriped_orderby)
 
+            attr_name = getattr(column, "key", lstriped_orderby)
             resolved.append((attr_name, column, order_by_value.startswith("-")))
 
         primary_key_column = self.get_primary_key_column()
