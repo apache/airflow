@@ -226,6 +226,49 @@ is the anti-pattern this file exists to prevent.
 
 ---
 
+## Mandatory: `action_required` run index per page
+
+Before classification runs, fetch one REST call per page:
+
+```bash
+gh api "repos/<owner>/<repo>/actions/runs?event=pull_request&status=action_required&per_page=100"
+```
+
+This lists **every** workflow run across the repo that is
+awaiting maintainer approval. Index the response by `head_sha`;
+any PR on the current page whose head SHA appears in the index
+is `pending_workflow_approval` (see
+[`classify.md#c1-pending_workflow_approval`](classify.md)).
+
+Why this is mandatory, not "fallback":
+
+- `statusCheckRollup.state` aggregates only **completed**
+  check-runs. When a first-time-contributor PR has its real CI
+  held in `action_required`, the rollup reports SUCCESS based on
+  fast bot checks (`Mergeable`, `WIP`, `DCO`, `boring-cyborg`)
+  that run unconditionally.
+- Empirically on `apache/airflow`, 17 first-time-contributor
+  PRs in a single sweep reported `rollup.state == SUCCESS` while
+  every real CI workflow was in `action_required`. Trusting the
+  rollup classified them all as `passing`.
+- The REST call returns ≤ 100 runs at a time and paginates
+  cheaply — a single extra round-trip per page is well under the
+  rate-limit budget and closes the whole class of false-
+  positives.
+
+Walk all pages of `actions/runs` (or at least the first 3, which
+covers any reasonable repo-level backlog) and keep the union as
+a per-page index. Invalidate the index before fetching the next
+PR page — approval state changes fast.
+
+The REST call is the primary signal. The rollup + "real CI
+pattern" guard from
+[`classify.md#verifying-real-ci-ran`](classify.md) is the
+belt-and-braces second check that protects against a rare case
+where the REST call misses a freshly-created run.
+
+---
+
 ## Optional: failed-job log snippets (deferred)
 
 When a PR is pulled out of a `draft` group for individual

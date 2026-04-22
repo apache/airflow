@@ -73,22 +73,46 @@ bottom** — the first matching rule wins.
 
 **Condition.** The PR has at least one GitHub Actions workflow
 run in the `action_required` state — i.e. waiting for maintainer
-approval before CI can execute. Detect via:
+approval before CI can execute.
 
-```graphql
-commits(last: 1) {
-  nodes { commit { statusCheckRollup { state } } }
-}
+**Detection — the rollup alone is NOT sufficient.** Empirically
+on `apache/airflow` (2026-04), a PR can have
+`statusCheckRollup.state == "SUCCESS"` while every real CI
+workflow (`Tests`, `CodeQL`, newsfragment check, …) is stuck in
+`action_required`. The rollup reflects only check-runs that have
+actually completed, so early bot-emitted successes (`Mergeable`,
+`WIP`, boring-cyborg, DCO) can pull the overall state to SUCCESS
+while the real CI hasn't even been allowed to start. Trusting
+the rollup alone classifies those PRs as `passing` and leads to
+premature `mark-ready`.
+
+The authoritative signal is the REST endpoint:
+
+```
+GET /repos/<owner>/<repo>/actions/runs?event=pull_request&status=action_required&per_page=100
 ```
 
-If the rollup state is `EXPECTED` or the rollup is empty *and*
-the PR author's `authorAssociation` is `FIRST_TIME_CONTRIBUTOR`
-or `FIRST_TIMER`, treat as `pending_workflow_approval`. Also
-flip to this classification when
-`repos/.../actions/runs?event=pull_request&status=action_required`
-for the PR's head SHA returns any runs — but only fetch that
-REST call for PRs that failed the rollup check (don't call it
-per PR for the whole page).
+This is a **repo-level** call that lists every run awaiting
+approval across all PRs. One call per sweep (not per PR) covers
+a whole page — index the response by `head_sha` and any PR whose
+head SHA appears in that index is `pending_workflow_approval`,
+regardless of what its rollup says.
+
+Do this call **once per page** and cache the `head_sha → [run_id, …]`
+mapping on the session for the duration of the page. Drop the
+cache before fetching the next page (workflow-approval state
+changes fast and a stale cache can miss a fresh run).
+
+**Fallback signals** (useful when the REST call is unavailable
+or returns empty for a SHA that nonetheless looks suspicious):
+
+- rollup state is `EXPECTED` or the rollup is empty, *and* the
+  author's `authorAssociation` is `FIRST_TIME_CONTRIBUTOR` /
+  `FIRST_TIMER`
+- rollup state is `SUCCESS` but every context is a bot/labeler
+  (see [`#verifying-real-ci-ran`](#verifying-real-ci-ran)) — the
+  "real CI ran" guard described below is the same guard and
+  must run as part of classifying `passing`
 
 **Rationale.** These PRs are the skill's single most sensitive
 category: approving a workflow lets a first-time contributor's
@@ -266,30 +290,50 @@ the maintainer-facing proposal but not required for correctness.
 
 ## Verifying "real CI ran"
 
+**Mandatory guard before classifying a PR as `passing`.**
+
 A PR can have `statusCheckRollup.state == SUCCESS` with only
-bot/labeler contexts present (no real test checks). Don't
-classify such PRs as `passing` — instead, classify as
-`pending_workflow_approval` (CI never kicked off) if the author
-is a first-time contributor, or as `deterministic_flag` with a
-`"no CI checks yet — needs rebase to re-trigger"` reason
-otherwise.
+bot/labeler contexts present (no real test checks). This is the
+common case when a first-time-contributor PR on a repo with
+"Require approval for workflows" enabled: fast bot checks
+(`Mergeable`, `WIP`, `boring-cyborg`, `DCO`) complete with
+success while the real CI runs (`Tests`, `CodeQL`, `newsfragment
+check`, …) sit in `action_required`. GitHub's rollup aggregates
+only check-runs that have completed, so the rollup reports
+SUCCESS while the real CI has not executed.
+
+**This guard is not optional.** Before a PR is classified as
+`passing` (C5), the implementation MUST walk
+`statusCheckRollup.contexts.nodes` and confirm at least one
+context's name matches a real-CI pattern below. If no real
+context is present, reclassify:
+
+- If the author is `FIRST_TIME_CONTRIBUTOR` / `FIRST_TIMER`, or if
+  the per-page `action_required` REST call lists any runs at the
+  PR's head SHA, classify as `pending_workflow_approval` (C1).
+- Otherwise, classify as `deterministic_flag` with a
+  `"no CI checks yet — needs rebase to re-trigger"` reason.
 
 Signal: `statusCheckRollup.contexts.nodes` lacks any
 `CheckRun` whose `name` matches a real-looking pattern. Real-
 CI patterns used on `apache/airflow`:
 
-- `Tests \(.*\)` (unit/integration tests)
+- `Tests` (exact or as prefix — main test workflow)
+- `Tests \(.*\)` (unit/integration tests split by matrix)
 - `Static checks` / `Pre-commit`
 - `Ruff` / `mypy-*`
 - `Build (CI|PROD) image`
 - `Helm tests`
 - `K8s tests`
 - `Docs build`
+- `CodeQL`
+- `Check newsfragment PR number`
 
-Anything else (`DCO`, `boring-cyborg`, `probot`, etc.) is
-bot/labeler noise and doesn't count toward the real-CI check.
-Maintain this list in [`suggested-actions.md`](suggested-actions.md)
-alongside the category-of-failure table so updates stay in sync.
+Anything else (`Mergeable`, `WIP`, `DCO`, `boring-cyborg`,
+`probot`, etc.) is bot/labeler noise and doesn't count toward
+the real-CI check. Maintain this list in
+[`suggested-actions.md`](suggested-actions.md) alongside the
+category-of-failure table so updates stay in sync.
 
 ---
 
