@@ -1877,7 +1877,7 @@ def main():
                 # the supervisor using the existing ResendLoggingFD mechanism.
                 # Must happen after get_startup_details() so we don't read the
                 # startup message as a ResendLoggingFD response.
-                if os.environ.pop("_AIRFLOW_FORK_EXEC", None):
+                if os.environ.pop("_AIRFLOW_FORK_EXEC", None) == "1":
                     reinit_supervisor_comms()
                 span = _make_task_span(msg=startup_details)
                 stack.enter_context(span)
