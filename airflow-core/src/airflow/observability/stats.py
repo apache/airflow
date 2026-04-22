@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
 from airflow._shared.observability.metrics.stats import (
     Stats,
     decr,
@@ -31,6 +32,7 @@ from airflow._shared.observability.metrics.stats import (
 )
 
 __all__ = [
+    "DualStatsManager",
     "Stats",
     "decr",
     "gauge",
