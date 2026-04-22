@@ -34,13 +34,13 @@ import sys
 
 try:
     import pwd
-except ModuleNotFoundError:  # pragma: no cover
-    pwd = None
+except ModuleNotFoundError:
+    pwd = None  # type: ignore[assignment]
 
 try:
     import resource
-except ModuleNotFoundError:  # pragma: no cover
-    resource = None
+except ModuleNotFoundError:
+    resource = None  # type: ignore[assignment]
 
 
 class DaemonContext:
