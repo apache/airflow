@@ -184,11 +184,11 @@ that arise as a result of other people changing the same files as you and mergin
 Here is how rebase looks in practice (you can find a summary below these detailed steps):
 
 1. You first need to add the Apache project remote to your git repository. This is only necessary once,
-so if it's not the first time you are following this tutorial you can skip this step. Per the
-`Git remote naming conventions`_ we add it as ``upstream``:
+   so if it's not the first time you are following this tutorial you can skip this step. Per the
+   `Git remote naming conventions`_ we add it as ``upstream``:
 
-* If you use ssh: ``git remote add upstream git@github.com:apache/airflow.git``
-* If you use https: ``git remote add upstream https://github.com/apache/airflow.git``
+   * If you use ssh: ``git remote add upstream git@github.com:apache/airflow.git``
+   * If you use https: ``git remote add upstream https://github.com/apache/airflow.git``
 
 2. You then need to make sure that you have the latest main fetched from the ``upstream`` repository. You can do this
    via

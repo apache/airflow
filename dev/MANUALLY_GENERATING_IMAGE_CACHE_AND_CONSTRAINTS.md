@@ -283,8 +283,8 @@ This is a step-by-step instruction on how to use it:
    naming convention — see
    [`contributing-docs/10_working_with_git.rst`](../contributing-docs/10_working_with_git.rst#git-remote-naming-conventions)).
    You can override this by passing `--remote-name` option to the command.
-3. You need to run `breeze release-management update-constraints` command. The `breeze` command comes usually
-   from another clone of airflow repository - usually from the `main` branch. You should pass those options to
+3. You need to run `breeze release-management update-constraints` command. Typically, `breeze` is run
+   from a separate clone of the Airflow repository, on the `main` branch. You should pass those options to
    the command:
       * path to the "constraints" repository
       * remote name where the constraints should be pushed (optionally - default "upstream")
