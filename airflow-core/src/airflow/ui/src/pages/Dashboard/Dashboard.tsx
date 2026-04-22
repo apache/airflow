@@ -26,7 +26,6 @@ import { Accordion, Alert } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 
 import { ReactPlugin } from "../ReactPlugin";
-import { Deadlines } from "./Deadlines";
 import { FavoriteDags } from "./FavoriteDags";
 import { Health } from "./Health";
 import { HistoricalMetrics } from "./HistoricalMetrics";
@@ -80,16 +79,13 @@ export const Dashboard = () => {
           <Stats />
         </Box>
         <Box order={4}>
-          <Deadlines />
-        </Box>
-        <Box order={5}>
           <FavoriteDags />
         </Box>
-        <Box display="flex" flexDirection={{ base: "column", md: "row" }} gap={{ base: 4, md: 8 }} order={6}>
+        <Box display="flex" flexDirection={{ base: "column", md: "row" }} gap={{ base: 4, md: 8 }} order={5}>
           <Health />
           <PoolSummary />
         </Box>
-        <Box order={7}>
+        <Box order={6}>
           <HistoricalMetrics />
         </Box>
         {dashboardReactPlugins.map((plugin) => (
