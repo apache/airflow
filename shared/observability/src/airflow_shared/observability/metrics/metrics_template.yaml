@@ -564,8 +564,8 @@ metrics:
   - name: "dag_processing.last_duration"
     description: "Milliseconds taken to load the given Dag file"
     type: "timer"
-    legacy_name: "dag_processing.last_duration.{dag_file}"
-    name_variables: ["dag_file"]
+    legacy_name: "dag_processing.last_duration.{bundle_name}.{file_name}"
+    name_variables: ["bundle_name", "file_name"]
 
   - name: "dagrun.duration.success"
     description: "Milliseconds taken for a DagRun to reach success state"
