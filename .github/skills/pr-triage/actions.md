@@ -174,7 +174,32 @@ Fall through to suggesting `rebase` for next time.
 
 ## `rebase` — update the PR branch with base
 
-Single mutation via REST, wrapped by `gh`:
+**Never attempt this action when `mergeable == CONFLICTING`.**
+GitHub's update-branch endpoint does a side-merge of the base
+branch into the PR head; the merge fails deterministically
+when the conflicts can't be auto-resolved, returns `422`, and
+burns a round-trip. The skill empirically hit this on every
+conflicting PR it tried during testing on `apache/airflow`.
+The `suggested-actions.md` rules route CONFLICTING PRs to
+`draft` instead — if a `rebase` action arrives here despite
+that, treat the conflict state itself as a hard refuse.
+
+Pre-flight guard:
+
+```bash
+merg=$(gh api graphql -F n=<N> -f query='
+  query($n: Int!) {
+    repository(owner:"<owner>",name:"<repo>") {
+      pullRequest(number: $n) { mergeable }
+    }
+  }' --jq '.data.repository.pullRequest.mergeable')
+if [ "$merg" = "CONFLICTING" ]; then
+  echo "refuse: CONFLICTING — route to draft instead" >&2
+  exit 2
+fi
+```
+
+When the guard passes, single mutation via `gh`:
 
 ```bash
 gh pr update-branch <N> --repo <repo>
@@ -188,10 +213,12 @@ gh api -X PUT repos/<owner>/<repo>/pulls/<N>/update-branch
 
 GitHub replies with `202 Accepted` for a successful update — it
 merges (or rebases, per repo settings) the base into the PR
-branch. If the PR is rebase-only and there are conflicts the
-base doesn't resolve, the call will 422 — surface the error
-and fall through to suggesting `draft` with a rebase-required
-comment.
+branch. If the call still 422s despite a non-CONFLICTING
+`mergeable` state (rare — usually means GitHub recomputed the
+mergeable state between our guard and the call), surface the
+error and **do not retry**; route to `draft` with the merge-
+conflicts violation. Never burn successive round-trips on the
+same PR in one session.
 
 No comment is posted for `rebase` by default. The contributor
 will see the merge commit (or rebased branch) in their PR.

@@ -50,14 +50,26 @@ currently-flagged PRs by the same author seen **this page**.
 | Rule | Action | Reason |
 |---|---|---|
 | `flagged_prs_by_author > 3` | `close` | "Author has N flagged PRs — suggest closing to reduce queue pressure" |
-| `mergeable == CONFLICTING` and no CI failures and no unresolved threads | `rebase` | "Merge conflicts with `<base>` — needs rebase" |
+| `mergeable == CONFLICTING` *(any other signal, or none)* | `draft` | "Merge conflicts with `<base>` — GitHub's side-merge can't resolve them, author must rebase locally; convert to draft with merge-conflicts violation" |
 | Only CI failures, all failures also appear in recent main-branch failures | `rerun` | "All N CI failures also appear in recent main-branch PRs — likely systemic, suggest rerun" |
 | Only CI failures, *some* failures match main-branch failures | `rerun` | "K/N CI failures match recent main-branch PRs — likely systemic" |
 | Only CI failures, every failed check is a static check (`ruff`, `mypy-*`, `pre-commit`, etc.) | `comment` | "Only static-check failures — deterministic, needs a code fix, not a rerun" |
 | Only CI failures, `failed_count <= 2`, no conflicts, no unresolved threads, `commits_behind <= 50` | `rerun` | "N CI failure(s) on otherwise clean PR — likely flaky, suggest rerun" |
 | Unresolved review threads only, CI green, no conflict | `ping` | "K unresolved review thread(s) from <reviewers> — ping author + reviewers with the [`reviewer-ping`](comment-templates.md#reviewer-ping) template" |
-| No CI at all (rollup empty / only bot contexts) | `rebase` | "No real CI checks triggered — rebase to re-trigger" |
+| No CI at all (rollup empty / only bot contexts), `mergeable != CONFLICTING` | `rebase` | "No real CI checks triggered, branch mergeable — rebase to re-trigger" |
 | *(fallback)* | `draft` | "Has quality issues — convert to draft with comment listing violations" |
+
+**Hard rule: never suggest `rebase` when `mergeable == CONFLICTING`.**
+GitHub's "Update branch" endpoint does a side-merge of the base
+branch into the head and refuses when the merge doesn't apply
+cleanly — exactly the case conflicts create. Empirically on
+`apache/airflow`, every rebase attempt on a CONFLICTING PR has
+returned "Cannot update PR branch due to conflicts" and wasted
+a round-trip. For those PRs, go straight to `draft` with the
+`Merge conflicts` violation so the author is pointed at the
+local-rebase instructions in their comment body. See
+[`actions.md#rebase`](actions.md) for the matching action-side
+guard.
 
 Notes:
 

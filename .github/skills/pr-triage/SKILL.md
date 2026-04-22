@@ -255,7 +255,7 @@ string using [`suggested-actions.md`](suggested-actions.md):
 |---|---|
 | `pending_workflow_approval` | `approve-workflow` (after diff review) or `flag-suspicious` |
 | `stale_copilot_review` | `draft` (with "Unaddressed Copilot review" violation, 14-day grace) |
-| `deterministic_flag` — conflicts only | `rebase` |
+| `deterministic_flag` — conflicts (any combination) | `draft` (GitHub update-branch can't resolve conflicts — never attempt `rebase`) |
 | `deterministic_flag` — ≤2 CI failures, no conflicts, no threads, branch up-to-date | `rerun` |
 | `deterministic_flag` — failures all match recent main-branch failures | `rerun` |
 | `deterministic_flag` — static-check-only failures | `comment` |
