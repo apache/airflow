@@ -35,6 +35,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
 import kubernetes
+import pendulum
 import tenacity
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.client.exceptions import ApiException
@@ -1054,10 +1055,12 @@ class KubernetesPodOperator(BaseOperator):
         since_seconds = None
         if since_time:
             try:
+                if isinstance(since_time, str):  # against interface spec but accept string as safeguard
+                    since_time = pendulum.parse(since_time.replace("Z", "+00:00"))
                 since_seconds = math.ceil(
                     (datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds()
                 )
-            except TypeError:
+            except (TypeError, ValueError):
                 self.log.warning(
                     "Error calculating since_seconds with since_time %s. Using None instead.",
                     since_time,

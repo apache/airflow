@@ -260,7 +260,14 @@ def _get_new_task_ids(
     if not latest_dag:
         raise ValueError(f"Latest DAG version for '{dag_id}' not found")
 
-    current_dag = scheduler_dagbag.get_dag_for_run(dag_run=dag_run, session=session)
+    # Use created_dag_version_id directly to get the DAG version the run was
+    # originally created with. We cannot use get_dag_for_run here because it
+    # falls back to the latest version when bundle_version is not set (e.g.
+    # LocalDagBundle), which would make current_dag == latest_dag and the diff
+    # always empty.
+    current_dag = None
+    if dag_run.created_dag_version_id:
+        current_dag = scheduler_dagbag.get_dag(version_id=dag_run.created_dag_version_id, session=session)
     new_task_ids = set(latest_dag.task_ids) - set(current_dag.task_ids) if current_dag else set()
 
     return list(new_task_ids)
@@ -1097,7 +1104,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         prefix = f"<TaskInstance: {self.dag_id}.{self.task_id} {self.run_id} "
         if self.map_index != -1:
             prefix += f"map_index={self.map_index} "
-        return prefix + f"[{self.state}]>"
+        return prefix + f"[{self.state}] ti_id={self.id}>"
 
     def next_retry_datetime(self):
         """

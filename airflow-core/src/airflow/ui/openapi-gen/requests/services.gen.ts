@@ -3384,6 +3384,7 @@ export class XcomService {
      * @param data.runAfterGt
      * @param data.runAfterLte
      * @param data.runAfterLt
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, timestamp, run_after`
      * @returns XComCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3413,7 +3414,8 @@ export class XcomService {
                 run_after_gte: data.runAfterGte,
                 run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
-                run_after_lt: data.runAfterLt
+                run_after_lt: data.runAfterLt,
+                order_by: data.orderBy
             },
             errors: {
                 400: 'Bad Request',

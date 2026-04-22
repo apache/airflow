@@ -1,0 +1,129 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+[project]
+name = "apache-airflow-mypy"
+dynamic = ["version"]
+description = "Apache Airflow Mypy plugins"
+readme = { file = "README.md", content-type = "text/markdown" }
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.10,!=3.15"
+
+authors = [
+    {name="Apache Software Foundation", email="dev@airflow.apache.org"},
+]
+maintainers = [
+    {name="Apache Software Foundation", email="dev@airflow.apache.org"},
+]
+keywords = [ "airflow", "orchestration", "workflow", "dag", "pipelines", "automation", "data" ]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Framework :: Apache Airflow",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Monitoring",
+]
+dependencies = [
+    "mypy>=1.0.0"
+]
+
+[project.urls]
+"Bug Tracker" = "https://github.com/apache/airflow/issues"
+Documentation = "https://airflow.apache.org/docs/apache-airflow-mypy/stable/index.html"
+Downloads = "https://archive.apache.org/dist/airflow/airflow-mypy/"
+Homepage = "https://airflow.apache.org/"
+"Release Notes" = "https://airflow.apache.org/docs/apache-airflow-mypy/stable/changelog.html"
+"Slack Chat" = "https://s.apache.org/airflow-slack"
+"Source Code" = "https://github.com/apache/airflow"
+LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
+Mastodon = "https://fosstodon.org/@airflow"
+Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
+YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
+
+[build-system]
+requires = [
+    "hatchling==1.29.0",
+    "packaging==26.1",
+    "pathspec==1.0.4",
+    "pluggy==1.6.0",
+    "tomli==2.4.1; python_version < '3.11'",
+    "trove-classifiers==2026.1.14.14",
+]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/airflow_mypy/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/airflow_mypy"]
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+src = ["src"]
+namespace-packages = ["src/airflow_mypy"]
+
+[tool.ruff.lint.extend-per-file-ignores]
+"tests/*" = ["S101", "TRY002"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.towncrier]
+name = "Apache Airflow Mypy"
+filename = "RELEASE_NOTES.rst"
+directory = "newsfragments"
+underlines = ["-", "^"]
+
+[[tool.towncrier.type]]
+directory = "significant"
+name = "Significant Changes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "feature"
+name = "Features"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "improvement"
+name = "Improvements"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "bugfix"
+name = "Bug Fixes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "doc"
+name = "Doc only Changes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "misc"
+name = "Misc"
+showcontent = true
+
+[tool.uv]
+required-version = ">=0.6.3"

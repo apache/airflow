@@ -22,6 +22,7 @@ import signal
 import sys
 import traceback
 from asyncio import Task, create_task, get_running_loop, sleep
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from functools import cached_property
 from http import HTTPStatus
@@ -106,6 +107,8 @@ class EdgeWorker:
         self.daemon = daemon
         self.team_name = team_name
 
+        self.worker_start_time: datetime = datetime.now()
+
         if TYPE_CHECKING:
             self.conf: ExecutorConf | AirflowConfigParser
 
@@ -124,6 +127,20 @@ class EdgeWorker:
         )
         self.push_logs = self.conf.getboolean("edge", "push_logs")
         self.push_log_chunk_size = self.conf.getint("edge", "push_log_chunk_size")
+
+        self.extended_sysinfo: Callable[[], Awaitable[dict[str, str | int | float | datetime]]] | None = None
+        extended_sysinfo_func_path = self.conf.get("edge", "extended_system_info_function", fallback=None)
+        if extended_sysinfo_func_path:
+            module_path, func_name = extended_sysinfo_func_path.rsplit(".", 1)
+            try:
+                module = __import__(module_path, fromlist=[func_name])
+                self.extended_sysinfo = getattr(module, func_name)
+                logger.info("Using extended sysinfo function: %s", extended_sysinfo_func_path)
+            except Exception:
+                logger.exception(
+                    "Failed to import extended sysinfo function %s, skipping it.",
+                    extended_sysinfo_func_path,
+                )
 
     @cached_property
     def _execution_api_server_url(self) -> str | None:
@@ -185,14 +202,24 @@ class EdgeWorker:
                 os.setpgid(job.process.pid, 0)
                 os.kill(job.process.pid, signal.SIGTERM)
 
-    def _get_sysinfo(self) -> dict:
+    async def _get_sysinfo(self) -> dict[str, str | int | float | datetime]:
         """Produce the sysinfo from worker to post to central site."""
-        return {
+        sysinfo: dict[str, str | int | float | datetime] = {
+            "status": logging.INFO,
             "airflow_version": airflow_version,
             "edge_provider_version": edge_provider_version,
+            "python_version": sys.version,
+            "worker_start_time": self.worker_start_time,
             "concurrency": self.concurrency,
             "free_concurrency": self.free_concurrency,
         }
+        if self.extended_sysinfo:
+            try:
+                sysinfo.update(await self.extended_sysinfo())
+            except Exception:
+                logger.exception("Failed to get extended sysinfo, skipping it.")
+
+        return sysinfo
 
     def _get_state(self) -> EdgeWorkerState:
         """State of the Edge Worker."""
@@ -280,7 +307,11 @@ class EdgeWorker:
         """Start the execution in a loop until terminated."""
         try:
             await worker_register(
-                self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo(), self.team_name
+                self.hostname,
+                EdgeWorkerState.STARTING,
+                self.queues,
+                await self._get_sysinfo(),
+                self.team_name,
             )
         except EdgeWorkerVersionException as e:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
@@ -309,12 +340,16 @@ class EdgeWorker:
 
             logger.info("Quitting worker, signal being offline.")
             try:
+                sysinfo = await self._get_sysinfo()
+                sysinfo["status"] = logging.NOTSET
+                if "status_text" in sysinfo:
+                    del sysinfo["status_text"]  # Remove old status text if exists
                 await worker_set_state(
                     self.hostname,
                     EdgeWorkerState.OFFLINE_MAINTENANCE if self.maintenance_mode else EdgeWorkerState.OFFLINE,
                     0,
                     self.queues,
-                    self._get_sysinfo(),
+                    sysinfo,
                     team_name=self.team_name,
                 )
             except EdgeWorkerVersionException:
@@ -408,7 +443,7 @@ class EdgeWorker:
     async def heartbeat(self, new_maintenance_comments: str | None = None) -> bool:
         """Report liveness state of worker to central site with stats."""
         state = self._get_state()
-        sysinfo = self._get_sysinfo()
+        sysinfo = await self._get_sysinfo()
         worker_state_changed: bool = False
         try:
             worker_info = await worker_set_state(

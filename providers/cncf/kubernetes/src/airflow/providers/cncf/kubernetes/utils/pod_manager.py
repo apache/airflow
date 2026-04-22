@@ -232,6 +232,18 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
         "temporarily unavailable",
         "timeout",
         "account limit",
+        # Upstream registry/auth outages (e.g. Docker Hub auth returning 5xx).
+        # kubelet will retry automatically; the caller's startup_timeout still
+        # bounds the total wait. These match both the underlying ErrImagePull
+        # message and the ImagePullBackOff message on kubelet >= 1.32, which
+        # appends the previous pull error to "Back-off pulling image ...".
+        # On older kubelets the bare ImagePullBackOff message carries no
+        # detail, so we fall back to the existing fail-fast path — matching
+        # "back-off pulling" unconditionally would cause a 120s wait for a
+        # genuinely missing image instead of failing fast.
+        "bad gateway",
+        "service unavailable",
+        "gateway timeout",
     ]
 
     FATAL_STATES = ["InvalidImageName", "ErrImageNeverPull"]
@@ -526,8 +538,12 @@ class PodManager(LoggingMixin):
                 since_seconds = None
                 if since_time:
                     try:
+                        if isinstance(
+                            since_time, str
+                        ):  # against interface spec but accept string as safeguard
+                            since_time = pendulum.parse(since_time.replace("Z", "+00:00"))
                         since_seconds = math.ceil((pendulum.now() - since_time).total_seconds())
-                    except TypeError:
+                    except (TypeError, ValueError):
                         self.log.warning(
                             "Error calculating since_seconds with since_time %s. Using None instead.",
                             since_time,
