@@ -376,6 +376,15 @@ class TestGitHook:
         assert hook.env["GIT_CONFIG_KEY_0"] == f"http.{AIRFLOW_HTTP_URL}.extraHeader"
         assert hook.env["GIT_CONFIG_VALUE_0"] == f"Authorization: Basic {expected_creds}"
 
+    def test_old_git_does_not_set_extra_header(self, monkeypatch):
+        """Test that git<2.31 skips GIT_CONFIG_* injection used to force HTTP auth."""
+        monkeypatch.setattr(GitHook, "_get_git_version_info", staticmethod(lambda: (2, 30, 0)))
+
+        hook = GitHook(git_conn_id=CONN_HTTPS)
+
+        assert hook.repo_url == f"https://user:{ACCESS_TOKEN}@github.com/apache/airflow.git"
+        assert "GIT_CONFIG_COUNT" not in hook.env
+
     def test_no_auth_does_not_set_extra_header(self):
         """Test that connections without auth token do not set http.extraHeader."""
         hook = GitHook(git_conn_id=CONN_HTTP_NO_AUTH)

@@ -25,8 +25,11 @@ import os
 import shlex
 import stat
 import tempfile
+from functools import lru_cache
 from typing import Any
 from urllib.parse import quote as urlquote
+
+from git import Git
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
@@ -113,6 +116,14 @@ class GitHook(BaseHook):
 
     _VALID_STRICT_HOST_KEY_CHECKING = frozenset({"yes", "no", "accept-new", "off", "ask"})
 
+    @staticmethod
+    @lru_cache(maxsize=1)
+    def _get_git_version_info() -> tuple[int, ...] | None:
+        try:
+            return Git().version_info
+        except Exception:
+            return None
+
     def _build_ssh_command(self, key_path: str | None = None) -> str:
         parts = ["ssh"]
 
@@ -151,18 +162,33 @@ class GitHook(BaseHook):
             encoded_user = urlquote(self.user_name, safe="")
             encoded_token = urlquote(self.auth_token, safe="")
             self.repo_url = self.repo_url.replace("https://", f"https://{encoded_user}:{encoded_token}@", 1)
-            self._set_http_auth_env(original_url)
+            self._set_http_auth_env_if_supported(original_url)
         elif self.auth_token and self.repo_url.startswith("http://"):
             original_url = self.repo_url
             encoded_user = urlquote(self.user_name, safe="")
             encoded_token = urlquote(self.auth_token, safe="")
             self.repo_url = self.repo_url.replace("http://", f"http://{encoded_user}:{encoded_token}@", 1)
-            self._set_http_auth_env(original_url)
+            self._set_http_auth_env_if_supported(original_url)
         elif self.repo_url.startswith("http://"):
             # if no auth token, use the repo url as is
             pass
         elif not self.repo_url.startswith("git@") and not self.repo_url.startswith("https://"):
             self.repo_url = os.path.expanduser(self.repo_url)
+
+    def _set_http_auth_env_if_supported(self, repo_url: str) -> None:
+        git_version = self._get_git_version_info()
+        if git_version is None or git_version >= (2, 31):
+            self._set_http_auth_env(repo_url)
+            return
+
+        version = ".".join(map(str, git_version))
+        log.warning(
+            "Configured auth token for git repository %s, but installed git %s does not support "
+            "the GIT_CONFIG_* env vars required to force HTTP auth for public repositories. "
+            "git >= 2.31 is required.",
+            repo_url,
+            version,
+        )
 
     def _set_http_auth_env(self, repo_url: str) -> None:
         """
