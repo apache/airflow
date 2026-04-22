@@ -57,17 +57,32 @@ class _GitCustomEnvContextManager:
         pass
 
 
+def _stub_git_custom_environment(**_kwargs: object):
+    """Stand-in for ``git.cmd.Git.custom_environment`` (``create_autospec`` target only)."""
+    ...  # Calls are intercepted by autospec mock; implementation is unused.
+
+
+def _stub_git_submodule(*_args: object, **_kwargs: object) -> None:
+    """Stand-in for GitPython submodule subcommand calls (``create_autospec`` target only)."""
+    ...
+
+
 # ``_fetch_submodules`` only uses ``repo.git.custom_environment`` and ``repo.git.submodule``.
 # Use ``types.SimpleNamespace`` for ``bundle.repo`` / ``repo.git`` so ``.git`` / ``.submodule``
 # are plain instance attributes — **not** MagicMock children (nested ``Repo``/``Git`` mocks
 # in unittest can lack ``submodule`` on lowest-dep / CI runs).
+# ``custom_environment`` / ``submodule`` use ``create_autospec`` on small stubs so typos drift
+# from the GitPython-like surface are caught (Airflow test convention).
 
 
 def _repo_and_git_stubs_for_submodule_tests(ssh_ctx_cm):
     """Return (repo_stub, git_cmd_stub) for ``GitDagBundle._fetch_submodules`` unit tests."""
+    custom_environment = mock.create_autospec(_stub_git_custom_environment, spec_set=True)
+    custom_environment.return_value = ssh_ctx_cm
+    submodule = mock.create_autospec(_stub_git_submodule, spec_set=True)
     git_cmd = types.SimpleNamespace(
-        custom_environment=mock.MagicMock(return_value=ssh_ctx_cm),
-        submodule=mock.MagicMock(),
+        custom_environment=custom_environment,
+        submodule=submodule,
     )
     return types.SimpleNamespace(git=git_cmd), git_cmd
 
