@@ -1255,8 +1255,6 @@ def run(
     error: BaseException | None = None
 
     stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
-    stats.incr(f"ti.start.{ti.dag_id}.{ti.task_id}", tags=stats_tags)
-    # Same metric with tagging
     stats.incr("ti.start", tags=stats_tags)
 
     try:
@@ -1371,11 +1369,6 @@ def run(
         msg, state = _handle_current_task_failed(ti)
         error = e
     finally:
-        stats.incr(
-            f"ti.finish.{ti.dag_id}.{ti.task_id}.{state.value}",
-            tags=stats_tags,
-        )
-        # Same metric with tagging
         stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
 
         if msg:
@@ -1407,9 +1400,7 @@ def _handle_current_task_success(
     operator = ti.task.__class__.__name__
     stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
-    stats.incr(f"operator_successes_{operator}", tags=stats_tags)
-    # Same metric with tagging
-    stats.incr("operator_successes", tags={**stats_tags, "operator": operator})
+    stats.incr("operator_successes", tags={**stats_tags, "operator_name": operator})
     stats.incr("ti_successes", tags=stats_tags)
 
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
@@ -1433,9 +1424,7 @@ def _handle_current_task_failed(
     operator = ti.task.__class__.__name__
     stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
-    stats.incr(f"operator_failures_{operator}", tags=stats_tags)
-    # Same metric with tagging
-    stats.incr("operator_failures", tags={**stats_tags, "operator": operator})
+    stats.incr("operator_failures", tags={**stats_tags, "operator_name": operator})
     stats.incr("ti_failures", tags=stats_tags)
 
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
@@ -1789,7 +1778,6 @@ def finalize(
         duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
         stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
-        stats.timing(f"dag.{ti.dag_id}.{ti.task_id}.duration", duration_ms)
         stats.timing("task.duration", duration_ms, tags=stats_tags)
 
     task = ti.task
