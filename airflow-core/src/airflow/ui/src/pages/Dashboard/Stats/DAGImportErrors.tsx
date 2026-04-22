@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Skeleton, useDisclosure } from "@chakra-ui/react";
+import { Box, Skeleton, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 
 import { useImportErrorServiceGetImportErrors } from "openapi/queries/queries";
+import { DagImportErrorsIconBadge } from "src/components/DagImportErrorsIconBadge";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { StateBadge } from "src/components/StateBadge";
 import { StatsCard } from "src/components/StatsCard";
 
 import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
@@ -48,16 +48,11 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
     <Box alignItems="center" display="flex">
       <ErrorAlert error={error} />
       {iconOnly ? (
-        <StateBadge
-          as={Button}
-          colorPalette="failed"
-          height={7}
+        <DagImportErrorsIconBadge
+          count={importErrorsCount}
           onClick={onOpen}
           title={translate("importErrors.dagImportError", { count: importErrorsCount })}
-        >
-          <LuFileWarning size={8} />
-          {importErrorsCount}
-        </StateBadge>
+        />
       ) : (
         <StatsCard
           colorScheme="failed"
