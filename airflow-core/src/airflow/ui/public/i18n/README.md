@@ -147,7 +147,7 @@ review, before merging (for example, GitHub Copilot or Claude).
 
 When a translation dispute cannot be resolved in the PR discussion:
 
-- A translation owner decides language questions for their locale.
+- A translation owner resolves language questions for their locale.
 - If multiple translation owners disagree, the code owner decides.
 - If code owners disagree, a PMC member should be involved to resolve the conflict.
 
