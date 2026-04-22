@@ -429,4 +429,40 @@ class BaseRuntimeCoordinator:
             _bridge(supervisor_comm, runtime_comm, runtime_logs, read_stderr, proc, log)
 
 
-__all__ = ["BaseRuntimeCoordinator"]
+class QueueToRuntimeCoordinatorMapper:
+    """
+    Map queue names to runtime coordinator names.
+
+    Users often use queues as environment/isolation identifiers (e.g. ``"java-11"``,
+    ``"java-12"``).  This mapper lets them reuse existing queue assignments to route
+    tasks to the correct runtime coordinator without requiring the ``sdk`` field
+    on every operator.
+
+    The mapping is read from the ``[workers] queue_to_runtime_mapping``
+    configuration option, which is a JSON dict of ``queue_name -> runtime_name``.
+
+    Example configuration::
+
+        [workers]
+        queue_to_runtime_mapping = {"java-11": "java", "java-12": "java"}
+    """
+
+    def __init__(self, mapping: dict[str, str]) -> None:
+        self._mapping = mapping
+
+    @classmethod
+    def from_config(cls) -> QueueToRuntimeCoordinatorMapper:
+        """Load the queue-to-runtime mapping from airflow configuration."""
+        from airflow.sdk.configuration import conf
+
+        mapping = conf.getjson("workers", "queue_to_runtime_mapping", fallback={})
+        if not isinstance(mapping, dict):
+            return cls({})
+        return cls(mapping)
+
+    def resolve(self, queue: str) -> str | None:
+        """Return the runtime coordinator name for *queue*, or ``None`` if unmapped."""
+        return self._mapping.get(queue)
+
+
+__all__ = ["BaseRuntimeCoordinator", "QueueToRuntimeCoordinatorMapper"]

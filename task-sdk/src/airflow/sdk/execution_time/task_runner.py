@@ -30,7 +30,7 @@ from contextlib import ExitStack, contextmanager, suppress
 from datetime import datetime, timedelta, timezone
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 from urllib.parse import quote
 
 import attrs
@@ -146,7 +146,6 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
-    from airflow._shared.workloads import TaskInstanceDTO
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.retry_policy import RetryDecision
@@ -2097,14 +2096,35 @@ def _resolve_runtime_entrypoint(startup_details: StartupDetails, log: Logger) ->
     """
     Check provider-registered runtime coordinators for a runtime-specific entrypoint.
 
-    If the task's ``sdk`` field matches a coordinator's ``runtime_name``,
-    return a no-arg callable that bridges fd 0 to the runtime subprocess.
-    Otherwise return ``None`` to fall through to the standard Python
-    execution path.
+    Resolution order:
+
+    1. If the task's ``sdk`` field is set, match it directly against
+       coordinator ``runtime_name`` values.
+    2. Otherwise, consult the ``[workers] queue_to_runtime_mapping``
+       configuration to see if the task's ``queue`` maps to a runtime name.
+
+    Returns a no-arg callable that bridges fd 0 to the runtime subprocess,
+    or ``None`` to fall through to the standard Python execution path.
     """
     sdk = startup_details.ti.sdk
+
+    # Fallback: resolve runtime name from queue mapping when sdk is not set.
     if sdk is None:
-        return None
+        from airflow.sdk.execution_time.coordinator import QueueToRuntimeCoordinatorMapper
+
+        log.debug(
+            "No sdk specified for task, attempting to resolve runtime from queue mapping",
+            queue=startup_details.ti.queue,
+            task_id=startup_details.ti.task_id,
+        )
+        sdk = QueueToRuntimeCoordinatorMapper.from_config().resolve(startup_details.ti.queue)
+        if sdk is None:
+            log.debug(
+                "No runtime found for task queue, using standard Python execution path",
+                queue=startup_details.ti.queue,
+                task_id=startup_details.ti.task_id,
+            )
+            return None
 
     import functools
 
@@ -2125,7 +2145,7 @@ def _resolve_runtime_entrypoint(startup_details: StartupDetails, log: Logger) ->
         )
         return functools.partial(
             coordinator_cls.run_task_execution,
-            what=cast("TaskInstanceDTO", startup_details.ti),
+            what=startup_details.ti,
             dag_rel_path=startup_details.dag_rel_path,
             bundle_info=startup_details.bundle_info,
             startup_details=startup_details,
@@ -2166,8 +2186,15 @@ def main():
                 # startup message as a ResendLoggingFD response.
                 if os.environ.pop("_AIRFLOW_FORK_EXEC", None) == "1":
                     reinit_supervisor_comms()
-                span_ctx_mgr = _make_task_span(msg=startup_details)
-                span = stack.enter_context(span_ctx_mgr)
+                # Check if a provider-registered runtime coordinator should
+                # handle this task (e.g. Java, Go) instead of the standard
+                # Python execution path.
+                runtime_entrypoint = _resolve_runtime_entrypoint(startup_details, log)
+                if runtime_entrypoint is not None:
+                    runtime_entrypoint()
+                    return
+                span = _make_task_span(msg=startup_details)
+                stack.enter_context(span)
                 ti, context, log = startup(msg=startup_details)
             except AirflowRescheduleException as reschedule:
                 log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
