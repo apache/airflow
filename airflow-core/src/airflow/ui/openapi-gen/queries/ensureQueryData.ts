@@ -682,6 +682,7 @@ export const ensureUseEventLogServiceGetEventLogsData = (queryClient: QueryClien
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.tryNumber
 * @returns ExtraLinkCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -700,6 +701,7 @@ export const ensureUseExtraLinksServiceGetExtraLinksData = (queryClient: QueryCl
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.tryNumber
 * @returns ExtraLinkCollectionResponse Successful Response
 * @throws ApiError
 */
