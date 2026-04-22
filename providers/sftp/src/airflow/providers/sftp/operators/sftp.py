@@ -34,12 +34,7 @@ from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.triggers.sftp import SFTPOperatorTrigger
 
 
-class SFTPOperation:
-    """Operation that can be used with SFTP."""
-
-    PUT = "put"
-    GET = "get"
-    DELETE = "delete"
+from airflow.providers.sftp.constants import SFTPOperation
 
 
 class SFTPOperator(BaseOperator):
@@ -123,6 +118,9 @@ class SFTPOperator(BaseOperator):
                     operation=self.operation,
                     confirm=self.confirm,
                     create_intermediate_dirs=self.create_intermediate_dirs,
+                    remote_host=self.remote_host,
+                    concurrency=self.concurrency,
+                    prefetch=self.prefetch,
                 ),
                 method_name="execute_complete",
             )
