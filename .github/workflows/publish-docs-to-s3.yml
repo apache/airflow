@@ -176,7 +176,7 @@ jobs:
                 PROVIDER_ID="${pkg#apache-airflow-providers-}"
                 REGISTRY_PROVIDERS="${REGISTRY_PROVIDERS:+${REGISTRY_PROVIDERS} }${PROVIDER_ID}"
                 ;;
-              apache-airflow|all-providers|apache-airflow-providers|helm-chart|docker-stack)
+              apache-airflow|all-providers|apache-airflow-providers|helm-chart|docker-stack|apache-airflow-ctl|apache-airflow-task-sdk)
                 # Not a provider package, skip
                 ;;
               *)

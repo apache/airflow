@@ -662,6 +662,11 @@ class TestGetDagRuns:
             (DAG1_ID, {"run_id_pattern": "run_1"}, [DAG1_RUN1_ID]),
             (DAG1_ID, {"run_id_pattern": "dag_%_1"}, [DAG1_RUN1_ID]),
             ("~", {"run_id_pattern": "dag_run_"}, [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            # Pipe (OR) operator returns results matching either term
+            ("~", {"run_id_pattern": f"{DAG1_RUN1_ID}|{DAG1_RUN2_ID}"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            # Trailing/leading pipe should not leak into the LIKE pattern
+            ("~", {"run_id_pattern": f"{DAG1_RUN1_ID}|"}, [DAG1_RUN1_ID]),
+            ("~", {"run_id_pattern": f"|{DAG1_RUN1_ID}"}, [DAG1_RUN1_ID]),
             (
                 DAG1_ID,
                 {
@@ -1577,6 +1582,90 @@ class TestClearDagRun:
         body = response.json()
         assert body["detail"][0]["msg"] == "Field required"
         assert body["detail"][0]["loc"][0] == "body"
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_dag_run_only_new_dry_run(self, mock_clear, test_client, session):
+        """Test that only_new dry_run returns placeholder task instances for new tasks."""
+        mock_clear.return_value = {"new_task_1", "new_task_2", "new_task_3"}
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
+            json={"dry_run": True, "only_new": True},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 3
+        # Verify new tasks are returned with correct task_ids in task_instances
+        task_ids = sorted(t["task_id"] for t in body["task_instances"])
+        assert task_ids == ["new_task_1", "new_task_2", "new_task_3"]
+        # Verify task_display_name defaults to task_id
+        for task in body["task_instances"]:
+            assert task["task_display_name"] == task["task_id"]
+        mock_clear.assert_called_once_with(
+            run_id=DAG1_RUN1_ID,
+            task_ids=None,
+            only_new=True,
+            only_failed=False,
+            run_on_latest_version=False,
+            dry_run=True,
+            session=mock.ANY,
+        )
+        logs = session.scalar(
+            select(func.count())
+            .select_from(Log)
+            .where(Log.dag_id == DAG1_ID, Log.run_id == DAG1_RUN1_ID, Log.event == "clear_dag_run")
+        )
+        assert logs == 0
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_dag_run_only_new_dry_run_no_new_tasks(self, mock_clear, test_client, session):
+        """Test that only_new dry_run returns 0 total_entries when there are no new tasks."""
+        mock_clear.return_value = set()
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
+            json={"dry_run": True, "only_new": True},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["task_instances"] == []
+        assert body["total_entries"] == 0
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_dag_run_only_new_non_dry_run(self, mock_clear, test_client, session):
+        """Test that only_new non-dry_run clears and returns a DAGRunResponse."""
+        mock_clear.return_value = 2
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
+            json={"dry_run": False, "only_new": True},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["dag_id"] == DAG1_ID
+        assert body["dag_run_id"] == DAG1_RUN1_ID
+        mock_clear.assert_called_once_with(
+            run_id=DAG1_RUN1_ID,
+            task_ids=None,
+            only_new=True,
+            only_failed=False,
+            run_on_latest_version=False,
+            session=mock.ANY,
+        )
+        _check_last_log(
+            session,
+            dag_id=DAG1_ID,
+            event="clear_dag_run",
+            logical_date=None,
+        )
+
+    def test_clear_dag_run_only_new_and_only_failed_mutually_exclusive(self, test_client):
+        """Test that only_new and only_failed cannot both be True."""
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
+            json={"dry_run": True, "only_new": True, "only_failed": True},
+        )
+        assert response.status_code == 422
 
 
 class TestTriggerDagRun:
