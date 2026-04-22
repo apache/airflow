@@ -281,6 +281,27 @@ class TestRBAC:
         )
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
+    @pytest.mark.parametrize("executor", ["CeleryExecutor", "LocalExecutor"])
+    def test_cleanup_resources_require_kubernetes_executor(self, executor):
+        k8s_objects = render_chart(
+            "test-rbac",
+            values={
+                "airflowVersion": "3.0.0",
+                "fullnameOverride": "test-rbac",
+                "executor": executor,
+                "rbac": {"create": True},
+                "cleanup": {"enabled": True},
+            },
+            show_only=[
+                "templates/rbac/pod-cleanup-role.yaml",
+                "templates/rbac/pod-cleanup-rolebinding.yaml",
+                "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/cleanup/cleanup-serviceaccount.yaml",
+            ],
+        )
+
+        assert not k8s_objects
+
     def test_service_account_custom_names(self):
         k8s_objects = render_chart(
             "test-rbac",

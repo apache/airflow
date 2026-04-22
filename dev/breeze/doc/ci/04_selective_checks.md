@@ -68,9 +68,20 @@ We have the following Groups of files for CI that determine which tests are run:
 * `All Python files` - if none of the Python file changed, that indicates that we should not run unit tests
 * `All source files` - if none of the sources change, that indicates that we should probably not build
   an image and run any image-based static checks
-* `All Airflow Python files` - files that are checked by `mypy-airflow` static checks
+* `All Airflow Python files` - files that are checked by `mypy-airflow-core` static checks
 * `All Providers Python files` - files that are checked by `mypy-providers` static checks
 * `All Dev Python files` - files that are checked by `mypy-dev` static checks
+* `All Scripts Python files` - files that are checked by `mypy-scripts` static checks
+* `Task SDK files` - files that are checked by `mypy-task-sdk` static checks
+* `All Airflow CTL Python files` - files that are checked by `mypy-airflow-ctl` static checks
+* `All Devel Common Python files` - files that are checked by `mypy-devel-common` static checks
+* `All Helm Tests Python files` / `All Docker Tests Python files` /
+  `All Kubernetes Tests Python files` / `All Airflow E2E Tests Python files` /
+  `Airflow CTL Integration Test files` / `Task SDK Integration Test files` - files that are
+  checked by the respective `mypy-helm-tests` / `mypy-docker-tests` / `mypy-kubernetes-tests` /
+  `mypy-airflow-e2e-tests` / `mypy-airflow-ctl-tests` / `mypy-task-sdk-integration-tests` hooks
+* `shared/<dist>/**/*.py` - each `shared/<dist>` workspace member has its own `mypy-shared-<dist>`
+  hook (selective-checks enumerates them at runtime)
 * `All Provider Yaml files` - all provider yaml files
 
 We have a number of `TEST_TYPES` that can be selectively disabled/enabled based on the
@@ -140,8 +151,17 @@ when some files are not changed. Those are the rules implemented:
 * If "full tests" mode is detected, no more prek hooks are skipped - we run all of them
 * The following checks are skipped if those files are not changed:
   * if no `All Providers Python files` changed - `mypy-providers` check is skipped
-  * if no `All Airflow Python files` changed - `mypy-airflow` check is skipped
+  * if no `All Airflow Python files` changed - `mypy-airflow-core` check is skipped
   * if no `All Dev Python files` changed - `mypy-dev` check is skipped
+  * if no `All Scripts Python files` changed - `mypy-scripts` check is skipped
+  * if no `Task SDK files` changed - `mypy-task-sdk` check is skipped
+  * if no `All Airflow CTL Python files` changed - `mypy-airflow-ctl` check is skipped
+  * if no `All Devel Common Python files` changed - `mypy-devel-common` check is skipped
+  * if no files under the matching folder changed, the corresponding per-folder mypy hook
+    is skipped (`mypy-airflow-ctl-tests`, `mypy-helm-tests`, `mypy-airflow-e2e-tests`,
+    `mypy-task-sdk-integration-tests`, `mypy-docker-tests`, `mypy-kubernetes-tests`)
+  * for each `shared/<dist>` workspace member, `mypy-shared-<dist>` is skipped when no
+    file under `shared/<dist>/` changed (enumerated at runtime)
   * if no `UI files` changed - `ts-compile-format-lint-ui` check is skipped
   * if no `WWW files` changed - `ts-compile-format-lint-www` check is skipped
   * if no `All Python files` changed - `flynt` check is skipped

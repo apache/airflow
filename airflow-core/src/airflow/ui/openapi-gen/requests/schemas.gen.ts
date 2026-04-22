@@ -445,10 +445,16 @@ export const $BackfillPostBody = {
             default: false
         },
         dag_run_conf: {
-            additionalProperties: true,
-            type: 'object',
-            title: 'Dag Run Conf',
-            default: {}
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Run Conf'
         },
         reprocess_behavior: {
             '$ref': '#/components/schemas/ReprocessBehavior',
@@ -1262,6 +1268,33 @@ export const $BulkUpdateAction_VariableBody_ = {
     type: 'object',
     required: ['action', 'entities'],
     title: 'BulkUpdateAction[VariableBody]'
+} as const;
+
+export const $ClearTaskInstanceCollectionResponse = {
+    properties: {
+        task_instances: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/TaskInstanceResponse'
+                    },
+                    {
+                        '$ref': '#/components/schemas/NewTaskResponse'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'Task Instances'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['task_instances', 'total_entries'],
+    title: 'ClearTaskInstanceCollectionResponse',
+    description: 'Response for clear dag run dry run, which may contain new tasks without full TaskInstance data.'
 } as const;
 
 export const $ClearTaskInstancesBody = {
@@ -2491,6 +2524,12 @@ export const $DAGRunClearBody = {
         only_failed: {
             type: 'boolean',
             title: 'Only Failed',
+            default: false
+        },
+        only_new: {
+            type: 'boolean',
+            title: 'Only New',
+            description: 'Only queue newly added tasks in the latest DAG version without clearing existing tasks.',
             default: false
         },
         run_on_latest_version: {
@@ -4593,6 +4632,23 @@ export const $MaterializeAssetBody = {
     type: 'object',
     title: 'MaterializeAssetBody',
     description: 'Materialize asset request.'
+} as const;
+
+export const $NewTaskResponse = {
+    properties: {
+        task_id: {
+            type: 'string',
+            title: 'Task Id'
+        },
+        task_display_name: {
+            type: 'string',
+            title: 'Task Display Name'
+        }
+    },
+    type: 'object',
+    required: ['task_id', 'task_display_name'],
+    title: 'NewTaskResponse',
+    description: "Lightweight response for new tasks that don't have TaskInstances yet."
 } as const;
 
 export const $PatchTaskInstanceBody = {
@@ -8065,17 +8121,6 @@ export const $DeadlineAlertResponse = {
             ],
             title: 'Name'
         },
-        description: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Description'
-        },
         reference_type: {
             type: 'string',
             title: 'Reference Type'
@@ -8146,6 +8191,18 @@ export const $DeadlineResponse = {
             type: 'string',
             title: 'Dag Run Id'
         },
+        alert_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Alert Id'
+        },
         alert_name: {
             anyOf: [
                 {
@@ -8156,17 +8213,6 @@ export const $DeadlineResponse = {
                 }
             ],
             title: 'Alert Name'
-        },
-        alert_description: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Alert Description'
         }
     },
     type: 'object',
@@ -8238,7 +8284,8 @@ export const $ExtraMenuItem = {
     },
     type: 'object',
     required: ['text', 'href'],
-    title: 'ExtraMenuItem'
+    title: 'ExtraMenuItem',
+    description: 'Define a menu item that can be added to the menu by auth managers or plugins.'
 } as const;
 
 export const $GanttResponse = {

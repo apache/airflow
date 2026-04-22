@@ -32,7 +32,7 @@ devel-common/src/tests_common/test_utils/salesforce_system_helpers.py::2
 devel-common/src/tests_common/test_utils/sftp_system_helpers.py::1
 devel-common/src/tests_common/test_utils/watcher.py::1
 providers/airbyte/src/airflow/providers/airbyte/hooks/airbyte.py::8
-providers/airbyte/src/airflow/providers/airbyte/operators/airbyte.py::4
+providers/airbyte/src/airflow/providers/airbyte/operators/airbyte.py::3
 providers/airbyte/src/airflow/providers/airbyte/sensors/airbyte.py::6
 providers/alibaba/src/airflow/providers/alibaba/cloud/hooks/analyticdb_spark.py::6
 providers/alibaba/src/airflow/providers/alibaba/cloud/hooks/oss.py::11

@@ -1,3 +1,5 @@
+/* eslint-disable max-lines -- form aggregates date range, reprocess behavior, and param controls in a single UX flow */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -50,6 +52,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const { t: translate } = useTranslation(["components", "common"]);
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [unpause, setUnpause] = useState(true);
+  const [overrideParams, setOverrideParams] = useState(false);
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dag.dag_id, true);
   const { conf } = useParamStore();
@@ -119,7 +122,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     createBackfill({
       requestBody: {
         ...fdata,
-        dag_run_conf: JSON.parse(fdata.conf) as Record<string, unknown>,
+        dag_run_conf: overrideParams ? (JSON.parse(fdata.conf) as Record<string, unknown>) : null,
       },
     });
   };
@@ -250,6 +253,14 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
             <Spacer />
           </>
         ) : undefined}
+        <Checkbox
+          checked={overrideParams}
+          colorPalette="brand"
+          onChange={() => setOverrideParams(!overrideParams)}
+        >
+          {translate("backfill.overrideExistingParams")}
+        </Checkbox>
+        <Spacer />
         <ConfigForm
           control={control}
           errors={errors}

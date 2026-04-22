@@ -25,7 +25,11 @@
 - [The airflow-ctl distributions](#the-airflow-ctl-distributions)
 - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Decide when to release](#decide-when-to-release)
-- [Releasing from `main` vs a maintenance branch](#releasing-from-main-vs-a-maintenance-branch)
+- [Airflow-ctl release branches](#airflow-ctl-release-branches)
+  - [When to create the X.Y branches](#when-to-create-the-xy-branches)
+  - [Add branch protection for the new stable branch](#add-branch-protection-for-the-new-stable-branch)
+  - [Choosing the branch to release from](#choosing-the-branch-to-release-from)
+  - [Sync `-test` to `-stable` before the GA / patch RC](#sync--test-to--stable-before-the-ga--patch-rc)
 - [Airflow-ctl versioning](#airflow-ctl-versioning)
 - [Prepare Regular airflow-ctl distributions (RC)](#prepare-regular-airflow-ctl-distributions-rc)
   - [Bump the version and generate release notes](#bump-the-version-and-generate-release-notes)
@@ -109,37 +113,208 @@ and security team should be pinged to review and resolve them.
 You can release `airflow-ctl` distributions separately from the main Airflow on an ad-hoc basis,
 whenever we find that airflow-ctl needs to be released - due to new features or due to bug fixes.
 
-# Releasing from `main` vs a maintenance branch
+# Airflow-ctl release branches
 
-By default the release is cut from `main`. Occasionally an airflow-ctl release
-needs to happen from a maintenance branch — for example `v3-2-test` — when an
-older Airflow line carries airflow-ctl fixes that have **not** yet reached
-`main`, or when `main` has diverged in a way that is not release-ready.
+Airflow-ctl maintains its own pair of release branches per minor line,
+independent from core Airflow's `vX-Y-test` / `vX-Y-stable` branches. This
+gives airflow-ctl its own release cadence (SEMVER, bumped separately from
+Airflow) without coupling to the core Airflow maintenance branches.
 
-Before deciding, compare airflow-ctl commits on the two branches:
+The branches are:
+
+- **`main`** — all airflow-ctl development happens here.
+- **`airflow-ctl/vX-Y-test`** — maintenance branch for the X.Y line. Bug
+  fixes that should land in an X.Y.Z patch release are cherry-picked from
+  `main` onto this branch. PRs for backports (including
+  `backport-to-airflow-ctl-vX-Y-test` label-triggered automated backports)
+  target this branch.
+- **`airflow-ctl/vX-Y-stable`** — release-cut branch for the X.Y line.
+  Each RC at GA and each patch RC is cut from this branch after a sync
+  PR from `-test` → `-stable`. This branch is protected in `.asf.yaml` —
+  all merges require a reviewed PR and linear history.
+
+The two branches start identical when they are cut and then diverge:
+`-test` continuously accumulates cherry-picks, while `-stable` receives
+only the periodic sync PRs that anchor each release tag.
+
+## When to create the X.Y branches
+
+Create `airflow-ctl/vX-Y-test` and `airflow-ctl/vX-Y-stable` **before cutting
+the first RC of a new minor line** (e.g. before `0.2.0rc1`). All
+airflow-ctl releases — including the very first RC of a new minor —
+are cut from these branches; **releases are never cut from `main`**.
+If the branches for the line you are about to release do not yet exist,
+create them (and their branch protection) before continuing with any
+other release step.
+
+Both branches are created from the **latest core Airflow `vX-Y-stable`
+branch** (the branch that anchors the most recently released core Airflow
+X.Y.Z — e.g. `v3-2-stable` after 3.2.1 has shipped), so that the
+airflow-ctl line is anchored to the Airflow minor it ships alongside.
+
+Branch from `vX-Y-stable`, **not** `vX-Y-test`: `vX-Y-test` may already
+contain cherry-picks destined for the next core Airflow patch (e.g.
+3.2.2) that have not been released yet and are not compatible with the
+airflow-ctl version you are cutting. Similarly, do **not** branch from
+`main` — `main` may already contain core Airflow changes belonging to
+the next minor that are not compatible with the airflow-ctl version you
+are cutting.
 
 ```shell script
-# Any airflow-ctl commits on the maintenance branch not (by PR) on main?
-git log --oneline airflow-ctl/${PREVIOUS_VERSION}..apache/v3-2-test -- airflow-ctl/
-git log --oneline airflow-ctl/${PREVIOUS_VERSION}..apache/main -- airflow-ctl/
+# CTL_VERSION_BRANCH: the airflow-ctl X-Y line, e.g. 0-2 for the 0.2.x line.
+export CTL_VERSION_BRANCH=0-2
+# AIRFLOW_STABLE_BRANCH: the core Airflow vX-Y-stable branch anchoring the
+# most recently released X.Y.Z, e.g. v3-2-stable.
+export AIRFLOW_STABLE_BRANCH=v3-2-stable
+
+git fetch apache
+git checkout -b "airflow-ctl/v${CTL_VERSION_BRANCH}-test" "apache/${AIRFLOW_STABLE_BRANCH}"
+git push apache "airflow-ctl/v${CTL_VERSION_BRANCH}-test"
+git checkout -b "airflow-ctl/v${CTL_VERSION_BRANCH}-stable" "airflow-ctl/v${CTL_VERSION_BRANCH}-test"
+git push apache "airflow-ctl/v${CTL_VERSION_BRANCH}-stable"
 ```
 
-If every airflow-ctl PR on `v3-2-test` is already on `main` (either as the
-original commit or as a backport of it), release from `main`. If the
-maintenance branch carries commits that are **not** on `main`, you must
-release from the maintenance branch — releasing from `main` would silently
-drop those commits from the user-visible release.
+## Add branch protection for the new stable branch
 
-When releasing from a maintenance branch, substitute `apache/<branch>` for
-`apache/main` everywhere below. In particular:
+Open a PR against `main` that adds `airflow-ctl/vX-Y-stable` to the
+`protected_branches:` section of [`.asf.yaml`](../.asf.yaml), matching the
+settings used for other stable branches:
+
+```yaml
+  protected_branches:
+    ...
+    airflow-ctl/v0-2-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+```
+
+Once the PR merges, Apache INFRA picks up the new protection automatically.
+`airflow-ctl/vX-Y-test` is intentionally **not** protected — the release
+manager needs to push cherry-picks and the sync-PR merge commits onto it
+directly.
+
+Also create the `backport-to-airflow-ctl-vX-Y-test` label so the automated
+backport workflow can target the new branch, and wire it up in
+[`.github/boring-cyborg.yml`](../.github/boring-cyborg.yml) the same way
+as the existing `backport-to-vX-Y-test` labels:
+
+```shell script
+gh label create "backport-to-airflow-ctl-v${CTL_VERSION_BRANCH}-test" \
+    --repo apache/airflow \
+    --description "Backport to airflow-ctl/v${CTL_VERSION_BRANCH}-test" \
+    --color 0e8a16
+```
+
+## Choosing the branch to release from
+
+Every RC is cut from a maintenance branch. Pick between `-test` and
+`-stable` based on the stage of the release:
+
+- **First RC of a new minor line (X.Y.0rc1)** — cut from
+  `airflow-ctl/vX-Y-test` using the "shortcut" below. The first RC is
+  unlikely to be approved on the first try, so going straight from the
+  test branch avoids the overhead of a sync PR that you would have to
+  redo for every subsequent RC.
+- **Subsequent RCs during the X.Y.0 RC cycle** — cherry-pick fixes onto
+  `airflow-ctl/vX-Y-test`, then cut the next RC directly from `-test`.
+- **GA of a minor and every patch release (X.Y.0 final, X.Y.1, ...)** —
+  open a sync PR from `airflow-ctl/vX-Y-test` → `airflow-ctl/vX-Y-stable`
+  (see below), wait for it to merge, then cut the RC from
+  `airflow-ctl/vX-Y-stable`.
+
+Releases are **never cut from `main`** — if the `airflow-ctl/vX-Y-*`
+branches for the target line do not exist yet, create them using "When to
+create the X.Y branches" above before proceeding.
+
+> [!TIP]
+> **Shortcut for first RC candidates:** when preparing the first RC
+> for a new minor (e.g. `0.2.0rc1`), the release manager may cut the RC
+> directly from `airflow-ctl/vX-Y-test` without opening a sync PR to
+> `airflow-ctl/vX-Y-stable`. However, they **must** verify that the
+> `airflow-ctl/vX-Y-test` push CI action ("Tests" workflow) has succeeded
+> before cutting the RC.
+
+Before cutting an RC, confirm the set of commits on the maintenance
+branch is what you expect:
+
+```shell script
+# airflow-ctl commits on the test branch since the previous release.
+git log --oneline \
+    "airflow-ctl/${PREVIOUS_VERSION}..apache/airflow-ctl/v${CTL_VERSION_BRANCH}-test" -- airflow-ctl/
+# Compare against main to spot commits that have NOT yet been cherry-picked.
+git log --oneline \
+    "airflow-ctl/${PREVIOUS_VERSION}..apache/main" -- airflow-ctl/
+```
+
+Everywhere below that mentions "the release branch", substitute
+`apache/airflow-ctl/v${CTL_VERSION_BRANCH}-stable` (or `-test` under the
+first-RC shortcut). In particular:
 
 - The release-prep PR (`Commit the version bump and release notes via a
-  merged PR`) targets the maintenance branch, not `main`.
-- `git tag -s airflow-ctl/${VERSION_RC} <maintenance-branch-commit>` — the
-  tag must point at a commit on the maintenance branch.
-- After the release lands, forward-port any doc / fix PRs created during the
-  release (for example, a follow-up PR fixing an ambiguity in this document)
-  to `main` so they do not get lost.
+  merged PR`) targets `airflow-ctl/vX-Y-stable` (or `-test` under the
+  first-RC shortcut).
+- `git tag -s airflow-ctl/${VERSION_RC} <release-branch-commit>` — the
+  tag must point at a commit on the release branch.
+- After the release lands, forward-port any doc / fix PRs created during
+  the release (for example, a follow-up PR fixing an ambiguity in this
+  document) to `main` so they do not get lost.
+
+## Sync `-test` to `-stable` before the GA / patch RC
+
+Before cutting a GA RC or any patch RC, open a PR from
+`airflow-ctl/vX-Y-test` into `airflow-ctl/vX-Y-stable`:
+
+```shell script
+gh pr create \
+    --base "airflow-ctl/v${CTL_VERSION_BRANCH}-stable" \
+    --head "airflow-ctl/v${CTL_VERSION_BRANCH}-test" \
+    --title "airflow-ctl ${VERSION}: test to stable" \
+    --body "Sync airflow-ctl/v${CTL_VERSION_BRANCH}-test into airflow-ctl/v${CTL_VERSION_BRANCH}-stable for airflow-ctl ${VERSION} release."
+```
+
+Wait for CI to pass and for the PR to be approved.
+
+> [!IMPORTANT]
+> **Merge the sync PR as a fast-forward, not as a squash or rebase.**
+> `airflow-ctl/vX-Y-stable` enforces `required_linear_history: true`,
+> which permits squash, rebase, *and* fast-forward merges. Squash and
+> rebase both **rewrite the commit SHAs** from `-test`, so the rc tag
+> you cut afterwards points at a different commit than the release-prep
+> PR that was reviewed and merged into `-test`. Fast-forward preserves
+> the original SHAs and makes the `-stable` history a clean extension
+> of `-test` — which is what the rc tag, the testing-status issue, and
+> the SVN source tarball all need to agree on.
+>
+> The GitHub web UI does not offer "fast-forward" for protected
+> branches; use the CLI against the unprotected remote ref, then close
+> the PR as merged (GitHub auto-closes the PR once its head commit
+> appears on the target branch):
+>
+> ```shell script
+> git fetch apache
+> git push apache \
+>     "apache/airflow-ctl/v${CTL_VERSION_BRANCH}-test:refs/heads/airflow-ctl/v${CTL_VERSION_BRANCH}-stable"
+> ```
+>
+> The `:refs/heads/…` form pushes the remote-tracking ref of
+> `-test` directly onto `-stable`. Apache INFRA's branch protection
+> allows the release manager this fast-forward push because
+> `required_linear_history: true` is satisfied (no merge commit is
+> introduced) and `required_pull_request_reviews` is satisfied by the
+> PR you opened above.
+
+After the sync lands, pull `airflow-ctl/vX-Y-stable` locally before
+continuing to the "Commit the version bump and release notes via a
+merged PR" step — the release-prep PR also targets
+`airflow-ctl/vX-Y-stable`.
+
+```shell script
+git fetch apache
+git checkout "airflow-ctl/v${CTL_VERSION_BRANCH}-stable"
+git reset --hard "apache/airflow-ctl/v${CTL_VERSION_BRANCH}-stable"
+```
 
 # Airflow-ctl versioning
 
@@ -225,10 +400,18 @@ the generated section is required**. Typical cleanups:
 
 ## Commit the version bump and release notes via a merged PR
 
-The release tag must point at a commit on `main` (or the maintenance branch
-you are releasing from) that contains both the bumped `__version__` and the
-new `RELEASE_NOTES.rst` section. This means the release-prep changes MUST be
-merged to the target branch before tagging:
+The release tag must point at a commit on the release branch —
+`airflow-ctl/vX-Y-stable`, or `airflow-ctl/vX-Y-test` under the first-RC
+shortcut (see "Choosing the branch to release from" above) — that
+contains both the bumped `__version__` and the new `RELEASE_NOTES.rst`
+section. This means the release-prep changes MUST be merged to the
+release branch before tagging.
+
+When opening the PR, set `--base` to match the branch you are releasing
+from:
+
+- GA / patch release → `--base "airflow-ctl/v${CTL_VERSION_BRANCH}-stable"`
+- first-RC shortcut → `--base "airflow-ctl/v${CTL_VERSION_BRANCH}-test"`
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT:-$(pwd -P)}
@@ -240,23 +423,25 @@ git commit -m "Prepare airflow-ctl ${VERSION_RC} release"
 # Push to your fork (NOT to apache)
 git push -u origin "prepare-airflow-ctl-${VERSION_RC}"
 
-# Open the PR in the browser, pre-filled
+# Open the PR in the browser, pre-filled. Adjust --base to the release branch.
 gh pr create --web \
+    --base "airflow-ctl/v${CTL_VERSION_BRANCH}-stable" \
     --title "Prepare airflow-ctl ${VERSION_RC} release" \
     --body "Bump \`__version__\` to ${VERSION} and regenerate \`RELEASE_NOTES.rst\`."
 ```
 
-Wait for CI to pass and for the PR to be merged to the target branch (`main`
-for a regular release, or the maintenance branch for a backport release).
+Wait for CI to pass and for the PR to be merged to the release branch.
 **Do not tag until the PR is merged** — the tag must point at the merge
 commit.
 
-After the PR merges, pull the target branch before continuing so that your
-local `HEAD` matches the commit you are about to tag:
+After the PR merges, pull the release branch before continuing so that
+your local `HEAD` matches the commit you are about to tag:
 
 ```shell script
-git checkout main  # or v3-X-test for maintenance releases
-git pull apache main
+# Substitute the branch you are releasing from.
+RELEASE_BRANCH="airflow-ctl/v${CTL_VERSION_BRANCH}-stable"   # or -test under the first-RC shortcut
+git checkout "${RELEASE_BRANCH}"
+git pull apache "${RELEASE_BRANCH}"
 ```
 
 ## Build airflow-ctl distributions for SVN apache upload
@@ -1112,7 +1297,9 @@ git checkout airflow-ctl/${VERSION_RC}
 example `git checkout airflow-ctl/1.0.0rc1`
 
 Note you probably will see message `You are in 'detached HEAD' state.`
-This is expected, the RC tag is most likely behind the main branch.
+This is expected, the RC tag is most likely behind the release branch
+you released from (`airflow-ctl/vX-Y-stable`, or `-test` under the
+first-RC shortcut).
 
 * Remove the source tarball from dist folder as we do not upload it to PyPI
 
