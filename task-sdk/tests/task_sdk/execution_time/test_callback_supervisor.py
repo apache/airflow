@@ -28,12 +28,9 @@ from unittest.mock import patch
 import pytest
 import structlog
 
-from airflow.sdk.api.datamodels._generated import AssetResponse
 from airflow.sdk.execution_time.callback_supervisor import CallbackSubprocess, execute_callback
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
-    GetAssetByName,
-    GetAssetByUri,
     GetConnection,
     GetVariable,
     MaskSecret,
@@ -181,24 +178,6 @@ class TestCallbackHandleRequest:
                 method_path="variables.get",
                 args=("test_key",),
                 response=VariableResult(key="test_key", value="test_value"),
-            ),
-        ),
-        RequestCase(
-            message=GetAssetByName(name="my_asset"),
-            test_id="get_asset_by_name",
-            client_mock=ClientMock(
-                method_path="assets.get",
-                kwargs={"name": "my_asset"},
-                response=AssetResponse(name="my_asset", uri="s3://bucket/key", group="default"),
-            ),
-        ),
-        RequestCase(
-            message=GetAssetByUri(uri="s3://bucket/key"),
-            test_id="get_asset_by_uri",
-            client_mock=ClientMock(
-                method_path="assets.get",
-                kwargs={"uri": "s3://bucket/key"},
-                response=AssetResponse(name="my_asset", uri="s3://bucket/key", group="default"),
             ),
         ),
         RequestCase(

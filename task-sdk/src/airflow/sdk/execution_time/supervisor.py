@@ -50,6 +50,7 @@ from pydantic import BaseModel, TypeAdapter
 from airflow.sdk._shared.logging.structlog import reconfigure_logger
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
+    AssetResponse,
     ConnectionResponse,
     TaskInstance,
     TaskInstanceState,
@@ -61,6 +62,7 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
+    AssetResult,
     ConnectionResult,
     CreateHITLDetailPayload,
     DagResult,
@@ -119,8 +121,6 @@ from airflow.sdk.execution_time.comms import (
     _ResponseFrame,
 )
 from airflow.sdk.execution_time.request_handlers import (
-    handle_get_asset_by_name,
-    handle_get_asset_by_uri,
     handle_get_connection,
     handle_get_variable,
     handle_mask_secret,
@@ -1367,9 +1367,21 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, SetRenderedMapIndex):
             self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
         elif isinstance(msg, GetAssetByName):
-            resp, dump_opts = handle_get_asset_by_name(self.client, msg)
+            asset_resp = self.client.assets.get(name=msg.name)
+            if isinstance(asset_resp, AssetResponse):
+                asset_result = AssetResult.from_asset_response(asset_resp)
+                resp = asset_result
+                dump_opts = {"exclude_unset": True}
+            else:
+                resp = asset_resp
         elif isinstance(msg, GetAssetByUri):
-            resp, dump_opts = handle_get_asset_by_uri(self.client, msg)
+            asset_resp = self.client.assets.get(uri=msg.uri)
+            if isinstance(asset_resp, AssetResponse):
+                asset_result = AssetResult.from_asset_response(asset_resp)
+                resp = asset_result
+                dump_opts = {"exclude_unset": True}
+            else:
+                resp = asset_resp
         elif isinstance(msg, GetAssetEventByAsset):
             asset_event_resp = self.client.asset_events.get(
                 uri=msg.uri,
