@@ -59,7 +59,11 @@ from airflow.providers.common.compat.sdk import (
 try:
     from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
 except ImportError as e:
-    raise AirflowOptionalProviderFeatureException(e)
+    raise AirflowOptionalProviderFeatureException(
+        "Failed to import apache-airflow-providers-apache-beam. "
+        "To use the Dataflow service with Apache Beam pipelines, please install the apache-beam provider: "
+        "pip install apache-airflow-providers-apache-beam"
+    ) from e
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
