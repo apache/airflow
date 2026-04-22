@@ -30,15 +30,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.sdk.api.datamodels._generated import (
-    AssetResponse,
     ConnectionResponse,
     VariableResponse,
 )
 from airflow.sdk.execution_time.comms import (
-    AssetResult,
     ConnectionResult,
-    GetAssetByName,
-    GetAssetByUri,
     GetConnection,
     GetVariable,
     MaskSecret,
@@ -72,22 +68,6 @@ def handle_get_variable(client: Client, msg: GetVariable) -> tuple[BaseModel | N
             mask_secret(var.value, var.key)
         return VariableResult.from_variable_response(var), {"exclude_unset": True}
     return var, {}
-
-
-def handle_get_asset_by_name(client: Client, msg: GetAssetByName) -> tuple[BaseModel | None, dict[str, bool]]:
-    """Fetch an asset by name."""
-    asset_resp = client.assets.get(name=msg.name)
-    if isinstance(asset_resp, AssetResponse):
-        return AssetResult.from_asset_response(asset_resp), {"exclude_unset": True}
-    return asset_resp, {}
-
-
-def handle_get_asset_by_uri(client: Client, msg: GetAssetByUri) -> tuple[BaseModel | None, dict[str, bool]]:
-    """Fetch an asset by URI."""
-    asset_resp = client.assets.get(uri=msg.uri)
-    if isinstance(asset_resp, AssetResponse):
-        return AssetResult.from_asset_response(asset_resp), {"exclude_unset": True}
-    return asset_resp, {}
 
 
 def handle_mask_secret(msg: MaskSecret) -> None:

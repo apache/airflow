@@ -183,7 +183,6 @@ class CallbackSubprocess(WatchedSubprocess):
         # ONLY works because WatchedSubprocess.start() uses os.fork(), so the child
         # inherits the parent's memory space and the variables are available directly.
         def _target():
-
             from airflow.sdk.execution_time import task_runner
             from airflow.sdk.execution_time.comms import CommsDecoder, ToTask
 
