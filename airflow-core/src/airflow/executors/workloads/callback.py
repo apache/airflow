@@ -72,9 +72,8 @@ class ExecuteCallback(BaseDagBundleWorkload):
     """Execute the given Callback."""
 
     callback: CallbackDTO
-
+    prefix: ClassVar[Literal["execute_callback"]] = "execute_callback"
     type: Literal["ExecuteCallback"] = Field(init=False, default="ExecuteCallback")
-    TYPE: ClassVar[str] = "ExecuteCallback"
 
     @property
     def key(self) -> CallbackKey:

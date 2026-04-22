@@ -49,9 +49,9 @@ jobs_router = AirflowRouter(tags=["Jobs"], prefix="/jobs")
 
 def parse_command(command: str, dag_id: str, run_id: str) -> ExecuteTypeBody:
     if AIRFLOW_V_3_2_PLUS:
-        from airflow.executors.workloads import ExecuteCallback
+        from airflow.providers.edge3.utils.types import EXECUTE_CALLBACK_PREFIX
 
-        if dag_id == ExecuteCallback.TYPE and run_id.startswith(ExecuteCallback.TYPE):
+        if dag_id == EXECUTE_CALLBACK_PREFIX and run_id.startswith(EXECUTE_CALLBACK_PREFIX):
             return ExecuteCallback.model_validate_json(command)  # type: ignore[return-value]
 
     return ExecuteTask.model_validate_json(command)

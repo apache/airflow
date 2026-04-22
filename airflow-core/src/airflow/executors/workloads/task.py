@@ -74,7 +74,6 @@ class ExecuteTask(BaseDagBundleWorkload):
     sentry_integration: str = ""
 
     type: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
-    TYPE: ClassVar[str] = "ExecuteTask"
 
     @property
     def key(self) -> TaskInstanceKey:
