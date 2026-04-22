@@ -300,10 +300,52 @@ class FabAuthManager(BaseAuthManager[User]):
         """Return whether the user is logged in."""
         user = self.get_user()
         return bool(
-            self.appbuilder
-            and self.appbuilder.app.config.get("AUTH_ROLE_PUBLIC", None)
-            or (not user.is_anonymous and user.is_active)
+            (self.appbuilder and self._get_auth_role_public()) or (not user.is_anonymous and user.is_active)
         )
+
+    def _get_auth_role_public(self) -> str | None:
+        """
+        Return the role granted to anonymous users, or ``None`` if public access is disabled.
+
+        Prefers the Airflow ``[fab] auth_role_public`` configuration and falls back to the legacy
+        ``AUTH_ROLE_PUBLIC`` entry in ``webserver_config.py`` so existing deployments continue to
+        work.
+        """
+        role = conf.get("fab", "auth_role_public", fallback="") or ""
+        if role:
+            return role
+        if self.appbuilder is not None:
+            return self.appbuilder.app.config.get("AUTH_ROLE_PUBLIC", None)
+        return None
+
+    def get_public_user(self) -> AnonymousUser | None:
+        """
+        Return an :class:`AnonymousUser` when public access is enabled, else ``None``.
+
+        Public access is enabled when the Airflow ``[fab] auth_role_public`` config (or, for
+        backwards compatibility, ``AUTH_ROLE_PUBLIC`` in ``webserver_config.py``) is set. The
+        returned user inherits the role configured there and is used by the FastAPI API server
+        to authorize requests that do not carry a JWT token.
+        """
+        public_role_name = self._get_auth_role_public()
+        if not public_role_name:
+            return None
+
+        user = AnonymousUser()
+        flask_app = self.flask_app or (self.appbuilder.app if self.appbuilder else None)
+        if flask_app is not None:
+            with flask_app.app_context():
+                flask_app.config["AUTH_ROLE_PUBLIC"] = public_role_name
+                role = flask_app.appbuilder.sm.find_role(public_role_name)
+                if role is not None:
+                    # FAB's ``AnonymousUser.roles`` is a lazy property that calls
+                    # ``security_manager.get_public_role()`` on every access, which needs a Flask
+                    # request context we do not have under FastAPI. Writing ``_roles``/``_perms``
+                    # directly freezes a snapshot of the public role's permissions for the
+                    # lifetime of a single FastAPI authorization check (see #60897).
+                    user._roles = {role}
+                    user._perms = {(perm.action.name, perm.resource.name) for perm in role.permissions}
+        return user
 
     def create_token(self, headers: dict[str, str], body: dict[str, Any]) -> User | None:
         """

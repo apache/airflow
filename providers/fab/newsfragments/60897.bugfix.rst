@@ -1,0 +1,1 @@
+Honor ``AUTH_ROLE_PUBLIC`` in the FastAPI-based API server. Add a new ``[fab] auth_role_public`` Airflow configuration that is used consistently by both the FastAPI and legacy Flask FAB auth stacks so that setting a public role actually removes the login prompt. Setting ``AUTH_ROLE_PUBLIC`` in ``webserver_config.py`` keeps working for backwards compatibility.

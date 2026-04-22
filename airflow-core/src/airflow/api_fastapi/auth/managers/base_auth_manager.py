@@ -158,6 +158,20 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             log.error("Couldn't deserialize user from token, JWT token is not valid: %s", e)
             raise InvalidTokenError(str(e))
 
+    def get_public_user(self) -> BaseUser | None:
+        """
+        Return a user representing anonymous/public access, or ``None`` if not supported.
+
+        Auth managers that support unauthenticated access (for example, the FAB auth manager's
+        ``[fab] auth_role_public`` configuration) should override this method to return a user
+        object when public access is enabled. When a user is returned, the API server will use it
+        for requests that do not carry any authentication token instead of returning 401.
+
+        By default this method returns ``None``, meaning the auth manager does not permit
+        anonymous access and a valid token is always required.
+        """
+        return None
+
     def generate_jwt(
         self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
     ) -> str:
