@@ -207,9 +207,16 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
             path = f"{path_prefix}{sep}{secret_id}"
         return path.replace("_", sep)
 
-    @staticmethod
-    def _is_team_specific_accessed_as_global(secret_id: str, team_name: str | None = None) -> bool:
-        return team_name is None and bool(re.fullmatch(r"_[^_]+___.+", secret_id))
+    def _build_team_secret_name(self, path_prefix: str, team_name: str, secret_id: str) -> str:
+        """Build a team-scoped secret name using a dedicated separator before the secret id."""
+        team_prefix = self.build_path(path_prefix, team_name, self.sep)
+        normalized_secret_id = secret_id.replace("_", self.sep)
+        return f"{team_prefix}{self.TEAM_SEP}{normalized_secret_id}"
+
+    def _is_team_specific_accessed_as_global(self, secret_id: str, team_name: str | None = None) -> bool:
+        normalized_secret_id = secret_id.replace("_", self.sep)
+        team_pattern = rf"[^{re.escape(self.sep)}]+{re.escape(self.TEAM_SEP)}.+"
+        return team_name is None and bool(re.fullmatch(team_pattern, normalized_secret_id))
 
     def _get_secret(self, path_prefix: str, secret_id: str, team_name: str | None = None) -> str | None:
         """
@@ -219,8 +226,9 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         :param secret_id: Secret Key
         """
         if team_name:
-            team_prefix = self.build_path(path_prefix, team_name, self.sep)
-            team_secret = self._get_secret_value(team_prefix, secret_id)
+            team_secret = self._get_secret_value(
+                path_prefix, self._build_team_secret_name("", team_name, secret_id)
+            )
             if team_secret is not None:
                 return team_secret
 
@@ -235,3 +243,5 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         except ResourceNotFoundError as ex:
             self.log.debug("Secret %s not found: %s", name, ex)
             return None
+
+    TEAM_SEP = "--"

@@ -81,7 +81,7 @@ class TestAzureKeyVaultBackend:
         secret_val = backend.get_conn_value("my_db", team_name="team_a")
 
         assert secret_val == "team-secret"
-        mock_client.get_secret.assert_called_once_with(name="airflow-connections-team-a-my-db")
+        mock_client.get_secret.assert_called_once_with(name="airflow-connections-team-a--my-db")
 
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
     def test_get_variable_falls_back_to_global_secret_when_team_secret_is_missing(self, mock_client):
@@ -92,7 +92,7 @@ class TestAzureKeyVaultBackend:
 
         assert secret_val == "global-value"
         assert mock_client.get_secret.call_args_list == [
-            mock.call(name="airflow-variables-team-a-hello"),
+            mock.call(name="airflow-variables-team-a--hello"),
             mock.call(name="airflow-variables-hello"),
         ]
 
@@ -100,7 +100,7 @@ class TestAzureKeyVaultBackend:
     def test_get_variable_returns_none_for_team_scoped_key_without_team_name(self, mock_client):
         backend = AzureKeyVaultBackend()
 
-        assert backend.get_variable("_teama___hello") is None
+        assert backend.get_variable("teama--hello") is None
         mock_client.get_secret.assert_not_called()
 
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend._get_secret")
