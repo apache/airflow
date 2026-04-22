@@ -59,6 +59,14 @@ maintainers.
 
 Having more than one translation owner for a locale is recommended, but not required.
 
+## Communication
+
+Translation-related decisions that affect supported locales, ownership, or policy should happen in public
+through the dev list.
+
+Locale owners and other regular translation contributors should also join the `#i18n` Slack channel for
+day-to-day coordination and for release-time notifications about last-minute string changes.
+
 ## Adding or removing a supported locale
 
 ### Adding a locale
@@ -69,6 +77,8 @@ A new locale may be added when all of the following are true:
 - The ownership arrangement has been approved through the dev list process described below before merge.
 - The locale is added to the repository and UI configuration.
 - The locale follows the translation guidance in this document and the locale-specific guide, if one exists.
+- The locale owners are prepared to coordinate in the `#i18n` Slack channel for ongoing translation work and
+  release-time notifications.
 
 The PR for a new locale should include:
 
