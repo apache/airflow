@@ -15,7 +15,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-16T22:02:56.820389756Z"
+exclude-newer = "2026-04-18T04:27:10.568718Z"
 exclude-newer-span = "P4D"
 
 [options.exclude-newer-package]
@@ -95,9 +95,9 @@ apache-airflow-providers-mongo = false
 apache-airflow-providers-apprise = false
 apache-airflow-providers-apache-impala = false
 apache-airflow-ctl = false
-apache-airflow-providers-zendesk = false
 apache-airflow-providers-github = false
 apache-airflow-providers-snowflake = false
+apache-airflow-providers-zendesk = false
 apache-airflow-providers-presto = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-apache-hive = false
@@ -1993,7 +1993,7 @@ mypy = [
 [package.metadata]
 requires-dist = [
     { name = "argcomplete", specifier = ">=1.10" },
-    { name = "httpx", specifier = ">=0.27.0" },
+    { name = "httpx", specifier = ">=0.27.0,<1.0" },
     { name = "keyring", specifier = ">=25.7.0" },
     { name = "keyrings-alt", marker = "extra == 'dev'", specifier = ">=5.0.2" },
     { name = "lazy-object-proxy", specifier = ">=1.2.0" },
@@ -7852,6 +7852,7 @@ dev = [
     { name = "apache-airflow-devel-common" },
 ]
 mypy = [
+    { name = "apache-airflow-core" },
     { name = "apache-airflow-devel-common", extra = ["mypy"] },
 ]
 
@@ -7873,7 +7874,10 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
-mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
+mypy = [
+    { name = "apache-airflow-core", editable = "airflow-core" },
+    { name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" },
+]
 
 [[package]]
 name = "apache-airflow-shared-configuration"
