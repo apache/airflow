@@ -57,7 +57,7 @@
     "happy-dom": "^20.8.4",
     "prettier": "^3.8.2",
     "ts-morph": "^28.0.0",
-    "typescript": "~5.9.3",
+    "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.1",
     "vite": "^8.0.8",
     "vite-plugin-css-injected-by-js": "^4.0.1",
