@@ -2576,7 +2576,7 @@ scheduler:
         examined before)
         And `max_new_dagruns_per_loop_to_schedule` new dagruns (that have not yet been examined).
       example: ~
-      version_added: 3.2.1
+      version_added: 3.2.2
       type: integer
       default: "0"
     use_job_schedule:
