@@ -120,6 +120,44 @@ query(
 
 Notice `comments(last: 25)` — higher than the 10 used for open PRs because a triaged PR that was then closed will often have extra follow-up comments; we still need to find the original triage marker. If the marker isn't in the last 25 comments for a given PR, drop that PR from Table 1 (it wasn't triaged by the bot/viewer convention).
 
+### Known limitation — GitHub search-index lag for closed-since counts
+
+Two GitHub-search behaviours conspire to make Table 1 hard to get right:
+
+1. **`issueCount` for closed/merged searches is heavily under-reported.**
+   Empirically on `apache/airflow` (2026-04), the GraphQL `search` query
+   `is:pr is:merged repo:apache/airflow merged:>=2026-04-01` returns
+   `issueCount: 37` while the REST `/pulls?state=closed` endpoint shows
+   ~30 PRs merged in the last 24 hours alone. The search index appears to
+   rebuild slowly (daily-ish) and results are capped in a way that
+   `issueCount` doesn't reflect. **Never use the search `issueCount` as a
+   denominator** — it's a biased sample.
+2. **Full-text search for `"Pull Request quality criteria"` is even worse.**
+   The same `apache/airflow` repo shows only 164 PRs when searched by the
+   marker string, despite that exact phrase being posted on dozens of PRs
+   per day by the triage skill. Free-text indexing clearly lags.
+
+Workaround options, in order of cost:
+
+1. **Accept the undercount and label the table "sample".** Fast (single
+   GraphQL page) but the numbers are misleading for sprint-level reporting.
+2. **Hybrid.** Use the REST `/repos/<owner>/<repo>/pulls?state=closed&sort=updated`
+   endpoint to get the full closed/merged set since cutoff (paginate until
+   `closed_at < cutoff`), then batch-fetch comments per PR via an aliased
+   GraphQL query (`pullRequest(number: N) { comments(last: 25) {…} }`) to
+   find the triage marker. Budget: ~20 REST calls for a 2000-PR window +
+   ~40 aliased GraphQL calls if batched 50 PRs at a time. Accurate.
+3. **Only report Table 1 for a narrow recent window.** E.g. `since:today-7d`
+   keeps the closed set small (~200 PRs) so the hybrid approach costs
+   little. Sprint-level reports can chain multiple 7-day windows.
+
+The default skill implementation picks **option 1 with an explicit
+caveat printed above Table 1** ("GitHub search index is lagging; merged
+and triaged PRs earlier in the window may be missing"). If a maintainer
+needs the true numbers, they pass `accurate-closed` which triggers the
+hybrid path; it's slower (~60s for a 6-week window on `apache/airflow`)
+but the numbers are trustworthy.
+
 ### `searchQuery`
 
 ```
@@ -169,6 +207,33 @@ Two safety valves:
 
 - Cap the accumulator at 2000 PRs per query. If the repo really has that many open PRs, the maintainer needs a narrower selector (`label:area:scheduler`, for example) — surface the cap and stop.
 - If a single page returns fewer nodes than `batchSize` *and* `hasNextPage == true`, keep going — GitHub sometimes returns short pages legitimately. Never break on a short page alone.
+
+---
+
+## Parsing the response — Python 3.14 strict mode
+
+Python 3.14's `json` module raises `JSONDecodeError: Invalid control
+character` on strings containing raw control characters (tabs,
+newlines, `\xHH` escapes that don't map to valid JSON escapes).
+GitHub's API returns comment `bodyText` fields that routinely contain
+such characters, so a naive `json.load(stdin)` fails.
+
+Use one of the following, whichever matches the pipeline:
+
+- `json.load(fp, strict=False)` — relaxes the control-character check;
+  the parser accepts raw tabs / newlines inside strings.
+- `gh api ... --jq '.'` — `gh` piping through its built-in `jq` handles
+  the data without going through Python's strict JSON parser.
+- Save the response to a file first and re-read: `gh api ... > /tmp/x.json && python3 -c "import json; d=json.load(open('/tmp/x.json'), strict=False)"`. Avoids shell-escape interactions that can mangle the stream.
+
+Do **not** try to clean the JSON by replacing `\n` → `\\n` before
+parsing — the replacement misses genuine escape sequences elsewhere
+in the payload and silently corrupts bodies. Use `strict=False`.
+
+On REST responses that contain a PR body with an invalid JSON escape
+sequence (e.g. `\z`, `\e`), even `strict=False` fails with
+`Invalid \escape`. These are rare but possible — fall through to
+`gh api --jq` for those calls.
 
 ---
 
