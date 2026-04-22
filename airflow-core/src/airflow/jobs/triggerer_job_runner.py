@@ -717,16 +717,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         stats.gauge(
             "triggers.running",
             len(self.running_triggers),
-            tags={},
-            legacy_name_tags=tags,
+            tags=tags,
         )
 
         capacity_left = self.capacity - len(self.running_triggers)
         stats.gauge(
             "triggerer.capacity_left",
             capacity_left,
-            tags={},
-            legacy_name_tags=tags,
+            tags=tags,
         )
 
     def _create_workload(

@@ -120,37 +120,53 @@ def _get_registry() -> MetricsRegistry:
     return _registry
 
 
-def _get_legacy_stat(stat: str, variables: dict[str, Any]) -> str | None:
+def _get_legacy_stat_name_and_tags(
+    stat: str, tags: dict[str, Any] | None
+) -> tuple[str | None, dict[str, Any]]:
     """
     Look up and format the legacy name for a metric from the registry.
 
-    Returns the formatted legacy name, or None if the metric has no legacy name.
-    Raises ValueError if the metric is not in the registry or required variables are missing.
+    Returns (formatted_name, extra_tags) where formatted_name is None when there
+    is no legacy stat to emit, and extra_tags are the tags not consumed as name
+    variables. Raises ValueError if required name variables are missing from tags.
     """
+    _none: tuple[None, dict[str, Any]] = None, {}
+
+    # If the config flag is enabled/disabled.
+    if not _export_legacy_names:
+        return _none
+
     stat_from_registry = _get_registry().get(name=stat)
 
+    # If the provided stat exists in the registry.
     if not stat_from_registry:
-        raise ValueError(
-            f"Metric '{stat}' not found in the registry. Add the metric to the YAML file before using it."
-        )
+        return _none
 
     legacy_name = stat_from_registry.get("legacy_name", "-")
 
+    # If the registry stat has a legacy name.
     if legacy_name == "-":
-        return None
+        return _none
 
     required_vars = stat_from_registry.get("name_variables", [])
-    missing_vars = set(required_vars) - set(variables.keys())
+    provided_vars = set(tags.keys()) if tags else set()
+    missing_vars = set(required_vars) - provided_vars
+    # If there are specified variables in the YAML file that haven't been provided in the tags param.
     if missing_vars:
         raise ValueError(
             f"Missing required variables for metric '{stat}': {sorted(missing_vars)}. "
             f"Required variables found in the registry: {required_vars}. "
-            f"Provided variables: {sorted(variables.keys())}. "
-            f"Provide all required variables."
+            f"Provided tags: {sorted(provided_vars)}. "
+            f"Provide all required variables as tags."
         )
 
-    legacy_vars = {k: variables[k] for k in required_vars if k in variables}
-    return legacy_name.format(**legacy_vars)
+    # 'required_vars' are the ones found in the registry.
+    # If there is a variable that exists in the tags and not in the registry,
+    # then it's extra, and it will be set as a tag for the legacy stat.
+    name_var_set = set(required_vars)
+    formatted_name = legacy_name.format(**{k: tags[k] for k in required_vars})  # type: ignore[index]
+    extra_tags = {k: v for k, v in (tags or {}).items() if k not in name_var_set}
+    return formatted_name, extra_tags
 
 
 def _defined(**kwargs: Any) -> dict[str, Any]:
@@ -168,43 +184,18 @@ def _defined(**kwargs: Any) -> dict[str, Any]:
     return result
 
 
-def _merged(
-    tags: dict[str, Any] | None,
-    legacy_name_tags: dict[str, Any] | None,
-) -> dict[str, Any] | None:
-    """Merge tags and legacy_name_tags into a single dict, returning None if both are empty."""
-    if not tags and not legacy_name_tags:
-        return None
-    merged: dict[str, Any] = {}
-    if tags:
-        merged.update(tags)
-    if legacy_name_tags:
-        merged.update(legacy_name_tags)
-    return merged or None
-
-
-def _emit_legacy(stat: str, legacy_name_tags: dict[str, Any]) -> str:
-    """Return the formatted legacy stat name, raising ValueError if it has none."""
-    legacy_stat = _get_legacy_stat(stat, legacy_name_tags)
-    if legacy_stat is None:
-        raise ValueError(f"Stat '{stat}' doesn't have a legacy name registered in the YAML file.")
-    return legacy_stat
-
-
 def incr(
     stat: str,
     count: int | None = None,
     rate: int | float | None = None,
     *,
     tags: dict[str, Any] | None = None,
-    legacy_name_tags: dict[str, Any] | None = None,
 ) -> None:
     """Increment a counter metric."""
-    if _export_legacy_names and legacy_name_tags is not None:
-        _get_backend().incr(
-            _emit_legacy(stat, legacy_name_tags), **_defined(count=count, rate=rate, tags=tags)
-        )
-    _get_backend().incr(stat, **_defined(count=count, rate=rate, tags=_merged(tags, legacy_name_tags)))
+    legacy_name, extra_tags = _get_legacy_stat_name_and_tags(stat, tags)
+    if legacy_name is not None:
+        _get_backend().incr(legacy_name, **_defined(count=count, rate=rate, tags=extra_tags))
+    _get_backend().incr(stat, **_defined(count=count, rate=rate, tags=tags))
 
 
 def decr(
@@ -213,14 +204,12 @@ def decr(
     rate: int | float | None = None,
     *,
     tags: dict[str, Any] | None = None,
-    legacy_name_tags: dict[str, Any] | None = None,
 ) -> None:
     """Decrement a counter metric."""
-    if _export_legacy_names and legacy_name_tags is not None:
-        _get_backend().decr(
-            _emit_legacy(stat, legacy_name_tags), **_defined(count=count, rate=rate, tags=tags)
-        )
-    _get_backend().decr(stat, **_defined(count=count, rate=rate, tags=_merged(tags, legacy_name_tags)))
+    legacy_name, extra_tags = _get_legacy_stat_name_and_tags(stat, tags)
+    if legacy_name is not None:
+        _get_backend().decr(legacy_name, **_defined(count=count, rate=rate, tags=extra_tags))
+    _get_backend().decr(stat, **_defined(count=count, rate=rate, tags=tags))
 
 
 def gauge(
@@ -230,16 +219,12 @@ def gauge(
     delta: bool | None = None,
     *,
     tags: dict[str, Any] | None = None,
-    legacy_name_tags: dict[str, Any] | None = None,
 ) -> None:
     """Set a gauge metric."""
-    if _export_legacy_names and legacy_name_tags is not None:
-        _get_backend().gauge(
-            _emit_legacy(stat, legacy_name_tags), value, **_defined(rate=rate, delta=delta, tags=tags)
-        )
-    _get_backend().gauge(
-        stat, value, **_defined(rate=rate, delta=delta, tags=_merged(tags, legacy_name_tags))
-    )
+    legacy_name, extra_tags = _get_legacy_stat_name_and_tags(stat, tags)
+    if legacy_name is not None:
+        _get_backend().gauge(legacy_name, value, **_defined(rate=rate, delta=delta, tags=extra_tags))
+    _get_backend().gauge(stat, value, **_defined(rate=rate, delta=delta, tags=tags))
 
 
 def timing(
@@ -247,18 +232,17 @@ def timing(
     dt: DeltaType,
     *,
     tags: dict[str, Any] | None = None,
-    legacy_name_tags: dict[str, Any] | None = None,
 ) -> None:
     """Record a timing metric."""
-    if _export_legacy_names and legacy_name_tags is not None:
-        _get_backend().timing(_emit_legacy(stat, legacy_name_tags), dt, **_defined(tags=tags))
-    _get_backend().timing(stat, dt, **_defined(tags=_merged(tags, legacy_name_tags)))
+    legacy_name, extra_tags = _get_legacy_stat_name_and_tags(stat, tags)
+    if legacy_name is not None:
+        _get_backend().timing(legacy_name, dt, **_defined(tags=extra_tags))
+    _get_backend().timing(stat, dt, **_defined(tags=tags))
 
 
 def timer(
     stat: str | None = None,
     tags: dict[str, Any] | None = None,
-    legacy_name_tags: dict[str, Any] | None = None,
     **kwargs,
 ) -> Timer:
     """
@@ -267,29 +251,29 @@ def timer(
     When ``stat`` is None, returns the backend timer directly for stopwatch
     use (duration is available but no metric is emitted).
 
-    When ``legacy_name_tags`` is provided and legacy name export is enabled, both the
-    legacy metric name and the regular name are timed simultaneously via an
-    ExitStack. Otherwise, the backend timer is returned directly, preserving the
-    ability to access ``timer.duration`` on the returned object.
+    When legacy name export is enabled and the metric has a legacy name in the
+    registry, both the legacy metric name and the regular name are timed
+    simultaneously via an ExitStack. Otherwise, the backend timer is returned
+    directly, preserving the ability to access ``timer.duration`` on the returned object.
     """
     if stat is None:
         return _get_backend().timer()
 
     regular_kw: dict[str, Any] = {**kwargs}
-    merged = _merged(tags, legacy_name_tags)
-    if merged:
-        regular_kw["tags"] = merged
+    if tags:
+        regular_kw["tags"] = tags
 
-    if _export_legacy_names and legacy_name_tags is not None:
+    legacy_name, extra_tags = _get_legacy_stat_name_and_tags(stat, tags)
+    if legacy_name is not None:
         legacy_kw: dict[str, Any] = {**kwargs}
-        if tags is not None:
-            legacy_kw["tags"] = tags
+        if extra_tags:
+            legacy_kw["tags"] = extra_tags
 
         stack = ExitStack()
         stack.enter_context(
             cast(
                 "AbstractContextManager[Any]",
-                _get_backend().timer(_emit_legacy(stat, legacy_name_tags), **legacy_kw),
+                _get_backend().timer(legacy_name, **legacy_kw),
             )
         )
         real_timer = stack.enter_context(_get_backend().timer(stat, **regular_kw))

@@ -888,8 +888,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             stats.gauge(
                 "pool.starving_tasks",
                 num_starving_tasks,
-                tags={},
-                legacy_name_tags={"pool_name": pool_name},
+                tags={"pool_name": pool_name},
             )
 
         stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
@@ -2265,8 +2264,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 stats.timing(
                     "dagrun.schedule_delay",
                     schedule_delay,
-                    tags={},
-                    legacy_name_tags={"dag_id": dag.dag_id},
+                    tags={"dag_id": dag.dag_id},
                 )
 
         # cache saves time during scheduling of many dag_runs for same dag
@@ -2417,8 +2415,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 stats.timing(
                     "dagrun.duration.failed",
                     duration,
-                    tags={},
-                    legacy_name_tags={"dag_id": dag_run.dag_id},
+                    tags={"dag_id": dag_run.dag_id},
                 )
             return callback_to_execute
 
@@ -2712,8 +2709,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 stats.gauge(
                     f"ti.{state}",
                     float(count),
-                    tags={},
-                    legacy_name_tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
+                    tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
                 )
 
             for prev_key in self.previous_ti_metrics[state]:
@@ -2723,8 +2719,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     stats.gauge(
                         f"ti.{state}",
                         0,
-                        tags={},
-                        legacy_name_tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
+                        tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
                     )
 
             self.previous_ti_metrics[state] = ti_metrics
@@ -2745,32 +2740,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             stats.gauge(
                 "pool.open_slots",
                 slot_stats["open"],
-                tags={},
-                legacy_name_tags={"pool_name": normalized_pool_name},
+                tags={"pool_name": normalized_pool_name},
             )
             stats.gauge(
                 "pool.queued_slots",
                 slot_stats["queued"],
-                tags={},
-                legacy_name_tags={"pool_name": normalized_pool_name},
+                tags={"pool_name": normalized_pool_name},
             )
             stats.gauge(
                 "pool.running_slots",
                 slot_stats["running"],
-                tags={},
-                legacy_name_tags={"pool_name": normalized_pool_name},
+                tags={"pool_name": normalized_pool_name},
             )
             stats.gauge(
                 "pool.deferred_slots",
                 slot_stats["deferred"],
-                tags={},
-                legacy_name_tags={"pool_name": normalized_pool_name},
+                tags={"pool_name": normalized_pool_name},
             )
             stats.gauge(
                 "pool.scheduled_slots",
                 slot_stats["scheduled"],
-                tags={},
-                legacy_name_tags={"pool_name": normalized_pool_name},
+                tags={"pool_name": normalized_pool_name},
             )
 
     @provide_session

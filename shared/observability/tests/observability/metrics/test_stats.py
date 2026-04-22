@@ -566,108 +566,52 @@ class TestStatsHelpers:
         assert _defined(count=count, rate=rate, delta=delta, tags=tags) == expected
 
     @pytest.mark.parametrize(
-        ("tags", "legacy_name_tags", "expected"),
-        [
-            pytest.param(
-                {"test": True},
-                {},
-                {"test": True},
-                id="no_legacy_name_tags",
-            ),
-            pytest.param(
-                {},
-                {"test_legacy": True},
-                {"test_legacy": True},
-                id="only_legacy_name_tags",
-            ),
-            pytest.param(
-                {"test": True},
-                {"test_legacy": True},
-                {"test": True, "test_legacy": True},
-                id="both_provided",
-            ),
-            pytest.param(
-                {},
-                {},
-                None,
-                id="both_empty",
-            ),
-            pytest.param(
-                None,
-                None,
-                None,
-                id="both_none",
-            ),
-            pytest.param(
-                {"test1": True, "test2": False},
-                {"test_legacy1": True, "test_legacy2": False, "test_legacy3": True},
-                {
-                    "test1": True,
-                    "test2": False,
-                    "test_legacy1": True,
-                    "test_legacy2": False,
-                    "test_legacy3": True,
-                },
-                id="multiple_params",
-            ),
-        ],
-    )
-    def test_merged(self, tags: dict | None, legacy_name_tags: dict | None, expected: dict | None):
-        from airflow_shared.observability.metrics.stats import _merged
-
-        assert _merged(tags, legacy_name_tags) == expected
-
-    @pytest.mark.parametrize(
-        ("stat", "variables", "expected_legacy_stat", "raises_value_error", "expected_error_msg"),
+        ("stat", "tags", "expected_result"),
         [
             pytest.param(
                 "operator_failures",
                 {"operator_name": "exec1"},
-                "operator_failures_exec1",
-                False,
-                "",
-                id="no_errors",
+                ("operator_failures_exec1", {}),
+                id="name_vars_only_no_extra_tags",
             ),
             pytest.param(
                 "operator_failures",
-                {},
-                None,
-                True,
-                "Missing required variables for metric",
-                id="missing_params",
+                {"operator_name": "exec1", "dag_id": "my_dag"},
+                ("operator_failures_exec1", {"dag_id": "my_dag"}),
+                id="name_vars_with_extra_tags",
             ),
             pytest.param(
                 "missing_metric",
                 {},
-                None,
-                True,
-                "Add the metric to the YAML file before using it.",
-                id="missing_metric",
+                (None, {}),
+                id="missing_metric_returns_none",
             ),
         ],
     )
-    def test_get_legacy_stat(
+    def test_get_legacy_stat_name_and_tags(
         self,
         stat: str,
-        variables: dict,
-        expected_legacy_stat: str | None,
-        raises_value_error: bool,
-        expected_error_msg: str,
+        tags: dict,
+        expected_result: tuple[str | None, dict],
     ):
-        from airflow_shared.observability.metrics.stats import _get_legacy_stat
+        from airflow_shared.observability.metrics.stats import _get_legacy_stat_name_and_tags
 
-        if raises_value_error:
-            with pytest.raises(ValueError, match=expected_error_msg):
-                _get_legacy_stat(stat, variables)
-        else:
-            assert _get_legacy_stat(stat, variables) == expected_legacy_stat
+        assert _get_legacy_stat_name_and_tags(stat, tags) == expected_result
+
+    def test_get_legacy_stat_name_and_tags_missing_variables_raises(self):
+        from airflow_shared.observability.metrics.stats import _get_legacy_stat_name_and_tags
+
+        with pytest.raises(ValueError, match="Missing required variables for metric"):
+            _get_legacy_stat_name_and_tags("operator_failures", {})
 
 
-class TestLegacyNameTagsParam:
+class TestLegacyExport:
     """
-    Tests for the dual stats export behavior when legacy_name_tags is provided.
+    Tests for the dual stats export behavior driven by the contents of the YAML registry.
 
-    The internal _export_legacy_names defaults to True if used before calling initialize().
+    When _export_legacy_names is True, and a metric has a legacy name in the registry,
+    both the legacy stat (with name variables consumed from tags) and the modern stat
+    (with all tags) are emitted.
     """
 
     @pytest.fixture
@@ -677,57 +621,58 @@ class TestLegacyNameTagsParam:
             m.return_value = backend
             yield backend
 
-    def test_incr_with_legacy_name_tags_emits_both(self, mock_backend):
+    def test_incr_emits_both_when_legacy_name_exists(self, mock_backend):
         airflow_shared.observability.metrics.stats.incr(
             "operator_failures",
-            tags={"dag_id": "test_dag"},
-            legacy_name_tags={"operator_name": "EmptyOperator"},
+            tags={"operator_name": "EmptyOperator", "dag_id": "test_dag"},
         )
         assert mock_backend.incr.call_count == 2
         mock_backend.incr.assert_any_call("operator_failures_EmptyOperator", tags={"dag_id": "test_dag"})
         mock_backend.incr.assert_any_call(
             "operator_failures",
-            tags={"dag_id": "test_dag", "operator_name": "EmptyOperator"},
+            tags={"operator_name": "EmptyOperator", "dag_id": "test_dag"},
         )
 
-    def test_incr_without_legacy_name_tags_emits_once(self, mock_backend):
+    def test_incr_no_extra_tags_legacy_has_no_tags(self, mock_backend):
         airflow_shared.observability.metrics.stats.incr(
             "operator_failures",
-            tags={"dag_id": "test_dag"},
+            tags={"operator_name": "EmptyOperator"},
         )
-        mock_backend.incr.assert_called_once_with("operator_failures", tags={"dag_id": "test_dag"})
+        assert mock_backend.incr.call_count == 2
+        mock_backend.incr.assert_any_call("operator_failures_EmptyOperator")
+        mock_backend.incr.assert_any_call(
+            "operator_failures",
+            tags={"operator_name": "EmptyOperator"},
+        )
 
     def test_incr_legacy_export_disabled_emits_once(self, mock_backend, monkeypatch):
-        # Patch the config to disable it.
         monkeypatch.setattr(airflow_shared.observability.metrics.stats, "_export_legacy_names", False)
         airflow_shared.observability.metrics.stats.incr(
             "operator_failures",
-            tags={"dag_id": "test_dag"},
-            legacy_name_tags={"operator_name": "EmptyOperator"},
+            tags={"operator_name": "EmptyOperator", "dag_id": "test_dag"},
         )
         mock_backend.incr.assert_called_once_with(
             "operator_failures",
-            tags={"dag_id": "test_dag", "operator_name": "EmptyOperator"},
+            tags={"operator_name": "EmptyOperator", "dag_id": "test_dag"},
         )
 
-    def test_decr_with_legacy_name_tags_emits_both(self, mock_backend):
+    def test_decr_emits_both_when_legacy_name_exists(self, mock_backend):
         airflow_shared.observability.metrics.stats.decr(
             "operator_failures",
-            tags={"dag_id": "test_dag"},
-            legacy_name_tags={"operator_name": "EmptyOperator"},
+            tags={"operator_name": "EmptyOperator", "dag_id": "test_dag"},
         )
         assert mock_backend.decr.call_count == 2
         mock_backend.decr.assert_any_call("operator_failures_EmptyOperator", tags={"dag_id": "test_dag"})
         mock_backend.decr.assert_any_call(
             "operator_failures",
-            tags={"dag_id": "test_dag", "operator_name": "EmptyOperator"},
+            tags={"operator_name": "EmptyOperator", "dag_id": "test_dag"},
         )
 
-    def test_gauge_with_legacy_name_tags_emits_both(self, mock_backend):
+    def test_gauge_emits_both_when_legacy_name_exists(self, mock_backend):
         airflow_shared.observability.metrics.stats.gauge(
             "ti.scheduled",
             42,
-            legacy_name_tags={"queue": "default", "dag_id": "test_dag", "task_id": "test_task"},
+            tags={"queue": "default", "dag_id": "test_dag", "task_id": "test_task"},
         )
         assert mock_backend.gauge.call_count == 2
         mock_backend.gauge.assert_any_call("ti.scheduled.default.test_dag.test_task", 42)
@@ -737,20 +682,20 @@ class TestLegacyNameTagsParam:
             tags={"queue": "default", "dag_id": "test_dag", "task_id": "test_task"},
         )
 
-    def test_timing_with_legacy_name_tags_emits_both(self, mock_backend):
+    def test_timing_emits_both_when_legacy_name_exists(self, mock_backend):
         airflow_shared.observability.metrics.stats.timing(
             "operator_failures",
             1.5,
-            legacy_name_tags={"operator_name": "EmptyOperator"},
+            tags={"operator_name": "EmptyOperator"},
         )
         assert mock_backend.timing.call_count == 2
         mock_backend.timing.assert_any_call("operator_failures_EmptyOperator", 1.5)
         mock_backend.timing.assert_any_call("operator_failures", 1.5, tags={"operator_name": "EmptyOperator"})
 
-    def test_timer_with_legacy_name_tags_times_both(self, mock_backend):
+    def test_timer_times_both_when_legacy_name_exists(self, mock_backend):
         with airflow_shared.observability.metrics.stats.timer(
             "operator_failures",
-            legacy_name_tags={"operator_name": "EmptyOperator"},
+            tags={"operator_name": "EmptyOperator"},
         ):
             pass
         assert mock_backend.timer.call_count == 2

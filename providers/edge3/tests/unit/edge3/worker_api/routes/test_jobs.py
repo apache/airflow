@@ -30,15 +30,13 @@ from airflow.providers.edge3.worker_api.routes.jobs import fetch, state
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_1_PLUS
-
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.db_test
 
 stats_reference = f"{Stats.__module__}.Stats"
-expected_call_count = 1 if AIRFLOW_V_3_2_1_PLUS else 2
+expected_call_count = 2
 
 
 DAG_ID = "my_dag"
@@ -120,10 +118,7 @@ class TestJobsApiRoutes:
                 "state": TaskInstanceState.SUCCESS,
                 "task_id": TASK_ID,
             }
-            if AIRFLOW_V_3_2_1_PLUS:
-                mock_stats_incr.assert_called_with("edge_worker.ti.finish", legacy_name_tags=expected_tags)
-            else:
-                mock_stats_incr.assert_called_with("edge_worker.ti.finish", tags=expected_tags)
+            mock_stats_incr.assert_called_with("edge_worker.ti.finish", tags=expected_tags)
             assert mock_stats_incr.call_count == expected_call_count
 
             db_job: EdgeJobModel | None = session.scalar(select(EdgeJobModel))

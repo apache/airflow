@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import os
 import traceback
-from contextlib import AbstractContextManager, ExitStack
 from typing import TYPE_CHECKING, Literal
 
 import yaml
@@ -158,18 +157,10 @@ class OpenLineageAdapter(LoggingMixin):
         transport_type = f"{self._client.transport.kind}".lower()
 
         try:
-            ctx: AbstractContextManager[object]
-            if AIRFLOW_V_3_2_1_PLUS:
-                ctx = Stats.timer(
-                    "ol.emit.attempts",
-                    legacy_name_tags={"event_type": event_type, "transport_type": transport_type},
-                )
-            else:
-                stack = ExitStack()
-                stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
-                stack.enter_context(Stats.timer("ol.emit.attempts"))
-                ctx = stack
-            with ctx:
+            with Stats.timer(
+                "ol.emit.attempts",
+                tags={"event_type": event_type, "transport_type": transport_type},
+            ):
                 self._client.emit(redacted_event)
                 self.log.info(
                     "Successfully emitted OpenLineage `%s` event of id `%s`",

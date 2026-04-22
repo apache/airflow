@@ -1127,8 +1127,7 @@ class DagRun(Base, LoggingMixin):
         self.last_scheduling_decision = start_dttm
         with stats.timer(
             "dagrun.dependency-check",
-            tags={},
-            legacy_name_tags=self.stats_tags,
+            tags=self.stats_tags,
         ):
             dag = self.get_dag()
             info = self.task_instance_scheduling_decisions(session)
@@ -1611,8 +1610,7 @@ class DagRun(Base, LoggingMixin):
         stats.timing(
             f"dagrun.duration.{self.state}",
             dt=duration,
-            tags=self.stats_tags,
-            legacy_name_tags={"dag_id": self.dag_id},
+            tags={**self.stats_tags, "dag_id": self.dag_id},
         )
 
     @provide_session
@@ -1691,8 +1689,7 @@ class DagRun(Base, LoggingMixin):
                     self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
                     stats.incr(
                         "task_restored_to_dag",
-                        tags=self.stats_tags,
-                        legacy_name_tags={"dag_id": dag.dag_id},
+                        tags={**self.stats_tags, "dag_id": dag.dag_id},
                     )
                     ti.state = None
             except AirflowException:
@@ -1702,8 +1699,7 @@ class DagRun(Base, LoggingMixin):
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
                     stats.incr(
                         "task_removed_from_dag",
-                        tags=self.stats_tags,
-                        legacy_name_tags={"dag_id": dag.dag_id},
+                        tags={**self.stats_tags, "dag_id": dag.dag_id},
                     )
                     ti.state = TaskInstanceState.REMOVED
                 continue
@@ -1874,8 +1870,7 @@ class DagRun(Base, LoggingMixin):
                 stats.incr(
                     "task_instance_created",
                     count,
-                    tags=self.stats_tags,
-                    legacy_name_tags={"task_type": task_type},
+                    tags={**self.stats_tags, "task_type": task_type},
                 )
             session.flush()
         except IntegrityError:

@@ -34,7 +34,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_1_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -103,12 +103,7 @@ class TestEdgeExecutor:
             "state": "failed",
             "task_id": "started_running_orphaned",
         }
-        if AIRFLOW_V_3_2_1_PLUS:
-            mock_stats_incr.assert_called_with("edge_worker.ti.finish", legacy_name_tags=expected_tags)
-            assert mock_stats_incr.call_count == 1
-        else:
-            mock_stats_incr.assert_called_with("edge_worker.ti.finish", tags=expected_tags)
-            assert mock_stats_incr.call_count == 2
+        mock_stats_incr.assert_called_with("edge_worker.ti.finish", tags=expected_tags)
 
         with create_session() as session:
             jobs = session.scalars(select(EdgeJobModel)).all()
