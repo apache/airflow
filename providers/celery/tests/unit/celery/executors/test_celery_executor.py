@@ -400,6 +400,18 @@ class MockWorkload:
         return 1
 
 
+# Airflow <3.0 uses ``execute_command`` with Celery ``accept_content=["json"]``; the command
+# payload must JSON-serialize (see ``send_workload_to_executor``).
+_LEGACY_AIRFLOW_TASKS_RUN_CMD: list[str] = [
+    "airflow",
+    "tasks",
+    "run",
+    "example_dag",
+    "example_task",
+    "2024-01-01",
+]
+
+
 def _exit_gracefully(signum, _):
     print(f"{os.getpid()} Exiting gracefully upon receiving signal {signum}")
     sys.exit(signum)
@@ -433,10 +445,15 @@ def test_send_workloads_to_celery_hang(register_signals):
     """
     executor = celery_executor.CeleryExecutor()
 
-    workload = MockWorkload()
-    # ``WorkloadInCelery`` is (key, workload, queue, team_name); the 4th field must be a
-    # str | None team name, not the workload (regression after team / ExecutorConf support).
-    workload_tuples_to_send = [(None, workload, None, None) for _ in range(26)]
+    # ``WorkloadInCelery`` is (key, workload_or_command, queue, team_name); the 4th field must
+    # be a str | None team name, not the workload (regression after team / ExecutorConf support).
+    if AIRFLOW_V_3_0_PLUS:
+        v3_workload = MockWorkload()
+        workload_tuples_to_send = [(None, v3_workload, None, None) for _ in range(26)]
+    else:
+        workload_tuples_to_send = [
+            (None, _LEGACY_AIRFLOW_TASKS_RUN_CMD, None, None) for _ in range(26)
+        ]
 
     for _ in range(250):
         # This loop can hang on Linux if celery_executor does something wrong with
@@ -446,9 +463,9 @@ def test_send_workloads_to_celery_hang(register_signals):
         for key, sent_args, result in results:
             assert key is None
             if AIRFLOW_V_3_0_PLUS:
-                assert sent_args == (workload.model_dump_json(),)
+                assert sent_args == (v3_workload.model_dump_json(),)
             else:
-                assert sent_args == [workload]
+                assert sent_args == [_LEGACY_AIRFLOW_TASKS_RUN_CMD]
             assert not isinstance(result, celery_executor_utils.ExceptionWithTraceback)
 
 
