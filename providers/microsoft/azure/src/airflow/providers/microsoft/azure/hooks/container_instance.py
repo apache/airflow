@@ -26,7 +26,7 @@ from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
+from airflow.providers.microsoft.azure.hooks.base_azure import _AZURE_CLOUD_ENVIRONMENTS, AzureBaseHook
 from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 
 if TYPE_CHECKING:
@@ -82,6 +82,11 @@ class AzureContainerInstanceHook(AzureBaseHook):
             self.log.info("Getting connection using a JSON config.")
             return get_client_from_json_dict(client_class=self.sdk_client, config_dict=key_json)
 
+        cloud_env_name = conn.extra_dejson.get("cloud_environment", "AzurePublicCloud")
+        cloud_env = _AZURE_CLOUD_ENVIRONMENTS.get(
+            cloud_env_name, _AZURE_CLOUD_ENVIRONMENTS["AzurePublicCloud"]
+        )
+
         credential: ClientSecretCredential | DefaultAzureCredential
         if all([conn.login, conn.password, tenant]):
             self.log.info("Getting connection using specific credentials and subscription_id.")
@@ -89,6 +94,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
                 client_id=cast("str", conn.login),
                 client_secret=cast("str", conn.password),
                 tenant_id=cast("str", tenant),
+                authority=cloud_env["authority"],
             )
         else:
             self.log.info("Using DefaultAzureCredential as credential")
@@ -103,6 +109,8 @@ class AzureContainerInstanceHook(AzureBaseHook):
         return ContainerInstanceManagementClient(
             credential=credential,
             subscription_id=subscription_id,
+            base_url=cloud_env["base_url"],
+            credential_scopes=cloud_env["credential_scopes"],
         )
 
     def create_or_update(self, resource_group: str, name: str, container_group: ContainerGroup) -> None:
