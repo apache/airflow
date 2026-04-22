@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import subprocess
 from unittest.mock import MagicMock, patch
 
 from airflow_breeze.utils.path_utils import reinstall_if_setup_changed

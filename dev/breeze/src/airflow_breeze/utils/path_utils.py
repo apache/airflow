@@ -139,7 +139,7 @@ def reinstall_if_setup_changed() -> bool:
             text=True,
             capture_output=True,
         )
-        if res.returncode == 0 and "Modified" in res.stderr:    
+        if res.returncode == 0 and "Modified" in res.stderr:
             inform_about_self_upgrade()
             return True
     except FileNotFoundError:
