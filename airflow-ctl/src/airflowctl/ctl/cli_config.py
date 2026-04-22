@@ -600,21 +600,16 @@ class CommandFactory:
                     if self._is_primitive_type(type_name=parameter_type):
                         base_parameter_type = parameter_type.replace(" | None", "").strip()
                         is_bool = base_parameter_type == "bool"
+                        is_optional = "| None" in parameter_type
                         sanitized_key = self._sanitize_arg_parameter_key(parameter_key)
-                        operation_name = operation.get("name")
-                        parent_name = operation.get("parent").name
-                        is_jobs_or_dagrun_list = operation_name == "list" and parent_name in [
-                            "JobsOperations",
-                            "DagRunOperations",
-                        ]
-                        is_positional = not is_bool and not has_default and not is_jobs_or_dagrun_list
+                        arg_flags = ("--" + sanitized_key,) if is_optional or is_bool else (sanitized_key,)
                         args.append(
                             self._create_arg(
-                                arg_flags=(parameter_key,) if is_positional else ("--" + sanitized_key,),
+                                arg_flags=arg_flags,
                                 arg_type=self._python_type_from_string(parameter_type),
                                 arg_action=argparse.BooleanOptionalAction if is_bool else None,
                                 arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
-                                arg_default=False if is_bool else None,
+                                arg_default=False if parameter_type == "bool" else None,
                             )
                         )
                     else:

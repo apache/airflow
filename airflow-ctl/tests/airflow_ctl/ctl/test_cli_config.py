@@ -158,7 +158,7 @@ def test_args_list():
 def test_args_get():
     return [
         (
-            "backfill_id",
+            "backfill-id",
             {
                 "help": "backfill_id for get operation in BackfillsOperations",
                 "default": None,
@@ -177,12 +177,11 @@ def test_args_get():
         ),
     ]
 
-
 @pytest.fixture(scope="module")
 def test_args_delete():
     return [
         (
-            "backfill_id",
+            "backfill-id", 
             {
                 "help": "backfill_id for delete operation in BackfillsOperations",
                 "default": None,
