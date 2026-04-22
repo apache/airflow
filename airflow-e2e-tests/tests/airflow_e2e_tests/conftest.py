@@ -142,8 +142,144 @@ def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
+<<<<<<< HEAD
 def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     tmp_dir = tmp_path_factory.mktemp("airflow-e2e-tests")
+=======
+def _download_jdk(dest_dir: Path) -> Path:
+    """Download a Linux JDK matching the host/container architecture into dest_dir/openjdk."""
+    machine = platform.machine()
+    if machine in ("x86_64", "amd64"):
+        arch = "x64"
+    elif machine in ("aarch64", "arm64"):
+        arch = "aarch64"
+    else:
+        raise RuntimeError(f"Unsupported architecture: {machine}")
+
+    jdk_url = (
+        "https://github.com/adoptium/temurin11-binaries/releases/download/"
+        f"jdk-11.0.30%2B7/OpenJDK11U-jdk_{arch}_linux_hotspot_11.0.30_7.tar.gz"
+    )
+
+    tarball_path = dest_dir / "openjdk-11.tar.gz"
+    openjdk_dir = dest_dir / "openjdk"
+    openjdk_dir.mkdir(exist_ok=True)
+
+    console.print(f"[yellow]Downloading OpenJDK 11 ({arch}) for containers...")
+    result = subprocess.run(
+        ["curl", "-fL", "-o", str(tarball_path), jdk_url],
+        capture_output=True,
+        text=True,
+        timeout=300,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Failed to download OpenJDK: {result.stderr}")
+
+    console.print("[yellow]Extracting OpenJDK...")
+    result = subprocess.run(
+        ["tar", "-xzf", str(tarball_path), "--strip-components=1", "-C", str(openjdk_dir)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Failed to extract OpenJDK: {result.stderr}")
+
+    tarball_path.unlink()
+    console.print("[green]OpenJDK 11 downloaded and extracted successfully")
+    return openjdk_dir
+
+
+def _build_java_sdk_bundles(tmp_dir: Path) -> Path:
+    """Build both Java SDK bundles (stub + pure Java) using the shared build script.
+
+    Returns the bundles output directory containing both bundle subdirectories.
+    The caller's system Java is used for the Gradle build (not the downloaded Linux JDK).
+    """
+    build_script = AIRFLOW_ROOT_PATH / "scripts" / "in_container" / "java_sdk_build.sh"
+    bundles_dir = tmp_dir / "java-sdk-bundles"
+
+    build_env = {
+        **os.environ,
+        "JAVA_SDK_SRC_DIR": str(JAVA_SDK_PATH),
+        "BUNDLES_OUTPUT_DIR": str(bundles_dir),
+        "JAVA_STUB_BUNDLE_NAME": JAVA_STUB_BUNDLE_NAME,
+        "JAVA_PURE_BUNDLE_NAME": JAVA_PURE_BUNDLE_NAME,
+        "JAVA_STUB_DAG_ID": JAVA_STUB_DAG_ID,
+        "JAVA_PURE_DAG_ID": JAVA_PURE_DAG_ID,
+        "JAVA_SDK_DAGS_DIR": str(JAVA_SDK_DAGS_FOLDER),
+    }
+
+    console.print("[yellow]Building Java SDK bundles via shared build script...")
+    result = subprocess.run(
+        ["bash", str(build_script)],
+        env=build_env,
+        capture_output=True,
+        text=True,
+        timeout=600,
+        check=False,
+    )
+    if result.returncode != 0:
+        console.print(f"[red]Java SDK build failed:\n{result.stdout}\n{result.stderr}")
+        raise RuntimeError("Failed to build Java SDK bundles")
+    console.print(result.stdout)
+
+    return bundles_dir
+
+
+def _setup_java_sdk_integration(dot_env_file, tmp_dir):
+    """Set up Java SDK integration: download JDK, build bundles, write env and compose override."""
+    # Download the Linux JDK on the host so containers get it via bind mount
+    openjdk_dir = _download_jdk(tmp_dir)
+
+    # Build both bundles (stub + pure Java) using the shared script
+    bundles_dir = _build_java_sdk_bundles(tmp_dir)
+    stub_bundle_root = bundles_dir / JAVA_STUB_BUNDLE_NAME
+    pure_bundle_dir = bundles_dir / JAVA_PURE_BUNDLE_NAME
+
+    # Copy the docker-compose override
+    copyfile(JAVA_SDK_COMPOSE_PATH, tmp_dir / "java-sdk.yml")
+
+    # Set host environment variables consumed by docker-compose variable substitution
+    os.environ["JAVA_OPENJDK_PATH"] = str(openjdk_dir)
+    os.environ["JAVA_STUB_BUNDLE_PATH"] = str(stub_bundle_root)
+    os.environ["JAVA_BUNDLES_PATH"] = str(pure_bundle_dir)
+
+    # Write .env file with bundle config for both DAG bundles
+    bundle_config = json.dumps(
+        [
+            {
+                "name": JAVA_STUB_BUNDLE_NAME,
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": JAVA_CONTAINER_STUB_DAG_BUNDLE_PATH, "refresh_interval": 20},
+            },
+            {
+                "name": JAVA_PURE_BUNDLE_NAME,
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": JAVA_CONTAINER_PURE_BUNDLE_PATH, "refresh_interval": 20},
+            },
+        ]
+    )
+    queue_to_runtime_mapping = json.dumps({"java-queue": "java"})
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        "AIRFLOW__CORE__LOAD_EXAMPLES=false\n"
+        "AIRFLOW__LOGGING__LOGGING_LEVEL=DEBUG\n"
+        f"AIRFLOW__WORKERS__QUEUE_TO_RUNTIME_MAPPING={queue_to_runtime_mapping}\n"
+        f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST={bundle_config}\n"
+        f"AIRFLOW__JAVA__BUNDLES_FOLDER={JAVA_CONTAINER_STUB_JAVA_BUNDLES_FOLDER_PATH}\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
+def spin_up_airflow_environment():
+    # We indent to use explicitly created temp directory instead of pytest's tmp_path fixture because we want the directory to persist after the test run for debugging purposes and pytest's tmp_path is automatically deleted after the test run.
+    tmp_dir = Path(tempfile.mkdtemp(prefix="airflow-e2e-tests-"))
+    console.print(f"[yellow]Temp directory (persists after test run): {tmp_dir}")
+>>>>>>> 1978a719f72 (Add [workers/queue_to_runtime_mapping])
 
     console.print(f"[yellow]Using docker compose file: {DOCKER_COMPOSE_PATH}")
     copyfile(DOCKER_COMPOSE_PATH, tmp_dir / "docker-compose.yaml")

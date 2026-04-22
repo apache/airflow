@@ -55,6 +55,7 @@ from airflow.sdk import (
     timezone,
 )
 from airflow.sdk._shared.observability.metrics.base_stats_logger import StatsLogger
+from airflow.sdk._shared.workloads import TaskInstanceDTO
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,
@@ -177,13 +178,16 @@ class CustomOperator(BaseOperator):
 def test_parse(test_dags_dir: Path, make_ti_context):
     """Test that checks parsing of a basic dag with an un-mocked parse."""
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="a",
             dag_id="super_basic",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -224,13 +228,16 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
     mock_dag.task_dict = {"a": mock_task}
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="a",
             dag_id="super_basic",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -284,13 +291,16 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
 def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, expected_error):
     """Check for nice error messages on dag not found."""
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id=task_id,
             dag_id=dag_id,
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -330,13 +340,16 @@ def test_parse_not_found_does_not_reschedule_when_max_attempts_reached(test_dags
     and should surface as a hard failure (SystemExit in the task runner process).
     """
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="a",
             dag_id="madeup_dag_id",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -593,13 +606,16 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
     dag1_path.write_text(textwrap.dedent(dag1_code))
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="a",
             dag_id="dag_name",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="path_test.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
