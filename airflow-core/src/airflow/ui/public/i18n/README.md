@@ -72,6 +72,7 @@ A new locale may be added when all of the following are true:
 
 The PR for a new locale should include:
 
+- A locale-specific translation guide file at `.github/skills/airflow-translations/locales/<locale>.md`
 - Locale files under `airflow-core/src/airflow/ui/public/i18n/locales/<locale>`.
 - Updates to `airflow-core/src/airflow/ui/src/i18n/config.ts`.
 - Updates to `dev/breeze/src/airflow_breeze/commands/ui_commands.py`.
