@@ -138,24 +138,62 @@ comment without this extra line.
 *(`review-nudge` — stale `CHANGES_REQUESTED` ping)*
 
 Used when the action is `ping` on a `stale_review`
-classification. There are two sub-templates based on whether
-the author already pinged the reviewer.
+classification.
 
-### The author already pinged the reviewer
+**Strongly prefer pinging the author** to address the
+outstanding feedback. The skill may only flip to pinging the
+reviewer when it has **inspected the review thread + the
+commits pushed after the review** and judged that the feedback
+was already addressed but never re-reviewed. Defaulting to the
+reviewer-nudge variant without that inspection is noisy — it
+burns a maintainer's attention on a PR whose owner hasn't
+actually done the work yet.
+
+### Default — author-primary nudge *(use unless the inspection below says otherwise)*
 
 ```markdown
-@<author> <reviewers> — This PR has new commits since the last review requesting changes, and it looks like the author has followed up. Could you take another look when you have a chance to see if the review comments have been addressed? Thanks!
+@<author> — This PR has new commits since the last review requesting changes from <reviewers>. Could you address the outstanding review comments and either push a fix or reply in each thread explaining why the feedback doesn't apply? Once the threads are resolved please mark the PR as "Ready for review" and re-request review. Thanks!
 ```
 
-### The author has not pinged the reviewer
+### Reviewer-re-review nudge — only when the inspection shows the feedback has been addressed
 
 ```markdown
-@<author> — This PR has new commits since the last review requesting changes from <reviewers>. If you believe you've addressed the feedback, please ping the reviewer(s) to request a re-review. Thanks!
+@<author> <reviewers> — This PR has new commits since the last review requesting changes, and the diff looks like it addresses the feedback (see <thread-links>). @<reviewers>, could you take another look when you have a chance to confirm? Thanks!
 ```
 
-If both sub-states apply for different reviewers (some pinged,
-some not), concatenate the two bodies with a blank line
-between.
+### How to decide which variant to use
+
+Before drafting, fetch the post-review diff and the conversation
+on each thread:
+
+1. `gh api repos/apache/airflow/pulls/<N>/reviews/<review_id>/comments --jq '.'`
+   to see the reviewer's line-level comments.
+2. `gh pr diff <N> --repo apache/airflow` limited to the files
+   the reviewer commented on.
+3. Author replies in-thread (`reviewThreads.nodes.comments.nodes`
+   from the batch query) where the author responded after the
+   review.
+
+Flip to the reviewer-re-review variant **only when all** of the
+following are true:
+
+- Every inline comment the reviewer left has either a code
+  change in the post-review diff at or near the commented line,
+  **or** an author reply in-thread explaining the
+  intentional deviation.
+- The thread-level replies read as "done" / "fixed" / "pushed a
+  commit", not as "can you clarify" / "I disagree".
+- At least one commit was pushed after the review's
+  `submittedAt` timestamp.
+
+Otherwise, stay with the author-primary nudge — the ball is in
+the author's court and the reviewer should not be re-summoned.
+
+If multiple reviewers are stale and only some have had their
+feedback addressed, **use the default (author-primary) variant**
+and list all reviewers in the mention — one less noisy message
+is preferable to two split ones, and the author gets one
+coherent to-do list.
 
 ---
 
@@ -168,14 +206,32 @@ classification triggered by unresolved review threads (i.e.
 the reviewer commented but the thread stayed unresolved and the
 author may have responded).
 
-```markdown
-<reviewers> — Could you please check whether your review feedback on this PR has been addressed? @<author> appears to have responded to your comments. @<author>, do you believe the reviewer's concerns have been resolved?
+**Strongly prefer pinging the author** to resolve the
+outstanding threads. The skill may only flip to pinging the
+reviewer when the same inspection protocol from
+[`#review-nudge`](#review-nudge) above has confirmed that the
+feedback was addressed and the threads just need a re-look to
+be resolved.
 
-If the concerns are resolved, please resolve the conversation threads. Thank you!
+### Default — author-primary nudge *(use unless the inspection below says otherwise)*
+
+```markdown
+@<author> — There are <N> unresolved review thread(s) on this PR from <reviewers>. Could you either push a fix or reply in each thread explaining why the feedback doesn't apply? Once you believe the feedback is addressed, mark the thread as resolved so the reviewer isn't re-pinged needlessly. Thanks!
 ```
 
-This differs from `review-nudge` by being scoped to individual
-comment threads rather than a `CHANGES_REQUESTED` review.
+### Reviewer-re-review nudge — only when the inspection shows the feedback has been addressed
+
+```markdown
+<reviewers> — @<author> appears to have addressed your review feedback (see the linked threads and the commits pushed since). Could you confirm and resolve the threads if you agree? Thanks!
+
+@<author>, if any of the threads still need work on your side, please reply in-line and push a fix.
+```
+
+The decision rule is the same as `review-nudge`: go with the
+author-primary nudge by default; only use the reviewer-re-review
+variant after an explicit inspection confirms the comments have
+been addressed in a post-review commit or resolved with an
+in-thread reply.
 
 ---
 
@@ -300,6 +356,7 @@ layer. The canonical categories are:
 | `Image build` | `build ci image`, `build prod image`, `ci-image`, `prod-image` | "Check Dockerfiles and dependencies." |
 | `Provider tests` | `provider` | `breeze run pytest <provider-test-path> -xvs` |
 | `Other failing CI checks` | anything uncategorised | `prek run --from-ref <base>` |
+| `Unaddressed Copilot review` | classification `stale_copilot_review` — unresolved review thread by a `copilot*[bot]` login older than 14 days with no author reply | "Please review the Copilot review comments and either address them in a follow-up commit or resolve the thread if the feedback doesn't apply. See [thread](<thread_url>)." |
 | `Unresolved review comments` | `unresolved_threads > 0` | "Review and resolve all inline comments. Click 'Resolve conversation' after addressing feedback." |
 
 When a category has multiple matching failed check names,

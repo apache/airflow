@@ -29,6 +29,18 @@ The maintainer chooses between `approve-workflow` and
 [`workflow-approval.md`](workflow-approval.md) for the
 inspection rubric.
 
+### `stale_copilot_review`
+
+| Rule | Action | Reason |
+|---|---|---|
+| *(always)* | `draft` | "Unaddressed Copilot review ≥ 14 days old — convert to draft so the queue doesn't block on stale automated feedback" |
+
+Body: the `draft` template from
+[`comment-templates.md#draft-comment`](comment-templates.md)
+with the **"Unaddressed Copilot review"** violation listed.
+Reference the specific thread URL in `details` so the author
+can jump straight to it.
+
 ### `deterministic_flag`
 
 Evaluated top-to-bottom. `failed_count` is
@@ -61,11 +73,19 @@ Notes:
 
 | Rule | Action | Reason |
 |---|---|---|
-| *(always)* | `ping` | "Author pushed commits after <reviewer>'s CHANGES_REQUESTED review but no follow-up — ping reviewer" |
+| *(always)* | `ping` | "Author pushed commits after <reviewer>'s CHANGES_REQUESTED review but no follow-up — ping author to resolve (reviewer only if feedback looks addressed)" |
+
+**Default the body to pinging the author**, asking them to
+address the outstanding review comments. Only flip to the
+reviewer-re-review body variant after the decision rule in
+[`comment-templates.md#review-nudge`](comment-templates.md)
+confirms the feedback has been addressed in a post-review
+commit or resolved with an in-thread reply. See the inspection
+steps in that template; a bare "nudge reviewer" default is the
+wrong call when the author hasn't actually done the work yet.
 
 If multiple stale reviewers, list them all in the reason and
-`@`-mention them all in the generated ping comment
-(see [`comment-templates.md#review-nudge`](comment-templates.md)).
+`@`-mention them all in the generated ping comment.
 
 ### `already_triaged`
 

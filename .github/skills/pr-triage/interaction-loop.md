@@ -38,17 +38,21 @@ the groups in this fixed order:
    (but share the same group screen so the maintainer sees the
    "queue pressure" signal from multiple PRs by the same
    author at once).
-3. `(deterministic_flag, draft)` — batchable.
-4. `(deterministic_flag, comment)` — batchable.
-5. `(deterministic_flag, rebase)` — batchable.
-6. `(deterministic_flag, rerun)` — batchable.
-7. `(stale_review, ping)` — batchable.
-8. `(passing, mark-ready)` — batchable.
-9. `(stale_draft, close)` — batchable but with extra per-PR
-   confirm inside the batch (these are rarely wrong but when
-   wrong they're very wrong).
-10. `(inactive_open, draft)` — batchable.
-11. `(stale_workflow_approval, draft)` — batchable.
+3. `(stale_copilot_review, draft)` — batchable. Drafts PRs whose
+   Copilot review has sat unaddressed for ≥ 14 days.
+4. `(deterministic_flag, draft)` — batchable.
+5. `(deterministic_flag, comment)` — batchable.
+6. `(deterministic_flag, rebase)` — batchable.
+7. `(deterministic_flag, rerun)` — batchable.
+8. `(deterministic_flag, ping)` — batchable (unresolved threads
+   from collaborators).
+9. `(stale_review, ping)` — batchable.
+10. `(passing, mark-ready)` — batchable.
+11. `(stale_draft, close)` — batchable but with extra per-PR
+    confirm inside the batch (these are rarely wrong but when
+    wrong they're very wrong).
+12. `(inactive_open, draft)` — batchable.
+13. `(stale_workflow_approval, draft)` — batchable.
 
 The ordering is chosen so the maintainer always faces the
 riskiest decisions first, while their attention is fresh. The

@@ -198,22 +198,42 @@ will see the merge commit (or rebased branch) in their PR.
 
 ---
 
-## `ping` — ping reviewer on stale-review PR
+## `ping` — nudge stale review / unresolved thread
 
-Alias for `comment` with the `review-nudge` body template, but
-distinct as an action so the maintainer can confirm it
-separately from the generic `comment` action.
+Alias for `comment` with the `review-nudge` or `reviewer-ping`
+body template, but distinct as an action so the maintainer can
+confirm it separately from the generic `comment` action.
 
 ```bash
 gh pr comment <N> --repo <repo> --body-file /tmp/pr-<N>-ping.md
 ```
 
-Body template: [`comment-templates.md#review-nudge`](comment-templates.md).
+**Pick the body variant deliberately — default to pinging the
+author.** The skill has two body families:
+
+- [`comment-templates.md#review-nudge`](comment-templates.md) —
+  for `stale_review` (a `CHANGES_REQUESTED` review with newer
+  author commits and no follow-up).
+- [`comment-templates.md#reviewer-ping`](comment-templates.md) —
+  for `deterministic_flag` → `ping` (unresolved review thread
+  from a collaborator).
+
+Each family has an **author-primary** variant (the default) and
+a **reviewer-re-review** variant. Before drafting, inspect the
+review thread + the post-review diff using the decision rule in
+[`comment-templates.md#review-nudge`](comment-templates.md). Use
+the reviewer-re-review variant **only** when that inspection
+confirms the feedback has been addressed in a post-review
+commit or resolved with an author reply in-thread; otherwise
+stay with the author-primary variant so the to-do stays on the
+correct desk.
 
 The template **must** include `@`-mentions of every stale
-reviewer *and* the PR author, so both sides see the nudge in
-their GitHub notifications. No mention → no notification → no
-effect.
+reviewer *and* the PR author when using the reviewer-re-review
+variant. In the author-primary variant, mention the author
+first (they're the one who needs to act) and list the reviewers
+as `<reviewers>` so they see the notification but the
+responsibility is clearly on the author.
 
 ---
 

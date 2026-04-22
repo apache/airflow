@@ -114,6 +114,52 @@ can't be reviewed yet. The exact *action* to propose depends on
 static-check failures → comment, etc.) — see
 [`suggested-actions.md`](suggested-actions.md).
 
+### C2b. `stale_copilot_review`
+
+**Condition.** The PR has at least one unresolved review thread
+whose first comment's author matches a GitHub Copilot review-bot
+login **and** the comment's `createdAt` is **≥ 14 days** ago
+**and** no author comment in the same thread (or on the PR
+itself) after that timestamp.
+
+Copilot-bot login patterns to match (case-insensitive):
+
+- `copilot-pull-request-reviewer[bot]` — GitHub's native PR-
+  review Copilot (the canonical signal today)
+- `copilot[bot]`
+- `github-copilot[bot]`
+- any login starting with `copilot` or `github-copilot` and
+  ending in `[bot]`
+
+Detect the authorship via `reviewThreads.nodes.comments.nodes
+.author.login`. The thread's first comment is the one the
+automation posted; a later reply (by anyone) doesn't reset the
+clock unless it comes from the PR author.
+
+**Rationale.** Copilot-review comments are work items queued
+against the author. When they sit unresolved for two weeks the
+PR has effectively stalled — the author is either unaware of
+the feedback or has abandoned the PR. Converting to draft is
+the softer equivalent of the stale-draft sweep: it stops the PR
+from blocking the maintainer review queue while preserving the
+conversation for when the author returns. The suggested action
+is therefore `draft` with a dedicated "Unaddressed Copilot
+review" violation (see
+[`suggested-actions.md`](suggested-actions.md) and
+[`comment-templates.md#violations-rendering`](comment-templates.md)).
+
+**Ordering.** Evaluate **before** `C2` (`deterministic_flag`)
+so the specific Copilot signal wins over the generic
+"unresolved review thread" fallback. A PR that also has a
+collaborator-sourced unresolved thread still gets drafted with
+the Copilot reason — the two violations can be listed together
+in the comment body.
+
+**Do not fire when** the Copilot review is still inside its
+14-day window — the rule is explicitly *not* 24h/96h like the
+CI grace period, because review feedback takes longer to
+address and a two-day nudge would be noisy.
+
 ### C3. `stale_review`
 
 **Condition.** The PR has at least one `latestReviews` entry
@@ -253,6 +299,7 @@ relies on:
 | Classification | Required fields |
 |---|---|
 | `pending_workflow_approval` | `statusCheckRollup.state`, `authorAssociation`, `head_sha` |
+| `stale_copilot_review` | `reviewThreads.nodes.{isResolved,comments.nodes.{author.login,createdAt,url}}`, `comments(last:10).nodes.{author.login,createdAt}` (to detect author replies after the Copilot comment) |
 | `deterministic_flag` | `mergeable`, `statusCheckRollup.{state,contexts}`, `reviewThreads.nodes.{isResolved,comments.nodes.authorAssociation}`, `updatedAt`, `comments(last:10).nodes.{author.login,authorAssociation,createdAt}` |
 | `stale_review` | `latestReviews.nodes.{state,author.login,submittedAt}`, `commits(last:1).nodes.commit.committedDate`, `comments(last:10)` |
 | `already_triaged` | `comments(last:10).nodes.{author.login,bodyText,createdAt}`, viewer login, `commits(last:1).nodes.commit.committedDate` |
