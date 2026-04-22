@@ -14,10 +14,26 @@ Classification is pure function of state from [`fetch.md`](fetch.md) — no netw
 A PR is *triaged* when it has at least one comment that:
 
 - is authored by `OWNER` / `MEMBER` / `COLLABORATOR` (`authorAssociation`)
-- contains the literal string `Pull Request quality criteria` in `bodyText` (the canonical quality-criteria link text from [`pr-triage/comment-templates.md`](../pr-triage/comment-templates.md))
+- contains the literal string `Pull Request quality criteria` in the comment's **raw `body`** (NOT `bodyText` — see below)
 - has `createdAt` **after** the PR's last commit's `committedDate` (otherwise the triage pre-dates the current code and is stale)
 
-Why "any maintainer", not "viewer only": if another maintainer already triaged the PR, the stats should count it as triaged. Using `viewer` here would under-count triage coverage on a team with multiple active triagers.
+### Both marker forms count
+
+Two flavours of the marker circulate in `apache/airflow` and both must be detected:
+
+| Source | Form of marker in the comment body | Where it appears |
+|---|---|---|
+| `pr-triage` skill | `[Pull Request quality criteria](https://github.com/…)` visible link | violations-style draft/comment/close bodies |
+| `breeze pr auto-triage` — violations path | same `[Pull Request quality criteria](https://…)` link | violations-style triage comments |
+| `breeze pr auto-triage` — staleness path | `<!-- Pull Request quality criteria -->` **HTML comment** appended to the body | staleness-close / stale-workflow / inactive-open comments |
+
+The HTML-comment form is invisible in the GraphQL `bodyText` field (bodyText strips HTML comments). Fetching `body` preserves it, and a single substring match for `Pull Request quality criteria` catches both the visible link and the hidden HTML marker.
+
+This is why [`fetch.md`](fetch.md) specifies `body` (not `bodyText`) in the comments subfield. A previous iteration of the skill used `bodyText` and missed ~10% of triaged PRs on `apache/airflow` — specifically, the ones that had only the staleness-style auto-triage comment.
+
+### Rationale — "any maintainer", not "viewer only"
+
+If another maintainer already triaged the PR, the stats should count it as triaged. Using `viewer` here would under-count triage coverage on a team with multiple active triagers. The same applies to the `breeze pr auto-triage`-posted staleness comments: whoever ran the tool (the "actor") is the marker's author, and it's still a legitimate maintainer triage.
 
 ---
 

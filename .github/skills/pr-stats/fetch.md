@@ -44,7 +44,7 @@ query(
             author { login }
             authorAssociation
             createdAt
-            bodyText
+            body
           }
         }
       }
@@ -109,7 +109,7 @@ query(
             author { login }
             authorAssociation
             createdAt
-            bodyText
+            body
           }
         }
       }
@@ -119,6 +119,31 @@ query(
 ```
 
 Notice `comments(last: 25)` — higher than the 10 used for open PRs because a triaged PR that was then closed will often have extra follow-up comments; we still need to find the original triage marker. If the marker isn't in the last 25 comments for a given PR, drop that PR from Table 1 (it wasn't triaged by the bot/viewer convention).
+
+### Why `body`, not `bodyText`, for the comment fetch
+
+GitHub's GraphQL exposes two fields for a comment:
+
+- `bodyText` — plain-text rendering; HTML comments (`<!-- … -->`) are **stripped**.
+- `body` — raw Markdown as stored; HTML comments are preserved.
+
+`breeze pr auto-triage` posts its *staleness-close* comments with the marker embedded as an HTML comment:
+
+```markdown
+This pull request has had no activity from the author for over 4 weeks.
+@<author>, you are welcome to reopen this PR when you are ready to continue working on it. Thank you for your contribution!
+
+<!-- Pull Request quality criteria -->
+```
+
+In this case the visible body contains no "Pull Request quality criteria" text at all — the only marker is the HTML comment at the bottom. Running the same marker match against `bodyText` misses these entirely. A spot-check on a 40-PR sample from `apache/airflow` found ~10% of triaged-marker comments were HTML-comment-only: invisible to a `bodyText`-based search.
+
+**Always use `body`, not `bodyText`.** The marker detection is a simple substring search for `Pull Request quality criteria` against the raw body — it matches both:
+
+- the visible `[Pull Request quality criteria](https://…)` link that the pr-triage skill and breeze's violations-triage both emit, and
+- the `<!-- Pull Request quality criteria -->` HTML comment that breeze's staleness-triage embeds as a hidden marker.
+
+Raw bodies are slightly noisier (Markdown formatting characters) but the marker string is distinctive enough that false positives are not a concern on `apache/airflow`.
 
 ### Known limitation — GitHub search-index lag for closed-since counts
 
