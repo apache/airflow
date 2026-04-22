@@ -24,6 +24,7 @@ import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
 
 type ExtraLinksProps = {
   readonly refetchInterval: number | false;
+  readonly tryNumber?: number;
 };
 
 const getTarget = (url: string) => {
@@ -36,7 +37,7 @@ const getTarget = (url: string) => {
   }
 };
 
-export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
+export const ExtraLinks = ({ refetchInterval, tryNumber }: ExtraLinksProps) => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
@@ -46,6 +47,7 @@ export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
       dagRunId: runId,
       mapIndex: parseInt(mapIndex, 10),
       taskId,
+      tryNumber,
     },
     undefined,
     {

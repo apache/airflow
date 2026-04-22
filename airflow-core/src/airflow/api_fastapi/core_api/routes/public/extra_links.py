@@ -47,6 +47,7 @@ def get_extra_links(
     session: SessionDep,
     dag_bag: DagBagDep,
     map_index: int = -1,
+    try_number: int | None = None,
 ) -> ExtraLinkCollectionResponse:
     """Get extra links for task instance."""
     from airflow.models.taskinstance import TaskInstance
@@ -74,6 +75,9 @@ def get_extra_links(
             status.HTTP_404_NOT_FOUND,
             "TaskInstance not found",
         )
+
+    if try_number is not None:
+        ti.try_number = try_number
 
     all_extra_link_pairs = (
         (link_name, task.get_extra_links(ti, link_name)) for link_name in task.extra_links
