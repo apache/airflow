@@ -50,7 +50,16 @@ from google.cloud.dataflow_v1beta3.types.jobs import ListJobsRequest
 from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, timeout
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    timeout,
+)
+
+try:
+    from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
+except ImportError as e:
+    raise AirflowOptionalProviderFeatureException(e)
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
@@ -623,8 +632,6 @@ class DataflowHook(GoogleBaseHook):
         expected_terminal_state: str | None = None,
         **kwargs,
     ) -> None:
-        from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
-
         self.poll_sleep = poll_sleep
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
@@ -987,8 +994,6 @@ class DataflowHook(GoogleBaseHook):
         return job_id
 
     def _build_gcloud_command(self, command: list[str], parameters: dict[str, str]) -> list[str]:
-        from airflow.providers.apache.beam.hooks.beam import beam_options_to_args
-
         _parameters = deepcopy(parameters)
         if self.impersonation_chain:
             if isinstance(self.impersonation_chain, str):
