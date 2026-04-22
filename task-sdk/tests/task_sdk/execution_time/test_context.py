@@ -478,42 +478,22 @@ class TestOutletEventAccessorPartitionKeys:
         assert accessor.partition_keys == value
 
     @pytest.mark.parametrize(
-        ("args", "kwargs", "expected"),
+        ("key", "expected"),
         [
             pytest.param(
-                ("us",),
-                {},
+                "us",
                 PartitionKey(key="us"),
                 id="string",
             ),
             pytest.param(
-                ("us",),
-                {"extra": {"src": "s3://bucket"}},
-                PartitionKey(key="us", extra={"src": "s3://bucket"}),
-                id="string-with-extra",
-            ),
-            pytest.param(
-                (PartitionKey(key="eu", extra={"x": 1}),),
-                {},
+                PartitionKey(key="eu", extra={"x": 1}),
                 PartitionKey(key="eu", extra={"x": 1}),
                 id="partition-key",
             ),
-            pytest.param(
-                (PartitionKey(key="eu", extra={"a": 1}),),
-                {"extra": {"b": 2}},
-                PartitionKey(key="eu", extra={"a": 1, "b": 2}),
-                id="partition-key-merges-extra",
-            ),
-            pytest.param(
-                (PartitionKey(key="eu", extra={"a": 1}),),
-                {"extra": {"a": 2}},
-                PartitionKey(key="eu", extra={"a": 2}),
-                id="partition-key-extra-overrides",
-            ),
         ],
     )
-    def test_add_partition(self, accessor, args, kwargs, expected):
-        accessor.add_partition(*args, **kwargs)
+    def test_add_partition(self, accessor, key, expected):
+        accessor.add_partition(key)
         assert accessor.partition_keys == [expected]
 
     def test_add_partition_appends(self, accessor):

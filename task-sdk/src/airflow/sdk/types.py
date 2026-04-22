@@ -233,12 +233,7 @@ class OutletEventAccessorProtocol(Protocol):
         partition_keys: list[str | PartitionKey] = ...,
     ) -> None: ...
     def add(self, asset: Asset, extra: dict[str, JsonValue] | None = None) -> None: ...
-    def add_partition(
-        self,
-        key: str | PartitionKey,
-        *,
-        extra: dict[str, JsonValue] | None = None,
-    ) -> None: ...
+    def add_partition(self, key: str | PartitionKey) -> None: ...
 
 
 class OutletEventAccessorsProtocol(Protocol):

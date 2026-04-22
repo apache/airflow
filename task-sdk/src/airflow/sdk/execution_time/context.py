@@ -742,24 +742,10 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
     partition_keys: list[str | PartitionKey] = attrs.field(factory=list)
 
-    def add_partition(
-        self,
-        key: str | PartitionKey,
-        *,
-        extra: dict[str, JsonValue] | None = None,
-    ) -> None:
-        """
-        Append a partition key to :attr:`partition_keys`.
-
-        Prefer direct assignment (``partition_keys = [...]``) when the full list
-        is known up front. When *key* is a :class:`PartitionKey` and *extra* is
-        also supplied, the two metadata dicts are merged with *extra* winning on
-        conflict.
-        """
+    def add_partition(self, key: str | PartitionKey) -> None:
+        """Append a partition key to :attr:`partition_keys`."""
         if isinstance(key, str):
-            self.partition_keys.append(PartitionKey(key=key, extra=extra or {}))
-        elif extra is not None:
-            self.partition_keys.append(PartitionKey(key=key.key, extra={**key.extra, **extra}))
+            self.partition_keys.append(PartitionKey(key=key))
         else:
             self.partition_keys.append(key)
 
