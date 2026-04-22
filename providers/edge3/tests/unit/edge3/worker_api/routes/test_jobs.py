@@ -35,10 +35,6 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.db_test
 
-stats_reference = f"{Stats.__module__}.Stats"
-expected_call_count = 2
-
-
 DAG_ID = "my_dag"
 TASK_ID = "my_task"
 RUN_ID = "manual__2024-11-24T21:03:01+01:00"
@@ -74,7 +70,7 @@ class TestJobsApiRoutes:
         session.execute(delete(EdgeJobModel))
         session.commit()
 
-    @patch(f"{stats_reference}.incr")
+    @patch(f"{Stats.__module__}.Stats.incr")
     def test_state(self, mock_stats_incr, session: Session):
         with create_session() as session:
             job = EdgeJobModel(
@@ -112,14 +108,16 @@ class TestJobsApiRoutes:
                 session=session,
             )
 
-            expected_tags = {
-                "dag_id": DAG_ID,
-                "queue": QUEUE,
-                "state": TaskInstanceState.SUCCESS,
-                "task_id": TASK_ID,
-            }
-            mock_stats_incr.assert_called_with("edge_worker.ti.finish", tags=expected_tags)
-            assert mock_stats_incr.call_count == expected_call_count
+            mock_stats_incr.assert_called_with(
+                "edge_worker.ti.finish",
+                tags={
+                    "dag_id": DAG_ID,
+                    "queue": QUEUE,
+                    "state": TaskInstanceState.SUCCESS,
+                    "task_id": TASK_ID,
+                },
+            )
+            assert mock_stats_incr.call_count == 1
 
             db_job: EdgeJobModel | None = session.scalar(select(EdgeJobModel))
             assert db_job is not None
