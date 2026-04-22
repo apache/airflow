@@ -465,9 +465,9 @@ FDs survive the upcoming exec because ``os.dup2(inheritable=True)`` (the default
 clears ``FD_CLOEXEC`` on the destination FDs.  The log channel is obtained after
 startup via the existing ``ResendLoggingFD`` mechanism.
 
-Only task execution opts in (via ``use_exec=True`` in ``ActivitySubprocess.start``).
-DAG processor and triggerer keep bare fork -- they don't make network calls that
-trigger the macOS crash.
+Currently only task execution opts in (via ``ActivitySubprocess.start``).  DAG
+processor and triggerer can also hit this crash and will need the same treatment
+as a follow-up (see https://github.com/apache/airflow/issues/65691).
 
 See: https://github.com/python/cpython/issues/105912
      https://github.com/apache/airflow/discussions/24463
@@ -584,7 +584,7 @@ class WatchedSubprocess:
             del logger
 
             try:
-                if use_exec and sys.platform in _FORK_EXEC_PLATFORMS:
+                if use_exec:
                     # macOS: exec a fresh Python interpreter to replace the
                     # inherited ObjC/CoreFoundation state that is not fork-safe.
                     # dup2 copies the socketpairs onto FDs 0/1/2; os.dup2 clears
@@ -1099,10 +1099,10 @@ class ActivitySubprocess(WatchedSubprocess):
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
+        # Opt in to fork+exec on platforms that need it (currently macOS).
         # Tests override `target` with a local stub to exercise the base
-        # infrastructure; keep bare fork for those. Only the real task runner
-        # path opts in to fork+exec.
-        use_exec = target is _subprocess_main
+        # infrastructure; keep bare fork for those.
+        use_exec = target is _subprocess_main and sys.platform in _FORK_EXEC_PLATFORMS
         proc: Self = super().start(
             id=what.id, client=client, target=target, logger=logger, use_exec=use_exec, **kwargs
         )
