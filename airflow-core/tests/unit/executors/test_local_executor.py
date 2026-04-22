@@ -225,13 +225,19 @@ class TestLocalExecutor:
         executor.heartbeat()
         calls = [
             mock.call(
-                "executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "LocalExecutor"}
+                "executor.open_slots",
+                value=mock.ANY,
+                tags={"status": "open", "executor_class_name": "LocalExecutor"},
             ),
             mock.call(
-                "executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "LocalExecutor"}
+                "executor.queued_tasks",
+                value=mock.ANY,
+                tags={"status": "queued", "executor_class_name": "LocalExecutor"},
             ),
             mock.call(
-                "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "LocalExecutor"}
+                "executor.running_tasks",
+                value=mock.ANY,
+                tags={"status": "running", "executor_class_name": "LocalExecutor"},
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)
