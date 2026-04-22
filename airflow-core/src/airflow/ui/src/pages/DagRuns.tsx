@@ -270,8 +270,8 @@ export const DagRuns = () => {
 
   const columns = runColumns(translate, dagId);
 
-  const nextCursor = data && "next_cursor" in data ? data.next_cursor : undefined;
-  const previousCursor = data && "previous_cursor" in data ? data.previous_cursor : undefined;
+  const nextCursor = data?.next_cursor ?? undefined;
+  const previousCursor = data?.previous_cursor ?? undefined;
 
   return (
     <>

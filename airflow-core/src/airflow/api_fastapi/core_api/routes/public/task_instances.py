@@ -551,7 +551,7 @@ def get_task_instances(
         # Fetch one extra row so we can detect whether a next page exists.
         page_limit = cast(
             "int", limit.value
-        )  # LimitFilter value is guaranteed to be set of the default value of QueryLimit
+        )  # LimitFilter value is guaranteed to be set to the default value of QueryLimit
         cursor_limit = LimitFilter().set_value(page_limit + 1)
         task_instance_select = apply_filters_to_select(
             statement=query, filters=[*filters, order_by, cursor_limit]
