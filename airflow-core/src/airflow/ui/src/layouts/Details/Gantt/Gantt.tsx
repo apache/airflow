@@ -46,6 +46,7 @@ const GANTT_STANDALONE_VIRTUALIZER_PADDING_START_PX = GANTT_TOP_PADDING_PX + GAN
 type Props = {
   readonly dagRunState?: DagRunState | undefined;
   readonly limit: number;
+  readonly offset?: number;
   readonly runAfterGte?: string | undefined;
   readonly runAfterLte?: string | undefined;
   readonly runType?: DagRunType | undefined;
@@ -56,6 +57,7 @@ type Props = {
 export const Gantt = ({
   dagRunState,
   limit,
+  offset,
   runAfterGte,
   runAfterLte,
   runType,
@@ -82,6 +84,7 @@ export const Gantt = ({
   const { data: gridRuns, isLoading: runsLoading } = useGridRuns({
     dagRunState,
     limit,
+    offset,
     runAfterGte,
     runAfterLte,
     runType,

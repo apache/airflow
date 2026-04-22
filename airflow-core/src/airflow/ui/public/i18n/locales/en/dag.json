@@ -43,6 +43,8 @@
   "extraLinks": "Extra Links",
   "grid": {
     "buttons": {
+      "newerRuns": "Newer runs",
+      "olderRuns": "Older runs",
       "resetToLatest": "Reset to latest",
       "toggleGroup": "Toggle group"
     },
