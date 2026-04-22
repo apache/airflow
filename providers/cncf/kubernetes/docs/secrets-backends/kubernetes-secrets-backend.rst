@@ -81,6 +81,7 @@ The following parameters can be passed via ``backend_kwargs`` as a JSON dictiona
 * ``connections_label``: Label key used to discover connection secrets. Default: ``"airflow.apache.org/connection-id"``
 * ``variables_label``: Label key used to discover variable secrets. Default: ``"airflow.apache.org/variable-key"``
 * ``config_label``: Label key used to discover config secrets. Default: ``"airflow.apache.org/config-key"``
+* ``team_label``: Label key used to discover team-scoped secrets in multi-team mode. Default: ``"airflow.apache.org/team"``
 * ``connections_data_key``: The data key in the Kubernetes secret that holds the connection value. Default: ``"value"``
 * ``variables_data_key``: The data key in the Kubernetes secret that holds the variable value. Default: ``"value"``
 * ``config_data_key``: The data key in the Kubernetes secret that holds the config value. Default: ``"value"``
@@ -206,6 +207,33 @@ You can create a variable secret with ``kubectl``:
     kubectl label secret my-var-secret \
         airflow.apache.org/variable-key=my_var \
         --namespace=airflow
+
+Multi-team lookup
+"""""""""""""""""
+
+In multi-team mode, this backend first looks for a secret whose identifier label matches the requested
+connection or variable and whose ``team_label`` matches the current team. If no team-scoped secret is
+found, it falls back to a global secret with the same identifier label and no team label.
+
+For example, with ``team_label="airflow.apache.org/team"``, ``team_name="team_a"``, and
+``conn_id="my_db"``, the backend queries:
+
+* Team-scoped: ``airflow.apache.org/connection-id=my_db,airflow.apache.org/team=team_a``
+* Global fallback: ``airflow.apache.org/connection-id=my_db,!airflow.apache.org/team``
+
+Example team-scoped connection secret:
+
+.. code-block:: yaml
+
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: my-team-db-secret
+      labels:
+        airflow.apache.org/connection-id: my_db
+        airflow.apache.org/team: team_a
+    data:
+      value: <base64-encoded-connection-uri>
 
 Using with External Secrets Operator
 """""""""""""""""""""""""""""""""""""
