@@ -150,11 +150,15 @@ with DAG(
     )
 
     snowflake_op_sql_str >> create_check_table
-    create_check_table >> populate_check_table >> [
-        snowflake_check,
-        snowflake_value_check,
-        snowflake_interval_check,
-    ]
+    (
+        create_check_table
+        >> populate_check_table
+        >> [
+            snowflake_check,
+            snowflake_value_check,
+            snowflake_interval_check,
+        ]
+    )
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
