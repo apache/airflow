@@ -16,7 +16,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-18T06:49:19.884005625Z"
+exclude-newer = "2026-04-18T12:14:40.504930901Z"
 exclude-newer-span = "P4D"
 
 [options.exclude-newer-package]
@@ -2106,6 +2106,7 @@ version = "0.1.0"
 source = { editable = "devel-common" }
 dependencies = [
     { name = "aioresponses" },
+    { name = "apache-airflow-mypy" },
     { name = "black" },
     { name = "coverage" },
     { name = "filelock" },
@@ -2159,6 +2160,7 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
+    { name = "apache-airflow-mypy" },
     { name = "beautifulsoup4" },
     { name = "blinker" },
     { name = "click" },
@@ -2212,6 +2214,7 @@ all = [
     { name = "types-toml" },
 ]
 basic = [
+    { name = "apache-airflow-mypy" },
     { name = "coverage" },
     { name = "ipdb" },
     { name = "mypy" },
@@ -2309,6 +2312,7 @@ duckdb = [
     { name = "duckdb" },
 ]
 mypy = [
+    { name = "apache-airflow-mypy" },
     { name = "mypy" },
     { name = "types-aiofiles" },
     { name = "types-cachetools" },
@@ -2331,6 +2335,7 @@ mypy = [
     { name = "types-toml" },
 ]
 no-doc = [
+    { name = "apache-airflow-mypy" },
     { name = "beautifulsoup4" },
     { name = "blinker" },
     { name = "click" },
@@ -2422,6 +2427,7 @@ requires-dist = [
     { name = "apache-airflow-devel-common", extras = ["coverage", "debuggers", "mypy", "pytest", "sqlalchemy"], marker = "extra == 'basic'", editable = "devel-common" },
     { name = "apache-airflow-devel-common", extras = ["coverage", "duckdb", "debuggers", "devscripts", "doc", "docs-gen", "mypy", "pytest", "sentry", "sqlalchemy"], marker = "extra == 'all'", editable = "devel-common" },
     { name = "apache-airflow-devel-common", extras = ["coverage", "duckdb", "debuggers", "devscripts", "mypy", "pytest", "sentry"], marker = "extra == 'no-doc'", editable = "devel-common" },
+    { name = "apache-airflow-mypy", marker = "extra == 'mypy'", editable = "dev/mypy" },
     { name = "astroid", marker = "extra == 'docs'", specifier = ">=4" },
     { name = "beautifulsoup4", marker = "extra == 'sentry'", specifier = ">=4.7.1" },
     { name = "black", specifier = ">=26.1.0" },
@@ -20178,8 +20184,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography", marker = "python_full_version >= '3.14' or platform_machine != 'arm64' or sys_platform != 'darwin'" },
-    { name = "jeepney", marker = "python_full_version >= '3.14' or platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "cryptography", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (python_full_version < '3.14' and sys_platform == 'emscripten') or (python_full_version < '3.14' and sys_platform == 'win32') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "jeepney", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (python_full_version < '3.14' and sys_platform == 'emscripten') or (python_full_version < '3.14' and sys_platform == 'win32') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
