@@ -151,8 +151,7 @@ When a translation dispute cannot be resolved in the PR discussion:
 - If multiple translation owners disagree, the code owner decides.
 - If code owners disagree, a PMC member should be involved to resolve the conflict.
 
-For RTL languages or languages with significantly different word order, a UI check is strongly
-recommended in addition to file-level review.
+For RTL languages, languages with significantly different word order, or languages that typically require much longer text, a UI check is strongly recommended in addition to file-level review.
 
 ## Tools
 
