@@ -400,7 +400,7 @@ gpg:                using RSA key E1A1E984F55B8F280BD9CBA20BB7163892A2E48E
 gpg: Good signature from "Jed Cunningham <jedcunningham@apache.org>" [ultimate]
 plugin: Chart SHA verified. sha256:b33eac716e0416a18af89fb4fa1043fcfcf24f9f903cda3912729815213525df
 
-The documentation is available at https://airflow.staged.apache.org/helm-chart/${VERSION}/.
+The documentation is available at https://airflow.staged.apache.org/docs/helm-chart/${VERSION}/index.html.
 
 The vote will be open for at least 72 hours ($VOTE_END_TIME UTC) or until the necessary number of votes is reached.
 
