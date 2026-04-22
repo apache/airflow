@@ -164,6 +164,9 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_DIST_PATH,
     AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH,
     AIRFLOW_ROOT_PATH,
+    MYPY_DIST_PATH,
+    MYPY_ROOT_PATH,
+    MYPY_SOURCES_PATH,
     OUT_PATH,
     PROVIDER_METADATA_JSON_PATH,
     TASK_SDK_DIST_PATH,
@@ -296,6 +299,7 @@ class DistributionBuildType(Enum):
     PROVIDERS = "providers"
     TASK_SDK = "task-sdk"
     AIRFLOW_CTL = "airflow-ctl"
+    MYPY = "mypy"
 
 
 class DistributionPackageInfo(NamedTuple):
@@ -336,6 +340,8 @@ class DistributionPackageInfo(NamedTuple):
             default_glob_patterns = ["apache_airflow_task_sdk"]
         elif build_type == DistributionBuildType.AIRFLOW_CTL:
             default_glob_patterns = ["apache_airflow_ctl"]
+        elif build_type == DistributionBuildType.MYPY:
+            default_glob_patterns = ["apache_airflow_mypy"]
         else:
             default_glob_patterns = ["apache_airflow_providers"]
         dists_info = []
@@ -630,6 +636,7 @@ def _prepare_non_core_distributions(
             command += "-t sdist "
         if build_distribution_format == "wheel" or build_distribution_format == "both":
             command += "-t wheel "
+        docker_workdir = f"/opt/airflow/{root_path.relative_to(AIRFLOW_ROOT_PATH).as_posix()}"
         container_id = f"airflow-{distribution_name}-build-{random.getrandbits(64):08x}"
         result = run_command(
             cmd=[
@@ -645,7 +652,7 @@ def _prepare_non_core_distributions(
                 "-e",
                 "GITHUB_ACTIONS",
                 "-w",
-                f"/opt/airflow/{distribution_name}",
+                docker_workdir,
                 AIRFLOW_BUILD_IMAGE_TAG,
                 "bash",
                 "-c",
@@ -660,9 +667,7 @@ def _prepare_non_core_distributions(
         AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
         console_print()
         # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
-        run_command(
-            ["docker", "cp", f"{container_id}:/opt/airflow/{distribution_name}/dist/.", "./dist"], check=True
-        )
+        run_command(["docker", "cp", f"{container_id}:{docker_workdir}/dist/.", "./dist"], check=True)
         run_command(["docker", "rm", "--force", container_id], check=False, stdout=DEVNULL, stderr=DEVNULL)
 
     if use_local_hatch:
@@ -756,6 +761,35 @@ def prepare_airflow_ctl_distributions(
         distribution_name="airflow-ctl",
         distribution_pretty_name="",
         full_distribution_pretty_name="airflowctl",
+    )
+
+
+@release_management_group.command(
+    name="prepare-mypy-distributions",
+    help="Prepare sdist/whl distributions of Apache Airflow Mypy.",
+)
+@option_distribution_format
+@option_version_suffix
+@option_use_local_hatch
+@option_verbose
+@option_dry_run
+def prepare_mypy_distributions(
+    distribution_format: str,
+    version_suffix: str,
+    use_local_hatch: bool,
+):
+    _prepare_non_core_distributions(
+        # Argument parameters
+        distribution_format=distribution_format,
+        version_suffix=version_suffix,
+        use_local_hatch=use_local_hatch,
+        # Distribution specific parameters
+        root_path=MYPY_ROOT_PATH,
+        init_file_path=MYPY_SOURCES_PATH / "airflow_mypy" / "__init__.py",
+        distribution_path=MYPY_DIST_PATH,
+        distribution_name="mypy",
+        distribution_pretty_name="Mypy",
+        full_distribution_pretty_name="Apache Airflow Mypy",
     )
 
 

@@ -1020,8 +1020,8 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = false
 plugins = [
-    "dev/airflow_mypy/plugin/decorators.py",
-    "dev/airflow_mypy/plugin/outputs.py",
+    "airflow_mypy.plugins.decorators",
+    "airflow_mypy.plugins.outputs",
 ]
 pretty = true
 show_error_codes = true
@@ -1361,6 +1361,7 @@ apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
 apache-airflow-helm-tests = false
 apache-airflow-kubernetes-tests = false
+apache-airflow-mypy = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-alibaba = false
@@ -1496,6 +1497,7 @@ apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
 apache-airflow-helm-tests = false
 apache-airflow-kubernetes-tests = false
+apache-airflow-mypy = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-alibaba = false
@@ -1621,6 +1623,7 @@ apache-aurflow-docker-stack = false
 apache-airflow = {workspace = true}
 apache-airflow-breeze = {workspace = true}
 apache-airflow-dev = {workspace = true}
+apache-airflow-mypy = {workspace = true}
 apache-airflow-scripts = {workspace = true}
 apache-airflow-core = {workspace = true}
 apache-airflow-ctl = {workspace = true}
@@ -1754,6 +1757,7 @@ members = [
     "airflow-core",
     "airflow-e2e-tests",
     "dev/breeze",
+    "dev/mypy",
     "dev/registry",
     "airflow-ctl",
     "airflow-ctl-tests",
