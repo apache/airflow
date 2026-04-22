@@ -80,13 +80,28 @@ def get_import_error(
 
     auth_manager = get_auth_manager()
     readable_dag_ids = auth_manager.get_authorized_dag_ids(user=user)
-    # We need file_dag_ids as a set for intersection, issubset operations
+    # ``ParseImportError.filename`` is a repository-relative path and
+    # ``DagModel.fileloc`` is typically the absolute path those files were
+    # loaded from, so matching on ``fileloc == filename`` would come back
+    # empty in most real deployments. Match on ``relative_fileloc`` (and the
+    # bundle name that scopes it) instead, which is the same key the list
+    # endpoint already uses for the join below.
     file_dag_ids = set(
-        session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == error.filename)).all()
+        session.scalars(
+            select(DagModel.dag_id).where(
+                DagModel.relative_fileloc == error.filename,
+                DagModel.bundle_name == error.bundle_name,
+            )
+        ).all()
     )
 
-    # No DAGs in the file (failed to parse), nothing to check permissions against
+    # No DAGs matched for this file -- either the file genuinely contains
+    # no DAGs (parse failed before any DAG was defined), or the name keys
+    # did not resolve. Redact the stacktrace rather than returning the raw
+    # error, so the response stays on the deny-by-default side of the
+    # authorization check.
     if not file_dag_ids:
+        error.stacktrace = REDACTED_STACKTRACE
         return error
 
     # Can the user read any DAGs in the file?
@@ -138,32 +153,55 @@ def get_import_errors(
     # Subquery for files that have any DAGs
     files_with_any_dags = select(DagModel.relative_fileloc).distinct().subquery()
 
-    # CTE for DAGs the user can read
-    visible_files_cte = (
-        select(DagModel.relative_fileloc, DagModel.dag_id, DagModel.bundle_name)
+    # Files (identified by ``(relative_fileloc, bundle_name)``) where the
+    # user can read at least one DAG. Used to decide which import errors
+    # the user is allowed to see at all.
+    readable_files_cte = (
+        select(DagModel.relative_fileloc, DagModel.bundle_name)
         .where(DagModel.dag_id.in_(readable_dag_ids))
+        .distinct()
         .cte()
     )
 
-    # Prepare the import errors query by joining with the cte.
-    # Each returned row will be a tuple: (ParseImportError, dag_id)
+    # Full ``(relative_fileloc, dag_id, bundle_name)`` set for every file
+    # the user can see at least one DAG of. Crucially this is **not**
+    # filtered by ``readable_dag_ids`` -- the per-file authorization
+    # check in the loop below needs the complete DAG set so it can
+    # detect co-located DAGs that the caller is not authorized to read
+    # and redact the stacktrace accordingly.
+    file_dags_cte = (
+        select(DagModel.relative_fileloc, DagModel.dag_id, DagModel.bundle_name)
+        .join(
+            readable_files_cte,
+            and_(
+                DagModel.relative_fileloc == readable_files_cte.c.relative_fileloc,
+                DagModel.bundle_name == readable_files_cte.c.bundle_name,
+            ),
+        )
+        .cte()
+    )
+
+    # Prepare the import errors query by joining with the CTE above.
+    # Each returned row will be a tuple: (ParseImportError, dag_id).
+    # ``dag_id`` is NULL for import errors whose file has no DAGs at all
+    # in ``DagModel`` (parse failed before any DAG was defined).
     import_errors_stmt = (
-        select(ParseImportError, visible_files_cte.c.dag_id)
+        select(ParseImportError, file_dags_cte.c.dag_id)
         .outerjoin(
             files_with_any_dags,
             ParseImportError.filename == files_with_any_dags.c.relative_fileloc,
         )
         .outerjoin(
-            visible_files_cte,
+            file_dags_cte,
             and_(
-                ParseImportError.filename == visible_files_cte.c.relative_fileloc,
-                ParseImportError.bundle_name == visible_files_cte.c.bundle_name,
+                ParseImportError.filename == file_dags_cte.c.relative_fileloc,
+                ParseImportError.bundle_name == file_dags_cte.c.bundle_name,
             ),
         )
         .where(
             or_(
                 files_with_any_dags.c.relative_fileloc.is_(None),
-                visible_files_cte.c.dag_id.isnot(None),
+                file_dags_cte.c.dag_id.isnot(None),
             )
         )
         .order_by(ParseImportError.id)
@@ -186,8 +224,14 @@ def get_import_errors(
     for import_error, file_dag_ids_iter in import_errors_result:
         dag_ids = [dag_id for _, dag_id in file_dag_ids_iter if dag_id is not None]
 
-        # No DAGs in the file, nothing to check permissions against
+        # No DAGs matched for this file -- either the file genuinely has
+        # no DAGs yet (parse failed before any DAG was defined), or the
+        # name keys did not resolve. Redact the stacktrace before
+        # appending so the response stays on the deny-by-default side of
+        # the authorization check.
         if not dag_ids:
+            session.expunge(import_error)
+            import_error.stacktrace = REDACTED_STACKTRACE
             import_errors.append(import_error)
             continue
 

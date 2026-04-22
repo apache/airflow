@@ -122,8 +122,8 @@ export type BackfillPostBody = {
     to_date: string;
     run_backwards?: boolean;
     dag_run_conf?: {
-        [key: string]: unknown;
-    };
+    [key: string]: unknown;
+} | null;
     reprocess_behavior?: ReprocessBehavior;
     max_active_runs?: number;
     run_on_latest_version?: boolean;
@@ -401,6 +401,14 @@ export type BulkUpdateAction_VariableBody_ = {
 };
 
 /**
+ * Response for clear dag run dry run, which may contain new tasks without full TaskInstance data.
+ */
+export type ClearTaskInstanceCollectionResponse = {
+    task_instances: Array<(TaskInstanceResponse | NewTaskResponse)>;
+    total_entries: number;
+};
+
+/**
  * Request body for Clear Task Instances endpoint.
  */
 export type ClearTaskInstancesBody = {
@@ -542,6 +550,7 @@ export type DAGDetailsResponse = {
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
     max_active_runs: number | null;
@@ -578,6 +587,10 @@ export type DAGDetailsResponse = {
 } | null;
     is_favorite?: boolean;
     active_runs_count?: number;
+    /**
+     * Whether this DAG's schedule supports backfilling.
+     */
+    readonly is_backfillable: boolean;
     /**
      * Return file token.
      */
@@ -621,6 +634,7 @@ export type DAGResponse = {
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
     max_active_runs: number | null;
@@ -634,6 +648,10 @@ export type DAGResponse = {
     allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
     /**
+     * Whether this DAG's schedule supports backfilling.
+     */
+    readonly is_backfillable: boolean;
+    /**
      * Return file token.
      */
     readonly file_token: string;
@@ -645,6 +663,10 @@ export type DAGResponse = {
 export type DAGRunClearBody = {
     dry_run?: boolean;
     only_failed?: boolean;
+    /**
+     * Only queue newly added tasks in the latest DAG version without clearing existing tasks.
+     */
+    only_new?: boolean;
     /**
      * (Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.
      */
@@ -1151,6 +1173,14 @@ export type MaterializeAssetBody = {
 };
 
 /**
+ * Lightweight response for new tasks that don't have TaskInstances yet.
+ */
+export type NewTaskResponse = {
+    task_id: string;
+    task_display_name: string;
+};
+
+/**
  * Request body for Clear Task Instances endpoint.
  */
 export type PatchTaskInstanceBody = {
@@ -1375,11 +1405,29 @@ export type TaskInletAssetReference = {
 };
 
 /**
- * Task Instance Collection serializer for responses.
+ * Task instance collection response supporting both offset and cursor pagination.
+ *
+ * A single flat model is used instead of a discriminated union
+ * (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because
+ * the OpenAPI ``oneOf`` + ``discriminator`` construct is not handled
+ * correctly by ``@hey-api/openapi-ts`` / ``@7nohe/openapi-react-query-codegen``:
+ * return types degrade to ``unknown`` in JSDoc and can produce
+ * incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).
  */
 export type TaskInstanceCollectionResponse = {
     task_instances: Array<TaskInstanceResponse>;
-    total_entries: number;
+    /**
+     * Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.
+     */
+    total_entries?: number | null;
+    /**
+     * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
+     */
+    next_cursor?: string | null;
+    /**
+     * Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.
+     */
+    previous_cursor?: string | null;
 };
 
 /**
@@ -1903,6 +1951,7 @@ export type DAGWithLatestDagRunsResponse = {
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
     max_active_runs: number | null;
@@ -1921,6 +1970,10 @@ export type DAGWithLatestDagRunsResponse = {
     latest_dag_runs: Array<DAGRunLightResponse>;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
+    /**
+     * Whether this DAG's schedule supports backfilling.
+     */
+    readonly is_backfillable: boolean;
     /**
      * Return file token.
      */
@@ -1951,7 +2004,6 @@ export type DeadlineAlertCollectionResponse = {
 export type DeadlineAlertResponse = {
     id: string;
     name?: string | null;
-    description?: string | null;
     reference_type: string;
     /**
      * Interval in seconds between deadline evaluations.
@@ -1978,8 +2030,8 @@ export type DeadlineResponse = {
     created_at: string;
     dag_id: string;
     dag_run_id: string;
+    alert_id?: string | null;
     alert_name?: string | null;
-    alert_description?: string | null;
 };
 
 /**
@@ -1993,6 +2045,9 @@ export type EdgeResponse = {
     is_source_asset?: boolean | null;
 };
 
+/**
+ * Define a menu item that can be added to the menu by auth managers or plugins.
+ */
 export type ExtraMenuItem = {
     text: string;
     href: string;
@@ -2583,7 +2638,7 @@ export type ClearDagRunData = {
     requestBody: DAGRunClearBody;
 };
 
-export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
+export type ClearDagRunResponse = ClearTaskInstanceCollectionResponse | DAGRunResponse;
 
 export type GetDagRunsData = {
     bundleVersion?: string | null;
@@ -3089,6 +3144,10 @@ export type PatchTaskInstanceByMapIndexData = {
 export type PatchTaskInstanceByMapIndexResponse = TaskInstanceCollectionResponse;
 
 export type GetTaskInstancesData = {
+    /**
+     * Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
+     */
+    cursor?: string | null;
     dagId: string;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
@@ -3473,6 +3532,10 @@ export type GetXcomEntriesData = {
     mapIndex?: number | null;
     mapIndexFilter?: number | null;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, timestamp, run_after`
+     */
+    orderBy?: Array<(string)>;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
@@ -4698,7 +4761,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: TaskInstanceCollectionResponse | DAGRunResponse;
+                200: ClearTaskInstanceCollectionResponse | DAGRunResponse;
                 /**
                  * Unauthorized
                  */

@@ -2051,6 +2051,9 @@ components:
         timetable_partitioned:
           type: boolean
           title: Timetable Partitioned
+        timetable_periodic:
+          type: boolean
+          title: Timetable Periodic
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -2128,6 +2131,11 @@ components:
         is_favorite:
           type: boolean
           title: Is Favorite
+        is_backfillable:
+          type: boolean
+          title: Is Backfillable
+          description: Whether this DAG's schedule supports backfilling.
+          readOnly: true
         file_token:
           type: string
           title: File Token
@@ -2150,6 +2158,7 @@ components:
       - timetable_summary
       - timetable_description
       - timetable_partitioned
+      - timetable_periodic
       - tags
       - max_active_tasks
       - max_active_runs
@@ -2166,6 +2175,7 @@ components:
       - latest_dag_runs
       - pending_actions
       - is_favorite
+      - is_backfillable
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
@@ -2309,11 +2319,6 @@ components:
           - type: string
           - type: 'null'
           title: Name
-        description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Description
         reference_type:
           type: string
           title: Reference Type
@@ -2372,16 +2377,17 @@ components:
         dag_run_id:
           type: string
           title: Dag Run Id
+        alert_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Alert Id
         alert_name:
           anyOf:
           - type: string
           - type: 'null'
           title: Alert Name
-        alert_description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Alert Description
       type: object
       required:
       - id
@@ -2434,6 +2440,8 @@ components:
       - text
       - href
       title: ExtraMenuItem
+      description: Define a menu item that can be added to the menu by auth managers
+        or plugins.
     GanttResponse:
       properties:
         dag_id:

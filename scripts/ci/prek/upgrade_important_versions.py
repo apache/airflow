@@ -67,7 +67,6 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / "scripts" / "docker" / "common.sh", False),
     (AIRFLOW_ROOT_PATH / "scripts" / "tools" / "setup_breeze", False),
     (AIRFLOW_ROOT_PATH / "pyproject.toml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "airflow-distributions-tests.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py", False),
     (
@@ -80,11 +79,6 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
         / "release_management_commands.py",
         False,
     ),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "release_dockerhub_image.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-prek" / "action.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "actions" / "breeze" / "action.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "basic-tests.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd-arm.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
     (AIRFLOW_ROOT_PATH / "docker-stack-docs" / "build-arg-ref.rst", True),
     (AIRFLOW_ROOT_PATH / "devel-common" / "pyproject.toml", True),
@@ -414,6 +408,13 @@ UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"^(\s*UV_VERSION = )(\"[0-9.abrc]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
     (re.compile(r"^(\s*UV_VERSION=)(\"[0-9.abrc]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(\| *`AIRFLOW_UV_VERSION` *\| *)(`[0-9.abrd]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
+    # Intentionally NOT matching `[tool.uv] required-version = ">=X.Y.Z"` in the root
+    # pyproject.toml. That value is a hard minimum contributors must have installed —
+    # not the exact uv version CI ships with. Bumping it on every uv release would force
+    # the whole contributor base to upgrade uv in lockstep, which is far more churn than
+    # the check is worth. `required-version` stays a deliberate, manual bump only. If
+    # you're tempted to auto-track it here, don't — the breeze/prek uv version check
+    # reads it dynamically and tolerates a stale floor.
     (
         re.compile(
             r"(\")([0-9.abrc]+)(\" {2}# Keep this comment to "

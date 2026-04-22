@@ -134,6 +134,9 @@ ENV/
 # Claude Code
 .claude/
 
+# Kiro
+.kiro/
+
 # Cursor
 .cursor/
 

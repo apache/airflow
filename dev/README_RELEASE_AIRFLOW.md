@@ -20,6 +20,7 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Collect ambiguities during the release (for a follow-up doc PR)](#collect-ambiguities-during-the-release-for-a-follow-up-doc-pr)
 - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
   - [i18n workflow](#i18n-workflow)
@@ -67,6 +68,21 @@
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 You can find the prerequisites to release Apache Airflow in [README.md](README.md).
+
+# Collect ambiguities during the release (for a follow-up doc PR)
+
+These instructions are imperfect. Every release uncovers at least one command
+that has drifted, one step that is under-documented, or one automation that
+silently did the wrong thing. As you run through this document, jot down any
+such observations in a scratch file kept **outside** the repo (anywhere that
+is not tracked by git — a note in your home directory, a scratchpad, a
+gist). Once the release has landed, turn those notes into a follow-up PR
+against this document.
+
+Keeping the scratch file out of the repo avoids accidentally committing
+release-manager notes along with the release-prep PR, and makes it obvious
+that the notes are input to the next doc PR rather than something to keep
+around long-term.
 
 # Perform review of security issues that are marked for the release
 
@@ -425,6 +441,39 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 uv tool install -e ./dev/breeze
 ```
 
+- Verify your GPG signing key is ready.
+
+  Before you spend 10+ minutes building artifacts only to discover that signing
+  fails, run these checks once:
+
+  ```shell script
+  # 1. The apache.org key has a secret signing subkey available locally.
+  gpg --list-secret-keys apache.org
+
+  # 2. Signing actually works (exits 0, writes a .asc, verifies cleanly).
+  echo test > /tmp/sign-check && \
+      gpg --yes --armor --local-user apache.org \
+          --output /tmp/sign-check.asc --detach-sig /tmp/sign-check && \
+      gpg --verify /tmp/sign-check.asc /tmp/sign-check && \
+      rm -f /tmp/sign-check /tmp/sign-check.asc && \
+      echo "GPG signing OK"
+
+  # 3. The fingerprint of your signing (sub)key appears in the Airflow KEYS file.
+  #    Without this, PMC verifiers cannot validate the release.
+  FINGERPRINT=$(gpg --list-keys --with-colons apache.org | awk -F: '/^fpr:/ {print $10; exit}')
+  curl -fsS https://dist.apache.org/repos/dist/release/airflow/KEYS | \
+      grep -q "${FINGERPRINT}" && echo "Key ${FINGERPRINT} is in KEYS" || \
+      echo "MISSING: add your key to KEYS before releasing"
+  ```
+
+  If any of these fail, fix them before the build step. For first-time release
+  managers, adding your key to the `KEYS` file is a separate PR against
+  `https://dist.apache.org/repos/dist/release/airflow/` (SVN).
+
+  `sign.sh` defaults to `SIGN_WITH=apache.org`. If your `apache.org` uid resolves
+  to multiple keys (rare), set `SIGN_WITH` explicitly to the fingerprint of the
+  key you want to use.
+
 - For major/minor version release, run the following commands to create the 'test' and 'stable' branches.
 
     ```shell script
@@ -470,6 +519,9 @@ uv tool install -e ./dev/breeze
     ```
 
 - Update `.github/boring-cyborg.yml` and add `backport-to-vX-Y-test` auto-assignment for the new branch.
+- Update the `DEFAULT_BRANCHES` list in `dev/sync_fork.sh` to replace the previous `vX-Y-test` entry
+  with the newly cut `vX-Y-test` branch so contributors using the helper sync the current release branch
+  by default.
 - Update `.github/` configuration on `main` to add the new `vX-Y-test` branch (you can use the
   `uv run dev/update_github_branch_config.py X Y` helper script for this). The following files need updating:
   - `.github/dependabot.yml` — add `target-branch: vX-Y-test` entries for github-actions, pip, and npm ecosystems.
@@ -501,6 +553,23 @@ uv tool install -e ./dev/breeze
 
 - PR from the 'test' branch to the 'stable' branch
 
+  Cherry-picked commits often include provider dependency bumps (changes to `>=` constraints on
+  `apache-airflow-providers-*` packages in `pyproject.toml`). CI blocks such changes by default —
+  only Release Managers should perform them. To allow the PR to pass, add the
+  `allow provider dependency bump` label (and `skip common compat check` if common.compat files
+  changed). For example:
+
+  ```shell script
+  gh pr create \
+    --base v3-2-stable \
+    --head v3-2-test \
+    --title "Airflow ${VERSION}: test to stable" \
+    --label "allow provider dependency bump" \
+    --label "skip common compat check" \
+    --body "Sync v3-2-test into v3-2-stable for Airflow ${VERSION} release." \
+    --web
+  ```
+
 > [!TIP]
 > **Shortcut for first RC candidates:** When preparing the first RC candidate for a new minor release
 > (e.g., 3.2.0rc1), it is unlikely to be approved on the first attempt — bugs are typically found during
@@ -524,6 +593,30 @@ uv tool install -e ./dev/breeze
     ```shell script
     export GITHUB_TOKEN="my_token"
     ```
+
+- Configure a short-lived PyPI token for this upload only. **Until Trusted
+  Publishing is deployed for apache-airflow on PyPI**, the recommended
+  practice is:
+
+  1. Log in to https://pypi.org and create an API token right before the
+     upload step. **Scope caveat:** you would ideally create a
+     project-scoped token for `apache-airflow` alone, but PyPI only
+     allows project-scoped tokens for projects you already own/maintain on
+     that account. Most Airflow release managers do not have per-project
+     owner rights on `apache-airflow`, so in practice you will need to
+     create an account-wide ("all projects") token. That is acceptable
+     **only if** you treat it as single-use and delete it immediately
+     after the upload (step 4 below). Never keep an all-projects token on
+     disk longer than the upload itself.
+  2. Put it in `~/.pypirc` (or export as `TWINE_USERNAME=__token__`
+     `TWINE_PASSWORD=pypi-...`).
+  3. Run the `start-rc-process` command (below) — it uploads to PyPI under
+     the hood.
+  4. **Immediately delete the token** from the PyPI web UI after the upload
+     completes. Do not keep long-lived release-manager tokens on disk.
+
+  This is a defence-in-depth practice: the RM machine becomes a one-time
+  release vehicle, not a persistent point of compromise.
 
 - Start the release candidate process by running the below command (If you have not generated a key yet, generate it by following instructions on
     http://www.apache.org/dev/openpgp.html#key-gen-generate-key):
@@ -1285,6 +1378,28 @@ https://dist.apache.org/repos/dist/release/airflow/
 
 The best way of doing this is to svn cp between the two repos (this avoids having to upload the binaries again, and gives a clearer history in the svn commit logs):
 
+Before running `start-release`, configure a short-lived PyPI token for this
+upload only. **Until Trusted Publishing is deployed for apache-airflow on
+PyPI**, the recommended practice is:
+
+1. Log in to https://pypi.org and create an API token right before the
+   upload step. **Scope caveat:** you would ideally create a project-scoped
+   token for `apache-airflow` alone, but PyPI only allows project-scoped
+   tokens for projects you already own/maintain on that account. Most
+   Airflow release managers do not have per-project owner rights on
+   `apache-airflow`, so in practice you will need to create an account-wide
+   ("all projects") token. That is acceptable **only if** you treat it as
+   single-use and delete it immediately after the upload (step 4 below).
+   Never keep an all-projects token on disk longer than the upload itself.
+2. Put it in `~/.pypirc` (or export as `TWINE_USERNAME=__token__`
+   `TWINE_PASSWORD=pypi-...`).
+3. Run the `start-release` command below — it uploads to PyPI under the hood.
+4. **Immediately delete the token** from the PyPI web UI after the upload
+   completes. Do not keep long-lived release-manager tokens on disk.
+
+This is a defence-in-depth practice: the RM machine becomes a one-time
+release vehicle, not a persistent point of compromise.
+
 ```shell script
 export VERSION=3.1.3
 export TASK_SDK_VERSION=1.1.3
@@ -1534,7 +1649,8 @@ If you don't have access to the account ask a PMC member to post.
 This includes:
 
 - Modify `./scripts/ci/prek/supported_versions.py` and let prek do the job.
-- For major/minor release, update version in `airflow/__init__.py` and `docs/docker-stack/` to the next likely minor version release.
+- For major/minor release, update version in `airflow/__init__.py` and `docker-stack-docs/` to the next likely major version release.
+  - New version should be, current major release + 1.0
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.
 - Updating `1-airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.
@@ -1598,6 +1714,12 @@ According to the policy above, if we have to release clients:
 
     - [Python client](https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PYTHON_CLIENT.md)
     - [Go client](https://github.com/apache/airflow-client-go/blob/main/dev/README_RELEASE_CLIENT.md)
+
+### Remove dependabot workflows for previous minor release
+
+In case you release a new minor version, you should remove the dependabot workflow for the previous minor
+version to avoid confusion and unnecessary updates. For example, if you release 3.3.0,
+you should remove the dependabot workflows for v3-2-test from `.github/workflows/dependabot.yml`
 
 # Additional processes
 

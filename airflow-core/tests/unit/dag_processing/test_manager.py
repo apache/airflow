@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import os
@@ -51,7 +52,7 @@ from airflow.dag_processing.manager import (
     DagFileProcessorManager,
     DagFileStat,
 )
-from airflow.dag_processing.processor import DagFileProcessorProcess
+from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.models import DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
@@ -186,6 +187,8 @@ class TestDagFileProcessorManager:
             stdin=write_end,
             logger_filehandle=logger_filehandle,
             client=MagicMock(),
+            bundle_name="testing",
+            dag_file_rel_path="test_dag.py",
         )
         if start_time:
             ret.start_time = start_time
@@ -710,6 +713,26 @@ class TestDagFileProcessorManager:
         assert len(parsing_request_after) == 1
         assert parsing_request_after[0].relative_fileloc == "file_x.py"
 
+    def test_queue_requested_files_for_parsing_uses_public_claim_hook(self):
+        file1 = DagFileInfo(
+            bundle_name="dags-folder", rel_path=Path("file_1.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        file2 = DagFileInfo(
+            bundle_name="dags-folder", rel_path=Path("file_2.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+
+        class ApiBackedManager(DagFileProcessorManager):
+            def claim_priority_files(self) -> list[DagFileInfo]:
+                return [file1]
+
+        manager = ApiBackedManager(max_runs=1)
+        manager._file_queue = deque([file2])
+
+        manager._queue_requested_files_for_parsing()
+
+        assert manager._file_queue == deque([file1, file2])
+        assert manager._force_refresh_bundles == {"dags-folder"}
+
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_scan_stale_dags(self, session):
         """
@@ -798,6 +821,32 @@ class TestDagFileProcessorManager:
         manager.cleanup_stale_bundle_versions()
         mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_called_once_with()
 
+    @pytest.mark.parametrize(
+        ("log_target", "expected_subprocess_logs_to_stdout"),
+        [
+            ("stdout", True),
+            ("file", False),
+        ],
+    )
+    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file")
+    def test_create_process_subprocess_logs_to_stdout(
+        self, mock_get_logger, log_target, expected_subprocess_logs_to_stdout
+    ):
+        mock_logger = MagicMock()
+        mock_filehandle = MagicMock()
+        mock_get_logger.return_value = [mock_logger, mock_filehandle]
+
+        with conf_vars({("logging", "dag_processor_log_target"): log_target}):
+            manager = DagFileProcessorManager(max_runs=1, processor_timeout=60)
+            dag_file = DagFileInfo(
+                bundle_name="testing", rel_path=Path("my_dag.py"), bundle_path=Path("/tmp")
+            )
+            with mock.patch.object(DagFileProcessorProcess, "start") as mock_start:
+                manager._create_process(dag_file)
+
+        _, kwargs = mock_start.call_args
+        assert kwargs["subprocess_logs_to_stdout"] is expected_subprocess_logs_to_stdout
+
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
         # Set start_time to ensure timeout occurs: start_time = current_time - (timeout + 1) = always (timeout + 1) seconds
@@ -830,6 +879,108 @@ class TestDagFileProcessorManager:
         with mock.patch.object(type(processor), "kill") as mock_kill:
             manager._kill_timed_out_processors()
         mock_kill.assert_not_called()
+
+    def test_handle_parsing_result_throttles_retry_when_first_persist_fails(self, session):
+        """Persist errors should throttle retries without claiming persistence succeeded."""
+        manager = DagFileProcessorManager(max_runs=1)
+        file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
+        original_stat = DagFileStat()
+        manager._file_stats[file] = original_stat
+        manager._bundle_versions["testing"] = "v1"
+        manager._file_process_interval = 60
+
+        processor, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        processor.had_callbacks = False
+        processor.parsing_result = DagFileParsingResult(fileloc="abc.txt", serialized_dags=[])
+
+        with mock.patch.object(manager, "persist_parsing_result", side_effect=RuntimeError("boom")):
+            manager.handle_parsing_result(file, processor, session=session)
+
+        assert manager._file_stats[file] is not original_stat
+        assert manager._file_stats[file].num_dags == 0
+        assert manager._file_stats[file].import_errors == 0
+        assert manager._file_stats[file].run_count == 1
+        assert manager._file_stats[file].last_finish_time is not None
+        assert manager._file_stats[file].last_duration is not None
+        assert manager.processed_recently(timezone.utcnow(), file) is True
+
+    def test_handle_parsing_result_updates_stats_after_successful_persist(self, session):
+        manager = DagFileProcessorManager(max_runs=1)
+        file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
+        original_stat = DagFileStat(
+            num_dags=1,
+            import_errors=0,
+            last_finish_time=timezone.utcnow() - timedelta(hours=2),
+            last_duration=1.0,
+            run_count=3,
+            last_num_of_db_queries=0,
+        )
+        manager._file_stats[file] = original_stat
+        manager._bundle_versions["testing"] = "v1"
+
+        processor, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        processor.had_callbacks = False
+        processor.parsing_result = DagFileParsingResult(fileloc="abc.txt", serialized_dags=[])
+
+        with mock.patch.object(manager, "persist_parsing_result") as mock_persist:
+            manager.handle_parsing_result(file, processor, session=session)
+
+        mock_persist.assert_called_once_with(
+            bundle_name="testing",
+            bundle_version="v1",
+            parsing_result=processor.parsing_result,
+            run_duration=mock.ANY,
+            relative_fileloc="abc.txt",
+            session=session,
+        )
+        assert manager._file_stats[file] is not original_stat
+        assert manager._file_stats[file].run_count == 4
+        assert manager._file_stats[file].last_finish_time is not None
+        assert manager._file_stats[file].last_finish_time > original_stat.last_finish_time
+        assert manager._file_stats[file].num_dags == 0
+
+    def test_collect_results_processes_remaining_files_when_one_persist_fails(self, session):
+        manager = DagFileProcessorManager(max_runs=1)
+        file_a = DagFileInfo(bundle_name="testing", rel_path=Path("a.py"), bundle_path=TEST_DAGS_FOLDER)
+        file_b = DagFileInfo(bundle_name="testing", rel_path=Path("b.py"), bundle_path=TEST_DAGS_FOLDER)
+        base_stat = DagFileStat(
+            num_dags=0,
+            import_errors=0,
+            last_finish_time=timezone.utcnow() - timedelta(hours=1),
+            last_duration=1.0,
+            run_count=1,
+            last_num_of_db_queries=0,
+        )
+        manager._file_stats[file_a] = base_stat
+        manager._file_stats[file_b] = copy.copy(base_stat)
+        manager._bundle_versions["testing"] = "v1"
+
+        proc_a, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        proc_a.had_callbacks = False
+        proc_a.parsing_result = DagFileParsingResult(fileloc="a.py", serialized_dags=[])
+        proc_b, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        proc_b.had_callbacks = False
+        proc_b.parsing_result = DagFileParsingResult(fileloc="b.py", serialized_dags=[])
+
+        manager._processors = {file_a: proc_a, file_b: proc_b}
+        stat_a_before = manager._file_stats[file_a]
+        stat_b_before = manager._file_stats[file_b]
+
+        with mock.patch.object(
+            manager,
+            "persist_parsing_result",
+            side_effect=[RuntimeError("boom"), None],
+        ):
+            manager._collect_results(session=session)
+
+        assert manager._file_stats[file_a] is not stat_a_before
+        assert manager._file_stats[file_a].num_dags == stat_a_before.num_dags
+        assert manager._file_stats[file_a].import_errors == stat_a_before.import_errors
+        assert manager._file_stats[file_a].run_count == stat_a_before.run_count + 1
+        assert manager._file_stats[file_a].last_finish_time is not None
+        assert manager._file_stats[file_b] is not stat_b_before
+        assert manager._file_stats[file_b].run_count == 2
+        assert len(manager._processors) == 0
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     @pytest.mark.parametrize(
@@ -1386,10 +1537,12 @@ class TestDagFileProcessorManager:
                     path=Path(dag2_path.bundle_path, dag2_path.rel_path),
                     bundle_path=dag2_path.bundle_path,
                     bundle_name="testing",
+                    dag_file_rel_path=str(dag2_path.rel_path),
                     callbacks=[dag2_req1],
                     selector=mock.ANY,
                     logger=mock_logger,
                     logger_filehandle=mock_filehandle,
+                    subprocess_logs_to_stdout=False,
                     client=mock.ANY,
                 ),
                 mock.call(
@@ -1397,10 +1550,12 @@ class TestDagFileProcessorManager:
                     path=Path(dag1_path.bundle_path, dag1_path.rel_path),
                     bundle_path=dag1_path.bundle_path,
                     bundle_name="testing",
+                    dag_file_rel_path=str(dag1_path.rel_path),
                     callbacks=[dag1_req1, dag1_req2],
                     selector=mock.ANY,
                     logger=mock_logger,
                     logger_filehandle=mock_filehandle,
+                    subprocess_logs_to_stdout=False,
                     client=mock.ANY,
                 ),
             ]
@@ -1842,6 +1997,57 @@ class TestDagFileProcessorManager:
         stats_init_mock.assert_called_once()
         call_kwargs = stats_init_mock.call_args.kwargs
         assert "factory" in call_kwargs
+
+    def test_run_invokes_before_and_after_hooks(self, tmp_path, configure_testing_dag_bundle):
+        """`run()` should call `before_run` then `after_run`, even if the loop raises."""
+        with configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=1)
+            calls: list[str] = []
+            with (
+                mock.patch.object(manager, "before_run", side_effect=lambda: calls.append("before")),
+                mock.patch.object(manager, "after_run", side_effect=lambda: calls.append("after")),
+                mock.patch.object(
+                    manager,
+                    "_run_parsing_loop",
+                    side_effect=lambda: calls.append("loop"),
+                ),
+            ):
+                manager.run()
+            assert calls == ["before", "loop", "after"]
+
+    def test_after_run_runs_when_parsing_loop_raises(self, tmp_path, configure_testing_dag_bundle):
+        """`after_run` must execute even when the parsing loop raises."""
+        with configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=1)
+            with (
+                mock.patch.object(manager, "before_run"),
+                mock.patch.object(manager, "after_run") as after_run_mock,
+                mock.patch.object(manager, "_run_parsing_loop", side_effect=RuntimeError("boom")),
+                pytest.raises(RuntimeError, match="boom"),
+            ):
+                manager.run()
+            after_run_mock.assert_called_once_with()
+
+    def test_prepare_server_process_context_can_be_skipped(self, tmp_path, configure_testing_dag_bundle):
+        """API-backed subclasses can skip server-context setup without losing selector/stats init."""
+        with configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=1)
+            with mock.patch.object(manager, "prepare_server_process_context") as server_ctx_mock:
+                manager.run()
+            server_ctx_mock.assert_called_once_with()
+            assert manager.selector is not None
+
+    def test_prepare_bundles_can_be_overridden_without_sync(self, tmp_path, configure_testing_dag_bundle):
+        """Subclasses can override `prepare_bundles` to skip `sync_bundles` (AIP-92 seam)."""
+        with configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=1)
+            with (
+                mock.patch.object(manager, "sync_bundles") as sync_mock,
+                mock.patch.object(manager, "prepare_bundles", side_effect=manager.load_dag_bundles),
+            ):
+                manager.run()
+            sync_mock.assert_not_called()
+            assert [b.name for b in manager._dag_bundles] == ["testing"]
 
     @mock.patch("airflow.dag_processing.manager.Stats.gauge")
     def test_stats_total_parse_time(self, statsd_gauge_mock, tmp_path, configure_testing_dag_bundle):

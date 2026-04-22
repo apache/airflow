@@ -30,7 +30,7 @@
 - **Run other suites of tests** `breeze testing <test_group>` (test groups: `airflow-ctl-tests`, `docker-compose-tests`, `task-sdk-tests`)
 - **Run scripts tests:** `uv run --project scripts pytest scripts/tests/ -xvs`
 - **Run Airflow CLI:** `breeze run airflow dags list`
-- **Type-check (non-providers):** `uv run --project <PROJECT> --with "apache-airflow-devel-common[mypy]" mypy path/to/code`
+- **Type-check (non-providers):** run the prek hook — `prek run mypy-<project> --all-files` (e.g. `mypy-airflow-core`, `mypy-task-sdk`, `mypy-shared-logging`; each `shared/<dist>` workspace member has its own `mypy-shared-<dist>` hook). The hook uses a dedicated virtualenv and mypy cache under `.build/mypy-venvs/<hook>/` and `.build/mypy-caches/<hook>/`; mypy itself is installed from `uv.lock` via the `mypy` dependency group (`uv sync --group mypy`), so it never mutates your project `.venv`. The hook prefers `uv` from the project's main `.venv/bin/uv` (installed by `uv sync` — `uv` is part of the `dev` dependency group via the `all` extras) for a project-pinned uv version; it falls back to `uv` on `$PATH` with a warning if that binary is missing. Clear with `breeze down --cleanup-mypy-cache`.
 - **Type-check (providers):** `breeze run mypy path/to/code`
 - **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`
 - **Format with ruff only:** `prek run ruff-format --from-ref <target_branch>`
@@ -129,11 +129,12 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Add tests for new behavior — cover success, failure, and edge cases.
 - Use pytest patterns, not `unittest.TestCase`.
 - Use `spec`/`autospec` when mocking.
-- Use `time_machine` for time-dependent tests.
+- Use `time_machine` for time-dependent tests. Do not use `datetime.now()`
 - Use `@pytest.mark.parametrize` for multiple similar inputs.
 - Use `@pytest.mark.db_test` for tests that require database access.
 - Test fixtures: `devel-common/src/tests_common/pytest_plugin.py`.
 - Test location mirrors source: `airflow/cli/cli_parser.py` → `tests/cli/test_cli_parser.py`.
+- Do not use `caplog` in tests, prefer checking logic and not log output.
 
 
 ## Commits and PRs
@@ -222,6 +223,55 @@ Remind the user to:
 1. Review the PR title — keep it short (under 70 chars) and focused on user impact.
 2. Add a brief description of the changes at the top of the body.
 3. Reference related issues when applicable (`closes: #ISSUE` or `related: #ISSUE`).
+
+### Tracking issues for deferred work
+
+When a PR applies a **workaround, version cap, mitigation, or partial fix**
+rather than solving the underlying problem (for example: upper-binding a
+dependency to avoid a breaking upstream release, disabling a feature
+behind a flag, reverting a change that needs a better replacement, or
+papering over a bug so a release can ship), the deferred work must be
+captured in a GitHub tracking issue **and** the tracking issue URL must
+appear as a comment at the workaround site in the code.
+
+1. **Open the tracking issue first**, before finalising the PR body.
+2. **Reference it in the PR body by number** — e.g. "full migration is
+   tracked in #65609" — so anyone reviewing the PR can see what was
+   deferred and why.
+3. **Add a link to the tracking issue as a comment at the workaround
+   itself**, so the reference survives after the PR merges and anyone
+   reading the source later can click straight through to the follow-up
+   work. Use the **full issue URL**, not bare `#NNNNN` — bare references
+   do not auto-link outside GitHub's web UI (e.g. when grepping in an
+   editor, browsing a checkout, or reading the file in a terminal).
+   For example:
+
+   ```toml
+   # pyproject.toml
+   # Remove the <1.0 cap after migrating to httpx 1.x;
+   # tracked at https://github.com/apache/airflow/issues/65609
+   "httpx>=0.27.0,<1.0",
+   ```
+
+   ```python
+   # some_module.py
+   # Delete this fallback once the new client is on all workers;
+   # tracked at https://github.com/apache/airflow/issues/65609
+   if old_client:
+       ...
+   ```
+
+4. **Do not** write vague forward-looking phrases like "will open a
+   tracking issue" or "to be filed later" in the PR body or in code
+   comments. Open the issue, link it in both places, then submit the PR.
+5. The tracking issue should describe: what the workaround is, why it
+   was chosen, the concrete follow-up work needed, and any acceptance
+   criteria for removing the workaround.
+
+If a PR you already opened has such forward-looking language, open the
+tracking issue, add a PR comment referencing the issue URL, and push a
+follow-up commit that adds the tracking-issue URL as a comment at the
+workaround site in the code.
 
 ## Boundaries
 

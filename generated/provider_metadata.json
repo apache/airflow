@@ -691,6 +691,10 @@
         "9.24.0": {
             "associated_airflow_version": "3.2.0",
             "date_released": "2026-03-28T11:03:25Z"
+        },
+        "9.25.0": {
+            "associated_airflow_version": "3.2.0",
+            "date_released": "2026-04-13T23:24:08Z"
         }
     },
     "apache.beam": {
@@ -4373,6 +4377,12 @@
             "date_released": "2026-04-12T14:25:05Z"
         }
     },
+    "common.ai": {
+        "0.1.0": {
+            "associated_airflow_version": "3.2.0",
+            "date_released": "2026-04-13T23:24:10Z"
+        }
+    },
     "common.compat": {
         "1.0.0": {
             "associated_airflow_version": "2.9.3",
@@ -4477,6 +4487,10 @@
         "1.14.2": {
             "associated_airflow_version": "3.2.0",
             "date_released": "2026-03-28T11:03:25Z"
+        },
+        "1.14.3": {
+            "associated_airflow_version": "3.2.0",
+            "date_released": "2026-04-13T23:24:07Z"
         }
     },
     "common.io": {
@@ -10753,6 +10767,10 @@
         "2.13.0": {
             "associated_airflow_version": "3.2.0",
             "date_released": "2026-03-28T11:03:25Z"
+        },
+        "2.14.0": {
+            "associated_airflow_version": "3.2.0",
+            "date_released": "2026-04-13T23:24:09Z"
         }
     },
     "opensearch": {

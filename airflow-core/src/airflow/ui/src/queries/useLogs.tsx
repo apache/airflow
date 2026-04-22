@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { chakra, Box } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
@@ -31,10 +30,14 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 import { parseStreamingLogContent } from "src/utils/logs";
 
+export type ParsedLogEntry = {
+  element: JSX.Element | string | undefined;
+  group?: { id: number; level: number; parentId?: number; type: "header" | "line" };
+};
+
 type Props = {
   accept?: "*/*" | "application/json" | "application/x-ndjson";
   dagId: string;
-  expanded?: boolean;
   limit?: number;
   logLevelFilters?: Array<string>;
   showSource?: boolean;
@@ -46,7 +49,6 @@ type Props = {
 
 type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
-  expanded?: boolean;
   logLevelFilters?: Array<string>;
   showSource?: boolean;
   showTimestamp?: boolean;
@@ -58,7 +60,6 @@ type ParseLogsProps = {
 
 const parseLogs = ({
   data,
-  expanded,
   logLevelFilters,
   showSource,
   showTimestamp,
@@ -71,10 +72,23 @@ const parseLogs = ({
   let parsedLines;
   const sources: Array<string> = [];
 
-  const open = expanded ?? Boolean(globalThis.location.hash);
   const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance)}?try_number=${tryNumber}` : "";
 
   try {
+    let lineNumber = 0;
+    const lineNumbers = data.map((datum) => {
+      const text = typeof datum === "string" ? datum : datum.event;
+
+      if (text.includes("::group::") || text.includes("::endgroup::")) {
+        return undefined;
+      }
+      const current = lineNumber;
+
+      lineNumber += 1;
+
+      return current;
+    });
+
     parsedLines = data
       .map((datum, index) => {
         if (typeof datum !== "string" && "logger" in datum) {
@@ -86,7 +100,7 @@ const parseLogs = ({
         }
 
         return renderStructuredLog({
-          index,
+          index: lineNumbers[index] ?? index,
           logLevelFilters,
           logLink,
           logMessage: datum,
@@ -108,75 +122,56 @@ const parseLogs = ({
     return { data, warning };
   }
 
-  parsedLines = (() => {
-    type Group = { level: number; lines: Array<JSX.Element | "">; name: string };
+  const flatEntries: Array<ParsedLogEntry> = (() => {
+    type Group = { id: number; level: number; name: string };
     const groupStack: Array<Group> = [];
-    const result: Array<JSX.Element | ""> = [];
+    const result: Array<ParsedLogEntry> = [];
+    let nextGroupId = 0;
 
     parsedLines.forEach((line) => {
       const text = innerText(line);
 
       if (text.includes("::group::")) {
         const groupName = text.split("::group::")[1] as string;
+        const id = nextGroupId;
 
-        groupStack.push({ level: groupStack.length, lines: [], name: groupName });
+        nextGroupId += 1;
+        const level = groupStack.length;
+        const parentGroup = groupStack[groupStack.length - 1];
+
+        groupStack.push({ id, level, name: groupName });
+        result.push({
+          element: groupName,
+          group: { id, level, parentId: parentGroup?.id, type: "header" },
+        });
 
         return;
       }
 
       if (text.includes("::endgroup::")) {
-        const finishedGroup = groupStack.pop();
-
-        if (finishedGroup) {
-          const groupElement = (
-            <Box key={finishedGroup.name} mb={2} pl={finishedGroup.level * 2}>
-              <chakra.details open={open} w="100%">
-                <chakra.summary data-testid={`summary-${finishedGroup.name}`}>
-                  <chakra.span color="fg.info" cursor="pointer">
-                    {finishedGroup.name}
-                  </chakra.span>
-                </chakra.summary>
-                {finishedGroup.lines}
-              </chakra.details>
-            </Box>
-          );
-
-          const lastGroup = groupStack[groupStack.length - 1];
-
-          if (groupStack.length > 0 && lastGroup) {
-            lastGroup.lines.push(groupElement);
-          } else {
-            result.push(groupElement);
-          }
-        }
+        groupStack.pop();
 
         return;
       }
 
-      if (groupStack.length > 0 && groupStack[groupStack.length - 1]) {
-        groupStack[groupStack.length - 1]?.lines.push(line);
+      const currentGroup = groupStack[groupStack.length - 1];
+
+      if (groupStack.length > 0 && currentGroup) {
+        result.push({
+          element: line,
+          group: { id: currentGroup.id, level: currentGroup.level, type: "line" },
+        });
       } else {
-        result.push(line);
+        result.push({ element: line });
       }
     });
 
-    while (groupStack.length > 0) {
-      const unfinished = groupStack.pop();
-
-      if (unfinished) {
-        result.push(
-          <Box key={unfinished.name} mb={2} pl={unfinished.level * 2}>
-            {unfinished.lines}
-          </Box>,
-        );
-      }
-    }
-
+    // Handle unclosed groups: their lines are already in result as flat entries
     return result;
   })();
 
   return {
-    parsedLogs: parsedLines,
+    parsedLogs: flatEntries,
     sources,
     warning,
   };
@@ -203,7 +198,6 @@ export const useLogs = (
   {
     accept = "application/x-ndjson",
     dagId,
-    expanded,
     limit,
     logLevelFilters,
     showSource,
@@ -240,7 +234,6 @@ export const useLogs = (
 
   const parsedData = parseLogs({
     data: parseStreamingLogContent(truncateData(data, limit)),
-    expanded,
     logLevelFilters,
     showSource,
     showTimestamp,
@@ -250,5 +243,15 @@ export const useLogs = (
     tryNumber,
   });
 
-  return { parsedData, ...rest, fetchedData: data };
+  // Build a 1:1 searchable text array from parsedLogs so search indices align
+  // with the rendered output. Each entry maps to exactly one line.
+  const searchableText: Array<string> = (parsedData.parsedLogs ?? []).map((entry) => {
+    if (typeof entry.element === "string") {
+      return entry.element;
+    }
+
+    return entry.element ? innerText(entry.element) : "";
+  });
+
+  return { parsedData: { ...parsedData, searchableText }, ...rest, fetchedData: data };
 };

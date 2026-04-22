@@ -20,14 +20,12 @@
 /**
  * DAG Runs page data fixture — creates runs across two DAGs for filtering tests.
  */
-
-/* eslint-disable react-hooks/rules-of-hooks -- Playwright's `use` is not a React Hook. */
 import { testConfig } from "playwright.config";
 import { test as base } from "tests/e2e/fixtures";
 import {
   apiCreateDagRun,
-  safeCleanupDagRun,
   apiSetDagRunState,
+  safeCleanupDagRun,
   uniqueRunId,
   waitForDagReady,
 } from "tests/e2e/utils/test-helpers";
@@ -79,6 +77,7 @@ export const test = base.extend<Record<never, never>, { dagRunsPageData: DagRuns
         });
         createdRuns.push({ dagId: dag2Id, runId: runId3 });
 
+        // eslint-disable-next-line react-hooks/rules-of-hooks
         await use({ dag1Id, dag2Id });
       } finally {
         for (const { dagId, runId } of createdRuns) {

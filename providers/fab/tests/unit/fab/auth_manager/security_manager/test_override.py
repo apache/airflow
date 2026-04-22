@@ -26,9 +26,11 @@ from sqlalchemy.orm import Session
 
 from airflow.providers.fab.auth_manager.models import (
     Action,
+    Group,
     Permission,
     Resource,
     Role,
+    User,
 )
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
@@ -192,6 +194,28 @@ class TestFabAirflowSecurityManagerOverride:
         sm.find_user = Mock(return_value=mock_user)
         check_password.return_value = False
         assert not sm.check_password("test_user", "test_password")
+
+    def test_update_user_clears_cached_permissions(self):
+        sm = EmptySecurityManager()
+        user = Mock(
+            spec=User,
+            id=1,
+            roles=[Mock(spec=Role, id=2)],
+            groups=[Mock(spec=Group, id=3)],
+            _perms={("can_read", "DAG")},
+        )
+        existing_user = Mock(spec=User, roles=[Mock(spec=Role, id=4)], groups=[Mock(spec=Group, id=5)])
+        mock_merged_user = Mock(spec=User, _perms={("can_edit", "DAG")})
+        mock_session = Mock(spec=Session)
+        mock_session.get.return_value = existing_user
+        mock_session.merge.return_value = mock_merged_user
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            assert sm.update_user(user)
+
+        assert user._perms == {("can_read", "DAG")}
+        assert mock_merged_user._perms is None
+        mock_session.commit.assert_called_once_with()
 
     @pytest.mark.parametrize(
         ("provider", "resp", "user_info"),
