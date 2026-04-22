@@ -1967,6 +1967,20 @@ workers:
       type: integer
       example: ~
       default: "60"
+    queue_to_runtime_mapping:
+      description: |
+        JSON mapping of queue names to runtime coordinator names.
+
+        When a task's ``language`` field is not set, this mapping is checked
+        to route the task to a non-Python runtime coordinator based on its
+        queue.  This is useful when queues are used as environment or
+        isolation identifiers (e.g. ``foo``, ``bar``).
+
+        Example: ``{"foo": "java", "bar": "java", "go-queue": "go"}``
+      version_added: 3.1.7
+      type: string
+      example: '{"foo": "java", "bar": "java", "go-queue": "go"}'
+      default: "{{}}"
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
   options:
