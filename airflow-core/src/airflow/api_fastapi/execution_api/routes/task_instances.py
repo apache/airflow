@@ -65,8 +65,9 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.deps import DepContainer
-from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, require_auth
+from airflow.api_fastapi.execution_api.security import CurrentTIToken, ExecutionAPIRoute, require_auth
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
@@ -116,6 +117,7 @@ def ti_run(
     session: SessionDep,
     dag_bag: DagBagDep,
     services=DepContainer,
+    token: TIToken = CurrentTIToken,
 ) -> TIRunContext:
     """
     Run a TaskInstance.
@@ -236,6 +238,17 @@ def ti_run(
         last_heartbeat_at=timezone.utcnow(),
     )
 
+    execution_token: str | None = None
+    if token.claims.scope == "workload":
+        try:
+            generator: JWTGenerator = services.get(JWTGenerator)
+            execution_token = generator.generate(extras={"sub": str(task_instance_id), "scope": "execution"})
+        except (jwt.PyJWTError, ValueError, KeyError):
+            log.exception("Failed to generate execution token for task instance %s", task_instance_id)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Token generation failed"
+            )
+
     try:
         result = session.execute(query)
         log.info("Task instance state updated", rows_affected=getattr(result, "rowcount", 0))
@@ -301,15 +314,9 @@ def ti_run(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
         )
 
-    try:
-        generator: JWTGenerator = services.get(JWTGenerator)
-        execution_token = generator.generate(extras={"sub": str(task_instance_id), "scope": "execution"})
-    except jwt.PyJWTError:
-        log.exception("Failed to generate execution token for task instance %s", task_instance_id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Token generation failed"
-        )
-    response.headers["Refreshed-API-Token"] = execution_token
+    # JWTReissueMiddleware also writes Refreshed-API-Token but skips workload tokens, so we set it here for the workload→execution swap.
+    if execution_token is not None:
+        response.headers["Refreshed-API-Token"] = execution_token
 
     return context
 

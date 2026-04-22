@@ -24,6 +24,7 @@ from uuid import UUID, uuid4
 
 import pytest
 import uuid6
+from fastapi import Request
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -36,9 +37,11 @@ from sqlalchemy.orm import Session
 
 from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
+from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.exceptions import AirflowSkipException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
@@ -111,10 +114,8 @@ def _create_asset_aliases(session, num: int = 2) -> None:
 
 @pytest.fixture
 def _use_real_jwt_bearer(exec_app):
-    """Remove the mock jwt_bearer override so the real JWTBearer.__call__ runs."""
-    from airflow.api_fastapi.execution_api.security import _jwt_bearer
-
-    exec_app.dependency_overrides.pop(_jwt_bearer, None)
+    """Remove the mock require_auth override so the real JWT validation runs end-to-end."""
+    exec_app.dependency_overrides.pop(require_auth, None)
 
 
 @pytest.mark.usefixtures("_use_real_jwt_bearer")
@@ -242,6 +243,8 @@ class TestTIRunState:
         }
         # upstream_map_indexes is now computed by Task SDK, not returned by the server in HEAD version
         assert "upstream_map_indexes" not in result
+        # execution-scoped tokens do not trigger a token swap
+        assert "Refreshed-API-Token" not in response.headers
 
         # Refresh the Task Instance from the database so that we can check the updated values
         session.refresh(ti)
@@ -281,8 +284,10 @@ class TestTIRunState:
         )
         assert response.status_code == 409
 
-    def test_ti_run_returns_execution_token(self, client, session, create_task_instance, time_machine):
-        """PATCH /run should return a Refreshed-API-Token header on success."""
+    def test_ti_run_returns_execution_token(
+        self, client, exec_app, session, create_task_instance, time_machine
+    ):
+        """PATCH /run with a workload token should swap to an execution-scoped token."""
         instant = timezone.parse("2024-10-31T12:00:00Z")
         time_machine.move_to(instant, tick=False)
 
@@ -296,6 +301,16 @@ class TestTIRunState:
         )
         session.commit()
 
+        mock_gen = mock.MagicMock(spec=JWTGenerator)
+        mock_gen.generate.return_value = "mock-execution-token"
+        lifespan.registry.register_value(JWTGenerator, mock_gen)
+
+        async def workload_token(request: Request) -> TIToken:
+            ti_id = UUID(request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000"))
+            return TIToken(id=ti_id, claims=TIClaims(scope="workload"))
+
+        exec_app.dependency_overrides[require_auth] = workload_token
+
         response = client.patch(
             f"/execution/task-instances/{ti.id}/run",
             json={
@@ -307,9 +322,15 @@ class TestTIRunState:
             },
         )
 
+        exec_app.dependency_overrides.pop(require_auth, None)
+
         assert response.status_code == 200
         assert "Refreshed-API-Token" in response.headers
         assert response.headers["Refreshed-API-Token"] == "mock-execution-token"
+        mock_gen.generate.assert_called_once()
+        extras = mock_gen.generate.call_args.kwargs["extras"]
+        assert extras["scope"] == "execution"
+        assert extras["sub"] == str(ti.id)
 
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
         """Test that dynamic task mapping works correctly with parse-time values."""
@@ -3467,12 +3488,7 @@ class TestTIPatchRenderedMapIndex:
 
 @pytest.mark.usefixtures("_use_real_jwt_bearer")
 class TestTokenTypeValidation:
-    """Test token scope enforcement (workload vs execution).
-
-    Uses _use_real_jwt_bearer to remove the conftest's mock _jwt_bearer
-    override, then registers a JWTValidator mock on the shared lifespan
-    registry that returns claims with specific scope values.
-    """
+    """Test token scope enforcement (workload vs execution)."""
 
     def _register_scoped_validator(self, ti_id, scope):
         """Register a JWTValidator mock returning claims with the given scope."""
