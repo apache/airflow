@@ -15,7 +15,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-16T22:02:56.820389756Z"
+exclude-newer = "2026-04-17T20:43:00.80572Z"
 exclude-newer-span = "P4D"
 
 [options.exclude-newer-package]
@@ -81,6 +81,7 @@ apache-airflow-providers-microsoft-psrp = false
 apache-airflow-providers-vertica = false
 apache-airflow-providers-apache-hdfs = false
 apache-airflow-shared-template-rendering = false
+apache-airflow-mypy = false
 apache-airflow-providers-http = false
 apache-airflow-providers-slack = false
 apache-airflow-providers-vespa = false
@@ -95,9 +96,9 @@ apache-airflow-providers-mongo = false
 apache-airflow-providers-apprise = false
 apache-airflow-providers-apache-impala = false
 apache-airflow-ctl = false
-apache-airflow-providers-zendesk = false
 apache-airflow-providers-github = false
 apache-airflow-providers-snowflake = false
+apache-airflow-providers-zendesk = false
 apache-airflow-providers-presto = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-apache-hive = false
@@ -161,6 +162,7 @@ members = [
     "apache-airflow-e2e-tests",
     "apache-airflow-helm-tests",
     "apache-airflow-kubernetes-tests",
+    "apache-airflow-mypy",
     "apache-airflow-providers",
     "apache-airflow-providers-airbyte",
     "apache-airflow-providers-alibaba",
@@ -2049,6 +2051,7 @@ name = "apache-airflow-dev"
 version = "0.0.1"
 source = { editable = "dev" }
 dependencies = [
+    { name = "apache-airflow-mypy" },
     { name = "beautifulsoup4" },
     { name = "click" },
     { name = "icalendar" },
@@ -2074,6 +2077,7 @@ mypy = [
 
 [package.metadata]
 requires-dist = [
+    { name = "apache-airflow-mypy", editable = "dev/mypy" },
     { name = "beautifulsoup4", specifier = ">=4.12.0" },
     { name = "click", specifier = ">=8.3.0" },
     { name = "icalendar", specifier = ">=5.0.0" },
@@ -2617,6 +2621,16 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-mypy"
+source = { editable = "dev/mypy" }
+dependencies = [
+    { name = "mypy" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "mypy", specifier = ">=1.0.0" }]
 
 [[package]]
 name = "apache-airflow-providers"
@@ -7852,6 +7866,7 @@ dev = [
     { name = "apache-airflow-devel-common" },
 ]
 mypy = [
+    { name = "apache-airflow-core" },
     { name = "apache-airflow-devel-common", extra = ["mypy"] },
 ]
 
@@ -7873,7 +7888,10 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
-mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
+mypy = [
+    { name = "apache-airflow-core", editable = "airflow-core" },
+    { name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" },
+]
 
 [[package]]
 name = "apache-airflow-shared-configuration"
