@@ -2690,6 +2690,15 @@ triggerer:
       type: integer
       example: ~
       default: "50"
+    on_kill_timeout:
+      description: |
+        Maximum number of seconds the triggerer will wait for ``BaseTrigger.on_kill()`` to complete
+        before giving up and logging a warning. Prevents a slow or hung external API call from
+        blocking the triggerer indefinitely when a deferred task is killed by a user.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "30"
     queues_enabled:
       description: |
         When set to True, deferred tasks will register triggers with the task queue they originated from,

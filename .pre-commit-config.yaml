@@ -461,7 +461,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.10']
+        additional_dependencies: ['ruff==0.15.11']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -601,6 +601,7 @@ repos:
           ^README\.md$|
           ^pyproject\.toml$|
           ^generated/PYPI_README\.md$|
+          ^airflow-core/src/airflow/ui/public/i18n/README\.md$|
           ^airflow-core/docs/.*commits\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|
           ^airflow-core/newsfragments/41761.significant\.rst$|
