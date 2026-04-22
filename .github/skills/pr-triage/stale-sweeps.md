@@ -68,13 +68,13 @@ then close. No label (these are not quality-violation closes).
 
 **Reason string.** *"Draft triaged N days ago, no author reply — close with stale-draft notice"*.
 
-### 1b. Untriaged draft with no activity ≥ 3 weeks
+### 1b. Untriaged draft with no activity ≥ 2 weeks
 
 **Trigger.**
 
 - `isDraft == true`
 - `last_triage_comment_at` is null
-- `<now> - updated_at >= 21 days`
+- `<now> - updated_at >= 14 days`
 
 **Action.** `close` — post the "untriaged-draft" variant of
 [stale-draft-close](comment-templates.md#stale-draft-close), then
@@ -155,12 +155,12 @@ Same as Sweep 2 — simple `[A]ll`.
 ## Order of sweeps
 
 1. Sweep 1a (triaged drafts, 7d)
-2. Sweep 1b (untriaged drafts, 3w)
+2. Sweep 1b (untriaged drafts, 2w)
 3. Sweep 2 (inactive open, 4w)
 4. Sweep 3 (stale WF approval, 4w)
 
 Run 1a before 1b so a draft that's both "triaged 7d ago" and
-"never-triaged 3w ago" (the triage comment is recent but the
+"never-triaged 2w ago" (the triage comment is recent but the
 overall PR is old) is categorised by the more precise trigger.
 In practice that overlap is rare, but the order is defined.
 
@@ -197,7 +197,7 @@ which is the whole point of the sweep.
 A typical morning `apache/airflow` sweep surfaces:
 
 - 1–3 triaged drafts hitting the 7-day mark
-- 2–5 untriaged drafts hitting the 3-week mark
+- 2–5 untriaged drafts hitting the 2-week mark
 - 1–3 inactive open PRs
 - 0–2 stale workflow-approval PRs
 

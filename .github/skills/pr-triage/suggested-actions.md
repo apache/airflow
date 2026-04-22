@@ -127,7 +127,7 @@ actions are fixed by classification (not state-dependent).
 | Classification | Action | Reason |
 |---|---|---|
 | `stale_draft` (triaged >7d, no reply) | `close` | "Draft triaged N days ago, no author reply — close with stale-draft notice" |
-| `stale_draft` (untriaged, >3w old, no activity) | `close` | "Draft inactive for W weeks — close with stale-draft notice" |
+| `stale_draft` (untriaged, >2w old, no activity) | `close` | "Draft inactive for W weeks — close with stale-draft notice" |
 | `inactive_open` (>4w, no activity) | `draft` | "Open non-draft inactive for W weeks — convert to draft with resume-when-ready comment" |
 | `stale_workflow_approval` (>4w, no approval) | `draft` | "Awaiting workflow approval for W weeks, no activity — convert to draft" |
 

@@ -42,7 +42,7 @@ Bots have their own lifecycle management. Skip silently.
 
 ### 3. Draft *and* not stale
 
-A draft with any activity in the last 3 weeks stays in its
+A draft with any activity in the last 2 weeks stays in its
 author's court. Include it *only* if stale-sweep classification
 matches (see [`stale-sweeps.md`](stale-sweeps.md)). Skip silently
 from the main triage flow otherwise.

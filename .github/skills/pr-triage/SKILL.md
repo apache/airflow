@@ -340,7 +340,7 @@ When the maintainer has worked through every interactive group
 [`stale-sweeps.md`](stale-sweeps.md):
 
 - close stale drafts older than 7 days with no author reply
-  after triage comment, or older than 3 weeks with no activity
+  after triage comment, or older than 2 weeks with no activity
 - convert non-draft PRs with >4 weeks of no activity to draft
 - convert workflow-approval PRs with >4 weeks of no activity
   to draft
