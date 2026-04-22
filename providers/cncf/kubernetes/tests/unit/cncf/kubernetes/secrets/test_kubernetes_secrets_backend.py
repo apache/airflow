@@ -215,6 +215,16 @@ class TestKubernetesSecretsBackendVariables:
             ),
         ]
 
+    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
+    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
+    def test_get_variable_returns_none_for_team_scoped_key_without_team_name(
+        self, mock_client, mock_namespace
+    ):
+        backend = KubernetesSecretsBackend()
+
+        assert backend.get_variable("_teama___api_key") is None
+        mock_client.return_value.list_namespaced_secret.assert_not_called()
+
 
 class TestKubernetesSecretsBackendConfig:
     @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
