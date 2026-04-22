@@ -318,14 +318,14 @@ class FabAuthManager(BaseAuthManager[User]):
             return self.appbuilder.app.config.get("AUTH_ROLE_PUBLIC", None)
         return None
 
-    def get_public_user(self) -> AnonymousUser | None:
+    def build_public_user(self) -> AnonymousUser | None:
         """
-        Return an :class:`AnonymousUser` when public access is enabled, else ``None``.
+        Build an :class:`AnonymousUser` pre-populated with the configured public role.
 
-        Public access is enabled when the Airflow ``[fab] auth_role_public`` config (or, for
-        backwards compatibility, ``AUTH_ROLE_PUBLIC`` in ``webserver_config.py``) is set. The
-        returned user inherits the role configured there and is used by the FastAPI API server
-        to authorize requests that do not carry a JWT token.
+        Returns ``None`` when ``[fab] auth_role_public`` (or the legacy
+        ``AUTH_ROLE_PUBLIC`` entry in ``webserver_config.py``) is not set.
+
+        :meta private:
         """
         public_role_name = self._get_auth_role_public()
         if not public_role_name:
@@ -338,7 +338,7 @@ class FabAuthManager(BaseAuthManager[User]):
                 flask_app.config["AUTH_ROLE_PUBLIC"] = public_role_name
                 role = flask_app.appbuilder.sm.find_role(public_role_name)
                 if role is not None:
-                    # FAB's ``AnonymousUser.roles`` is a lazy property that calls
+                    # ``AnonymousUser.roles`` is a lazy property that calls
                     # ``security_manager.get_public_role()`` on every access, which needs a Flask
                     # request context we do not have under FastAPI. Writing ``_roles``/``_perms``
                     # directly freezes a snapshot of the public role's permissions for the
@@ -346,6 +346,14 @@ class FabAuthManager(BaseAuthManager[User]):
                     user._roles = {role}
                     user._perms = {(perm.action.name, perm.resource.name) for perm in role.permissions}
         return user
+
+    def get_fastapi_middlewares(self) -> list[tuple[type, dict[str, Any]]]:
+        """Register the FAB public-access middleware when public access is configured."""
+        if not self._get_auth_role_public():
+            return []
+        from airflow.providers.fab.auth_manager.middleware import FabAuthRolePublicMiddleware
+
+        return [(FabAuthRolePublicMiddleware, {})]
 
     def create_token(self, headers: dict[str, str], body: dict[str, Any]) -> User | None:
         """

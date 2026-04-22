@@ -114,18 +114,11 @@ MAP_BULK_ACTION_TO_AUTH_METHOD: dict[BulkAction, ResourceMethod] = {
 
 
 async def resolve_user_from_token(token_str: str | None) -> BaseUser:
-    auth_manager = get_auth_manager()
     if not token_str:
-        # When the auth manager supports anonymous/public access (e.g. FAB's
-        # ``[fab] auth_role_public`` setting), fall back to the public user instead of
-        # rejecting the request with 401.
-        public_user = auth_manager.get_public_user()
-        if public_user is not None:
-            return public_user
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
     try:
-        return await auth_manager.get_user_from_token(token_str)
+        return await get_auth_manager().get_user_from_token(token_str)
     except ExpiredSignatureError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Expired")
     except InvalidTokenError:

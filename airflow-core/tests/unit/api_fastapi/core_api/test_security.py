@@ -110,33 +110,10 @@ class TestFastApiSecurity:
 
         auth_manager.get_user_from_token.assert_called_once_with(token_str)
 
-    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_resolve_user_from_token_no_token_raises_when_no_public_user(self, mock_get_auth_manager):
-        """No token and auth manager has no public user → 401."""
-        auth_manager = AsyncMock()
-        auth_manager.get_public_user = Mock(return_value=None)
-        mock_get_auth_manager.return_value = auth_manager
-
+    async def test_resolve_user_from_token_no_token_raises(self):
+        """No token always produces 401; public-user fallback is handled by middleware, not here."""
         with pytest.raises(HTTPException, match="Not authenticated"):
             await resolve_user_from_token(None)
-
-        auth_manager.get_public_user.assert_called_once_with()
-        auth_manager.get_user_from_token.assert_not_called()
-
-    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_resolve_user_from_token_no_token_returns_public_user(self, mock_get_auth_manager):
-        """No token but auth manager exposes a public user → return it instead of 401."""
-        public_user = SimpleAuthManagerUser(username="public", role="admin")
-
-        auth_manager = AsyncMock()
-        auth_manager.get_public_user = Mock(return_value=public_user)
-        mock_get_auth_manager.return_value = auth_manager
-
-        result = await resolve_user_from_token(None)
-
-        assert result is public_user
-        auth_manager.get_public_user.assert_called_once_with()
-        auth_manager.get_user_from_token.assert_not_called()
 
     @patch("airflow.api_fastapi.core_api.security.resolve_user_from_token")
     async def test_get_user_with_request_state(self, mock_resolve_user_from_token):
