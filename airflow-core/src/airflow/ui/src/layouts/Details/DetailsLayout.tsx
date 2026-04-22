@@ -51,6 +51,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { GroupsProvider } from "src/context/groups";
 import { HoverProvider, useHover } from "src/context/hover";
+import { DagImportError } from "src/pages/Dag/DagImportError";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
@@ -217,9 +218,12 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
     <HoverProvider>
       <GroupsProvider dagId={dagId}>
         <Box display="flex" flex={1} flexDirection="column" minH={0} minW={{ base: "1280px", md: "auto" }}>
-          <HStack justifyContent="space-between" mb={2}>
-            <DagBreadcrumb />
-            <Flex gap={1}>
+          <HStack alignItems="center" gap={2} justifyContent="space-between" mb={2}>
+            <Flex alignItems="center" gap={2}>
+              {dag === undefined ? undefined : <DagImportError dag={dag} />}
+              <DagBreadcrumb />
+            </Flex>
+            <Flex flexShrink={0} gap={1}>
               <SearchDagsButton />
               {dag === undefined ? undefined : (
                 <TriggerDAGButton

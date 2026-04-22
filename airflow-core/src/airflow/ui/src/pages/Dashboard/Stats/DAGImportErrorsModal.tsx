@@ -16,16 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, Text, HStack, ClipboardRoot } from "@chakra-ui/react";
+import { Heading, HStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
-import { PiFilePy } from "react-icons/pi";
 
 import { useImportErrorServiceGetImportErrors } from "openapi/queries";
+import { DagImportErrorAccordion } from "src/components/DagImportErrorAccordion";
 import { SearchBar } from "src/components/SearchBar";
-import Time from "src/components/Time";
-import { Accordion, ClipboardIconButton, Dialog } from "src/components/ui";
+import { Dialog } from "src/components/ui";
 import { Pagination } from "src/components/ui/Pagination";
 
 type ImportDAGErrorModalProps = {
@@ -80,34 +79,7 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
         <Dialog.CloseTrigger />
 
         <Dialog.Body>
-          <Accordion.Root collapsible multiple size="md" variant="enclosed">
-            {data?.import_errors.map((importError) => (
-              <Accordion.Item key={importError.import_error_id} value={importError.filename}>
-                <Accordion.ItemTrigger cursor="pointer">
-                  <Text display="flex" fontWeight="bold">
-                    {translate("components:versionDetails.bundleName")}
-                    {": "}
-                    {importError.bundle_name}
-                  </Text>
-                  <PiFilePy />
-                  {importError.filename}
-                  <ClipboardRoot onClick={(event) => event.stopPropagation()} value={importError.filename}>
-                    <ClipboardIconButton variant="outline" />
-                  </ClipboardRoot>
-                </Accordion.ItemTrigger>
-                <Accordion.ItemContent>
-                  <Text color="fg.muted" fontSize="sm" mb={1}>
-                    {translate("importErrors.timestamp")}
-                    {": "}
-                    <Time datetime={importError.timestamp} />
-                  </Text>
-                  <Text color="fg.error" fontSize="sm" whiteSpace="pre-wrap">
-                    <code>{importError.stack_trace}</code>
-                  </Text>
-                </Accordion.ItemContent>
-              </Accordion.Item>
-            ))}
-          </Accordion.Root>
+          <DagImportErrorAccordion importErrors={data?.import_errors ?? []} />
         </Dialog.Body>
 
         <Pagination.Root
