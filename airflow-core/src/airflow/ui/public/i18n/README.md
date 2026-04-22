@@ -91,7 +91,7 @@ The PR for a new locale should include:
 - Raise a PR for removal of the translation owner from the `.github/CODEOWNERS` file.
 - Post a thread in the dev list that they are looking for assigning someone else as the translation owner within 30 days.
 - If a replacement is found within this time, they should be approved according to the ownership approval procedure below.
-- Otherwise, the code owner should raise a vote in the dev list for the removal of the translation from the codebase, with PMC and committers votes counted as binding.
+- Otherwise, the code owner should raise a vote in the dev list for the removal of the translation from the codebase, with PMC and committers' votes counted as binding.
 
 ## Procedures
 
