@@ -177,17 +177,17 @@ One row per area where `total > 0`, sorted by `total` descending. `(no area)` la
 | Ready | `ready_for_review` | `bold green` |
 | %Ready | `ready_for_review / total` | default |
 | Drafted by triager | `triager_drafted` | `magenta` |
-| Drafted `<1d` … `>4w` (6 cols) | `draft_age_buckets[bucket]` | `magenta dim` |
-| Author resp `<1d` … `>4w` (6 cols) | `age_buckets[bucket]` | `dim` |
+| Drafted `<1d` / `1-7d` / `1-4w` / `>4w` (4 cols) | `draft_age_buckets[bucket]` | `magenta dim` |
+| Author resp `<1d` / `1-7d` / `1-4w` / `>4w` (4 cols) | `age_buckets[bucket]` | `dim` |
 
 All numeric columns right-aligned. Keep area name left-aligned.
 
 ### Wide-table note
 
-25 columns is wide, but Rich handles it. Two behaviours to be aware of:
+21 columns is wide but Rich handles it. Two behaviours to be aware of:
 
 - **Rich computes column widths from the real terminal size.** A narrow terminal will trim to fit. `console.size.width` is available if the skill wants to override — but don't; let Rich decide.
-- **Optional compact mode.** If the maintainer passes `compact`, drop the 12 age-bucket columns, keeping only through `Drafted by triager`. The state-breakdown panel still prints. Mention compact mode in the context line when active.
+- **Optional compact mode.** If the maintainer passes `compact`, drop the 8 age-bucket columns, keeping only through `Drafted by triager`. The state-breakdown panel still prints. Mention compact mode in the context line when active.
 
 ### Markdown fallback
 

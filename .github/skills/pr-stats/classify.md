@@ -104,18 +104,16 @@ Why `max`: a PR freshly opened without activity still needs *some* age signal �
 
 Bucket boundaries (delta from `<now>`):
 
-| Bucket label | Range |
-|---|---|
-| `<1d` | 0–24h |
-| `1-3d` | 24h–72h |
-| `3-7d` | 72h–7 days |
-| `1-2w` | 7–14 days |
-| `2-4w` | 14–28 days |
-| `>4w` | over 28 days |
+| Bucket label | Range | Meaning |
+|---|---|---|
+| `<1d` | 0–24h | fresh push / just active |
+| `1-7d` | 24h–7 days | within the current review week |
+| `1-4w` | 7–28 days | inside the triage-response window |
+| `>4w` | over 28 days | stale; needs maintainer intervention |
 
 Same boundaries are used for the `draft_age_buckets` column (time since the triager converted the PR to draft).
 
-Keep the bucket labels and boundaries in sync with the column headers in [`render.md`](render.md) — the tables read the labels straight off this list.
+Four buckets is the deliberate minimum — each one maps to a distinct maintainer decision (don't bother / watch / nudge / act). Finer splits like `1-3d` vs `3-7d` crowd the table without changing what the maintainer does with the numbers. Keep the bucket labels and boundaries in sync with the column headers in [`render.md`](render.md) — the tables read the labels straight off this list.
 
 ---
 
