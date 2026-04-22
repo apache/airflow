@@ -860,7 +860,7 @@ class SelectiveChecks:
                 # IF API tests are needed, that will trigger extra provider checks
                 return []
             else:
-                return ["fab"]
+                return ["Providers[fab]"]
 
     @staticmethod
     def _extract_long_provider_tests(current_test_types: set[str]):
