@@ -26,7 +26,6 @@ from unittest.mock import patch
 
 import pytest
 from git import Repo
-from git.cmd import Git
 from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 
 from airflow.dag_processing.bundles.base import get_bundle_storage_root_path
@@ -56,6 +55,21 @@ class _GitCustomEnvContextManager:
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         pass
+
+
+# ``_fetch_submodules`` only uses ``repo.git.custom_environment`` and ``repo.git.submodule``.
+# Use ``types.SimpleNamespace`` for ``bundle.repo`` / ``repo.git`` so ``.git`` / ``.submodule``
+# are plain instance attributes — **not** MagicMock children (nested ``Repo``/``Git`` mocks
+# in unittest can lack ``submodule`` on lowest-dep / CI runs).
+
+
+def _repo_and_git_stubs_for_submodule_tests(ssh_ctx_cm):
+    """Return (repo_stub, git_cmd_stub) for ``GitDagBundle._fetch_submodules`` unit tests."""
+    git_cmd = types.SimpleNamespace(
+        custom_environment=mock.MagicMock(return_value=ssh_ctx_cm),
+        submodule=mock.MagicMock(),
+    )
+    return types.SimpleNamespace(git=git_cmd), git_cmd
 
 
 AIRFLOW_HTTPS_URL = "https://github.com/apache/airflow.git"
@@ -933,22 +947,14 @@ class TestGitDagBundle:
             assert mock_repo_class.call_count == 2
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
-    def test_fetch_submodules_uses_custom_environment_when_git_ssh_command_set(
-        self, mock_githook_class
-    ):
+    def test_fetch_submodules_uses_custom_environment_when_git_ssh_command_set(self, mock_githook_class):
         """Non-empty hook.env is passed to custom_environment; submodule runs inside that context."""
-        expected_ssh_cmd = (
-            "ssh -i /path/key -o IdentitiesOnly=yes -o UserKnownHostsFile=/path/known_hosts"
-        )
+        expected_ssh_cmd = "ssh -i /path/key -o IdentitiesOnly=yes -o UserKnownHostsFile=/path/known_hosts"
         mock_hook = mock_githook_class.return_value
         mock_hook.repo_url = "git@github.com:apache/airflow.git"
         mock_hook.env = {"GIT_SSH_COMMAND": expected_ssh_cmd}
 
-        mock_git = mock.create_autospec(Git, instance=True)
         ssh_ctx = mock.create_autospec(_GitCustomEnvContextManager, instance=True)
-        mock_git.custom_environment.return_value = ssh_ctx
-        mock_repo = mock.MagicMock(spec=Repo)
-        mock_repo.git = mock_git
 
         bundle = GitDagBundle(
             name="test",
@@ -957,23 +963,22 @@ class TestGitDagBundle:
             version="123456",
             submodules=True,
         )
-        bundle.repo = mock_repo
+        bundle.repo, stub_git = _repo_and_git_stubs_for_submodule_tests(ssh_ctx)
 
         bundle._fetch_submodules()
 
-        mock_git.custom_environment.assert_called_once_with(GIT_SSH_COMMAND=expected_ssh_cmd)
-        assert mock_git.mock_calls == [
-            mock.call.custom_environment(GIT_SSH_COMMAND=expected_ssh_cmd),
-            mock.call.custom_environment().__enter__(),
-            mock.call.submodule("sync", "--recursive"),
-            mock.call.submodule("update", "--init", "--recursive", "--jobs", "1"),
-            mock.call.custom_environment().__exit__(None, None, None),
-        ]
+        stub_git.custom_environment.assert_called_once_with(GIT_SSH_COMMAND=expected_ssh_cmd)
+        ssh_ctx.__enter__.assert_called_once_with()
+        ssh_ctx.__exit__.assert_called_once_with(None, None, None)
+        stub_git.submodule.assert_has_calls(
+            [
+                mock.call("sync", "--recursive"),
+                mock.call("update", "--init", "--recursive", "--jobs", "1"),
+            ]
+        )
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
-    def test_fetch_submodules_forwards_full_hook_env_including_passphrase_vars(
-        self, mock_githook_class
-    ):
+    def test_fetch_submodules_forwards_full_hook_env_including_passphrase_vars(self, mock_githook_class):
         """SSH_ASKPASS / DISPLAY etc. must reach git subprocesses, not only GIT_SSH_COMMAND."""
         full_hook_env = {
             "GIT_SSH_COMMAND": "ssh -i /path/key -o IdentitiesOnly=yes",
@@ -985,11 +990,7 @@ class TestGitDagBundle:
         mock_hook.repo_url = "git@github.com:apache/airflow.git"
         mock_hook.env = full_hook_env
 
-        mock_git = mock.create_autospec(Git, instance=True)
         ssh_ctx = mock.create_autospec(_GitCustomEnvContextManager, instance=True)
-        mock_git.custom_environment.return_value = ssh_ctx
-        mock_repo = mock.MagicMock(spec=Repo)
-        mock_repo.git = mock_git
 
         bundle = GitDagBundle(
             name="test",
@@ -998,11 +999,11 @@ class TestGitDagBundle:
             version="123456",
             submodules=True,
         )
-        bundle.repo = mock_repo
+        bundle.repo, stub_git = _repo_and_git_stubs_for_submodule_tests(ssh_ctx)
 
         bundle._fetch_submodules()
 
-        mock_git.custom_environment.assert_called_once_with(**full_hook_env)
+        stub_git.custom_environment.assert_called_once_with(**full_hook_env)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_fetch_submodules_skips_custom_environment_when_hook_env_empty(self, mock_githook_class):
@@ -1011,9 +1012,7 @@ class TestGitDagBundle:
         mock_hook.repo_url = "git@github.com:apache/airflow.git"
         mock_hook.env = {}
 
-        mock_git = mock.create_autospec(Git, instance=True)
-        mock_repo = mock.MagicMock(spec=Repo)
-        mock_repo.git = mock_git
+        ssh_ctx = mock.create_autospec(_GitCustomEnvContextManager, instance=True)
 
         bundle = GitDagBundle(
             name="test",
@@ -1022,12 +1021,12 @@ class TestGitDagBundle:
             version="123456",
             submodules=True,
         )
-        bundle.repo = mock_repo
+        bundle.repo, stub_git = _repo_and_git_stubs_for_submodule_tests(ssh_ctx)
 
         bundle._fetch_submodules()
 
-        mock_git.custom_environment.assert_not_called()
-        mock_git.submodule.assert_has_calls(
+        stub_git.custom_environment.assert_not_called()
+        stub_git.submodule.assert_has_calls(
             [mock.call("sync", "--recursive"), mock.call("update", "--init", "--recursive", "--jobs", "1")]
         )
 

@@ -392,6 +392,10 @@ class MockWorkload:
     here because it's not picklable.
     """
 
+    def model_dump_json(self) -> str:
+        """``send_workload_to_executor`` serializes v3+ workloads with Pydantic (``BaseWorkload``)."""
+        return "{}"
+
     def apply_async(self, *args, **kwargs):
         return 1
 
@@ -430,13 +434,22 @@ def test_send_workloads_to_celery_hang(register_signals):
     executor = celery_executor.CeleryExecutor()
 
     workload = MockWorkload()
-    workload_tuples_to_send = [(None, None, None, workload) for _ in range(26)]
+    # ``WorkloadInCelery`` is (key, workload, queue, team_name); the 4th field must be a
+    # str | None team name, not the workload (regression after team / ExecutorConf support).
+    workload_tuples_to_send = [(None, workload, None, None) for _ in range(26)]
 
     for _ in range(250):
         # This loop can hang on Linux if celery_executor does something wrong with
         # multiprocessing.
         results = executor._send_workloads_to_celery(workload_tuples_to_send)
-        assert results == [(None, None, 1) for _ in workload_tuples_to_send]
+        assert len(results) == len(workload_tuples_to_send)
+        for key, sent_args, result in results:
+            assert key is None
+            if AIRFLOW_V_3_0_PLUS:
+                assert sent_args == (workload.model_dump_json(),)
+            else:
+                assert sent_args == [workload]
+            assert not isinstance(result, celery_executor_utils.ExceptionWithTraceback)
 
 
 @conf_vars({("celery", "result_backend"): "rediss://test_user:test_password@localhost:6379/0"})
