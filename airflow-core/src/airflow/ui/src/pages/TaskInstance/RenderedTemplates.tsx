@@ -45,7 +45,7 @@ const RenderedTemplatesContent = () => {
         <Table.Body>
           {Object.entries(taskInstance?.rendered_fields ?? {}).map(([key, value]) => {
             if (value !== null && value !== undefined) {
-	      const renderedValue = typeof value === "string" ? value.split("\\n").join("\n").replace(/\\\\/g, "") : JSON.stringify(value, null, 2);
+	      const renderedValue = typeof value === "string" ? value.split("\\n").join("\n").replace(/\\$/gm, "") : JSON.stringify(value, null, 2);
 	      const language = detectLanguage(renderedValue);
 
               return (
