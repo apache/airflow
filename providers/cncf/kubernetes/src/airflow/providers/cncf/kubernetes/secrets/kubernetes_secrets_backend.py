@@ -103,9 +103,9 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
     def __init__(
         self,
         namespace: str | None = None,
-        connections_label: str = DEFAULT_CONNECTIONS_LABEL,
-        variables_label: str = DEFAULT_VARIABLES_LABEL,
-        config_label: str = DEFAULT_CONFIG_LABEL,
+        connections_label: str | None = DEFAULT_CONNECTIONS_LABEL,
+        variables_label: str | None = DEFAULT_VARIABLES_LABEL,
+        config_label: str | None = DEFAULT_CONFIG_LABEL,
         team_label: str | None = DEFAULT_TEAM_LABEL,
         connections_data_key: str = "value",
         variables_data_key: str = "value",

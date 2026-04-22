@@ -122,6 +122,33 @@ class TestKubernetesSecretsBackendConnections:
 
     @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
     @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
+    def test_get_conn_value_falls_back_to_global_secret_when_team_secret_is_missing(
+        self, mock_client, mock_namespace
+    ):
+        mock_client.return_value.list_namespaced_secret.side_effect = [
+            _make_secret_list([]),
+            _make_secret_list([_make_secret({"value": "global-conn"})]),
+        ]
+
+        backend = KubernetesSecretsBackend()
+        result = backend.get_conn_value("my_db", team_name="team_a")
+
+        assert result == "global-conn"
+        assert mock_client.return_value.list_namespaced_secret.call_args_list == [
+            mock.call(
+                "default",
+                label_selector="airflow.apache.org/connection-id=my_db,airflow.apache.org/team=team_a",
+                resource_version="0",
+            ),
+            mock.call(
+                "default",
+                label_selector="airflow.apache.org/connection-id=my_db,!airflow.apache.org/team",
+                resource_version="0",
+            ),
+        ]
+
+    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
+    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
     def test_get_conn_value_returns_none_for_team_scoped_id_without_team_name(
         self, mock_client, mock_namespace
     ):
