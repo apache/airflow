@@ -173,7 +173,7 @@ Step 4: Prepare PR
      ``main`` branches - this is OK and you can make PR from your main to ``upstream/main`` but we
      recommend to always create a local branch for your development. This allows you to easily compare
      changes, have several changes that you work on at the same time and many more.
-     With ``upstream`` configured you can make sure that you have latest changes in your main
+     With ``upstream`` configured you can make sure that you have the latest changes in your main
      by ``git pull upstream main`` when you are in the local ``main`` branch. If you have conflicts and
      want to override your locally changed main you can override your local changes with
      ``git fetch upstream; git reset --hard upstream/main``.
