@@ -162,26 +162,48 @@ Two GitHub-search behaviours conspire to make Table 1 hard to get right:
    marker string, despite that exact phrase being posted on dozens of PRs
    per day by the triage skill. Free-text indexing clearly lags.
 
-Workaround options, in order of cost:
+The **default Table 1 path is the hybrid REST + aliased-GraphQL fetch**, not the free-text search. The search variant is kept only as a `fast-closed` opt-in for maintainers who want a quick approximation and accept the undercount.
 
-1. **Accept the undercount and label the table "sample".** Fast (single
-   GraphQL page) but the numbers are misleading for sprint-level reporting.
-2. **Hybrid.** Use the REST `/repos/<owner>/<repo>/pulls?state=closed&sort=updated`
-   endpoint to get the full closed/merged set since cutoff (paginate until
-   `closed_at < cutoff`), then batch-fetch comments per PR via an aliased
-   GraphQL query (`pullRequest(number: N) { comments(last: 25) {…} }`) to
-   find the triage marker. Budget: ~20 REST calls for a 2000-PR window +
-   ~40 aliased GraphQL calls if batched 50 PRs at a time. Accurate.
-3. **Only report Table 1 for a narrow recent window.** E.g. `since:today-7d`
-   keeps the closed set small (~200 PRs) so the hybrid approach costs
-   little. Sprint-level reports can chain multiple 7-day windows.
+### Hybrid path (default)
 
-The default skill implementation picks **option 1 with an explicit
-caveat printed above Table 1** ("GitHub search index is lagging; merged
-and triaged PRs earlier in the window may be missing"). If a maintainer
-needs the true numbers, they pass `accurate-closed` which triggers the
-hybrid path; it's slower (~60s for a 6-week window on `apache/airflow`)
-but the numbers are trustworthy.
+Two stages:
+
+1. **Enumerate** the closed / merged set since cutoff using the REST `/pulls?state=closed&sort=updated&direction=desc` endpoint. Paginate until the oldest PR on a page has `closed_at < cutoff`, then stop. Filter out bot authors (`*[bot]`, `dependabot`, `github-actions`) at this stage — bots never carry the triage marker. Budget: about one REST call per 100 PRs (~20 calls for a 6-week `apache/airflow` window yielding ~2000 closed-since PRs, ~1600 after bot filter).
+
+2. **Fetch comments in aliased batches** of **30 PRs per GraphQL call**. Each alias queries one PR with `comments(last: 25) { nodes { author { login } authorAssociation createdAt body } }`. A single query with 30 aliases stays well inside GitHub's complexity budget; larger batch sizes occasionally hit `MAX_NODE_LIMIT_EXCEEDED`. Budget: ~54 GraphQL calls for 1600 PRs; end-to-end around 60 seconds on a warm token.
+
+```graphql
+query {
+  repository(owner:"apache",name:"airflow") {
+    pr63407: pullRequest(number:63407) {
+      number author{login} authorAssociation closedAt mergedAt state merged
+      labels(first:30){nodes{name}}
+      comments(last:25){nodes{author{login} authorAssociation createdAt body}}
+    }
+    pr63914: pullRequest(number:63914) { … }
+    # … 30 aliases per query
+  }
+}
+```
+
+For each returned PR, apply the same marker check as [`classify.md`](classify.md) (`Pull Request quality criteria` substring in raw `body`, author in `OWNER/MEMBER/COLLABORATOR`). Record `responded_before_close` when the author has a comment after the triage marker and on or before `closedAt`.
+
+Empirical delta on `apache/airflow`, cutoff 2026-03-11:
+
+| Path | Triaged+closed PRs found |
+|---|---|
+| Free-text search (`fast-closed`) | 28 — heavily under-reported |
+| Hybrid (default) | **204** — 7.3× higher, actual count |
+
+### `fast-closed` opt-in
+
+When the maintainer explicitly asks for a quick approximation (`fast-closed` flag, or in a low-budget context), fall back to the search-based path:
+
+```
+is:pr -is:open repo:<repo> closed:>=<cutoff> sort:updated-desc
+```
+
+The fast path must print a clear caveat above Table 1: *"fast-closed mode: Table 1 uses the free-text search index which currently undercounts older triaged+merged PRs on `apache/airflow`. Re-run without `fast-closed` for accurate numbers."*
 
 ### `searchQuery`
 
