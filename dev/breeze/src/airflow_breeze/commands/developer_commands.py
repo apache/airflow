@@ -69,6 +69,7 @@ from airflow_breeze.commands.common_options import (
     option_project_name,
     option_python,
     option_run_db_tests_only,
+    option_sdk,
     option_skip_db_tests,
     option_standalone_dag_processor,
     option_terminal_multiplexer,
@@ -577,6 +578,7 @@ option_executor_start_airflow = click.option(
 @option_providers_skip_constraints
 @option_python
 @option_restart
+@option_sdk
 @option_standalone_dag_processor
 @option_terminal_multiplexer
 @option_use_uv
@@ -627,6 +629,7 @@ def start_airflow(
     providers_skip_constraints: bool,
     python: str,
     restart: bool,
+    sdk: tuple[str, ...],
     skip_assets_compilation: bool,
     standalone_dag_processor: bool,
     terminal_multiplexer: str,
@@ -732,6 +735,7 @@ def start_airflow(
         providers_skip_constraints=providers_skip_constraints,
         python=python,
         restart=restart,
+        sdk=sdk,
         skip_assets_compilation=skip_assets_compilation,
         standalone_dag_processor=standalone_dag_processor,
         start_airflow=True,

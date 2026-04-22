@@ -69,5 +69,3 @@ install_java() {
 }
 
 check_java
-# Install Java Provider
-pip install -e /opt/airflow/providers/languages/java/

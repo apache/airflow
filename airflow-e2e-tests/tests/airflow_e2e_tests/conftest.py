@@ -23,13 +23,14 @@ import subprocess
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from shutil import copyfile, copytree, ignore_patterns
+from shutil import copyfile, copytree
 
 import pytest
 from rich.console import Console
 from testcontainers.compose import DockerCompose
 
 from airflow_e2e_tests.constants import (
+    AIRFLOW_ROOT_PATH,
     AWS_INIT_PATH,
     DOCKER_COMPOSE_HOST_PORT,
     DOCKER_COMPOSE_PATH,
@@ -201,111 +202,52 @@ def _download_jdk(dest_dir: Path) -> Path:
     return openjdk_dir
 
 
-def _build_java_example(java_sdk_dir: Path) -> list[Path]:
-    """Build the Java SDK example project using Gradle and return paths to all built JARs."""
-    gradlew = java_sdk_dir / "gradlew"
-    if not gradlew.exists():
-        raise FileNotFoundError(
-            f"Gradle wrapper not found at {gradlew}. "
-            "Make sure the java-sdk directory exists (e.g. on the feature/java-all branch)."
-        )
+def _build_java_sdk_bundles(tmp_dir: Path) -> Path:
+    """Build both Java SDK bundles (stub + pure Java) using the shared build script.
 
-    console.print("[yellow]Formatting Java sources with spotlessApply...")
-    fmt_result = subprocess.run(
-        [str(gradlew), "spotlessApply", "--no-configuration-cache"],
-        cwd=str(java_sdk_dir),
-        capture_output=True,
-        text=True,
-        timeout=300,
-        check=False,
-    )
-    if fmt_result.returncode != 0:
-        console.print(f"[red]spotlessApply failed:\n{fmt_result.stdout}\n{fmt_result.stderr}")
-        raise RuntimeError("Failed to format Java SDK sources")
+    Returns the bundles output directory containing both bundle subdirectories.
+    The caller's system Java is used for the Gradle build (not the downloaded Linux JDK).
+    """
+    build_script = AIRFLOW_ROOT_PATH / "scripts" / "in_container" / "java_sdk_build.sh"
+    bundles_dir = tmp_dir / "java-sdk-bundles"
 
-    console.print("[yellow]Building Java SDK example with Gradle...")
+    build_env = {
+        **os.environ,
+        "JAVA_SDK_SRC_DIR": str(JAVA_SDK_PATH),
+        "BUNDLES_OUTPUT_DIR": str(bundles_dir),
+        "JAVA_STUB_BUNDLE_NAME": JAVA_STUB_BUNDLE_NAME,
+        "JAVA_PURE_BUNDLE_NAME": JAVA_PURE_BUNDLE_NAME,
+        "JAVA_STUB_DAG_ID": JAVA_STUB_DAG_ID,
+        "JAVA_PURE_DAG_ID": JAVA_PURE_DAG_ID,
+        "JAVA_SDK_DAGS_DIR": str(JAVA_SDK_DAGS_FOLDER),
+    }
+
+    console.print("[yellow]Building Java SDK bundles via shared build script...")
     result = subprocess.run(
-        [str(gradlew), "clean", ":example:installDist", "-x", "test"],
-        cwd=str(java_sdk_dir),
+        ["bash", str(build_script)],
+        env=build_env,
         capture_output=True,
         text=True,
-        timeout=300,
+        timeout=600,
         check=False,
     )
     if result.returncode != 0:
-        console.print(f"[red]Gradle build failed:\n{result.stdout}\n{result.stderr}")
-        raise RuntimeError("Failed to build Java SDK example")
+        console.print(f"[red]Java SDK build failed:\n{result.stdout}\n{result.stderr}")
+        raise RuntimeError("Failed to build Java SDK bundles")
+    console.print(result.stdout)
 
-    console.print("[green]Java SDK example built successfully")
-
-    # The Gradle build produces a full distribution under install/example/lib/
-    # containing the example JAR, sdk JAR, and all transitive dependencies.
-    jar_dir = java_sdk_dir / "example" / "build" / "install" / "example" / "lib"
-    jars = list(jar_dir.glob("*.jar"))
-    if not jars:
-        raise FileNotFoundError(f"No JARs found in {jar_dir} after build")
-
-    return jars
-
-
-def _sed_java_dag_id(java_sdk_dir: Path, dag_id: str):
-    """Replace the dag_id in JavaExample.java with the given dag_id."""
-    java_example = (
-        java_sdk_dir
-        / "example"
-        / "src"
-        / "java"
-        / "org"
-        / "apache"
-        / "airflow"
-        / "example"
-        / "JavaExample.java"
-    )
-    content = java_example.read_text()
-    java_example.write_text(content.replace('"java_example"', f'"{dag_id}"'))
-    console.print(f"[yellow]Set JavaExample.java dag_id to '{dag_id}'")
+    return bundles_dir
 
 
 def _setup_java_sdk_integration(dot_env_file, tmp_dir):
-    """Set up Java SDK integration: download JDK, build JARs with distinct dag_ids, write env and compose override."""
+    """Set up Java SDK integration: download JDK, build bundles, write env and compose override."""
     # Download the Linux JDK on the host so containers get it via bind mount
     openjdk_dir = _download_jdk(tmp_dir)
 
-    # Copy java-sdk twice so each build gets its own dag_id without conflicts
-    ignore = ignore_patterns(".gradle", "build", ".kotlin")
-
-    # Build JAR for the stub DAG bundle
-    stub_sdk_copy = tmp_dir / "java-sdk-stub"
-    copytree(JAVA_SDK_PATH, stub_sdk_copy, ignore=ignore)
-    _sed_java_dag_id(stub_sdk_copy, JAVA_STUB_DAG_ID)
-    stub_jars = _build_java_example(stub_sdk_copy)
-    stub_bundle_root = tmp_dir / JAVA_STUB_BUNDLE_NAME
-    stub_bundle_root.mkdir()
-    stub_jar_dir = stub_bundle_root / "jar-bundles"
-    stub_jar_dir.mkdir()
-    for jar in stub_jars:
-        copyfile(jar, stub_jar_dir / jar.name)
-    console.print(f"[yellow]Copied {len(stub_jars)} JAR(s) to {stub_jar_dir}")
-
-    # Build JAR for the pure Java DAG bundle
-    pure_sdk_copy = tmp_dir / "java-sdk-pure"
-    copytree(JAVA_SDK_PATH, pure_sdk_copy, ignore=ignore)
-    _sed_java_dag_id(pure_sdk_copy, JAVA_PURE_DAG_ID)
-    pure_java_jars = _build_java_example(pure_sdk_copy)
-    pure_bundle_dir = tmp_dir / JAVA_PURE_BUNDLE_NAME
-    pure_bundle_dir.mkdir()
-    for jar in pure_java_jars:
-        copyfile(jar, pure_bundle_dir / jar.name)
-    console.print(f"[yellow]Copied {len(pure_java_jars)} JAR(s) to {pure_bundle_dir}")
-
-    # Copy stub_dag.py into the dags subfolder with the matching dag_id
-    stub_dags_dir = stub_bundle_root / "dags"
-    stub_dags_dir.mkdir()
-    copytree(JAVA_SDK_DAGS_FOLDER, stub_dags_dir, dirs_exist_ok=True)
-    stub_dag = stub_dags_dir / "stub_dag.py"
-    content = stub_dag.read_text()
-    stub_dag.write_text(content.replace('"java_example"', f'"{JAVA_STUB_DAG_ID}"'))
-    console.print(f"[yellow]Set stub_dag.py dag_id to '{JAVA_STUB_DAG_ID}'")
+    # Build both bundles (stub + pure Java) using the shared script
+    bundles_dir = _build_java_sdk_bundles(tmp_dir)
+    stub_bundle_root = bundles_dir / JAVA_STUB_BUNDLE_NAME
+    pure_bundle_dir = bundles_dir / JAVA_PURE_BUNDLE_NAME
 
     # Copy the docker-compose override
     copyfile(JAVA_SDK_COMPOSE_PATH, tmp_dir / "java-sdk.yml")
