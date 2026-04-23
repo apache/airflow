@@ -60,34 +60,42 @@ JWT_PATTERN = re.compile(r"eyJ[\.A-Za-z0-9-_]*")
 LEVEL_TO_FILTERING_LOGGER: dict[int, type[Logger]] = {}
 
 
-class _PatchedPath(Path):
-    """
-    Backport of Python 3.14's ``PurePath._parse_path`` without ``sys.intern``.
+# ``_parse_path`` was introduced in Python 3.12; older versions use a different
+# parsing path (``_flavour.parse_parts``) that does not call ``sys.intern``,
+# so the patch is neither necessary nor applicable there.
+if (3, 12) <= sys.version_info < (3, 14):
 
-    The ``sys.intern`` call in the stock ``_parse_path`` causes memory
-    to grow unboundedly in long-running processes. Upstream removed it
-    in Python 3.14 (https://github.com/python/cpython/issues/119518);
-    this class applies the same fix for earlier versions.
-    """
+    class _PatchedPath(Path):
+        """
+        Backport of Python 3.14's ``PurePath._parse_path`` without ``sys.intern``.
 
-    @classmethod
-    def _parse_path(cls, path: str) -> tuple[str, str, list[str]]:
-        if not path:
-            return "", "", []
-        sep = os.path.sep
-        altsep = os.path.altsep
-        if altsep:
-            path = path.replace(altsep, sep)
-        drv, root, rel = os.path.splitroot(path)
-        if not root and drv.startswith(sep) and not drv.endswith(sep):
-            drv_parts = drv.split(sep)
-            if len(drv_parts) == 4 and drv_parts[2] not in "?.":
-                # e.g. //server/share
-                root = sep
-            elif len(drv_parts) == 6:
-                # e.g. //?/unc/server/share
-                root = sep
-        return drv, root, [x for x in rel.split(sep) if x and x != "."]
+        The ``sys.intern`` call in the stock ``_parse_path`` causes memory
+        to grow unboundedly in long-running processes. Upstream removed it
+        in Python 3.14 (https://github.com/python/cpython/issues/119518);
+        this class applies the same fix for earlier versions.
+        """
+
+        @classmethod
+        def _parse_path(cls, path: str) -> tuple[str, str, list[str]]:
+            if not path:
+                return "", "", []
+            sep = os.path.sep
+            altsep = os.path.altsep
+            if altsep:
+                path = path.replace(altsep, sep)
+            drv, root, rel = os.path.splitroot(path)
+            if not root and drv.startswith(sep) and not drv.endswith(sep):
+                drv_parts = drv.split(sep)
+                if len(drv_parts) == 4 and drv_parts[2] not in "?.":
+                    # e.g. //server/share
+                    root = sep
+                elif len(drv_parts) == 6:
+                    # e.g. //?/unc/server/share
+                    root = sep
+            return drv, root, [x for x in rel.split(sep) if x and x != "."]
+
+else:
+    _PatchedPath = Path  # type: ignore[misc, assignment]
 
 
 def _make_airflow_structlogger(min_level):
