@@ -17,15 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.languages.java.coordinator import JavaRuntimeCoordinator
-from airflow.providers.languages.java.get_provider_info import get_provider_info
+from airflow.providers.sdk.java.coordinator import JavaRuntimeCoordinator
+from airflow.providers.sdk.java.get_provider_info import get_provider_info
 
 
 def test_get_provider_info_exposes_java_runtime_components():
     assert get_provider_info() == {
-        "package-name": "apache-airflow-providers-languages-java",
-        "name": "Languages: Java",
-        "description": "Java language support for Apache Airflow runtime coordinators.\n",
+        "package-name": "apache-airflow-providers-sdk-java",
+        "name": "SDK: Java",
+        "description": "Java SDK support for Apache Airflow runtime coordinators.\n",
         "integrations": [
             {
                 "integration-name": "Java",
@@ -34,7 +34,7 @@ def test_get_provider_info_exposes_java_runtime_components():
             }
         ],
         "runtime-coordinators": [
-            "airflow.providers.languages.java.coordinator.JavaRuntimeCoordinator",
+            "airflow.providers.sdk.java.coordinator.JavaRuntimeCoordinator",
         ],
     }
 

@@ -16,10 +16,10 @@
 # under the License.
 
 ---
-package-name: apache-airflow-providers-languages-java
-name: "Languages: Java"
+package-name: apache-airflow-providers-sdk-java
+name: "SDK: Java"
 description: |
-  Java language support for Apache Airflow runtime coordinators.
+  Java SDK support for Apache Airflow runtime coordinators.
 
 state: ready
 lifecycle: incubation
@@ -39,7 +39,7 @@ integrations:
 
 config:
   java:
-    description: "Options for the Java language provider."
+    description: "Options for the Java SDK provider."
     options:
       bundles_folder:
         description: |
@@ -55,4 +55,4 @@ config:
         default: ""
 
 runtime-coordinators:
-  - airflow.providers.languages.java.coordinator.JavaRuntimeCoordinator
+  - airflow.providers.sdk.java.coordinator.JavaRuntimeCoordinator

@@ -267,18 +267,18 @@ class TestProviderManager:
             pass
 
         mock_import_string.side_effect = lambda path: {
-            "airflow.providers.languages.java.coordinator.ACoordinator": ACoordinator,
-            "airflow.providers.languages.java.coordinator.ZCoordinator": ZCoordinator,
+            "airflow.providers.sdk.java.coordinator.ACoordinator": ACoordinator,
+            "airflow.providers.sdk.java.coordinator.ZCoordinator": ZCoordinator,
         }[path]
         providers_manager = ProvidersManager()
         providers_manager._provider_dict = LazyDictWithCache()
-        providers_manager._provider_dict["apache-airflow-providers-languages-java"] = ProviderInfo(
+        providers_manager._provider_dict["apache-airflow-providers-sdk-java"] = ProviderInfo(
             version="0.0.1",
             data={
                 "runtime-coordinators": [
-                    "airflow.providers.languages.java.coordinator.ZCoordinator",
-                    "airflow.providers.languages.java.coordinator.ACoordinator",
-                    "airflow.providers.languages.java.coordinator.ZCoordinator",
+                    "airflow.providers.sdk.java.coordinator.ZCoordinator",
+                    "airflow.providers.sdk.java.coordinator.ACoordinator",
+                    "airflow.providers.sdk.java.coordinator.ZCoordinator",
                 ]
             },
         )
