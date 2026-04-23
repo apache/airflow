@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -54,8 +55,6 @@ class TaskInstanceDTO(_BaseTaskInstanceDTO):
     priority_weight: int
     executor_config: dict | None = Field(default=None, exclude=True)
     external_executor_id: str | None = Field(default=None, exclude=True)
-
-    sdk: str | None = None
 
     parent_context_carrier: dict | None = None
     context_carrier: dict | None = None
