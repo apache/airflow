@@ -243,9 +243,9 @@ def test_taskgroup_getitem_returns_child_by_label(prefix: bool):
     assert group1["subgroup"] == subgroup
     assert group1["subgroup"]["task2"] == task2
 
-    from airflow.sdk.exceptions import TaskItemNotFound
+    from airflow.sdk.exceptions import NodeNotFound
 
-    with pytest.raises(TaskItemNotFound):
+    with pytest.raises(NodeNotFound):
         group1["nonexistent"]
 
 
@@ -934,17 +934,17 @@ def test_build_task_group_with_operators():
 
 
 class TestTaskGroupGetItem:
-    def test_getitem_missing_raises_task_item_not_found(self):
+    def test_getitem_missing_raises_node_not_found(self):
         import pendulum
 
-        from airflow.sdk.exceptions import TaskItemNotFound
+        from airflow.sdk.exceptions import NodeNotFound
 
         start = pendulum.datetime(2016, 1, 1)
         with DAG("test_dag", schedule=None, start_date=start):
             with TaskGroup(group_id="section") as tg:
                 pass
 
-        with pytest.raises(TaskItemNotFound):
+        with pytest.raises(NodeNotFound):
             tg["nonexistent"]
 
     def test_getitem_missing_is_key_error(self):

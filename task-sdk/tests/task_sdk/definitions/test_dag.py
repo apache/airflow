@@ -971,11 +971,11 @@ class TestDagGetItem:
                 op = DoNothingOperator(task_id="t")
         assert dag["section"]["t"] is op
 
-    def test_getitem_missing_raises_task_item_not_found(self):
-        from airflow.sdk.exceptions import TaskItemNotFound
+    def test_getitem_missing_raises_node_not_found(self):
+        from airflow.sdk.exceptions import NodeNotFound
 
         dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
-        with pytest.raises(TaskItemNotFound):
+        with pytest.raises(NodeNotFound):
             dag["nonexistent"]
 
     def test_getitem_missing_is_key_error(self):

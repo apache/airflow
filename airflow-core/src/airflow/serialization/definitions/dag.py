@@ -32,7 +32,7 @@ from sqlalchemy import func, or_, select, tuple_
 
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, TaskItemNotFound, TaskNotFound
+from airflow.exceptions import AirflowException, NodeNotFound, TaskNotFound
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -252,7 +252,7 @@ class SerializedDAG:
             return node
         if (tg := self.task_group_dict.get(node_id)) is not None:
             return tg
-        raise TaskItemNotFound(f"Task or group {node_id!r} not found")
+        raise NodeNotFound(f"Task or group {node_id!r} not found")
 
     @property
     def task_group_dict(self):

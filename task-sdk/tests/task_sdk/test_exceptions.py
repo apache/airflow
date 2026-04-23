@@ -18,26 +18,26 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.sdk.exceptions import TaskItemNotFound, TaskNotFound
+from airflow.sdk.exceptions import NodeNotFound, TaskNotFound
 
 
-def test_task_item_not_found_is_subclass_of_task_not_found():
-    assert issubclass(TaskItemNotFound, TaskNotFound)
+def test_node_not_found_is_subclass_of_task_not_found():
+    assert issubclass(NodeNotFound, TaskNotFound)
 
 
-def test_task_item_not_found_is_subclass_of_key_error():
-    assert issubclass(TaskItemNotFound, KeyError)
+def test_node_not_found_is_subclass_of_key_error():
+    assert issubclass(NodeNotFound, KeyError)
 
 
-def test_task_item_not_found_caught_as_key_error():
+def test_node_not_found_caught_as_key_error():
     with pytest.raises(KeyError):
-        raise TaskItemNotFound("missing_task")
+        raise NodeNotFound("missing_task")
 
 
-def test_task_item_not_found_caught_as_task_not_found():
+def test_node_not_found_caught_as_task_not_found():
     with pytest.raises(TaskNotFound):
-        raise TaskItemNotFound("missing_task")
+        raise NodeNotFound("missing_task")
 
 
-def test_task_item_not_found_str_suppresses_key_error_repr():
-    assert str(TaskItemNotFound("missing")) == "missing"
+def test_node_not_found_str_suppresses_key_error_repr():
+    assert str(NodeNotFound("missing")) == "missing"

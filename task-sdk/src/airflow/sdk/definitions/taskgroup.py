@@ -33,8 +33,8 @@ from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.sdk.exceptions import (
     AirflowDagCycleException,
     DuplicateTaskIdFound,
+    NodeNotFound,
     TaskAlreadyInTaskGroup,
-    TaskItemNotFound,
 )
 
 if TYPE_CHECKING:
@@ -497,7 +497,7 @@ class TaskGroup(DAGNode):
         try:
             return self.get_child_by_label(label)
         except KeyError:
-            raise TaskItemNotFound(f"Task {label!r} not found")
+            raise NodeNotFound(f"Task {label!r} not found")
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Serialize task group; required by DagNode."""

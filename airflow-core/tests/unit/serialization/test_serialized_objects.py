@@ -1053,15 +1053,15 @@ def test_serialized_dag_getitem_returns_task(dag_maker):
 
 
 @pytest.mark.db_test
-def test_serialized_dag_getitem_missing_raises_task_item_not_found(dag_maker):
-    from airflow.exceptions import TaskItemNotFound
+def test_serialized_dag_getitem_missing_raises_node_not_found(dag_maker):
+    from airflow.exceptions import NodeNotFound
 
     with dag_maker() as dag:
         BashOperator(task_id="my_task", bash_command="echo 1")
 
     ser_dict = DagSerialization.to_dict(dag)
     ser_dag = DagSerialization.from_dict(ser_dict)
-    with pytest.raises(TaskItemNotFound):
+    with pytest.raises(NodeNotFound):
         ser_dag["nonexistent"]
 
 

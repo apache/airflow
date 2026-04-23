@@ -55,9 +55,9 @@ from airflow.sdk.exceptions import (
     AirflowDagCycleException,
     DuplicateTaskIdFound,
     FailFastDagInvalidTriggerRule,
+    NodeNotFound,
     ParamValidationError,
     RemovedInAirflow4Warning,
-    TaskItemNotFound,
     TaskNotFound,
 )
 
@@ -1039,7 +1039,7 @@ class DAG:
             return node
         if (tg := self.task_group_dict.get(node_id)) is not None:
             return tg
-        raise TaskItemNotFound(f"Task or group {node_id!r} not found")
+        raise NodeNotFound(f"Task or group {node_id!r} not found")
 
     @property
     def task(self) -> TaskDecoratorCollection:
