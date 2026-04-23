@@ -168,15 +168,6 @@
   },
   "pendingDagRun_one": "{{count}} execução do DAG pendente",
   "pendingDagRun_other": "{{count}} execuções do DAG pendentes",
-  "pools": {
-    "deferred": "Deferido",
-    "open": "Aberto",
-    "pools_one": "pool",
-    "pools_other": "pools",
-    "queued": "Enfileirado",
-    "running": "Executando",
-    "scheduled": "Agendado"
-  },
   "reset": "Resetar",
   "runId": "ID da Execução",
   "runTypes": {
