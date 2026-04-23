@@ -263,14 +263,15 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param secret_id: Secret Key
         :param lookup_pattern: If provided, `secret_id` must match this pattern to look up the secret in
             Secrets Manager
+        :param team_name: Team name associated to the task trying to access the variable (if any)
         """
         if lookup_pattern and not re.match(lookup_pattern, secret_id, re.IGNORECASE):
             return None
-
+        if team_name is None and re.fullmatch(r"[^-]+--.+", secret_id):
+            return None
         error_msg = "An error occurred when calling the get_secret_value operation"
         if path_prefix and team_name:
-            secrets_path = self.build_path(path_prefix, team_name, self.sep)
-            secrets_path = self.build_path(secrets_path, secret_id, self.sep)
+            secrets_path = self.build_path(path_prefix, f"{team_name}--{secret_id}", self.sep)
         elif path_prefix:
             secrets_path = self.build_path(path_prefix, secret_id, self.sep)
         else:

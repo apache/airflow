@@ -183,9 +183,10 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         """
         if lookup_pattern and not re.match(lookup_pattern, secret_id, re.IGNORECASE):
             return None
+        if team_name is None and re.fullmatch(r"[^-]+--.+", secret_id):
+            return None
         if team_name:
-            ssm_path = self.build_path(path_prefix, team_name)
-            ssm_path = self.build_path(ssm_path, secret_id)
+            ssm_path = self.build_path(path_prefix, f"{team_name}--{secret_id}")
         else:
             ssm_path = self.build_path(path_prefix, secret_id)
         ssm_path = self._ensure_leading_slash(ssm_path)
