@@ -39,7 +39,7 @@ from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-from airflow.providers.common.compat.sdk import Stats, conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.utils.state import State
 
 from tests_common.test_utils import db
@@ -50,17 +50,18 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_9_PLUS,
     AIRFLOW_V_3_1_PLUS,
-    AIRFLOW_V_3_2_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
 )
 
-if AIRFLOW_V_3_2_1_PLUS:
-    # The `Stats` shim can't be used here because the test is asserting on metrics
-    # created under the base_executor using the `stats` module.
-    stats_reference = "airflow._shared.observability.metrics.stats"
-else:
-    stats_reference = f"{Stats.__module__}.Stats"
+try:
+    # Check whether a module-level function from stats is importable.
+    from airflow._shared.observability.metrics.stats import gauge  # noqa: F401
 
+    stats_reference = "airflow._shared.observability.metrics.stats"
+    _executor_name_tag_key = "executor_class_name"
+except ImportError:
+    stats_reference = "airflow.executors.base_executor.Stats"
+    _executor_name_tag_key = "name"
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
@@ -192,17 +193,17 @@ class TestCeleryExecutor:
             mock.call(
                 "executor.open_slots",
                 value=mock.ANY,
-                tags={"status": "open", "executor_class_name": "CeleryExecutor"},
+                tags={"status": "open", _executor_name_tag_key: "CeleryExecutor"},
             ),
             mock.call(
                 "executor.queued_tasks",
                 value=mock.ANY,
-                tags={"status": "queued", "executor_class_name": "CeleryExecutor"},
+                tags={"status": "queued", _executor_name_tag_key: "CeleryExecutor"},
             ),
             mock.call(
                 "executor.running_tasks",
                 value=mock.ANY,
-                tags={"status": "running", "executor_class_name": "CeleryExecutor"},
+                tags={"status": "running", _executor_name_tag_key: "CeleryExecutor"},
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)
