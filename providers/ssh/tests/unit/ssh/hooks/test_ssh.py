@@ -798,14 +798,40 @@ class TestSSHHook:
             banner_timeout=100,
         )
 
-        with hook.get_conn() as client:
-            with pytest.raises(AirflowException):
-                hook.exec_ssh_client_command(
-                    client,
-                    "sleep 1",
-                    False,
-                    None,
-                )
+        mock_channel = mock.MagicMock(spec=paramiko.Channel)
+        type(mock_channel).closed = mock.PropertyMock(return_value=False)
+        mock_channel.recv_ready.return_value = False
+        mock_channel.recv_stderr_ready.return_value = False
+        mock_channel.exit_status_ready.return_value = False
+        mock_channel.in_buffer = b""
+        mock_channel.in_stderr_buffer = b""
+
+        mock_stdout = mock.MagicMock(spec=paramiko.ChannelFile)
+        mock_stdout.channel = mock_channel
+        mock_stdin = mock.MagicMock(spec=paramiko.ChannelStdinFile)
+        mock_stderr = mock.MagicMock(spec=paramiko.ChannelStderrFile)
+        mock_stderr.channel = mock_channel
+
+        mock_client = mock.MagicMock(spec=paramiko.SSHClient)
+        mock_client.exec_command.return_value = (mock_stdin, mock_stdout, mock_stderr)
+
+        def fake_select(rlist, wlist, xlist, timeout=None):
+            assert timeout == pytest.approx(0.001), f"Expected cmd_timeout passed to select, got {timeout}"
+            return [], [], []
+
+        with mock.patch("airflow.providers.ssh.hooks.ssh.select", side_effect=fake_select):
+            with pytest.raises(AirflowException, match="SSH command timed out"):
+                hook.exec_ssh_client_command(mock_client, "sleep 1", False, None)
+
+        assert mock_client.exec_command.call_args_list == [
+            mock.call(command="sleep 1", get_pty=False, timeout=0.001, environment=None)
+        ]
+        assert mock.call() in mock_stdin.close.call_args_list
+        assert mock.call() in mock_channel.shutdown_write.call_args_list
+        assert mock.call() in mock_channel.shutdown_read.call_args_list
+        assert mock.call() in mock_channel.close.call_args_list
+        assert mock.call() in mock_stdout.close.call_args_list
+        assert mock.call() in mock_stderr.close.call_args_list
 
     def test_command_timeout_not_set(self, monkeypatch):
         hook = SSHHook(
