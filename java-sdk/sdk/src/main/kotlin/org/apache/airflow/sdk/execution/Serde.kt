@@ -128,7 +128,7 @@ private fun Class<out Task>.serialize(
       "task_id" to id,
       "task_type" to simpleName,
       "_task_module" to name.substringBeforeLast('.'),
-      "language" to "java",
+      "sdk" to "java",
     )
   if (!dependants.isNullOrEmpty()) {
     data["downstream_task_ids"] = dependants.sorted()
