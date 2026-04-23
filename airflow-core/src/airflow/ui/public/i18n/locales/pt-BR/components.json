@@ -22,12 +22,13 @@
         "title": "Backfill gerado"
       }
     },
-    "tooltip": "Backfill requer um agendamento",
     "unpause": "Despausar {{dag_display_name}} ao acionar",
     "validation": {
       "datesRequired": "Ambas as datas de início e fim do intervalo devem ser fornecidas.",
       "startBeforeEnd": "A Data Inicial do Intervalo deve ser menor ou igual à Data Final do Intervalo."
-    }
+    },
+    "overrideExistingParams": "Sobrescrever parâmetros em execuções existentes",
+    "scheduleNotBackfillable": "O agendamento deste Dag não suporta backfills"
   },
   "banner": {
     "backfillInProgress": "Backfill em progresso",
@@ -46,7 +47,6 @@
   },
   "dagWarnings": {
     "error_one": "1 Erro",
-    "error_other": "{{count}} Erros",
     "errorAndWarning": "1 Erro e {{warningText}}",
     "warning_one": "1 Aviso",
     "warning_other": "{{count}} Avisos"
@@ -69,7 +69,6 @@
     "runDuration": "Duração da Execução"
   },
   "fileUpload": {
-    "files_one": "1 arquivo",
     "files_other": "{{count}} arquivos"
   },
   "flexibleForm": {
@@ -93,7 +92,8 @@
     "otherDagRuns": "+Outras Execuções do Dag",
     "taskCount_one": "{{count}} Tarefa",
     "taskCount_other": "{{count}} Tarefas",
-    "taskGroup": "Grupo de Tarefas"
+    "taskGroup": "Grupo de Tarefas",
+    "zoomToTask": "Ampliar tarefa selecionada"
   },
   "limitedList": "+{{count}} mais",
   "limitedList.allItems": "Todos os {{count}} itens:",
