@@ -16,15 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { readFileSync } from "node:fs";
-
 import babel from "@rolldown/plugin-babel";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
+import { readFileSync } from "node:fs";
 import cssInjectedByJsPlugin from "vite-plugin-css-injected-by-js";
 import { defineConfig } from "vitest/config";
 
 const pyprojectToml = readFileSync("../../../pyproject.toml", "utf8");
-const airflowVersion = (/^version\s*=\s*"(.+?)"/mu).exec(pyprojectToml)?.[1] ?? "0";
+const airflowVersion = /^version\s*=\s*"(.+?)"/mu.exec(pyprojectToml)?.[1] ?? "0";
 
 // https://vitejs.dev/config/
 export default defineConfig({
