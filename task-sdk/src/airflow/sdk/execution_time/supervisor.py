@@ -689,6 +689,16 @@ class WatchedSubprocess:
 
         pid = os.fork()
         if pid == 0:
+            # Put the task-runner into its own session so its PGID == its own
+            # PID. The supervisor can then deliver signals to the whole tree
+            # via os.killpg() in kill(), reaching every subprocess the
+            # task-runner spawned (e.g. venv children from
+            # PythonVirtualenvOperator). Without this, a SIGTERM from kill()
+            # only hits the task-runner and any Popen children are reparented
+            # to PID 1 and leak as orphans. See issue #65505.
+            with suppress(OSError):
+                os.setsid()
+
             # Close and delete of the parent end of the sockets.
             cls._close_unused_sockets(read_requests, read_stdout, read_stderr, read_logs)
 
@@ -1006,7 +1016,18 @@ class WatchedSubprocess:
 
         for sig in escalation_path:
             try:
-                self._process.send_signal(sig)
+                # Signal the whole process group so subprocesses the
+                # task-runner spawned (venv children, Docker exec, bash
+                # shells, etc.) are also reached. Requires the task-runner to
+                # have been placed in its own session via os.setsid() at fork
+                # time (see start()). See issue #65505.
+                try:
+                    os.killpg(os.getpgid(self._process.pid), sig)
+                except (ProcessLookupError, PermissionError):
+                    # Group vanished or we lack permission (e.g. task already
+                    # reaped, or the child never reached setsid). Fall back
+                    # to signalling the task-runner alone.
+                    self._process.send_signal(sig)
 
                 start = time.monotonic()
                 end = start + escalation_delay
