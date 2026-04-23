@@ -19,13 +19,21 @@
 
 /* eslint-disable max-lines */
 import { Flex, HStack, Link, Text } from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
+import React from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
-import React from 'react';
 
-import { useDagRunServiceGetDagRuns, useDagServiceGetDag, useDagServiceGetDags, UseDagServiceGetDagsKeyFn, useDagServiceGetDagTags } from "openapi/queries";
+import {
+  useDagRunServiceGetDagRuns,
+  useDagServiceGetDag,
+  useDagServiceGetDags,
+  UseDagServiceGetDagsKeyFn,
+  useDagServiceGetDagTags,
+} from "openapi/queries";
+import { DagService } from "openapi/requests/services.gen";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
@@ -43,9 +51,6 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { DagRunsFilters } from "src/pages/DagRunsFilters";
 import DeleteRunButton from "src/pages/DeleteRunButton";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
-import { useQuery } from "@tanstack/react-query";
-import { DagService } from "openapi/requests/services.gen";
-
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
@@ -238,19 +243,19 @@ export const DagRuns = () => {
   const dagTag = searchParams.get(DAG_TAG);
   const partitionKeyPattern = searchParams.get(PARTITION_KEY_PATTERN_PARAM);
 
-
   const refetchInterval = useAutoRefresh({});
 
   // 1. Fetch DAGs to determine IDs based on tag
   const { data: dagsData, isLoading: isDagsLoading } = useQuery({
-    queryKey: ['dags', dagTag],
-    queryFn: () => DagService.getDags({
-      tags: dagTag ? [dagTag] : undefined,
-      tagsMatchMode: 'any',
-      lastDagRunState: 'success',
-      excludeStale: true,
-      limit: 50,
-    }),
+    queryKey: ["dags", dagTag],
+    queryFn: () =>
+      DagService.getDags({
+        tags: dagTag ? [dagTag] : undefined,
+        tagsMatchMode: "any",
+        lastDagRunState: "success",
+        excludeStale: true,
+        limit: 50,
+      }),
     enabled: !!dagTag,
   });
 
@@ -280,11 +285,10 @@ export const DagRuns = () => {
   const multiDagPattern = React.useMemo(() => {
     // Only use pattern if we have multiple IDs and no explicit dagId
     if (!dagId && filteredDagIds.length > 1) {
-      return filteredDagIds.join('|');
+      return filteredDagIds.join("|");
     }
     return filteredDagIdPattern ?? undefined;
   }, [filteredDagIds, dagId, filteredDagIdPattern]);
-
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
@@ -318,9 +322,9 @@ export const DagRuns = () => {
     {
       placeholderData: (prev) => prev,
       refetchInterval: (query) =>
-      query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
+        query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
       enabled: targetDagId !== null,
-    }
+    },
   );
 
   const columns = runColumns(translate, dagId);

@@ -36,6 +36,7 @@ import {
 } from "react-icons/md";
 import { PiQueue } from "react-icons/pi";
 
+import { useDagServiceGetDagTags } from "openapi/queries";
 import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
@@ -51,7 +52,6 @@ import {
 } from "src/constants/stateOptions";
 
 import { SearchParamsKeys } from "./searchParams";
-import { useDagServiceGetDagTags } from "openapi/queries";
 
 export enum FilterTypes {
   DATE = "date",
@@ -63,7 +63,7 @@ export enum FilterTypes {
 
 export const useFilterConfigs = () => {
   const { t: translate } = useTranslation(["browse", "common", "components", "admin", "hitl"]);
-  const { data : tagsData } = useDagServiceGetDagTags();
+  const { data: tagsData } = useDagServiceGetDagTags();
   const filterConfigMap = {
     [SearchParamsKeys.ASSET_EVENT_DATE_RANGE]: {
       endKey: SearchParamsKeys.END_DATE,
@@ -299,10 +299,11 @@ export const useFilterConfigs = () => {
       hotkeyDisabled: true,
       icon: <FiDatabase />,
       label: translate("common:dagTag"),
-      options: tagsData?.tags?.map((tag) => ({
-        label: tag, // The display text
-        value: tag, // The value sent to the URL/API
-      })) ?? [] ,
+      options:
+        tagsData?.tags?.map((tag) => ({
+          label: tag, // The display text
+          value: tag, // The value sent to the URL/API
+        })) ?? [],
       type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.START_DATE_RANGE]: {
@@ -379,8 +380,6 @@ export const useFilterConfigs = () => {
     key,
     ...filterConfigMap[key],
   });
-
-
 
   return { getFilterConfig };
 };

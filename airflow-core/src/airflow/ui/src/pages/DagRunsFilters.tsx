@@ -59,8 +59,6 @@ export const DagRunsFilters = ({ dagId }: DagRunsFiltersProps) => {
         initialValues={initialValues}
         onFiltersChange={handleFiltersChange}
       />
-
     </VStack>
-
   );
 };
