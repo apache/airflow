@@ -31,6 +31,7 @@ export enum SearchParamsKeys {
   DAG_DISPLAY_NAME_PATTERN = "dag_display_name_pattern",
   DAG_ID = "dag_id",
   DAG_ID_PATTERN = "dag_id_pattern",
+  DAG_TAG = "dag_tag",
   DAG_VERSION = "dag_version",
   DAG_VIEW = "view",
   DEPENDENCIES = "dependencies",
@@ -98,7 +99,6 @@ export enum SearchParamsKeys {
   TRY_NUMBER = "try_number",
   USER = "user",
   VERSION_NUMBER = "version_number",
-  DAG_TAG = "dag_tag",
 }
 
 export type SearchParamsKeysType = Record<keyof typeof SearchParamsKeys, string>;

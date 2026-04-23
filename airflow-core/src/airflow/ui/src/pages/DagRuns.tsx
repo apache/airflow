@@ -58,6 +58,7 @@ const {
   CONF_CONTAINS: CONF_CONTAINS_PARAM,
   CONSUMING_ASSET_PATTERN: CONSUMING_ASSET_PATTERN_PARAM,
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
+  DAG_TAG,
   DAG_VERSION: DAG_VERSION_PARAM,
   DURATION_GTE: DURATION_GTE_PARAM,
   DURATION_LTE: DURATION_LTE_PARAM,
@@ -74,7 +75,6 @@ const {
   START_DATE_LTE: START_DATE_LTE_PARAM,
   STATE: STATE_PARAM,
   TRIGGERING_USER_NAME_PATTERN: TRIGGERING_USER_NAME_PATTERN_PARAM,
-  DAG_TAG: DAG_TAG,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
@@ -247,35 +247,36 @@ export const DagRuns = () => {
 
   // 1. Fetch DAGs to determine IDs based on tag
   const { data: dagsData, isLoading: isDagsLoading } = useQuery({
-    queryKey: ["dags", dagTag],
+    enabled: Boolean(dagTag),
     queryFn: () =>
       DagService.getDags({
+        excludeStale: true,
+        lastDagRunState: "success",
+        limit: 50,
         tags: dagTag ? [dagTag] : undefined,
         tagsMatchMode: "any",
-        lastDagRunState: "success",
-        excludeStale: true,
-        limit: 50,
       }),
-    enabled: !!dagTag,
+    queryKey: ["dags", dagTag],
   });
 
   // ... (Keep your existing search param extractions here)
   const filteredDagIds = React.useMemo(() => {
-    if (!dagsData?.dags) return [];
+    if (!dagsData?.dags) {return [];}
+
     return dagsData.dags.map((dag: { dag_id: string }) => dag.dag_id);
   }, [dagsData]);
 
   // 2. Logic to calculate targetDagId
   const targetDagId = React.useMemo(() => {
-    if (dagId) return dagId; // Specific DAG page
+    if (dagId) {return dagId;} // Specific DAG page
 
-    if (dagTag && filteredDagIds.length === 0) return "~"; // No matches found
+    if (dagTag && filteredDagIds.length === 0) {return "~";} // No matches found
 
     // If multiple IDs, use global wildcard "~"
-    if (filteredDagIds.length > 1) return "~";
+    if (filteredDagIds.length > 1) {return "~";}
 
     // If exactly one, use it directly
-    if (filteredDagIds.length === 1) return filteredDagIds[0];
+    if (filteredDagIds.length === 1) {return filteredDagIds[0];}
 
     // No tag filter active
     return "~";
@@ -287,6 +288,7 @@ export const DagRuns = () => {
     if (!dagId && filteredDagIds.length > 1) {
       return filteredDagIds.join("|");
     }
+
     return filteredDagIdPattern ?? undefined;
   }, [filteredDagIds, dagId, filteredDagIdPattern]);
 
@@ -320,10 +322,10 @@ export const DagRuns = () => {
     },
     undefined,
     {
+      enabled: targetDagId !== null,
       placeholderData: (prev) => prev,
       refetchInterval: (query) =>
         query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
-      enabled: targetDagId !== null,
     },
   );
 

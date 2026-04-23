@@ -122,6 +122,17 @@ export const useFilterConfigs = () => {
       label: translate("common:dagId"),
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.DAG_TAG]: {
+      hotkeyDisabled: true,
+      icon: <FiDatabase />,
+      label: translate("common:dagTag"),
+      options:
+        tagsData?.tags?.map((tag) => ({
+          label: tag, // The display text
+          value: tag, // The value sent to the URL/API
+        })) ?? [],
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.DAG_VERSION]: {
       hotkeyDisabled: true,
       icon: <MdHistory />,
@@ -293,17 +304,6 @@ export const useFilterConfigs = () => {
           ),
         value: option.value === "all" ? "" : option.value,
       })),
-      type: FilterTypes.SELECT,
-    },
-    [SearchParamsKeys.DAG_TAG]: {
-      hotkeyDisabled: true,
-      icon: <FiDatabase />,
-      label: translate("common:dagTag"),
-      options:
-        tagsData?.tags?.map((tag) => ({
-          label: tag, // The display text
-          value: tag, // The value sent to the URL/API
-        })) ?? [],
       type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.START_DATE_RANGE]: {
