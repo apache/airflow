@@ -56,7 +56,7 @@ class KafkaAdminClientHook(KafkaBaseHook):
                 f.result()
                 self.log.info("The topic %s has been created.", t)
             except KafkaException as e:
-                if e.args[0].name == "TOPIC_ALREADY_EXISTS":
+                if e.args[0].name() == "TOPIC_ALREADY_EXISTS":
                     self.log.warning("The topic %s already exists.", t)
                 else:
                     raise
