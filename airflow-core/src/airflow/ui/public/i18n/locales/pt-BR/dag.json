@@ -44,7 +44,9 @@
   "grid": {
     "buttons": {
       "resetToLatest": "Redefinir para a Última",
-      "toggleGroup": "Alternar Grupo"
+      "toggleGroup": "Alternar Grupo",
+      "newerRuns": "Execuções mais recentes",
+      "olderRuns": "Execuções mais antigas"
     },
     "runTypeLegend": "Legenda dos Tipos de Execução"
   },
@@ -52,6 +54,9 @@
     "buttons": {
       "advanced": "Avançado",
       "dagDocs": "Documentação do Dag"
+    },
+    "status": {
+      "deactivated": "Desativado"
     }
   },
   "logs": {
@@ -68,7 +73,12 @@
     "noTryNumber": "Nenhum número de tentativa",
     "settings": "Configurações",
     "viewInExternal": "Ver logs em {{name}} (tentativa {{attempt}})",
-    "warning": "AVISO"
+    "warning": "AVISO",
+    "search": {
+      "matchCount": "{{current}} de {{total}}",
+      "noMatches": "Nenhuma correspondência",
+      "placeholder": "Pesquisar logs..."
+    }
   },
   "navigation": {
     "navigation": "Navegação: Shift+{{arrow}}",
