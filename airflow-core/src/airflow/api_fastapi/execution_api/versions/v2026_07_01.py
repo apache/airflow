@@ -22,9 +22,9 @@ from cadwyn import VersionChange, schema
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
 
 
-class AddLanguageField(VersionChange):
-    """Add the `language` field to the TaskInstance model."""
+class AddSdkField(VersionChange):
+    """Add the `sdk` field to the TaskInstance model."""
 
     description = __doc__
 
-    instructions_to_migrate_to_previous_version = (schema(TaskInstance).field("language").didnt_exist,)
+    instructions_to_migrate_to_previous_version = (schema(TaskInstance).field("sdk").didnt_exist,)

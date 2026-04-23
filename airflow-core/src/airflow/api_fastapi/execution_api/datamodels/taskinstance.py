@@ -256,7 +256,7 @@ class TaskInstance(BaseModel):
     map_index: int = -1
     hostname: str | None = None
     context_carrier: dict | None = None
-    language: str | None = None
+    sdk: str | None = None
 
 
 class AssetReferenceAssetEventDagRun(StrictBaseModel):
