@@ -23,12 +23,8 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
-import type {
-  DAGRunResponse,
-  DeadlineAlertResponse,
-  DeadlineResponse,
-  DagRunState,
-} from "openapi/requests/types.gen";
+import type { DAGRunResponse, DeadlineAlertResponse, DeadlineResponse } from "openapi/requests/types.gen";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 
 dayjs.extend(duration);
@@ -38,10 +34,9 @@ type DeadlineRowProps = {
   readonly alert?: DeadlineAlertResponse;
   readonly deadline: DeadlineResponse;
   readonly run?: DAGRunResponse;
-  readonly runState?: DagRunState;
 };
 
-export const DeadlineRow = ({ alert, deadline, run, runState }: DeadlineRowProps) => {
+export const DeadlineRow = ({ alert, deadline, run }: DeadlineRowProps) => {
   const { t: translate } = useTranslation("dag");
 
   const reference = alert
@@ -50,25 +45,6 @@ export const DeadlineRow = ({ alert, deadline, run, runState }: DeadlineRowProps
       })
     : undefined;
   const interval = alert ? dayjs.duration(alert.interval, "seconds").humanize() : undefined;
-
-  let contextLine: string | undefined;
-
-  if (deadline.missed) {
-    if (run?.end_date === undefined || run.end_date === null) {
-      contextLine = translate("overview.deadlines.stillRunning");
-    } else {
-      const diff = dayjs(run.end_date).diff(dayjs(deadline.deadline_time));
-
-      contextLine =
-        diff >= 0
-          ? translate("overview.deadlines.finishedLate", {
-              duration: dayjs.duration(diff).humanize(),
-            })
-          : translate("overview.deadlines.finishedEarly", {
-              duration: dayjs.duration(-diff).humanize(),
-            });
-    }
-  }
 
   return (
     <HStack justifyContent="space-between" px={2} py={1.5} width="100%">
@@ -79,24 +55,34 @@ export const DeadlineRow = ({ alert, deadline, run, runState }: DeadlineRowProps
               {deadline.dag_run_id}
             </RouterLink>
           </Link>
-          {deadline.missed && runState !== undefined ? (
-            <Text fontSize="xs" textTransform="capitalize">
-              ({runState})
-            </Text>
-          ) : undefined}
+          {run === undefined ? undefined : <StateBadge size="sm" state={run.state} />}
         </HStack>
         {reference !== undefined && interval !== undefined ? (
           <Text color="fg.muted" fontSize="xs">
-            {translate("overview.deadlines.completionRule", { interval, reference })}
+            {translate("deadlineStatus.completionRule", { interval, reference })}
           </Text>
         ) : undefined}
-        {contextLine !== undefined && (
-          <Text color="fg.error" fontSize="xs">
-            {contextLine}
-          </Text>
-        )}
       </VStack>
-      <Time datetime={deadline.deadline_time} fontSize="sm" />
+      <VStack alignItems="flex-end" gap={0}>
+        <HStack gap={1}>
+          <Text color="fg.muted" fontSize="xs">
+            {translate("deadlineStatus.expected")}:
+          </Text>
+          <Time datetime={deadline.deadline_time} fontSize="xs" />
+        </HStack>
+        <HStack gap={1}>
+          <Text color="fg.muted" fontSize="xs">
+            {translate("deadlineStatus.actual")}:
+          </Text>
+          {run?.end_date !== undefined && run.end_date !== null ? (
+            <Time datetime={run.end_date} fontSize="xs" />
+          ) : (
+            <Text color="fg.muted" fontSize="xs">
+              {translate("deadlineStatus.stillRunning")}
+            </Text>
+          )}
+        </HStack>
+      </VStack>
     </HStack>
   );
 };

@@ -20,7 +20,7 @@ import { Heading, HStack, Separator, Skeleton, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 
 import { useDagRunServiceGetDagRuns, useDeadlinesServiceGetDeadlines } from "openapi/queries";
-import type { DAGRunResponse, DagRunState, DeadlineAlertResponse } from "openapi/requests/types.gen";
+import type { DAGRunResponse, DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { Dialog } from "src/components/ui";
 import { Pagination } from "src/components/ui/Pagination";
@@ -86,11 +86,9 @@ export const AllDeadlinesModal = ({
     { enabled: open, refetchInterval },
   );
 
-  const runStateMap = new Map<string, DagRunState>();
   const runMap = new Map<string, DAGRunResponse>();
 
   for (const run of runsData?.dag_runs ?? []) {
-    runStateMap.set(run.dag_run_id, run.state);
     runMap.set(run.dag_run_id, run);
   }
 
@@ -129,7 +127,6 @@ export const AllDeadlinesModal = ({
                   deadline={dl}
                   key={dl.id}
                   run={runMap.get(dl.dag_run_id)}
-                  runState={runStateMap.get(dl.dag_run_id)}
                 />
               ))}
             </VStack>

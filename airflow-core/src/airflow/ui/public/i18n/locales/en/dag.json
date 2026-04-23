@@ -59,13 +59,17 @@
     "unnamed": "Unnamed Alert"
   },
   "deadlineStatus": {
+    "actual": "Actual",
     "completionRule": "Must complete within {{interval}} of {{reference}}",
     "deadlineIn": "Deadline in {{duration}}",
+    "expected": "Expected",
     "finishedEarly": "Finished {{duration}} before deadline",
     "finishedLate": "Finished {{duration}} after deadline",
     "label": "Deadline",
     "met": "Met",
     "missed": "Missed",
+    "missedCount_one": "{{count}} Missed Deadline",
+    "missedCount_other": "{{count}} Missed Deadlines",
     "stillRunning": "Still running",
     "upcoming": "Upcoming",
     "viewAll": "View all {{count}}"
@@ -134,14 +138,9 @@
       "assetEvent_other": "Created Asset Events"
     },
     "deadlines": {
-      "completionRule": "Complete within {{interval}} of {{reference}}",
-      "finishedEarly": "Finished {{duration}} before deadline",
-      "finishedLate": "Finished {{duration}} after deadline",
       "pending": "Pending Deadlines",
       "recentlyMissed": "Recently Missed Deadlines",
-      "stillRunning": "Still running past deadline",
-      "title": "Deadlines",
-      "viewAll": "View all {{count}}"
+      "title": "Deadlines"
     },
     "failedLogs": {
       "hideLogs": "Hide Logs",

@@ -26,7 +26,7 @@ import {
   useDeadlinesServiceGetDagDeadlineAlerts,
   useDeadlinesServiceGetDeadlines,
 } from "openapi/queries";
-import type { DAGRunResponse, DagRunState, DeadlineAlertResponse } from "openapi/requests/types.gen";
+import type { DAGRunResponse, DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { useAutoRefresh } from "src/utils";
 
@@ -91,11 +91,9 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
     refetchInterval,
   });
 
-  const runStateMap = new Map<string, DagRunState>();
   const runMap = new Map<string, DAGRunResponse>();
 
   for (const run of runsData?.dag_runs ?? []) {
-    runStateMap.set(run.dag_run_id, run.state);
     runMap.set(run.dag_run_id, run);
   }
 
@@ -158,7 +156,6 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
                     deadline={dl}
                     key={dl.id}
                     run={runMap.get(dl.dag_run_id)}
-                    runState={runStateMap.get(dl.dag_run_id)}
                   />
                 ))}
                 {(pendingData?.total_entries ?? 0) > LIMIT ? (
@@ -169,7 +166,7 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
                     variant="ghost"
                     width="100%"
                   >
-                    {translate("overview.deadlines.viewAll", {
+                    {translate("deadlineStatus.viewAll", {
                       count: pendingData?.total_entries,
                     })}
                   </Button>
@@ -205,7 +202,6 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
                     deadline={dl}
                     key={dl.id}
                     run={runMap.get(dl.dag_run_id)}
-                    runState={runStateMap.get(dl.dag_run_id)}
                   />
                 ))}
                 {(missedData?.total_entries ?? 0) > LIMIT ? (
@@ -216,7 +212,7 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
                     variant="ghost"
                     width="100%"
                   >
-                    {translate("overview.deadlines.viewAll", {
+                    {translate("deadlineStatus.viewAll", {
                       count: missedData?.total_entries,
                     })}
                   </Button>

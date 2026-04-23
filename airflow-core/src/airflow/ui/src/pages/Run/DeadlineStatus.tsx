@@ -27,6 +27,8 @@ import { FiAlertTriangle, FiCheck, FiClock } from "react-icons/fi";
 import { useDeadlinesServiceGetDagDeadlineAlerts, useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
+import { Tooltip } from "src/components/ui/Tooltip";
+import { renderDuration } from "src/utils/datetimeUtils";
 
 import { DeadlineStatusModal } from "./DeadlineStatusModal";
 
@@ -58,8 +60,8 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
 
   const alertMap = new Map<string, DeadlineAlertResponse>();
 
-  for (const alert of alertData?.deadline_alerts ?? []) {
-    alertMap.set(alert.id, alert);
+  for (const deadlineAlert of alertData?.deadline_alerts ?? []) {
+    alertMap.set(deadlineAlert.id, deadlineAlert);
   }
 
   if (isLoadingDeadlines || isLoadingAlerts) {
@@ -76,108 +78,133 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
   }
 
   // Alerts are configured but no active deadline instances exist therefore all deadlines were met.
+  // Show a tooltip listing each alert's completion rule.
   if (deadlines.length === 0 && hasAlerts) {
+    const tooltipContent = (
+      <VStack alignItems="flex-start" gap={0.5}>
+        {(alertData?.deadline_alerts ?? []).map((deadlineAlert) => (
+          <Text fontSize="xs" key={deadlineAlert.id}>
+            {translate("deadlineStatus.completionRule", {
+              interval: dayjs.duration(deadlineAlert.interval, "seconds").humanize(),
+              reference: translate(`deadlineAlerts.referenceType.${deadlineAlert.reference_type}`, {
+                defaultValue: deadlineAlert.reference_type,
+              }),
+            })}
+          </Text>
+        ))}
+      </VStack>
+    );
+
     return (
-      <HStack gap={1}>
+      <Tooltip content={tooltipContent}>
         <Badge colorPalette="green" size="sm" variant="solid">
           <FiCheck />
           {translate("deadlineStatus.met")}
         </Badge>
-      </HStack>
+      </Tooltip>
     );
   }
 
   const totalEntries = deadlineData?.total_entries ?? 0;
-  const extraCount = totalEntries - deadlines.length;
   const runEndDate = endDate ?? undefined;
 
+  // When there are multiple deadline instances, collapse into a single compact badge to
+  // avoid stretching the run header. Clicking opens the modal with full details.
+  if (totalEntries > 1) {
+    const hasMissed = deadlines.some((deadline) => deadline.missed);
+
+    return (
+      <>
+        <Button onClick={() => setIsModalOpen(true)} p={0} size="sm" variant="plain">
+          <Badge colorPalette={hasMissed ? "red" : "blue"} size="sm" variant="solid">
+            {hasMissed ? <FiAlertTriangle /> : <FiClock />}
+            {hasMissed
+              ? translate("deadlineStatus.missedCount", { count: totalEntries })
+              : translate("deadlineStatus.viewAll", { count: totalEntries })}
+          </Badge>
+        </Button>
+        <DeadlineStatusModal
+          alertMap={alertMap}
+          dagId={dagId}
+          dagRunId={dagRunId}
+          onClose={() => setIsModalOpen(false)}
+          open={isModalOpen}
+          runEndDate={runEndDate}
+        />
+      </>
+    );
+  }
+
+  // Single deadline — show inline with Expected / Actual dates and precise duration.
+  const [dl] = deadlines;
+
+  if (dl === undefined) {
+    return undefined;
+  }
+
+  const alert = dl.alert_id !== undefined && dl.alert_id !== null ? alertMap.get(dl.alert_id) : undefined;
+  const deadlineTime = dayjs(dl.deadline_time);
+
+  let actualDurationLabel: string | undefined;
+
+  if (dl.missed && runEndDate !== undefined) {
+    const diff = dayjs(runEndDate).diff(deadlineTime);
+    const dur = renderDuration(Math.abs(diff) / 1000, false);
+
+    if (dur !== undefined) {
+      actualDurationLabel =
+        diff >= 0
+          ? translate("deadlineStatus.finishedLate", { duration: dur })
+          : translate("deadlineStatus.finishedEarly", { duration: dur });
+    }
+  }
+
   return (
-    <>
-      <VStack alignItems="flex-start" gap={1}>
-        {deadlines.map((dl) => {
-          const alert =
-            dl.alert_id !== undefined && dl.alert_id !== null ? alertMap.get(dl.alert_id) : undefined;
-          const deadlineTime = dayjs(dl.deadline_time);
-          let contextLine: string | undefined;
-
-          if (dl.missed) {
-            if (runEndDate === undefined) {
-              contextLine = translate("deadlineStatus.stillRunning");
-            } else {
-              const diff = dayjs(runEndDate).diff(deadlineTime);
-
-              contextLine =
-                diff >= 0
-                  ? translate("deadlineStatus.finishedLate", {
-                      duration: dayjs.duration(diff).humanize(),
-                    })
-                  : translate("deadlineStatus.finishedEarly", {
-                      duration: dayjs.duration(-diff).humanize(),
-                    });
-            }
-          } else {
-            const remaining = deadlineTime.diff(dayjs());
-
-            if (remaining > 0) {
-              contextLine = translate("deadlineStatus.deadlineIn", {
-                duration: dayjs.duration(remaining).humanize(),
-              });
-            }
-          }
-
-          return (
-            <VStack alignItems="flex-start" gap={0.5} key={dl.id}>
-              <HStack gap={1}>
-                {dl.missed ? (
-                  <Badge colorPalette="red" size="sm" variant="solid">
-                    <FiAlertTriangle />
-                    {translate("deadlineStatus.missed")}
-                  </Badge>
-                ) : (
-                  <Badge colorPalette="blue" size="sm" variant="solid">
-                    <FiClock />
-                    {translate("deadlineStatus.upcoming")}
-                  </Badge>
-                )}
-                <Time datetime={dl.deadline_time} fontSize="sm" />
-                {dl.alert_name === undefined || dl.alert_name === null || dl.alert_name === "" ? undefined : (
-                  <Text color="fg.muted" fontSize="xs">
-                    ({dl.alert_name})
-                  </Text>
-                )}
-              </HStack>
-              {alert === undefined ? undefined : (
-                <Text color="fg.muted" fontSize="xs" pl={1}>
-                  {translate("deadlineStatus.completionRule", {
-                    interval: dayjs.duration(alert.interval, "seconds").humanize(),
-                    reference: translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
-                      defaultValue: alert.reference_type,
-                    }),
-                  })}
-                </Text>
-              )}
-              {contextLine === undefined ? undefined : (
-                <Text color={dl.missed ? "fg.error" : "fg.muted"} fontSize="xs" pl={1}>
-                  {contextLine}
-                </Text>
-              )}
-            </VStack>
-          );
-        })}
-        {extraCount > 0 ? (
-          <Button onClick={() => setIsModalOpen(true)} size="xs" variant="ghost">
-            {translate("deadlineStatus.viewAll", { count: totalEntries })}
-          </Button>
-        ) : undefined}
-      </VStack>
-      <DeadlineStatusModal
-        alertMap={alertMap}
-        dagId={dagId}
-        dagRunId={dagRunId}
-        onClose={() => setIsModalOpen(false)}
-        open={isModalOpen}
-        runEndDate={runEndDate}
-      />
-    </>
+    <VStack alignItems="flex-start" gap={0.5}>
+      <HStack gap={1}>
+        <Badge colorPalette={dl.missed ? "red" : "blue"} size="sm" variant="solid">
+          {dl.missed ? <FiAlertTriangle /> : <FiClock />}
+          {translate(dl.missed ? "deadlineStatus.missed" : "deadlineStatus.upcoming")}
+        </Badge>
+        {dl.alert_name === undefined || dl.alert_name === null || dl.alert_name === "" ? undefined : (
+          <Text color="fg.muted" fontSize="xs">
+            ({dl.alert_name})
+          </Text>
+        )}
+      </HStack>
+      {alert === undefined ? undefined : (
+        <Text color="fg.muted" fontSize="xs">
+          {translate("deadlineStatus.completionRule", {
+            interval: dayjs.duration(alert.interval, "seconds").humanize(),
+            reference: translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
+              defaultValue: alert.reference_type,
+            }),
+          })}
+        </Text>
+      )}
+      <HStack gap={1}>
+        <Text color="fg.muted" fontSize="xs">
+          {translate("deadlineStatus.expected")}:
+        </Text>
+        <Time datetime={dl.deadline_time} fontSize="xs" />
+      </HStack>
+      <HStack gap={1}>
+        <Text color="fg.muted" fontSize="xs">
+          {translate("deadlineStatus.actual")}:
+        </Text>
+        {runEndDate === undefined ? (
+          <Text color="fg.muted" fontSize="xs">
+            {translate("deadlineStatus.stillRunning")}
+          </Text>
+        ) : (
+          <Time datetime={runEndDate} fontSize="xs" />
+        )}
+      </HStack>
+      {actualDurationLabel === undefined ? undefined : (
+        <Text color="fg.error" fontSize="xs" pl={1}>
+          {actualDurationLabel}
+        </Text>
+      )}
+    </VStack>
   );
 };
