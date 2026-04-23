@@ -435,8 +435,7 @@ class QueueToRuntimeCoordinatorMapper:
 
     Users often use queues as environment/isolation identifiers (e.g. ``"java-11"``,
     ``"java-12"``).  This mapper lets them reuse existing queue assignments to route
-    tasks to the correct runtime coordinator without requiring the ``sdk`` field
-    on every operator.
+    tasks to the correct runtime coordinator.
 
     The mapping is read from the ``[workers] queue_to_runtime_mapping``
     configuration option, which is a JSON dict of ``queue_name -> runtime_name``.
