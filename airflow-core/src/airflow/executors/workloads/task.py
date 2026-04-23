@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -55,8 +56,6 @@ class BaseTaskInstanceDTO(BaseModel):
     queue: str
     priority_weight: int
     executor_config: dict | None = Field(default=None, exclude=True)
-
-    sdk: str | None = None
 
     parent_context_carrier: dict | None = None
     context_carrier: dict | None = None
