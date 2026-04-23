@@ -47,7 +47,6 @@ import msgspec
 import psutil
 import structlog
 from pydantic import BaseModel, TypeAdapter
-from structlog._output import WRITE_LOCKS
 
 from airflow.sdk._shared.logging.structlog import reconfigure_logger
 from airflow.sdk.api.client import Client, ServerResponseError
@@ -149,10 +148,17 @@ try:
 except ImportError:
     send_fds = None  # type: ignore[assignment]
 
+<<<<<<< HEAD
 from opentelemetry import context as otel_context, trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 _trace_propagator = TraceContextTextMapPropagator()
+=======
+try:
+    from structlog._output import WRITE_LOCKS
+except ImportError:
+    WRITE_LOCKS = None  # type: ignore[assignment]
+>>>>>>> d26179d9e0 (fix logic)
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
@@ -2329,7 +2335,8 @@ def supervise_task(
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()
-                WRITE_LOCKS.pop(log_file_descriptor)
+                if WRITE_LOCKS is not None:
+                    WRITE_LOCKS.pop(log_file_descriptor, None)
             provider = trace.get_tracer_provider()
             if hasattr(provider, "force_flush"):
                 provider.force_flush(timeout_millis=5000)  # upper bound, not a fixed wait
