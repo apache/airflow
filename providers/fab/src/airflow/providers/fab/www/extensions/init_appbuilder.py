@@ -196,7 +196,11 @@ class AirflowAppBuilder:
 
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
-        auth_manager = create_auth_manager()
+        try:
+            auth_manager = get_auth_manager()
+        except RuntimeError:
+            auth_manager = create_auth_manager()
+
         with _init_app_lock:
             auth_manager.appbuilder = self
             # Invalidate cached security_manager so it binds to the current Flask app.
