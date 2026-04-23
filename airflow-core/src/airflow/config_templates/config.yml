@@ -1967,9 +1967,12 @@ workers:
       type: integer
       example: ~
       default: "60"
-    queue_to_runtime_mapping:
+sdk:
+  description: Settings for non-Python SDK runtime coordination
+  options:
+    queue_to_sdk:
       description: |
-        JSON mapping of queue names to runtime coordinator names.
+        JSON mapping of queue names to SDK runtime coordinator names.
 
         When a task's ``language`` field is not set, this mapping is checked
         to route the task to a non-Python runtime coordinator based on its
