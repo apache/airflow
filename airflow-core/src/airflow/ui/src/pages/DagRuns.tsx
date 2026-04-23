@@ -244,54 +244,62 @@ export const DagRuns = () => {
   const partitionKeyPattern = searchParams.get(PARTITION_KEY_PATTERN_PARAM);
 
   const refetchInterval = useAutoRefresh({});
-
-  // 1. Fetch DAGs to determine IDs based on tag
   const { data: dagsData, isLoading: isDagsLoading } = useQuery({
-    enabled: Boolean(dagTag),
+    enabled: dagTag !== null && dagTag !== "",
     queryFn: () =>
       DagService.getDags({
         excludeStale: true,
         lastDagRunState: "success",
         limit: 50,
-        tags: dagTag ? [dagTag] : undefined,
+        tags: dagTag !== null && dagTag !== "" ? [dagTag] : undefined,
         tagsMatchMode: "any",
       }),
     queryKey: ["dags", dagTag],
   });
-
+  
   // ... (Keep your existing search param extractions here)
   const filteredDagIds = React.useMemo(() => {
-    if (!dagsData?.dags) {return [];}
-
+    if (!dagsData?.dags) {
+      return [];
+    }
+  
     return dagsData.dags.map((dag: { dag_id: string }) => dag.dag_id);
   }, [dagsData]);
-
+  
   // 2. Logic to calculate targetDagId
   const targetDagId = React.useMemo(() => {
-    if (dagId) {return dagId;} // Specific DAG page
-
-    if (dagTag && filteredDagIds.length === 0) {return "~";} // No matches found
-
+    if (dagId !== null && dagId !== "") {
+      return dagId; // Specific DAG page
+    }
+  
+    if (dagTag !== null && dagTag !== "" && filteredDagIds.length === 0) {
+      return "~"; // No matches found
+    }
+  
     // If multiple IDs, use global wildcard "~"
-    if (filteredDagIds.length > 1) {return "~";}
-
+    if (filteredDagIds.length > 1) {
+      return "~";
+    }
+  
     // If exactly one, use it directly
-    if (filteredDagIds.length === 1) {return filteredDagIds[0];}
-
+    if (filteredDagIds.length === 1) {
+      return filteredDagIds[0];
+    }
+  
     // No tag filter active
     return "~";
   }, [dagId, dagTag, filteredDagIds]);
-
+  
   // Create the regex pattern
   const multiDagPattern = React.useMemo(() => {
     // Only use pattern if we have multiple IDs and no explicit dagId
-    if (!dagId && filteredDagIds.length > 1) {
+    if ((dagId === null || dagId === "") && filteredDagIds.length > 1) {
       return filteredDagIds.join("|");
     }
-
+  
     return filteredDagIdPattern ?? undefined;
   }, [filteredDagIds, dagId, filteredDagIdPattern]);
-
+  
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
       bundleVersion: bundleVersion ?? undefined,
@@ -300,7 +308,9 @@ export const DagRuns = () => {
       dagId: targetDagId ?? "~",
       dagIdPattern: multiDagPattern,
       dagVersion:
-        filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
+        filteredDagVersion !== null && filteredDagVersion !== ""
+          ? [Number(filteredDagVersion)]
+          : undefined,
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
       endDateGte: endDateGte ?? undefined,
@@ -322,13 +332,15 @@ export const DagRuns = () => {
     },
     undefined,
     {
-      enabled: targetDagId !== null,
+      enabled: true,
       placeholderData: (prev) => prev,
       refetchInterval: (query) =>
-        query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
+        query.state.data?.dag_runs.some((run) => isStatePending(run.state))
+          ? refetchInterval
+          : false,
     },
   );
-
+  
   const columns = runColumns(translate, dagId);
 
   return (

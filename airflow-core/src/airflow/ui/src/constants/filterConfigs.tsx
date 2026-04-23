@@ -127,7 +127,7 @@ export const useFilterConfigs = () => {
       icon: <FiDatabase />,
       label: translate("common:dagTag"),
       options:
-        tagsData?.tags?.map((tag) => ({
+        tagsData?.tags.map((tag) => ({
           label: tag, // The display text
           value: tag, // The value sent to the URL/API
         })) ?? [],
