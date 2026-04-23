@@ -359,6 +359,22 @@ class DagParam(ResolveMixin):
 
         return cls(current_dag=current_dag, name=data["name"], default=data["default"])
 
+    def __repr__(self) -> str:
+        return json.dumps(
+            {
+                "dag_id": self.current_dag.dag_id,
+                "name": self._name,
+            }
+        )
+
+    def __str__(self) -> str:
+        return json.dumps(
+            {
+                "dag_id": self.current_dag.dag_id,
+                "name": self._name,
+            }
+        )
+
 
 def process_params(
     dag: DAG,

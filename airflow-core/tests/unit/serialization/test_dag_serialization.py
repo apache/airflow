@@ -114,6 +114,7 @@ from tests_common.test_utils.timetables import (
     cron_timetable,
     delta_timetable,
 )
+from unit.models import TEST_DAGS_FOLDER
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -701,6 +702,16 @@ class TestStringifiedDAGs:
         # Verify deserialized DAGs.
         for dag_id in stringified_dags:
             self.validate_deserialized_dag(stringified_dags[dag_id], dags[dag_id])
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_reserialize_should_make_equal_hash_with_dag_processor(self):
+        dagbag1 = DagBag(TEST_DAGS_FOLDER / "test_dag_decorator_version.py")
+        result1 = DagSerialization.to_dict(next(iter(dagbag1.dags.values())))
+
+        dagbag2 = DagBag(TEST_DAGS_FOLDER / "test_dag_decorator_version.py")
+        result2 = DagSerialization.to_dict(next(iter(dagbag2.dags.values())))
+
+        assert json.dumps(result1) == json.dumps(result2)
 
     @skip_if_force_lowest_dependencies_marker
     @pytest.mark.db_test
