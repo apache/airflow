@@ -1017,6 +1017,28 @@ def _is_backend_container_unhealthy(project_name: str, backend: str) -> bool:
 
     return False
 
+def is_docker_available() -> bool:
+    """
+    Check whether Docker is installed and running on the host.
+
+    Returns True if ``docker info`` exits successfully, False otherwise.
+    Unlike :func:`check_docker_is_running`, this function does not print
+    any console output or call ``sys.exit`` — it is safe to call as a
+    simple boolean guard.
+    """
+    try:
+        response = run_command(
+            ["docker", "info"],
+            no_output_dump_on_exception=True,
+            capture_output=True,
+            check=False,
+            text=True,
+            quiet=True,
+        )
+        return response.returncode == 0
+    except FileNotFoundError:
+        # docker binary is not installed
+        return False
 
 def is_docker_rootless() -> bool:
     try:
