@@ -98,6 +98,7 @@ export enum SearchParamsKeys {
   TRY_NUMBER = "try_number",
   USER = "user",
   VERSION_NUMBER = "version_number",
+  DAG_TAG ="dag_tag",
 }
 
 export type SearchParamsKeysType = Record<keyof typeof SearchParamsKeys, string>;

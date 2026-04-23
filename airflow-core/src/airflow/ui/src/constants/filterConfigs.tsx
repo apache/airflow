@@ -51,6 +51,7 @@ import {
 } from "src/constants/stateOptions";
 
 import { SearchParamsKeys } from "./searchParams";
+import { useDagServiceGetDagTags } from "openapi/queries";
 
 export enum FilterTypes {
   DATE = "date",
@@ -62,7 +63,7 @@ export enum FilterTypes {
 
 export const useFilterConfigs = () => {
   const { t: translate } = useTranslation(["browse", "common", "components", "admin", "hitl"]);
-
+  const { data : tagsData } = useDagServiceGetDagTags();
   const filterConfigMap = {
     [SearchParamsKeys.ASSET_EVENT_DATE_RANGE]: {
       endKey: SearchParamsKeys.END_DATE,
@@ -294,6 +295,16 @@ export const useFilterConfigs = () => {
       })),
       type: FilterTypes.SELECT,
     },
+    [SearchParamsKeys.DAG_TAG]: {
+      hotkeyDisabled: true,
+      icon: <FiDatabase />,
+      label: translate("common:dagTag"),
+      options: tagsData?.tags?.map((tag) => ({
+        label: tag, // The display text
+        value: tag, // The value sent to the URL/API
+      })) ?? [] ,
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.START_DATE_RANGE]: {
       endKey: SearchParamsKeys.START_DATE_LTE,
       icon: <MdDateRange />,
@@ -368,6 +379,8 @@ export const useFilterConfigs = () => {
     key,
     ...filterConfigMap[key],
   });
+
+
 
   return { getFilterConfig };
 };

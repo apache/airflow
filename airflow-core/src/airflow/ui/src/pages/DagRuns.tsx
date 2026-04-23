@@ -23,8 +23,9 @@ import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
+import React from 'react';
 
-import { useDagRunServiceGetDagRuns } from "openapi/queries";
+import { useDagRunServiceGetDagRuns, useDagServiceGetDag, useDagServiceGetDags, UseDagServiceGetDagsKeyFn, useDagServiceGetDagTags } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
@@ -42,6 +43,9 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { DagRunsFilters } from "src/pages/DagRunsFilters";
 import DeleteRunButton from "src/pages/DeleteRunButton";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { useQuery } from "@tanstack/react-query";
+import { DagService } from "openapi/requests/services.gen";
+
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
@@ -65,6 +69,7 @@ const {
   START_DATE_LTE: START_DATE_LTE_PARAM,
   STATE: STATE_PARAM,
   TRIGGERING_USER_NAME_PATTERN: TRIGGERING_USER_NAME_PATTERN_PARAM,
+  DAG_TAG: DAG_TAG,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
@@ -115,6 +120,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     }) => <StateBadge state={state}>{translate(`common:states.${state}`)}</StateBadge>,
     header: () => translate("state"),
   },
+
   {
     accessorKey: "run_type",
     cell: ({ row: { original } }) => (
@@ -204,6 +210,7 @@ export const DagRuns = () => {
       partition_key: false,
     },
   });
+  
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-run_after"];
@@ -228,17 +235,64 @@ export const DagRuns = () => {
   const durationGte = searchParams.get(DURATION_GTE_PARAM);
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
   const confContains = searchParams.get(CONF_CONTAINS_PARAM);
+  const dagTag = searchParams.get(DAG_TAG);
   const partitionKeyPattern = searchParams.get(PARTITION_KEY_PATTERN_PARAM);
+  
 
   const refetchInterval = useAutoRefresh({});
+
+  // 1. Fetch DAGs to determine IDs based on tag
+  const { data: dagsData, isLoading: isDagsLoading } = useQuery({
+    queryKey: ['dags', dagTag],
+    queryFn: () => DagService.getDags({
+      tags: dagTag ? [dagTag] : undefined,
+      tagsMatchMode: 'any',
+      lastDagRunState: 'success',
+      excludeStale: true,
+      limit: 50,
+    }),
+    enabled: !!dagTag,
+  });
+
+  // ... (Keep your existing search param extractions here)
+  const filteredDagIds = React.useMemo(() => {
+    if (!dagsData?.dags) return [];
+    return dagsData.dags.map((dag: { dag_id: string }) => dag.dag_id);
+  }, [dagsData]);
+
+  // 2. Logic to calculate targetDagId
+  const targetDagId = React.useMemo(() => {
+    if (dagId) return dagId; // Specific DAG page
+
+    if (dagTag && filteredDagIds.length === 0) return "~"; // No matches found
+    
+    // If multiple IDs, use global wildcard "~"
+    if (filteredDagIds.length > 1) return "~"; 
+    
+    // If exactly one, use it directly
+    if (filteredDagIds.length === 1) return filteredDagIds[0];
+    
+    // No tag filter active
+    return "~"; 
+  }, [dagId, dagTag, filteredDagIds]);
+
+  // Create the regex pattern
+  const multiDagPattern = React.useMemo(() => {
+    // Only use pattern if we have multiple IDs and no explicit dagId
+    if (!dagId && filteredDagIds.length > 1) {
+      return filteredDagIds.join('|');
+    }
+    return filteredDagIdPattern ?? undefined;
+  }, [filteredDagIds, dagId, filteredDagIdPattern]);
+
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
       bundleVersion: bundleVersion ?? undefined,
       confContains: confContains !== null && confContains !== "" ? confContains : undefined,
       consumingAssetPattern: filteredConsumingAsset ?? undefined,
-      dagId: dagId ?? "~",
-      dagIdPattern: filteredDagIdPattern ?? undefined,
+      dagId: targetDagId ?? "~",
+      dagIdPattern: multiDagPattern,
       dagVersion:
         filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
@@ -264,8 +318,9 @@ export const DagRuns = () => {
     {
       placeholderData: (prev) => prev,
       refetchInterval: (query) =>
-        query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
-    },
+      query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
+      enabled: targetDagId !== null,
+    }
   );
 
   const columns = runColumns(translate, dagId);
