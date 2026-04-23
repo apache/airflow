@@ -17,9 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Collection
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 
 from airflow.models.backfill import BackfillDagRun
 from airflow.models.dagrun import DagRun
@@ -184,14 +185,15 @@ class PrevDagrunDep(BaseTIDep):
 
         # depends_on_previous_tasks (mutually exclusive with depends_on_past)
         if depends_on_previous_tasks:
+            task_status = self._check_previous_tasks(last_dagrun, depends_on_previous_tasks, session=session)
             for prev_task_id in depends_on_previous_tasks:
-                if not self._has_tis(last_dagrun, prev_task_id, session=session):
+                exists, unsuccessful = task_status[prev_task_id]
+                if not exists:
                     yield self._failing_status(
                         reason=f"depends_on_previous_tasks requires task '{prev_task_id}' "
                         f"but it was not found in the previous dagrun."
                     )
                     return
-                unsuccessful = self._count_unsuccessful_tis(last_dagrun, prev_task_id, session=session)
                 if unsuccessful > 0:
                     yield self._failing_status(
                         reason=f"depends_on_previous_tasks requires task '{prev_task_id}' "
@@ -239,3 +241,39 @@ class PrevDagrunDep(BaseTIDep):
             return
 
         self._push_past_deps_met_xcom_if_needed(ti, dep_context)
+
+    @staticmethod
+    def _check_previous_tasks(
+        dagrun: DagRun, task_ids: Collection[str], *, session: Session
+    ) -> dict[str, tuple[bool, int]]:
+        """
+        Batch-check presence and unsuccessful count for multiple task IDs in one query.
+
+        Returns a dict mapping task_id -> (exists, unsuccessful_count).
+        Task IDs not found in the DAG run are mapped to (False, 0).
+
+        This function exists for easy mocking in tests.
+        """
+        results = session.execute(
+            select(
+                TI.task_id,
+                func.count().label("total"),
+                func.count(
+                    case(
+                        (or_(TI.state.is_(None), TI.state.not_in(_SUCCESSFUL_STATES)), TI.task_id),
+                    )
+                ).label("unsuccessful"),
+            )
+            .where(
+                TI.dag_id == dagrun.dag_id,
+                TI.run_id == dagrun.run_id,
+                TI.task_id.in_(task_ids),
+            )
+            .group_by(TI.task_id)
+        ).all()
+
+        found: dict[str, tuple[bool, int]] = {row.task_id: (True, row.unsuccessful) for row in results}
+        for tid in task_ids:
+            if tid not in found:
+                found[tid] = (False, 0)
+        return found

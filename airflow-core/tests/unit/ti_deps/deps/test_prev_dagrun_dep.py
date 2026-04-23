@@ -380,10 +380,10 @@ class TestDependsOnPreviousTasks:
 
         dep_context = DepContext(ignore_depends_on_past=False)
         dep = PrevDagrunDep()
-        with patch.multiple(
+        with patch.object(
             dep,
-            _has_tis=Mock(return_value=True),
-            _count_unsuccessful_tis=Mock(return_value=0),
+            "_check_previous_tasks",
+            Mock(return_value={"D": (True, 0), "E": (True, 0)}),
         ):
             assert dep.is_met(ti=ti, dep_context=dep_context)
 
@@ -411,13 +411,10 @@ class TestDependsOnPreviousTasks:
         dep_context = DepContext(ignore_depends_on_past=False)
         dep = PrevDagrunDep()
 
-        def count_unsuccessful(dagrun, task_id, *, session):
-            return 1 if task_id == "D" else 0
-
-        with patch.multiple(
+        with patch.object(
             dep,
-            _has_tis=Mock(return_value=True),
-            _count_unsuccessful_tis=count_unsuccessful,
+            "_check_previous_tasks",
+            Mock(return_value={"D": (True, 1), "E": (True, 0)}),
         ):
             assert not dep.is_met(ti=ti, dep_context=dep_context)
 
@@ -491,11 +488,11 @@ class TestDependsOnPreviousTasks:
 
         dep_context = DepContext(ignore_depends_on_past=False)
         dep = PrevDagrunDep()
-        # _count_unsuccessful_tis returns 0 for SKIPPED tasks (they're in _SUCCESSFUL_STATES)
-        with patch.multiple(
+        # _check_previous_tasks returns 0 unsuccessful for SKIPPED tasks (they're in _SUCCESSFUL_STATES)
+        with patch.object(
             dep,
-            _has_tis=Mock(return_value=True),
-            _count_unsuccessful_tis=Mock(return_value=0),
+            "_check_previous_tasks",
+            Mock(return_value={"D": (True, 0)}),
         ):
             assert dep.is_met(ti=ti, dep_context=dep_context)
 
@@ -522,12 +519,50 @@ class TestDependsOnPreviousTasks:
 
         dep_context = DepContext(ignore_depends_on_past=False)
         dep = PrevDagrunDep()
-        with patch.multiple(
+        with patch.object(
             dep,
-            _has_tis=Mock(return_value=False),
-            _count_unsuccessful_tis=Mock(return_value=0),
+            "_check_previous_tasks",
+            Mock(return_value={"D": (False, 0)}),
         ):
             assert not dep.is_met(ti=ti, dep_context=dep_context)
+
+    @patch("airflow.models.dagrun.DagRun.get_previous_scheduled_dagrun")
+    @patch("airflow.models.dagrun.DagRun.get_previous_dagrun")
+    def test_xcom_push_on_success_with_wait(
+        self, mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun
+    ):
+        """When dep is satisfied and wait_for_past_depends_before_skipping=True,
+        the PAST_DEPENDS_MET XCom should be pushed."""
+        task = Mock(
+            spec=BaseOperator,
+            task_id="C",
+            depends_on_past=False,
+            depends_on_previous_tasks=["D", "E"],
+            dag=Mock(catchup=False),
+            start_date=None,
+        )
+        prev_dagrun = Mock(logical_date=datetime(2016, 1, 2))
+        mock_get_previous_dagrun.return_value = prev_dagrun
+        dagrun = Mock(backfill_id=None, logical_date=datetime(2016, 1, 3), dag_id="test_dag")
+        ti = Mock(
+            task=task,
+            task_id="C",
+            **{"get_dagrun.return_value": dagrun, "xcom_push.return_value": None},
+        )
+
+        dep_context = DepContext(
+            ignore_depends_on_past=False,
+            wait_for_past_depends_before_skipping=True,
+        )
+        dep = PrevDagrunDep()
+        with patch.object(
+            dep,
+            "_check_previous_tasks",
+            Mock(return_value={"D": (True, 0), "E": (True, 0)}),
+        ):
+            assert dep.is_met(ti=ti, dep_context=dep_context)
+
+        ti.xcom_push.assert_called_once_with(key="past_depends_met", value=True)
 
 
 class TestDependsOnPreviousTasksValidation:
@@ -562,3 +597,27 @@ class TestDependsOnPreviousTasksValidation:
         assert task.depends_on_previous_tasks == ["A", "B"]
         assert task.depends_on_past is False
         assert task.wait_for_downstream is False
+
+    def test_invalid_task_ids_caught_at_parse_time(self):
+        """depends_on_previous_tasks referencing non-existent task IDs should fail validation."""
+        dag = DAG("test_dag", schedule=timedelta(days=1), start_date=datetime(2016, 1, 1))
+        BaseOperator(task_id="A", dag=dag)
+        BaseOperator(
+            task_id="B",
+            dag=dag,
+            depends_on_previous_tasks=["A", "nonexistent"],
+        )
+        with pytest.raises(ValueError, match="not found in DAG"):
+            dag.validate()
+
+    def test_valid_task_ids_pass_validation(self):
+        """depends_on_previous_tasks with valid task IDs should pass validation."""
+        dag = DAG("test_dag", schedule=timedelta(days=1), start_date=datetime(2016, 1, 1))
+        BaseOperator(task_id="A", dag=dag)
+        BaseOperator(task_id="B", dag=dag)
+        BaseOperator(
+            task_id="C",
+            dag=dag,
+            depends_on_previous_tasks=["A", "B"],
+        )
+        dag.validate()  # Should not raise

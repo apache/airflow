@@ -457,11 +457,11 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["depends_on_past"] = value
 
     @property
-    def depends_on_previous_tasks(self) -> Collection[str] | None:
+    def depends_on_previous_tasks(self) -> Sequence[str] | None:
         return self.partial_kwargs.get("depends_on_previous_tasks")
 
     @depends_on_previous_tasks.setter
-    def depends_on_previous_tasks(self, value: Collection[str] | None) -> None:
+    def depends_on_previous_tasks(self, value: Sequence[str] | None) -> None:
         self.partial_kwargs["depends_on_previous_tasks"] = value
 
     @property
