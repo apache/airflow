@@ -1076,12 +1076,39 @@ class DagFileProcessorManager(LoggingMixin):
             del self._file_stats[file]
 
     def _deregister_processor_sockets(self, processor: DagFileProcessorProcess) -> None:
-        """Unregister and close all sockets for a killed processor before closing its log handle."""
+        """
+        Drain buffered log data from all sockets of a killed processor, then close them.
+
+        After SIGKILL the OS closes the subprocess write ends; kernel buffers may still hold
+        unread data. Reading and processing that data here prevents log lines from being lost.
+        """
         for sock in list(processor._open_sockets.keys()):
-            with contextlib.suppress(KeyError):
-                self.selector.unregister(sock)
-            with contextlib.suppress(OSError, ValueError):
-                sock.close()
+            try:
+                key = self.selector.get_key(sock)
+            except KeyError:
+                pass
+            else:
+                try:
+                    socket_handler, on_close_callback = key.data
+                    sock.setblocking(False)
+                    while True:
+                        try:
+                            if not socket_handler(sock):
+                                break
+                        except (BlockingIOError, InterruptedError, OSError):
+                            break
+                    if on_close_callback is not None:
+                        on_close_callback(sock)
+                    else:
+                        with contextlib.suppress(KeyError):
+                            self.selector.unregister(sock)
+                except Exception:
+                    self.log.exception("Failed to drain log buffer for killed processor socket.")
+                    with contextlib.suppress(KeyError):
+                        self.selector.unregister(sock)
+            finally:
+                with contextlib.suppress(OSError, ValueError):
+                    sock.close()
         processor._open_sockets.clear()
 
     def terminate_orphan_processes(self, present: set[DagFileInfo]):

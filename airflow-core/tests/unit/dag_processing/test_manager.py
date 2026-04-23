@@ -1086,6 +1086,122 @@ class TestDagFileProcessorManager:
         _, kwargs = mock_start.call_args
         assert kwargs["subprocess_logs_to_stdout"] is expected_subprocess_logs_to_stdout
 
+    def test_terminate_orphan_processes_deregisters_sockets_before_closing_log_handle(self):
+        """Sockets must be removed from the selector BEFORE the log handle is closed.
+
+        This is the exact ordering that caused the original crash: stale socket events
+        were delivered after logger_filehandle.close(), causing ValueError in structlog.
+        See: https://github.com/apache/airflow/issues/64959
+        """
+        manager = DagFileProcessorManager(max_runs=1)
+        processor, _ = self.mock_processor()
+
+        sock = mock.Mock(spec=socket)
+        processor._open_sockets[sock] = "log"
+
+        file_info = DagFileInfo(
+            bundle_name="testing", rel_path=Path("removed.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        manager._processors = {file_info: processor}
+        manager.selector = MagicMock()
+        key, _, _ = self._make_selector_key()
+        manager.selector.get_key.return_value = key
+
+        call_order: list[str] = []
+        original_deregister = manager._deregister_processor_sockets
+
+        def tracking_deregister(proc):
+            call_order.append("deregister")
+            original_deregister(proc)
+
+        processor.logger_filehandle.close.side_effect = lambda: call_order.append("close_log")
+
+        with mock.patch.object(type(processor), "kill"):
+            with mock.patch.object(manager, "_deregister_processor_sockets", side_effect=tracking_deregister):
+                manager.terminate_orphan_processes(present=set())
+
+        assert call_order == ["deregister", "close_log"], (
+            "Sockets must be deregistered before the log handle is closed to avoid "
+            "stale selector events writing to a closed BytesLogger"
+        )
+
+    def test_kill_timed_out_processors_deregisters_sockets_before_closing_log_handle(self):
+        """Sockets must be removed from the selector BEFORE the log handle is closed.
+
+        Same ordering requirement as terminate_orphan_processes.
+        See: https://github.com/apache/airflow/issues/64959
+        """
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
+        start_time = time.monotonic() - manager.processor_timeout - 1
+        processor, _ = self.mock_processor(start_time=start_time)
+
+        sock = mock.Mock(spec=socket)
+        processor._open_sockets[sock] = "log"
+
+        file_info = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
+        manager._processors = {file_info: processor}
+        manager.selector = MagicMock()
+        key, _, _ = self._make_selector_key()
+        manager.selector.get_key.return_value = key
+
+        call_order: list[str] = []
+        original_deregister = manager._deregister_processor_sockets
+
+        def tracking_deregister(proc):
+            call_order.append("deregister")
+            original_deregister(proc)
+
+        processor.logger_filehandle.close.side_effect = lambda: call_order.append("close_log")
+
+        with mock.patch.object(type(processor), "kill"):
+            with mock.patch.object(manager, "_deregister_processor_sockets", side_effect=tracking_deregister):
+                manager._kill_timed_out_processors()
+
+        assert call_order == ["deregister", "close_log"], (
+            "Sockets must be deregistered before the log handle is closed to avoid "
+            "stale selector events writing to a closed BytesLogger"
+        )
+
+    def test_stale_socket_after_kill_does_not_deliver_to_closed_log_handle(self):
+        """After a processor is killed, its sockets must not remain in the shared selector.
+
+        Regression test for https://github.com/apache/airflow/issues/64959:
+        stale socket events from a killed processor were being delivered to a closed
+        BytesLogger, raising ValueError and crashing the entire DagProcessorJob.
+        """
+        import selectors
+
+        manager = DagFileProcessorManager(max_runs=1)
+        processor, _ = self.mock_processor()
+
+        # Use a real socketpair so the selector can register them (needs a real fd)
+        sock, peer = socketpair()
+        real_selector = selectors.DefaultSelector()
+        try:
+            processor._open_sockets[sock] = "log"
+
+            file_info = DagFileInfo(
+                bundle_name="testing", rel_path=Path("removed.py"), bundle_path=TEST_DAGS_FOLDER
+            )
+            manager._processors = {file_info: processor}
+            manager.selector = real_selector
+
+            handler = mock.Mock(return_value=False)
+
+            def on_close(s):
+                real_selector.unregister(s)
+
+            real_selector.register(sock, selectors.EVENT_READ, (handler, on_close))
+
+            with mock.patch.object(type(processor), "kill"):
+                manager.terminate_orphan_processes(present=set())
+
+            with pytest.raises((KeyError, ValueError)):
+                real_selector.get_key(sock)
+        finally:
+            real_selector.close()
+            peer.close()
+
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
         # Set start_time to ensure timeout occurs: start_time = current_time - (timeout + 1) = always (timeout + 1) seconds
@@ -1119,6 +1235,17 @@ class TestDagFileProcessorManager:
             manager._kill_timed_out_processors()
         mock_kill.assert_not_called()
 
+    def _make_selector_key(self, handler_side_effect=None):
+        """Return a (key, handler, on_close) triple whose key.data is (handler, on_close)."""
+        if handler_side_effect is not None:
+            handler = mock.Mock(side_effect=handler_side_effect)
+        else:
+            handler = mock.Mock(return_value=False)
+        on_close = mock.Mock()
+        key = mock.Mock()
+        key.data = (handler, on_close)
+        return key, handler, on_close
+
     def test_terminate_orphan_processes_deregisters_sockets(self):
         manager = DagFileProcessorManager(max_runs=1)
         processor, _ = self.mock_processor()
@@ -1132,12 +1259,13 @@ class TestDagFileProcessorManager:
         )
         manager._processors = {file_info: processor}
         manager.selector = MagicMock()
+        key, _, _ = self._make_selector_key()
+        manager.selector.get_key.return_value = key
 
         with mock.patch.object(type(processor), "kill"):
             manager.terminate_orphan_processes(present=set())
 
-        manager.selector.unregister.assert_any_call(sock1)
-        manager.selector.unregister.assert_any_call(sock2)
+        manager.selector.unregister.assert_not_called()
         sock1.close.assert_called_once()
         sock2.close.assert_called_once()
         assert not processor._open_sockets
@@ -1151,35 +1279,38 @@ class TestDagFileProcessorManager:
         sock = mock.Mock(spec=socket)
         processor._open_sockets[sock] = "log"
 
-        file_info = DagFileInfo(
-            bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER
-        )
+        file_info = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
         manager._processors = {file_info: processor}
         manager.selector = MagicMock()
+        key, _, _ = self._make_selector_key()
+        manager.selector.get_key.return_value = key
 
         with mock.patch.object(type(processor), "kill"):
             manager._kill_timed_out_processors()
 
-        manager.selector.unregister.assert_called_once_with(sock)
+        manager.selector.unregister.assert_not_called()
         sock.close.assert_called_once()
         assert not processor._open_sockets
         processor.logger_filehandle.close.assert_called_once()
 
     def test_deregister_processor_sockets_suppresses_already_unregistered(self):
+        """Socket not in selector (get_key raises KeyError) must not crash; socket is still closed."""
         manager = DagFileProcessorManager(max_runs=1)
         processor, _ = self.mock_processor()
 
         sock = mock.Mock(spec=socket)
         processor._open_sockets[sock] = "log"
         manager.selector = MagicMock()
-        manager.selector.unregister.side_effect = KeyError
+        manager.selector.get_key.side_effect = KeyError
 
         manager._deregister_processor_sockets(processor)
 
+        manager.selector.unregister.assert_not_called()
         sock.close.assert_called_once()
         assert not processor._open_sockets
 
     def test_deregister_processor_sockets_suppresses_close_error(self):
+        """OSError from sock.close() must not crash; _open_sockets is still cleared."""
         manager = DagFileProcessorManager(max_runs=1)
         processor, _ = self.mock_processor()
 
@@ -1187,9 +1318,145 @@ class TestDagFileProcessorManager:
         sock.close.side_effect = OSError("fd already closed")
         processor._open_sockets[sock] = "log"
         manager.selector = MagicMock()
+        key, _, on_close = self._make_selector_key()
+        manager.selector.get_key.return_value = key
 
         manager._deregister_processor_sockets(processor)
 
+        on_close.assert_called_once_with(sock)
+        assert not processor._open_sockets
+
+    def test_deregister_processor_sockets_drains_all_data_before_closing(self):
+        """Handler is called repeatedly until EOF (returns False) before socket is closed."""
+        manager = DagFileProcessorManager(max_runs=1)
+        processor, _ = self.mock_processor()
+
+        sock = mock.Mock(spec=socket)
+        processor._open_sockets[sock] = "log"
+        manager.selector = MagicMock()
+        key, handler, on_close = self._make_selector_key(handler_side_effect=[True, True, False])
+        manager.selector.get_key.return_value = key
+
+        manager._deregister_processor_sockets(processor)
+
+        assert handler.call_count == 3
+        on_close.assert_called_once_with(sock)
+        manager.selector.unregister.assert_not_called()
+        sock.close.assert_called_once()
+        assert not processor._open_sockets
+
+    def test_deregister_processor_sockets_stops_drain_on_blocking_io_error(self):
+        """BlockingIOError (no data left on non-blocking socket) ends drain; on_close and cleanup still run."""
+        manager = DagFileProcessorManager(max_runs=1)
+        processor, _ = self.mock_processor()
+
+        sock = mock.Mock(spec=socket)
+        processor._open_sockets[sock] = "log"
+        manager.selector = MagicMock()
+        key, handler, on_close = self._make_selector_key(
+            handler_side_effect=[True, BlockingIOError("no data")]
+        )
+        manager.selector.get_key.return_value = key
+
+        manager._deregister_processor_sockets(processor)
+
+        assert handler.call_count == 2
+        on_close.assert_called_once_with(sock)
+        manager.selector.unregister.assert_not_called()
+        sock.close.assert_called_once()
+        assert not processor._open_sockets
+
+    def test_deregister_processor_sockets_stops_drain_on_oserror(self):
+        """OSError during drain (e.g. broken pipe after SIGKILL) ends drain; on_close and cleanup still run."""
+        manager = DagFileProcessorManager(max_runs=1)
+        processor, _ = self.mock_processor()
+
+        sock = mock.Mock(spec=socket)
+        processor._open_sockets[sock] = "log"
+        manager.selector = MagicMock()
+        key, handler, on_close = self._make_selector_key(handler_side_effect=OSError("connection reset"))
+        manager.selector.get_key.return_value = key
+
+        manager._deregister_processor_sockets(processor)
+
+        handler.assert_called_once_with(sock)
+        on_close.assert_called_once_with(sock)
+        manager.selector.unregister.assert_not_called()
+        sock.close.assert_called_once()
+        assert not processor._open_sockets
+
+    def test_deregister_processor_sockets_sets_socket_nonblocking_before_drain(self):
+        """Socket is switched to non-blocking mode before the drain loop."""
+        manager = DagFileProcessorManager(max_runs=1)
+        processor, _ = self.mock_processor()
+
+        sock = mock.Mock(spec=socket)
+        processor._open_sockets[sock] = "log"
+        manager.selector = MagicMock()
+        call_order = []
+        sock.setblocking.side_effect = lambda _: call_order.append("setblocking")
+        key, handler, on_close = self._make_selector_key()
+        handler.side_effect = lambda _: call_order.append("handler") or False
+        manager.selector.get_key.return_value = key
+
+        manager._deregister_processor_sockets(processor)
+
+        assert call_order == ["setblocking", "handler"]
+        sock.setblocking.assert_called_once_with(False)
+        on_close.assert_called_once_with(sock)
+
+    def test_deregister_processor_sockets_drains_multiple_sockets_independently(self):
+        """A drain failure on one socket does not prevent the other sockets from being drained."""
+        manager = DagFileProcessorManager(max_runs=1)
+        processor, _ = self.mock_processor()
+
+        sock1, sock2 = mock.Mock(spec=socket), mock.Mock(spec=socket)
+        processor._open_sockets[sock1] = "log"
+        processor._open_sockets[sock2] = "log"
+        manager.selector = MagicMock()
+
+        bad_handler = mock.Mock(side_effect=RuntimeError("unexpected"))
+        good_handler = mock.Mock(return_value=False)
+        bad_on_close = mock.Mock()
+        good_on_close = mock.Mock()
+        bad_key = mock.Mock()
+        bad_key.data = (bad_handler, bad_on_close)
+        good_key = mock.Mock()
+        good_key.data = (good_handler, good_on_close)
+        manager.selector.get_key.side_effect = lambda s: bad_key if s is sock1 else good_key
+
+        manager._deregister_processor_sockets(processor)
+
+        sock1.close.assert_called_once()
+        sock2.close.assert_called_once()
+        manager.selector.unregister.assert_called_once_with(sock1)
+        good_handler.assert_called_once_with(sock2)
+        good_on_close.assert_called_once_with(sock2)
+        bad_on_close.assert_not_called()
+        assert not processor._open_sockets
+
+    def test_deregister_processor_sockets_logs_unexpected_exception(self, caplog):
+        """Unexpected exception during drain is logged (not silently swallowed) and socket is still closed."""
+        import logging
+
+        manager = DagFileProcessorManager(max_runs=1)
+        processor, _ = self.mock_processor()
+
+        sock = mock.Mock(spec=socket)
+        processor._open_sockets[sock] = "log"
+        manager.selector = MagicMock()
+        on_close = mock.Mock()
+        key = mock.Mock()
+        key.data = (mock.Mock(side_effect=RuntimeError("unexpected")), on_close)
+        manager.selector.get_key.return_value = key
+
+        with caplog.at_level(logging.ERROR):
+            manager._deregister_processor_sockets(processor)
+
+        assert "Failed to drain log buffer for killed processor socket." in caplog.text
+        on_close.assert_not_called()
+        manager.selector.unregister.assert_called_once_with(sock)
+        sock.close.assert_called_once()
         assert not processor._open_sockets
 
     def test_handle_parsing_result_provides_its_own_session_when_caller_omits(self):
