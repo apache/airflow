@@ -327,7 +327,8 @@ def block_orm_access():
 
         settings.__getattr__ = __getattr__
 
-        settings.block_orm_access()
+        settings.SQL_ALCHEMY_CONN = conn
+        settings.SQL_ALCHEMY_CONN_ASYNC = conn
 
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = conn
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = conn
