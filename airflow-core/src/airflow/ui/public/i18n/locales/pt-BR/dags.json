@@ -26,7 +26,9 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Nenhuma tarefa encontrada.",
-      "title": "Tarefas Afetadas: {{count}}"
+      "title": "Tarefas Afetadas: {{count}}",
+      "title_one": "Tarefa Afetada: {{count}}",
+      "title_other": "Tarefas Afetadas: {{count}}"
     },
     "clear": {
       "button": "Limpar {{type}}",
@@ -97,5 +99,7 @@
     },
     "placeholder": "Ordenar por"
   },
-  "unfavoriteDag": "Remover Dag dos Favoritos"
+  "unfavoriteDag": "Remover Dag dos Favoritos",
+  "assetSchedule_one": "{{count}} de {{total}} ativos atualizados",
+  "assetSchedule_other": "{{count}} de {{total}} ativos atualizados"
 }

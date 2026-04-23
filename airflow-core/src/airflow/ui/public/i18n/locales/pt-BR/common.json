@@ -292,11 +292,31 @@
     "utc": "UTC (Tempo Universal Coordenado)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Limpeza em Massa de {{resourceName}} Falhou",
+      "success": {
+        "description": "{{count}} {{resourceName}} foram limpos com sucesso. Chaves: {{keys}}",
+        "title": "Limpeza em Massa de {{resourceName}} Submetida",
+        "description_one": "{{count}} {{resourceName}} foi limpo com sucesso. Chave: {{keys}}",
+        "description_other": "{{count}} {{resourceName}} foram limpos com sucesso. Chaves: {{keys}}"
+      }
+    },
     "bulkDelete": {
       "error": "Exclusão em Massa de {{resourceName}} Falhou",
       "success": {
         "description": "{{count}} {{resourceName}} foram excluídos com sucesso. Chaves: {{keys}}",
-        "title": "Exclusão em Massa de {{resourceName}} Submetida"
+        "title": "Exclusão em Massa de {{resourceName}} Submetida",
+        "description_one": "{{count}} {{resourceName}} foi excluído com sucesso. Chave: {{keys}}",
+        "description_other": "{{count}} {{resourceName}} foram excluídos com sucesso. Chaves: {{keys}}"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Atualização em Massa de {{resourceName}} Falhou",
+      "success": {
+        "description": "{{count}} {{resourceName}} foram atualizados com sucesso. Chaves: {{keys}}",
+        "title": "Atualização em Massa de {{resourceName}} Submetida",
+        "description_one": "{{count}} {{resourceName}} foi atualizado com sucesso. Chave: {{keys}}",
+        "description_other": "{{count}} {{resourceName}} foram atualizados com sucesso. Chaves: {{keys}}"
       }
     },
     "create": {
@@ -317,7 +337,9 @@
       "error": "Importação de {{resourceName}} Falhou",
       "success": {
         "description": "{{count}} {{resourceName}} foram importados com sucesso.",
-        "title": "Importação de {{resourceName}} Submetida"
+        "title": "Importação de {{resourceName}} Submetida",
+        "description_one": "{{count}} {{resourceName}} foi importado com sucesso.",
+        "description_other": "{{count}} {{resourceName}} foram importados com sucesso."
       }
     },
     "update": {

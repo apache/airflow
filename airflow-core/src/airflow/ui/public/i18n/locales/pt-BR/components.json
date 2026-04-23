@@ -69,7 +69,8 @@
     "runDuration": "Duração da Execução"
   },
   "fileUpload": {
-    "files_other": "{{count}} arquivos"
+    "files_other": "{{count}} arquivos",
+    "files_one": "1 arquivo"
   },
   "flexibleForm": {
     "placeholder": "Selecionar Valor",
@@ -165,5 +166,11 @@
     "allVersions": "Todas as versões",
     "dagVersion": "Versão do Dag",
     "versionCode": "v{{versionCode}}"
-  }
+  },
+  "limitedList_one": "+{{count}} mais",
+  "limitedList_other": "+{{count}} mais",
+  "limitedList.allItems_one": "Todos os {{count}} itens:",
+  "limitedList.allItems_other": "Todos os {{count}} itens:",
+  "limitedList.clickToOpenFull_one": "Clique em \"+{{count}} mais\" para ver a lista completa",
+  "limitedList.clickToOpenFull_other": "Clique em \"+{{count}} mais\" para ver a lista completa"
 }
