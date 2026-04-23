@@ -64,6 +64,7 @@ class TestRedisHook:
 
         hook.get_conn()
 
+        mock_redis.assert_called_once()
         call_kwargs = mock_redis.call_args[1]
         assert call_kwargs["host"] == connection.host
         assert call_kwargs["username"] == connection.login
