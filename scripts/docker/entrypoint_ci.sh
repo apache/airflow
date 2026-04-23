@@ -148,7 +148,7 @@ function environment_initialization() {
         echo "${COLOR_BLUE}Setting up Java SDK${COLOR_RESET}"
         echo
 
-        # Install Java and the Java language provider
+        # Install Java and the Java SDK provider
         bash /opt/airflow/scripts/in_container/java_sdk_setup.sh
 
         # Set JAVA_HOME and PATH before Gradle build so gradlew can find java

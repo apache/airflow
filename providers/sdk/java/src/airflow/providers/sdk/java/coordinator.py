@@ -25,7 +25,7 @@ import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from airflow.providers.languages.java.bundle_scanner import BundleScanner, read_dag_code
+from airflow.providers.sdk.java.bundle_scanner import BundleScanner, read_dag_code
 from airflow.sdk.execution_time.coordinator import BaseRuntimeCoordinator
 
 if TYPE_CHECKING:
