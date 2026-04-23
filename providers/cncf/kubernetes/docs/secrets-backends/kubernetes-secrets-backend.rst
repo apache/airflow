@@ -233,20 +233,11 @@ For example, this configuration keeps the default team label:
 If you use a custom team label instead, configure it in ``backend_kwargs`` and apply the same label
 to your Kubernetes secrets.
 
-When ``team_name`` is not provided, the backend only queries for global secrets by requiring that
-the configured ``team_label`` is absent (``!team_label``). This means secrets that have a team label
-are not eligible in the non-team case, even if their connection or variable identifier matches.
-As a result, team-scoped identifiers cannot be accessed without a team context.
-
 For example, with ``team_label="airflow.apache.org/team"``, ``team_name="team_a"``, and
 ``conn_id="my_db"``, the backend queries:
 
 * Team-scoped: ``airflow.apache.org/connection-id=my_db,airflow.apache.org/team=team_a``
 * Global fallback: ``airflow.apache.org/connection-id=my_db,!airflow.apache.org/team``
-
-If ``team_name`` is unset for the same ``conn_id``, the backend queries only:
-
-* Global only: ``airflow.apache.org/connection-id=my_db,!airflow.apache.org/team``
 
 Example team-scoped connection secret:
 
