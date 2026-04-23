@@ -33,6 +33,7 @@ import { OpenGroupsProvider } from "src/context/openGroups";
 import { useAssetDetailData, useAssetEventsData } from "src/queries/useMockAssetData";
 
 import { AssetGraph } from "./AssetGraph";
+import { AssetInsightsPanel } from "./AssetInsightsPanel";
 import { AssetLineageGraph } from "./AssetLineageGraph";
 import { AssetPanelButtons } from "./AssetPanelButtons";
 import { CreateAssetEvent } from "./CreateAssetEvent";
@@ -181,6 +182,7 @@ export const AssetLayout = () => {
           </PanelResizeHandle>
           <Panel defaultSize={30} minSize={20}>
             <Header asset={asset} />
+            <AssetInsightsPanel asset={asset} />
             {asset?.extra && Object.keys(asset.extra).length > 0 ? (
               <Box mb={3} mt={3} px={3}>
                 <Text fontWeight="bold" mb={2}>

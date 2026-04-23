@@ -18,9 +18,9 @@
  */
 import { useAssetServiceGetAssetLineage } from "openapi/queries";
 
-export const useAssetLineage = (assetId: string | undefined) =>
+export const useAssetLineage = (assetId: string | undefined, options?: { depth?: number }) =>
   useAssetServiceGetAssetLineage(
-    { assetId: assetId === undefined ? 0 : parseInt(assetId, 10) },
+    { assetId: assetId === undefined ? 0 : parseInt(assetId, 10), depth: options?.depth },
     undefined,
     {
       enabled: Boolean(assetId),
