@@ -124,7 +124,7 @@ func NewWorker(conf config.WorkerConfig) (*worker, error) {
 		configOrDefault("edge.airflow_version", "3.2.0"),
 	))
 	edgeVer.FromWorkerStateBodySysinfo0(edgeapi.WorkerStateBodySysinfo0(
-		configOrDefault("edge.provider_version", "3.2.0"),
+		configOrDefault("edge.provider_version", "3.3.0"),
 	))
 	concurrency.FromWorkerStateBodySysinfo1(edgeapi.WorkerStateBodySysinfo1(maxConcurrency))
 	freeConcurrency.FromWorkerStateBodySysinfo1(edgeapi.WorkerStateBodySysinfo1(maxConcurrency))
@@ -452,5 +452,8 @@ func (w *worker) runWorkload(
 
 	bundleClient := raw.(bundlev1client.BundleClient)
 	err = bundleClient.ExecuteTaskWorkload(ctx, workload)
+	if err != nil {
+		w.logger.Error("Workload failed", logging.AttrErr(err))
+	}
 	return err
 }
