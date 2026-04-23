@@ -93,6 +93,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from flask import Flask
+    from starlette.middleware import _MiddlewareFactory
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.cli.cli_config import (
@@ -343,7 +344,7 @@ class FabAuthManager(BaseAuthManager[User]):
             user._perms = {(perm.action.name, perm.resource.name) for perm in role.permissions}
         return user
 
-    def get_fastapi_middlewares(self) -> list[tuple[type, dict[str, Any]]]:
+    def get_fastapi_middlewares(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
         """Register the FAB public-access middleware when public access is configured."""
         if not self._get_auth_role_public():
             return []

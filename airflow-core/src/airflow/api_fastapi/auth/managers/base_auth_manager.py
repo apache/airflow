@@ -57,6 +57,7 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
     from sqlalchemy import Row
     from sqlalchemy.orm import Session
+    from starlette.middleware import _MiddlewareFactory
 
     from airflow.api_fastapi.auth.managers.models.batch_apis import (
         IsAuthorizedConnectionRequest,
@@ -158,7 +159,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             log.error("Couldn't deserialize user from token, JWT token is not valid: %s", e)
             raise InvalidTokenError(str(e))
 
-    def get_fastapi_middlewares(self) -> list[tuple[type, dict[str, Any]]]:
+    def get_fastapi_middlewares(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
         """
         Return middlewares the auth manager wants registered on the main FastAPI app.
 

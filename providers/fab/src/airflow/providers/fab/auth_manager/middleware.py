@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -26,6 +26,8 @@ from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_
 
 if TYPE_CHECKING:
     from fastapi import Request
+
+    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
 
 class FabAuthRolePublicMiddleware(BaseHTTPMiddleware):
@@ -41,7 +43,8 @@ class FabAuthRolePublicMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         if not self._has_auth_token(request):
-            public_user = get_auth_manager().build_public_user()
+            auth_manager = cast("FabAuthManager", get_auth_manager())
+            public_user = auth_manager.build_public_user()
             if public_user is not None:
                 request.state.user = public_user
         return await call_next(request)
