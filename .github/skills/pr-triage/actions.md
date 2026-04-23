@@ -113,11 +113,44 @@ recover from.
 
 ## `mark-ready` — add `ready for maintainer review` label
 
-Single mutation.
+**Mandatory pre-mutation check.** Before adding the label, the
+implementation MUST verify there are no GitHub Actions workflow
+runs awaiting approval for the PR's head SHA. The classifier's
+rollup-state and real-CI-context checks
+(see [`classify.md#verifying-real-ci-ran`](classify.md)) are a
+first line of defense; this REST check is the authoritative
+second line that catches the case where the classifier was
+right at fetch time but a new push or a freshly-indexed run
+appeared since.
+
+Reason: a PR whose real CI is held in `action_required` can have
+`statusCheckRollup.state == SUCCESS` from fast bot checks
+(`Mergeable`, `WIP`, `DCO`, `boring-cyborg`) while `Tests`,
+`CodeQL`, and `Check newsfragment PR number` have not run.
+Labelling such a PR "ready for maintainer review" is premature —
+the maintainer queue fills with PRs whose CI has not actually
+executed.
 
 ```bash
+# Pre-check: index action_required runs repo-wide, then look up head SHA
+head_sha=$(gh api "repos/<owner>/<repo>/pulls/<N>" --jq '.head.sha')
+pending=$(gh api "repos/<owner>/<repo>/actions/runs?head_sha=${head_sha}&status=action_required&per_page=10" \
+  --jq '.workflow_runs | length')
+if [ "$pending" -gt 0 ]; then
+  echo "refuse mark-ready: <N> has ${pending} workflow run(s) awaiting approval at ${head_sha}" >&2
+  # Reclassify: this PR is really pending_workflow_approval, route accordingly.
+  exit 2
+fi
+
+# Guard passed — apply the label.
 gh pr edit <N> --repo <repo> --add-label "ready for maintainer review"
 ```
+
+When the guard refuses, the implementation should **reclassify
+the PR as `pending_workflow_approval`** (see
+[`classify.md#c1-pending_workflow_approval`](classify.md)) and
+route to the workflow-approval flow rather than silently dropping
+the mutation.
 
 No comment is posted — the label is the signal. If the label
 doesn't exist (per `prerequisites.md#3`), stop and surface the

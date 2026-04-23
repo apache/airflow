@@ -80,6 +80,20 @@ the skill *does* take unilaterally: reading PR state via `gh`,
 writing to the session-scoped scratch cache, producing draft
 comment text for the maintainer to review.
 
+**Golden rule 1b — never mark ready for review while workflow
+approval is pending.** Before adding the `ready for maintainer
+review` label, the implementation MUST verify, via
+`GET /repos/.../actions/runs?status=action_required&head_sha=<SHA>`,
+that zero workflow runs are awaiting approval. If any are, the
+PR is really `pending_workflow_approval` and the `mark-ready`
+action must refuse — even if `statusCheckRollup.state` reports
+`SUCCESS`. The rollup can and does report SUCCESS from fast
+bot checks (`Mergeable`, `WIP`, `DCO`, `boring-cyborg`) while
+`Tests`, `CodeQL`, and newsfragment-check sit in
+`action_required`; trusting the rollup there fills the
+maintainer-review queue with PRs whose real CI never ran.
+Implementation recipe: [`actions.md#mark-ready`](actions.md).
+
 **Golden rule 2 — propose in groups, fall back to per-PR.** The
 typical triage pass finds many PRs that need the same action
 (e.g. five PRs all flagged to *rebase*, eight PRs all passing
