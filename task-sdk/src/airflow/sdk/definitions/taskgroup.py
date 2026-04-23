@@ -141,6 +141,10 @@ class TaskGroup(DAGNode):
         if not dag:
             raise RuntimeError("TaskGroup can only be used inside a dag")
 
+    def __getitem__(self, key: str) -> DAGNode:
+        """Return a child node by label via ``tg[label]`` syntax. See `get_child_by_label`."""
+        return self.get_child_by_label(key)
+
     def __attrs_post_init__(self):
         # TODO: If attrs supported init only args we could use that here
         # https://github.com/python-attrs/attrs/issues/342
