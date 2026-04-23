@@ -23,15 +23,15 @@
 
 def get_provider_info():
     return {
-        "package-name": "apache-airflow-providers-languages-java",
-        "name": "Languages: Java",
-        "description": "Java language support for Apache Airflow runtime coordinators.\n",
+        "package-name": "apache-airflow-providers-sdk-java",
+        "name": "SDK: Java",
+        "description": "Java SDK support for Apache Airflow runtime coordinators.\n",
         "integrations": [
             {"integration-name": "Java", "external-doc-url": "https://openjdk.org/", "tags": ["software"]}
         ],
         "config": {
             "java": {
-                "description": "Options for the Java language provider.",
+                "description": "Options for the Java SDK provider.",
                 "options": {
                     "bundles_folder": {
                         "description": "Path to the directory containing Java DAG bundle JARs.\nWhen using Python stub DAGs that delegate task execution to Java,\nthe coordinator scans this directory to find the JAR bundle matching\nthe target dag_id. Each immediate subdirectory is treated as a\nseparate bundle home, and the directory itself is also checked\n(flat layout).\n",
@@ -43,5 +43,5 @@ def get_provider_info():
                 },
             }
         },
-        "runtime-coordinators": ["airflow.providers.languages.java.coordinator.JavaRuntimeCoordinator"],
+        "runtime-coordinators": ["airflow.providers.sdk.java.coordinator.JavaRuntimeCoordinator"],
     }

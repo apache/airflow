@@ -80,8 +80,8 @@ apache-airflow-providers-salesforce = false
 apache-airflow-providers-ssh = false
 apache-airflow-providers-papermill = false
 apache-airflow-providers-google = false
-apache-airflow-providers-microsoft-psrp = false
 apache-airflow-providers-vertica = false
+apache-airflow-providers-microsoft-psrp = false
 apache-airflow-providers-apache-hdfs = false
 apache-airflow-shared-template-rendering = false
 apache-airflow-mypy = false
@@ -152,6 +152,7 @@ apache-airflow-providers-smtp = false
 apache-airflow-providers-dingding = false
 apache-airflow-providers-apache-kylin = false
 apache-airflow-providers-cloudant = false
+apache-airflow-providers-sdk-java = false
 apache-aurflow-docker-stack = false
 
 [manifest]
@@ -249,6 +250,7 @@ members = [
     "apache-airflow-providers-redis",
     "apache-airflow-providers-salesforce",
     "apache-airflow-providers-samba",
+    "apache-airflow-providers-sdk-java",
     "apache-airflow-providers-segment",
     "apache-airflow-providers-sendgrid",
     "apache-airflow-providers-sftp",
@@ -1064,6 +1066,7 @@ all = [
     { name = "apache-airflow-providers-redis" },
     { name = "apache-airflow-providers-salesforce" },
     { name = "apache-airflow-providers-samba" },
+    { name = "apache-airflow-providers-sdk-java" },
     { name = "apache-airflow-providers-segment" },
     { name = "apache-airflow-providers-sendgrid" },
     { name = "apache-airflow-providers-sftp" },
@@ -1382,6 +1385,9 @@ salesforce = [
 ]
 samba = [
     { name = "apache-airflow-providers-samba" },
+]
+sdk-java = [
+    { name = "apache-airflow-providers-sdk-java" },
 ]
 segment = [
     { name = "apache-airflow-providers-segment" },
@@ -1703,6 +1709,8 @@ requires-dist = [
     { name = "apache-airflow-providers-salesforce", marker = "extra == 'salesforce'", editable = "providers/salesforce" },
     { name = "apache-airflow-providers-samba", marker = "extra == 'all'", editable = "providers/samba" },
     { name = "apache-airflow-providers-samba", marker = "extra == 'samba'", editable = "providers/samba" },
+    { name = "apache-airflow-providers-sdk-java", marker = "extra == 'all'", editable = "providers/sdk/java" },
+    { name = "apache-airflow-providers-sdk-java", marker = "extra == 'sdk-java'", editable = "providers/sdk/java" },
     { name = "apache-airflow-providers-segment", marker = "extra == 'all'", editable = "providers/segment" },
     { name = "apache-airflow-providers-segment", marker = "extra == 'segment'", editable = "providers/segment" },
     { name = "apache-airflow-providers-sendgrid", marker = "extra == 'all'", editable = "providers/sendgrid" },
@@ -7189,6 +7197,46 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-sdk-java"
+version = "0.1.0"
+source = { editable = "providers/sdk/java" }
+dependencies = [
+    { name = "apache-airflow" },
+]
+
+[package.optional-dependencies]
+common-compat = [
+    { name = "apache-airflow-providers-common-compat" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", marker = "extra == 'common-compat'", editable = "providers/common/compat" },
+]
+provides-extras = ["common-compat"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
