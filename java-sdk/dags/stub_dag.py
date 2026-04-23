@@ -27,11 +27,11 @@ def python_task_1(ti):
     ti.xcom_push(value="value-pushed-from-python_task_1", key="return_value")
 
 
-@task.stub(sdk="java")
+@task.stub(queue="java-queue")
 def extract(): ...
 
 
-@task.stub(sdk="java")
+@task.stub(queue="java-queue")
 def transform(): ...
 
 

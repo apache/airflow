@@ -27,11 +27,10 @@ def python_task_1(ti):
     ti.xcom_push(value="value-pushed-from-python_task_1", key="return_value")
 
 
-@task.stub(sdk="java")
+@task.stub(queue="java-queue")
 def extract(): ...
 
 
-# If the worker set [workers/queue_to_runtime_mapping] to map "java-queue" to "java" runtime, then the task with queue="java-queue" will be executed in Java runtime.
 @task.stub(queue="java-queue")
 def transform(): ...
 

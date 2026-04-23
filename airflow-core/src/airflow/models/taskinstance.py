@@ -563,7 +563,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     priority_weight: Mapped[int | None] = mapped_column(Integer, nullable=True)
     operator: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     custom_operator_name: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    sdk: Mapped[str | None] = mapped_column(String(64), nullable=True)
     queued_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     scheduled_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     queued_by_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -751,7 +750,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             "executor_config": task.executor_config,
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "operator_name", None),
-            "sdk": getattr(task, "sdk", None),
             "map_index": map_index,
             "_task_display_property_value": task.task_display_name,
             "dag_version_id": dag_version_id,
@@ -922,7 +920,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         self.executor = task.executor
         self.executor_config = task.executor_config
         self.operator = task.task_type
-        self.sdk = getattr(task, "sdk", None)
         op_name = getattr(task, "operator_name", None)
         self.custom_operator_name = op_name if isinstance(op_name, str) else ""
         # Re-apply cluster policy here so that task default do not overload previous data
