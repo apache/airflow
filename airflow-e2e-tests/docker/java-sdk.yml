@@ -56,7 +56,7 @@ services:
   # Since this is a new service (not an override of the base docker-compose),
   # it needs the full service definition including the common Airflow config
   # that the base compose provides via x-airflow-common.
-  # AIRFLOW__WORKERS__QUEUE_TO_RUNTIME_MAPPING is picked up from the .env file
+  # AIRFLOW__SDK__QUEUE_TO_SDK is picked up from the .env file
   # via env_file (set by conftest.py).
   airflow-java-worker:
     image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:|version|}
