@@ -177,18 +177,24 @@ class TestGCSHook:
         ):
             self.gcs_hook = gcs.GCSHook(gcp_conn_id="test")
 
+    @mock.patch(BASE_STRING.format("GoogleBaseHook.get_client_options"))
     @mock.patch(
         BASE_STRING.format("GoogleBaseHook.get_credentials_and_project_id"),
         return_value=("CREDENTIALS", "PROJECT_ID"),
     )
     @mock.patch(GCS_STRING.format("GoogleBaseHook.get_connection"))
     @mock.patch("google.cloud.storage.Client")
-    def test_storage_client_creation(self, mock_client, mock_get_connection, mock_get_creds_and_project_id):
+    def test_storage_client_creation(
+        self, mock_client, mock_get_connection, mock_get_creds_and_project_id, mock_get_client_options
+    ):
         hook = gcs.GCSHook()
         result = hook.get_conn()
         # test that Storage Client is called with required arguments
         mock_client.assert_called_once_with(
-            client_info=CLIENT_INFO, credentials="CREDENTIALS", project="PROJECT_ID"
+            client_info=CLIENT_INFO,
+            credentials="CREDENTIALS",
+            project="PROJECT_ID",
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_client.return_value == result
 
