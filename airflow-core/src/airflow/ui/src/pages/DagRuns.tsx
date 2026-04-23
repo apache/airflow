@@ -252,50 +252,50 @@ export const DagRuns = () => {
       }),
     queryKey: ["dags", dagTag],
   });
-  
+
   // ... (Keep your existing search param extractions here)
   const filteredDagIds = React.useMemo(() => {
     if (!dagsData?.dags) {
       return [];
     }
-  
+
     return dagsData.dags.map((dag: { dag_id: string }) => dag.dag_id);
   }, [dagsData]);
-  
+
   // 2. Logic to calculate targetDagId
   const targetDagId = React.useMemo(() => {
     if (dagId !== "") {
       return dagId; // Specific DAG page
     }
-  
+
     if (dagTag !== null && dagTag !== "" && filteredDagIds.length === 0) {
       return "~"; // No matches found
     }
-  
+
     // If multiple IDs, use global wildcard "~"
     if (filteredDagIds.length > 1) {
       return "~";
     }
-  
+
     // If exactly one, use it directly
     if (filteredDagIds.length === 1) {
       return filteredDagIds[0];
     }
-  
+
     // No tag filter active
     return "~";
   }, [dagId, dagTag, filteredDagIds]);
-  
+
   // Create the regex pattern
   const multiDagPattern = React.useMemo(() => {
     // Only use pattern if we have multiple IDs and no explicit dagId
     if (dagId === "" && filteredDagIds.length > 1) {
       return filteredDagIds.join("|");
     }
-  
+
     return filteredDagIdPattern ?? undefined;
   }, [filteredDagIds, dagId, filteredDagIdPattern]);
-  
+
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
       bundleVersion: bundleVersion ?? undefined,
@@ -336,7 +336,7 @@ export const DagRuns = () => {
           : false,
     },
   );
-  
+
   const columns = runColumns(translate, dagId);
 
   return (
