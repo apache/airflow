@@ -923,6 +923,29 @@ You can use Breeze to generate an airflow-ctl issue when you release new airflow
   :width: 100%
   :alt: Breeze release-management generate-issue-content-airflow-ctl
 
+Preparing Apache Airflow Mypy distributions
+""""""""""""""""""""""""""""""""""""""""""""
+
+You can prepare Apache Airflow Mypy distributions using Breeze:
+
+.. code-block:: bash
+
+     breeze release-management prepare-mypy-distributions
+
+This prepares Apache Airflow Mypy .whl package in the dist folder.
+
+You can specify the optional ``--distribution-format`` flag to build selected formats of the Mypy distributions.
+The default is ``wheel``.
+
+.. code-block:: bash
+
+     breeze release-management prepare-mypy-distributions --distribution-format=both
+
+.. image:: ./images/output_release-management_prepare-mypy-distributions.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-mypy-distributions.svg
+  :width: 100%
+  :alt: Breeze release-management prepare-mypy-distributions
+
 Publishing the documentation to S3
 """"""""""""""""""""""""""""""""""
 

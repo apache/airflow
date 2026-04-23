@@ -64,7 +64,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
-from airflow.sdk.execution_time import task_runner
+from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
@@ -517,11 +517,21 @@ class TestWatchedSubprocess:
 
         assert rc == -9
 
-    def test_last_chance_exception_handling(self, capfd):
+    @pytest.mark.parametrize(
+        "start_date",
+        [
+            pytest.param(None, id="start_date_is_none"),
+            pytest.param(timezone.datetime(2025, 3, 28, tzinfo=timezone.utc), id="start_date_from_context"),
+        ],
+    )
+    def test_last_chance_exception_handling(self, capfd, start_date, make_ti_context):
         def subprocess_main():
             # The real main() in task_runner catches exceptions! This is what would happen if we had a syntax
             # or import error for instance - a very early exception
             raise RuntimeError("Fake syntax error")
+
+        mock_client = MagicMock(spec=sdk_client.Client)
+        mock_client.task_instances.start.return_value = make_ti_context(start_date=start_date)
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
@@ -529,7 +539,7 @@ class TestWatchedSubprocess:
             what=TaskInstance(
                 id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
             ),
-            client=MagicMock(spec=sdk_client.Client),
+            client=mock_client,
             target=subprocess_main,
         )
 
@@ -540,6 +550,53 @@ class TestWatchedSubprocess:
         captured = capfd.readouterr()
         assert "Last chance exception handler" in captured.err
         assert "RuntimeError: Fake syntax error" in captured.err
+
+    @pytest.mark.parametrize(
+        "start_date",
+        [
+            pytest.param(timezone.datetime(2025, 3, 28, tzinfo=timezone.utc), id="start_date_from_context"),
+            pytest.param(None, id="start_date_missing_in_context"),
+        ],
+    )
+    def test_resume_start_date_from_context(self, mocker, make_ti_context, start_date, time_machine):
+        """Verify that start_date from ti_context (e.g. for deferral resume) is used in the
+        StartupDetails message instead of computing a new datetime.now(). This test is kept
+        separate from test_last_chance_exception_handling as their purposes do not overlap.
+        """
+        fallback_now = timezone.datetime(2026, 1, 1, tzinfo=timezone.utc)
+        time_machine.move_to(fallback_now, tick=False)
+
+        mock_client = MagicMock(spec=sdk_client.Client)
+        ti_context = make_ti_context()
+        ti_context.start_date = start_date
+        mock_client.task_instances.start.return_value = ti_context
+
+        mock_send = mocker.patch.object(ActivitySubprocess, "send_msg", autospec=True)
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+            ),
+            client=mock_client,
+            target=lambda: None,
+        )
+        rc = proc.wait()
+        assert rc == 0
+
+        # The startup message is sent via send_msg(StartupDetails(...), request_id=0)
+        startup_calls = [
+            c for c in mock_send.call_args_list if len(c.args) > 1 and hasattr(c.args[1], "start_date")
+        ]
+        assert len(startup_calls) >= 1
+        msg = startup_calls[0].args[1]
+        expected_start_date = start_date or fallback_now
+        assert msg.start_date == expected_start_date
 
     def test_regular_heartbeat(self, spy_agency: kgb.SpyAgency, monkeypatch, mocker, make_ti_context):
         """Test that the WatchedSubprocess class regularly sends heartbeat requests, up to a certain frequency"""
@@ -3360,3 +3417,64 @@ def test_api_client_clears_dag_bag_override_when_dag_is_none():
         assert dag_bag_from_app not in api.app.dependency_overrides
     finally:
         in_process_api_server.cache_clear()
+
+
+@pytest.mark.usefixtures("disable_capturing")
+class TestChildExecMain:
+    """Test the macOS fork+exec child entry point."""
+
+    def test_uses_fds_012_and_requests_log_channel(self, monkeypatch):
+        """_child_exec_main wraps FDs 0/1/2 as sockets, passes log_fd=0, sets _AIRFLOW_FORK_EXEC."""
+        # _child_exec_main expects FDs 0/1/2 to be sockets (dup2'd by the
+        # parent before exec).  It passes log_fd=0 to _fork_main (structured
+        # logging is requested later via ResendLoggingFD).
+        req_a, req_b = socket.socketpair()
+        out_a, out_b = socket.socketpair()
+        err_a, err_b = socket.socketpair()
+
+        # Save originals so we can restore after the test.
+        saved_0 = os.dup(0)
+        saved_1 = os.dup(1)
+        saved_2 = os.dup(2)
+
+        try:
+            os.dup2(req_a.fileno(), 0)
+            os.dup2(out_a.fileno(), 1)
+            os.dup2(err_a.fileno(), 2)
+
+            captured = {}
+
+            def mock_fork_main(requests, stdout, stderr, log_fd, target):
+                captured["requests_fd"] = requests.fileno()
+                captured["stdout_fd"] = stdout.fileno()
+                captured["stderr_fd"] = stderr.fileno()
+                captured["log_fd"] = log_fd
+                captured["target"] = target
+                # Detach so the mock return doesn't double-close FDs that
+                # _child_exec_main's socket objects also own.
+                requests.detach()
+                stdout.detach()
+                stderr.detach()
+
+            monkeypatch.setattr(supervisor, "_fork_main", mock_fork_main)
+
+            supervisor._child_exec_main()
+
+            assert captured["requests_fd"] == 0
+            assert captured["stdout_fd"] == 1
+            assert captured["stderr_fd"] == 2
+            assert captured["log_fd"] == 0
+            assert captured["target"] is supervisor._subprocess_main
+            # _child_exec_main sets this so the task runner knows to request
+            # the log channel via ResendLoggingFD.
+            assert os.environ.pop("_AIRFLOW_FORK_EXEC") == "1"
+        finally:
+            # Restore original FDs.
+            os.dup2(saved_0, 0)
+            os.dup2(saved_1, 1)
+            os.dup2(saved_2, 2)
+            os.close(saved_0)
+            os.close(saved_1)
+            os.close(saved_2)
+            for s in [req_a, req_b, out_a, out_b, err_a, err_b]:
+                s.close()

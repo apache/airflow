@@ -35,7 +35,7 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.15.10",
+    "ruff==0.15.11",
     "semver>=3.0.2",
     "typer-slim>=0.15.1",
     "time-machine[dateutil]>=3.0.0",
@@ -111,7 +111,8 @@ dependencies = [
 "mypy" = [
     # Mypy dependencies
     # TODO: upgrade to newer versions of MyPy continuously as they are released
-    "mypy==1.20.0",
+    "apache-airflow-mypy",
+    "mypy==1.20.1",
     "types-Deprecated>=1.2.9.20240311",
     "types-Markdown>=3.6.0.20240316",
     "types-PyMySQL>=1.1.0.20240425",
@@ -171,6 +172,10 @@ docs = [
 docs-gen = [
     "apache-airflow-devel-common[docs-gen]",
 ]
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]
+
 
 [project.scripts]
 build-docs = "docs.build_docs:build_docs"

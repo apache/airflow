@@ -26,6 +26,22 @@
 Changelog
 ---------
 
+2.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add rendered map_index template to OpenLineage events (#65529)``
+
+Bug Fixes
+~~~~~~~~~
+* ``Fix DetachedInstanceError in OpenLineage listener by using safe_getattr (#65579)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.14.0
 ......
 

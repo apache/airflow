@@ -145,9 +145,11 @@ class DeadlineAlert:
         reference: DeadlineReferenceType,
         interval: timedelta,
         callback: Callback,
+        name: str | None = None,
     ):
         self.reference = reference
         self.interval = interval
+        self.name = name
 
         if not isinstance(callback, (AsyncCallback, SyncCallback)):
             raise ValueError(f"Callbacks of type {type(callback).__name__} are not currently supported")

@@ -164,6 +164,9 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_DIST_PATH,
     AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH,
     AIRFLOW_ROOT_PATH,
+    MYPY_DIST_PATH,
+    MYPY_ROOT_PATH,
+    MYPY_SOURCES_PATH,
     OUT_PATH,
     PROVIDER_METADATA_JSON_PATH,
     TASK_SDK_DIST_PATH,
@@ -260,11 +263,11 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "26.0.1"
-AIRFLOW_UV_VERSION = "0.11.6"
+AIRFLOW_UV_VERSION = "0.11.7"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.46"
-RICH_VERSION = "14.3.4"
-PREK_VERSION = "0.3.8"
+RICH_VERSION = "15.0.0"
+PREK_VERSION = "0.3.9"
 HATCH_VERSION = "1.16.5"
 PYYAML_VERSION = "6.0.3"
 
@@ -296,6 +299,7 @@ class DistributionBuildType(Enum):
     PROVIDERS = "providers"
     TASK_SDK = "task-sdk"
     AIRFLOW_CTL = "airflow-ctl"
+    MYPY = "mypy"
 
 
 class DistributionPackageInfo(NamedTuple):
@@ -336,6 +340,8 @@ class DistributionPackageInfo(NamedTuple):
             default_glob_patterns = ["apache_airflow_task_sdk"]
         elif build_type == DistributionBuildType.AIRFLOW_CTL:
             default_glob_patterns = ["apache_airflow_ctl"]
+        elif build_type == DistributionBuildType.MYPY:
+            default_glob_patterns = ["apache_airflow_mypy"]
         else:
             default_glob_patterns = ["apache_airflow_providers"]
         dists_info = []
@@ -630,6 +636,7 @@ def _prepare_non_core_distributions(
             command += "-t sdist "
         if build_distribution_format == "wheel" or build_distribution_format == "both":
             command += "-t wheel "
+        docker_workdir = f"/opt/airflow/{root_path.relative_to(AIRFLOW_ROOT_PATH).as_posix()}"
         container_id = f"airflow-{distribution_name}-build-{random.getrandbits(64):08x}"
         result = run_command(
             cmd=[
@@ -645,7 +652,7 @@ def _prepare_non_core_distributions(
                 "-e",
                 "GITHUB_ACTIONS",
                 "-w",
-                f"/opt/airflow/{distribution_name}",
+                docker_workdir,
                 AIRFLOW_BUILD_IMAGE_TAG,
                 "bash",
                 "-c",
@@ -660,9 +667,7 @@ def _prepare_non_core_distributions(
         AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
         console_print()
         # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
-        run_command(
-            ["docker", "cp", f"{container_id}:/opt/airflow/{distribution_name}/dist/.", "./dist"], check=True
-        )
+        run_command(["docker", "cp", f"{container_id}:{docker_workdir}/dist/.", "./dist"], check=True)
         run_command(["docker", "rm", "--force", container_id], check=False, stdout=DEVNULL, stderr=DEVNULL)
 
     if use_local_hatch:
@@ -756,6 +761,35 @@ def prepare_airflow_ctl_distributions(
         distribution_name="airflow-ctl",
         distribution_pretty_name="",
         full_distribution_pretty_name="airflowctl",
+    )
+
+
+@release_management_group.command(
+    name="prepare-mypy-distributions",
+    help="Prepare sdist/whl distributions of Apache Airflow Mypy.",
+)
+@option_distribution_format
+@option_version_suffix
+@option_use_local_hatch
+@option_verbose
+@option_dry_run
+def prepare_mypy_distributions(
+    distribution_format: str,
+    version_suffix: str,
+    use_local_hatch: bool,
+):
+    _prepare_non_core_distributions(
+        # Argument parameters
+        distribution_format=distribution_format,
+        version_suffix=version_suffix,
+        use_local_hatch=use_local_hatch,
+        # Distribution specific parameters
+        root_path=MYPY_ROOT_PATH,
+        init_file_path=MYPY_SOURCES_PATH / "airflow_mypy" / "__init__.py",
+        distribution_path=MYPY_DIST_PATH,
+        distribution_name="mypy",
+        distribution_pretty_name="Mypy",
+        full_distribution_pretty_name="Apache Airflow Mypy",
     )
 
 
@@ -3026,18 +3060,29 @@ def _build_changelog_content(
     improvements: list[str] = []
     misc: list[str] = []
 
+    # Strip leaked branch prefixes like "[main]" or "[v3-2-test]" from PR
+    # titles before both categorisation and output — these are maintenance
+    # artefacts that should not be user-visible in release notes.
+    branch_prefix = re.compile(r"^\s*\[(?:main|v\d+(?:-\d+)*-test)\]\s*", re.IGNORECASE)
+
     for pr_number in prs:
         if pr_number not in pr_titles:
             continue
-        title = pr_titles[pr_number]
+        title = branch_prefix.sub("", pr_titles[pr_number]).strip()
         entry = f"{title} (#{pr_number})"
         lower = title.lower()
-        if lower.startswith(("feat", "add", "allow")):
-            significant.append(entry)
-        elif lower.startswith("fix"):
-            bug_fixes.append(entry)
-        elif lower.startswith(("ci:", "build", "upgrade")):
+        if lower.startswith(("ci:", "ci ", "build", "upgrade", "bump")) or "cooldown" in lower:
+            # CI / build / dependency-bump items land in Miscellaneous. Check
+            # before the "add"/"feat"/"allow" branch below, because titles like
+            # "Add 4-day cooldown for uv dependency resolution" are CI and
+            # should not sneak into Significant Changes.
             misc.append(entry)
+        elif lower.startswith(("feat", "add", "allow")):
+            significant.append(entry)
+        elif lower.startswith("fix") or lower.startswith(("prevent ", "security:")):
+            # Security fixes (e.g. "Prevent path traversal …") are bug fixes,
+            # not improvements.
+            bug_fixes.append(entry)
         else:
             improvements.append(entry)
 
@@ -4323,6 +4368,7 @@ def generate_issue_content(
         excluded_prs = []
     prs = [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
 
+    github_token = _get_github_token(github_token)
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
     pull_requests: dict[int, PullRequestOrIssue] = {}
