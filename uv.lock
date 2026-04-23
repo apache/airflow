@@ -16,7 +16,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-20T06:51:39.112629839Z"
+exclude-newer = "2026-04-20T09:19:43.903741Z"
 exclude-newer-span = "P4D"
 
 [options.exclude-newer-package]
@@ -166,6 +166,7 @@ members = [
     "apache-airflow-mypy",
     "apache-airflow-providers",
     "apache-airflow-providers-airbyte",
+    "apache-airflow-providers-akeyless",
     "apache-airflow-providers-alibaba",
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-apache-cassandra",
@@ -678,6 +679,35 @@ wheels = [
 ]
 
 [[package]]
+name = "akeyless"
+version = "5.0.24"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "certifi" },
+    { name = "psutil" },
+    { name = "python-dateutil" },
+    { name = "six" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/41/f2/2383bbf795b92f1eceffaa3ba0aca9c13e8894d2e31970cbec2f9344f93d/akeyless-5.0.24.tar.gz", hash = "sha256:2a9514b52a8f1adaa73f5a3350a81e64821f4e76c6ff0bea47ff7de68655fb00", size = 1575094, upload-time = "2026-04-19T13:56:21.376Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8f/04/942a4fc85fc419d1da426b2bc480af7296337f9a64c24f9aeda1a33d6348/akeyless-5.0.24-py3-none-any.whl", hash = "sha256:54c3a524d8de12b7dd8df291b71aab774d4ad49f9bf89d8d3dd38feaba224975", size = 2967250, upload-time = "2026-04-19T13:56:19.116Z" },
+]
+
+[[package]]
+name = "akeyless-cloud-id"
+version = "0.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/03/f1/617bd6d68a9790e28951844ac72cf608b986d726af0c18ec9d34beb22f15/akeyless_cloud_id-0.3.1.tar.gz", hash = "sha256:6844136fe473afbedc9ca3db28da5c0b01d8dcab22f6b9dd43fe042a27dbf299", size = 8294, upload-time = "2026-02-16T09:42:51.901Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/78/46/319872e34b08fa5cd6c53f0236ee0dd939cd99b966e6c55227cac337ebcd/akeyless_cloud_id-0.3.1-py3-none-any.whl", hash = "sha256:39c01ff73546c9d6a7d5d7bd0e24f8b8db22788b386771ecc93ce9dd5aeabf3d", size = 8608, upload-time = "2026-02-16T09:42:50.764Z" },
+]
+
+[[package]]
 name = "alabaster"
 version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -874,6 +904,9 @@ aiobotocore = [
 airbyte = [
     { name = "apache-airflow-providers-airbyte" },
 ]
+akeyless = [
+    { name = "apache-airflow-providers-akeyless" },
+]
 alibaba = [
     { name = "apache-airflow-providers-alibaba" },
 ]
@@ -881,6 +914,7 @@ all = [
     { name = "amqp" },
     { name = "apache-airflow-core", extra = ["all", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd"] },
     { name = "apache-airflow-providers-airbyte" },
+    { name = "apache-airflow-providers-akeyless" },
     { name = "apache-airflow-providers-alibaba" },
     { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "python3-saml", "s3fs"] },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*'" },
@@ -1402,6 +1436,8 @@ requires-dist = [
     { name = "apache-airflow-core", extras = ["statsd"], marker = "extra == 'statsd'", editable = "airflow-core" },
     { name = "apache-airflow-providers-airbyte", marker = "extra == 'airbyte'", editable = "providers/airbyte" },
     { name = "apache-airflow-providers-airbyte", marker = "extra == 'all'", editable = "providers/airbyte" },
+    { name = "apache-airflow-providers-akeyless", marker = "extra == 'akeyless'", editable = "providers/akeyless" },
+    { name = "apache-airflow-providers-akeyless", marker = "extra == 'all'", editable = "providers/akeyless" },
     { name = "apache-airflow-providers-alibaba", marker = "extra == 'alibaba'", editable = "providers/alibaba" },
     { name = "apache-airflow-providers-alibaba", marker = "extra == 'all'", editable = "providers/alibaba" },
     { name = "apache-airflow-providers-amazon", marker = "extra == 'all'", editable = "providers/amazon" },
@@ -1616,7 +1652,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.11.7" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2692,6 +2728,50 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "requests", specifier = ">=2.32.0" },
 ]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-akeyless"
+version = "1.0.0"
+source = { editable = "providers/akeyless" }
+dependencies = [
+    { name = "akeyless" },
+    { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-compat" },
+]
+
+[package.optional-dependencies]
+cloud-id = [
+    { name = "akeyless-cloud-id" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "akeyless", specifier = ">=5.0.0" },
+    { name = "akeyless-cloud-id", marker = "extra == 'cloud-id'" },
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+]
+provides-extras = ["cloud-id"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -20185,8 +20265,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography", marker = "python_full_version >= '3.14' or platform_machine != 'arm64' or sys_platform != 'darwin'" },
-    { name = "jeepney", marker = "python_full_version >= '3.14' or platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "cryptography", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (python_full_version < '3.14' and sys_platform == 'emscripten') or (python_full_version < '3.14' and sys_platform == 'win32') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "jeepney", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (python_full_version < '3.14' and sys_platform == 'emscripten') or (python_full_version < '3.14' and sys_platform == 'win32') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
