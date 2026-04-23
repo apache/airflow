@@ -210,7 +210,7 @@ export const DagRuns = () => {
       partition_key: false,
     },
   });
-  
+
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-run_after"];
@@ -237,7 +237,7 @@ export const DagRuns = () => {
   const confContains = searchParams.get(CONF_CONTAINS_PARAM);
   const dagTag = searchParams.get(DAG_TAG);
   const partitionKeyPattern = searchParams.get(PARTITION_KEY_PATTERN_PARAM);
-  
+
 
   const refetchInterval = useAutoRefresh({});
 
@@ -265,15 +265,15 @@ export const DagRuns = () => {
     if (dagId) return dagId; // Specific DAG page
 
     if (dagTag && filteredDagIds.length === 0) return "~"; // No matches found
-    
+
     // If multiple IDs, use global wildcard "~"
-    if (filteredDagIds.length > 1) return "~"; 
-    
+    if (filteredDagIds.length > 1) return "~";
+
     // If exactly one, use it directly
     if (filteredDagIds.length === 1) return filteredDagIds[0];
-    
+
     // No tag filter active
-    return "~"; 
+    return "~";
   }, [dagId, dagTag, filteredDagIds]);
 
   // Create the regex pattern
