@@ -268,7 +268,7 @@ export const DagRuns = () => {
   
   // 2. Logic to calculate targetDagId
   const targetDagId = React.useMemo(() => {
-    if (dagId !== null && dagId !== "") {
+    if (dagId !== "") {
       return dagId; // Specific DAG page
     }
   
@@ -293,7 +293,7 @@ export const DagRuns = () => {
   // Create the regex pattern
   const multiDagPattern = React.useMemo(() => {
     // Only use pattern if we have multiple IDs and no explicit dagId
-    if ((dagId === null || dagId === "") && filteredDagIds.length > 1) {
+    if (dagId === "" && filteredDagIds.length > 1) {
       return filteredDagIds.join("|");
     }
   
