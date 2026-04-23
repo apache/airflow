@@ -25,6 +25,8 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from airflow.configuration import conf
+
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.executors.workloads.types import WorkloadState
@@ -78,9 +80,10 @@ class BaseWorkloadSchema(BaseModel):
     def generate_token(sub_id: str, generator: JWTGenerator | None = None) -> str:
         if not generator:
             return ""
+        valid_for = conf.getfloat("scheduler", "task_queued_timeout")
         return generator.generate(
             extras={"sub": sub_id, "scope": "workload"},
-            valid_for=generator.workload_valid_for,
+            valid_for=valid_for,
         )
 
 

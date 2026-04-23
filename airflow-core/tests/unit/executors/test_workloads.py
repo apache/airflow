@@ -24,7 +24,7 @@ import jwt
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.executors import workloads
-from airflow.executors.workloads import TaskInstance, TaskInstanceDTO
+from airflow.executors.workloads import TaskInstance, TaskInstanceDTO, base as workloads_base
 from airflow.executors.workloads.base import BaseWorkloadSchema, BundleInfo
 from airflow.executors.workloads.task import ExecuteTask
 
@@ -66,11 +66,11 @@ def test_token_excluded_from_workload_repr():
     assert workload.token == fake_token
 
 
-def test_generate_token_produces_workload_scope():
-    """generate_token should create a JWT with scope 'workload' and workload_valid_for expiry."""
-    generator = JWTGenerator(
-        secret_key="test-secret", audience="test", valid_for=60, workload_valid_for=86400
-    )
+def test_generate_token_produces_workload_scope(monkeypatch):
+    """generate_token should create a JWT with scope 'workload' and [scheduler] task_queued_timeout expiry."""
+    monkeypatch.setattr(workloads_base.conf, "getfloat", lambda section, key: 86400.0)
+
+    generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
     token = BaseWorkloadSchema.generate_token("ti-123", generator)
 
     claims = jwt.decode(token, "test-secret", algorithms=["HS512"], audience="test")

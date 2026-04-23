@@ -22,8 +22,16 @@ from fastapi.testclient import TestClient
 from starlette.routing import Mount
 
 from airflow.api_fastapi.app import cached_app
+from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
+
+
+@pytest.fixture(autouse=True)
+def _restore_lifespan_registry():
+    snapshot = dict(lifespan.registry._services)
+    yield
+    lifespan.registry._services = snapshot
 
 
 def _get_execution_api_app(root_app: FastAPI) -> FastAPI:

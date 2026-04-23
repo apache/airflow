@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
 import attrs
-import jwt
 import structlog
 from cadwyn import VersionedAPIRouter
 from fastapi import Body, HTTPException, Query, Response, Security, status
@@ -238,17 +237,6 @@ def ti_run(
         last_heartbeat_at=timezone.utcnow(),
     )
 
-    execution_token: str | None = None
-    if token.claims.scope == "workload":
-        try:
-            generator: JWTGenerator = services.get(JWTGenerator)
-            execution_token = generator.generate(extras={"sub": str(task_instance_id), "scope": "execution"})
-        except (jwt.PyJWTError, ValueError, KeyError):
-            log.exception("Failed to generate execution token for task instance %s", task_instance_id)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Token generation failed"
-            )
-
     try:
         result = session.execute(query)
         log.info("Task instance state updated", rows_affected=getattr(result, "rowcount", 0))
@@ -315,7 +303,9 @@ def ti_run(
         )
 
     # JWTReissueMiddleware also writes Refreshed-API-Token but skips workload tokens, so we set it here for the workload→execution swap.
-    if execution_token is not None:
+    if token.claims.scope == "workload":
+        generator: JWTGenerator = services.get(JWTGenerator)
+        execution_token = generator.generate(extras={"sub": str(task_instance_id), "scope": "execution"})
         response.headers["Refreshed-API-Token"] = execution_token
 
     return context
