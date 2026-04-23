@@ -1024,8 +1024,8 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = false
 plugins = [
-    "dev/airflow_mypy/plugin/decorators.py",
-    "dev/airflow_mypy/plugin/outputs.py",
+    "airflow_mypy.plugins.decorators",
+    "airflow_mypy.plugins.outputs",
 ]
 pretty = true
 show_error_codes = true
@@ -1354,7 +1354,7 @@ leveldb = [
 # with AIRFLOW_UV_VERSION would force everyone to upgrade uv on every release. The
 # breeze/prek uv version checks read this value dynamically and tolerate a stale
 # floor; `scripts/ci/prek/upgrade_important_versions.py` deliberately skips it.
-required-version = ">=0.9.17"
+required-version = ">=0.11.7"
 no-build-isolation-package = ["sphinx-redoc"]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
@@ -1372,6 +1372,7 @@ apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
 apache-airflow-helm-tests = false
 apache-airflow-kubernetes-tests = false
+apache-airflow-mypy = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-alibaba = false
@@ -1508,6 +1509,7 @@ apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
 apache-airflow-helm-tests = false
 apache-airflow-kubernetes-tests = false
+apache-airflow-mypy = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-alibaba = false
@@ -1634,6 +1636,7 @@ apache-aurflow-docker-stack = false
 apache-airflow = {workspace = true}
 apache-airflow-breeze = {workspace = true}
 apache-airflow-dev = {workspace = true}
+apache-airflow-mypy = {workspace = true}
 apache-airflow-scripts = {workspace = true}
 apache-airflow-core = {workspace = true}
 apache-airflow-ctl = {workspace = true}
@@ -1768,6 +1771,7 @@ members = [
     "airflow-core",
     "airflow-e2e-tests",
     "dev/breeze",
+    "dev/mypy",
     "dev/registry",
     "airflow-ctl",
     "airflow-ctl-tests",

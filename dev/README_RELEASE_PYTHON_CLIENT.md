@@ -21,6 +21,7 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [Collect ambiguities during the release (for a follow-up doc PR)](#collect-ambiguities-during-the-release-for-a-follow-up-doc-pr)
 - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Release package](#release-package)
   - [Prepare PyPI convenience "RC" packages](#prepare-pypi-convenience-rc-packages)
@@ -37,6 +38,21 @@
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# Collect ambiguities during the release (for a follow-up doc PR)
+
+These instructions are imperfect. Every release uncovers at least one command
+that has drifted, one step that is under-documented, or one automation that
+silently did the wrong thing. As you run through this document, jot down any
+such observations in a scratch file kept **outside** the repo (anywhere that
+is not tracked by git — a note in your home directory, a scratchpad, a
+gist). Once the release has landed, turn those notes into a follow-up PR
+against this document.
+
+Keeping the scratch file out of the repo avoids accidentally committing
+release-manager notes along with the release-prep PR, and makes it obvious
+that the notes are input to the next doc PR rather than something to keep
+around long-term.
 
 # Perform review of security issues that are marked for the release
 
@@ -195,6 +211,39 @@ breeze release-management prepare-tarball --tarball-type apache_airflow_python_c
 - Generate signatures and checksum files for the packages (if you have not generated a key yet, generate
   it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
+- Verify your GPG signing key is ready.
+
+  Before you spend 10+ minutes building artifacts only to discover that signing
+  fails, run these checks once:
+
+  ```shell script
+  # 1. The apache.org key has a secret signing subkey available locally.
+  gpg --list-secret-keys apache.org
+
+  # 2. Signing actually works (exits 0, writes a .asc, verifies cleanly).
+  echo test > /tmp/sign-check && \
+      gpg --yes --armor --local-user apache.org \
+          --output /tmp/sign-check.asc --detach-sig /tmp/sign-check && \
+      gpg --verify /tmp/sign-check.asc /tmp/sign-check && \
+      rm -f /tmp/sign-check /tmp/sign-check.asc && \
+      echo "GPG signing OK"
+
+  # 3. The fingerprint of your signing (sub)key appears in the Airflow KEYS file.
+  #    Without this, PMC verifiers cannot validate the release.
+  FINGERPRINT=$(gpg --list-keys --with-colons apache.org | awk -F: '/^fpr:/ {print $10; exit}')
+  curl -fsS https://dist.apache.org/repos/dist/release/airflow/KEYS | \
+      grep -q "${FINGERPRINT}" && echo "Key ${FINGERPRINT} is in KEYS" || \
+      echo "MISSING: add your key to KEYS before releasing"
+  ```
+
+  If any of these fail, fix them before the build step. For first-time release
+  managers, adding your key to the `KEYS` file is a separate PR against
+  `https://dist.apache.org/repos/dist/release/airflow/` (SVN).
+
+  `sign.sh` defaults to `SIGN_WITH=apache.org`. If your `apache.org` uid resolves
+  to multiple keys (rare), set `SIGN_WITH` explicitly to the fingerprint of the
+  key you want to use.
+
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
 pushd dist
@@ -251,7 +300,30 @@ breeze release-management prepare-python-client --distribution-format both --ver
 twine check dist/*
 ```
 
-- Upload the package to PyPi's production environment:
+- Configure a short-lived PyPI token for this upload only. **Until Trusted
+  Publishing is deployed for apache-airflow-client on PyPI**, the
+  recommended practice is:
+
+  1. Log in to https://pypi.org and create an API token right before the
+     upload step. **Scope caveat:** you would ideally create a
+     project-scoped token for `apache-airflow-client` alone, but PyPI only
+     allows project-scoped tokens for projects you already own/maintain on
+     that account. Most Airflow release managers do not have per-project
+     owner rights on `apache-airflow-client`, so in practice you will need
+     to create an account-wide ("all projects") token. That is acceptable
+     **only if** you treat it as single-use and delete it immediately
+     after the upload (step 4 below). Never keep an all-projects token on
+     disk longer than the upload itself.
+  2. Put it in `~/.pypirc` (or export as `TWINE_USERNAME=__token__`
+     `TWINE_PASSWORD=pypi-...`).
+  3. Run the upload (below).
+  4. **Immediately delete the token** from the PyPI web UI after the upload
+     completes. Do not keep long-lived release-manager tokens on disk.
+
+  This is a defence-in-depth practice: the RM machine becomes a one-time
+  release vehicle, not a persistent point of compromise.
+
+- Upload the package to PyPI's production environment:
 
 ```shell script
 twine upload -r pypi dist/*
@@ -423,6 +495,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 2) Check out the ``python-client`` tag (assume apache is the remote name of the repository):
 
 ```shell
+cd "${AIRFLOW_REPO_ROOT}"
 git fetch apache --tags
 git checkout python-client/${VERSION_RC}
 ```
@@ -496,7 +569,7 @@ tar -xzf /tmp/apache-rat-0.18-bin.tar.gz -C /tmp
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-rm -rf /tmp/apache/airflow-python-client-src && mkdir -p /tmp/apache-airflow-python-client-src && tar -xzf ${PATH_TO_AIRFLOW_SVN}/clients/python/${VERSION_RC}/apache_airflow_python_client-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-python-client-src
+rm -rf /tmp/apache-airflow-python-client-src && mkdir -p /tmp/apache-airflow-python-client-src && tar -xzf ${PATH_TO_AIRFLOW_SVN}/clients/python/${VERSION_RC}/apache_airflow_python_client-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-python-client-src
 ```
 
 Run the check:
@@ -770,7 +843,30 @@ cd ${VERSION}
 twine check *${VERSION}.tar.gz *.whl
 ```
 
-- Upload the package to PyPi's production environment:
+- Configure a short-lived PyPI token for this upload only. **Until Trusted
+  Publishing is deployed for apache-airflow-client on PyPI**, the
+  recommended practice is:
+
+  1. Log in to https://pypi.org and create an API token right before the
+     upload step. **Scope caveat:** you would ideally create a
+     project-scoped token for `apache-airflow-client` alone, but PyPI only
+     allows project-scoped tokens for projects you already own/maintain on
+     that account. Most Airflow release managers do not have per-project
+     owner rights on `apache-airflow-client`, so in practice you will need
+     to create an account-wide ("all projects") token. That is acceptable
+     **only if** you treat it as single-use and delete it immediately
+     after the upload (step 4 below). Never keep an all-projects token on
+     disk longer than the upload itself.
+  2. Put it in `~/.pypirc` (or export as `TWINE_USERNAME=__token__`
+     `TWINE_PASSWORD=pypi-...`).
+  3. Run the upload (below).
+  4. **Immediately delete the token** from the PyPI web UI after the upload
+     completes. Do not keep long-lived release-manager tokens on disk.
+
+  This is a defence-in-depth practice: the RM machine becomes a one-time
+  release vehicle, not a persistent point of compromise.
+
+- Upload the package to PyPI's production environment:
 
 ```shell script
 twine upload -r pypi *${VERSION}.tar.gz *.whl
