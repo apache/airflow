@@ -21,29 +21,29 @@
 .. IF YOU WANT TO MODIFY TEMPLATE FOR THIS FILE, YOU SHOULD MODIFY THE TEMPLATE
    ``PROVIDER_README_TEMPLATE.rst.jinja2`` IN the ``dev/breeze/src/airflow_breeze/templates`` DIRECTORY
 
-Package ``apache-airflow-providers-languages-java``
+Package ``apache-airflow-providers-sdk-java``
 
 Release: ``0.1.0``
 
 
-Java language support for Apache Airflow task coordinators and DAG file processors.
+Java SDK support for Apache Airflow task coordinators and DAG file processors.
 
 
 Provider package
 ----------------
 
-This is a provider package for ``languages.java`` provider. All classes for this provider package
-are in ``airflow.providers.languages.java`` python package.
+This is a provider package for ``sdk.java`` provider. All classes for this provider package
+are in ``airflow.providers.sdk.java`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-languages-java/0.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-sdk-java/0.1.0/>`_.
 
 Installation
 ------------
 
 You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-languages-java``
+``pip install apache-airflow-providers-sdk-java``
 
 The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
@@ -57,4 +57,4 @@ PIP package         Version required
 ==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-languages-java/0.1.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-sdk-java/0.1.0/changelog.html>`_.
