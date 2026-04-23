@@ -38,6 +38,7 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.callback import CallbackDTO
 from airflow.models.callback import CallbackFetchMethod, CallbackKey
+from airflow.models.connection_test import ConnectionTestKey
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.sdk import BaseOperator
 from airflow.sdk.execution_time.callback_supervisor import execute_callback
@@ -127,6 +128,10 @@ def test_log_task_event_branches_on_key_type():
 
     callback_key = CallbackKey(id=str(UUID("00000000-0000-0000-0000-000000000001")))
     executor.log_task_event(event="callback_event", extra="extra", ti_key=callback_key)
+    assert len(executor._task_event_logs) == 1
+
+    connection_test_key = ConnectionTestKey(id=str(UUID("00000000-0000-0000-0000-000000000002")))
+    executor.log_task_event(event="connection_test_event", extra="extra", ti_key=connection_test_key)
     assert len(executor._task_event_logs) == 1
 
 
@@ -491,13 +496,15 @@ def test_queue_connection_test_workload_accepted_when_supported():
     )
     executor.queue_workload(wl, session=mock.MagicMock(spec=Session))
     assert len(executor.queued_connection_tests) == 1
-    assert executor.queued_connection_tests[str(wl.connection_test_id)] is wl
+    assert executor.queued_connection_tests[wl.key] is wl
 
 
 def test_trigger_connection_tests_skipped_when_not_supported():
     """trigger_connection_tests is a no-op when supports_connection_test is False."""
     executor = BaseExecutor()
-    executor.queued_connection_tests["dummy"] = mock.MagicMock(spec=workloads.TestConnection)
+    executor.queued_connection_tests[ConnectionTestKey(id="dummy")] = mock.MagicMock(
+        spec=workloads.TestConnection
+    )
     with mock.patch.object(executor, "_process_workloads") as mock_process:
         executor.trigger_connection_tests()
     mock_process.assert_not_called()

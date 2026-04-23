@@ -24,10 +24,11 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import Field
 
 from airflow.executors.workloads.base import BaseWorkloadSchema
+from airflow.models.connection_test import ConnectionTestKey
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
-    from airflow.models.connection_test import ConnectionTestKey, ConnectionTestState
+    from airflow.models.connection_test import ConnectionTestState
 
 
 class TestConnection(BaseWorkloadSchema):
@@ -43,7 +44,7 @@ class TestConnection(BaseWorkloadSchema):
     @property
     def key(self) -> ConnectionTestKey:
         """Return the connection-test key (str UUID) for this workload."""
-        return str(self.connection_test_id)
+        return ConnectionTestKey(id=str(self.connection_test_id))
 
     @property
     def display_name(self) -> str:

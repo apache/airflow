@@ -21,14 +21,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypeAlias
 
 from airflow.models.callback import CallbackKey, ExecutorCallback
-from airflow.models.connection_test import ConnectionTestRequest
+from airflow.models.connection_test import ConnectionTestKey, ConnectionTestRequest, ConnectionTestState
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.state import CallbackState, TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.models.connection_test import ConnectionTestKey, ConnectionTestState
-
     # Type aliases for workload keys and states (used by executor layer)
     WorkloadKey: TypeAlias = TaskInstanceKey | CallbackKey | ConnectionTestKey
     WorkloadState: TypeAlias = TaskInstanceState | CallbackState | ConnectionTestState
@@ -41,9 +39,13 @@ if TYPE_CHECKING:
 SchedulerWorkload: TypeAlias = TaskInstance | ExecutorCallback | ConnectionTestRequest
 
 
-def state_class_for_key(key: WorkloadKey) -> type[TaskInstanceState] | type[CallbackState]:
+def state_class_for_key(
+    key: WorkloadKey,
+) -> type[TaskInstanceState] | type[CallbackState] | type[ConnectionTestState]:
     if isinstance(key, TaskInstanceKey):
         return TaskInstanceState
+    if isinstance(key, ConnectionTestKey):
+        return ConnectionTestState
     if isinstance(key, CallbackKey):
         return CallbackState
     raise TypeError(f"Unknown workload key type: {type(key)!r}")

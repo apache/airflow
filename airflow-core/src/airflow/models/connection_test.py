@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import secrets
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -58,7 +59,15 @@ ACTIVE_STATES = frozenset(
 DISPATCHED_STATES = frozenset((ConnectionTestState.QUEUED, ConnectionTestState.RUNNING))
 TERMINAL_STATES = frozenset((ConnectionTestState.SUCCESS, ConnectionTestState.FAILED))
 
-ConnectionTestKey = str  # ConnectionTestRequest keys are str(UUID)
+
+@dataclass(frozen=True, slots=True)
+class ConnectionTestKey:
+    """Typed key for connection-test workloads (wraps str(UUID))."""
+
+    id: str
+
+    def __str__(self) -> str:
+        return self.id
 
 
 class ConnectionTestRequest(Base, FernetFieldsMixin):

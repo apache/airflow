@@ -68,8 +68,12 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
 )
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
-from airflow.models.callback import ExecutorCallback
-from airflow.models.connection_test import ConnectionTestRequest, ConnectionTestState
+from airflow.models.callback import Callback, ExecutorCallback
+from airflow.models.connection_test import (
+    ConnectionTestKey,
+    ConnectionTestRequest,
+    ConnectionTestState,
+)
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
@@ -713,6 +717,20 @@ class TestSchedulerJob:
                 "task_id": "dummy_task",
             },
         )
+
+    def test_process_executor_events_drains_connection_test_events(self, dag_maker, session):
+        """Connection-test events in the event_buffer are drained without being treated as callbacks."""
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        ct_key = ConnectionTestKey(id=str(uuid4()))
+        executor.event_buffer[ct_key] = (ConnectionTestState.SUCCESS, None)
+
+        with mock.patch.object(session, "get", wraps=session.get) as spy_get:
+            self.job_runner._process_executor_events(executor=executor, session=session)
+            callback_lookups = [c for c in spy_get.call_args_list if c.args and c.args[0] is Callback]
+            assert callback_lookups == []
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
