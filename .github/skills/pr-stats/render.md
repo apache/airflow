@@ -162,23 +162,27 @@ Title: `Triaged PRs — Still Open (<repo>)`
 
 One row per area where `total > 0`, sorted by `total` descending. `(no area)` last. Append a bold **TOTAL** row.
 
-| Column | Source | Colour |
-|---|---|---|
-| Area | area name | `bold cyan` |
-| Total | `total` | default |
-| Draft | `drafts` | default |
-| %Draft | `drafts / total` | default |
-| Non-Draft | `non_drafts` | default |
-| Contrib. | `contributors` | `bright_cyan` |
-| %Contrib. | `contributors / total` | default |
-| Triaged | `triaged_waiting + triaged_responded` | `yellow` |
-| Responded | `triaged_responded` | `green` |
-| %Responded | `triaged_responded / (triaged_waiting + triaged_responded)` | default |
-| Ready | `ready_for_review` | `bold green` |
-| %Ready | `ready_for_review / total` | default |
-| Drafted by triager | `triager_drafted` | `magenta` |
-| Drafted `<1d` / `1-7d` / `1-4w` / `>4w` (4 cols) | `draft_age_buckets[bucket]` | `magenta dim` |
-| Author resp `<1d` / `1-7d` / `1-4w` / `>4w` (4 cols) | `age_buckets[bucket]` | `dim` |
+`Total` is a **reference-only** column — it counts every open PR in the area (collaborator + contributor alike). Every other numeric column is **contributor-only** (see [`aggregate.md#counters`](aggregate.md)). This keeps draft-rate, triage-rate, and response-rate percentages meaningful: collaborator PRs bypass the triage funnel, so including them in the denominators would systematically understate how much of the contributor queue is ready, drafted, responded, etc.
+
+| Column | Source | Denominator | Colour |
+|---|---|---|---|
+| Area | area name | — | `bold cyan` |
+| Total | `total` (all PRs) | — | `dim` |
+| Contrib. | `contributors` | — | `bright_cyan` |
+| %Contrib. | `contributors / total` | `total` | default |
+| Draft | `drafts` (contributor) | — | default |
+| %Draft | `drafts / contributors` | `contributors` | default |
+| Non-Draft | `non_drafts` (contributor) | — | default |
+| Triaged | `triaged_waiting + triaged_responded` (contributor) | — | `yellow` |
+| Responded | `triaged_responded` (contributor) | — | `green` |
+| %Responded | `triaged_responded / (triaged_waiting + triaged_responded)` | the triaged set | default |
+| Ready | `ready_for_review` (contributor) | — | `bold green` |
+| %Ready | `ready_for_review / contributors` | `contributors` | default |
+| Drafted by triager | `triager_drafted` (contributor) | — | `magenta` |
+| Drafted `<1d` / `1-7d` / `1-4w` / `>4w` (4 cols) | `draft_age_buckets[bucket]` (contributor) | — | `magenta dim` |
+| Author resp `<1d` / `1-7d` / `1-4w` / `>4w` (4 cols) | `age_buckets[bucket]` (contributor) | — | `dim` |
+
+Column order: Area → Total → Contrib./%Contrib. (area composition) → Draft/%Draft/Non-Draft (where the contributor work sits) → Triaged/Resp./%Resp. (how the triage funnel is going) → Ready/%Ready (what's at the review bar) → Drafted by triager + age buckets (time-since slices of the active contributor work).
 
 All numeric columns right-aligned. Keep area name left-aligned.
 

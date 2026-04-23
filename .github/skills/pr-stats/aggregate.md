@@ -22,27 +22,28 @@ Order the areas for display by total-count descending, with `(no area)` always l
 
 ## Counters (per area)
 
-One `_AreaStats` block per area. Fields:
+One `_AreaStats` block per area. Only two counters (`total` and `contributors`) cover all PRs; every other counter is **contributor-only** (excludes `OWNER` / `MEMBER` / `COLLABORATOR` authors). The rationale is that collaborator PRs have a different lifecycle — they're not triaged by the pr-triage skill, they don't need "ready for maintainer review" to surface, and their drafts are the author's to manage. Mixing them into the draft / triaged / responded counts dilutes every percentage on the row.
 
-| Field | Count rule |
-|---|---|
-| `total` | count of PRs in the area |
-| `drafts` | `isDraft == true` |
-| `non_drafts` | `isDraft == false` |
-| `contributors` | `authorAssociation NOT IN (OWNER, MEMBER, COLLABORATOR)` |
-| `triaged_waiting` | classified `triaged_waiting` (see `classify.md`) |
-| `triaged_responded` | classified `triaged_responded` |
-| `ready_for_review` | label `ready for maintainer review` present |
-| `triager_drafted` | classified `drafted_by_triager` |
-| `age_buckets` | histogram, key = bucket label from `classify.md#age-bucket` |
-| `draft_age_buckets` | histogram over PRs where `drafted_at` is set, same bucket labels |
+| Field | Count rule | Scope |
+|---|---|---|
+| `total` | count of PRs in the area | **all** — reference only |
+| `contributors` | `authorAssociation NOT IN (OWNER, MEMBER, COLLABORATOR)` | **all** — denominator for the contributor-scoped counters below |
+| `drafts` | `isDraft == true` | contributor-only |
+| `non_drafts` | `isDraft == false` | contributor-only |
+| `triaged_waiting` | classified `triaged_waiting` (see `classify.md`) | contributor-only |
+| `triaged_responded` | classified `triaged_responded` | contributor-only |
+| `ready_for_review` | label `ready for maintainer review` present | contributor-only |
+| `triager_drafted` | classified `drafted_by_triager` | contributor-only |
+| `age_buckets` | histogram, key = bucket label from `classify.md#age-bucket` | contributor-only |
+| `draft_age_buckets` | histogram over PRs where `drafted_at` is set, same bucket labels | contributor-only |
 
 ### Invariants
 
-- `total == drafts + non_drafts` (every PR is one or the other)
-- `triaged_waiting + triaged_responded <= total`
+- `contributors == drafts + non_drafts` (each contributor PR is one or the other)
+- `triaged_waiting + triaged_responded <= contributors`
 - `ready_for_review <= non_drafts` (a ready PR shouldn't be draft — if the inequality fails, the label is stale; surface a one-line warning but don't correct the data)
-- `sum(age_buckets.values()) == total`
+- `sum(age_buckets.values()) == contributors`
+- `contributors <= total`
 
 Check the invariants at render time and print a one-line warning if any fails — it usually means the fetch shape dropped a field.
 
@@ -66,11 +67,14 @@ The stats tables show percentages alongside counts for readability. Rules:
 
 - Format: rounded integer with `%` suffix (e.g. `73%`). No decimals — table noise.
 - If the denominator is 0, show `-`, not `0%`.
-- `%Responded` denominator is `triaged_waiting + triaged_responded` (the triaged set), not `total`. A PR that was never triaged can't have responded.
-- `%Draft` denominator is `total`.
-- `%Contrib.` denominator is `total`.
-- `%Ready` denominator is `total`.
-- Table 1's `%Closed`, `%Merged`, `%Responded` denominators are `triaged_total` for that area (not global).
+- `%Contrib.` denominator is `total` (how much of the area is contributor-authored).
+- `%Draft` denominator is `contributors` (how much of the contributor work is still in draft).
+- `%Ready` denominator is `contributors` (how much of the contributor work is at the review bar).
+- `%Responded` denominator is `triaged_waiting + triaged_responded` (the triaged set). A PR that was never triaged can't have responded.
+
+The only percentage whose denominator is `total` is `%Contrib.` — that's the one that describes the area composition. Every other percentage describes contributor activity and uses `contributors` as its denominator.
+
+Table 1 has its own percentage set (`%Closed`, `%Merged`, `%Responded`) whose denominators are `triaged_total` for that area (not global, not contributor-scoped — Table 1's whole point is the triaged set).
 
 ---
 
