@@ -62,8 +62,11 @@ LEVEL_TO_FILTERING_LOGGER: dict[int, type[Logger]] = {}
 
 # ``_parse_path`` was introduced in Python 3.12; older versions use a different
 # parsing path (``_flavour.parse_parts``) that does not call ``sys.intern``,
-# so the patch is neither necessary nor applicable there.
-if (3, 12) <= sys.version_info < (3, 14):
+# so the patch is neither necessary nor applicable there. Python 3.14 removed
+# the ``sys.intern`` call upstream, so the patch is unnecessary there too.
+if sys.version_info < (3, 12) or sys.version_info >= (3, 14):
+    _PatchedPath = Path  # type: ignore[misc, assignment]
+else:
 
     class _PatchedPath(Path):
         """
@@ -93,9 +96,6 @@ if (3, 12) <= sys.version_info < (3, 14):
                     # e.g. //?/unc/server/share
                     root = sep
             return drv, root, [x for x in rel.split(sep) if x and x != "."]
-
-else:
-    _PatchedPath = Path  # type: ignore[misc, assignment]
 
 
 def _make_airflow_structlogger(min_level):
