@@ -102,7 +102,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-airbyte>=5.0.0"
 ]
 "akeyless" = [
-    "apache-airflow-providers-akeyless>=1.0.0"
+    "apache-airflow-providers-akeyless>=1.0.0" # Set from local provider pyproject.toml
 ]
 "alibaba" = [
     "apache-airflow-providers-alibaba>=3.0.0"
@@ -402,7 +402,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,gunicorn,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
-    "apache-airflow-providers-akeyless>=1.0.0",
+    "apache-airflow-providers-akeyless>=1.0.0", # Set from local provider pyproject.toml
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
@@ -1381,6 +1381,7 @@ apache-airflow-kubernetes-tests = false
 apache-airflow-mypy = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
+apache-airflow-providers-akeyless = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-apache-cassandra = false
@@ -1518,6 +1519,7 @@ apache-airflow-kubernetes-tests = false
 apache-airflow-mypy = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
+apache-airflow-providers-akeyless = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-apache-cassandra = false
