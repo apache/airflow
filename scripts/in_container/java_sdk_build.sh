@@ -39,6 +39,7 @@
 #   BUNDLES_OUTPUT_DIR  - directory where bundle dirs will be created
 #
 # Optional environment variables:
+#   GRADLE_USER_HOME       - Gradle home for caching wrapper/deps (default: /files/.gradle)
 #   JAVA_STUB_BUNDLE_NAME  - stub bundle directory name (default: python-stub-java-tasks)
 #   JAVA_PURE_BUNDLE_NAME  - pure Java bundle directory name (default: pure-java)
 #   JAVA_STUB_DAG_ID       - DAG ID for the stub bundle (default: java_sdk_stub_example)
@@ -54,6 +55,10 @@ COLOR_RESET='\033[0m'
 # Required
 JAVA_SDK_SRC_DIR="${JAVA_SDK_SRC_DIR:?JAVA_SDK_SRC_DIR must be set}"
 BUNDLES_OUTPUT_DIR="${BUNDLES_OUTPUT_DIR:?BUNDLES_OUTPUT_DIR must be set}"
+
+# Cache Gradle wrapper downloads and dependencies on the persistent /files mount
+# so they survive container restarts and avoid re-downloading on every build.
+export GRADLE_USER_HOME="${GRADLE_USER_HOME:-/files/.gradle}"
 
 # Optional with defaults
 JAVA_STUB_BUNDLE_NAME="${JAVA_STUB_BUNDLE_NAME:-python-stub-java-tasks}"
