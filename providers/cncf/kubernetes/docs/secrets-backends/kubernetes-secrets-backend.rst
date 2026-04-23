@@ -216,6 +216,23 @@ identifier label matches the requested connection or variable and whose ``team_l
 current team. If no team-scoped secret is found, it falls back to a global secret with the same
 identifier label and no team label.
 
+To use this mode, keep the backend enabled as usual and make sure your Kubernetes secrets include
+both:
+
+* the regular identifier label (for example ``airflow.apache.org/connection-id=my_db``)
+* the configured ``team_label`` with the team name (for example ``airflow.apache.org/team=team_a``)
+
+For example, this configuration keeps the default team label:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend.KubernetesSecretsBackend
+    backend_kwargs = {"team_label": "airflow.apache.org/team"}
+
+If you use a custom team label instead, configure it in ``backend_kwargs`` and apply the same label
+to your Kubernetes secrets.
+
 When ``team_name`` is not provided, the backend only queries for global secrets by requiring that
 the configured ``team_label`` is absent (``!team_label``). This means secrets that have a team label
 are not eligible in the non-team case, even if their connection or variable identifier matches.
@@ -244,6 +261,20 @@ Example team-scoped connection secret:
         airflow.apache.org/team: team_a
     data:
       value: <base64-encoded-connection-uri>
+
+If you also want a default value for workloads that do not run with a team context, create a second
+secret with the same connection identifier label but without ``airflow.apache.org/team``:
+
+.. code-block:: yaml
+
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: my-global-db-secret
+      labels:
+        airflow.apache.org/connection-id: my_db
+    data:
+      value: <base64-encoded-global-connection-uri>
 
 Using with External Secrets Operator
 """""""""""""""""""""""""""""""""""""
