@@ -58,6 +58,7 @@ if TYPE_CHECKING:
 
     from airflow.models import DagRun
     from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class TaskInstanceHistory(Base):
@@ -178,6 +179,13 @@ class TaskInstanceHistory(Base):
     def id(self) -> UUID:
         """Alias for primary key field to support TaskInstance."""
         return self.task_instance_id
+
+    @property
+    def key(self) -> TaskInstanceKey:
+        """Returns a key that identifies this history record, mirroring TaskInstance.key."""
+        from airflow.models.taskinstancekey import TaskInstanceKey
+
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
     @staticmethod
     @provide_session

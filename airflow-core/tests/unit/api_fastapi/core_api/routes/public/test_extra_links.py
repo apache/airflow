@@ -361,3 +361,62 @@ class TestGetExtraLinks:
         assert isinstance(link_value, str)
         # since API returns stringified value, loading it back to compare with original payload should be true
         assert json.loads(link_value) == payload
+
+    @pytest.mark.mock_plugin_manager(plugins=[TryNumberPlugin])
+    def test_should_use_try_number_when_specified(self, test_client, session):
+        from uuid import uuid4
+
+        from sqlalchemy.sql import select
+
+        from airflow.models.taskinstance import TaskInstance
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+        ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.run_id == self.dag_run_id,
+                TaskInstance.task_id == self.task_single_link,
+                TaskInstance.map_index == -1,
+            )
+        )
+        assert ti is not None
+        original_try_number = ti.try_number
+
+        # Create a TIH record for a past try (try_number must differ from live TI).
+        # Use a new UUID as the PK to avoid a primary-key conflict with the live TI.
+        tih = TaskInstanceHistory(ti)
+        tih.task_instance_id = uuid4()
+        tih.try_number = original_try_number + 1
+        session.add(tih)
+        session.commit()
+
+        response = test_client.get(
+            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
+            params={"try_number": original_try_number + 1},
+        )
+        assert response.status_code == 200
+        assert (
+            response.json()["extra_links"]["Try Number"]
+            == f"https://example.com/logs?try_number={original_try_number + 1}"
+        )
+
+        # Verify the live TI try_number was NOT modified
+        session.expire(ti)
+        ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.run_id == self.dag_run_id,
+                TaskInstance.task_id == self.task_single_link,
+                TaskInstance.map_index == -1,
+            )
+        )
+        assert ti is not None
+        assert ti.try_number == original_try_number
+
+    @pytest.mark.mock_plugin_manager(plugins=[TryNumberPlugin])
+    def test_should_respond_404_for_nonexistent_try_number(self, test_client):
+        response = test_client.get(
+            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
+            params={"try_number": 99999},
+        )
+        assert response.status_code == 404
