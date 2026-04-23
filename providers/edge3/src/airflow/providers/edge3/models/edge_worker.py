@@ -169,6 +169,16 @@ def set_metrics(
         EdgeWorkerState.MAINTENANCE_EXIT,
         EdgeWorkerState.OFFLINE_MAINTENANCE,
     )
+    additional_keys = set(sysinfo or ()) - {
+        "status",
+        "airflow_version",
+        "edge_provider_version",
+        "python_version",
+        "worker_start_time",
+        "concurrency",
+        "free_concurrency",
+    }
+
     Stats.gauge(
         "edge_worker.status",
         sysinfo.get("status", logging.NOTSET),  # type: ignore
@@ -184,6 +194,11 @@ def set_metrics(
         len(queues),
         tags={"worker_name": worker_name, "queues": ",".join(queues)},
     )
+
+    for key in additional_keys:
+        value = sysinfo.get(key)
+        if isinstance(value, (int, float)):
+            Stats.gauge(f"edge_worker.{key}", value, tags={"worker_name": worker_name})
 
 
 def reset_metrics(worker_name: str) -> None:
