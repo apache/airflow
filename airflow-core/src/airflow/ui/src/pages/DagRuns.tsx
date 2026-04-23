@@ -27,11 +27,7 @@ import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import {
-  useDagRunServiceGetDagRuns,
-  useDagServiceGetDag,
-  useDagServiceGetDags,
-  UseDagServiceGetDagsKeyFn,
-  useDagServiceGetDagTags,
+  useDagRunServiceGetDagRuns
 } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -244,7 +240,7 @@ export const DagRuns = () => {
   const partitionKeyPattern = searchParams.get(PARTITION_KEY_PATTERN_PARAM);
 
   const refetchInterval = useAutoRefresh({});
-  const { data: dagsData, isLoading: isDagsLoading } = useQuery({
+  const { data: dagsData } = useQuery({
     enabled: dagTag !== null && dagTag !== "",
     queryFn: () =>
       DagService.getDags({
