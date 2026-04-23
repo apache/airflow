@@ -93,7 +93,7 @@ class TestRedisHook:
         mock_driver_info_cls.assert_called_once_with()
         fake_driver_info.add_upstream_driver.assert_called_once()
         args, _ = fake_driver_info.add_upstream_driver.call_args
-        assert args[0] == "apache-airflow"
+        assert args[0] == "apache-airflow-providers-redis"
         call_kwargs = mock_redis.call_args[1]
         assert call_kwargs["driver_info"] is fake_driver_info
         assert "lib_name" not in call_kwargs
@@ -109,7 +109,7 @@ class TestRedisHook:
 
         call_kwargs = mock_redis.call_args[1]
         assert "driver_info" not in call_kwargs
-        assert "apache-airflow" in call_kwargs["lib_name"]
+        assert "apache-airflow-providers-redis" in call_kwargs["lib_name"]
 
     @mock.patch("airflow.providers.redis.hooks.redis.Redis")
     @mock.patch("airflow.providers.redis.hooks.redis.RedisHook.get_connection")

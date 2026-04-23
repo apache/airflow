@@ -100,15 +100,17 @@ class RedisHook(BaseHook):
             )
 
             # Add driver info for client identification if supported
-            # This allows Redis server to identify Airflow as the upstream driver.
+            # This allows Redis server to identify the Redis provider as the upstream driver.
             # See: https://redis.io/docs/latest/commands/client-setinfo/
             driver_info_options: dict[str, Any] = {}
             if DriverInfo is not None:
-                driver_info = DriverInfo().add_upstream_driver("apache-airflow", provider_version)
+                driver_info = DriverInfo().add_upstream_driver(
+                    "apache-airflow-providers-redis", provider_version
+                )
                 driver_info_options = {"driver_info": driver_info}
             elif _SUPPORTS_LIB_NAME:
                 driver_info_options = {
-                    "lib_name": f"redis-py(apache-airflow_v{provider_version})",
+                    "lib_name": f"redis-py(apache-airflow-providers-redis_v{provider_version})",
                 }
 
             self.redis = Redis(
