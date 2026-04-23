@@ -123,111 +123,31 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
             },
         )
 
-    if not AIRFLOW_V_3_0_PLUS:
-
-        @provide_session
-        def get_task_instance(self, session: Session) -> TaskInstance:
-            """
-            Get the task instance for the current task.
-
-            :param session: Sqlalchemy session
-            """
-            task_instance = session.scalar(
-                select(TaskInstance).where(
-                    TaskInstance.dag_id == self.task_instance.dag_id,
-                    TaskInstance.task_id == self.task_instance.task_id,
-                    TaskInstance.run_id == self.task_instance.run_id,
-                    TaskInstance.map_index == self.task_instance.map_index,
-                )
-            )
-            if task_instance is None:
-                raise AirflowException(
-                    "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found",
-                    self.task_instance.dag_id,
-                    self.task_instance.task_id,
-                    self.task_instance.run_id,
-                    self.task_instance.map_index,
-                )
-            return task_instance
-
-    async def get_task_state(self):
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-
-        task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
-            dag_id=self.task_instance.dag_id,
-            task_ids=[self.task_instance.task_id],
-            run_ids=[self.task_instance.run_id],
-            map_index=self.task_instance.map_index,
+    async def on_kill(self) -> None:
+        """Cancel the Dataproc job when the trigger is cancelled by a user action."""
+        if not (self.job_id and self.cancel_on_kill):
+            return
+        self.log.info("Cancelling the job: %s", self.job_id)
+        await sync_to_async(self.get_sync_hook().cancel_job)(
+            job_id=self.job_id, project_id=self.project_id, region=self.region
         )
-        try:
-            task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
-        except Exception:
-            raise AirflowException(
-                "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                self.task_instance.dag_id,
-                self.task_instance.task_id,
-                self.task_instance.run_id,
-                self.task_instance.map_index,
-            )
-        return task_state
-
-    async def safe_to_cancel(self) -> bool:
-        """
-        Whether it is safe to cancel the external job which is being executed by this trigger.
-
-        This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
-        Because in those cases, we should NOT cancel the external job.
-        """
-        if AIRFLOW_V_3_0_PLUS:
-            task_state = await self.get_task_state()
-        else:
-            # Database query is needed to get the latest state of the task instance.
-            task_instance = self.get_task_instance()  # type: ignore[call-arg]
-            task_state = task_instance.state
-        return task_state != TaskInstanceState.DEFERRED
+        self.log.info("Job: %s cancel request submitted", self.job_id)
 
     async def run(self):
         hook = self.get_async_hook()
         # Trigger client cache with sync call get_credentials(), evaluated once.
         await hook.get_job_client(region=self.region)
 
-        try:
-            while True:
-                job = await hook.get_job(project_id=self.project_id, region=self.region, job_id=self.job_id)
-                state = job.status.state
-                self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
-                if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
-                    break
-                await asyncio.sleep(self.polling_interval_seconds)
-            yield TriggerEvent(
-                {"job_id": self.job_id, "job_state": JobStatus.State(state).name, "job": Job.to_dict(job)}
-            )
-        except asyncio.CancelledError:
-            self.log.info("Task got cancelled.")
-            try:
-                if self.job_id and self.cancel_on_kill and await self.safe_to_cancel():
-                    self.log.info(
-                        "Cancelling the job as it is safe to do so. Note that the airflow TaskInstance is not"
-                        " in deferred state."
-                    )
-                    self.log.info("Cancelling the job: %s", self.job_id)
-                    # The synchronous hook is utilized to delete the cluster when a task is cancelled. This
-                    # is because the asynchronous hook deletion is not awaited when the trigger task is
-                    # cancelled. The call for deleting the cluster or job through the sync hook is not a
-                    # blocking call, which means it does not wait until the cluster or job is deleted.
-                    self.get_sync_hook().cancel_job(
-                        job_id=self.job_id, project_id=self.project_id, region=self.region
-                    )
-                    self.log.info("Job: %s is cancelled", self.job_id)
-                    yield TriggerEvent(
-                        {
-                            "job_id": self.job_id,
-                            "job_state": ClusterStatus.State.DELETING.name,
-                        }
-                    )
-            except Exception as e:
-                self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
-                raise e
+        while True:
+            job = await hook.get_job(project_id=self.project_id, region=self.region, job_id=self.job_id)
+            state = job.status.state
+            self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
+            if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
+                break
+            await asyncio.sleep(self.polling_interval_seconds)
+        yield TriggerEvent(
+            {"job_id": self.job_id, "job_state": JobStatus.State(state).name, "job": Job.to_dict(job)}
+        )
 
 
 class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
@@ -273,110 +193,39 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
             },
         )
 
-    if not AIRFLOW_V_3_0_PLUS:
-
-        @provide_session
-        def get_task_instance(self, session: Session) -> TaskInstance:
-            """
-            Get the task instance for the current task.
-
-            :param session: Sqlalchemy session
-            """
-            task_instance = session.scalar(
-                select(TaskInstance).where(
-                    TaskInstance.dag_id == self.task_instance.dag_id,
-                    TaskInstance.task_id == self.task_instance.task_id,
-                    TaskInstance.run_id == self.task_instance.run_id,
-                    TaskInstance.map_index == self.task_instance.map_index,
-                )
-            )
-            if task_instance is None:
-                raise RuntimeError(
-                    "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found",
-                    self.task_instance.dag_id,
-                    self.task_instance.task_id,
-                    self.task_instance.run_id,
-                    self.task_instance.map_index,
-                )
-            return task_instance
-
-    async def get_task_state(self):
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-
-        task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
-            dag_id=self.task_instance.dag_id,
-            task_ids=[self.task_instance.task_id],
-            run_ids=[self.task_instance.run_id],
-            map_index=self.task_instance.map_index,
+    async def on_kill(self) -> None:
+        """Cancel the Dataproc job when the trigger is cancelled by a user action."""
+        if not (self.job_id and self.cancel_on_kill):
+            return
+        self.log.info("Cancelling the job: %s", self.job_id)
+        await sync_to_async(self.get_sync_hook().cancel_job)(
+            job_id=self.job_id, project_id=self.project_id, region=self.region
         )
-        try:
-            task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
-        except Exception:
-            raise RuntimeError(
-                "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                self.task_instance.dag_id,
-                self.task_instance.task_id,
-                self.task_instance.run_id,
-                self.task_instance.map_index,
-            )
-        return task_state
-
-    async def safe_to_cancel(self) -> bool:
-        """
-        Whether it is safe to cancel the external job which is being executed by this trigger.
-
-        This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
-        Because in those cases, we should NOT cancel the external job.
-        """
-        if AIRFLOW_V_3_0_PLUS:
-            task_state = await self.get_task_state()
-        else:
-            task_instance = self.get_task_instance()  # type: ignore[call-arg]
-            task_state = task_instance.state
-        return task_state != TaskInstanceState.DEFERRED
+        self.log.info("Job: %s cancel request submitted", self.job_id)
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        try:
-            hook = self.get_async_hook()
-            self.log.info("Submitting Dataproc job.")
-            job_object = await hook.submit_job(
-                project_id=self.project_id,
-                region=self.region,
-                job=self.job,
-                request_id=self.request_id,
-            )
-            self.job_id = job_object.reference.job_id
-            self.log.info("Dataproc job %s submitted successfully.", self.job_id)
+        hook = self.get_async_hook()
+        self.log.info("Submitting Dataproc job.")
+        job_object = await hook.submit_job(
+            project_id=self.project_id,
+            region=self.region,
+            job=self.job,
+            request_id=self.request_id,
+        )
+        self.job_id = job_object.reference.job_id
+        self.log.info("Dataproc job %s submitted successfully.", self.job_id)
 
-            while True:
-                job = await hook.get_job(project_id=self.project_id, region=self.region, job_id=self.job_id)
-                state = job.status.state
-                self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
-                if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
-                    break
-                await asyncio.sleep(self.polling_interval_seconds)
+        while True:
+            job = await hook.get_job(project_id=self.project_id, region=self.region, job_id=self.job_id)
+            state = job.status.state
+            self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
+            if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
+                break
+            await asyncio.sleep(self.polling_interval_seconds)
 
-            yield TriggerEvent(
-                {"job_id": self.job_id, "job_state": JobStatus.State(state).name, "job": Job.to_dict(job)}
-            )
-        except asyncio.CancelledError:
-            self.log.info("Task got cancelled.")
-            try:
-                if self.job_id and self.cancel_on_kill and await self.safe_to_cancel():
-                    self.log.info("Cancelling the job: %s", self.job_id)
-                    self.get_sync_hook().cancel_job(
-                        job_id=self.job_id, project_id=self.project_id, region=self.region
-                    )
-                    self.log.info("Job: %s is cancelled", self.job_id)
-                    yield TriggerEvent(
-                        {
-                            "job_id": self.job_id,
-                            "job_state": ClusterStatus.State.DELETING.name,  # type: ignore[attr-defined]
-                        }
-                    )
-            except Exception as e:
-                self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
-                raise e
+        yield TriggerEvent(
+            {"job_id": self.job_id, "job_state": JobStatus.State(state).name, "job": Job.to_dict(job)}
+        )
 
 
 class DataprocClusterTrigger(DataprocBaseTrigger):

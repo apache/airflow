@@ -634,51 +634,47 @@ class TestDataprocSubmitTrigger:
         assert event.payload == expected_event.payload
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("is_safe_to_cancel", [True, False])
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook")
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.safe_to_cancel")
-    async def test_submit_trigger_run_cancelled(
-        self, mock_safe_to_cancel, mock_get_sync_hook, mock_get_async_hook, submit_trigger, is_safe_to_cancel
-    ):
-        """Test the trigger correctly handles an asyncio.CancelledError."""
-        mock_safe_to_cancel.return_value = is_safe_to_cancel
+    async def test_submit_trigger_run_propagates_cancelled_error(self, mock_get_async_hook, submit_trigger):
+        """CancelledError during polling is not handled in run(); cancellation is in on_kill()."""
         mock_async_hook = mock_get_async_hook.return_value
         mock_async_hook.get_job_client = mock.AsyncMock()
-
         mock_async_hook.get_job.side_effect = asyncio.CancelledError
 
+        async_gen = submit_trigger.run()
+        with pytest.raises(asyncio.CancelledError):
+            await async_gen.asend(None)
+        await async_gen.aclose()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook")
+    async def test_submit_trigger_on_kill_cancels_job(self, mock_get_sync_hook, submit_trigger):
         mock_sync_hook = mock_get_sync_hook.return_value
         mock_sync_hook.cancel_job = mock.MagicMock()
+        await submit_trigger.on_kill()
+        mock_sync_hook.cancel_job.assert_called_once_with(
+            job_id=submit_trigger.job_id,
+            project_id=submit_trigger.project_id,
+            region=submit_trigger.region,
+        )
 
-        async_gen = submit_trigger.run()
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook")
+    async def test_submit_trigger_on_kill_skips_when_disabled(self, mock_get_sync_hook, submit_trigger):
+        submit_trigger.cancel_on_kill = False
+        mock_sync_hook = mock_get_sync_hook.return_value
+        mock_sync_hook.cancel_job = mock.MagicMock()
+        await submit_trigger.on_kill()
+        mock_sync_hook.cancel_job.assert_not_called()
 
-        try:
-            await async_gen.asend(None)
-            # Should raise StopAsyncIteration if no more items to yield
-            await async_gen.asend(None)
-        except asyncio.CancelledError:
-            # Handle the cancellation as expected
-            pass
-        except StopAsyncIteration:
-            # The generator should be properly closed after handling the cancellation
-            pass
-        except Exception as e:
-            # Catch any other exceptions that should not occur
-            pytest.fail(f"Unexpected exception raised: {e}")
-
-        # Check if cancel_job was correctly called
-        if submit_trigger.cancel_on_kill and is_safe_to_cancel:
-            mock_sync_hook.cancel_job.assert_called_once_with(
-                job_id=submit_trigger.job_id,
-                project_id=submit_trigger.project_id,
-                region=submit_trigger.region,
-            )
-        else:
-            mock_sync_hook.cancel_job.assert_not_called()
-
-        # Clean up the generator
-        await async_gen.aclose()
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook")
+    async def test_submit_trigger_on_kill_skips_without_job_id(self, mock_get_sync_hook, submit_trigger):
+        submit_trigger.job_id = None
+        mock_sync_hook = mock_get_sync_hook.return_value
+        mock_sync_hook.cancel_job = mock.MagicMock()
+        await submit_trigger.on_kill()
+        mock_sync_hook.cancel_job.assert_not_called()
 
 
 class TestDataprocSubmitJobDirectTrigger:
@@ -760,55 +756,47 @@ class TestDataprocSubmitJobDirectTrigger:
         assert event.payload == expected_event.payload
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("is_safe_to_cancel", [True, False])
     @mock.patch(
         "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_async_hook"
     )
-    @mock.patch(
-        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_sync_hook"
-    )
-    @mock.patch(
-        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.safe_to_cancel"
-    )
-    async def test_run_cancelled_after_submit(
-        self,
-        mock_safe_to_cancel,
-        mock_get_sync_hook,
-        mock_get_async_hook,
-        submit_job_direct_trigger,
-        is_safe_to_cancel,
+    async def test_run_propagates_cancelled_error_after_submit(
+        self, mock_get_async_hook, submit_job_direct_trigger
     ):
-        mock_safe_to_cancel.return_value = is_safe_to_cancel
         mock_hook = mock_get_async_hook.return_value
-
         mock_submitted_job = mock.MagicMock()
         mock_submitted_job.reference.job_id = TEST_JOB_ID
         submit_future = asyncio.Future()
         submit_future.set_result(mock_submitted_job)
         mock_hook.submit_job.return_value = submit_future
-
         mock_hook.get_job.side_effect = asyncio.CancelledError
 
+        async_gen = submit_job_direct_trigger.run()
+        with pytest.raises(asyncio.CancelledError):
+            await async_gen.asend(None)
+        await async_gen.aclose()
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_sync_hook"
+    )
+    async def test_on_kill_cancels_after_submit(self, mock_get_sync_hook, submit_job_direct_trigger):
+        submit_job_direct_trigger.job_id = TEST_JOB_ID
         mock_sync_hook = mock_get_sync_hook.return_value
         mock_sync_hook.cancel_job = mock.MagicMock()
+        await submit_job_direct_trigger.on_kill()
+        mock_sync_hook.cancel_job.assert_called_once_with(
+            job_id=TEST_JOB_ID,
+            project_id=submit_job_direct_trigger.project_id,
+            region=submit_job_direct_trigger.region,
+        )
 
-        async_gen = submit_job_direct_trigger.run()
-
-        try:
-            await async_gen.asend(None)
-            await async_gen.asend(None)
-        except (asyncio.CancelledError, StopAsyncIteration):
-            pass
-        except Exception as e:
-            pytest.fail(f"Unexpected exception raised: {e}")
-
-        if submit_job_direct_trigger.cancel_on_kill and is_safe_to_cancel:
-            mock_sync_hook.cancel_job.assert_called_once_with(
-                job_id=TEST_JOB_ID,
-                project_id=submit_job_direct_trigger.project_id,
-                region=submit_job_direct_trigger.region,
-            )
-        else:
-            mock_sync_hook.cancel_job.assert_not_called()
-
-        await async_gen.aclose()
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_sync_hook"
+    )
+    async def test_on_kill_skips_without_job_id(self, mock_get_sync_hook, submit_job_direct_trigger):
+        submit_job_direct_trigger.job_id = None
+        mock_sync_hook = mock_get_sync_hook.return_value
+        mock_sync_hook.cancel_job = mock.MagicMock()
+        await submit_job_direct_trigger.on_kill()
+        mock_sync_hook.cancel_job.assert_not_called()
