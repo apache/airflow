@@ -267,7 +267,7 @@ class TestLockboxSecretBackend:
         mock_get_secrets.return_value = [
             secret_pb.Secret(
                 id="123",
-                name="airflow/connections/team_a/my_db",
+                name="airflow/connections/team_a//my_db",
             ),
             secret_pb.Secret(
                 id="456",
@@ -309,7 +309,14 @@ class TestLockboxSecretBackend:
     def test_get_variable_returns_none_for_team_scoped_key_without_team_name(self, mock_get_secrets):
         backend = LockboxSecretBackend()
 
-        assert backend.get_variable("_teama___hello") is None
+        assert backend.get_variable("teama//hello") is None
+        mock_get_secrets.assert_not_called()
+
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
+    def test_get_conn_value_returns_none_for_team_scoped_id_without_team_name(self, mock_get_secrets):
+        backend = LockboxSecretBackend()
+
+        assert backend.get_conn_value("teama//my_db") is None
         mock_get_secrets.assert_not_called()
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")

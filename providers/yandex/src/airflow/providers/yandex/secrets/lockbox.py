@@ -38,6 +38,8 @@ from airflow.providers.yandex.utils.user_agent import provider_user_agent
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+TEAM_SEP_MULTIPLIER = 2
+
 
 class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
     """
@@ -250,16 +252,19 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
             return key
         return f"{prefix}{self.sep}{key}"
 
-    @staticmethod
-    def _is_team_specific_accessed_as_global(secret_id: str, team_name: str | None = None) -> bool:
-        return team_name is None and bool(re.fullmatch(r"_[^_]+___.+", secret_id))
+    def _build_team_secret_name(self, prefix: str, team_name: str, key: str) -> str:
+        team_prefix = self._build_secret_name(prefix, team_name)
+        return f"{team_prefix}{self.sep * TEAM_SEP_MULTIPLIER}{key}"
+
+    def _is_team_specific_accessed_as_global(self, secret_id: str, team_name: str | None = None) -> bool:
+        team_sep = re.escape(self.sep * TEAM_SEP_MULTIPLIER)
+        return team_name is None and bool(re.fullmatch(rf"[^{re.escape(self.sep)}]+{team_sep}.+", secret_id))
 
     def _get_secret_value(self, prefix: str, key: str, team_name: str | None = None) -> str | None:
         secrets = self._get_secrets()
         secret: secret_pb.Secret | None = None
         if team_name:
-            team_prefix = self._build_secret_name(prefix, team_name)
-            secret = self._find_secret(secrets, team_prefix, key)
+            secret = self._find_secret(secrets, prefix, self._build_team_secret_name("", team_name, key))
 
         if not secret:
             secret = self._find_secret(secrets, prefix, key)
