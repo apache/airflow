@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+5.4.4
+.....
+
+Misc
+~~~~
+
+* ``Set per-Python-version lower bounds for jpype1 in JDBC provider (#65572)``
+* ``Work around jpype1 1.7.0 missing macOS arm64 wheels in jdbc provider (#65532)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
 5.4.3
 .....
 
