@@ -164,9 +164,9 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
 
         Each entry is a ``(middleware_class, kwargs)`` tuple and is registered via
         ``app.add_middleware`` by the API server. Auth managers that need to intercept or
-        augment incoming requests (for example, the FAB auth manager attaching an
-        anonymous user to unauthenticated requests when ``[fab] auth_role_public`` is
-        configured) should override this method.
+        augment incoming requests (for example, attaching an anonymous user to
+        unauthenticated requests when public access is configured) should override this
+        method.
         """
         return []
 
