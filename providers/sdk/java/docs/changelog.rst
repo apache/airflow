@@ -22,7 +22,7 @@
    The changelog is updated and maintained semi-automatically by release manager.
 
 
-``apache-airflow-providers-languages-java``
+``apache-airflow-providers-sdk-java``
 
 
 Changelog

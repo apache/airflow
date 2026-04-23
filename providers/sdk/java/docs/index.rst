@@ -15,10 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-languages-java``
+``apache-airflow-providers-sdk-java``
 ===========================================
 
-The Languages: Java provider registers Java-specific task coordinator and DAG file processor classes for Apache Airflow.
+The SDK: Java provider registers Java-specific task coordinator and DAG file processor classes for Apache Airflow.
 
 .. toctree::
     :hidden:
@@ -34,14 +34,14 @@ The Languages: Java provider registers Java-specific task coordinator and DAG fi
     :maxdepth: 1
     :caption: References
 
-    Python API <_api/airflow/providers/languages/java/index>
+    Python API <_api/airflow/providers/sdk/java/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-languages-java/>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-sdk-java/>
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
@@ -55,10 +55,10 @@ The Languages: Java provider registers Java-specific task coordinator and DAG fi
     Detailed list of commits <commits>
 
 
-apache-airflow-providers-languages-java package
+apache-airflow-providers-sdk-java package
 ------------------------------------------------------
 
-Java language support for Apache Airflow runtime coordinators.
+Java SDK support for Apache Airflow runtime coordinators.
 
 
 Release: 0.1.0
@@ -66,14 +66,14 @@ Release: 0.1.0
 Provider package
 ----------------
 
-This package is for the ``languages.java`` provider.
-All classes for this package are included in the ``airflow.providers.languages.java`` python package.
+This package is for the ``sdk.java`` provider.
+All classes for this package are included in the ``airflow.providers.sdk.java`` python package.
 
 Installation
 ------------
 
 You can install this package on top of an existing Airflow installation via
-``pip install apache-airflow-providers-languages-java``.
+``pip install apache-airflow-providers-sdk-java``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
@@ -97,7 +97,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-languages-java[common.compat]
+    pip install apache-airflow-providers-sdk-java[common.compat]
 
 
 ==================================================================================================================  =================
@@ -112,5 +112,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-languages-java 0.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_languages_java-0.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_languages_java-0.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_languages_java-0.1.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-languages-java 0.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_languages_java-0.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_languages_java-0.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_languages_java-0.1.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-sdk-java 0.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sdk_java-0.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sdk_java-0.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sdk_java-0.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-sdk-java 0.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sdk_java-0.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sdk_java-0.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sdk_java-0.1.0-py3-none-any.whl.sha512>`__)

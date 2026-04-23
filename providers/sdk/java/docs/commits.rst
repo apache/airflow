@@ -23,13 +23,13 @@
 
  .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN!
 
-Package apache-airflow-providers-languages-java
+Package apache-airflow-providers-sdk-java
 ------------------------------------------------------
 
-Java language support for Apache Airflow task coordinators and DAG file processors.
+Java SDK support for Apache Airflow task coordinators and DAG file processors.
 
 
-This is detailed commit list of changes for versions provider package: ``languages.java``.
+This is detailed commit list of changes for versions provider package: ``sdk.java``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
 .. airflow-providers-commits::
