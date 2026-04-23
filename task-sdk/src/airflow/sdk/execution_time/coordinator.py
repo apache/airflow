@@ -437,13 +437,13 @@ class QueueToRuntimeCoordinatorMapper:
     ``"java-12"``).  This mapper lets them reuse existing queue assignments to route
     tasks to the correct runtime coordinator.
 
-    The mapping is read from the ``[workers] queue_to_runtime_mapping``
+    The mapping is read from the ``[sdk] queue_to_sdk``
     configuration option, which is a JSON dict of ``queue_name -> runtime_name``.
 
     Example configuration::
 
-        [workers]
-        queue_to_runtime_mapping = {"java-11": "java", "java-12": "java"}
+        [sdk]
+        queue_to_sdk = {"java-11": "java", "java-12": "java"}
     """
 
     def __init__(self, mapping: dict[str, str]) -> None:
@@ -454,7 +454,7 @@ class QueueToRuntimeCoordinatorMapper:
         """Load the queue-to-runtime mapping from airflow configuration."""
         from airflow.sdk.configuration import conf
 
-        mapping = conf.getjson("workers", "queue_to_runtime_mapping", fallback={})
+        mapping = conf.getjson("sdk", "queue_to_sdk", fallback={})
         if not isinstance(mapping, dict):
             return cls({})
         return cls(mapping)
