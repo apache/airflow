@@ -192,6 +192,42 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         and handle it appropriately (in async-compatible way).
         """
 
+    async def on_kill(self) -> None:
+        """
+        Kill the external job managed by this trigger when the task is killed by a user.
+
+        Symmetric with ``BaseOperator.on_kill()`` on the worker side: override this method
+        to stop external work (e.g. cancel a BigQuery job, terminate a Databricks run) when
+        a user explicitly acts on the deferred task via mark-failed, clear, or mark-succeeded.
+
+        **Distinction from** ``cleanup()``:
+
+        - ``cleanup()`` runs on every trigger exit — success, timeout, shutdown, and user
+          kill. It is meant for releasing local resources held by this trigger instance.
+          Putting external job cancellation in ``cleanup()`` would cancel in-flight work
+          on every triggerer restart or rolling deploy.
+        - ``on_kill()`` runs only when a user explicitly kills the task. It is the right
+          place to cancel external work you do not want to keep running after the user performs an action.
+
+        This only fires when a user acts on the task. It does not fire on:
+
+        - Triggerer shutdown or restart — the trigger is redistributed, not cancelled.
+        - Triggerer redistribution to another triggerer process.
+        - Trigger timeout — the trigger is killed, not cancelled by user.
+        - Normal trigger completion (the trigger fired an event).
+
+        This method runs in the triggerer's asyncio event loop, so
+        it must be async-safe. Use ``await`` for any I/O; do not block the event loop.
+
+        Exceptions raised here are logged as warnings and do not
+        propagate — they will not affect the task state or the triggerer. Implement your
+        own retry or error handling inside this method if needed.
+
+        ``on_kill()`` is given a bounded time to complete. Implementations
+        that call slow external APIs should apply their own timeouts rather than relying on
+        the framework bound.
+        """
+
     @staticmethod
     def repr(classpath: str, kwargs: dict[str, Any]):
         kwargs_str = ", ".join(f"{k}={v}" for k, v in kwargs.items())

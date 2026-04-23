@@ -22,13 +22,16 @@ from typing import Annotated
 from fastapi import Body, Depends, status
 from sqlalchemy import select, update
 
+try:
+    from airflow.sdk.observability.stats import DualStatsManager
+except ImportError:
+    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.executors.workloads import ExecuteTask
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
@@ -88,9 +91,7 @@ def fetch(
     session.commit()
     # Edge worker does not backport emitted Airflow metrics, so export some metrics
     tags = {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue}
-    if AIRFLOW_V_3_2_PLUS:
-        from airflow.sdk.observability.stats import DualStatsManager
-
+    if DualStatsManager is not None:
         DualStatsManager.incr("edge_worker.ti.start", tags=tags)
     else:
         from airflow.providers.common.compat.sdk import Stats
@@ -149,9 +150,7 @@ def state(
                 "queue": job.queue,
                 "state": str(state),
             }
-            if AIRFLOW_V_3_2_PLUS:
-                from airflow.sdk.observability.stats import DualStatsManager
-
+            if DualStatsManager is not None:
                 DualStatsManager.incr(
                     "edge_worker.ti.finish",
                     tags=tags,
