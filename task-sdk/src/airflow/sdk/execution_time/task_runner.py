@@ -2000,7 +2000,7 @@ def _resolve_runtime_entrypoint(startup_details: StartupDetails, log: Logger) ->
 
     Resolution order:
 
-    1. **Queue mapping** -- the ``[workers] queue_to_runtime_mapping`` config maps
+    1. **Queue mapping** -- the ``[sdk] queue_to_sdk`` config maps
        the task's ``queue`` to a runtime coordinator name (e.g. ``"java-queue" -> "java"``).
        Used by the python-stub pattern where users set ``queue="java-queue"`` explicitly.
     2. **DAG file extension** -- if no queue mapping matches, the DAG file's extension
