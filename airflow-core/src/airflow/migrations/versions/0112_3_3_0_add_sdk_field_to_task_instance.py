@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add language field to task instance.
+Add sdk field to task instance.
 
 Revision ID: 7d3c6395b7f6
 Revises: 9fabad868fdb
@@ -39,12 +39,12 @@ airflow_version = "3.3.0"
 
 
 def upgrade():
-    """Apply add language field to task instance."""
+    """Apply add sdk field to task instance."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("language", sa.String(length=64), nullable=True))
+        batch_op.add_column(sa.Column("sdk", sa.String(length=64), nullable=True))
 
 
 def downgrade():
-    """Unapply add language field to task instance."""
+    """Unapply add sdk field to task instance."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.drop_column("language")
+        batch_op.drop_column("sdk")

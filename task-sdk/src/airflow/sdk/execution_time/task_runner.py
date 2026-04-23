@@ -1998,13 +1998,13 @@ def _resolve_runtime_entrypoint(startup_details: StartupDetails, log: Logger) ->
     """
     Check provider-registered runtime coordinators for a runtime-specific entrypoint.
 
-    If the task's ``language`` field matches a coordinator's ``runtime_name``,
+    If the task's ``sdk`` field matches a coordinator's ``runtime_name``,
     return a no-arg callable that bridges fd 0 to the runtime subprocess.
     Otherwise return ``None`` to fall through to the standard Python
     execution path.
     """
-    language = startup_details.ti.language
-    if language is None:
+    sdk = startup_details.ti.sdk
+    if sdk is None:
         return None
 
     import functools
@@ -2015,13 +2015,13 @@ def _resolve_runtime_entrypoint(startup_details: StartupDetails, log: Logger) ->
         if not hasattr(coordinator_cls, "run_task_execution"):
             continue
 
-        if getattr(coordinator_cls, "runtime_name", None) != language:
+        if getattr(coordinator_cls, "runtime_name", None) != sdk:
             continue
 
         log.debug(
             "Resolved runtime-specific entrypoint for task",
             coordinator=coordinator_cls,
-            language=language,
+            sdk=sdk,
             task_id=startup_details.ti.task_id,
         )
         return functools.partial(
@@ -2033,8 +2033,8 @@ def _resolve_runtime_entrypoint(startup_details: StartupDetails, log: Logger) ->
         )
 
     log.warning(
-        "No runtime coordinator found for language",
-        language=language,
+        "No runtime coordinator found for sdk",
+        sdk=sdk,
         task_id=startup_details.ti.task_id,
     )
     return None
