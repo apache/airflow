@@ -79,6 +79,7 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
     from airflow.executors.workloads import ExecutorWorkload
     from airflow.executors.workloads.types import WorkloadKey, WorkloadState
+    from airflow.models.connection_test import ConnectionTestKey
     from airflow.models.taskinstance import TaskInstance
 
     # Event_buffer dict value type
@@ -220,7 +221,7 @@ class BaseExecutor(LoggingMixin):
         self.team_name: str | None = team_name
         self.queued_tasks: dict[TaskInstanceKey, workloads.ExecuteTask] = {}
         self.queued_callbacks: dict[CallbackKey, workloads.ExecuteCallback] = {}
-        self.queued_connection_tests: dict[str, workloads.TestConnection] = {}
+        self.queued_connection_tests: dict[ConnectionTestKey, workloads.TestConnection] = {}
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
@@ -252,7 +253,7 @@ class BaseExecutor(LoggingMixin):
 
     def log_task_event(self, *, event: str, extra: str, ti_key: WorkloadKey):
         """Add an event to the log table."""
-        if isinstance(ti_key, CallbackKey):
+        if not isinstance(ti_key, TaskInstanceKey):
             self.log.debug("Skipping log_task_event for callback key %s (event=%s)", ti_key, event)
             return
         self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
@@ -276,7 +277,7 @@ class BaseExecutor(LoggingMixin):
                     f"Set supports_connection_test = True and implement connection test handling "
                     f"in _process_workloads(). See LocalExecutor for reference implementation."
                 )
-            self.queued_connection_tests[str(workload.connection_test_id)] = workload
+            self.queued_connection_tests[workload.key] = workload
         else:
             raise ValueError(
                 f"Un-handled workload type {type(workload).__name__!r} in {type(self).__name__}. "
@@ -533,9 +534,7 @@ class BaseExecutor(LoggingMixin):
             self.event_buffer = {}
         else:
             for key in list(self.event_buffer.keys()):
-                if isinstance(key, CallbackKey) or (
-                    isinstance(key, TaskInstanceKey) and key.dag_id in dag_ids
-                ):
+                if not isinstance(key, TaskInstanceKey) or key.dag_id in dag_ids:
                     cleared_events[key] = self.event_buffer.pop(key)
 
         return cleared_events

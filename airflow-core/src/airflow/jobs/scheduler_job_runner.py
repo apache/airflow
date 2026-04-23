@@ -92,6 +92,7 @@ from airflow.models.callback import Callback, CallbackKey, CallbackType, Executo
 from airflow.models.connection_test import (
     ACTIVE_STATES,
     DISPATCHED_STATES,
+    ConnectionTestKey,
     ConnectionTestRequest,
     ConnectionTestState,
 )
@@ -1267,6 +1268,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     TaskInstanceState.RESTARTING,
                 ):
                     tis_with_right_state.append(key)
+            elif isinstance(key, ConnectionTestKey):
+                # Worker already updated ConnectionTestRequest state via the execution API;
+                # the scheduler just drains the buffer entry here.
+                cls.logger().debug("Draining executor event with state %s for connection test %s", state, key)
             elif isinstance(key, CallbackKey):
                 cls.logger().info("Received executor event with state %s for callback %s", state, key)
                 if state in (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.SUCCESS):

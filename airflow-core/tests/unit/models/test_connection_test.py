@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 from sqlalchemy import select
 
 from airflow.models.connection import Connection
 from airflow.models.connection_test import (
+    ConnectionTestKey,
     ConnectionTestRequest,
     ConnectionTestState,
 )
@@ -28,6 +31,32 @@ from airflow.models.connection_test import (
 from tests_common.test_utils.db import clear_db_connection_tests, clear_db_connections
 
 pytestmark = pytest.mark.db_test
+
+
+class TestConnectionTestKey:
+    def test_equality_by_id(self):
+        assert ConnectionTestKey(id="abc") == ConnectionTestKey(id="abc")
+
+    def test_inequality(self):
+        assert ConnectionTestKey(id="abc") != ConnectionTestKey(id="def")
+
+    def test_hash_equal_for_equal_ids(self):
+        assert hash(ConnectionTestKey(id="abc")) == hash(ConnectionTestKey(id="abc"))
+
+    def test_usable_as_dict_key(self):
+        d: dict[ConnectionTestKey, int] = {ConnectionTestKey(id="abc"): 1}
+        assert d[ConnectionTestKey(id="abc")] == 1
+
+    def test_str_returns_id(self):
+        assert str(ConnectionTestKey(id="abc")) == "abc"
+
+    def test_is_frozen(self):
+        key = ConnectionTestKey(id="abc")
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            key.id = "xyz"  # type: ignore[misc]
+
+    def test_not_a_str_instance(self):
+        assert not isinstance(ConnectionTestKey(id="abc"), str)
 
 
 class TestConnectionTestRequestModel:
