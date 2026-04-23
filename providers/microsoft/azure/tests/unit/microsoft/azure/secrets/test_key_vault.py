@@ -97,6 +97,16 @@ class TestAzureKeyVaultBackend:
         ]
 
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
+    def test_get_variable_uses_team_secret_with_custom_prefix(self, mock_client):
+        mock_client.get_secret.return_value = mock.Mock(value="team-value")
+
+        backend = AzureKeyVaultBackend(variables_prefix="custom-variables")
+        secret_val = backend.get_variable("hello", team_name="team_a")
+
+        assert secret_val == "team-value"
+        mock_client.get_secret.assert_called_once_with(name="custom-variables-team-a--hello")
+
+    @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
     def test_get_variable_returns_none_for_team_scoped_key_without_team_name(self, mock_client):
         backend = AzureKeyVaultBackend()
 

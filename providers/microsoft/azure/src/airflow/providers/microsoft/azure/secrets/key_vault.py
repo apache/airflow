@@ -37,6 +37,8 @@ from airflow.providers.microsoft.azure.utils import get_sync_default_azure_crede
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+TEAM_SEP = "--"
+
 
 class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
     """
@@ -211,12 +213,11 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         """Build a team-scoped secret name using a dedicated separator before the secret id."""
         team_prefix = self.build_path(path_prefix, team_name, self.sep)
         normalized_secret_id = secret_id.replace("_", self.sep)
-        return f"{team_prefix}{self.TEAM_SEP}{normalized_secret_id}"
+        return f"{team_prefix}{TEAM_SEP}{normalized_secret_id}"
 
     def _is_team_specific_accessed_as_global(self, secret_id: str, team_name: str | None = None) -> bool:
-        normalized_secret_id = secret_id.replace("_", self.sep)
-        team_pattern = rf"[^{re.escape(self.sep)}]+{re.escape(self.TEAM_SEP)}.+"
-        return team_name is None and bool(re.fullmatch(team_pattern, normalized_secret_id))
+        normalized_secret_id = self.build_path("", secret_id, self.sep)
+        return team_name is None and bool(re.fullmatch(rf".+{re.escape(TEAM_SEP)}.+", normalized_secret_id))
 
     def _get_secret(self, path_prefix: str, secret_id: str, team_name: str | None = None) -> str | None:
         """
@@ -243,5 +244,3 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         except ResourceNotFoundError as ex:
             self.log.debug("Secret %s not found: %s", name, ex)
             return None
-
-    TEAM_SEP = "--"
