@@ -16,15 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, IconButton } from "@chakra-ui/react";
+import { Box, Flex } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import type { RefObject } from "react";
-import { useTranslation } from "react-i18next";
-import { FiChevronsRight } from "react-icons/fi";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
@@ -38,9 +36,11 @@ import { isStatePending } from "src/utils";
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
+import { GridPaginationButtons } from "./GridPaginationButtons";
 import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import { TaskNames } from "./TaskNames";
 import { GANTT_ROW_OFFSET_PX, GRID_HEADER_HEIGHT_PX, GRID_HEADER_PADDING_PX, ROW_HEIGHT } from "./constants";
+import { useGridPagination } from "./useGridPagination";
 import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
 import { estimateTaskNameColumnWidthPx, flattenNodes } from "./utils";
 
@@ -49,9 +49,12 @@ dayjs.extend(dayjsDuration);
 type Props = {
   readonly dagRunState?: DagRunState | undefined;
   readonly limit: number;
+  readonly offset: number;
+  readonly onJumpToLatest: () => void;
   readonly runAfterGte?: string;
   readonly runAfterLte?: string;
   readonly runType?: DagRunType | undefined;
+  readonly setOffset: (value: number) => void;
   readonly sharedScrollContainerRef?: RefObject<HTMLDivElement | null>;
   readonly showGantt?: boolean;
   readonly showVersionIndicatorMode?: VersionIndicatorOptions;
@@ -63,23 +66,24 @@ const GRID_INNER_SCROLL_PADDING_START_PX = GRID_HEADER_PADDING_PX + GRID_HEADER_
 export const Grid = ({
   dagRunState,
   limit,
+  offset,
+  onJumpToLatest,
   runAfterGte,
   runAfterLte,
   runType,
+  setOffset,
   sharedScrollContainerRef,
   showGantt,
   showVersionIndicatorMode,
   triggeringUser,
 }: Props) => {
-  const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   const usesSharedScroll = Boolean(sharedScrollContainerRef && showGantt);
 
-  const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const { openGroupIds, toggleGroupId } = useOpenGroups();
-  const { dagId = "", runId = "" } = useParams();
+  const { dagId = "" } = useParams();
   const [searchParams] = useSearchParams();
 
   const filterRoot = searchParams.get("root") ?? undefined;
@@ -88,26 +92,20 @@ export const Grid = ({
   const depthParam = searchParams.get("depth");
   const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
 
-  const { data: gridRuns, isLoading } = useGridRuns({
+  // Over fetch gridRuns and then truncate to limit, in order to check pagination
+  const { data: dataGridRuns, isLoading } = useGridRuns({
     dagRunState,
-    limit,
+    limit: limit + 1,
+    offset,
     runAfterGte,
     runAfterLte,
     runType,
     triggeringUser,
   });
+  const gridRuns = dataGridRuns?.slice(0, limit);
 
-  // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
-  // Eventually we should redo the api endpoint to make this work better
-  useEffect(() => {
-    if (gridRuns && runId) {
-      const run = gridRuns.find((dr: GridRunsResponse) => dr.run_id === runId);
-
-      if (!run) {
-        setSelectedIsVisible(false);
-      }
-    }
-  }, [runId, gridRuns, selectedIsVisible, setSelectedIsVisible]);
+  const { handleNewerRuns, handleOlderRuns, hasNewerRuns, hasOlderRuns, latestNotVisible } =
+    useGridPagination({ gridRuns: dataGridRuns, limit, offset, setOffset });
 
   const { summariesByRunId } = useGridTiSummariesStream({
     dagId,
@@ -215,22 +213,15 @@ export const Grid = ({
                 />
               ))}
             </Flex>
-            {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
-              <Link to={`/dags/${dagId}`}>
-                <IconButton
-                  aria-label={translate("grid.buttons.resetToLatest")}
-                  height={`${GRID_HEADER_HEIGHT_PX - 2}px`}
-                  loading={isLoading}
-                  minW={0}
-                  ml={1}
-                  title={translate("grid.buttons.resetToLatest")}
-                  variant="surface"
-                  zIndex={1}
-                >
-                  <FiChevronsRight />
-                </IconButton>
-              </Link>
-            )}
+            <GridPaginationButtons
+              hasNewerRuns={hasNewerRuns}
+              hasOlderRuns={hasOlderRuns}
+              isLoading={isLoading}
+              latestNotVisible={latestNotVisible}
+              onJumpToLatest={onJumpToLatest}
+              onNewerRuns={handleNewerRuns}
+              onOlderRuns={handleOlderRuns}
+            />
           </Flex>
         </Flex>
       </Flex>
@@ -277,7 +268,7 @@ export const Grid = ({
           marginRight={showGantt ? 0 : 1}
           minH={0}
           overflow="auto"
-          paddingRight={showGantt ? 0 : 4}
+          paddingRight={showGantt ? 0 : 6}
           position="relative"
           ref={scrollContainerRef}
         >

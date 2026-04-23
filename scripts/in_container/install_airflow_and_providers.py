@@ -1192,13 +1192,16 @@ def _install_airflow_ctl_with_constraints(installation_spec: InstallationSpec, g
     if installation_spec.airflow_ctl_constraints_location:
         console.print(f"[bright_blue]Use constraints: {installation_spec.airflow_ctl_constraints_location}")
         install_airflow_ctl_cmd.extend(["--constraint", installation_spec.airflow_ctl_constraints_location])
-    console.print()
-    result = run_command(install_airflow_ctl_cmd, github_actions=github_actions, check=True)
-    if result.returncode != 0:
-        console.print(
-            "[warning]Installation with constraints failed - might be because there are"
-            " conflicting dependencies in PyPI. Falling back to a non-constraint installation."
-        )
+        console.print()
+        result = run_command(install_airflow_ctl_cmd, github_actions=github_actions, check=False)
+        if result.returncode != 0:
+            console.print(
+                "[warning]Installation with constraints failed - might be because there are"
+                " conflicting dependencies in PyPI. Falling back to a non-constraint installation."
+            )
+            run_command(base_install_airflow_ctl_cmd, github_actions=github_actions, check=True)
+    else:
+        console.print()
         run_command(base_install_airflow_ctl_cmd, github_actions=github_actions, check=True)
 
 

@@ -118,6 +118,7 @@ class TestPapermillOperator:
             language=language_name,
             progress_bar=False,
             report_mode=True,
+            log_output=False,
             engine_name=None,
         )
 
@@ -166,6 +167,7 @@ class TestPapermillOperator:
             language=language_name,
             progress_bar=False,
             report_mode=True,
+            log_output=False,
             engine_name=REMOTE_KERNEL_ENGINE,
             kernel_session_key="notebooks",
             kernel_shell_port=JUPYTER_KERNEL_SHELL_PORT,
@@ -175,6 +177,20 @@ class TestPapermillOperator:
             kernel_hb_port=JUPYTER_KERNEL_HB_PORT,
             kernel_ip="127.0.0.1",
         )
+
+    @patch("airflow.providers.papermill.operators.papermill.pm")
+    def test_execute_with_log_output(self, mock_papermill):
+        from airflow.providers.papermill.operators.papermill import PapermillOperator
+
+        op = PapermillOperator(
+            input_nb="/tmp/in.ipynb",
+            output_nb="/tmp/out.ipynb",
+            task_id="test_log_output",
+            log_output=True,
+        )
+        op.execute(context={})
+        call_kwargs = mock_papermill.execute_notebook.call_args
+        assert call_kwargs.kwargs["log_output"] is True
 
     @pytest.mark.db_test
     def test_render_template(self, create_task_instance_of_operator):

@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_validator
 
@@ -55,10 +55,22 @@ class DAGRunClearBody(StrictBaseModel):
 
     dry_run: bool = True
     only_failed: bool = False
+    only_new: bool = Field(
+        default=False,
+        description="Only queue newly added tasks in the latest DAG version without clearing existing tasks.",
+    )
     run_on_latest_version: bool = Field(
         default=False,
         description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_model(cls, data: Any) -> Any:
+        """Validate clear DAG run form."""
+        if data.get("only_new") and data.get("only_failed"):
+            raise ValueError("only_new and only_failed are mutually exclusive")
+        return data
 
 
 class DAGRunResponse(BaseModel):

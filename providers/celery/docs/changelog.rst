@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+3.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add SSL_MUTUAL_TLS config option to Celery provider for one-way TLS support (#64767)``
+
+Misc
+~~~~
+
+* ``Widen BaseExecutor method signatures to accept WorkloadKey (#65392)``
+* ``Move ExecutorCallback execution into a supervised process (#62645)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.18.0
 ......
 

@@ -16,13 +16,12 @@
 # under the License.
 #
 ---
-name: Update constraints on push
+name: Update constraints on push for main (only when uv.lock changes)
 on:  # yamllint disable-line rule:truthy
   push:
     branches:
       - main
       - v[0-9]+-[0-9]+-test
-      - v[0-9]+-[0-9]+-stable
     paths:
       - 'uv.lock'
 permissions:

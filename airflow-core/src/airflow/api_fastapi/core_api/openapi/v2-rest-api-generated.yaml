@@ -1987,7 +1987,7 @@ paths:
             application/json:
               schema:
                 anyOf:
-                - $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+                - $ref: '#/components/schemas/ClearTaskInstanceCollectionResponse'
                 - $ref: '#/components/schemas/DAGRunResponse'
                 title: Response Clear Dag Run
         '401':
@@ -5348,6 +5348,26 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lt
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `key, dag_id,
+            run_id, task_id, map_index, timestamp, run_after`'
+          default:
+          - dag_id
+          - task_id
+          - run_id
+          - map_index
+          - key
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `key, dag_id, run_id,
+          task_id, map_index, timestamp, run_after`'
       responses:
         '200':
           description: Successful Response
@@ -9281,10 +9301,11 @@ components:
           title: Run Backwards
           default: false
         dag_run_conf:
-          additionalProperties: true
-          type: object
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
           title: Dag Run Conf
-          default: {}
         reprocess_behavior:
           $ref: '#/components/schemas/ReprocessBehavior'
           default: none
@@ -9882,6 +9903,25 @@ components:
       - action
       - entities
       title: BulkUpdateAction[VariableBody]
+    ClearTaskInstanceCollectionResponse:
+      properties:
+        task_instances:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/TaskInstanceResponse'
+            - $ref: '#/components/schemas/NewTaskResponse'
+          type: array
+          title: Task Instances
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - task_instances
+      - total_entries
+      title: ClearTaskInstanceCollectionResponse
+      description: Response for clear dag run dry run, which may contain new tasks
+        without full TaskInstance data.
     ClearTaskInstancesBody:
       properties:
         dry_run:
@@ -10687,6 +10727,12 @@ components:
         only_failed:
           type: boolean
           title: Only Failed
+          default: false
+        only_new:
+          type: boolean
+          title: Only New
+          description: Only queue newly added tasks in the latest DAG version without
+            clearing existing tasks.
           default: false
         run_on_latest_version:
           type: boolean
@@ -12077,6 +12123,21 @@ components:
       type: object
       title: MaterializeAssetBody
       description: Materialize asset request.
+    NewTaskResponse:
+      properties:
+        task_id:
+          type: string
+          title: Task Id
+        task_display_name:
+          type: string
+          title: Task Display Name
+      type: object
+      required:
+      - task_id
+      - task_display_name
+      title: NewTaskResponse
+      description: Lightweight response for new tasks that don't have TaskInstances
+        yet.
     PatchTaskInstanceBody:
       properties:
         new_state:

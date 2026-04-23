@@ -50,6 +50,8 @@ function core_tests() {
         set +x
     elif [[ "${TEST_SCOPE}" == "Quarantined" ]]; then
         set -x
+        # The `|| true` is deliberate — quarantined tests are known-flaky and we do not want a
+        # failing run here to fail the whole CI job; they are reported separately. Do not remove.
         breeze testing core-tests --test-type "All-Quarantined" || true
         RESULT=$?
         set +x
@@ -93,6 +95,8 @@ function providers_tests() {
         set +x
     elif [[ "${TEST_SCOPE}" == "Quarantined" ]]; then
         set -x
+        # The `|| true` is deliberate — quarantined tests are known-flaky and we do not want a
+        # failing run here to fail the whole CI job; they are reported separately. Do not remove.
         breeze testing providers-tests --test-type "All-Quarantined" || true
         RESULT=$?
         set +x
