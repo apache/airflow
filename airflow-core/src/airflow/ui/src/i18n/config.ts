@@ -67,7 +67,7 @@ void i18n
   .use(initReactI18next)
   .init({
     backend: {
-      loadPath: `${basePath}/static/i18n/locales/{{lng}}/{{ns}}.json`,
+      loadPath: `${basePath}/static/i18n/locales/{{lng}}/{{ns}}.json?v=${APP_VERSION}`,
     },
     defaultNS: "common",
     detection: {
