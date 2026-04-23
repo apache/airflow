@@ -1972,49 +1972,72 @@ def _resolve_runtime_entrypoint(startup_details: StartupDetails, log: Logger) ->
 
     Resolution order:
 
-    1. If the task's ``sdk`` field is set, match it directly against
-       coordinator ``runtime_name`` values.
-    2. Otherwise, consult the ``[workers] queue_to_runtime_mapping``
-       configuration to see if the task's ``queue`` maps to a runtime name.
+    1. **Queue mapping** -- the ``[workers] queue_to_runtime_mapping`` config maps
+       the task's ``queue`` to a runtime coordinator name (e.g. ``"java-queue" -> "java"``).
+       Used by the python-stub pattern where users set ``queue="java-queue"`` explicitly.
+    2. **DAG file extension** -- if no queue mapping matches, the DAG file's extension
+       (e.g. ``.jar``) is compared against each coordinator's ``file_extension`` attribute.
+       Used by the pure-Java (or pure-<runtime>) pattern where the entire DAG is authored
+       in a non-Python language.
 
     Returns a no-arg callable that bridges fd 0 to the runtime subprocess,
     or ``None`` to fall through to the standard Python execution path.
     """
-    sdk = startup_details.ti.sdk
-
-    # Fallback: resolve runtime name from queue mapping when sdk is not set.
-    if sdk is None:
-        from airflow.sdk.execution_time.coordinator import QueueToRuntimeCoordinatorMapper
-
-        log.debug(
-            "No sdk specified for task, attempting to resolve runtime from queue mapping",
-            queue=startup_details.ti.queue,
-            task_id=startup_details.ti.task_id,
-        )
-        sdk = QueueToRuntimeCoordinatorMapper.from_config().resolve(startup_details.ti.queue)
-        if sdk is None:
-            log.debug(
-                "No runtime found for task queue, using standard Python execution path",
-                queue=startup_details.ti.queue,
-                task_id=startup_details.ti.task_id,
-            )
-            return None
-
     import functools
 
+    from airflow.sdk.execution_time.coordinator import QueueToRuntimeCoordinatorMapper
     from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
-    for coordinator_cls in ProvidersManagerTaskRuntime().runtime_coordinators:
+    coordinators = ProvidersManagerTaskRuntime().runtime_coordinators
+
+    # Step 1: queue-to-runtime mapping.
+    queue = startup_details.ti.queue
+    runtime_name = QueueToRuntimeCoordinatorMapper.from_config().resolve(queue)
+    if runtime_name is not None:
+        for coordinator_cls in coordinators:
+            if not hasattr(coordinator_cls, "run_task_execution"):
+                continue
+            if getattr(coordinator_cls, "runtime_name", None) != runtime_name:
+                continue
+
+            log.debug(
+                "Resolved runtime-specific entrypoint for task via queue mapping",
+                coordinator=coordinator_cls,
+                runtime=runtime_name,
+                queue=queue,
+                task_id=startup_details.ti.task_id,
+            )
+            return functools.partial(
+                coordinator_cls.run_task_execution,
+                what=startup_details.ti,
+                dag_rel_path=startup_details.dag_rel_path,
+                bundle_info=startup_details.bundle_info,
+                startup_details=startup_details,
+            )
+
+        log.warning(
+            "No runtime coordinator found for runtime",
+            runtime=runtime_name,
+            queue=queue,
+            task_id=startup_details.ti.task_id,
+        )
+        return None
+
+    # Step 2: DAG file extension fallback (pure-<runtime> DAGs).
+    dag_rel_path = startup_details.dag_rel_path
+    for coordinator_cls in coordinators:
+        # TODO: Use `can_handle_dag_file` method instead of file_extension attribute for better maintainability.
+        ext = getattr(coordinator_cls, "file_extension", None)
+        if not ext or not dag_rel_path.endswith(ext):
+            continue
         if not hasattr(coordinator_cls, "run_task_execution"):
             continue
 
-        if getattr(coordinator_cls, "runtime_name", None) != sdk:
-            continue
-
         log.debug(
-            "Resolved runtime-specific entrypoint for task",
+            "Resolved runtime-specific entrypoint for task via DAG file extension",
             coordinator=coordinator_cls,
-            sdk=sdk,
+            runtime=getattr(coordinator_cls, "runtime_name", None),
+            dag_rel_path=dag_rel_path,
             task_id=startup_details.ti.task_id,
         )
         return functools.partial(
@@ -2025,9 +2048,10 @@ def _resolve_runtime_entrypoint(startup_details: StartupDetails, log: Logger) ->
             startup_details=startup_details,
         )
 
-    log.warning(
-        "No runtime coordinator found for sdk",
-        sdk=sdk,
+    log.debug(
+        "No runtime coordinator matched, using standard Python execution path",
+        queue=queue,
+        dag_rel_path=dag_rel_path,
         task_id=startup_details.ti.task_id,
     )
     return None
