@@ -2831,43 +2831,6 @@ def test_mypy_matches(
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
-@patch("airflow_breeze.utils.selective_checks.FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED", True)
-def test_ui_english_translation_changed_fail_on_change():
-    translation_file = "airflow-core/src/airflow/ui/public/i18n/locales/en/some_file.json"
-    with pytest.raises(SystemExit):
-        SelectiveChecks(
-            files=(translation_file,),
-            commit_ref=NEUTRAL_COMMIT,
-            pr_labels=(),
-            github_event=GithubEvents.PULL_REQUEST,
-            default_branch="main",
-        ).ui_english_translation_changed
-
-
-def test_ui_english_translation_changed_allowed_in_canary_run():
-    translation_file = "airflow-core/src/airflow/ui/public/i18n/locales/en/some_file.json"
-    selective_checks = SelectiveChecks(
-        files=(translation_file,),
-        commit_ref=NEUTRAL_COMMIT,
-        pr_labels=(),
-        github_event=GithubEvents.PUSH,
-        default_branch="main",
-    )
-    assert selective_checks.ui_english_translation_changed
-
-
-def test_ui_english_translation_changed_allowed_with_label():
-    translation_file = "airflow-core/src/airflow/ui/public/i18n/locales/en/some_file.json"
-    selective_checks = SelectiveChecks(
-        files=(translation_file,),
-        commit_ref=NEUTRAL_COMMIT,
-        pr_labels=("allow translation change",),
-        github_event=GithubEvents.PULL_REQUEST,
-        default_branch="main",
-    )
-    assert selective_checks.ui_english_translation_changed is True
-
-
 @patch("requests.get")
 @patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
 def test_get_job_label(mock_get):

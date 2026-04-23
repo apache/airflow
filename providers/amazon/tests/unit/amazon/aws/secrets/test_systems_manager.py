@@ -101,6 +101,18 @@ class TestSsmSecrets:
         assert ssm_backend.get_connection(conn_id=conn_id) is None
 
     @mock_aws
+    def test_get_conn_value_with_team_name(self):
+        param = {
+            "Name": "/airflow/connections/my_team/test_postgres",
+            "Type": "String",
+            "Value": "postgresql://airflow:airflow@host:5432/airflow",
+        }
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+        returned_uri = ssm_backend.get_conn_value(conn_id="test_postgres", team_name="my_team")
+        assert returned_uri == "postgresql://airflow:airflow@host:5432/airflow"
+
+    @mock_aws
     def test_get_variable(self):
         param = {"Name": "/airflow/variables/hello", "Type": "String", "Value": "world"}
 
@@ -144,6 +156,15 @@ class TestSsmSecrets:
         ssm_backend.client.put_parameter(**param)
 
         assert ssm_backend.get_variable("test_mysql") is None
+
+    @mock_aws
+    def test_get_variable_with_team_name(self):
+        param = {"Name": "/airflow/variables/my_team/hello", "Type": "String", "Value": "world"}
+
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+
+        assert ssm_backend.get_variable(key="hello", team_name="my_team") == "world"
 
     @conf_vars(
         {

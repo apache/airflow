@@ -30,6 +30,7 @@ import attrs
 from openlineage.client.facet_v2 import job_dependencies_run, parent_run
 from openlineage.client.utils import RedactMixin
 from openlineage.client.uuid import generate_static_uuid
+from sqlalchemy.orm.exc import DetachedInstanceError
 
 from airflow import __version__ as AIRFLOW_VERSION
 from airflow.models import DagRun, TaskInstance, TaskReschedule
@@ -576,6 +577,14 @@ if not AIRFLOW_V_3_0_PLUS:
         )
 
 
+def safe_getattr(obj: Any, attr: str, default: Any = None) -> Any:
+    """Get attribute from object, returning default if DetachedInstanceError is raised."""
+    try:
+        return getattr(obj, attr, default)
+    except DetachedInstanceError:
+        return default
+
+
 class InfoJsonEncodable(dict):
     """
     Airflow objects might not be json-encodable overall.
@@ -755,7 +764,7 @@ class DagRunInfo(InfoJsonEncodable):
     ]
 
     casts = {
-        "note": lambda dagrun: getattr(dagrun, "note", None) if AIRFLOW_V_3_2_PLUS else None,
+        "note": lambda dagrun: safe_getattr(dagrun, "note") if AIRFLOW_V_3_2_PLUS else None,
         "duration": lambda dagrun: DagRunInfo.duration(dagrun),
         "dag_bundle_name": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_name"),
         "dag_bundle_version": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_version"),
@@ -781,7 +790,7 @@ class DagRunInfo(InfoJsonEncodable):
         """
         try:
             # AF2 DagRun and AF3 DagRun SDK model (on worker) do not have this information
-            deadlines = getattr(dagrun, "deadlines", None)
+            deadlines = safe_getattr(dagrun, "deadlines")
             if not deadlines:
                 return None
         except Exception as err:
@@ -800,7 +809,7 @@ class DagRunInfo(InfoJsonEncodable):
                     # deadline_alert is a lazy-loaded ORM relationship that may
                     # trigger a DB query; keep it isolated so a detached-session
                     # error doesn't discard the rest of the deadline info.
-                    if alert := getattr(d, "deadline_alert", None):
+                    if alert := safe_getattr(d, "deadline_alert"):
                         info.update(
                             {
                                 k: v
@@ -820,9 +829,10 @@ class DagRunInfo(InfoJsonEncodable):
     def dag_version_info(cls, dagrun: DagRun, key: str) -> str | int | None:
         """Extract deg version info for given key, sourced from DagRun (on scheduler)."""
         # AF2 DagRun and AF3 DagRun SDK model (on worker) do not have this information
-        if not getattr(dagrun, "dag_versions", []):
+        dag_versions = safe_getattr(dagrun, "dag_versions", [])
+        if not dag_versions:
             return None
-        current_version = dagrun.dag_versions[-1]
+        current_version = dag_versions[-1]
         if key == "bundle_name":
             return current_version.bundle_name
         if key == "bundle_version":
@@ -841,6 +851,9 @@ class TaskInstanceInfo(InfoJsonEncodable):
     casts = {
         "log_url": lambda ti: getattr(ti, "log_url", None),
         "map_index": lambda ti: ti.map_index if getattr(ti, "map_index", -1) != -1 else None,
+        "rendered_map_index": lambda ti: (
+            getattr(ti, "rendered_map_index", None) if getattr(ti, "map_index", -1) != -1 else None
+        ),
         "dag_bundle_version": lambda ti: (
             ti.bundle_instance.version if hasattr(ti, "bundle_instance") else None
         ),

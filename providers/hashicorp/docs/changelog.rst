@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+4.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add multi team secret support to VaultBackend (#65493)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.5.2
 .....
 

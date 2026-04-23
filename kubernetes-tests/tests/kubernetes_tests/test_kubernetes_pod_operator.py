@@ -51,6 +51,12 @@ from tests_common.test_utils.taskinstance import create_task_instance
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 
+# Longer than the operator's 120s default to absorb the first-pull latency of
+# the xcom sidecar image (alpine) on ARM runners with a cold containerd cache.
+# Whichever xcom test runs first has to pay that cost; giving all of them the
+# same budget keeps the tests order-independent.
+XCOM_STARTUP_TIMEOUT_SECONDS = 300
+
 
 def create_context(task) -> Context:
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -709,6 +715,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=True,
+            startup_timeout_seconds=XCOM_STARTUP_TIMEOUT_SECONDS,
         )
         context = create_context(k)
         assert k.execute(context) == expected
@@ -753,6 +760,7 @@ class TestKubernetesPodOperatorSystem:
             labels=self.labels,
             pod_template_file=basic_pod_template.as_posix(),
             do_xcom_push=True,
+            startup_timeout_seconds=XCOM_STARTUP_TIMEOUT_SECONDS,
         )
 
         context = create_context(k)
@@ -775,6 +783,7 @@ class TestKubernetesPodOperatorSystem:
             in_cluster=False,
             pod_template_file=basic_pod_template.as_posix(),
             do_xcom_push=True,
+            startup_timeout_seconds=XCOM_STARTUP_TIMEOUT_SECONDS,
         )
 
         context = create_context(k)
@@ -814,6 +823,7 @@ class TestKubernetesPodOperatorSystem:
             pod_template_file=basic_pod_template.as_posix(),
             full_pod_spec=pod_spec,
             do_xcom_push=True,
+            startup_timeout_seconds=XCOM_STARTUP_TIMEOUT_SECONDS,
         )
 
         context = create_context(k)
@@ -842,7 +852,7 @@ class TestKubernetesPodOperatorSystem:
                 containers=[
                     k8s.V1Container(
                         name="base",
-                        image="perl",
+                        image="ubuntu",
                         command=["/bin/bash"],
                         args=["-c", 'echo {\\"hello\\" : \\"world\\"} | cat > /airflow/xcom/return.json'],
                         env=[k8s.V1EnvVar(name="env_name", value="value")],
@@ -858,7 +868,7 @@ class TestKubernetesPodOperatorSystem:
             full_pod_spec=pod_spec,
             do_xcom_push=True,
             on_finish_action=OnFinishAction.KEEP_POD,
-            startup_timeout_seconds=30,
+            startup_timeout_seconds=XCOM_STARTUP_TIMEOUT_SECONDS,
         )
 
         context = create_context(k)
