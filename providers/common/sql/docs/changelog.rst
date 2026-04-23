@@ -25,6 +25,18 @@
 Changelog
 ---------
 
+1.35.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'accept_none' to 'SQLTableCheckOperator' (#63210)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
 1.34.0
 ......
 

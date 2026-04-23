@@ -1787,3 +1787,37 @@ class TestPytestSnowflakeHook:
             # Check that the URI doesn't contain proxy params
             called_uri = mock_create_engine.call_args[0][0]
             assert "proxy_host" not in str(called_uri)
+
+    def test_get_connection_form_widgets_proxy_port_is_optional(self):
+        """Proxy Port is an IntegerField and must remain optional.
+
+        Regression test for the Snowflake connection form silently rejecting
+        save when `Proxy Port` is left blank. `IntegerField` fails WTForms
+        validation on empty input by default, so `Optional()` is required to
+        preserve the documented optional semantics.
+        """
+        pytest.importorskip("flask_appbuilder")
+        pytest.importorskip("flask_babel")
+        Form = pytest.importorskip("wtforms").Form
+        Optional = pytest.importorskip("wtforms.validators").Optional
+        MultiDict = pytest.importorskip("werkzeug.datastructures").MultiDict
+
+        widgets = SnowflakeHook.get_connection_form_widgets()
+        assert "proxy_port" in widgets
+
+        proxy_port_field = widgets["proxy_port"]
+        assert any(isinstance(v, Optional) for v in proxy_port_field.kwargs.get("validators", []))
+
+        form_cls = type("_SnowflakeConnForm", (Form,), dict(widgets))
+
+        empty_form = form_cls(MultiDict([("proxy_port", "")]))
+        assert empty_form.validate() is True, empty_form.errors
+        assert empty_form.proxy_port.data is None
+
+        populated_form = form_cls(MultiDict([("proxy_port", "8080")]))
+        assert populated_form.validate() is True, populated_form.errors
+        assert populated_form.proxy_port.data == 8080
+
+        invalid_form = form_cls(MultiDict([("proxy_port", "not-an-int")]))
+        assert invalid_form.validate() is False
+        assert "proxy_port" in invalid_form.errors

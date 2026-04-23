@@ -25,6 +25,21 @@
 Changelog
 ---------
 
+0.1.1
+.....
+
+Misc
+~~~~
+
+* ``Update dependencies to address Dependabot security alarms in providers.common.ai (#65048)``
+* ``Bump vite (#64799)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#65521)``
+   * ``Isolate non-provider mypy hooks per distribution with dedicated .build/ venvs (#65492)``
+   * ``Simple LLM scenario example based on the Airflow survey data (#65172)``
+
 0.1.0
 .....
 

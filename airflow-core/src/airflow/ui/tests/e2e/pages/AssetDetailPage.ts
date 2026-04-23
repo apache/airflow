@@ -30,7 +30,13 @@ export class AssetDetailPage extends BasePage {
   }
 
   public async clickOnAsset(name: string): Promise<void> {
+    const responsePromise = this.page.waitForResponse(
+      (res) => /\/api\/v2\/assets\/\d+(\?|$)/.test(res.url()) && res.ok(),
+      { timeout: 15_000 },
+    );
+
     await this.page.getByRole("link", { exact: true, name }).click();
+    await responsePromise;
   }
 
   public getHeading(name: string): Locator {
@@ -64,6 +70,7 @@ export class AssetDetailPage extends BasePage {
     const button = statContainer.getByRole("button").first();
 
     await expect(button).toBeVisible();
+    await expect(button).toBeEnabled();
     await expect(button).toHaveText(/^[1-9]/);
 
     const text = await button.textContent();
