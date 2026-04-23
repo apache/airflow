@@ -45,6 +45,7 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
 )
 from airflow_breeze.commands.production_image_commands import run_build_production_image
+from airflow_breeze.commands.ui_commands import run_compile_ui_assets
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_TO,
     ALLOWED_EXECUTORS,
@@ -61,6 +62,7 @@ from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import Output, console_print, get_console
 from airflow_breeze.utils.custom_param_types import CacheableChoice, CacheableDefault
+from airflow_breeze.utils.docker_command_utils import perform_environment_checks
 from airflow_breeze.utils.kubernetes_utils import (
     CHART_PATH,
     K8S_CLUSTERS_PATH,
@@ -90,7 +92,12 @@ from airflow_breeze.utils.parallel import (
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.recording import generating_command_images
-from airflow_breeze.utils.run_utils import RunCommandResult, check_if_image_exists, run_command
+from airflow_breeze.utils.run_utils import (
+    RunCommandResult,
+    assert_prek_installed,
+    check_if_image_exists,
+    run_command,
+)
 
 KUBERNETES_PYTEST_ARGS = [
     "--strict-markers",
@@ -248,6 +255,18 @@ option_parallelism_cluster = click.option(
     default=max(1, (mp.cpu_count() + 1) // 3) if not generating_command_images() else 2,
     envvar="PARALLELISM",
     show_default=True,
+)
+option_skip_image_build = click.option(
+    "--skip-image-build",
+    help="Skips execution of breeze k8s build-k8s-image in deploy-cluster command.",
+    is_flag=True,
+    envvar="SKIP_IMAGE_BUILD",
+)
+option_skip_compile_ui_assets = click.option(
+    "--skip-compile-ui-assets",
+    help="Skips execution of breeze ui compile-assets in deploy-cluster command.",
+    is_flag=True,
+    envvar="SKIP_IMAGE_BUILD",
 )
 option_all = click.option("--all", help="Apply it to all created clusters", is_flag=True, envvar="ALL")
 
@@ -2231,3 +2250,87 @@ def run_complete_tests(
         )
         if result != 0:
             sys.exit(result)
+
+
+@kubernetes_group.command(
+    name="deploy-cluster",
+    help="Create, configure kind cluster and build Airflow image for Airflow Chart deployment.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+    ),
+)
+@option_force_venv_setup
+@option_force_recreate_cluster
+@option_python
+@option_kubernetes_version
+@option_rebuild_base_image
+@option_use_uv
+@option_skip_image_build
+@option_skip_compile_ui_assets
+def deploy_cluster(
+    force_venv_setup: bool,
+    force_recreate_cluster: bool,
+    python: str,
+    kubernetes_version: str,
+    rebuild_base_image: bool,
+    use_uv: bool,
+    skip_image_build: bool,
+    skip_compile_ui_assets: bool,
+):
+    console_print("[info]Syncing Virtual Environment[/]")
+    result = sync_virtualenv(force_venv_setup=force_venv_setup)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+    make_sure_kubernetes_tools_are_installed()
+
+    return_code, _ = _create_cluster(
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=None,
+        force_recreate_cluster=force_recreate_cluster,
+        num_tries=1,
+        show_hints=False,
+    )
+    if return_code != 0:
+        sys.exit(return_code)
+
+    return_code, _ = _configure_k8s_cluster(
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=None,
+    )
+    if return_code != 0:
+        sys.exit(return_code)
+
+    if skip_compile_ui_assets:
+        console_print("[info]Skipping compilation of Airflow UI assets[/]")
+    else:
+        console_print("[info]Compiling Airflow UI assets[/]")
+        perform_environment_checks()
+        assert_prek_installed()
+        result = run_compile_ui_assets(
+            dev=False, run_in_background=False, force_clean=False, additional_ui_hooks=[]
+        )
+        if result.returncode != 0:
+            sys.exit(result.returncode)
+
+    if skip_image_build:
+        console_print("[info]Skipping Airflow Image Build[/]")
+    else:
+        return_code, _ = _rebuild_k8s_image(
+            python=python,
+            rebuild_base_image=rebuild_base_image,
+            copy_local_sources=True,
+            use_uv=use_uv,
+            output=None,
+        )
+        if return_code != 0:
+            sys.exit(return_code)
+
+    return_code, _ = _upload_k8s_image(
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=None,
+    )
+    if return_code != 0:
+        sys.exit(return_code)

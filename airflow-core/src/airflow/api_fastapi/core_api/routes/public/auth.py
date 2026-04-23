@@ -66,12 +66,22 @@ def logout(request: Request, auth_manager: AuthManagerDep) -> RedirectResponse:
         auth_manager.revoke_token(token_str)
 
     secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+    cookie_path = get_cookie_path()
     response = RedirectResponse(auth_manager.get_url_login())
     response.delete_cookie(
         key=COOKIE_NAME_JWT_TOKEN,
-        path=get_cookie_path(),
+        path=cookie_path,
         secure=secure,
         httponly=True,
     )
+    # Clear any stale _token cookie at root path "/" left by
+    # older Airflow instances to prevent redirect loops.
+    if cookie_path != "/":
+        response.delete_cookie(
+            key=COOKIE_NAME_JWT_TOKEN,
+            path="/",
+            secure=secure,
+            httponly=True,
+        )
 
     return response

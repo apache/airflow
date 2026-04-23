@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import atexit
 import contextlib
+import functools
 import io
 import logging
 import os
@@ -138,8 +139,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
-
-__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
+__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "supervise_task"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
@@ -195,10 +195,18 @@ Note: Only Linux-based distros supported as "Production" execution environment f
 
 macOS
 -----
- 1. Due to limitations in Apple's libraries not every process might 'fork' safe.
-    One of the general error is unable to query the macOS system configuration for network proxies.
-    If your are not using a proxy you could disable it by set environment variable 'no_proxy' to '*'.
-    See: https://github.com/python/cpython/issues/58037 and https://bugs.python.org/issue30385#msg293958
+ Apple's Objective-C runtime and system frameworks (Security.framework,
+ CoreFoundation, libdispatch) are not safe to use after fork() without exec().
+ Airflow's task supervisor uses fork+exec on macOS to avoid this, but other
+ code paths (DAG processor, triggerer) still use bare fork.  If you see
+ crashes mentioning "+[NSNumber initialize]" or "_scproxy", the most likely
+ cause is a bare fork touching Apple frameworks.
+
+ Common triggers: socket.getaddrinfo (DNS resolver), urllib proxy lookup,
+ SSL context initialization via Security.framework.
+
+ See: https://github.com/python/cpython/issues/105912
+      https://github.com/python/cpython/issues/58037
 ********************************************************************************************************"""
 
 
@@ -319,8 +327,7 @@ def block_orm_access():
 
         settings.__getattr__ = __getattr__
 
-        settings.SQL_ALCHEMY_CONN = conn
-        settings.SQL_ALCHEMY_CONN_ASYNC = conn
+        settings.block_orm_access()
 
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = conn
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = conn
@@ -441,6 +448,55 @@ def _fork_main(
             exit(125)
 
 
+_FORK_EXEC_PLATFORMS = {"darwin"}
+"""Platforms where we fork+exec instead of bare ``os.fork`` for task execution.
+
+macOS system libraries (Security.framework, CoreFoundation, ``_scproxy``) use
+Objective-C, which is not fork-safe.  A bare ``os.fork()`` copies the parent's
+ObjC runtime state; if the child then triggers ObjC class initialization
+(e.g. via ``socket.getaddrinfo`` -> system DNS resolver -> proxy lookup), the
+runtime detects the corrupted state and crashes with SIGABRT.
+
+Calling ``os.execv`` immediately after ``os.fork`` replaces the child's address
+space, giving it clean ObjC state.  Before exec, the supervisor ``dup2``s the
+socketpairs onto FDs 0 (requests/stdin), 1 (stdout), 2 (stderr).  The duplicated
+FDs survive the upcoming exec because ``os.dup2(inheritable=True)`` (the default)
+clears ``FD_CLOEXEC`` on the destination FDs.  The log channel is obtained after
+startup via the existing ``ResendLoggingFD`` mechanism.
+
+Currently only task execution opts in (via ``ActivitySubprocess.start``).  DAG
+processor and triggerer can also hit this crash and will need the same treatment
+as a follow-up (see https://github.com/apache/airflow/issues/65691).
+
+See: https://github.com/python/cpython/issues/105912
+     https://github.com/apache/airflow/discussions/24463
+"""
+
+
+def _child_exec_main():
+    """
+    Entry point for the child process when using fork+exec (macOS).
+
+    After exec, FDs 0/1/2 are already the requests/stdout/stderr sockets
+    (dup2'd by the parent before exec).  The log channel is NOT inherited;
+    instead, the task runner requests it from the supervisor via the existing
+    ``ResendLoggingFD`` mechanism after startup.
+    """
+    # FDs 0, 1, 2 were dup2'd onto the socketpairs before exec.
+    child_requests = socket(fileno=0)
+    child_stdout = socket(fileno=1)
+    child_stderr = socket(fileno=2)
+
+    # _fork_main always exits via os._exit(), so the socket objects above are
+    # never GC'd (which would close their underlying FDs). This is safe but
+    # depends on that invariant -- do not refactor _fork_main to return.
+    #
+    # log_fd=0 tells _fork_main to skip structured log channel setup.
+    # Signal to the task runner to request it via ResendLoggingFD after startup.
+    os.environ["_AIRFLOW_FORK_EXEC"] = "1"
+    _fork_main(child_requests, child_stdout, child_stderr, 0, _subprocess_main)
+
+
 @attrs.define(kw_only=True)
 class WatchedSubprocess:
     """
@@ -488,9 +544,24 @@ class WatchedSubprocess:
         *,
         target: Callable[[], None] = _subprocess_main,
         logger: FilteringBoundLogger | None = None,
+        use_exec: bool = False,
         **constructor_kwargs,
     ) -> Self:
-        """Fork and start a new subprocess with the specified target function."""
+        """
+        Fork and start a new subprocess with the specified target function.
+
+        :param use_exec: If True, on platforms that need it (currently macOS),
+            immediately ``os.execv`` a fresh Python interpreter after ``os.fork``.
+            This avoids macOS fork-safety issues with Objective-C frameworks.
+            Task execution opts in; DAG processor and triggerer do not.
+
+        The exec'd child always runs ``_subprocess_main``, so ``use_exec=True``
+        is only valid when ``target is _subprocess_main``.
+        """
+        if use_exec and target is not _subprocess_main:
+            raise ValueError(
+                f"use_exec=True is only supported with target=_subprocess_main; got target={target!r}"
+            )
         # Create socketpairs/"pipes" to connect to the stdin and out from the subprocess
         child_stdout, read_stdout = socketpair()
         child_stderr, read_stderr = socketpair()
@@ -512,14 +583,34 @@ class WatchedSubprocess:
             del logger
 
             try:
-                # Run the child entrypoint
-                _fork_main(child_requests, child_stdout, child_stderr, child_logs.fileno(), target)
+                if use_exec:
+                    # macOS: exec a fresh Python interpreter to replace the
+                    # inherited ObjC/CoreFoundation state that is not fork-safe.
+                    # dup2 copies the socketpairs onto FDs 0/1/2; os.dup2 clears
+                    # FD_CLOEXEC on the destination FDs, so they survive exec.
+                    # The log channel is requested later via ResendLoggingFD.
+                    os.dup2(child_requests.fileno(), 0)
+                    os.dup2(child_stdout.fileno(), 1)
+                    os.dup2(child_stderr.fileno(), 2)
+                    os.execv(
+                        sys.executable,
+                        [
+                            sys.executable,
+                            "-c",
+                            "from airflow.sdk.execution_time.supervisor import _child_exec_main;"
+                            " _child_exec_main()",
+                        ],
+                    )
+                    # execv replaces the process -- unreachable on success
+                else:
+                    # Run the child entrypoint
+                    _fork_main(child_requests, child_stdout, child_stderr, child_logs.fileno(), target)
             except BaseException as e:
                 import traceback
 
                 with suppress(BaseException):
-                    # We can't use log here, as if we except out of _fork_main something _weird_ went on.
-                    print("Exception in _fork_main, exiting with code 124", file=sys.stderr)
+                    # We can't use log here, as if we except out of the child something _weird_ went on.
+                    print("Exception in child process, exiting with code 124", file=sys.stderr)
                     traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
 
             # It's really super super important we never exit this block. We are in the forked child, and if we
@@ -566,10 +657,7 @@ class WatchedSubprocess:
             )
         )
 
-        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
-
-        if self.subprocess_logs_to_stdout:
-            target_loggers += (log,)
+        target_loggers = self._get_target_loggers()
 
         self.selector.register(
             stdout, selectors.EVENT_READ, self._create_log_forwarder(target_loggers, "task.stdout")
@@ -591,6 +679,13 @@ class WatchedSubprocess:
             selectors.EVENT_READ,
             length_prefixed_frame_reader(self.handle_requests(log), on_close=self._on_socket_closed),
         )
+
+    def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
+        """Return the loggers that child process output should be forwarded to."""
+        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
+        if self.subprocess_logs_to_stdout:
+            target_loggers += (log,)
+        return target_loggers
 
     def _create_log_forwarder(self, loggers, name, log_level=logging.INFO) -> Callable[[socket], bool]:
         """Create a socket handler that forwards logs to a logger."""
@@ -1003,7 +1098,13 @@ class ActivitySubprocess(WatchedSubprocess):
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
-        proc: Self = super().start(id=what.id, client=client, target=target, logger=logger, **kwargs)
+        # Opt in to fork+exec on platforms that need it (currently macOS).
+        # Tests override `target` with a local stub to exercise the base
+        # infrastructure; keep bare fork for those.
+        use_exec = target is _subprocess_main and sys.platform in _FORK_EXEC_PLATFORMS
+        proc: Self = super().start(
+            id=what.id, client=client, target=target, logger=logger, use_exec=use_exec, **kwargs
+        )
         # Tell the task process what it needs to do!
         proc._on_child_started(
             ti=what,
@@ -1023,18 +1124,23 @@ class ActivitySubprocess(WatchedSubprocess):
     ) -> None:
         """Send startup message to the subprocess."""
         self.ti = ti  # type: ignore[assignment]
-        start_date = datetime.now(tz=timezone.utc)
         try:
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
-            ti_context = self.client.task_instances.start(ti.id, self.pid, start_date)
+            ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
             self._should_retry = ti_context.should_retry
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
             # On any error kill that subprocess!
             self.kill(signal.SIGKILL)
             raise
+
+        # ti_context.start_date is only populated by the server when resuming from a deferral (to preserve the
+        # original start_date rather than using the resume time). We fall back to now() otherwise. This ensures
+        # that `context["ti"].start_date` always reflects the *first* start time. See TIRunContext.start_date
+        # for more context. Do not remove this without updating related comments and deferral handling.
+        start_date = ti_context.start_date or datetime.now(tz=timezone.utc)
 
         msg = StartupDetails.model_construct(
             ti=ti,
@@ -1097,8 +1203,11 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         from airflow.sdk.log import upload_to_remote
 
-        with _remote_logging_conn(self.client):
-            upload_to_remote(self.process_log, self.ti)
+        try:
+            with _remote_logging_conn(self.client):
+                upload_to_remote(self.process_log, self.ti)
+        except Exception:
+            self.process_log.exception("Failed to upload remote logs", ti_id=self.id, pid=self.pid)
 
     def _monitor_subprocess(self):
         """
@@ -1531,6 +1640,7 @@ class ActivitySubprocess(WatchedSubprocess):
         child_logs.close()  # Close this end now.
 
 
+@functools.lru_cache(maxsize=1)
 def in_process_api_server():
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
@@ -1692,8 +1802,9 @@ class InProcessTestSupervisor(ActivitySubprocess):
     @staticmethod
     def _api_client(dag=None):
         api = in_process_api_server()
+        from airflow.api_fastapi.common.dagbag import dag_bag_from_app
+
         if dag is not None:
-            from airflow.api_fastapi.common.dagbag import dag_bag_from_app
             from airflow.models.dagbag import DBDagBag
 
             # This is needed since the Execution API server uses the DBDagBag in its "state".
@@ -1701,6 +1812,8 @@ class InProcessTestSupervisor(ActivitySubprocess):
             dag_bag = DBDagBag()
 
             api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
+        else:
+            api.app.dependency_overrides.pop(dag_bag_from_app, None)
 
         client = InProcessTestSupervisor._Client(
             base_url=None, token="", dry_run=True, transport=api.transport
@@ -2007,7 +2120,7 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
     return logger, log_file_descriptor
 
 
-def supervise(
+def supervise_task(
     *,
     ti: TaskInstance,
     bundle_info: BundleInfo,
@@ -2114,8 +2227,9 @@ def supervise(
         exit_code = process.wait()
         end = time.monotonic()
         log.info(
-            "Task finished",
-            task_instance_id=str(ti.id),
+            "Workload finished",
+            workload_type="ExecuteTask",
+            workload_id=str(ti.id),
             exit_code=exit_code,
             duration=end - start,
             final_state=process.final_state,
@@ -2127,3 +2241,22 @@ def supervise(
         if close_client and client:
             with suppress(Exception):
                 client.close()
+
+
+def supervise(**kwargs) -> int:
+    """
+    Call ``supervise_task()`` with a deprecation warning.
+
+    This wrapper exists for backward compatibility with provider packages that may import ``supervise`` directly.
+
+    .. deprecated::
+        Use :func:`supervise_task` instead.
+    """
+    import warnings
+
+    warnings.warn(
+        "supervise() is deprecated, use supervise_task() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return supervise_task(**kwargs)

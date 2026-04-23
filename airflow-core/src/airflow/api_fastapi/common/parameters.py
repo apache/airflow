@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from datetime import datetime
 from enum import Enum
 from typing import (
@@ -119,7 +119,10 @@ class OffsetFilter(BaseParam[NonNegativeInt]):
         return select.offset(self.value)
 
     @classmethod
-    def depends(cls, offset: NonNegativeInt = 0) -> OffsetFilter:
+    def depends(
+        cls,
+        offset: NonNegativeInt = 0,
+    ) -> OffsetFilter:
         return cls().set_value(offset)
 
 
@@ -182,7 +185,7 @@ class _SearchParam(BaseParam[str]):
         val_str = str(self.value)
         if "|" in val_str:
             search_terms = [term.strip() for term in val_str.split("|") if term.strip()]
-            if len(search_terms) > 1:
+            if search_terms:
                 return select.where(or_(*(self.attribute.ilike(f"%{term}%") for term in search_terms)))
 
         return select.where(self.attribute.ilike(f"%{self.value}%"))
@@ -281,10 +284,16 @@ class SortParam(BaseParam[list[str]]):
         self.allowed_attrs = allowed_attrs
         self.model = model
         self.to_replace = to_replace
+        self._cached_resolution: list[tuple[str, ColumnElement, bool]] | None = None
 
-    def to_orm(self, select: Select) -> Select:
-        if self.skip_none is False:
-            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+    def set_value(self, value: list[str] | None) -> Self:
+        self._cached_resolution = None
+        return super().set_value(value)
+
+    def _resolve(self) -> list[tuple[str, ColumnElement, bool]]:
+        """Resolve sort columns as (attr_name, column, is_descending) tuples. Cached after first call."""
+        if self._cached_resolution is not None:
+            return self._cached_resolution
 
         if self.value is None:
             self.value = [self.get_primary_key_string()]
@@ -296,9 +305,10 @@ class SortParam(BaseParam[list[str]]):
                 f"Ordering with more than {self.MAX_SORT_PARAMS} parameters is not allowed. Provided: {order_by_values}",
             )
 
-        columns: list[ColumnElement] = []
+        resolved: list[tuple[str, ColumnElement, bool]] = []
         for order_by_value in order_by_values:
             lstriped_orderby = order_by_value.lstrip("-")
+            attr_name = lstriped_orderby
             column: Column | None = None
             if self.to_replace:
                 replacement = self.to_replace.get(lstriped_orderby, lstriped_orderby)
@@ -316,22 +326,31 @@ class SortParam(BaseParam[list[str]]):
             if column is None:
                 column = getattr(self.model, lstriped_orderby)
 
-            if order_by_value.startswith("-"):
-                columns.append(column.desc())
-            else:
-                columns.append(column.asc())
-
-        # Reset default sorting
-        select = select.order_by(None)
+            resolved.append((attr_name, column, order_by_value.startswith("-")))
 
         primary_key_column = self.get_primary_key_column()
-        # Always add a final discriminator to enforce deterministic ordering.
-        if order_by_values and order_by_values[0].startswith("-"):
-            columns.append(primary_key_column.desc())
-        else:
-            columns.append(primary_key_column.asc())
+        pk_name = self.get_primary_key_string()
+        if not any(name == pk_name for name, _, _ in resolved):
+            pk_desc = bool(order_by_values and order_by_values[0].startswith("-"))
+            resolved.append((pk_name, primary_key_column, pk_desc))
 
-        return select.order_by(*columns)
+        self._cached_resolution = resolved
+        return self._cached_resolution
+
+    def to_orm(self, select: Select, *, reversed: bool = False) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        resolved = self._resolve()
+        if reversed:
+            columns = [col.asc() if is_desc else col.desc() for _, col, is_desc in resolved]
+        else:
+            columns = [col.desc() if is_desc else col.asc() for _, col, is_desc in resolved]
+        return select.order_by(None).order_by(*columns)
+
+    def get_resolved_columns(self) -> list[tuple[str, ColumnElement, bool]]:
+        """Return resolved sort columns as (attr_name, column_element, is_descending) tuples."""
+        return self._resolve()
 
     def get_primary_key_column(self) -> Column:
         """Get the primary key column of the model of SortParam object."""
@@ -345,14 +364,21 @@ class SortParam(BaseParam[list[str]]):
     def depends(cls, *args: Any, **kwargs: Any) -> Self:
         raise NotImplementedError("Use dynamic_depends, depends not implemented.")
 
-    def dynamic_depends(self, default: str | None = None) -> Callable:
+    def dynamic_depends(self, default: str | Sequence[str] | None = None) -> Callable:
         to_replace_attrs = list(self.to_replace.keys()) if self.to_replace else []
 
         all_attrs = self.allowed_attrs + to_replace_attrs
 
+        if default is None:
+            default_list = [self.get_primary_key_string()]
+        elif isinstance(default, str):
+            default_list = [default]
+        else:
+            default_list = list(default)
+
         def inner(
             order_by: list[str] = Query(
-                default=[default] if default is not None else [self.get_primary_key_string()],
+                default=default_list,
                 description=f"Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. "
                 f"Supported attributes: `{', '.join(all_attrs) if all_attrs else self.get_primary_key_string()}`",
             ),

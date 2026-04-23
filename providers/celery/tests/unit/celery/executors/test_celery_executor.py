@@ -34,6 +34,7 @@ from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.executors.base_executor import BaseExecutor
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
@@ -285,6 +286,39 @@ class TestCeleryExecutor:
         assert executor.workloads == {key_1: AsyncResult("231"), key_2: AsyncResult("232")}
         assert not_adopted_tis == []
 
+    @pytest.mark.backend("mysql", "postgres")
+    @time_machine.travel("2020-01-01", tick=False)
+    def test_try_adopt_with_and_without_external_executor_id(
+        self, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
+        """TIs with an ID are adopted; TIs without are returned for reset."""
+        start_date = timezone.utcnow() - timedelta(days=2)
+
+        with DAG("test_try_adopt_mixed", schedule=None) as dag:
+            task_1 = BaseOperator(task_id="task_1", start_date=start_date)
+            task_2 = BaseOperator(task_id="task_2", start_date=start_date)
+
+        if AIRFLOW_V_3_0_PLUS:
+            sync_dag_to_db(dag)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti_with_id = create_task_instance(task=task_1, run_id=None, dag_version_id=dag_version.id)
+            ti_without_id = create_task_instance(task=task_2, run_id=None, dag_version_id=dag_version.id)
+        else:
+            ti_with_id = TaskInstance(task=task_1, run_id=None)
+            ti_without_id = TaskInstance(task=task_2, run_id=None)
+        ti_with_id.external_executor_id = "231"
+        ti_with_id.state = State.QUEUED
+        ti_without_id.external_executor_id = None
+        ti_without_id.state = State.QUEUED
+
+        executor = celery_executor.CeleryExecutor()
+        not_adopted_tis = executor.try_adopt_task_instances([ti_with_id, ti_without_id])
+
+        key_1 = TaskInstanceKey(dag.dag_id, task_1.task_id, None, 0)
+        assert key_1 in executor.running
+        assert executor.workloads == {key_1: AsyncResult("231")}
+        assert not_adopted_tis == [ti_without_id]
+
     @pytest.fixture
     def mock_celery_revoke(self):
         with _prepare_app() as app:
@@ -436,6 +470,68 @@ def test_send_workloads_to_celery_hang(register_signals):
         # multiprocessing.
         results = executor._send_workloads_to_celery(workload_tuples_to_send)
         assert results == [(None, None, 1) for _ in workload_tuples_to_send]
+
+
+def _has_external_executor_id_field() -> bool:
+    try:
+        from airflow.executors.workloads.task import TaskInstanceDTO
+
+        return "external_executor_id" in TaskInstanceDTO.model_fields
+    except (ImportError, AttributeError):
+        return False
+
+
+@pytest.mark.skipif(
+    not _has_external_executor_id_field(),
+    reason="TaskInstanceDTO.external_executor_id not available in this airflow-core version",
+)
+def test_send_workload_uses_external_executor_id_as_celery_task_id():
+    """Pre-assigned external_executor_id is passed as task_id to apply_async()."""
+    from airflow.executors.workloads.task import TaskInstanceDTO
+
+    pre_assigned_id = "pre-assigned-uuid-for-celery"
+    ti_dto = TaskInstanceDTO(
+        id="00000000-0000-0000-0000-000000000001",
+        dag_version_id="00000000-0000-0000-0000-000000000002",
+        task_id="test_task",
+        dag_id="test_dag",
+        run_id="test_run",
+        try_number=1,
+        map_index=-1,
+        pool_slots=1,
+        queue="default",
+        priority_weight=1,
+        external_executor_id=pre_assigned_id,
+    )
+    key = TaskInstanceKey(
+        dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=-1, try_number=1
+    )
+
+    mock_result = mock.Mock(task_id=pre_assigned_id)
+    mock_celery_task = mock.Mock()
+    mock_celery_task.apply_async.return_value = mock_result
+
+    mock_app = mock.Mock()
+    mock_app.tasks = {"execute_workload": mock_celery_task}
+
+    from airflow.executors.workloads import ExecuteTask
+
+    workload = mock.Mock(spec=ExecuteTask)
+    workload.ti = ti_dto
+    workload.model_dump_json.return_value = "{}"
+
+    with mock.patch(
+        "airflow.providers.celery.executors.celery_executor_utils.create_celery_app",
+        return_value=mock_app,
+    ):
+        result_key, _, result = celery_executor_utils.send_workload_to_executor(
+            (key, workload, "default", None)
+        )
+
+    mock_celery_task.apply_async.assert_called_once_with(
+        args=("{}",), queue="default", task_id=pre_assigned_id
+    )
+    assert result.task_id == pre_assigned_id
 
 
 @conf_vars({("celery", "result_backend"): "rediss://test_user:test_password@localhost:6379/0"})
@@ -773,6 +869,10 @@ def test_celery_tasks_registered_on_import():
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_1_9_PLUS, reason="TaskAlreadyRunningError requires Airflow 3.1.9+")
+@pytest.mark.skipif(
+    not hasattr(BaseExecutor, "run_workload"),
+    reason="BaseExecutor.run_workload not available in this Airflow version",
+)
 def test_execute_workload_ignores_already_running_task():
     """Test that execute_workload raises Celery Ignore when task is already running."""
     import importlib
@@ -790,10 +890,10 @@ def test_execute_workload_ignores_already_running_task():
     mock_app.current_task = mock_current_task
 
     with (
-        mock.patch("airflow.sdk.execution_time.supervisor.supervise") as mock_supervise,
+        mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload") as mock_run_workload,
         mock.patch.object(celery_executor_utils, "app", mock_app),
     ):
-        mock_supervise.side_effect = TaskAlreadyRunningError("Task already running")
+        mock_run_workload.side_effect = TaskAlreadyRunningError("Task already running")
 
         workload_json = """
         {
@@ -874,6 +974,64 @@ class TestAmqpsSslConfig:
 
     @conf_vars(
         {
+            ("celery", "BROKER_URL"): "rediss://redis:6380//",
+            ("celery", "SSL_ACTIVE"): "True",
+            ("celery", "SSL_KEY"): "/path/to/key.pem",
+            ("celery", "SSL_CERT"): "/path/to/cert.pem",
+            ("celery", "SSL_CACERT"): "/path/to/ca.pem",
+        }
+    )
+    def test_redis_mutual_tls_builds_ssl_config(self):
+        """Test mutual TLS: all three SSL keys produce correct broker_use_ssl for Redis."""
+        import importlib
+        import ssl
+
+        importlib.reload(default_celery)
+
+        config = default_celery.DEFAULT_CELERY_CONFIG
+        assert "broker_use_ssl" in config
+        broker_ssl = config["broker_use_ssl"]
+        assert broker_ssl["ssl_keyfile"] == "/path/to/key.pem"
+        assert broker_ssl["ssl_certfile"] == "/path/to/cert.pem"
+        assert broker_ssl["ssl_ca_certs"] == "/path/to/ca.pem"
+        assert broker_ssl["ssl_cert_reqs"] == ssl.CERT_REQUIRED
+
+    @conf_vars(
+        {
+            ("celery", "BROKER_URL"): "amqps://guest:guest@rabbitmq:5671//",
+            ("celery", "SSL_ACTIVE"): "True",
+            ("celery", "SSL_CACERT"): "/path/to/ca.pem",
+        }
+    )
+    def test_amqps_mutual_tls_missing_key_cert_raises(self):
+        """Test that mutual TLS (default) raises error when SSL_KEY/SSL_CERT are missing."""
+        import importlib
+
+        with pytest.raises(ValueError, match="SSL_MUTUAL_TLS is True.*but SSL_KEY and/or SSL_CERT"):
+            importlib.reload(default_celery)
+
+    @conf_vars(
+        {
+            ("celery", "BROKER_URL"): "amqps://guest:guest@rabbitmq:5671//",
+            ("celery", "SSL_ACTIVE"): "True",
+            ("celery", "SSL_KEY"): "/path/to/key",
+            ("celery", "SSL_CERT"): "/path/to/cert",
+            ("celery", "SSL_CACERT"): "",
+        }
+    )
+    def test_ssl_active_without_cacert_uses_system_cas(self):
+        """Test that empty SSL_CACERT falls back to system CAs (ca_certs omitted from config)."""
+        import importlib
+        import ssl
+
+        importlib.reload(default_celery)
+        broker_ssl = default_celery.DEFAULT_CELERY_CONFIG["broker_use_ssl"]
+
+        assert "ca_certs" not in broker_ssl
+        assert broker_ssl["cert_reqs"] == ssl.CERT_REQUIRED
+
+    @conf_vars(
+        {
             ("celery", "BROKER_URL"): "amqps://guest:guest@rabbitmq:5671//",
             ("celery", "SSL_ACTIVE"): "False",
         }
@@ -886,6 +1044,77 @@ class TestAmqpsSslConfig:
 
         config = default_celery.DEFAULT_CELERY_CONFIG
         assert "broker_use_ssl" not in config
+
+    @conf_vars(
+        {
+            ("celery", "BROKER_URL"): "amqps://guest:guest@rabbitmq:5671//",
+            ("celery", "SSL_ACTIVE"): "True",
+            ("celery", "SSL_MUTUAL_TLS"): "False",
+            ("celery", "SSL_CACERT"): "/path/to/ca.pem",
+        }
+    )
+    def test_amqps_one_way_tls(self):
+        """Test one-way TLS for AMQP: only ca_certs, no keyfile/certfile."""
+        import importlib
+        import ssl
+
+        importlib.reload(default_celery)
+
+        config = default_celery.DEFAULT_CELERY_CONFIG
+        assert "broker_use_ssl" in config
+        broker_ssl = config["broker_use_ssl"]
+        assert broker_ssl["ca_certs"] == "/path/to/ca.pem"
+        assert broker_ssl["cert_reqs"] == ssl.CERT_REQUIRED
+        assert "keyfile" not in broker_ssl
+        assert "certfile" not in broker_ssl
+
+    @conf_vars(
+        {
+            ("celery", "BROKER_URL"): "rediss://redis:6380//",
+            ("celery", "SSL_ACTIVE"): "True",
+            ("celery", "SSL_MUTUAL_TLS"): "False",
+            ("celery", "SSL_CACERT"): "/path/to/ca.pem",
+        }
+    )
+    def test_redis_one_way_tls(self):
+        """Test one-way TLS for Redis: only ssl_ca_certs, no ssl_keyfile/ssl_certfile."""
+        import importlib
+        import ssl
+
+        importlib.reload(default_celery)
+
+        config = default_celery.DEFAULT_CELERY_CONFIG
+        assert "broker_use_ssl" in config
+        broker_ssl = config["broker_use_ssl"]
+        assert broker_ssl["ssl_ca_certs"] == "/path/to/ca.pem"
+        assert broker_ssl["ssl_cert_reqs"] == ssl.CERT_REQUIRED
+        assert "ssl_keyfile" not in broker_ssl
+        assert "ssl_certfile" not in broker_ssl
+
+    @conf_vars(
+        {
+            ("celery", "BROKER_URL"): "amqps://guest:guest@rabbitmq:5671//",
+            ("celery", "SSL_ACTIVE"): "True",
+            ("celery", "SSL_MUTUAL_TLS"): "False",
+            ("celery", "SSL_KEY"): "/path/to/key.pem",
+            ("celery", "SSL_CERT"): "/path/to/cert.pem",
+            ("celery", "SSL_CACERT"): "/path/to/ca.pem",
+        }
+    )
+    def test_one_way_tls_ignores_key_cert(self):
+        """Test that SSL_KEY/SSL_CERT are ignored when SSL_MUTUAL_TLS is False."""
+        import importlib
+        import ssl
+
+        importlib.reload(default_celery)
+
+        config = default_celery.DEFAULT_CELERY_CONFIG
+        assert "broker_use_ssl" in config
+        broker_ssl = config["broker_use_ssl"]
+        assert broker_ssl["ca_certs"] == "/path/to/ca.pem"
+        assert broker_ssl["cert_reqs"] == ssl.CERT_REQUIRED
+        assert "keyfile" not in broker_ssl
+        assert "certfile" not in broker_ssl
 
 
 class TestCreateCeleryAppTeamIsolation:

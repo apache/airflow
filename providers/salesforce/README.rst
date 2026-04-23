@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-salesforce``
 
-Release: ``5.13.0``
+Release: ``5.14.0``
 
 
 `Salesforce <https://www.salesforce.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``salesforce`` provider. All classes for this pro
 are in ``airflow.providers.salesforce`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.13.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.14.0/>`_.
 
 Installation
 ------------
@@ -81,4 +81,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.13.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.14.0/changelog.html>`_.

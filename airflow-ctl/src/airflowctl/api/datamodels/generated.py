@@ -288,6 +288,13 @@ class DAGRunClearBody(BaseModel):
     )
     dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
+    only_new: Annotated[
+        bool | None,
+        Field(
+            description="Only queue newly added tasks in the latest DAG version without clearing existing tasks.",
+            title="Only New",
+        ),
+    ] = False
     run_on_latest_version: Annotated[
         bool | None,
         Field(
@@ -638,6 +645,15 @@ class MaterializeAssetBody(BaseModel):
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+
+
+class NewTaskResponse(BaseModel):
+    """
+    Lightweight response for new tasks that don't have TaskInstances yet.
+    """
+
+    task_id: Annotated[str, Field(title="Task Id")]
+    task_display_name: Annotated[str, Field(title="Task Display Name")]
 
 
 class PluginImportErrorResponse(BaseModel):
@@ -1132,7 +1148,7 @@ class BackfillPostBody(BaseModel):
     from_date: Annotated[datetime, Field(title="From Date")]
     to_date: Annotated[datetime, Field(title="To Date")]
     run_backwards: Annotated[bool | None, Field(title="Run Backwards")] = False
-    dag_run_conf: Annotated[dict[str, Any] | None, Field(title="Dag Run Conf")] = {}
+    dag_run_conf: Annotated[dict[str, Any] | None, Field(title="Dag Run Conf")] = None
     reprocess_behavior: ReprocessBehavior | None = "none"
     max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = 10
     run_on_latest_version: Annotated[bool | None, Field(title="Run On Latest Version")] = True
@@ -1378,6 +1394,7 @@ class DAGDetailsResponse(BaseModel):
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
     timetable_partitioned: Annotated[bool, Field(title="Timetable Partitioned")]
+    timetable_periodic: Annotated[bool, Field(title="Timetable Periodic")]
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
     max_active_tasks: Annotated[int, Field(title="Max Active Tasks")]
     max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = None
@@ -1410,6 +1427,9 @@ class DAGDetailsResponse(BaseModel):
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
     active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
+    is_backfillable: Annotated[
+        bool, Field(description="Whether this DAG's schedule supports backfilling.", title="Is Backfillable")
+    ]
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
     concurrency: Annotated[
         int,
@@ -1443,6 +1463,7 @@ class DAGResponse(BaseModel):
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
     timetable_partitioned: Annotated[bool, Field(title="Timetable Partitioned")]
+    timetable_periodic: Annotated[bool, Field(title="Timetable Periodic")]
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
     max_active_tasks: Annotated[int, Field(title="Max Active Tasks")]
     max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = None
@@ -1459,6 +1480,9 @@ class DAGResponse(BaseModel):
     next_dagrun_run_after: Annotated[datetime | None, Field(title="Next Dagrun Run After")] = None
     allowed_run_types: Annotated[list[DagRunType] | None, Field(title="Allowed Run Types")] = None
     owners: Annotated[list[str], Field(title="Owners")]
+    is_backfillable: Annotated[
+        bool, Field(description="Whether this DAG's schedule supports backfilling.", title="Is Backfillable")
+    ]
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
 
 
@@ -1934,6 +1958,15 @@ class BulkDeleteActionBulkTaskInstanceBody(BaseModel):
     action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
+class ClearTaskInstanceCollectionResponse(BaseModel):
+    """
+    Response for clear dag run dry run, which may contain new tasks without full TaskInstance data.
+    """
+
+    task_instances: Annotated[list[TaskInstanceResponse | NewTaskResponse], Field(title="Task Instances")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
 class DAGCollectionResponse(BaseModel):
     """
     DAG Collection serializer for responses.
@@ -2041,11 +2074,38 @@ class TaskCollectionResponse(BaseModel):
 
 class TaskInstanceCollectionResponse(BaseModel):
     """
-    Task Instance Collection serializer for responses.
+    Task instance collection response supporting both offset and cursor pagination.
+
+    A single flat model is used instead of a discriminated union
+    (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because
+    the OpenAPI ``oneOf`` + ``discriminator`` construct is not handled
+    correctly by ``@hey-api/openapi-ts`` / ``@7nohe/openapi-react-query-codegen``:
+    return types degrade to ``unknown`` in JSDoc and can produce
+    incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).
     """
 
     task_instances: Annotated[list[TaskInstanceResponse], Field(title="Task Instances")]
-    total_entries: Annotated[int, Field(title="Total Entries")]
+    total_entries: Annotated[
+        int | None,
+        Field(
+            description="Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.",
+            title="Total Entries",
+        ),
+    ] = None
+    next_cursor: Annotated[
+        str | None,
+        Field(
+            description="Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.",
+            title="Next Cursor",
+        ),
+    ] = None
+    previous_cursor: Annotated[
+        str | None,
+        Field(
+            description="Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.",
+            title="Previous Cursor",
+        ),
+    ] = None
 
 
 class TaskInstanceHistoryCollectionResponse(BaseModel):

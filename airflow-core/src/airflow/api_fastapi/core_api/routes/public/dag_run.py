@@ -75,7 +75,8 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
     TriggerDAGRunPostBody,
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
-    TaskInstanceCollectionResponse,
+    ClearTaskInstanceCollectionResponse,
+    NewTaskResponse,
     TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -286,7 +287,7 @@ def clear_dag_run(
     body: DAGRunClearBody,
     dag_bag: DagBagDep,
     session: SessionDep,
-) -> TaskInstanceCollectionResponse | DAGRunResponse:
+) -> ClearTaskInstanceCollectionResponse | DAGRunResponse:
     dag_run = session.scalar(
         select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id).options(joinedload(DagRun.dag_model))
     )
@@ -298,27 +299,39 @@ def clear_dag_run(
 
     dag = dag_bag.get_dag_for_run(dag_run, session=session)
 
+    if not dag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+
     if body.dry_run:
-        if not dag:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
-        task_instances = dag.clear(
+        task_instances_or_ids = dag.clear(
             run_id=dag_run_id,
             task_ids=None,
+            only_new=body.only_new,
             only_failed=body.only_failed,
             run_on_latest_version=body.run_on_latest_version,
             dry_run=True,
             session=session,
         )
 
-        return TaskInstanceCollectionResponse(
-            task_instances=cast("list[TaskInstanceResponse]", task_instances),
+        if body.only_new:
+            # Create lightweight NewTaskResponse objects for new tasks
+            new_task_ids = cast("set[str]", task_instances_or_ids)
+            task_instances: list[TaskInstanceResponse | NewTaskResponse] = [
+                NewTaskResponse(task_id=task_id, task_display_name=task_id)
+                for task_id in sorted(new_task_ids)
+            ]
+        else:
+            task_instances = cast("list[TaskInstanceResponse | NewTaskResponse]", task_instances_or_ids)
+
+        return ClearTaskInstanceCollectionResponse(
+            task_instances=task_instances,
             total_entries=len(task_instances),
         )
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+
     dag.clear(
         run_id=dag_run_id,
         task_ids=None,
+        only_new=body.only_new,
         only_failed=body.only_failed,
         run_on_latest_version=body.run_on_latest_version,
         session=session,
