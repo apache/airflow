@@ -50,7 +50,7 @@ class TaskInstanceDTO(BaseModel):
     executor_config: dict | None = Field(default=None, exclude=True)
     external_executor_id: str | None = Field(default=None, exclude=True)
 
-    language: str | None = None
+    sdk: str | None = None
 
     parent_context_carrier: dict | None = None
     context_carrier: dict | None = None

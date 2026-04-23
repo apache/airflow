@@ -19,8 +19,8 @@
 Runtime coordinator for non-Python DAG file processing and task execution.
 
 Provides :class:`BaseRuntimeCoordinator`, the base class for
-language-specific coordinators that bridge subprocess I/O between the
-Airflow supervisor and an external-language runtime (Java, Go, Rust, etc.).
+SDK-specific coordinators that bridge subprocess I/O between the
+Airflow supervisor and an external-SDK runtime (Java, Go, Rust, etc.).
 
 The coordinator's :meth:`~BaseRuntimeCoordinator.run_dag_parsing` method
 handles the full lifecycle:
@@ -174,7 +174,7 @@ class BaseRuntimeCoordinator:
     and :class:`ProvidersManagerTaskRuntime` (task-sdk) discover registered
     coordinators through this single extension point.
 
-    Subclasses represent a specific language runtime (Java, Go, etc.) and
+    Subclasses represent a specific SDK runtime (Java, Go, etc.) and
     only need to implement :meth:`can_handle_dag_file`,
     :meth:`dag_parsing_runtime_cmd` and :meth:`task_execution_runtime_cmd`.
     The base class owns the entire bridge lifecycle: TCP servers,
