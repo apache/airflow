@@ -205,8 +205,7 @@ The Execution API defines two token scopes with different lifetimes:
 
 **workload**
    A token embedded in the workload JSON payload when the Scheduler
-   dispatches a task. This scope is accepted only on endpoints that explicitly opt in
-   via ``Security(require_auth, scopes=["token:workload"])``. The longer lifetime
+   dispatches a task. The longer lifetime
    allows tasks to remain valid while waiting in executor queues before execution
    begins. When a worker calls the ``/run`` endpoint with a ``workload`` token, the
    server issues a fresh ``execution``-scoped token in the ``Refreshed-API-Token``
