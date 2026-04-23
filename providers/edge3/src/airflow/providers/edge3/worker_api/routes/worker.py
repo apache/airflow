@@ -28,7 +28,6 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, set_metrics
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
     WorkerQueueUpdateBody,
@@ -36,6 +35,11 @@ from airflow.providers.edge3.worker_api.datamodels import (
     WorkerSetStateReturn,
     WorkerStateBody,
 )
+
+try:
+    from airflow.sdk.observability.stats import DualStatsManager
+except ImportError:
+    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
 
 worker_router = AirflowRouter(
     tags=["Worker"],
@@ -217,9 +221,7 @@ def set_state(
     worker.sysinfo = body.sysinfo
     worker.last_update = timezone.utcnow()
     session.commit()
-    if AIRFLOW_V_3_2_PLUS:
-        from airflow.sdk.observability.stats import DualStatsManager
-
+    if DualStatsManager is not None:
         DualStatsManager.incr(
             "edge_worker.heartbeat_count",
             1,

@@ -28,11 +28,15 @@ from sqlalchemy.orm import Mapped
 from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.edge3.models.edge_base import Base
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+try:
+    from airflow.sdk.observability.stats import DualStatsManager
+except ImportError:
+    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2.1 compat
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -180,9 +184,7 @@ def set_metrics(
         "free_concurrency",
     }
 
-    if AIRFLOW_V_3_2_PLUS:
-        from airflow.sdk.observability.stats import DualStatsManager
-
+    if DualStatsManager is not None:
         try:
             DualStatsManager.gauge(
                 "edge_worker.status",
