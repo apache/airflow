@@ -308,14 +308,23 @@ class FabAuthManager(BaseAuthManager[User]):
         """
         Return the role granted to anonymous users, or ``None`` if public access is disabled.
 
-        ``providers/fab/www/app.py`` copies ``[fab] auth_role_public`` from the Airflow config
-        into ``AUTH_ROLE_PUBLIC`` on the Flask app when the app is created, so reading the
-        Flask config here covers both the new config key and the legacy
-        ``AUTH_ROLE_PUBLIC`` entry in ``webserver_config.py``.
+        Reads ``[fab] auth_role_public`` from the Airflow config first so this works
+        during FastAPI startup, before any Flask application context exists. Falls back
+        to ``AUTH_ROLE_PUBLIC`` on the Flask app config when an app context is available,
+        which covers the legacy ``AUTH_ROLE_PUBLIC`` entry in ``webserver_config.py``.
         """
-        if self.appbuilder is not None:
+        role_public = conf.get("fab", "auth_role_public", fallback="") or None
+        if role_public:
+            return role_public
+        if self.appbuilder is None:
+            return None
+        try:
             return self.appbuilder.app.config.get("AUTH_ROLE_PUBLIC", None)
-        return None
+        except RuntimeError:
+            # ``appbuilder.app`` is a werkzeug ``LocalProxy``; accessing it outside a
+            # Flask application context raises ``RuntimeError``. This happens during
+            # FastAPI startup when ``get_fastapi_middlewares`` is invoked.
+            return None
 
     @provide_session
     def build_public_user(self, *, session: Session = NEW_SESSION) -> AnonymousUser | None:
