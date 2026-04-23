@@ -196,6 +196,7 @@ def task_group(
     tooltip: str = "",
     ui_color: str = "CornflowerBlue",
     ui_fgcolor: str = "#000",
+    map_index_template: str | None = None,
     add_suffix_on_collision: bool = False,
     group_display_name: str = "",
 ) -> Callable[[Callable[FParams, FReturn]], _TaskGroupFactory[FParams, FReturn]]: ...

@@ -327,3 +327,38 @@ def test_task_group_display_name_used_as_label():
     p = pipeline()
 
     assert p.task_group_dict["tg"].label == "my_custom_name"
+
+
+def test_task_group_map_index_template_attribute():
+    """Test that map_index_template is stored on the TaskGroup when set via the decorator."""
+
+    @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task_group(map_index_template="{{ filename }}")
+        def tg():
+            pass
+
+        tg()
+
+    p = pipeline()
+
+    assert p.task_group_dict["tg"].map_index_template == "{{ filename }}"
+
+
+def test_task_group_map_index_template_with_expand():
+    """Test that map_index_template works with expand(), creating a MappedTaskGroup that carries the template."""
+
+    @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task_group(map_index_template="{{ filename }}")
+        def tg(filename):
+            pass
+
+        tg.expand(filename=["a.json", "b.json"])
+
+    d = pipeline()
+
+    tg = d.task_group_dict["tg"]
+    assert isinstance(tg, MappedTaskGroup)
+    assert tg.map_index_template == "{{ filename }}"
+    assert tg._expand_input == DictOfListsExpandInput({"filename": ["a.json", "b.json"]})

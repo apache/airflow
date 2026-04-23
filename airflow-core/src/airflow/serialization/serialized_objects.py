@@ -2102,6 +2102,7 @@ class TaskGroupSerialization(BaseSerialization):
             "tooltip": task_group.tooltip,
             "ui_color": task_group.ui_color,
             "ui_fgcolor": task_group.ui_fgcolor,
+            "map_index_template": task_group.map_index_template,
             "children": {
                 label: child.serialize_for_task_group() for label, child in task_group.children.items()
             },
@@ -2132,6 +2133,7 @@ class TaskGroupSerialization(BaseSerialization):
             for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
         kwargs["group_display_name"] = cls.deserialize(encoded_group.get("group_display_name", ""))
+        kwargs["map_index_template"] = cls.deserialize(encoded_group.get("map_index_template"))
 
         if not encoded_group.get("is_mapped"):
             group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, dag=dag, **kwargs)
