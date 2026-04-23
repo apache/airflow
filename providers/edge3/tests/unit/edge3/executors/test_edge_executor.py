@@ -38,8 +38,6 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 pytestmark = pytest.mark.db_test
 
-stats_reference = f"{Stats.__module__}.Stats"
-
 
 class TestEdgeExecutor:
     @pytest.fixture(autouse=True)
@@ -61,7 +59,7 @@ class TestEdgeExecutor:
 
         return (executor, key)
 
-    @patch(f"{stats_reference}.incr")
+    @patch(f"{Stats.__module__}.Stats.incr")
     def test_sync_orphaned_tasks(self, mock_stats_incr):
         executor = EdgeExecutor()
 
@@ -97,13 +95,16 @@ class TestEdgeExecutor:
 
         executor.sync()
 
-        expected_tags = {
-            "dag_id": "test_dag",
-            "queue": "default",
-            "state": "failed",
-            "task_id": "started_running_orphaned",
-        }
-        mock_stats_incr.assert_called_with("edge_worker.ti.finish", tags=expected_tags)
+        mock_stats_incr.assert_called_with(
+            "edge_worker.ti.finish",
+            tags={
+                "dag_id": "test_dag",
+                "queue": "default",
+                "state": "failed",
+                "task_id": "started_running_orphaned",
+            },
+        )
+        assert mock_stats_incr.call_count == 1
 
         with create_session() as session:
             jobs = session.scalars(select(EdgeJobModel)).all()
