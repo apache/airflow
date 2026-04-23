@@ -1,1 +1,0 @@
-Pass try_number to the extra links API so that operator extra links reflect the correct task attempt when viewing retries.

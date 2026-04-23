@@ -77,6 +77,8 @@ def get_extra_links(
         )
 
     if try_number is not None:
+        # We only need to override try_number on the existing TI to generate
+        # attempt-specific links; fetching the full TaskInstanceHistory is unnecessary.
         ti.try_number = try_number
 
     all_extra_link_pairs = (

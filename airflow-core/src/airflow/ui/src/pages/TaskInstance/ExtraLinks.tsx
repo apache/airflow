@@ -18,13 +18,13 @@
  */
 import { Box, Button, Heading, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
+import { SearchParamsKeys } from "src/constants/searchParams";
 
 type ExtraLinksProps = {
   readonly refetchInterval: number | false;
-  readonly tryNumber?: number;
 };
 
 const getTarget = (url: string) => {
@@ -37,9 +37,12 @@ const getTarget = (url: string) => {
   }
 };
 
-export const ExtraLinks = ({ refetchInterval, tryNumber }: ExtraLinksProps) => {
+export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const [searchParams] = useSearchParams();
+  const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
+  const tryNumber = tryNumberParam === null ? undefined : parseInt(tryNumberParam, 10);
 
   const { data } = useTaskInstanceServiceGetExtraLinks(
     {

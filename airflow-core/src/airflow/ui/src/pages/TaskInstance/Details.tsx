@@ -95,10 +95,7 @@ export const Details = () => {
           taskInstance={taskInstance}
         />
       )}
-      <ExtraLinks
-        refetchInterval={isStatePending(tryInstance?.state) ? refetchInterval : false}
-        tryNumber={tryNumber}
-      />
+      <ExtraLinks refetchInterval={isStatePending(tryInstance?.state) ? refetchInterval : false} />
       {taskInstance === undefined ||
       // eslint-disable-next-line unicorn/no-null
       ![null, "queued", "scheduled"].includes(taskInstance.state) ? undefined : (
