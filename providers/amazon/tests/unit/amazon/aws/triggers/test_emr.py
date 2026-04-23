@@ -292,52 +292,8 @@ class TestEmrServerlessStartJobTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
-    @mock.patch("airflow.providers.amazon.aws.triggers.emr.EmrServerlessStartJobTrigger.safe_to_cancel")
-    async def test_emr_serverless_trigger_cancellation(self, mock_safe_to_cancel, mock_async_wait):
-        """
-        Test that EmrServerlessStartJobTrigger cancels the job when task is killed
-        and safe_to_cancel returns True.
-        """
-        mock_safe_to_cancel.return_value = True
-        mock_async_wait.side_effect = asyncio.CancelledError()
-
-        trigger = EmrServerlessStartJobTrigger(
-            application_id="test_app",
-            job_id="test_job",
-            waiter_delay=30,
-            waiter_max_attempts=60,
-            aws_conn_id="aws_default",
-            cancel_on_kill=True,
-        )
-
-        mock_hook = mock.MagicMock()
-        mock_hook.get_waiter.return_value = mock.MagicMock()
-        mock_hook.conn.cancel_job_run.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
-
-        mock_client = mock.MagicMock()
-        mock_async_cm = mock.MagicMock()
-        mock_async_cm.__aenter__ = mock.AsyncMock(return_value=mock_client)
-        mock_async_cm.__aexit__ = mock.AsyncMock(return_value=None)
-        mock_hook.get_async_conn = mock.AsyncMock(return_value=mock_async_cm)
-
-        with mock.patch.object(trigger, "hook", return_value=mock_hook):
-            with pytest.raises(asyncio.CancelledError):
-                async for _ in trigger.run():
-                    pass
-
-        mock_hook.conn.cancel_job_run.assert_called_once_with(applicationId="test_app", jobRunId="test_job")
-
-    @pytest.mark.asyncio
-    @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
-    @mock.patch("airflow.providers.amazon.aws.triggers.emr.EmrServerlessStartJobTrigger.safe_to_cancel")
-    async def test_emr_serverless_trigger_no_cancellation_when_unsafe(
-        self, mock_safe_to_cancel, mock_async_wait
-    ):
-        """
-        Test that EmrServerlessStartJobTrigger does NOT cancel the job when
-        safe_to_cancel returns False (e.g., triggerer shutdown).
-        """
-        mock_safe_to_cancel.return_value = False
+    async def test_emr_serverless_run_does_not_cancel_on_cancelled_error(self, mock_async_wait):
+        """Job cancellation on user kill is handled in on_kill(), not in run()."""
         mock_async_wait.side_effect = asyncio.CancelledError()
 
         trigger = EmrServerlessStartJobTrigger(
@@ -366,40 +322,57 @@ class TestEmrServerlessStartJobTrigger:
         mock_hook.conn.cancel_job_run.assert_not_called()
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
-    @mock.patch("airflow.providers.amazon.aws.triggers.emr.EmrServerlessStartJobTrigger.safe_to_cancel")
-    async def test_emr_serverless_trigger_no_cancellation_when_disabled(
-        self, mock_safe_to_cancel, mock_async_wait
-    ):
-        """
-        Test that EmrServerlessStartJobTrigger does NOT cancel the job when
-        cancel_on_kill=False.
-        """
-        mock_safe_to_cancel.return_value = True
-        mock_async_wait.side_effect = asyncio.CancelledError()
-
+    async def test_emr_serverless_on_kill_cancels_job(self):
         trigger = EmrServerlessStartJobTrigger(
             application_id="test_app",
             job_id="test_job",
             waiter_delay=30,
             waiter_max_attempts=60,
             aws_conn_id="aws_default",
-            cancel_on_kill=False,  # Disabled
+            cancel_on_kill=True,
         )
 
         mock_hook = mock.MagicMock()
-        mock_hook.get_waiter.return_value = mock.MagicMock()
-
-        mock_client = mock.MagicMock()
-        mock_async_cm = mock.MagicMock()
-        mock_async_cm.__aenter__ = mock.AsyncMock(return_value=mock_client)
-        mock_async_cm.__aexit__ = mock.AsyncMock(return_value=None)
-        mock_hook.get_async_conn = mock.AsyncMock(return_value=mock_async_cm)
+        mock_hook.conn.cancel_job_run.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
 
         with mock.patch.object(trigger, "hook", return_value=mock_hook):
-            with pytest.raises(asyncio.CancelledError):
-                async for _ in trigger.run():
-                    pass
+            await trigger.on_kill()
+
+        mock_hook.conn.cancel_job_run.assert_called_once_with(applicationId="test_app", jobRunId="test_job")
+
+    @pytest.mark.asyncio
+    async def test_emr_serverless_on_kill_skips_when_cancel_on_kill_disabled(self):
+        trigger = EmrServerlessStartJobTrigger(
+            application_id="test_app",
+            job_id="test_job",
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+            cancel_on_kill=False,
+        )
+
+        mock_hook = mock.MagicMock()
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            await trigger.on_kill()
+
+        mock_hook.conn.cancel_job_run.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_emr_serverless_on_kill_skips_without_job_id(self):
+        trigger = EmrServerlessStartJobTrigger(
+            application_id="test_app",
+            job_id=None,
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+            cancel_on_kill=True,
+        )
+
+        mock_hook = mock.MagicMock()
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            await trigger.on_kill()
 
         mock_hook.conn.cancel_job_run.assert_not_called()
 
