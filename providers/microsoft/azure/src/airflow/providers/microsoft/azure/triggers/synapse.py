@@ -64,7 +64,7 @@ class AzureSynapsePipelineTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize trigger arguments and classpath."""
         return (
-            "airflow.providers.microsoft.azure.triggers.synapse.AzureSynapsePipelineTrigger",
+            f"{self.__class__.__module__}.{self.__class__.__name__}",
             {
                 "run_id": self.run_id,
                 "azure_synapse_conn_id": self.azure_synapse_conn_id,

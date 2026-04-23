@@ -292,7 +292,7 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
                             check_interval=self.check_interval,
                             end_time=end_time,
                         ),
-                        method_name="execute_complete",
+                        method_name=self.execute_complete.__name__,
                     )
 
                 elif pipeline_run_status == AzureSynapsePipelineRunStatus.SUCCEEDED:

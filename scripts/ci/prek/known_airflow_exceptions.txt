@@ -358,7 +358,7 @@ providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/contai
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/data_factory.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/msgraph.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/powerbi.py::4
-providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/synapse.py::2
+providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/synapse.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/sensors/data_factory.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/sensors/msgraph.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/sensors/wasb.py::4
