@@ -54,7 +54,7 @@ class Timer(TimerProtocol):
 
     .. code-block:: python
 
-        with Stats.timer() as t:
+        with stats.timer() as t:
             # Something to time
             frob_the_foos()
 
@@ -64,7 +64,7 @@ class Timer(TimerProtocol):
 
     .. code-block:: python
 
-        timer = Stats.timer().start()
+        timer = stats.timer().start()
 
         # Something to time
         frob_the_foos()
@@ -77,7 +77,7 @@ class Timer(TimerProtocol):
 
     .. code-block:: python
 
-        with Stats.timer("foos.frob"):
+        with stats.timer("foos.frob"):
             # Something to time
             frob_the_foos()
 
@@ -85,7 +85,7 @@ class Timer(TimerProtocol):
 
     .. code-block:: python
 
-        with Stats.timer("foos.frob") as t:
+        with stats.timer("foos.frob") as t:
             # Something to time
             frob_the_foos()
 

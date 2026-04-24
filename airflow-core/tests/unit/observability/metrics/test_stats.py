@@ -47,7 +47,7 @@ class TestStats:
             }
         ):
             importlib.reload(airflow._shared.observability.metrics.stats)
-            airflow.observability.stats.Stats.initialize(
+            airflow.observability.stats.initialize(
                 factory=stats_utils.get_stats_factory(), export_legacy_names=True
             )
             error_message = re.escape(
@@ -56,7 +56,7 @@ class TestStats:
             )
             # we assert for Exception here instead of AirflowConfigException to not import from shared configuration
             with pytest.raises(Exception, match=error_message):
-                airflow.observability.stats.Stats.incr("empty_key")
+                airflow.observability.stats.incr("empty_key")
         importlib.reload(airflow._shared.observability.metrics.stats)
 
 

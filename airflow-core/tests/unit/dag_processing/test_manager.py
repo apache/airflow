@@ -2128,12 +2128,12 @@ class TestDagFileProcessorManager:
 
     @mock.patch("airflow.dag_processing.manager.stats.initialize")
     def test_stats_initialize_called_on_run(self, stats_init_mock, tmp_path, configure_testing_dag_bundle):
-        """Test that Stats.initialize() is called when DagFileProcessorManager.run() is executed."""
+        """Test that stats.initialize() is called when DagFileProcessorManager.run() is executed."""
         with configure_testing_dag_bundle(tmp_path):
             manager = DagFileProcessorManager(max_runs=1)
             manager.run()
 
-        # Verify Stats.initialize was called with the expected configuration parameters
+        # Verify stats.initialize was called with the expected configuration parameters
         stats_init_mock.assert_called_once()
         call_kwargs = stats_init_mock.call_args.kwargs
         assert "factory" in call_kwargs

@@ -1651,7 +1651,7 @@ class TestTriggererJobRunner:
     @patch("airflow.jobs.triggerer_job_runner.stats.initialize")
     @patch.object(TriggerRunnerSupervisor, "start")
     def test_stats_initialize_called_on_execute(self, mock_supervisor_start, stats_init_mock, session):
-        """Test that Stats.initialize() is called when TriggererJobRunner._execute() is executed."""
+        """Test that stats.initialize() is called when TriggererJobRunner._execute() is executed."""
         # Setup mock supervisor to immediately stop
         mock_supervisor = MagicMock()
         mock_supervisor.stop = False
@@ -1668,7 +1668,7 @@ class TestTriggererJobRunner:
         job_runner.trigger_runner = mock_supervisor
         mock_supervisor.stop = True  # Stop immediately
 
-        # We don't need to run the full _execute, just verify Stats.initialize is called
+        # We don't need to run the full _execute, just verify stats.initialize is called
         # before TriggerRunnerSupervisor.start
         with patch.object(job_runner, "register_signals"):
             try:
@@ -1676,7 +1676,7 @@ class TestTriggererJobRunner:
             except Exception:
                 pass  # We expect this to fail since we're mocking
 
-        # Verify Stats.initialize was called with the expected configuration parameters
+        # Verify stats.initialize was called with the expected configuration parameters
         stats_init_mock.assert_called_once()
         call_kwargs = stats_init_mock.call_args.kwargs
         assert "factory" in call_kwargs
