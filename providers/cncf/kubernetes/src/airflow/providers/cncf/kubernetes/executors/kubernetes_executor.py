@@ -234,11 +234,11 @@ class KubernetesExecutor(BaseExecutor):
         # try and remove it from the QUEUED state while we process it
         self.last_handled[key] = time.time()
 
-    def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
+    def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         from airflow.executors.workloads import ExecuteCallback, ExecuteTask
         from airflow.utils.state import CallbackState
 
-        for workload in workloads:
+        for workload in workload_items:
             if isinstance(workload, ExecuteTask):
                 # TODO: AIP-72 handle populating tokens once https://github.com/apache/airflow/issues/45107 is handled.
                 command = [workload]
