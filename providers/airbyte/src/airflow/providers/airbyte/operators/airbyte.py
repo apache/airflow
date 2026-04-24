@@ -111,7 +111,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
             self.log.debug("Running in deferrable mode in job state %s...", state)
             if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
                 self.defer(
-                    timeout=None,
+                    timeout=self.execution_timeout,
                     trigger=AirbyteSyncTrigger(
                         conn_id=self.airbyte_conn_id,
                         job_id=self.job_id,
@@ -140,19 +140,21 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.
         """
-        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
         if event["status"] == "error":
             self.log.debug("Error occurred with context: %s", context)
             raise RuntimeError(event["message"])
 
+        if event["status"] == "cancelled":
+            self.log.debug("Job cancelled with context: %s", context)
+            raise RuntimeError(event["message"])
+
         job_id = event.get("job_id")
         if event["status"] == "timeout":
+            hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+
             if job_id:
                 self.log.info("Cancelling Airbyte job %s due to execution timeout", job_id)
-                try:
-                    hook.cancel_job(job_id=job_id)
-                except Exception as e:
-                    self.log.warning("Failed to cancel Airbyte job %s: %s", job_id, e)
+                hook.cancel_job(job_id=job_id)
             else:
                 self.log.warning("No job_id found; skipping cancellation")
 

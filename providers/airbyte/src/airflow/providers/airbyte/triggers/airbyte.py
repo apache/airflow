@@ -118,6 +118,7 @@ class AirbyteSyncTrigger(BaseTrigger):
                             "job_id": self.job_id,
                         }
                     )
+                    return
                 elif job_run_status == JobStatusEnum.CANCELLED:
                     yield TriggerEvent(
                         {
@@ -126,6 +127,7 @@ class AirbyteSyncTrigger(BaseTrigger):
                             "job_id": self.job_id,
                         }
                     )
+                    return
                 else:
                     yield TriggerEvent(
                         {
@@ -134,8 +136,10 @@ class AirbyteSyncTrigger(BaseTrigger):
                             "job_id": self.job_id,
                         }
                     )
+                    return
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e), "job_id": self.job_id})
+            return
 
     async def is_still_running(self, hook: AirbyteHook) -> bool:
         """

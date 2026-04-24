@@ -89,13 +89,11 @@ class TestAirbyteSyncTrigger:
             (JobStatusEnum.SUCCEEDED, "success", "Job run 1234 has completed successfully."),
         ],
     )
-    @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
     async def test_airbyte_job_for_terminal_status_success(
-        self, mock_get_job_status, mocked_is_still_running, mock_value, mock_status, mock_message
+        self, mock_get_job_status, mock_value, mock_status, mock_message
     ):
         """Assert that run trigger success message in case of job success"""
-        mocked_is_still_running.return_value = False
         mock_get_job_status.return_value = mock_value
         trigger = AirbyteSyncTrigger(
             conn_id=self.CONN_ID,
@@ -108,10 +106,10 @@ class TestAirbyteSyncTrigger:
             "message": mock_message,
             "job_id": self.JOB_ID,
         }
-        task = asyncio.create_task(trigger.run().__anext__())
-        await asyncio.sleep(0.5)
-        assert TriggerEvent(expected_result) == task.result()
-        asyncio.get_event_loop().stop()
+
+        events = [e async for e in trigger.run()]
+        assert len(events) == 1
+        assert TriggerEvent(expected_result) == events[0]
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -120,13 +118,11 @@ class TestAirbyteSyncTrigger:
             (JobStatusEnum.CANCELLED, "cancelled", "Job run 1234 has been cancelled."),
         ],
     )
-    @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
     async def test_airbyte_job_for_terminal_status_cancelled(
-        self, mock_get_job_status, mocked_is_still_running, mock_value, mock_status, mock_message
+        self, mock_get_job_status, mock_value, mock_status, mock_message
     ):
         """Assert that run trigger success message in case of job success"""
-        mocked_is_still_running.return_value = False
         mock_get_job_status.return_value = mock_value
         trigger = AirbyteSyncTrigger(
             conn_id=self.CONN_ID,
@@ -139,10 +135,10 @@ class TestAirbyteSyncTrigger:
             "message": mock_message,
             "job_id": self.JOB_ID,
         }
-        task = asyncio.create_task(trigger.run().__anext__())
-        await asyncio.sleep(0.5)
-        assert TriggerEvent(expected_result) == task.result()
-        asyncio.get_event_loop().stop()
+
+        events = [e async for e in trigger.run()]
+        assert len(events) == 1
+        assert TriggerEvent(expected_result) == events[0]
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -151,13 +147,11 @@ class TestAirbyteSyncTrigger:
             (JobStatusEnum.FAILED, "error", "Job run 1234 has failed."),
         ],
     )
-    @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
     async def test_airbyte_job_for_terminal_status_error(
-        self, mock_get_job_status, mocked_is_still_running, mock_value, mock_status, mock_message
+        self, mock_get_job_status, mock_value, mock_status, mock_message
     ):
         """Assert that run trigger success message in case of job success"""
-        mocked_is_still_running.return_value = False
         mock_get_job_status.return_value = mock_value
         trigger = AirbyteSyncTrigger(
             conn_id=self.CONN_ID,
@@ -170,17 +164,15 @@ class TestAirbyteSyncTrigger:
             "message": mock_message,
             "job_id": self.JOB_ID,
         }
-        task = asyncio.create_task(trigger.run().__anext__())
-        await asyncio.sleep(0.5)
-        assert TriggerEvent(expected_result) == task.result()
-        asyncio.get_event_loop().stop()
+
+        events = [e async for e in trigger.run()]
+        assert len(events) == 1
+        assert TriggerEvent(expected_result) == events[0]
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
-    async def test_airbyte_job_exception(self, mock_get_job_status, mocked_is_still_running):
+    async def test_airbyte_job_exception(self, mock_get_job_status):
         """Assert that run catch exception if Airbyte Sync job API throw exception"""
-        mocked_is_still_running.return_value = False
         mock_get_job_status.side_effect = Exception("Test exception")
         trigger = AirbyteSyncTrigger(
             conn_id=self.CONN_ID,
@@ -188,24 +180,25 @@ class TestAirbyteSyncTrigger:
             end_time=self.END_TIME,
             job_id=self.JOB_ID,
         )
-        task = [i async for i in trigger.run()]
-        response = TriggerEvent(
+
+        events = [e async for e in trigger.run()]
+
+        expected_result = TriggerEvent(
             {
                 "status": "error",
                 "message": "Test exception",
                 "job_id": self.JOB_ID,
             }
         )
-        assert len(task) == 1
-        assert response in task
+        assert len(events) == 1
+        assert expected_result in events
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
-    async def test_airbyte_job_timeout(self, mock_get_job_status, mocked_is_still_running):
+    async def test_airbyte_job_timeout(self, mock_get_job_status):
         """Assert that run timeout after end_time elapsed"""
-        mocked_is_still_running.return_value = True
         mock_get_job_status.side_effect = Exception("Test exception")
+
         end_time = time.time()
         trigger = AirbyteSyncTrigger(
             conn_id=self.CONN_ID,
@@ -213,9 +206,10 @@ class TestAirbyteSyncTrigger:
             end_time=end_time,
             job_id=self.JOB_ID,
         )
-        generator = trigger.run()
-        actual = await generator.asend(None)
-        expected = TriggerEvent(
+
+        events = [e async for e in trigger.run()]
+
+        expected_result = TriggerEvent(
             {
                 "status": "error",
                 "message": f"Job run {self.JOB_ID} has not reached a terminal status "
@@ -223,14 +217,14 @@ class TestAirbyteSyncTrigger:
                 "job_id": self.JOB_ID,
             }
         )
-        assert expected == actual
+
+        assert len(events) == 1
+        assert expected_result in events
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
-    async def test_airbyte_job_run_execution_timeout(self, mocked_is_still_running):
+    async def test_airbyte_job_run_execution_timeout(self):
         """Assert that run timeout after execution_deadline has elapsed"""
 
-        mocked_is_still_running.return_value = True
         execution_deadline = time.time() - 1
 
         trigger = AirbyteSyncTrigger(
@@ -241,17 +235,35 @@ class TestAirbyteSyncTrigger:
             job_id=self.JOB_ID,
         )
 
-        generator = trigger.run()
-        actual = await generator.asend(None)
+        events = [e async for e in trigger.run()]
 
-        expected = TriggerEvent(
+        expected_result = TriggerEvent(
             {
                 "status": "timeout",
                 "message": f"Job run {self.JOB_ID} has reached execution timeout.",
                 "job_id": self.JOB_ID,
             }
         )
-        assert expected == actual
+
+        assert len(events) == 1
+        assert expected_result in events
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
+    async def test_terminal_yields_only_once(self, mock_get_job_status):
+        mock_get_job_status.return_value = JobStatusEnum.SUCCEEDED
+
+        trigger = AirbyteSyncTrigger(
+            conn_id="airbyte_default",
+            poll_interval=1,
+            end_time=time.time() + 100,
+            job_id=1234,
+        )
+
+        events = [e async for e in trigger.run()]
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == "success"
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
