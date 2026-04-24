@@ -2699,7 +2699,7 @@ triggerer:
         Maximum number of seconds the triggerer will wait for ``BaseTrigger.on_kill()`` to complete
         before giving up and logging a warning. Prevents a slow or hung external API call from
         blocking the triggerer indefinitely when a deferred task is killed by a user.
-      version_added: 3.2.0
+      version_added: 3.3.0
       type: integer
       example: ~
       default: "30"
