@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.sdk.java.coordinator import JavaRuntimeCoordinator
+from airflow.providers.sdk.java.coordinator import JavaCoordinator
 from airflow.providers.sdk.java.get_provider_info import get_provider_info
 
 
@@ -33,11 +33,11 @@ def test_get_provider_info_exposes_java_runtime_components():
                 "tags": ["software"],
             }
         ],
-        "runtime-coordinators": [
-            "airflow.providers.sdk.java.coordinator.JavaRuntimeCoordinator",
+        "coordinators": [
+            "airflow.providers.sdk.java.coordinator.JavaCoordinator",
         ],
     }
 
 
 def test_java_provider_entrypoints_are_importable():
-    assert JavaRuntimeCoordinator.runtime_name == "java"
+    assert JavaCoordinator.sdk == "java"

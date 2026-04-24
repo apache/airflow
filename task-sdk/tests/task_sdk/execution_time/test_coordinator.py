@@ -25,7 +25,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.sdk.execution_time.coordinator import (
-    BaseRuntimeCoordinator,
+    BaseCoordinator,
     _bridge,
     _send_startup_details,
     _start_server,
@@ -156,17 +156,17 @@ class TestSendStartupDetails:
             server.close()
 
 
-class TestBaseRuntimeCoordinatorDefaults:
+class TestBaseCoordinatorDefaults:
     def test_can_handle_dag_file_returns_false(self):
-        assert BaseRuntimeCoordinator.can_handle_dag_file("bundle", "/path/to/dag.py") is False
+        assert BaseCoordinator.can_handle_dag_file("bundle", "/path/to/dag.py") is False
 
     def test_get_code_from_file_raises_not_implemented(self):
         with pytest.raises(NotImplementedError):
-            BaseRuntimeCoordinator.get_code_from_file("/path/to/dag.jar")
+            BaseCoordinator.get_code_from_file("/path/to/dag.jar")
 
-    def test_dag_parsing_runtime_cmd_raises_not_implemented(self):
+    def test_dag_parsing_cmd_raises_not_implemented(self):
         with pytest.raises(NotImplementedError):
-            BaseRuntimeCoordinator.dag_parsing_runtime_cmd(
+            BaseCoordinator.dag_parsing_cmd(
                 dag_file_path="/dag.jar",
                 bundle_name="b",
                 bundle_path="/path",
@@ -174,9 +174,9 @@ class TestBaseRuntimeCoordinatorDefaults:
                 logs_addr="127.0.0.1:1235",
             )
 
-    def test_task_execution_runtime_cmd_raises_not_implemented(self):
+    def test_task_execution_cmd_raises_not_implemented(self):
         with pytest.raises(NotImplementedError):
-            BaseRuntimeCoordinator.task_execution_runtime_cmd(
+            BaseCoordinator.task_execution_cmd(
                 what=MagicMock(),
                 dag_file_path="/dag.jar",
                 bundle_path="/path",
@@ -188,7 +188,7 @@ class TestBaseRuntimeCoordinatorDefaults:
 
 class TestCoordinatorNamedTuples:
     def test_dag_parsing_info_defaults(self):
-        info = BaseRuntimeCoordinator.DagParsingInfo(
+        info = BaseCoordinator.DagParsingInfo(
             dag_file_path="/dag.jar",
             bundle_name="my-bundle",
             bundle_path="/bundles/my-bundle",
@@ -202,7 +202,7 @@ class TestCoordinatorNamedTuples:
         mock_ti = MagicMock()
         mock_bundle = MagicMock()
         mock_startup = MagicMock()
-        info = BaseRuntimeCoordinator.TaskExecutionInfo(
+        info = BaseCoordinator.TaskExecutionInfo(
             what=mock_ti,
             dag_rel_path="dags/example.jar",
             bundle_info=mock_bundle,
@@ -319,9 +319,9 @@ class TestBridge:
 
 
 class TestRunDagParsing:
-    @patch.object(BaseRuntimeCoordinator, "_runtime_subprocess_entrypoint")
+    @patch.object(BaseCoordinator, "_runtime_subprocess_entrypoint")
     def test_run_dag_parsing_creates_dag_parsing_info(self, mock_entrypoint):
-        BaseRuntimeCoordinator.run_dag_parsing(
+        BaseCoordinator.run_dag_parsing(
             path="/bundles/my-bundle/dags/example.jar",
             bundle_name="my-bundle",
             bundle_path="/bundles/my-bundle",
@@ -329,7 +329,7 @@ class TestRunDagParsing:
 
         mock_entrypoint.assert_called_once()
         info = mock_entrypoint.call_args[0][0]
-        assert isinstance(info, BaseRuntimeCoordinator.DagParsingInfo)
+        assert isinstance(info, BaseCoordinator.DagParsingInfo)
         assert info.dag_file_path == "/bundles/my-bundle/dags/example.jar"
         assert info.bundle_name == "my-bundle"
         assert info.bundle_path == "/bundles/my-bundle"
@@ -337,13 +337,13 @@ class TestRunDagParsing:
 
 
 class TestRunTaskExecution:
-    @patch.object(BaseRuntimeCoordinator, "_runtime_subprocess_entrypoint")
+    @patch.object(BaseCoordinator, "_runtime_subprocess_entrypoint")
     def test_run_task_execution_creates_task_execution_info(self, mock_entrypoint):
         mock_ti = MagicMock()
         mock_bundle_info = MagicMock()
         mock_startup = MagicMock()
 
-        BaseRuntimeCoordinator.run_task_execution(
+        BaseCoordinator.run_task_execution(
             what=mock_ti,
             dag_rel_path="dags/example.jar",
             bundle_info=mock_bundle_info,
@@ -352,7 +352,7 @@ class TestRunTaskExecution:
 
         mock_entrypoint.assert_called_once()
         info = mock_entrypoint.call_args[0][0]
-        assert isinstance(info, BaseRuntimeCoordinator.TaskExecutionInfo)
+        assert isinstance(info, BaseCoordinator.TaskExecutionInfo)
         assert info.what is mock_ti
         assert info.dag_rel_path == "dags/example.jar"
         assert info.bundle_info is mock_bundle_info
@@ -362,8 +362,8 @@ class TestRunTaskExecution:
 
 class TestRuntimeSubprocessEntrypoint:
     def test_unknown_entrypoint_info_type_raises(self):
-        class TestCoordinator(BaseRuntimeCoordinator):
-            runtime_name = "test"
+        class TestCoordinator(BaseCoordinator):
+            sdk = "test"
             file_extension = ".test"
 
         # Needs a 'mode' attribute (accessed during logging) but must not be
@@ -402,15 +402,15 @@ class TestRuntimeSubprocessEntrypoint:
         # Mock supervisor_comm created from os.dup(0)
         supervisor_comm = MagicMock(spec=socket.socket)
 
-        class TestCoordinator(BaseRuntimeCoordinator):
-            runtime_name = "test"
+        class TestCoordinator(BaseCoordinator):
+            sdk = "test"
             file_extension = ".test"
 
             @classmethod
-            def dag_parsing_runtime_cmd(cls, **kwargs):
+            def dag_parsing_cmd(cls, **kwargs):
                 return ["test-runtime", "--parse", kwargs["dag_file_path"]]
 
-        info = BaseRuntimeCoordinator.DagParsingInfo(
+        info = BaseCoordinator.DagParsingInfo(
             dag_file_path="/dag.test",
             bundle_name="test-bundle",
             bundle_path="/bundles/test-bundle",
@@ -494,15 +494,15 @@ class TestRuntimeSubprocessEntrypoint:
         mock_bundle_info.version = "v1"
         mock_startup = MagicMock()
 
-        class TestCoordinator(BaseRuntimeCoordinator):
-            runtime_name = "test"
+        class TestCoordinator(BaseCoordinator):
+            sdk = "test"
             file_extension = ".test"
 
             @classmethod
-            def task_execution_runtime_cmd(cls, **kwargs):
+            def task_execution_cmd(cls, **kwargs):
                 return ["test-runtime", "--execute", kwargs["dag_file_path"]]
 
-        info = BaseRuntimeCoordinator.TaskExecutionInfo(
+        info = BaseCoordinator.TaskExecutionInfo(
             what=mock_ti,
             dag_rel_path="dags/example.test",
             bundle_info=mock_bundle_info,
@@ -555,15 +555,15 @@ class TestRuntimeSubprocessEntrypoint:
         read_stderr = MagicMock(spec=socket.socket)
         child_stderr.fileno.return_value = 10
 
-        class TestCoordinator(BaseRuntimeCoordinator):
-            runtime_name = "test"
+        class TestCoordinator(BaseCoordinator):
+            sdk = "test"
             file_extension = ".test"
 
             @classmethod
-            def dag_parsing_runtime_cmd(cls, **kwargs):
+            def dag_parsing_cmd(cls, **kwargs):
                 return ["echo", "test"]
 
-        info = BaseRuntimeCoordinator.DagParsingInfo(
+        info = BaseCoordinator.DagParsingInfo(
             dag_file_path="/dag.test",
             bundle_name="b",
             bundle_path="/path",

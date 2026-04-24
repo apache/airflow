@@ -447,9 +447,9 @@
                 }
             }
         },
-        "runtime-coordinators": {
+        "coordinators": {
             "type": "array",
-            "description": "Runtime Coordinator class names (BaseRuntimeCoordinator subclasses)",
+            "description": "Runtime Coordinator class names (BaseCoordinator subclasses)",
             "items": {
                 "type": "string"
             }

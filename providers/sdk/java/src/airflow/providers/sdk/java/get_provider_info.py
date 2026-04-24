@@ -43,5 +43,5 @@ def get_provider_info():
                 },
             }
         },
-        "runtime-coordinators": ["airflow.providers.sdk.java.coordinator.JavaRuntimeCoordinator"],
+        "coordinators": ["airflow.providers.sdk.java.coordinator.JavaCoordinator"],
     }
