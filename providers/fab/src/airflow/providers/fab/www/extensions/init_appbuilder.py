@@ -198,10 +198,8 @@ class AirflowAppBuilder:
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
         try:
-            auth_manager = get_auth_manager()
+            auth_manager = get_fab_auth_manager()
         except RuntimeError:
-            auth_manager = create_auth_manager()
-        if not isinstance(auth_manager, FabAuthManager):
             auth_manager = create_auth_manager()
         with _init_app_lock:
             auth_manager.appbuilder = self
