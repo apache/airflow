@@ -26,9 +26,10 @@ from airflow._shared.timezones import timezone
 from airflow.models.asset import AssetModel
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.task_state import TaskStateModel
-from airflow.state import AssetScope, TaskScope
+from airflow.state import AssetScope, TaskScope, resolve_state_backend
 from airflow.state.metastore import MetastoreStateBackend
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs
 
 if TYPE_CHECKING:
@@ -226,7 +227,6 @@ class TestMetastoreStateBackendAssetScope:
     def test_clear_removes_all_keys(
         self, session: Session, backend: MetastoreStateBackend, asset: AssetModel
     ):
-        """clear removes every key stored under the given asset."""
         scope = AssetScope(asset_id=str(asset.id))
         for key in ("watermark", "file_count", "last_error"):
             backend.set(scope, key, f"val_{key}", session=session)
@@ -241,7 +241,6 @@ class TestMetastoreStateBackendAssetScope:
     def test_different_assets_are_isolated(
         self, session: Session, backend: MetastoreStateBackend, asset: AssetModel
     ):
-        """State written for one asset is not visible when querying a different asset."""
         asset2 = AssetModel(uri="s3://bucket/other", name="other_asset", group="test")
         session.add(asset2)
         session.flush()
@@ -253,3 +252,20 @@ class TestMetastoreStateBackendAssetScope:
         session.flush()
 
         assert backend.get(scope2, "watermark", session=session) is None
+
+
+class TestResolveStateBackend:
+    def test_default_resolves_to_metastore_backend(self):
+        """resolve_state_backend() returns MetastoreStateBackend when no config is set."""
+        assert resolve_state_backend() is MetastoreStateBackend
+
+    def test_custom_backend_is_returned_when_configured(self):
+        """resolve_state_backend() imports and returns a user-configured backend class."""
+        with conf_vars({("state", "backend"): "airflow.state.metastore.MetastoreStateBackend"}):
+            assert resolve_state_backend() is MetastoreStateBackend
+
+    def test_invalid_backend_raises_type_error(self):
+        """resolve_state_backend() raises TypeError when the configured class is not a BaseStateBackend subclass."""
+        with conf_vars({("state", "backend"): "airflow.models.dagrun.DagRun"}):
+            with pytest.raises(TypeError, match="not a subclass of `BaseStateBackend`"):
+                resolve_state_backend()
