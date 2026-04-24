@@ -1,8 +1,9 @@
-// generated with @7nohe/openapi-react-query-codegen@2.0.0
-import { type Options } from "@hey-api/client-axios";
+// generated with @7nohe/openapi-react-query-codegen@2.1.0
 import { UseQueryResult } from "@tanstack/react-query";
 
-import { createToken, createTokenAllAdmins, createTokenCli, loginAllAdmins } from "../requests/services.gen";
+import type { Options } from "../requests/sdk.gen";
+import { createToken, createTokenAllAdmins, createTokenCli, loginAllAdmins } from "../requests/sdk.gen";
+import { CreateTokenAllAdminsData, LoginAllAdminsData } from "../requests/types.gen";
 
 export type CreateTokenAllAdminsDefaultResponse = Awaited<ReturnType<typeof createTokenAllAdmins>>["data"];
 export type CreateTokenAllAdminsQueryResult<
@@ -11,7 +12,7 @@ export type CreateTokenAllAdminsQueryResult<
 > = UseQueryResult<TData, TError>;
 export const useCreateTokenAllAdminsKey = "CreateTokenAllAdmins";
 export const UseCreateTokenAllAdminsKeyFn = (
-  clientOptions: Options<unknown, true> = {},
+  clientOptions: Options<CreateTokenAllAdminsData, true> = {},
   queryKey?: Array<unknown>,
 ) => [useCreateTokenAllAdminsKey, ...(queryKey ?? [clientOptions])];
 export type LoginAllAdminsDefaultResponse = Awaited<ReturnType<typeof loginAllAdmins>>["data"];
@@ -21,7 +22,7 @@ export type LoginAllAdminsQueryResult<
 > = UseQueryResult<TData, TError>;
 export const useLoginAllAdminsKey = "LoginAllAdmins";
 export const UseLoginAllAdminsKeyFn = (
-  clientOptions: Options<unknown, true> = {},
+  clientOptions: Options<LoginAllAdminsData, true> = {},
   queryKey?: Array<unknown>,
 ) => [useLoginAllAdminsKey, ...(queryKey ?? [clientOptions])];
 export type CreateTokenMutationResult = Awaited<ReturnType<typeof createToken>>;
