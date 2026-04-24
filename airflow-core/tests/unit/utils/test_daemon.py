@@ -19,7 +19,6 @@ from __future__ import annotations
 import os
 import resource
 import signal
-import sys
 from unittest import mock
 
 import pytest
@@ -108,40 +107,44 @@ class TestGetMaximumFileDescriptors:
 
 
 class TestCloseAllOpenFiles:
-    def test_closes_file_descriptors_except_excluded(self):
-        r_fd, w_fd = os.pipe()
-        try:
-            _close_all_open_files(exclude={r_fd, w_fd, 0, 1, 2})
-            os.write(w_fd, b"alive")
-            assert os.read(r_fd, 5) == b"alive"
-        finally:
-            os.close(r_fd)
-            os.close(w_fd)
+    @mock.patch("airflow.utils.daemon._get_maximum_file_descriptors", return_value=8)
+    @mock.patch("airflow.utils.daemon.os.closerange")
+    def test_closes_file_descriptors_except_excluded(self, mock_closerange, _mock_maxfd):
+        _close_all_open_files(exclude={0, 1, 2, 5})
 
-    def test_empty_exclude_does_not_raise(self):
+        assert mock_closerange.call_args_list == [mock.call(3, 5), mock.call(6, 8)]
+
+    @mock.patch("airflow.utils.daemon._get_maximum_file_descriptors", return_value=3)
+    @mock.patch("airflow.utils.daemon.os.closerange")
+    def test_empty_exclude_does_not_raise(self, mock_closerange, _mock_maxfd):
         _close_all_open_files(exclude={0, 1, 2})
+        mock_closerange.assert_not_called()
 
 
 class TestRedirectStream:
-    def test_redirects_to_target(self, tmp_path):
-        target_path = tmp_path / "output.txt"
-        with open(str(target_path), "w") as target:
-            original_fd = os.dup(1)
-            try:
-                _redirect_stream(sys.stdout, target)
-                os.write(1, b"redirected\n")
-            finally:
-                os.dup2(original_fd, 1)
-                os.close(original_fd)
-        assert "redirected" in target_path.read_text()
+    @mock.patch("airflow.utils.daemon.os.dup2")
+    def test_redirects_to_target(self, mock_dup2):
+        system_stream = mock.Mock()
+        target_stream = mock.Mock()
+        system_stream.fileno.return_value = 1
+        target_stream.fileno.return_value = 12
 
-    def test_redirects_to_devnull_when_none(self):
-        original_fd = os.dup(sys.stdout.fileno())
-        try:
-            _redirect_stream(sys.stdout, None)
-        finally:
-            os.dup2(original_fd, sys.stdout.fileno())
-            os.close(original_fd)
+        _redirect_stream(system_stream, target_stream)
+
+        mock_dup2.assert_called_once_with(12, 1)
+
+    @mock.patch("airflow.utils.daemon.os.close")
+    @mock.patch("airflow.utils.daemon.os.dup2")
+    @mock.patch("airflow.utils.daemon.os.open", return_value=11)
+    def test_redirects_to_devnull_when_none(self, mock_open, mock_dup2, mock_close):
+        system_stream = mock.Mock()
+        system_stream.fileno.return_value = 1
+
+        _redirect_stream(system_stream, None)
+
+        mock_open.assert_called_once_with(os.devnull, os.O_RDWR)
+        mock_dup2.assert_called_once_with(11, 1)
+        mock_close.assert_called_once_with(11)
 
 
 class TestMakeDefaultSignalMap:

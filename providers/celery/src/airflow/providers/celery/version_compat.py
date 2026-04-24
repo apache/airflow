@@ -32,4 +32,10 @@ AIRFLOW_V_3_2_PLUS = get_base_airflow_version_tuple() >= (3, 2, 0)
 AIRFLOW_V_3_2_2_PLUS = get_base_airflow_version_tuple() >= (3, 2, 2)
 AIRFLOW_V_3_3_PLUS = get_base_airflow_version_tuple() >= (3, 3, 0)
 
-__all__ = ["AIRFLOW_V_3_0_PLUS", "AIRFLOW_V_3_1_9_PLUS", "AIRFLOW_V_3_2_PLUS", "AIRFLOW_V_3_2_2_PLUS", "AIRFLOW_V_3_3_PLUS"]
+__all__ = [
+    "AIRFLOW_V_3_0_PLUS",
+    "AIRFLOW_V_3_1_9_PLUS",
+    "AIRFLOW_V_3_2_PLUS",
+    "AIRFLOW_V_3_2_2_PLUS",
+    "AIRFLOW_V_3_3_PLUS",
+]
