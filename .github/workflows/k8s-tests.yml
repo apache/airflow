@@ -105,7 +105,7 @@ jobs:
       - name: "\
           Upload KinD logs on failure ${{ matrix.executor }}-${{ matrix.kubernetes-combo }}-\
           ${{ matrix.use-standard-naming }}"
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         if: failure() || cancelled()
         with:
           name: "\
@@ -116,7 +116,7 @@ jobs:
       - name: "\
           Upload test resource logs on failure ${{ matrix.executor }}-${{ matrix.kubernetes-combo }}-\
           ${{ matrix.use-standard-naming }}"
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         if: failure() || cancelled()
         with:
           name: "\
