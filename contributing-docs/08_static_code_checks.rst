@@ -299,6 +299,20 @@ dependency set:
 - virtualenvs: ``.build/mypy-venvs/<hook-name>/``
 - mypy caches: ``.build/mypy-caches/<hook-name>/``
 
+The hook prefers ``uv`` from your project's main ``.venv/bin/uv`` — so the uv version used to sync
+and run mypy is pinned by the project rather than whatever ``uv`` is on your ``PATH``. If that
+binary is missing, the hook falls back to ``uv`` on ``PATH`` and prints a warning. ``uv`` is part
+of the ``dev`` dependency group via the ``all`` extras, so a plain sync installs it:
+
+.. code-block:: bash
+
+  uv sync
+
+Prek hooks that invoke ``uv`` (directly or via ``breeze``) also verify that the ``uv`` they are
+about to run is at least the version pinned in ``[tool.uv] required-version`` in the root
+``pyproject.toml``. If your ``uv`` is older, the hook fails fast with an instruction to run
+``uv self update`` (or ``uv sync`` to refresh the project-pinned uv).
+
 Adding a new shared library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

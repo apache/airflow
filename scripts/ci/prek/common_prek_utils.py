@@ -19,6 +19,7 @@ from __future__ import annotations
 import ast
 import difflib
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -202,6 +203,95 @@ def insert_documentation(
     return False
 
 
+_UV_REQUIRED_VERSION_RE = re.compile(
+    r"""^\s*required-version\s*=\s*["']\s*>=\s*(?P<ver>\d+(?:\.\d+){0,2})\s*["']""",
+    re.MULTILINE,
+)
+
+
+def _parse_version(ver: str) -> tuple[int, ...]:
+    """Turn "0.9.17" into (0, 9, 17). Extra pre-release/build suffixes are ignored."""
+    match = re.match(r"^(\d+(?:\.\d+)*)", ver.strip())
+    if not match:
+        raise ValueError(f"Cannot parse version: {ver!r}")
+    return tuple(int(part) for part in match.group(1).split("."))
+
+
+def read_uv_required_min_version() -> tuple[str, tuple[int, ...]]:
+    """Read the minimum uv version from the root ``pyproject.toml``.
+
+    Parses ``[tool.uv] required-version = ">=X.Y.Z"`` and returns ``(raw, tuple)``.
+    We parse by regex to avoid pulling a TOML dep into every prek script.
+    """
+    pyproject = (AIRFLOW_ROOT_PATH / "pyproject.toml").read_text()
+    # Narrow to the [tool.uv] section so we don't match a different required-version.
+    match = re.search(r"^\[tool\.uv\]\s*$(?P<body>.*?)(?=^\[|\Z)", pyproject, re.MULTILINE | re.DOTALL)
+    if not match:
+        raise RuntimeError("`[tool.uv]` section not found in root pyproject.toml")
+    ver_match = _UV_REQUIRED_VERSION_RE.search(match.group("body"))
+    if not ver_match:
+        raise RuntimeError('`required-version = ">=X.Y.Z"` not found under `[tool.uv]` in pyproject.toml')
+    raw = ver_match.group("ver")
+    return raw, _parse_version(raw)
+
+
+def check_uv_version(uv_bin: str = "uv") -> None:
+    """Fail the hook if ``uv_bin`` is older than ``[tool.uv] required-version``.
+
+    Called manually by prek hooks that invoke ``uv`` (directly or via breeze) so a
+    contributor with an outdated uv sees a clear error before the hook spends time
+    running and emits a confusing downstream failure.
+    """
+    try:
+        raw_min, min_tuple = read_uv_required_min_version()
+    except Exception as exc:
+        # Don't block hooks on parse bugs — warn and continue.
+        message = f"Could not determine required uv version from pyproject.toml: {exc}"
+        if console:
+            console.print(f"[yellow]WARNING: {message}")
+        else:
+            print(f"WARNING: {message}")
+        return
+
+    try:
+        output = subprocess.check_output([uv_bin, "--version"], text=True).strip()
+    except (FileNotFoundError, subprocess.CalledProcessError) as exc:
+        message = (
+            f"Could not run `{uv_bin} --version` to verify uv version (required: >= {raw_min}). Error: {exc}"
+        )
+        if console:
+            console.print(f"[red]{message}")
+        else:
+            print(message)
+        sys.exit(1)
+
+    match = re.search(r"\b(\d+\.\d+(?:\.\d+)?)", output)
+    if not match:
+        message = f"Unexpected `uv --version` output: {output!r}"
+        if console:
+            console.print(f"[yellow]WARNING: {message}")
+        else:
+            print(f"WARNING: {message}")
+        return
+    actual_raw = match.group(1)
+    actual_tuple = _parse_version(actual_raw)
+    if actual_tuple < min_tuple:
+        message = (
+            f"uv {actual_raw} at `{uv_bin}` is older than the project-required "
+            f">= {raw_min} (see `[tool.uv] required-version` in pyproject.toml). "
+            "Upgrade uv before running this hook, e.g.:\n"
+            "  uv self update\n"
+            "or, to refresh the project-pinned uv in the main venv (included in the "
+            "`dev` dependency group via the `all` extras):\n"
+            "  uv sync\n"
+        )
+        if console:
+            console.print(f"[red]{message}")
+        else:
+            print(message)
+        sys.exit(1)
+
+
 def initialize_breeze_prek(name: str, file: str):
     if name not in ("__main__", "__mp_main__"):
         raise SystemExit(
@@ -212,6 +302,8 @@ def initialize_breeze_prek(name: str, file: str):
     if os.environ.get("SKIP_BREEZE_PREK_HOOKS"):
         console.print("[yellow]Skipping breeze prek hooks as SKIP_BREEZE_PREK_HOOKS is set")
         sys.exit(0)
+    # Breeze itself runs under uv, so enforce the project's minimum uv version up front.
+    check_uv_version()
     if shutil.which("breeze") is None:
         console.print(
             "[red]The `breeze` command is not on path.[/]\n\n"
