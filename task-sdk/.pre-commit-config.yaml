@@ -43,6 +43,7 @@ repos:
           ^src/airflow/sdk/definitions/deadline\.py$|
           ^src/airflow/sdk/definitions/dag\.py$|
           ^src/airflow/sdk/definitions/_internal/types\.py$|
+          ^src/airflow/sdk/execution_time/coordinator\.py$|
           ^src/airflow/sdk/execution_time/execute_workload\.py$|
           ^src/airflow/sdk/execution_time/secrets_masker\.py$|
           ^src/airflow/sdk/execution_time/callback_supervisor\.py$|
