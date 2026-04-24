@@ -97,11 +97,11 @@ test.describe("XComs Page", () => {
     await xcomsPage.verifyDagDisplayNameFiltering(testDagId);
   });
 
-  test("verify sorting by key column", async ({ xcomsPage }) => {
+  test("verify sorting by key column", async () => {
     await xcomsPage.verifySortByColumn("Key");
   });
 
-  test("verify sorting by timestamp column", async ({ xcomsPage }) => {
+  test("verify sorting by timestamp column", async () => {
     await xcomsPage.verifySortByColumn("Timestamp");
   });
 });
