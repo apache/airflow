@@ -1760,6 +1760,109 @@ class TestGetAssetLineage(TestAssets):
         # C should NOT be reached with depth=1
         assert f"asset:{asset_c.id}" not in nodes
 
+    @provide_session
+    def test_depth_below_minimum_is_clamped(self, test_client, testing_dag_bundle, session):
+        """Test that depth values below 1 are treated as depth=1."""
+        asset_a = AssetModel(name="asset_a", uri="s3://a")
+        asset_b = AssetModel(name="asset_b", uri="s3://b")
+        asset_c = AssetModel(name="asset_c", uri="s3://c")
+        session.add_all([asset_a, asset_b, asset_c])
+        session.flush()
+
+        session.add(DagModel(dag_id="dag1", bundle_name="testing"))
+        session.add(DagModel(dag_id="dag2", bundle_name="testing"))
+
+        session.add(TaskInletAssetReference(dag_id="dag1", task_id="t1", asset=asset_a))
+        session.add(TaskOutletAssetReference(dag_id="dag1", task_id="t1", asset=asset_b))
+        session.add(TaskInletAssetReference(dag_id="dag2", task_id="t2", asset=asset_b))
+        session.add(TaskOutletAssetReference(dag_id="dag2", task_id="t2", asset=asset_c))
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset_a.id}/lineage?depth=0")
+        assert response.status_code == 200
+
+        nodes = {node["id"]: node for node in response.json()["nodes"]}
+
+        assert f"asset:{asset_a.id}" in nodes
+        assert f"asset:{asset_b.id}" in nodes
+        assert f"asset:{asset_c.id}" not in nodes
+
+    @provide_session
+    def test_depth_above_maximum_is_clamped(self, test_client, testing_dag_bundle, session):
+        """Test that depth values above the maximum still traverse the full reachable graph."""
+        assets = [AssetModel(name=f"asset_{idx}", uri=f"s3://asset_{idx}") for idx in range(12)]
+        session.add_all(assets)
+        session.flush()
+
+        for idx in range(11):
+            dag_id = f"dag{idx}"
+            task_id = f"t{idx}"
+            session.add(DagModel(dag_id=dag_id, bundle_name="testing"))
+            session.add(TaskInletAssetReference(dag_id=dag_id, task_id=task_id, asset=assets[idx]))
+            session.add(TaskOutletAssetReference(dag_id=dag_id, task_id=task_id, asset=assets[idx + 1]))
+        session.commit()
+
+        response = test_client.get(f"/assets/{assets[0].id}/lineage?depth=999")
+        assert response.status_code == 200
+
+        nodes = {node["id"]: node for node in response.json()["nodes"]}
+
+        assert f"asset:{assets[10].id}" in nodes
+        assert f"asset:{assets[11].id}" not in nodes
+
+    @provide_session
+    def test_should_deduplicate_duplicate_edges(self, test_client, testing_dag_bundle, session):
+        """Test that the response does not contain duplicate edges for cyclical lineage graphs."""
+        asset_a = AssetModel(name="asset_a", uri="s3://a")
+        asset_b = AssetModel(name="asset_b", uri="s3://b")
+        session.add_all([asset_a, asset_b])
+        session.flush()
+
+        session.add(DagModel(dag_id="dag1", bundle_name="testing"))
+        session.add(DagModel(dag_id="dag2", bundle_name="testing"))
+
+        # T1: consumes A, produces B
+        session.add(TaskInletAssetReference(dag_id="dag1", task_id="t1", asset=asset_a))
+        session.add(TaskOutletAssetReference(dag_id="dag1", task_id="t1", asset=asset_b))
+
+        # T2: consumes B, produces A (creating a cycle that exercises edge deduplication)
+        session.add(TaskInletAssetReference(dag_id="dag2", task_id="t2", asset=asset_b))
+        session.add(TaskOutletAssetReference(dag_id="dag2", task_id="t2", asset=asset_a))
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset_a.id}/lineage")
+        assert response.status_code == 200
+
+        edges = response.json()["edges"]
+        edge_pairs = [(edge["source_id"], edge["target_id"]) for edge in edges]
+
+        assert len(edge_pairs) == len(set(edge_pairs))
+        assert edge_pairs.count(("dag:dag1", "task:dag1:t1")) == 1
+        assert edge_pairs.count(("dag:dag2", "task:dag2:t2")) == 1
+
+    @provide_session
+    def test_should_return_root_only_when_asset_has_no_lineage(self, test_client, testing_dag_bundle, session):
+        """Test that an asset with no producing or consuming tasks returns a graph with only the root asset."""
+        asset = AssetModel(name="standalone_asset", uri="s3://standalone")
+        session.add(asset)
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset.id}/lineage")
+        assert response.status_code == 200
+
+        data = response.json()
+
+        assert data["nodes"] == [
+            {
+                "group": "",
+                "id": f"asset:{asset.id}",
+                "name": "standalone_asset",
+                "node_type": "asset",
+                "uri": "s3://standalone",
+            }
+        ]
+        assert data["edges"] == []
+
     def test_should_respond_404(self, test_client):
         response = test_client.get("/assets/999/lineage")
         assert response.status_code == 404

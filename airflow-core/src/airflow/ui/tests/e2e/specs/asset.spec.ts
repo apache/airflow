@@ -115,4 +115,25 @@ test.describe("Assets Page", () => {
 
     await assetDetailPage.verifyScheduledDags();
   });
+
+  test("verify lineage search recenters the graph to the matched node", async ({ page }) => {
+    const assetDetailPage = new AssetDetailPage(page);
+
+    await assetDetailPage.gotoMockAsset(1);
+
+    await expect(assetDetailPage.lineageSearchInput).toBeVisible();
+    await expect(assetDetailPage.graphNode("produce_asset_events")).toBeVisible();
+
+    const initialTransform = await assetDetailPage.getViewportTransform();
+
+    await assetDetailPage.searchLineage("produce_asset_events");
+
+    await expect(assetDetailPage.lineageSearchInput).toHaveValue("produce_asset_events");
+    await expect
+      .poll(async () => assetDetailPage.getViewportTransform(), {
+        intervals: [250, 500, 1000],
+        timeout: 10_000,
+      })
+      .not.toBe(initialTransform);
+  });
 });

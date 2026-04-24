@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { BasePage } from "./BasePage";
 
@@ -29,12 +29,38 @@ export class AssetDetailPage extends BasePage {
     super(page);
   }
 
+  public get graphViewport(): Locator {
+    return this.page.locator(".react-flow__viewport");
+  }
+
+  public get lineageSearchInput(): Locator {
+    return this.page.getByPlaceholder("Search lineage nodes");
+  }
+
+  public graphNode(name: string): Locator {
+    return this.page.locator(".react-flow__node").filter({
+      has: this.page.getByRole("link", { exact: true, name }),
+    });
+  }
+
   public async clickOnAsset(name: string): Promise<void> {
     await this.page.getByRole("link", { exact: true, name }).click();
   }
 
   public async goto(): Promise<void> {
     await this.navigateTo(AssetDetailPage.url);
+  }
+
+  public async gotoMockAsset(assetId = 1): Promise<void> {
+    await this.navigateTo(`/assets/${assetId}?mockAssets=true`);
+  }
+
+  public async getViewportTransform(): Promise<string> {
+    return this.graphViewport.evaluate((element) => getComputedStyle(element).transform);
+  }
+
+  public async searchLineage(term: string): Promise<void> {
+    await this.lineageSearchInput.fill(term);
   }
 
   public async verifyAssetDetails(name: string): Promise<void> {

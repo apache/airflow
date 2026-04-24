@@ -200,6 +200,7 @@ jobs:
     uses: ./.github/workflows/basic-tests.yml
     with:
       runners: ${{ needs.build-info.outputs.runner-type }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
       run-api-codegen: ${{needs.build-info.outputs.run-api-codegen}}
@@ -213,6 +214,8 @@ jobs:
       use-uv: ${{needs.build-info.outputs.use-uv}}
       platform: ${{ needs.build-info.outputs.platform }}
       shared-distributions-as-json: ${{needs.build-info.outputs.shared-distributions-as-json}}
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   verify-release-calendar:
     name: "Verify release calendar"

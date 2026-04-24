@@ -28,6 +28,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run UI tests (true/false)"
         required: true
         type: string
+      run-coverage:
+        description: "Whether to run coverage or not (true/false)"
+        required: true
+        type: string
       run-www-tests:
         description: "Whether to run WWW tests (true/false)"
         required: true
@@ -80,6 +84,9 @@ on:  # yamllint disable-line rule:truthy
         description: 'Platform for the build - linux/amd64 or linux/arm64'
         required: true
         type: string
+    secrets:
+      CODECOV_TOKEN:
+        required: false
 permissions:
   contents: read
 jobs:
@@ -200,9 +207,26 @@ jobs:
           key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow-core/src/airflow/ui/**/pnpm-lock.yaml') }}
         id: restore-eslint-cache-ui
       - run: cd airflow-core/src/airflow/ui && pnpm install --frozen-lockfile
-      - run: cd airflow-core/src/airflow/ui && pnpm test
+      - run: cd airflow-core/src/airflow/ui && pnpm ${{ inputs.run-coverage == 'true' && 'coverage' || 'test' }}
         env:
           FORCE_COLOR: 2
+      - name: "Upload UI coverage report to Codecov"
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238
+        if: inputs.run-coverage == 'true'
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: airflow-core/src/airflow/ui/coverage/lcov.info
+          flags: ui
+          name: coverage-ui
+      - name: "Upload UI coverage artifacts"
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        if: inputs.run-coverage == 'true'
+        with:
+          name: ui-coverage-report
+          path: airflow-core/src/airflow/ui/coverage/
+          retention-days: 7
+          if-no-files-found: error
       - name: "Save eslint cache (ui)"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
