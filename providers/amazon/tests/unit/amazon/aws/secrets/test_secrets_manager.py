@@ -93,6 +93,22 @@ class TestSecretsManagerBackend:
         assert secrets_manager_backend.get_conn_value(conn_id="my_team--test_postgres") is None
 
     @mock_aws
+    def test_team_caller_falls_back_to_global_connection(self):
+        secret_id = "airflow/connections/test_postgres"
+        create_param = {
+            "Name": secret_id,
+            "SecretString": "postgresql://airflow:airflow@host:5432/airflow",
+        }
+
+        secrets_manager_backend = SecretsManagerBackend()
+        secrets_manager_backend.client.create_secret(**create_param)
+
+        returned_uri = secrets_manager_backend.get_conn_value(
+            conn_id="test_postgres", team_name="non_existent_team"
+        )
+        assert returned_uri == "postgresql://airflow:airflow@host:5432/airflow"
+
+    @mock_aws
     def test_get_variable(self):
         secret_id = "airflow/variables/hello"
         create_param = {"Name": secret_id, "SecretString": "world"}

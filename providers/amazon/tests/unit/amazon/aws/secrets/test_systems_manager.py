@@ -124,6 +124,18 @@ class TestSsmSecrets:
         assert ssm_backend.get_conn_value(conn_id="my_team--test_postgres") is None
 
     @mock_aws
+    def test_team_caller_falls_back_to_global_connection(self):
+        param = {
+            "Name": "/airflow/connections/test_postgres",
+            "Type": "String",
+            "Value": "postgresql://airflow:airflow@host:5432/airflow",
+        }
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+        returned_uri = ssm_backend.get_conn_value(conn_id="test_postgres", team_name="non_existent_team")
+        assert returned_uri == "postgresql://airflow:airflow@host:5432/airflow"
+
+    @mock_aws
     def test_get_variable(self):
         param = {"Name": "/airflow/variables/hello", "Type": "String", "Value": "world"}
 
