@@ -109,6 +109,16 @@ class AwsLambdaExecutor(BaseExecutor):
         self.IS_BOTO_CONNECTION_HEALTHY = False
         self.load_connections(check_connection=False)
 
+    @property
+    def pending_tasks(self) -> deque:
+        """Deprecated: use pending_workloads."""
+        return self.pending_workloads
+
+    @property
+    def running_tasks(self) -> dict[str, WorkloadKey]:
+        """Deprecated: use running_workloads."""
+        return self.running_workloads
+
     def start(self):
         """Call this when the Executor is run for the first time by the scheduler."""
         check_health = self.conf.getboolean(CONFIG_GROUP_NAME, AllLambdaConfigKeys.CHECK_HEALTH_ON_STARTUP)
