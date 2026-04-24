@@ -166,7 +166,7 @@ class AirflowAppBuilder:
         :param session: The SQLAlchemy session
         """
         from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-        
+
         log.info("Initializing AppBuilder")
         app.config.setdefault("APP_NAME", "F.A.B.")
         app.config.setdefault("APP_THEME", "")
