@@ -187,11 +187,11 @@ class TestMetastoreStateBackendAssetScope:
     def test_get_returns_none_for_missing_key(
         self, session: Session, backend: MetastoreStateBackend, asset: AssetModel
     ):
-        scope = AssetScope(asset_id=str(asset.id))
+        scope = AssetScope(asset_id=asset.id)
         assert backend.get(scope, "missing", session=session) is None
 
     def test_set_and_get_roundtrip(self, session: Session, backend: MetastoreStateBackend, asset: AssetModel):
-        scope = AssetScope(asset_id=str(asset.id))
+        scope = AssetScope(asset_id=asset.id)
         backend.set(scope, "watermark", "2026-04-24T00:00:00Z", session=session)
         session.flush()
         assert backend.get(scope, "watermark", session=session) == "2026-04-24T00:00:00Z"
@@ -199,7 +199,7 @@ class TestMetastoreStateBackendAssetScope:
     def test_set_twice_overwrites_existing_value(
         self, session: Session, backend: MetastoreStateBackend, asset: AssetModel
     ):
-        scope = AssetScope(asset_id=str(asset.id))
+        scope = AssetScope(asset_id=asset.id)
         backend.set(scope, "watermark", "2026-04-01T00:00:00Z", session=session)
         session.flush()
         backend.set(scope, "watermark", "2026-04-24T00:00:00Z", session=session)
@@ -207,7 +207,7 @@ class TestMetastoreStateBackendAssetScope:
         assert backend.get(scope, "watermark", session=session) == "2026-04-24T00:00:00Z"
 
     def test_delete_removes_key(self, session: Session, backend: MetastoreStateBackend, asset: AssetModel):
-        scope = AssetScope(asset_id=str(asset.id))
+        scope = AssetScope(asset_id=asset.id)
         backend.set(scope, "watermark", "2026-04-24T00:00:00Z", session=session)
         backend.set(scope, "file_count", "42", session=session)
         session.flush()
@@ -221,13 +221,13 @@ class TestMetastoreStateBackendAssetScope:
     def test_delete_is_noop_for_missing_key(
         self, session: Session, backend: MetastoreStateBackend, asset: AssetModel
     ):
-        scope = AssetScope(asset_id=str(asset.id))
+        scope = AssetScope(asset_id=asset.id)
         backend.delete(scope, "nonexistent", session=session)
 
     def test_clear_removes_all_keys(
         self, session: Session, backend: MetastoreStateBackend, asset: AssetModel
     ):
-        scope = AssetScope(asset_id=str(asset.id))
+        scope = AssetScope(asset_id=asset.id)
         for key in ("watermark", "file_count", "last_error"):
             backend.set(scope, key, f"val_{key}", session=session)
         session.flush()
@@ -245,8 +245,8 @@ class TestMetastoreStateBackendAssetScope:
         session.add(asset2)
         session.flush()
 
-        scope1 = AssetScope(asset_id=str(asset.id))
-        scope2 = AssetScope(asset_id=str(asset2.id))
+        scope1 = AssetScope(asset_id=asset.id)
+        scope2 = AssetScope(asset_id=asset2.id)
 
         backend.set(scope1, "watermark", "asset1_value", session=session)
         session.flush()

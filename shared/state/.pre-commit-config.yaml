@@ -23,7 +23,7 @@ repos:
   - repo: local
     hooks:
       - id: mypy-shared-state
-        name: Run mypy for shared-statse
+        name: Run mypy for shared-state
         language: python
         entry: ../../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py shared/state
         pass_filenames: false

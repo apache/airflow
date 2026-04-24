@@ -27,8 +27,12 @@ from airflow.models.asset_state import AssetStateModel
 from airflow.models.dagrun import DagRun
 from airflow.models.task_state import TaskStateModel
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import get_dialect_name
 
 if TYPE_CHECKING:
+    from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
+    from sqlalchemy.dialects.postgresql.dml import Insert as PostgreSQLInsert
+    from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
     from sqlalchemy.orm import Session
 
 
@@ -75,33 +79,64 @@ class MetastoreStateBackend(BaseStateBackend):
         return row.value if row is not None else None
 
     def _set_task(self, scope: TaskScope, key: str, value: str, *, session: Session) -> None:
-        row = session.scalar(
-            select(TaskStateModel).where(
-                TaskStateModel.dag_id == scope.dag_id,
-                TaskStateModel.run_id == scope.run_id,
-                TaskStateModel.task_id == scope.task_id,
-                TaskStateModel.map_index == scope.map_index,
-                TaskStateModel.key == key,
+        dag_run_id = session.scalar(
+            select(DagRun.id).where(
+                DagRun.dag_id == scope.dag_id,
+                DagRun.run_id == scope.run_id,
             )
         )
-        if row is None:
-            dag_run_id = session.scalar(
-                select(DagRun.id).where(
-                    DagRun.dag_id == scope.dag_id,
-                    DagRun.run_id == scope.run_id,
-                )
-            )
-            row = TaskStateModel(
+        now = timezone.utcnow()
+        dialect = get_dialect_name(session)
+        stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
+        if dialect == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            stmt = pg_insert(TaskStateModel).values(
                 dag_run_id=dag_run_id,
                 dag_id=scope.dag_id,
                 run_id=scope.run_id,
                 task_id=scope.task_id,
                 map_index=scope.map_index,
                 key=key,
+                value=value,
+                updated_at=now,
             )
-            session.add(row)
-        row.value = value
-        row.updated_at = timezone.utcnow()
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["dag_run_id", "task_id", "map_index", "key"],
+                set_=dict(value=value, updated_at=now),
+            )
+        elif dialect == "mysql":
+            from sqlalchemy.dialects.mysql import insert as mysql_insert
+
+            stmt = mysql_insert(TaskStateModel).values(
+                dag_run_id=dag_run_id,
+                dag_id=scope.dag_id,
+                run_id=scope.run_id,
+                task_id=scope.task_id,
+                map_index=scope.map_index,
+                key=key,
+                value=value,
+                updated_at=now,
+            )
+            stmt = stmt.on_duplicate_key_update(value=value, updated_at=now)
+        else:
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+            stmt = sqlite_insert(TaskStateModel).values(
+                dag_run_id=dag_run_id,
+                dag_id=scope.dag_id,
+                run_id=scope.run_id,
+                task_id=scope.task_id,
+                map_index=scope.map_index,
+                key=key,
+                value=value,
+                updated_at=now,
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["dag_run_id", "task_id", "map_index", "key"],
+                set_=dict(value=value, updated_at=now),
+            )
+        session.execute(stmt)
 
     def _delete_task(self, scope: TaskScope, key: str, *, session: Session) -> None:
         session.execute(
@@ -127,29 +162,49 @@ class MetastoreStateBackend(BaseStateBackend):
     def _get_asset(self, scope: AssetScope, key: str, *, session: Session) -> str | None:
         row = session.scalar(
             select(AssetStateModel).where(
-                AssetStateModel.asset_id == int(scope.asset_id),
+                AssetStateModel.asset_id == scope.asset_id,
                 AssetStateModel.key == key,
             )
         )
         return row.value if row is not None else None
 
     def _set_asset(self, scope: AssetScope, key: str, value: str, *, session: Session) -> None:
-        row = session.scalar(
-            select(AssetStateModel).where(
-                AssetStateModel.asset_id == int(scope.asset_id),
-                AssetStateModel.key == key,
+        now = timezone.utcnow()
+        dialect = get_dialect_name(session)
+        stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
+        if dialect == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            stmt = pg_insert(AssetStateModel).values(
+                asset_id=scope.asset_id, key=key, value=value, updated_at=now
             )
-        )
-        if row is None:
-            row = AssetStateModel(asset_id=int(scope.asset_id), key=key)
-            session.add(row)
-        row.value = value
-        row.updated_at = timezone.utcnow()
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["asset_id", "key"],
+                set_=dict(value=value, updated_at=now),
+            )
+        elif dialect == "mysql":
+            from sqlalchemy.dialects.mysql import insert as mysql_insert
+
+            stmt = mysql_insert(AssetStateModel).values(
+                asset_id=scope.asset_id, key=key, value=value, updated_at=now
+            )
+            stmt = stmt.on_duplicate_key_update(value=value, updated_at=now)
+        else:
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+            stmt = sqlite_insert(AssetStateModel).values(
+                asset_id=scope.asset_id, key=key, value=value, updated_at=now
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["asset_id", "key"],
+                set_=dict(value=value, updated_at=now),
+            )
+        session.execute(stmt)
 
     def _delete_asset(self, scope: AssetScope, key: str, *, session: Session) -> None:
         session.execute(
             delete(AssetStateModel).where(
-                AssetStateModel.asset_id == int(scope.asset_id),
+                AssetStateModel.asset_id == scope.asset_id,
                 AssetStateModel.key == key,
             )
         )
@@ -157,6 +212,6 @@ class MetastoreStateBackend(BaseStateBackend):
     def _clear_asset(self, scope: AssetScope, *, session: Session) -> None:
         session.execute(
             delete(AssetStateModel).where(
-                AssetStateModel.asset_id == int(scope.asset_id),
+                AssetStateModel.asset_id == scope.asset_id,
             )
         )

@@ -34,7 +34,7 @@ class TaskScope:
 class AssetScope:
     """Identifies the state namespace for an asset."""
 
-    asset_id: str
+    asset_id: int
 
 
 StateScope = TaskScope | AssetScope

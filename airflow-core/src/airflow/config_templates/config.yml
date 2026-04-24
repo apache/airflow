@@ -2987,6 +2987,7 @@ dag_processor:
       type: string
       example: ~
       default: "warning"
+
 state:
   description: |
     Configuration for task and asset state storage backend.
@@ -3000,6 +3001,7 @@ state:
       type: string
       example: "mypackage.state.CustomStateBackend"
       default: "airflow.state.metastore.MetastoreStateBackend"
+
 profiling:
   description: |
     Configuration for memory profiling in Airflow component.

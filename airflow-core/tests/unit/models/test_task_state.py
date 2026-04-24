@@ -135,7 +135,7 @@ class TestTaskStateModel:
         session.add(row)
         session.flush()
 
-        row.value = "application_try1"
+        row.value = "application_try2"
         row.updated_by_try = 2
         session.flush()
 
