@@ -64,7 +64,7 @@ def upgrade():
     op.create_index(
         "idx_task_state_lookup",
         "task_state",
-        ["dag_id", "run_id", "task_id", "map_index", "key"],
+        ["dag_id", "run_id", "task_id", "map_index"],
     )
 
     op.create_table(

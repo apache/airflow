@@ -58,5 +58,5 @@ class TaskStateModel(Base):
             name="task_state_dag_run_fkey",
             ondelete="CASCADE",
         ),
-        Index("idx_task_state_lookup", "dag_id", "run_id", "task_id", "map_index", "key"),
+        Index("idx_task_state_lookup", "dag_id", "run_id", "task_id", "map_index"),
     )
