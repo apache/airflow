@@ -141,6 +141,7 @@ class HttpTrigger(BaseTrigger):
         self.headers = headers
         self.data = data
         self.extra_options = extra_options
+        self._session = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpTrigger arguments and classpath."""
@@ -171,6 +172,20 @@ class HttpTrigger(BaseTrigger):
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
 
+    async def on_kill(self) -> None:
+        """
+        Cancel the HTTP request when the task is killed by a user.
+        
+        This method is called when a user explicitly acts on the deferred task
+        via mark-failed, clear, or mark-succeeded. It will cancel the ongoing HTTP request.
+        """
+        if self._session:
+            try:
+                self._session.close()
+            except Exception:
+                # Ignore errors during cleanup
+                pass
+
     def _get_async_hook(self) -> HttpAsyncHook:
         return HttpAsyncHook(
             method=self.method,
@@ -179,9 +194,10 @@ class HttpTrigger(BaseTrigger):
         )
 
     async def _get_response(self, hook):
-        async with aiohttp.ClientSession() as session:
+        self._session = aiohttp.ClientSession()
+        try:
             client_response = await hook.run(
-                session=session,
+                session=self._session,
                 endpoint=self.endpoint,
                 data=self.data,
                 headers=self.headers,
@@ -189,6 +205,14 @@ class HttpTrigger(BaseTrigger):
             )
             response = await self._convert_response(client_response)
             return response
+        finally:
+            # Close the session regardless of outcome
+            if self._session:
+                try:
+                    await self._session.close()
+                except Exception:
+                    # Ignore errors during cleanup
+                    pass
 
     @staticmethod
     async def _convert_response(client_response: ClientResponse) -> requests.Response:
@@ -240,6 +264,7 @@ class HttpSensorTrigger(BaseTrigger):
         self.extra_options = extra_options or {}
         self.http_conn_id = http_conn_id
         self.poke_interval = poke_interval
+        self._session = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpTrigger arguments and classpath."""
@@ -261,19 +286,41 @@ class HttpSensorTrigger(BaseTrigger):
         hook = self._get_async_hook()
         while True:
             try:
-                async with aiohttp.ClientSession() as session:
-                    await hook.run(
-                        session=session,
-                        endpoint=self.endpoint,
-                        data=self.data,
-                        headers=self.headers,
-                        extra_options=self.extra_options,
-                    )
+                self._session = aiohttp.ClientSession()
+                await hook.run(
+                    session=self._session,
+                    endpoint=self.endpoint,
+                    data=self.data,
+                    headers=self.headers,
+                    extra_options=self.extra_options,
+                )
                 yield TriggerEvent(True)
                 return
             except AirflowException as exc:
                 if str(exc).startswith("404"):
                     await asyncio.sleep(self.poke_interval)
+            finally:
+                # Clean up session if needed
+                if self._session:
+                    try:
+                        await self._session.close()
+                    except Exception:
+                        # Ignore errors during cleanup
+                        pass
+
+    async def on_kill(self) -> None:
+        """
+        Cancel the HTTP request when the task is killed by a user.
+        
+        This method is called when a user explicitly acts on the deferred task
+        via mark-failed, clear, or mark-succeeded. It will cancel the ongoing HTTP request.
+        """
+        if self._session:
+            try:
+                await self._session.close()
+            except Exception:
+                # Ignore errors during cleanup
+                pass
 
     def _get_async_hook(self) -> HttpAsyncHook:
         return HttpAsyncHook(

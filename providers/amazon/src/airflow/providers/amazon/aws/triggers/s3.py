@@ -77,6 +77,7 @@ class S3KeyTrigger(BaseTrigger):
         self.verify = verify
         self.botocore_config = botocore_config
         self.metadata_keys = metadata_keys if metadata_keys else ["Size", "Key"]
+        self._client = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize S3KeyTrigger arguments and classpath."""
@@ -110,7 +111,8 @@ class S3KeyTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make an asynchronous connection using S3HookAsync."""
         try:
-            async with await self.hook.get_async_conn() as client:
+            self._client = await self.hook.get_async_conn()
+            async with self._client as client:
                 while True:
                     if await self.hook.check_key_async(
                         client, self.bucket_name, self.bucket_key, self.wildcard_match, self.use_regex
@@ -148,6 +150,28 @@ class S3KeyTrigger(BaseTrigger):
                     await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
+        finally:
+            # Ensure the connection is closed if needed
+            if self._client:
+                try:
+                    await self._client.__aexit__(None, None, None)
+                except Exception:
+                    # Ignore errors during cleanup
+                    pass
+
+    async def on_kill(self) -> None:
+        """
+        Cancel the S3 operation when the task is killed by a user.
+        
+        This method is called when a user explicitly acts on the deferred task
+        via mark-failed, clear, or mark-succeeded. It will close the S3 connection.
+        """
+        if self._client:
+            try:
+                await self._client.__aexit__(None, None, None)
+            except Exception:
+                # Ignore errors during cleanup
+                pass
 
 
 class S3KeysUnchangedTrigger(BaseTrigger):
@@ -208,6 +232,7 @@ class S3KeysUnchangedTrigger(BaseTrigger):
         self.verify = verify
         self.botocore_config = botocore_config
         self.hook_params = hook_params
+        self._client = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize S3KeysUnchangedTrigger arguments and classpath."""
@@ -243,7 +268,8 @@ class S3KeysUnchangedTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make an asynchronous connection using S3Hook."""
         try:
-            async with await self.hook.get_async_conn() as client:
+            self._client = await self.hook.get_async_conn()
+            async with self._client as client:
                 while True:
                     result = await self.hook.is_keys_unchanged_async(
                         client=client,
@@ -266,3 +292,25 @@ class S3KeysUnchangedTrigger(BaseTrigger):
                     await asyncio.sleep(self.polling_period_seconds)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
+        finally:
+            # Ensure the connection is closed if needed
+            if self._client:
+                try:
+                    await self._client.__aexit__(None, None, None)
+                except Exception:
+                    # Ignore errors during cleanup
+                    pass
+
+    async def on_kill(self) -> None:
+        """
+        Cancel the S3 operation when the task is killed by a user.
+        
+        This method is called when a user explicitly acts on the deferred task
+        via mark-failed, clear, or mark-succeeded. It will close the S3 connection.
+        """
+        if self._client:
+            try:
+                await self._client.__aexit__(None, None, None)
+            except Exception:
+                # Ignore errors during cleanup
+                pass
