@@ -26,16 +26,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from airflow.providers.sdk.java.bundle_scanner import BundleScanner, read_dag_code
-from airflow.sdk.execution_time.coordinator import BaseRuntimeCoordinator
+from airflow.sdk.execution_time.coordinator import BaseCoordinator
 
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
 
 
-class JavaRuntimeCoordinator(BaseRuntimeCoordinator):
+class JavaCoordinator(BaseCoordinator):
     """Coordinator that launches a JVM subprocess for DAG parsing and task execution."""
 
-    runtime_name = "java"
+    sdk = "java"
     file_extension = ".jar"
 
     @classmethod
@@ -54,7 +54,7 @@ class JavaRuntimeCoordinator(BaseRuntimeCoordinator):
         return code
 
     @classmethod
-    def dag_parsing_runtime_cmd(
+    def dag_parsing_cmd(
         cls,
         *,
         dag_file_path: str,
@@ -80,7 +80,7 @@ class JavaRuntimeCoordinator(BaseRuntimeCoordinator):
         ]
 
     @classmethod
-    def task_execution_runtime_cmd(
+    def task_execution_cmd(
         cls,
         *,
         what: TaskInstance,
