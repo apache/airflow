@@ -1,0 +1,255 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import pytest
+from sqlalchemy import select
+
+from airflow._shared.timezones import timezone
+from airflow.models.asset import AssetModel
+from airflow.models.dagrun import DagRun, DagRunType
+from airflow.models.task_state import TaskStateModel
+from airflow.state import AssetScope, TaskScope
+from airflow.state.metastore import MetastoreStateBackend
+
+from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+pytestmark = pytest.mark.db_test
+
+DAG_ID = "test_dag"
+TASK_ID = "test_task"
+RUN_ID = "scheduled__2026-04-24"
+
+
+@pytest.fixture(autouse=True)
+def clean_tables():
+    clear_db_dags()
+    clear_db_runs()
+    clear_db_assets()
+    yield
+    clear_db_dags()
+    clear_db_runs()
+    clear_db_assets()
+
+
+@pytest.fixture
+def backend() -> MetastoreStateBackend:
+    return MetastoreStateBackend()
+
+
+@pytest.fixture
+def dag_run(session: Session) -> DagRun:
+    run = DagRun(
+        dag_id=DAG_ID,
+        run_id=RUN_ID,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=timezone.datetime(2026, 4, 24),
+        run_after=timezone.datetime(2026, 4, 24),
+    )
+    session.add(run)
+    session.flush()
+    return run
+
+
+@pytest.fixture
+def asset(session: Session) -> AssetModel:
+    a = AssetModel(uri="s3://bucket/prefix", name="test_asset", group="test")
+    session.add(a)
+    session.flush()
+    return a
+
+
+class TestMetastoreStateBackendTaskScope:
+    def test_get_returns_none_for_missing_key(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
+    ):
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        assert backend.get(scope, "missing", session=session) is None
+
+    def test_set_and_get_roundtrip(self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun):
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        session.flush()
+        assert backend.get(scope, "job_id", session=session) == "app_1234"
+
+    def test_set_twice_overrides_existing_value(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
+    ):
+        """Calling set twice on the same key updates the value in place."""
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "job_id", "app_try1", session=session)
+        session.flush()
+        backend.set(scope, "job_id", "app_try2", session=session)
+        session.flush()
+        assert backend.get(scope, "job_id", session=session) == "app_try2"
+
+    def test_set_stores_dag_run_id_fk(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
+    ):
+        """set resolves dag_run_id from (dag_id, run_id) and persists it as the FK."""
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        session.flush()
+
+        row = session.scalar(
+            select(TaskStateModel).where(
+                TaskStateModel.dag_id == DAG_ID,
+                TaskStateModel.task_id == TASK_ID,
+                TaskStateModel.key == "job_id",
+            )
+        )
+        assert row is not None
+        assert row.dag_run_id == dag_run.id
+
+    def test_delete_removes_key(self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun):
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        backend.set(scope, "checkpoint", "step_3", session=session)
+        session.flush()
+
+        backend.delete(scope, "job_id", session=session)
+        session.flush()
+
+        assert backend.get(scope, "job_id", session=session) is None
+        assert backend.get(scope, "checkpoint", session=session) == "step_3"
+
+    def test_delete_is_noop_for_missing_key(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
+    ):
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.delete(scope, "nonexistent", session=session)
+
+    def test_clear_removes_all_keys(self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun):
+        """clear removes every key under the given task scope."""
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        for key in ("job_id", "checkpoint", "watermark"):
+            backend.set(scope, key, f"val_{key}", session=session)
+        session.flush()
+
+        backend.clear(scope, session=session)
+        session.flush()
+
+        for key in ("job_id", "checkpoint", "watermark"):
+            assert backend.get(scope, key, session=session) is None
+
+    def test_map_index_isolation(self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun):
+        """Mapped task instances with different map_index values have isolated namespaces."""
+        scope0 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=0)
+        scope1 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=1)
+
+        backend.set(scope0, "job_id", "app_0", session=session)
+        backend.set(scope1, "job_id", "app_1", session=session)
+        session.flush()
+
+        assert backend.get(scope0, "job_id", session=session) == "app_0"
+        assert backend.get(scope1, "job_id", session=session) == "app_1"
+
+    def test_clear_scoped_to_map_index(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
+    ):
+        """clear for map_index=0 does not remove state belonging to map_index=1."""
+        scope0 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=0)
+        scope1 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=1)
+
+        backend.set(scope0, "job_id", "app_0", session=session)
+        backend.set(scope1, "job_id", "app_1", session=session)
+        session.flush()
+
+        backend.clear(scope0, session=session)
+        session.flush()
+
+        assert backend.get(scope0, "job_id", session=session) is None
+        assert backend.get(scope1, "job_id", session=session) == "app_1"
+
+
+class TestMetastoreStateBackendAssetScope:
+    def test_get_returns_none_for_missing_key(
+        self, session: Session, backend: MetastoreStateBackend, asset: AssetModel
+    ):
+        scope = AssetScope(asset_id=str(asset.id))
+        assert backend.get(scope, "missing", session=session) is None
+
+    def test_set_and_get_roundtrip(self, session: Session, backend: MetastoreStateBackend, asset: AssetModel):
+        scope = AssetScope(asset_id=str(asset.id))
+        backend.set(scope, "watermark", "2026-04-24T00:00:00Z", session=session)
+        session.flush()
+        assert backend.get(scope, "watermark", session=session) == "2026-04-24T00:00:00Z"
+
+    def test_set_twice_overwrites_existing_value(
+        self, session: Session, backend: MetastoreStateBackend, asset: AssetModel
+    ):
+        scope = AssetScope(asset_id=str(asset.id))
+        backend.set(scope, "watermark", "2026-04-01T00:00:00Z", session=session)
+        session.flush()
+        backend.set(scope, "watermark", "2026-04-24T00:00:00Z", session=session)
+        session.flush()
+        assert backend.get(scope, "watermark", session=session) == "2026-04-24T00:00:00Z"
+
+    def test_delete_removes_key(self, session: Session, backend: MetastoreStateBackend, asset: AssetModel):
+        scope = AssetScope(asset_id=str(asset.id))
+        backend.set(scope, "watermark", "2026-04-24T00:00:00Z", session=session)
+        backend.set(scope, "file_count", "42", session=session)
+        session.flush()
+
+        backend.delete(scope, "watermark", session=session)
+        session.flush()
+
+        assert backend.get(scope, "watermark", session=session) is None
+        assert backend.get(scope, "file_count", session=session) == "42"
+
+    def test_delete_is_noop_for_missing_key(
+        self, session: Session, backend: MetastoreStateBackend, asset: AssetModel
+    ):
+        scope = AssetScope(asset_id=str(asset.id))
+        backend.delete(scope, "nonexistent", session=session)
+
+    def test_clear_removes_all_keys(
+        self, session: Session, backend: MetastoreStateBackend, asset: AssetModel
+    ):
+        """clear removes every key stored under the given asset."""
+        scope = AssetScope(asset_id=str(asset.id))
+        for key in ("watermark", "file_count", "last_error"):
+            backend.set(scope, key, f"val_{key}", session=session)
+        session.flush()
+
+        backend.clear(scope, session=session)
+        session.flush()
+
+        for key in ("watermark", "file_count", "last_error"):
+            assert backend.get(scope, key, session=session) is None
+
+    def test_different_assets_are_isolated(
+        self, session: Session, backend: MetastoreStateBackend, asset: AssetModel
+    ):
+        """State written for one asset is not visible when querying a different asset."""
+        asset2 = AssetModel(uri="s3://bucket/other", name="other_asset", group="test")
+        session.add(asset2)
+        session.flush()
+
+        scope1 = AssetScope(asset_id=str(asset.id))
+        scope2 = AssetScope(asset_id=str(asset2.id))
+
+        backend.set(scope1, "watermark", "asset1_value", session=session)
+        session.flush()
+
+        assert backend.get(scope2, "watermark", session=session) is None

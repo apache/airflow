@@ -16,7 +16,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-18T16:05:17.095758745Z"
+exclude-newer = "2026-04-20T08:21:09.862828Z"
 exclude-newer-span = "P4D"
 
 [options.exclude-newer-package]
@@ -97,9 +97,9 @@ apache-airflow-providers-mongo = false
 apache-airflow-providers-apprise = false
 apache-airflow-providers-apache-impala = false
 apache-airflow-ctl = false
-apache-airflow-providers-zendesk = false
 apache-airflow-providers-github = false
 apache-airflow-providers-snowflake = false
+apache-airflow-providers-zendesk = false
 apache-airflow-providers-presto = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-apache-hive = false
@@ -277,6 +277,7 @@ members = [
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-serialization",
+    "apache-airflow-shared-state",
     "apache-airflow-shared-template-rendering",
     "apache-airflow-shared-timezones",
     "apache-airflow-task-sdk",
@@ -1371,6 +1372,7 @@ dev = [
     { name = "apache-airflow-shared-secrets-backend" },
     { name = "apache-airflow-shared-secrets-masker" },
     { name = "apache-airflow-shared-serialization" },
+    { name = "apache-airflow-shared-state" },
     { name = "apache-airflow-shared-template-rendering" },
     { name = "apache-airflow-shared-timezones" },
     { name = "apache-airflow-task-sdk", extra = ["all"] },
@@ -1641,6 +1643,7 @@ dev = [
     { name = "apache-airflow-shared-secrets-backend", editable = "shared/secrets_backend" },
     { name = "apache-airflow-shared-secrets-masker", editable = "shared/secrets_masker" },
     { name = "apache-airflow-shared-serialization", editable = "shared/serialization" },
+    { name = "apache-airflow-shared-state", editable = "shared/state" },
     { name = "apache-airflow-shared-template-rendering", editable = "shared/template_rendering" },
     { name = "apache-airflow-shared-timezones", editable = "shared/timezones" },
     { name = "apache-airflow-task-sdk", extras = ["all"], editable = "task-sdk" },
@@ -8230,6 +8233,25 @@ mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "d
 name = "apache-airflow-shared-serialization"
 version = "0.0"
 source = { editable = "shared/serialization" }
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow-devel-common" },
+]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-shared-state"
+version = "0.0"
+source = { editable = "shared/state" }
 
 [package.dev-dependencies]
 dev = [
