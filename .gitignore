@@ -73,6 +73,8 @@ htmlcov/
 .cache
 nosetests.xml
 coverage*.xml
+files/test_result-all-sqlite.xml
+files/warnings-all-sqlite.txt
 *,cover
 .hypothesis/
 .pytest_cache
@@ -209,7 +211,7 @@ dmypy.json
 # Needed for CI Dockerfile.ci build system
 .build
 /tmp
-/files
+#/files
 
 /hive_scratch_dir/
 /.bash_aliases
