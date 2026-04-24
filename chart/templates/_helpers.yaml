@@ -204,6 +204,26 @@ If release name contains chart name it will be used as a full name.
     defaultMode: 288
 {{- end }}
 
+{{/*
+Check if a git-sync env var name is NOT overridden by the user's dags.gitSync.env list.
+Returns "true" if the env var is not found in the user list (i.e., the default should be used).
+Returns empty string if it IS found (i.e., the user override takes precedence).
+Usage: include "git_sync_env_not_overridden" (list "ENV_VAR_NAME" .Values.dags.gitSync.env)
+*/}}
+{{- define "git_sync_env_not_overridden" -}}
+{{- $envName := index . 0 -}}
+{{- $envList := index . 1 -}}
+{{- $found := false -}}
+{{- range $envList -}}
+{{- if eq .name $envName -}}
+{{- $found = true -}}
+{{- end -}}
+{{- end -}}
+{{- if not $found -}}
+true
+{{- end -}}
+{{- end -}}
+
 {{/* Git sync container */}}
 {{- define "git_sync_container" }}
 - name: {{ .Values.dags.gitSync.containerName }}{{ if .is_init }}-init{{ end }}
@@ -212,98 +232,248 @@ If release name contains chart name it will be used as a full name.
   securityContext: {{- include "localContainerSecurityContext" .Values.dags.gitSync | nindent 4 }}
   envFrom: {{- include "custom_git_sync_environment_from" . | default "\n  []" | indent 2 }}
   env:
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SYNC_REV" .Values.dags.gitSync.env)) }}
     - name: GIT_SYNC_REV
+      {{- if .Values.dags.gitSync.envVarsSecret }}
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.envVarsSecret | quote }}
+          key: GIT_SYNC_REV
+          optional: true
+      {{- else }}
       value: {{ .Values.dags.gitSync.rev | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_REF" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_REF
+      {{- if .Values.dags.gitSync.envVarsSecret }}
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.envVarsSecret | quote }}
+          key: GITSYNC_REF
+          optional: true
+      {{- else }}
       value: {{ .Values.dags.gitSync.ref | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SYNC_BRANCH" .Values.dags.gitSync.env)) }}
     - name: GIT_SYNC_BRANCH
+      {{- if .Values.dags.gitSync.envVarsSecret }}
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.envVarsSecret | quote }}
+          key: GIT_SYNC_BRANCH
+          optional: true
+      {{- else }}
       value: {{ .Values.dags.gitSync.branch | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SYNC_REPO" .Values.dags.gitSync.env)) }}
     - name: GIT_SYNC_REPO
+      {{- if .Values.dags.gitSync.envVarsSecret }}
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.envVarsSecret | quote }}
+          key: GIT_SYNC_REPO
+          optional: true
+      {{- else }}
       value: {{ .Values.dags.gitSync.repo | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_REPO" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_REPO
+      {{- if .Values.dags.gitSync.envVarsSecret }}
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.envVarsSecret | quote }}
+          key: GITSYNC_REPO
+          optional: true
+      {{- else }}
       value: {{ .Values.dags.gitSync.repo | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SYNC_DEPTH" .Values.dags.gitSync.env)) }}
     - name: GIT_SYNC_DEPTH
+      {{- if .Values.dags.gitSync.envVarsSecret }}
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.envVarsSecret | quote }}
+          key: GIT_SYNC_DEPTH
+          optional: true
+      {{- else }}
       value: {{ .Values.dags.gitSync.depth | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_DEPTH" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_DEPTH
+      {{- if .Values.dags.gitSync.envVarsSecret }}
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.envVarsSecret | quote }}
+          key: GITSYNC_DEPTH
+          optional: true
+      {{- else }}
       value: {{ .Values.dags.gitSync.depth | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SYNC_ROOT" .Values.dags.gitSync.env)) }}
     - name: GIT_SYNC_ROOT
       value: "/git"
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_ROOT" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_ROOT
       value: "/git"
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SYNC_DEST" .Values.dags.gitSync.env)) }}
     - name: GIT_SYNC_DEST
       value: "repo"
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_LINK" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_LINK
       value: "repo"
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SYNC_ADD_USER" .Values.dags.gitSync.env)) }}
     - name: GIT_SYNC_ADD_USER
       value: "true"
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_ADD_USER" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_ADD_USER
       value: "true"
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_PERIOD" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_PERIOD
+      {{- if .Values.dags.gitSync.envVarsSecret }}
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.envVarsSecret | quote }}
+          key: GITSYNC_PERIOD
+          optional: true
+      {{- else }}
       value: {{ .Values.dags.gitSync.period | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SYNC_MAX_SYNC_FAILURES" .Values.dags.gitSync.env)) }}
     - name: GIT_SYNC_MAX_SYNC_FAILURES
+      {{- if .Values.dags.gitSync.envVarsSecret }}
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.envVarsSecret | quote }}
+          key: GIT_SYNC_MAX_SYNC_FAILURES
+          optional: true
+      {{- else }}
       value: {{ .Values.dags.gitSync.maxFailures | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_MAX_FAILURES" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_MAX_FAILURES
+      {{- if .Values.dags.gitSync.envVarsSecret }}
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.envVarsSecret | quote }}
+          key: GITSYNC_MAX_FAILURES
+          optional: true
+      {{- else }}
       value: {{ .Values.dags.gitSync.maxFailures | quote }}
+      {{- end }}
+    {{- end }}
     {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SSH_KEY_FILE" .Values.dags.gitSync.env)) }}
     - name: GIT_SSH_KEY_FILE
       value: "/etc/git-secret/ssh"
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_SSH_KEY_FILE" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_SSH_KEY_FILE
       value: "/etc/git-secret/ssh"
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SYNC_SSH" .Values.dags.gitSync.env)) }}
     - name: GIT_SYNC_SSH
       value: "true"
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_SSH" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_SSH
       value: "true"
+    {{- end }}
     {{- if .Values.dags.gitSync.knownHosts }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_KNOWN_HOSTS" .Values.dags.gitSync.env)) }}
     - name: GIT_KNOWN_HOSTS
       value: "true"
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_SSH_KNOWN_HOSTS" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_SSH_KNOWN_HOSTS
       value: "true"
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SSH_KNOWN_HOSTS_FILE" .Values.dags.gitSync.env)) }}
     - name: GIT_SSH_KNOWN_HOSTS_FILE
       value: "/etc/git-secret/known_hosts"
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_SSH_KNOWN_HOSTS_FILE" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_SSH_KNOWN_HOSTS_FILE
       value: "/etc/git-secret/known_hosts"
+    {{- end }}
     {{- else }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_KNOWN_HOSTS" .Values.dags.gitSync.env)) }}
     - name: GIT_KNOWN_HOSTS
       value: "false"
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_SSH_KNOWN_HOSTS" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_SSH_KNOWN_HOSTS
       value: "false"
     {{- end }}
+    {{- end }}
     {{ else if .Values.dags.gitSync.credentialsSecret }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SYNC_USERNAME" .Values.dags.gitSync.env)) }}
     - name: GIT_SYNC_USERNAME
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GIT_SYNC_USERNAME
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_USERNAME" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_USERNAME
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GITSYNC_USERNAME
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SYNC_PASSWORD" .Values.dags.gitSync.env)) }}
     - name: GIT_SYNC_PASSWORD
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GIT_SYNC_PASSWORD
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_PASSWORD" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_PASSWORD
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GITSYNC_PASSWORD
     {{- end }}
+    {{- end }}
     {{- if .Values.dags.gitSync.wait }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SYNC_WAIT" .Values.dags.gitSync.env)) }}
     - name: GIT_SYNC_WAIT
       value: {{ .Values.dags.gitSync.wait | quote }}
     {{- end }}
+    {{- end }}
     {{- if .is_init }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SYNC_ONE_TIME" .Values.dags.gitSync.env)) }}
     - name: GIT_SYNC_ONE_TIME
       value: "true"
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_ONE_TIME" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_ONE_TIME
       value: "true"
+    {{- end }}
     {{- else }}
+    {{- if (include "git_sync_env_not_overridden" (list "GIT_SYNC_HTTP_BIND" .Values.dags.gitSync.env)) }}
     - name: GIT_SYNC_HTTP_BIND
       value: ":{{ .Values.dags.gitSync.httpPort }}"
+    {{- end }}
+    {{- if (include "git_sync_env_not_overridden" (list "GITSYNC_HTTP_BIND" .Values.dags.gitSync.env)) }}
     - name: GITSYNC_HTTP_BIND
       value: ":{{ .Values.dags.gitSync.httpPort }}"
+    {{- end }}
     {{- end }}
     {{- with .Values.dags.gitSync.env }}
     {{- toYaml . | nindent 4 }}

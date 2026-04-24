@@ -3549,7 +3549,28 @@ dags:
     #      mountPath: "{{ .Values.my_custom_path }}"
     #      readOnly: true
 
+    # Name of an existing Kubernetes Secret whose keys are mapped to git-sync
+    # environment variables (GIT_SYNC_REV, GITSYNC_REF, GIT_SYNC_BRANCH,
+    # GIT_SYNC_REPO, GITSYNC_REPO, GIT_SYNC_DEPTH, GITSYNC_DEPTH,
+    # GITSYNC_PERIOD, GIT_SYNC_MAX_SYNC_FAILURES, GITSYNC_MAX_FAILURES).
+    # When set, these variables are loaded from the Secret via secretKeyRef
+    # (with optional: true) instead of from the values above.
+    # This is useful when the repo URL or branch contain sensitive tokens.
+    #
+    # envVarsSecret: git-sync-env-secret
+    #
+    # Secret example:
+    #  apiVersion: v1
+    #  kind: Secret
+    #  metadata:
+    #    name: git-sync-env-secret
+    #  data:
+    #    GIT_SYNC_REPO: <base64_encoded_repo_url>
+    #    GITSYNC_REPO: <base64_encoded_repo_url>
+    #    GIT_SYNC_BRANCH: <base64_encoded_branch>
+
     # Supported env vars for gitsync can be found at https://github.com/kubernetes/git-sync
+    # Variables specified here override the hardcoded defaults above (no duplicates).
     env: []
     # - name: ""
     #   value: ""
