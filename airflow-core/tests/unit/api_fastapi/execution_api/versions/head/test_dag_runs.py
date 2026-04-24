@@ -19,9 +19,12 @@ from __future__ import annotations
 
 import pytest
 import time_machine
+from fastapi import Request
 from sqlalchemy import select, update
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -218,6 +221,44 @@ class TestDagRunTrigger:
                 "reason": "already_exists",
             }
         }
+
+    @pytest.mark.parametrize("parent_triggering_user_name", ["alice", None])
+    def test_trigger_dag_run_inherits_triggering_user_name(
+        self, client, exec_app, session, dag_maker, parent_triggering_user_name
+    ):
+        """Child DAG run inherits triggering_user_name from the calling task's parent run."""
+        parent_dag_id = "parent_dag_inherits"
+        parent_run_id = "parent_run"
+        child_dag_id = "child_dag_inherits"
+        child_run_id = "child_run"
+        logical_date = timezone.datetime(2025, 2, 20)
+
+        with dag_maker(dag_id=parent_dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="trigger_task")
+        parent_run = dag_maker.create_dagrun(
+            run_id=parent_run_id, triggering_user_name=parent_triggering_user_name
+        )
+        parent_ti = parent_run.task_instances[0]
+
+        with dag_maker(dag_id=child_dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="child_task")
+        session.commit()
+
+        async def auth_as_parent_ti(request: Request) -> TIToken:
+            return TIToken(id=parent_ti.id, claims=TIClaims(scope="execution"))
+
+        exec_app.dependency_overrides[require_auth] = auth_as_parent_ti
+        try:
+            response = client.post(
+                f"/execution/dag-runs/{child_dag_id}/{child_run_id}",
+                json={"logical_date": logical_date.isoformat()},
+            )
+        finally:
+            exec_app.dependency_overrides.pop(require_auth, None)
+
+        assert response.status_code == 204
+        child_run = session.scalars(select(DagRun).where(DagRun.run_id == child_run_id)).one()
+        assert child_run.triggering_user_name == parent_triggering_user_name
 
 
 class TestDagRunClear:
