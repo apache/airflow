@@ -308,6 +308,9 @@ class SortParam(BaseParam[list[str]]):
         resolved: list[tuple[str, ColumnElement, bool]] = []
         for order_by_value in order_by_values:
             lstriped_orderby = order_by_value.lstrip("-")
+            # Store the user-facing name in the resolved tuple. ``row_value`` resolves
+            # it back to the actual row accessor via ``to_replace`` when reading values
+            # for cursor encoding.
             attr_name = lstriped_orderby
             column: Column | None = None
             if self.to_replace:
@@ -330,7 +333,8 @@ class SortParam(BaseParam[list[str]]):
 
         primary_key_column = self.get_primary_key_column()
         pk_name = self.get_primary_key_string()
-        if not any(name == pk_name for name, _, _ in resolved):
+        resolved_column_keys = {getattr(col, "key", None) for _, col, _ in resolved}
+        if pk_name not in resolved_column_keys:
             pk_desc = bool(order_by_values and order_by_values[0].startswith("-"))
             resolved.append((pk_name, primary_key_column, pk_desc))
 
@@ -351,6 +355,31 @@ class SortParam(BaseParam[list[str]]):
     def get_resolved_columns(self) -> list[tuple[str, ColumnElement, bool]]:
         """Return resolved sort columns as (attr_name, column_element, is_descending) tuples."""
         return self._resolve()
+
+    def row_value(self, row: Any, name: str) -> Any:
+        """
+        Extract the sort-key value for ``name`` from a result row.
+
+        Resolves the accessor through ``to_replace`` for string aliases
+        (e.g. ``{"dag_run_id": "run_id"}``); otherwise reads ``name`` directly.
+        """
+        if self.to_replace:
+            replacement = self.to_replace.get(name)
+            if isinstance(replacement, str):
+                return getattr(row, replacement, None)
+            if replacement is not None:
+                # TODO: Column-form ``to_replace`` (e.g. ``{"last_run_state": DagRun.state}``)
+                # isn't supported for cursor pagination — no endpoint that uses cursor
+                # pagination needs it today. When one does, decide how the row exposes the
+                # value (projected label on the SELECT, eagerly loaded relationship, etc.)
+                # and wire it up here. Raising loudly so a future caller doesn't silently
+                # get ``None`` cursor tokens.
+                raise NotImplementedError(
+                    f"Cursor pagination does not support column-form ``to_replace`` mapping for "
+                    f"``{name}``. Use a string alias in ``to_replace`` or sort by a primary-model "
+                    f"attribute."
+                )
+        return getattr(row, name, None)
 
     def get_primary_key_column(self) -> Column:
         """Get the primary key column of the model of SortParam object."""
