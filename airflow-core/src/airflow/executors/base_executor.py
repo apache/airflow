@@ -295,7 +295,7 @@ class BaseExecutor(LoggingMixin):
 
         return workloads_to_schedule
 
-    def _process_workloads(self, workloads: Sequence[ExecutorWorkload]) -> None:
+    def _process_workloads(self, workload_items: Sequence[ExecutorWorkload]) -> None:
         """
         Process the given workloads.
 
@@ -303,7 +303,7 @@ class BaseExecutor(LoggingMixin):
         the execution of workloads (e.g., queuing them to workers, submitting to
         external systems, etc.).
 
-        :param workloads: List of workloads to process
+        :param workload_items: List of workloads to process
         """
         raise NotImplementedError(f"{type(self).__name__} must implement _process_workloads()")
 
