@@ -178,6 +178,28 @@ for more information about Amazon S3 prefixes.
     :start-after: [START howto_operator_s3_list_prefixes]
     :end-before: [END howto_operator_s3_list_prefixes]
 
+.. _howto/operator:S3ReadObjectOperator:
+
+Read an Amazon S3 object
+========================
+
+To read the content of an Amazon S3 object and return it as a string you can use
+:class:`~airflow.providers.amazon.aws.operators.s3.S3ReadObjectOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3_read_object.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3_read_object]
+    :end-before: [END howto_operator_s3_read_object]
+
+You can also pass a full ``s3://`` URL as the key:
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3_read_object.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3_read_object_url]
+    :end-before: [END howto_operator_s3_read_object_url]
+
 .. _howto/operator:S3ListOperator:
 
 List Amazon S3 objects
