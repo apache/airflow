@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import textwrap
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, Request, status
