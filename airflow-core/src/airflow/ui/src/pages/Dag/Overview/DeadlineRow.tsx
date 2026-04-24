@@ -59,7 +59,7 @@ export const DeadlineRow = ({ alert, deadline, run }: DeadlineRowProps) => {
         </HStack>
         {reference !== undefined && interval !== undefined ? (
           <Text color="fg.muted" fontSize="xs">
-            {translate("deadlineStatus.completionRule", { interval, reference })}
+            {translate("deadlineAlerts.completionRule", { interval, reference })}
           </Text>
         ) : undefined}
       </VStack>

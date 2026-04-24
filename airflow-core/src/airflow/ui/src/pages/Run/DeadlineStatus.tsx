@@ -84,7 +84,7 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
       <VStack alignItems="flex-start" gap={0.5}>
         {(alertData?.deadline_alerts ?? []).map((deadlineAlert) => (
           <Text fontSize="xs" key={deadlineAlert.id}>
-            {translate("deadlineStatus.completionRule", {
+            {translate("deadlineAlerts.completionRule", {
               interval: dayjs.duration(deadlineAlert.interval, "seconds").humanize(),
               reference: translate(`deadlineAlerts.referenceType.${deadlineAlert.reference_type}`, {
                 defaultValue: deadlineAlert.reference_type,
@@ -166,7 +166,7 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
           {dl.missed ? <FiAlertTriangle /> : <FiClock />}
           {translate(dl.missed ? "deadlineStatus.missed" : "deadlineStatus.upcoming")}
         </Badge>
-        {dl.alert_name === undefined || dl.alert_name === null || dl.alert_name === "" ? undefined : (
+        {Boolean(dl.alert_name) && (
           <Text color="fg.muted" fontSize="xs">
             ({dl.alert_name})
           </Text>
@@ -174,7 +174,7 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
       </HStack>
       {alert === undefined ? undefined : (
         <Text color="fg.muted" fontSize="xs">
-          {translate("deadlineStatus.completionRule", {
+          {translate("deadlineAlerts.completionRule", {
             interval: dayjs.duration(alert.interval, "seconds").humanize(),
             reference: translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
               defaultValue: alert.reference_type,

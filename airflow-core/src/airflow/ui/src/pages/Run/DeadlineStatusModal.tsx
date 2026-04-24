@@ -122,9 +122,7 @@ export const DeadlineStatusModal = ({
                         {dl.missed ? <FiAlertTriangle /> : <FiClock />}
                         {translate(dl.missed ? "deadlineStatus.missed" : "deadlineStatus.upcoming")}
                       </Badge>
-                      {dl.alert_name === undefined ||
-                      dl.alert_name === null ||
-                      dl.alert_name === "" ? undefined : (
+                      {Boolean(dl.alert_name) && (
                         <Text color="fg.muted" fontSize="xs">
                           {dl.alert_name}
                         </Text>
@@ -132,7 +130,7 @@ export const DeadlineStatusModal = ({
                     </HStack>
                     {alert === undefined ? undefined : (
                       <Text color="fg.muted" fontSize="xs">
-                        {translate("deadlineStatus.completionRule", {
+                        {translate("deadlineAlerts.completionRule", {
                           interval: dayjs.duration(alert.interval, "seconds").humanize(),
                           reference: translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
                             defaultValue: alert.reference_type,

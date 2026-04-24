@@ -41,7 +41,7 @@
     "parsedAt": "Parsed at:"
   },
   "deadlineAlerts": {
-    "completionRule": "The run must complete within {{interval}} of {{reference}}",
+    "completionRule": "Must complete within {{interval}} of {{reference}}",
     "count_one": "{{count}} deadline",
     "count_other": "{{count}} deadlines",
     "referenceType": {
@@ -54,7 +54,6 @@
   },
   "deadlineStatus": {
     "actual": "Actual",
-    "completionRule": "Must complete within {{interval}} of {{reference}}",
     "expected": "Expected",
     "finishedEarly": "Finished {{duration}} before deadline",
     "finishedLate": "Finished {{duration}} after deadline",
