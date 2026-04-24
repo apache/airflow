@@ -259,7 +259,7 @@ class TestProviderManager:
         assert dialect_class_names == ["default", "mssql", "postgresql"]
 
     @patch("airflow.providers_manager.import_string")
-    def test_runtime_coordinators(self, mock_import_string):
+    def test_coordinators(self, mock_import_string):
         class ACoordinator:
             pass
 
@@ -275,7 +275,7 @@ class TestProviderManager:
         providers_manager._provider_dict["apache-airflow-providers-sdk-java"] = ProviderInfo(
             version="0.0.1",
             data={
-                "runtime-coordinators": [
+                "coordinators": [
                     "airflow.providers.sdk.java.coordinator.ZCoordinator",
                     "airflow.providers.sdk.java.coordinator.ACoordinator",
                     "airflow.providers.sdk.java.coordinator.ZCoordinator",
@@ -284,7 +284,7 @@ class TestProviderManager:
         )
 
         with patch.object(providers_manager, "initialize_providers_list"):
-            assert providers_manager.runtime_coordinators == [ACoordinator, ZCoordinator]
+            assert providers_manager.coordinators == [ACoordinator, ZCoordinator]
 
 
 class TestWithoutCheckProviderManager:

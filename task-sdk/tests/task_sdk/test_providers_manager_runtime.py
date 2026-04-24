@@ -244,7 +244,7 @@ class TestProvidersManagerRuntime:
             pm.already_initialized_provider_configs
 
     @patch("airflow.sdk.providers_manager_runtime.import_string")
-    def test_runtime_coordinators(self, mock_import_string):
+    def test_coordinators(self, mock_import_string):
         class ACoordinator:
             pass
 
@@ -259,7 +259,7 @@ class TestProvidersManagerRuntime:
         providers_manager._provider_dict["apache-airflow-providers-sdk-java"] = ProviderInfo(
             version="0.0.1",
             data={
-                "runtime-coordinators": [
+                "coordinators": [
                     "airflow.providers.sdk.java.coordinator.ZCoordinator",
                     "airflow.providers.sdk.java.coordinator.ACoordinator",
                     "airflow.providers.sdk.java.coordinator.ZCoordinator",
@@ -268,7 +268,7 @@ class TestProvidersManagerRuntime:
         )
 
         with patch.object(providers_manager, "initialize_providers_list"):
-            assert providers_manager.runtime_coordinators == [ACoordinator, ZCoordinator]
+            assert providers_manager.coordinators == [ACoordinator, ZCoordinator]
 
     def test_initialize_provider_configs_can_reload_sdk_conf(self):
         from airflow.sdk.configuration import conf

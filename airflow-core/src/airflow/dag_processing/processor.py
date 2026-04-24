@@ -76,8 +76,6 @@ from airflow.utils.file import iter_airflow_imports
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from socket import socket
-
     from structlog.typing import FilteringBoundLogger
 
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
@@ -86,6 +84,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.sdk.execution_time.supervisor import SelectorCallback
     from airflow.typing_compat import Self
 
 
@@ -589,7 +588,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         """
         from airflow.providers_manager import ProvidersManager
 
-        for coordinator_cls in ProvidersManager().runtime_coordinators:
+        for coordinator_cls in ProvidersManager().coordinators:
             try:
                 log.debug(
                     "Checking runtime coordinator %s for file %s",
@@ -645,7 +644,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
 
     def _create_log_forwarder(
         self, loggers: tuple[FilteringBoundLogger, ...], name: str, log_level: int = logging.INFO
-    ) -> Callable[[socket], bool]:
+    ) -> SelectorCallback:
         return super()._create_log_forwarder(loggers, name.replace("task.", "dag_processor.", 1), log_level)
 
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
