@@ -967,13 +967,13 @@ class S3ReadObjectOperator(AwsBaseOperator[S3Hook]):
     def __init__(
         self,
         *,
-        s3_key: str,
         s3_bucket: str | None = None,
+        s3_key: str,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.s3_key = s3_key
         self.s3_bucket = s3_bucket
+        self.s3_key = s3_key
 
     def execute(self, context: Context) -> str:
         bucket, key = self.hook.get_s3_bucket_key(self.s3_bucket, self.s3_key, "s3_bucket", "s3_key")

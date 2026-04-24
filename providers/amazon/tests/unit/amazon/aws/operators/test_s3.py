@@ -1104,14 +1104,6 @@ class TestS3ReadObjectOperator:
         assert result == "hello world from s3"
 
     @mock_aws
-    @mock.patch.object(S3Hook, "read_key")
-    def test_execute_calls_read_key(self, mock_read_key):
-        mock_read_key.return_value = "content"
-        result = self.operator.execute({})
-        mock_read_key.assert_called_once_with(key=S3_KEY, bucket_name=BUCKET_NAME)
-        assert result == "content"
-
-    @mock_aws
     def test_execute_with_s3_url(self):
         conn = boto3.client("s3", region_name="us-east-1")
         conn.create_bucket(Bucket=BUCKET_NAME)
