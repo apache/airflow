@@ -40,9 +40,17 @@ _INVALID_STAT_NAME_CHARS_RE = re.compile(r"[^a-zA-Z0-9_.-]")
 # Module-level singleton state.
 _factory: Callable[[], StatsLogger | NoStatsLogger] | None = None
 _backend: StatsLogger | NoStatsLogger | None = None
-_instance_pid: int | None = None
 _export_legacy_names: bool = True
 _registry: MetricsRegistry | None = None
+
+
+def _reset_backend_after_fork() -> None:
+    """Reset the backend after a fork so the child process initializes it again."""
+    global _backend
+    _backend = None
+
+
+os.register_at_fork(after_in_child=_reset_backend_after_fork)
 
 
 def normalize_name_for_stats(name: str, log_warning: bool = True) -> str:
@@ -78,36 +86,23 @@ def initialize(
     export_legacy_names: bool,
 ) -> None:
     """Initialize the stats module with a backend factory and legacy name configuration."""
-    global _factory, _backend, _instance_pid, _export_legacy_names
+    global _factory, _backend, _export_legacy_names
     _factory = factory
     _backend = None
-    _instance_pid = None
     _export_legacy_names = export_legacy_names
 
 
 def _get_backend() -> StatsLogger | NoStatsLogger:
-    """Return the current backend, re-initializing if the process has been forked."""
-    global _backend, _instance_pid
-    current_pid = os.getpid()
-
-    if _backend is not None and _instance_pid != current_pid:
-        log.info(
-            "Stats backend was created in PID %s but accessed in PID %s. Re-initializing.",
-            _instance_pid,
-            current_pid,
-        )
-        _backend = None
-        _instance_pid = None
+    """Return the current backend, creating it on first access."""
+    global _backend
 
     if _backend is None:
         factory = _factory if _factory is not None else NoStatsLogger
         try:
             _backend = factory()
-            _instance_pid = current_pid
         except (socket.gaierror, ImportError) as e:
             log.error("Could not configure StatsClient: %s, using NoStatsLogger instead.", e)
             _backend = NoStatsLogger()
-            _instance_pid = current_pid
 
     return _backend
 
@@ -192,10 +187,11 @@ def incr(
     tags: dict[str, Any] | None = None,
 ) -> None:
     """Increment a counter metric."""
+    backend = _get_backend()
     legacy_name, extra_tags = _get_legacy_stat_name_and_tags(stat, tags)
     if legacy_name is not None:
-        _get_backend().incr(legacy_name, **_defined(count=count, rate=rate, tags=extra_tags))
-    _get_backend().incr(stat, **_defined(count=count, rate=rate, tags=tags))
+        backend.incr(legacy_name, **_defined(count=count, rate=rate, tags=extra_tags))
+    backend.incr(stat, **_defined(count=count, rate=rate, tags=tags))
 
 
 def decr(
@@ -206,10 +202,11 @@ def decr(
     tags: dict[str, Any] | None = None,
 ) -> None:
     """Decrement a counter metric."""
+    backend = _get_backend()
     legacy_name, extra_tags = _get_legacy_stat_name_and_tags(stat, tags)
     if legacy_name is not None:
-        _get_backend().decr(legacy_name, **_defined(count=count, rate=rate, tags=extra_tags))
-    _get_backend().decr(stat, **_defined(count=count, rate=rate, tags=tags))
+        backend.decr(legacy_name, **_defined(count=count, rate=rate, tags=extra_tags))
+    backend.decr(stat, **_defined(count=count, rate=rate, tags=tags))
 
 
 def gauge(
@@ -221,10 +218,11 @@ def gauge(
     tags: dict[str, Any] | None = None,
 ) -> None:
     """Set a gauge metric."""
+    backend = _get_backend()
     legacy_name, extra_tags = _get_legacy_stat_name_and_tags(stat, tags)
     if legacy_name is not None:
-        _get_backend().gauge(legacy_name, value, **_defined(rate=rate, delta=delta, tags=extra_tags))
-    _get_backend().gauge(stat, value, **_defined(rate=rate, delta=delta, tags=tags))
+        backend.gauge(legacy_name, value, **_defined(rate=rate, delta=delta, tags=extra_tags))
+    backend.gauge(stat, value, **_defined(rate=rate, delta=delta, tags=tags))
 
 
 def timing(
@@ -234,10 +232,11 @@ def timing(
     tags: dict[str, Any] | None = None,
 ) -> None:
     """Record a timing metric."""
+    backend = _get_backend()
     legacy_name, extra_tags = _get_legacy_stat_name_and_tags(stat, tags)
     if legacy_name is not None:
-        _get_backend().timing(legacy_name, dt, **_defined(tags=extra_tags))
-    _get_backend().timing(stat, dt, **_defined(tags=tags))
+        backend.timing(legacy_name, dt, **_defined(tags=extra_tags))
+    backend.timing(stat, dt, **_defined(tags=tags))
 
 
 def timer(
@@ -256,8 +255,10 @@ def timer(
     simultaneously via an ExitStack. Otherwise, the backend timer is returned
     directly, preserving the ability to access ``timer.duration`` on the returned object.
     """
+    backend = _get_backend()
+
     if stat is None:
-        return _get_backend().timer()
+        return backend.timer()
 
     regular_kw: dict[str, Any] = {**kwargs}
     if tags:
@@ -273,13 +274,13 @@ def timer(
         stack.enter_context(
             cast(
                 "AbstractContextManager[Any]",
-                _get_backend().timer(legacy_name, **legacy_kw),
+                backend.timer(legacy_name, **legacy_kw),
             )
         )
-        real_timer = stack.enter_context(_get_backend().timer(stat, **regular_kw))
+        real_timer = stack.enter_context(backend.timer(stat, **regular_kw))
         return _ExitStackTimer(stack, real_timer)
 
-    return _get_backend().timer(stat, **regular_kw)
+    return backend.timer(stat, **regular_kw)
 
 
 class _ExitStackTimer(Timer):
