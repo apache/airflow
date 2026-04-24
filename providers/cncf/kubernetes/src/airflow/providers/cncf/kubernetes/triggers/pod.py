@@ -25,6 +25,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 import tenacity
+from asgiref.sync import sync_to_async
 
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
@@ -35,11 +36,24 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodLaunchTimeoutException,
     PodPhase,
 )
+from airflow.providers.cncf.kubernetes.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from kubernetes_asyncio.client.models import V1Pod
     from pendulum import DateTime
+    from sqlalchemy.orm.session import Session
+
+if not AIRFLOW_V_3_0_PLUS:
+    from sqlalchemy import select
+
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.session import provide_session
 
 
 class ContainerState(str, Enum):
@@ -350,14 +364,123 @@ class KubernetesPodTrigger(BaseTrigger):
     def pod_manager(self) -> AsyncPodManager:
         return AsyncPodManager(async_hook=self.hook)
 
+    if not AIRFLOW_V_3_0_PLUS:
+
+        @provide_session
+        def get_task_instance(self, session: Session) -> TaskInstance:
+            """Get the task instance for this trigger from the database (Airflow 2.x only)."""
+            task_instance = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == self.task_instance.dag_id,
+                    TaskInstance.task_id == self.task_instance.task_id,
+                    TaskInstance.run_id == self.task_instance.run_id,
+                    TaskInstance.map_index == self.task_instance.map_index,
+                )
+            )
+            if task_instance is None:
+                raise AirflowException(
+                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
+                    self.task_instance.dag_id,
+                    self.task_instance.task_id,
+                    self.task_instance.run_id,
+                    self.task_instance.map_index,
+                )
+            return task_instance
+
+    async def get_task_state(self):
+        """Get the current state of the task instance."""
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+            task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+                dag_id=self.task_instance.dag_id,
+                task_ids=[self.task_instance.task_id],
+                run_ids=[self.task_instance.run_id],
+                map_index=self.task_instance.map_index,
+            )
+            try:
+                return task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+            except KeyError:
+                raise AirflowException(
+                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
+                    self.task_instance.dag_id,
+                    self.task_instance.task_id,
+                    self.task_instance.run_id,
+                    self.task_instance.map_index,
+                )
+        else:
+            task_instance = await sync_to_async(self.get_task_instance)()  # type: ignore[call-arg]
+            return task_instance.state
+
+    async def safe_to_cancel(self) -> bool:
+        """
+        Whether it is safe to delete the pod during trigger cleanup.
+
+        Used only on Airflow < 3.3.0 where the triggerer does not invoke ``on_kill()`` for user kills.
+        Cancel is NOT safe when the task is still in DEFERRED state (triggerer restart).
+        """
+        task_state = await self.get_task_state()
+        return task_state != TaskInstanceState.DEFERRED
+
     async def on_kill(self) -> None:
-        """Delete the pod when the trigger is cancelled by a user action (see BaseTrigger.on_kill)."""
+        """
+        Delete the pod when the trigger is cancelled by a user action.
+
+        On Airflow 3.3.0+ the triggerer invokes this for user-initiated kills. On older versions this
+        is a no-op; use ``cleanup()`` and ``safe_to_cancel()`` instead.
+        """
+        if not AIRFLOW_V_3_3_PLUS:
+            return
         if self._fired_event:
             self.log.debug("Skipping on_kill since an event has already been fired.")
             return
 
         if self.on_kill_action == OnKillAction.KEEP_POD:
             self.log.debug("Skipping on_kill since on_kill_action is set to %r.", self.on_kill_action.value)
+            return
+
+        self.log.info("Deleting pod %s in namespace %s.", self.pod_name, self.pod_namespace)
+        try:
+            await self.hook.delete_pod(
+                name=self.pod_name,
+                namespace=self.pod_namespace,
+                grace_period_seconds=self.termination_grace_period,
+            )
+        except Exception:
+            self.log.exception("Unexpected error while deleting pod %s", self.pod_name)
+
+    async def cleanup(self) -> None:
+        """
+        Clean up the pod when the trigger exits.
+
+        On Airflow 3.3.0+ pod deletion on user kill is handled in ``on_kill()`` only; this avoids
+        deleting pods on triggerer restart. On older Airflow versions, ``cleanup()`` still uses
+        ``safe_to_cancel()`` because ``on_kill()`` is not wired for user kills.
+        """
+        if AIRFLOW_V_3_3_PLUS:
+            return
+
+        if self._fired_event:
+            self.log.debug("Skipping cleanup since an event has already been fired.")
+            return
+
+        if self.on_kill_action == OnKillAction.KEEP_POD:
+            self.log.debug("Skipping cleanup since on_kill_action is set to %r.", self.on_kill_action.value)
+            return
+
+        try:
+            safe = await self.safe_to_cancel()
+        except Exception:
+            self.log.warning(
+                "Could not determine task state during cleanup; skipping pod deletion to be safe.",
+                exc_info=True,
+            )
+            return
+
+        if not safe:
+            self.log.debug(
+                "Skipping cleanup since the task is still in deferred state (likely a triggerer restart)."
+            )
             return
 
         self.log.info("Deleting pod %s in namespace %s.", self.pod_name, self.pod_namespace)
