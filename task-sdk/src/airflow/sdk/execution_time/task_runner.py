@@ -2013,25 +2013,24 @@ def _resolve_runtime_entrypoint(startup_details: StartupDetails, log: Logger) ->
     """
     import functools
 
-    from airflow.sdk.execution_time.coordinator import QueueToRuntimeCoordinatorMapper
+    from airflow.sdk.execution_time.coordinator import QueueToCoordinatorMapper
     from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
-    coordinators = ProvidersManagerTaskRuntime().runtime_coordinators
+    coordinators = ProvidersManagerTaskRuntime().coordinators
 
     # Step 1: queue-to-runtime mapping.
     queue = startup_details.ti.queue
-    runtime_name = QueueToRuntimeCoordinatorMapper.from_config().resolve(queue)
-    if runtime_name is not None:
+    if (sdk := QueueToCoordinatorMapper.from_config().resolve(queue)) is not None:
         for coordinator_cls in coordinators:
             if not hasattr(coordinator_cls, "run_task_execution"):
                 continue
-            if getattr(coordinator_cls, "runtime_name", None) != runtime_name:
+            if getattr(coordinator_cls, "sdk", None) != sdk:
                 continue
 
             log.debug(
-                "Resolved runtime-specific entrypoint for task via queue mapping",
+                "Resolved sdk-specific entrypoint for task via queue mapping",
                 coordinator=coordinator_cls,
-                runtime=runtime_name,
+                sdk=sdk,
                 queue=queue,
                 task_id=startup_details.ti.task_id,
             )
@@ -2044,8 +2043,8 @@ def _resolve_runtime_entrypoint(startup_details: StartupDetails, log: Logger) ->
             )
 
         log.warning(
-            "No runtime coordinator found for runtime",
-            runtime=runtime_name,
+            "No coordinator found for sdk",
+            sdk=sdk,
             queue=queue,
             task_id=startup_details.ti.task_id,
         )
@@ -2064,7 +2063,7 @@ def _resolve_runtime_entrypoint(startup_details: StartupDetails, log: Logger) ->
         log.debug(
             "Resolved runtime-specific entrypoint for task via DAG file extension",
             coordinator=coordinator_cls,
-            runtime=getattr(coordinator_cls, "runtime_name", None),
+            sdk=getattr(coordinator_cls, "sdk", None),
             dag_rel_path=dag_rel_path,
             task_id=startup_details.ti.task_id,
         )
