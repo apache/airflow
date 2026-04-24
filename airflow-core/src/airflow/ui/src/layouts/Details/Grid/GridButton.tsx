@@ -55,10 +55,10 @@ export const GridButton = ({
       <br />
       {translate("common:runId")}: {runId}
       <br />
-      {translate("duration")}: {renderDuration(duration)}
-      <br />
       {translate("state")}:{" "}
       {state ? translate(`common:states.${state}`) : translate("common:states.no_status")}
+      <br />
+      {translate("duration")}: {renderDuration(duration)}
     </>
   );
 
