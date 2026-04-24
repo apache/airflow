@@ -34,20 +34,36 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
 
+// Pass `taskInstance` for single-TI clear (preserves the richer title display,
+// bundle-version comparison, etc.). For clearing every mapped TI of a task at
+// once, pass `allMapped` together with `dagId`, `dagRunId` and `taskId`.
 type Props = {
+  readonly allMapped?: boolean;
+  readonly dagId?: string;
+  readonly dagRunId?: string;
+  readonly mapIndex?: number;
   readonly onClose: () => void;
   readonly open: boolean;
-  readonly taskInstance: TaskInstanceResponse;
+  readonly taskId?: string;
+  readonly taskInstance?: TaskInstanceResponse;
 };
 
-const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, taskInstance }: Props) => {
-  const taskId = taskInstance.task_id;
-  const mapIndex = taskInstance.map_index;
+const ClearTaskInstanceDialog = ({
+  allMapped = false,
+  dagId: dagIdProp,
+  dagRunId: dagRunIdProp,
+  mapIndex: mapIndexProp,
+  onClose: onCloseDialog,
+  open: openDialog,
+  taskId: taskIdProp,
+  taskInstance,
+}: Props) => {
+  const dagId = dagIdProp ?? taskInstance?.dag_id ?? "";
+  const dagRunId = dagRunIdProp ?? taskInstance?.dag_run_id ?? "";
+  const taskId = taskIdProp ?? taskInstance?.task_id ?? "";
+  const mapIndex = allMapped ? undefined : (mapIndexProp ?? taskInstance?.map_index);
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
-
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
 
   const { isPending, mutate } = useClearTaskInstances({
     dagId,
@@ -65,11 +81,14 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
   const [preventRunningTask, setPreventRunningTask] = useState(true);
 
-  const [note, setNote] = useState<string | null>(taskInstance.note);
+  const [note, setNote] = useState<string | null>(taskInstance?.note ?? null);
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
     dagId,
     dagRunId,
-    mapIndex,
+    // For allMapped the per-call mutate below omits map_index so the backend
+    // patches every mapped TI at once; -1 here is only used for query-key
+    // invalidation.
+    mapIndex: mapIndex ?? -1,
     taskId,
   });
 
@@ -98,7 +117,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
       include_upstream: upstream,
       only_failed: onlyFailed,
       run_on_latest_version: runOnLatestVersion,
-      task_ids: [[taskId, mapIndex]],
+      task_ids: allMapped ? [taskId] : [[taskId, mapIndex as number]],
     },
   });
 
@@ -107,11 +126,13 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
     total_entries: 0,
   };
 
-  // Check if bundle versions are different
+  // Check if bundle versions are different (not applicable for allMapped —
+  // mapped TIs may be on several versions)
   const currentDagBundleVersion = dagDetails?.bundle_version;
-  const taskInstanceDagVersionBundleVersion = taskInstance.dag_version?.bundle_version;
+  const taskInstanceDagVersionBundleVersion = taskInstance?.dag_version?.bundle_version;
   const bundleVersionsDiffer = currentDagBundleVersion !== taskInstanceDagVersionBundleVersion;
   const shouldShowBundleVersionOption =
+    !allMapped &&
     bundleVersionsDiffer &&
     taskInstanceDagVersionBundleVersion !== null &&
     taskInstanceDagVersionBundleVersion !== "";
@@ -124,12 +145,20 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
             <VStack align="start" gap={4}>
               <Heading size="xl">
                 <strong>
-                  {translate("dags:runAndTaskActions.clear.title", {
-                    type: translate("taskInstance_one"),
-                  })}
+                  {allMapped
+                    ? translate("dags:runAndTaskActions.clearAllMapped.title")
+                    : translate("dags:runAndTaskActions.clear.title", {
+                        type: translate("taskInstance_one"),
+                      })}
                   :
                 </strong>{" "}
-                {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />
+                {allMapped ? (
+                  taskId
+                ) : (
+                  <>
+                    {taskInstance?.task_display_name} <Time datetime={taskInstance?.start_date} />
+                  </>
+                )}
               </Heading>
             </VStack>
           </Dialog.Header>
@@ -144,12 +173,12 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
                 onChange={setSelectedOptions}
                 options={[
                   {
-                    disabled: taskInstance.logical_date === null,
+                    disabled: allMapped || taskInstance?.logical_date === null,
                     label: translate("dags:runAndTaskActions.options.past"),
                     value: "past",
                   },
                   {
-                    disabled: taskInstance.logical_date === null,
+                    disabled: allMapped || taskInstance?.logical_date === null,
                     label: translate("dags:runAndTaskActions.options.future"),
                     value: "future",
                   },
@@ -227,15 +256,17 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
                 include_upstream: upstream,
                 only_failed: onlyFailed,
                 run_on_latest_version: runOnLatestVersion,
-                task_ids: [[taskId, mapIndex]],
+                task_ids: allMapped ? [taskId] : [[taskId, mapIndex as number]],
                 ...(preventRunningTask ? { prevent_running_task: true } : {}),
               },
             });
-            if (note !== taskInstance.note) {
+            if (note !== (taskInstance?.note ?? null)) {
+              // Omit map_index when allMapped so the backend patches the note
+              // on every mapped TI at once.
               mutatePatchTaskInstance({
                 dagId,
                 dagRunId,
-                mapIndex,
+                ...(allMapped ? {} : { mapIndex }),
                 requestBody: { note },
                 taskId,
               });
