@@ -416,6 +416,21 @@ class TestFastApiSecurity:
     @pytest.mark.parametrize(
         ("url", "expected_is_safe"),
         [
+            # Using \ or /// to escape host check
+            ("///some_netlock.com/prefix", False),
+            ("\\\\some_netlock.com/prefix", False),
+            # encoded url
+            ("%5C%5C%5C%5Csome_netlock.com/prefix", False),
+        ],
+    )
+    def test_is_safe_url_without_prefix(self, url, expected_is_safe):
+        request = Mock()
+        request.base_url = "https://requesting_server_base_url.com/"
+        assert is_safe_url(url, request=request) == expected_is_safe
+
+    @pytest.mark.parametrize(
+        ("url", "expected_is_safe"),
+        [
             ("https://server_base_url.com/prefix", False),
             ("https://requesting_server_base_url.com/prefix2", True),
             ("prefix/some_other", False),
