@@ -157,6 +157,30 @@ owed to a contributor who will otherwise be left guessing. See
 [`comment-templates.md`](comment-templates.md) for the canonical
 bodies.
 
+**Golden rule 8 — every contributor-facing comment ends with
+the AI-attribution footer.** The triage comments this skill
+posts are AI-drafted on the maintainer's behalf, and
+contributors deserve to know that up front. Every template in
+[`comment-templates.md`](comment-templates.md) (with one
+intentional exception: `suspicious-changes`) ends with the
+`<ai_attribution_footer>` block, which:
+
+- tells the contributor the message was drafted by an
+  AI-assisted tool and may contain mistakes,
+- reassures them that after they address the points raised an
+  Apache Airflow maintainer — a real person — will take the next
+  look at the PR,
+- links to the [two-stage triage process
+  description](https://github.com/apache/airflow/blob/main/contributing-docs/25_maintainer_pr_triage.md#why-the-first-pass-is-automated)
+  so the contributor can see why the first pass is automated:
+  the project automates the mechanical checks so maintainers'
+  limited time is spent where it matters most — the
+  conversation with the contributor.
+
+Do not paraphrase the footer, do not omit it from templates
+that carry it, and do not let per-PR edits drop it. See
+[`comment-templates.md#ai-attribution-footer`](comment-templates.md).
+
 ---
 
 ## Inputs

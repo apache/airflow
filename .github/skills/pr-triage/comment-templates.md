@@ -37,6 +37,49 @@ anchor text breaks the re-triage skip logic.
 
 ---
 
+## AI-attribution footer
+
+**Every contributor-facing template below ends with this
+footer.** It calibrates the contributor's trust in the comment
+(AI-drafted, may be wrong), reassures them that a human
+maintainer is the real gate, and links to the documented
+rationale for the two-stage process so the message is not just
+a disclaimer but a pointer to the project's policy.
+
+`<ai_attribution_footer>` expands to exactly:
+
+```markdown
+---
+
+_Note: This comment was drafted by an AI-assisted triage tool and may contain mistakes. Once you have addressed the points above, an Apache Airflow maintainer — a real person — will take the next look at your PR. We use this [two-stage triage process](https://github.com/apache/airflow/blob/main/contributing-docs/25_maintainer_pr_triage.md#why-the-first-pass-is-automated) so that our maintainers' limited time is spent where it matters most: the conversation with you._
+```
+
+Rules for the footer:
+
+- **Always include it** on every contributor-facing comment the
+  skill posts — `draft`, `comment-only`, `close`,
+  `review-nudge`, `reviewer-ping`, `stale-draft-close`,
+  `inactive-to-draft`, `stale-workflow-approval`. The only
+  exception is the `suspicious-changes` template, which is
+  short, operationally sensitive, and already directs the
+  contributor to maintainers on Slack — adding the footer there
+  would dilute the signal.
+- **Do not paraphrase it.** Post the block verbatim. If the
+  wording needs to change, update this section and propagate —
+  do not drift per-template.
+- **Keep the link to the rationale anchor** (`#why-the-first-
+  pass-is-automated`). That section of the contributing doc is
+  where the project explains why the first pass is automated
+  and why that frees maintainers' time for human conversation.
+  Changing the anchor text breaks the link.
+- **Place it after all other body content, before any trailing
+  blank lines.** The horizontal rule (`---`) separates it from
+  the body so GitHub renders it as a clear footer.
+- **The footer is italicised in one block** to read as meta-
+  commentary rather than part of the primary message.
+
+---
+
 ## Draft comment
 
 *(`draft` — convert-to-draft comment)*
@@ -56,6 +99,8 @@ Used when the action is `draft` (see
 <what_to_do_next>
 
 Converting a PR to draft is **not** a rejection — it is an invitation to bring the PR up to the project's standards so that maintainer review time is spent productively. There is no rush — take your time and work at your own pace. We appreciate your contribution and are happy to wait for updates. If you have questions, feel free to ask on the [Airflow Slack](https://s.apache.org/airflow-slack).
+
+<ai_attribution_footer>
 ```
 
 `<rebase_note_if_needed>` is present **only** when
@@ -98,6 +143,8 @@ classification.
 <what_to_do_next>
 
 There is no rush — take your time and work at your own pace. We appreciate your contribution and are happy to wait for updates. If you have questions, feel free to ask on the [Airflow Slack](https://s.apache.org/airflow-slack).
+
+<ai_attribution_footer>
 ```
 
 Identical body to the `draft` variant minus the "converted to
@@ -123,6 +170,8 @@ has >3 flagged PRs) — see
 - :x: **Multiple flagged PRs**: You currently have **<flagged_count> PRs** flagged for quality issues in this repository. We recommend focusing on improving your existing PRs before opening new ones.
 
 You are welcome to open a new PR that addresses the issues listed above. There is no rush — take your time and work at your own pace. If you have questions, feel free to ask on the [Airflow Slack](https://s.apache.org/airflow-slack).
+
+<ai_attribution_footer>
 ```
 
 The "Multiple flagged PRs" line is appended to the violations
@@ -153,12 +202,16 @@ actually done the work yet.
 
 ```markdown
 @<author> — This PR has new commits since the last review requesting changes from <reviewers>. Could you address the outstanding review comments and either push a fix or reply in each thread explaining why the feedback doesn't apply? Once the threads are resolved please mark the PR as "Ready for review" and re-request review. Thanks!
+
+<ai_attribution_footer>
 ```
 
 ### Reviewer-re-review nudge — only when the inspection shows the feedback has been addressed
 
 ```markdown
 @<author> <reviewers> — This PR has new commits since the last review requesting changes, and the diff looks like it addresses the feedback (see <thread-links>). @<reviewers>, could you take another look when you have a chance to confirm? Thanks!
+
+<ai_attribution_footer>
 ```
 
 ### How to decide which variant to use
@@ -217,6 +270,8 @@ be resolved.
 
 ```markdown
 @<author> — There are <N> unresolved review thread(s) on this PR from <reviewers>. Could you either push a fix or reply in each thread explaining why the feedback doesn't apply? Once you believe the feedback is addressed, mark the thread as resolved so the reviewer isn't re-pinged needlessly. Thanks!
+
+<ai_attribution_footer>
 ```
 
 ### Reviewer-re-review nudge — only when the inspection shows the feedback has been addressed
@@ -225,6 +280,8 @@ be resolved.
 <reviewers> — @<author> appears to have addressed your review feedback (see the linked threads and the commits pushed since). Could you confirm and resolve the threads if you agree? Thanks!
 
 @<author>, if any of the threads still need work on your side, please reply in-line and push a fix.
+
+<ai_attribution_footer>
 ```
 
 The decision rule is the same as `review-nudge`: go with the
@@ -247,6 +304,8 @@ is older than 7 days with no author reply (see
 @<author> This draft PR has been inactive for <days_since_triage> days since the last triage comment and no response from the author. Closing to keep the queue clean.
 
 You are welcome to reopen this PR when you resume work, or to open a new one addressing the issues previously raised. There is no rush — take your time.
+
+<ai_attribution_footer>
 ```
 
 ### Untriaged-draft variant
@@ -258,6 +317,8 @@ with no activity:
 @<author> This draft PR has had no activity for <weeks_since_activity> weeks. Closing to keep the queue clean.
 
 You are welcome to reopen and continue when you're ready. If you'd like to pick it back up, please rebase onto the current `<base>` branch first.
+
+<ai_attribution_footer>
 ```
 
 ---
@@ -273,6 +334,8 @@ had no activity for 4+ weeks.
 @<author> This PR has had no activity for <weeks_since_activity> weeks. Converting to draft to signal that maintainer review is paused until you resume work.
 
 When you're ready to continue, please rebase onto the current `<base>` branch, address any newly-appearing CI failures, and mark the PR as "Ready for review" again. There is no rush.
+
+<ai_attribution_footer>
 ```
 
 No label is added — the conversion itself is the signal.
@@ -290,6 +353,8 @@ approval has had no activity for 4+ weeks.
 @<author> This PR has been awaiting workflow approval with no activity for <weeks_since_activity> weeks. Converting to draft so it doesn't block the first-time-contributor review queue.
 
 When you're ready to continue, please push a new commit (which will re-request workflow approval) and mark the PR as "Ready for review" again. There is no rush.
+
+<ai_attribution_footer>
 ```
 
 ---
@@ -313,6 +378,13 @@ Do **not** enumerate which patterns triggered the flag in the
 comment — that's operational detail that belongs in the
 maintainer-side session summary, not in a message to the
 contributor.
+
+Do **not** append the `<ai_attribution_footer>` here. This
+template is intentionally terse and already directs the
+contributor to maintainers on Slack if the flag was in error —
+adding the "an AI may have gotten this wrong" footer on a
+suspicious-changes close would dilute the signal and give a
+bad-faith actor a footnote to argue with.
 
 ---
 
@@ -374,6 +446,11 @@ list the first 5 and summarise the rest as `(+N more)`.
   and `close` — contributors who see triage output feel
   time-pressure by default; the explicit de-pressurisation is
   part of the contract.
+- **Always include the `<ai_attribution_footer>`** on every
+  contributor-facing template (the only exception is
+  `suspicious-changes`; see the note there). The footer
+  calibrates trust in the AI-drafted message and links to the
+  project's documented two-stage-triage rationale.
 - **Mentions: `@<author>` gets one mention per comment, at the
   top.** Further mentions beyond the first are noise — they
   all hit the same notification anyway.
