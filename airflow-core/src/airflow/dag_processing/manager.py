@@ -876,7 +876,7 @@ class DagFileProcessorManager(LoggingMixin):
         from airflow.providers_manager import ProvidersManager
 
         extensions: list[str] = []
-        for coordinator_cls in ProvidersManager().runtime_coordinators:
+        for coordinator_cls in ProvidersManager().coordinators:
             extensions.append(coordinator_cls.file_extension)
         self._runtime_file_extensions = tuple(extensions)
         return self._runtime_file_extensions

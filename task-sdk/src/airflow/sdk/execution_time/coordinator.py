@@ -18,15 +18,15 @@
 """
 Runtime coordinator for non-Python DAG file processing and task execution.
 
-Provides :class:`BaseRuntimeCoordinator`, the base class for
+Provides :class:`BaseCoordinator`, the base class for
 SDK-specific coordinators that bridge subprocess I/O between the
 Airflow supervisor and an external-SDK runtime (Java, Go, Rust, etc.).
 
-The coordinator's :meth:`~BaseRuntimeCoordinator.run_dag_parsing` method
+The coordinator's :meth:`~BaseCoordinator.run_dag_parsing` method
 handles the full lifecycle:
 
 1. Creates TCP servers for comm and logs channels.
-2. Calls :meth:`~BaseRuntimeCoordinator.dag_parsing_runtime_cmd` (provided
+2. Calls :meth:`~BaseCoordinator.dag_parsing_cmd` (provided
    by the subclass) to obtain the subprocess command.
 3. Spawns the subprocess and accepts TCP connections from it.
 4. Runs a selector-based bridge that transparently forwards bytes
@@ -50,6 +50,7 @@ from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
+    from typing_extensions import Self
 
     from airflow.sdk._shared.workloads import TaskInstanceDTO
     from airflow.sdk.api.datamodels._generated import BundleInfo
@@ -166,23 +167,23 @@ def _bridge(
             sock.close()
 
 
-class BaseRuntimeCoordinator:
+class BaseCoordinator:
     """
     Base coordinator for runtime-specific DAG file processing and task execution.
 
     Providers register subclasses in their ``provider.yaml`` under
-    ``runtime-coordinators``.  Both :class:`ProvidersManager` (airflow-core)
+    ``coordinators``.  Both :class:`ProvidersManager` (airflow-core)
     and :class:`ProvidersManagerTaskRuntime` (task-sdk) discover registered
     coordinators through this single extension point.
 
     Subclasses represent a specific SDK runtime (Java, Go, etc.) and
     only need to implement :meth:`can_handle_dag_file`,
-    :meth:`dag_parsing_runtime_cmd` and :meth:`task_execution_runtime_cmd`.
+    :meth:`dag_parsing_cmd` and :meth:`task_execution_cmd`.
     The base class owns the entire bridge lifecycle: TCP servers,
     subprocess management, selector-based I/O loop, and cleanup.
     """
 
-    runtime_name: str
+    sdk: str
     file_extension: str
 
     class DagParsingInfo(NamedTuple):
@@ -233,7 +234,7 @@ class BaseRuntimeCoordinator:
         raise NotImplementedError
 
     @classmethod
-    def dag_parsing_runtime_cmd(
+    def dag_parsing_cmd(
         cls,
         *,
         dag_file_path: str,
@@ -257,7 +258,7 @@ class BaseRuntimeCoordinator:
         raise NotImplementedError
 
     @classmethod
-    def task_execution_runtime_cmd(
+    def task_execution_cmd(
         cls,
         *,
         what: TaskInstanceDTO,
@@ -320,7 +321,7 @@ class BaseRuntimeCoordinator:
         bidirectional comms socket to the supervisor.  The method:
 
         1. Creates TCP servers for comm and logs.
-        2. Calls :meth:`dag_parsing_runtime_cmd` or :meth:`task_execution_runtime_cmd` to get the command.
+        2. Calls :meth:`dag_parsing_cmd` or :meth:`task_execution_cmd` to get the command.
         3. Spawns the subprocess with ``stdin=/dev/null`` and stderr
            captured via a socketpair.
         4. Runs the selector-based bridge until the subprocess exits.
@@ -342,7 +343,7 @@ class BaseRuntimeCoordinator:
         log = structlog.get_logger(logger_name="task")
         log.info(
             "Starting runtime subprocess",
-            runtime=cls.runtime_name,
+            sdk=cls.sdk,
             mode=entrypoint_info.mode,
         )
 
@@ -365,7 +366,7 @@ class BaseRuntimeCoordinator:
         bundle_version_lock: contextlib.AbstractContextManager = contextlib.nullcontext()
 
         if isinstance(entrypoint_info, cls.DagParsingInfo):
-            cmd = cls.dag_parsing_runtime_cmd(
+            cmd = cls.dag_parsing_cmd(
                 dag_file_path=entrypoint_info.dag_file_path,
                 bundle_name=entrypoint_info.bundle_name,
                 bundle_path=entrypoint_info.bundle_path,
@@ -373,22 +374,16 @@ class BaseRuntimeCoordinator:
                 logs_addr=logs_addr,
             )
         elif isinstance(entrypoint_info, cls.TaskExecutionInfo):
-            from pathlib import Path
-
-            # import from core now will raise static check error from `check-core-imports` check
-            # We should support ignore label for the above static check
-            # directly commit for now
             from airflow.dag_processing.bundles.base import BundleVersionLock
             from airflow.sdk.execution_time.task_runner import resolve_bundle
 
             bundle_instance = resolve_bundle(entrypoint_info.bundle_info, log)
-            resolved_bundle_path = str(bundle_instance.path)
-            resolved_dag_file_path = os.fspath(Path(bundle_instance.path, entrypoint_info.dag_rel_path))
+            resolved_dag_file_path = bundle_instance.path / entrypoint_info.dag_rel_path
 
-            cmd = cls.task_execution_runtime_cmd(
+            cmd = cls.task_execution_cmd(
                 what=entrypoint_info.what,
-                dag_file_path=resolved_dag_file_path,
-                bundle_path=resolved_bundle_path,
+                dag_file_path=os.fspath(resolved_dag_file_path),
+                bundle_path=os.fspath(bundle_instance.path),
                 bundle_info=entrypoint_info.bundle_info,
                 comm_addr=comm_addr,
                 logs_addr=logs_addr,
@@ -429,16 +424,16 @@ class BaseRuntimeCoordinator:
             _bridge(supervisor_comm, runtime_comm, runtime_logs, read_stderr, proc, log)
 
 
-class QueueToRuntimeCoordinatorMapper:
+class QueueToCoordinatorMapper:
     """
-    Map queue names to runtime coordinator names.
+    Map queue names to coordinator names.
 
     Users often use queues as environment/isolation identifiers (e.g. ``"java-11"``,
     ``"java-12"``).  This mapper lets them reuse existing queue assignments to route
-    tasks to the correct runtime coordinator.
+    tasks to the correct coordinator.
 
     The mapping is read from the ``[sdk] queue_to_sdk``
-    configuration option, which is a JSON dict of ``queue_name -> runtime_name``.
+    configuration option, which is a JSON dict of ``queue -> sdk``.
 
     Example configuration::
 
@@ -450,7 +445,7 @@ class QueueToRuntimeCoordinatorMapper:
         self._mapping = mapping
 
     @classmethod
-    def from_config(cls) -> QueueToRuntimeCoordinatorMapper:
+    def from_config(cls) -> Self:
         """Load the queue-to-runtime mapping from airflow configuration."""
         from airflow.sdk.configuration import conf
 
@@ -464,4 +459,4 @@ class QueueToRuntimeCoordinatorMapper:
         return self._mapping.get(queue)
 
 
-__all__ = ["BaseRuntimeCoordinator", "QueueToRuntimeCoordinatorMapper"]
+__all__ = ["BaseCoordinator", "QueueToCoordinatorMapper"]
