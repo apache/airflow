@@ -7,11 +7,6 @@
   },
   "calendar": {
     "daily": "Daily",
-    "deadlines": {
-      "missed": "Missed",
-      "pending": "Pending",
-      "title": "Deadlines in Period"
-    },
     "hourly": "Hourly",
     "legend": {
       "less": "Less",
@@ -55,13 +50,11 @@
       "DagRunQueuedAtDeadline": "queue time",
       "FixedDatetimeDeadline": "fixed datetime"
     },
-    "title": "Deadline Alerts",
-    "unnamed": "Unnamed Alert"
+    "title": "Deadline Alerts"
   },
   "deadlineStatus": {
     "actual": "Actual",
     "completionRule": "Must complete within {{interval}} of {{reference}}",
-    "deadlineIn": "Deadline in {{duration}}",
     "expected": "Expected",
     "finishedEarly": "Finished {{duration}} before deadline",
     "finishedLate": "Finished {{duration}} after deadline",
