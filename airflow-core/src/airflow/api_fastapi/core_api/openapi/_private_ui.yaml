@@ -2214,6 +2214,8 @@ components:
       - text
       - href
       title: ExtraMenuItem
+      description: Define a menu item that can be added to the menu by auth managers
+        or plugins.
     GanttResponse:
       properties:
         dag_id:
