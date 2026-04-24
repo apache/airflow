@@ -82,6 +82,7 @@ from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
     DagSerialization,
+    LazyDeserializedDAG,
     OperatorSerialization,
     _XComRef,
 )
@@ -706,12 +707,12 @@ class TestStringifiedDAGs:
     @conf_vars({("core", "load_examples"): "false"})
     def test_reserialize_should_make_equal_hash_with_dag_processor(self):
         dagbag1 = DagBag(TEST_DAGS_FOLDER / "test_dag_decorator_version.py")
-        result1 = DagSerialization.to_dict(next(iter(dagbag1.dags.values())))
+        hash_result1 = LazyDeserializedDAG.from_dag(next(iter(dagbag1.dags.values()))).hash
 
         dagbag2 = DagBag(TEST_DAGS_FOLDER / "test_dag_decorator_version.py")
-        result2 = DagSerialization.to_dict(next(iter(dagbag2.dags.values())))
+        hash_result2 = LazyDeserializedDAG.from_dag(next(iter(dagbag2.dags.values()))).hash
 
-        assert json.dumps(result1) == json.dumps(result2)
+        assert hash_result1 == hash_result2
 
     @skip_if_force_lowest_dependencies_marker
     @pytest.mark.db_test

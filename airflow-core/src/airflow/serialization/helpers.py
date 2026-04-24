@@ -71,21 +71,27 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
             return tuple(sort_dict_recursively(item) for item in obj)
         return obj
 
+    def handle_not_jsonable_object(obj: Any) -> Any:
+        try:
+            return obj.serialize()
+        except AttributeError:
+            if callable(obj):
+                full_qualified_name = qualname(obj, True)
+                return f"<callable {full_qualified_name}>"
+            return str(obj)
+
     max_length = conf.getint("core", "max_templated_field_length")
 
     if not is_jsonable(template_field):
-        try:
-            serialized = template_field.serialize()
-        except AttributeError:
-            if callable(template_field):
-                full_qualified_name = qualname(template_field, True)
-                serialized = f"<callable {full_qualified_name}>"
-            else:
-                serialized = str(template_field)
-        if len(serialized) > max_length:
-            rendered = redact(serialized, name)
+        if isinstance(template_field, (list, tuple)):
+            not_jsonable_serialized = [handle_not_jsonable_object(item) for item in template_field]
+        else:
+            not_jsonable_serialized = handle_not_jsonable_object(template_field)
+        if len(str(not_jsonable_serialized)) > max_length:
+            rendered = redact(not_jsonable_serialized, name)
             return truncate_rendered_value(str(rendered), max_length)
-        return serialized
+        return not_jsonable_serialized
+
     if not template_field and not isinstance(template_field, tuple):
         # Avoid unnecessary serialization steps for empty fields unless they are tuples
         # and need to be converted to lists
@@ -95,9 +101,9 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
     # This prevents hash inconsistencies when dict ordering varies
     if isinstance(template_field, dict):
         template_field = sort_dict_recursively(template_field)
-    serialized = str(template_field)
-    if len(serialized) > max_length:
-        rendered = redact(serialized, name)
+    jsonable_serialized = str(template_field)
+    if len(jsonable_serialized) > max_length:
+        rendered = redact(jsonable_serialized, name)
         return truncate_rendered_value(str(rendered), max_length)
     return template_field
 
