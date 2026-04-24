@@ -66,8 +66,14 @@ def check_flit_worktree_compatibility(distribution_format: str) -> None:
     ``[tool.hatch.build.targets.sdist]`` ``include`` list are also
     unaffected.
 
-    Remove this check once upstream flit handles worktrees correctly *and*
-    Airflow pins to a flit release that contains the fix.
+    Upstream flit tracking:
+
+    - Issue: https://github.com/pypa/flit/issues/798
+    - Fix PR: https://github.com/pypa/flit/pull/799
+
+    Airflow-side follow-up (remove this workaround when both conditions in
+    the tracking issue are met):
+    https://github.com/apache/airflow/issues/65772
     """
     if distribution_format == "wheel":
         return

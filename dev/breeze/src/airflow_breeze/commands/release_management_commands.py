@@ -1158,6 +1158,10 @@ def prepare_provider_distributions(
     version_suffix: str,
 ):
     perform_environment_checks()
+    # Workaround for pypa/flit#798 (fix PR pypa/flit#799) plus the Breeze
+    # Docker-mount case. Remove this call and the helper it invokes once
+    # the conditions in the tracking issue are met:
+    # https://github.com/apache/airflow/issues/65772
     check_flit_worktree_compatibility(distribution_format)
     fix_ownership_using_docker()
     cleanup_python_generated_files()
