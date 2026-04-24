@@ -18,12 +18,20 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import types
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+
+# The script under test declares its runtime deps via PEP 723 inline metadata
+# and is executed with ``uv run`` in production. The unit tests never construct
+# the real HTTP client (they mock it), so we stub ``httpx`` in ``sys.modules``
+# before loading the module. This keeps the scripts-project test venv slim —
+# no need to add ``httpx`` to ``scripts/pyproject.toml`` just for tests.
+sys.modules.setdefault("httpx", types.ModuleType("httpx"))
 
 MODULE_PATH = Path(__file__).resolve().parents[3] / "scripts" / "ci" / "notify_uv_lock_conflicts.py"
 
