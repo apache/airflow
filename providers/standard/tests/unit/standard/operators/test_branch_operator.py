@@ -358,3 +358,49 @@ class TestBranchOperator:
                     assert ti.state == State.NONE
                 else:
                     raise Exception
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="TaskGroup branching via SDK requires Airflow 3+")
+    @pytest.mark.parametrize(
+        "branch_return",
+        [
+            pytest.param("g.path_a", id="absolute-task-id"),
+            pytest.param("path_a", id="relative-task-id"),
+        ],
+    )
+    def test_branch_inside_task_group(self, dag_maker, branch_return):
+        """Branch inside a TaskGroup must skip non-selected siblings, whether the branch
+        callable returns the fully-qualified task id ("g.path_a") or the id relative to
+        the enclosing group ("path_a"). Regression test for branching inside TaskGroups."""
+
+        class ChoosePath(BaseBranchOperator):
+            def choose_branch(self, context):
+                return branch_return
+
+        dag_id = f"branch_in_task_group_{branch_return.replace('.', '_')}"
+        with dag_maker(
+            dag_id,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            schedule=INTERVAL,
+            serialized=True,
+        ):
+            with TaskGroup(group_id="g"):
+                choose = ChoosePath(task_id="choose")
+                path_a = EmptyOperator(task_id="path_a")
+                path_b = EmptyOperator(task_id="path_b")
+                choose >> [path_a, path_b]
+
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            start_date=timezone.utcnow(),
+            logical_date=DEFAULT_DATE,
+            data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE),
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        dag_maker.run_ti("g.choose", dr)
+
+        states = {
+            ti.task_id: ti.state for ti in dag_maker.session.scalars(select(TI).where(TI.dag_id == dag_id))
+        }
+        assert states["g.choose"] == State.SUCCESS
+        assert states["g.path_a"] is None
+        assert states["g.path_b"] == State.SKIPPED
