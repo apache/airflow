@@ -61,28 +61,36 @@ const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? 
 const baseUrl = new URL(baseHref, globalThis.location.origin);
 const basePath = new URL(baseUrl).pathname.replace(/\/$/u, "");
 
-void i18n
-  .use(Backend)
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    backend: {
-      loadPath: `${basePath}/static/i18n/locales/{{lng}}/{{ns}}.json?v=${APP_VERSION}`,
-    },
-    defaultNS: "common",
-    detection: {
-      caches: ["localStorage"],
-      order: ["localStorage", "navigator", "htmlTag"],
-    },
-    fallbackLng: defaultLanguage,
-    interpolation: {
-      escapeValue: false,
-    },
-    ns: namespaces,
-    react: {
-      useSuspense: false,
-    },
-    supportedLngs: supportedLanguages.map((lang) => lang.code),
-  });
+const getAirflowVersion = (): Promise<string> =>
+  fetch(`${basePath}/api/v2/version`)
+    .then((r) => r.json() as Promise<{ version?: string }>)
+    .then((d) => d.version ?? "")
+    .catch(() => "");
+
+void getAirflowVersion().then((version) => {
+  void i18n
+    .use(Backend)
+    .use(LanguageDetector)
+    .use(initReactI18next)
+    .init({
+      backend: {
+        loadPath: `${basePath}/static/i18n/locales/{{lng}}/{{ns}}.json${version ? `?v=${version}` : ""}`,
+      },
+      defaultNS: "common",
+      detection: {
+        caches: ["localStorage"],
+        order: ["localStorage", "navigator", "htmlTag"],
+      },
+      fallbackLng: defaultLanguage,
+      interpolation: {
+        escapeValue: false,
+      },
+      ns: namespaces,
+      react: {
+        useSuspense: false,
+      },
+      supportedLngs: supportedLanguages.map((lang) => lang.code),
+    });
+});
 
 export { default } from "i18next";

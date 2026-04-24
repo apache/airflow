@@ -1,1 +1,0 @@
-﻿Fix i18n translation files not refreshing after Airflow upgrade by appending Airflow version as cache-busting query parameter to translation file URLs.
