@@ -33,9 +33,47 @@ from airflow_breeze.utils.packages import (
     get_removed_provider_ids,
     tag_exists_for_provider,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_DIST_PATH
+from airflow_breeze.utils.path_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.version_utils import is_local_package_version
+
+
+def check_flit_worktree_compatibility(distribution_format: str) -> None:
+    """Refuse to build provider sdists from a git worktree.
+
+    flit's ``--use-vcs`` relies on ``flit.vcs.identify_vcs`` which checks
+    ``(p / ".git").is_dir()``. Inside a ``git worktree add`` directory ``.git``
+    is a *file* (``gitdir: ...`` pointer), not a directory, so VCS detection
+    silently fails and flit falls back to a minimal sdist that omits
+    ``docs/``, ``tests/``, ``provider.yaml`` and other tracked files. The
+    resulting sdists differ from the released ones and fail reproducibility
+    checks, with no warning from flit itself.
+
+    This only affects sdist builds for providers that use the ``flit_core``
+    build backend. Wheels are unaffected, and providers that use ``hatchling``
+    with an explicit ``[tool.hatch.build.targets.sdist]`` ``include`` list are
+    also unaffected. Upstream flit tracking:
+    https://github.com/pypa/flit/blob/main/flit/vcs/__init__.py (``identify_vcs``).
+    """
+    if distribution_format == "wheel":
+        return
+    git_marker = AIRFLOW_ROOT_PATH / ".git"
+    if git_marker.is_file():
+        console_print(
+            "\n[error]Cannot build provider sdists from a git worktree.[/]\n\n"
+            "[warning]flit's `--use-vcs` does not recognise git worktrees "
+            "(flit.vcs.identify_vcs uses `.git.is_dir()`, but in a worktree "
+            "`.git` is a file). flit silently falls back to a minimal sdist "
+            "that omits docs/, tests/, provider.yaml and other tracked files, "
+            "so the resulting packages fail reproducibility checks against "
+            "the released sdists on dist.apache.org.[/]\n\n"
+            "[info]Until flit is fixed, run this command from a plain "
+            "`git checkout` (not a `git worktree add ...` directory). "
+            "If you only need wheels, pass `--distribution-format wheel` — "
+            "wheels are built from `pyproject.toml` metadata and are not "
+            "affected by this bug.[/]\n"
+        )
+        sys.exit(1)
 
 
 class PrepareReleasePackageTagExistException(Exception):

@@ -112,6 +112,7 @@ from airflow_breeze.prepare_providers.provider_distributions import (
     PrepareReleasePackageTagExistException,
     PrepareReleasePackageWrongSetupException,
     build_provider_distribution,
+    check_flit_worktree_compatibility,
     cleanup_build_remnants,
     get_packages_list_to_act_on,
     move_built_distributions_and_cleanup,
@@ -1157,6 +1158,7 @@ def prepare_provider_distributions(
     version_suffix: str,
 ):
     perform_environment_checks()
+    check_flit_worktree_compatibility(distribution_format)
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     console_print("\n[info]Cleaning generated _api folders from docs directories")
