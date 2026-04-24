@@ -165,6 +165,8 @@ class AirflowAppBuilder:
         :param app:
         :param session: The SQLAlchemy session
         """
+        from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+        
         log.info("Initializing AppBuilder")
         app.config.setdefault("APP_NAME", "F.A.B.")
         app.config.setdefault("APP_THEME", "")
@@ -193,14 +195,14 @@ class AirflowAppBuilder:
             self.menu = dynamic_class_import(_menu)
         else:
             self.menu = self.menu or Menu()
-
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
         try:
             auth_manager = get_auth_manager()
         except RuntimeError:
             auth_manager = create_auth_manager()
-
+        if not isinstance(auth_manager, FabAuthManager):
+            auth_manager = create_auth_manager()
         with _init_app_lock:
             auth_manager.appbuilder = self
             # Invalidate cached security_manager so it binds to the current Flask app.
