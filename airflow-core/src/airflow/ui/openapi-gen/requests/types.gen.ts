@@ -674,11 +674,29 @@ export type DAGRunClearBody = {
 };
 
 /**
- * DAG Run Collection serializer for responses.
+ * DAG Run collection response supporting both offset and cursor pagination.
+ *
+ * A single flat model is used instead of a discriminated union
+ * (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because
+ * the OpenAPI ``oneOf`` + ``discriminator`` construct is not handled
+ * correctly by ``@hey-api/openapi-ts`` / ``@7nohe/openapi-react-query-codegen``:
+ * return types degrade to ``unknown`` in JSDoc and can produce
+ * incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).
  */
 export type DAGRunCollectionResponse = {
     dag_runs: Array<DAGRunResponse>;
-    total_entries: number;
+    /**
+     * Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.
+     */
+    total_entries?: number | null;
+    /**
+     * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
+     */
+    next_cursor?: string | null;
+    /**
+     * Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.
+     */
+    previous_cursor?: string | null;
 };
 
 /**
@@ -2647,6 +2665,10 @@ export type GetDagRunsData = {
      * Filter by consuming asset name or URI using pattern matching
      */
     consumingAssetPattern?: string | null;
+    /**
+     * Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
+     */
+    cursor?: string | null;
     dagId: string;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.

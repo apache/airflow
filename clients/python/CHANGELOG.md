@@ -17,6 +17,13 @@
  under the License.
  -->
 
+
+# v3.2.1
+
+## Bug Fixes:
+
+ - Fix: use Dag form when materializing asset ([#64211](https://github.com/apache/airflow/pull/64211))
+
 # v3.2.0
 
 ## New Features:

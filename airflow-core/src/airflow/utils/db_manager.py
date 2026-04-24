@@ -87,7 +87,7 @@ class BaseDBManager(LoggingMixin):
 
         config = Config(self.alembic_file)
         config.set_main_option("script_location", self.migration_dir.replace("%", "%%"))
-        config.set_main_option("sqlalchemy.url", settings.get_sql_alchemy_conn().replace("%", "%%"))
+        config.set_main_option("sqlalchemy.url", settings.SQL_ALCHEMY_CONN.replace("%", "%%"))
         return config
 
     def get_script_object(self, config=None) -> ScriptDirectory:
