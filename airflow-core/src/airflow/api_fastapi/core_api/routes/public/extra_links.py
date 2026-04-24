@@ -55,13 +55,6 @@ def get_extra_links(
 
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
 
-    dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
-
-    try:
-        task = dag.get_task(task_id)
-    except TaskNotFound:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task with ID = {task_id} not found")
-
     ti = session.scalar(
         select(TaskInstance).where(
             TaskInstance.dag_id == dag_id,
@@ -76,6 +69,13 @@ def get_extra_links(
             status.HTTP_404_NOT_FOUND,
             "TaskInstance not found",
         )
+
+    dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
+
+    try:
+        task = dag.get_task(task_id)
+    except TaskNotFound:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task with ID = {task_id} not found")
 
     # Resolve which object to use for link generation. For the current try we use
     # the live TI; for past tries we fetch the immutable TaskInstanceHistory record,

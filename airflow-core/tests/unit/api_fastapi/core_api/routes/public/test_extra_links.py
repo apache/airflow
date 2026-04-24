@@ -139,7 +139,7 @@ class TestGetExtraLinks:
             pytest.param(
                 "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/INVALID/links",
                 404,
-                {"detail": "Task with ID = INVALID not found"},
+                {"detail": "TaskInstance not found"},
                 id="missing_task",
             ),
         ],
