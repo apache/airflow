@@ -2213,6 +2213,7 @@ REQUEST_TEST_CASES = [
             "triggering_user_name": None,
             "type": "DagRunResult",
             "note": None,
+            "team_name": None,
         },
         client_mock=ClientMock(
             method_path="dag_runs.get_detail",
@@ -2264,6 +2265,7 @@ REQUEST_TEST_CASES = [
                 "conf": None,
                 "triggering_user_name": None,
                 "note": None,
+                "team_name": None,
             },
             "type": "PreviousDagRunResult",
         },
@@ -2634,7 +2636,7 @@ class TestHandleRequest:
 
         return subprocess, read_end
 
-    @patch("airflow.sdk.execution_time.supervisor.mask_secret")
+    @patch("airflow.sdk.execution_time.request_handlers.mask_secret")
     @pytest.mark.parametrize("test_case", REQUEST_TEST_CASES, ids=lambda tc: tc.test_id)
     def test_handle_requests(
         self,

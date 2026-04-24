@@ -208,6 +208,7 @@ camelCase
 Cancelled
 cancelled
 Cancelling
+cancelling
 cas
 Cassandra
 cassandra

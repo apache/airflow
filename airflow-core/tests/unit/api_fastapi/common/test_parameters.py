@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import re
+from types import SimpleNamespace
 from typing import Annotated
 
 import pytest
@@ -31,6 +32,7 @@ from airflow.api_fastapi.common.parameters import (
     filter_param_factory,
 )
 from airflow.models import DagModel, DagRun, Log
+from airflow.models.errors import ParseImportError
 
 
 class TestFilterParam:
@@ -105,6 +107,39 @@ class TestSortParam:
             ),
         ):
             param.to_orm(None)
+
+    def test_aliased_sort_resolves_row_value_via_to_replace(self):
+        """
+        Cursor encoding must read the sort value through ``to_replace`` when the
+        user-facing sort name is an alias (e.g. ``dag_run_id`` → ``run_id``). A naive
+        ``getattr(row, user_facing_name)`` would silently yield ``None`` and break
+        keyset pagination on the next page.
+        """
+        param = SortParam(["id", "run_id"], DagRun, {"dag_run_id": "run_id"}).set_value(["dag_run_id"])
+        attr_names = [name for name, _col, _desc in param.get_resolved_columns()]
+        assert attr_names == ["dag_run_id", "id"]
+
+        row = SimpleNamespace(run_id="manual__2026-04-22", id=42)
+        assert param.row_value(row, "dag_run_id") == "manual__2026-04-22"
+        assert param.row_value(row, "id") == 42
+
+    def test_row_value_raises_on_column_form_to_replace(self):
+        """
+        Column-form ``to_replace`` is not supported by cursor encoding. The helper must
+        fail loudly so a future endpoint doesn't silently ship ``None`` cursor tokens.
+        """
+        param = SortParam(["dag_id"], DagModel, {"last_run_state": DagRun.state}).set_value(
+            ["last_run_state"]
+        )
+        row = SimpleNamespace(id="test_dag")
+        with pytest.raises(NotImplementedError, match="column-form ``to_replace``"):
+            param.row_value(row, "last_run_state")
+
+    def test_primary_key_is_not_duplicated_when_alias_maps_to_pk(self):
+        """Sorting by an alias that resolves to the PK must not append the PK a second time."""
+        param = SortParam(["id"], ParseImportError, {"import_error_id": "id"}).set_value(["import_error_id"])
+        resolved = param.get_resolved_columns()
+        assert [name for name, _col, _desc in resolved] == ["import_error_id"]
 
 
 class TestSearchParam:

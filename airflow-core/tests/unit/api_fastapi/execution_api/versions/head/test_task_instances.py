@@ -24,6 +24,7 @@ from uuid import UUID, uuid4
 
 import pytest
 import uuid6
+from fastapi import Request
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -36,12 +37,15 @@ from sqlalchemy.orm import Session
 
 from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
+from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.exceptions import AirflowSkipException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.dag import DagModel
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -111,10 +115,8 @@ def _create_asset_aliases(session, num: int = 2) -> None:
 
 @pytest.fixture
 def _use_real_jwt_bearer(exec_app):
-    """Remove the mock jwt_bearer override so the real JWTBearer.__call__ runs."""
-    from airflow.api_fastapi.execution_api.security import _jwt_bearer
-
-    exec_app.dependency_overrides.pop(_jwt_bearer, None)
+    """Remove the mock require_auth override so the real JWT validation runs end-to-end."""
+    exec_app.dependency_overrides.pop(require_auth, None)
 
 
 @pytest.mark.usefixtures("_use_real_jwt_bearer")
@@ -232,6 +234,7 @@ class TestTIRunState:
                 "consumed_asset_events": [],
                 "partition_key": None,
                 "note": None,
+                "team_name": None,
             },
             "task_reschedule_count": 0,
             "max_tries": max_tries,
@@ -242,6 +245,8 @@ class TestTIRunState:
         }
         # upstream_map_indexes is now computed by Task SDK, not returned by the server in HEAD version
         assert "upstream_map_indexes" not in result
+        # execution-scoped tokens do not trigger a token swap
+        assert "Refreshed-API-Token" not in response.headers
 
         # Refresh the Task Instance from the database so that we can check the updated values
         session.refresh(ti)
@@ -280,6 +285,54 @@ class TestTIRunState:
             },
         )
         assert response.status_code == 409
+
+    def test_ti_run_returns_execution_token(
+        self, client, exec_app, session, create_task_instance, time_machine
+    ):
+        """PATCH /run with a workload token should swap to an execution-scoped token."""
+        instant = timezone.parse("2024-10-31T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_exec_token",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        mock_gen = mock.MagicMock(spec=JWTGenerator)
+        mock_gen.generate.return_value = "mock-execution-token"
+        lifespan.registry.register_value(JWTGenerator, mock_gen)
+
+        async def workload_token(request: Request) -> TIToken:
+            ti_id = UUID(request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000"))
+            return TIToken(id=ti_id, claims=TIClaims(scope="workload"))
+
+        exec_app.dependency_overrides[require_auth] = workload_token
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "test-host",
+                "unixname": "test-user",
+                "pid": 100,
+                "start_date": "2024-10-31T12:00:00Z",
+            },
+        )
+
+        exec_app.dependency_overrides.pop(require_auth, None)
+
+        assert response.status_code == 200
+        assert "Refreshed-API-Token" in response.headers
+        assert response.headers["Refreshed-API-Token"] == "mock-execution-token"
+        mock_gen.generate.assert_called_once()
+        extras = mock_gen.generate.call_args.kwargs["extras"]
+        assert extras["scope"] == "execution"
+        assert extras["sub"] == str(ti.id)
 
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
         """Test that dynamic task mapping works correctly with parse-time values."""
@@ -884,6 +937,62 @@ class TestTIRunState:
         assert dag_run["dag_id"] == ti.dag_id
         assert dag_run["run_id"] == "test"
         assert dag_run["state"] == "running"
+
+    @pytest.mark.parametrize(
+        ("multi_team_enabled", "expect_team"),
+        [
+            pytest.param("False", False, id="multi-team-disabled"),
+            pytest.param("True", True, id="multi-team-enabled"),
+        ],
+    )
+    def test_ti_run_populates_team_name(
+        self,
+        client,
+        session,
+        dag_maker,
+        time_machine,
+        multi_team_enabled,
+        expect_team,
+    ):
+        """``team_name`` is resolved from the DAG's bundle when multi-team is enabled."""
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        instant = timezone.parse("2024-09-30T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        dag_id = str(uuid4())
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(
+            run_id="test", logical_date=instant, state=DagRunState.RUNNING, start_date=instant
+        )
+        ti = dr.get_task_instance(task_id="task")
+        ti.set_state(State.QUEUED)
+
+        bundle_name = f"bundle-{dag_id}"
+        team_name = f"team-{dag_id[:8]}"
+        bundle = DagBundleModel(name=bundle_name)
+        bundle.teams.append(Team(name=team_name))
+        session.add(bundle)
+        session.flush()
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle_name))
+        session.commit()
+
+        with conf_vars({("core", "multi_team"): multi_team_enabled}):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "h",
+                    "unixname": "u",
+                    "pid": 1,
+                    "start_date": "2024-09-30T12:00:00Z",
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json()["dag_run"]["team_name"] == (team_name if expect_team else None)
 
     def test_ti_run_creates_audit_log(self, client, session, create_task_instance, time_machine):
         """Test that transitioning to RUNNING creates an audit log record."""
@@ -3439,40 +3548,56 @@ class TestTIPatchRenderedMapIndex:
 class TestTokenTypeValidation:
     """Test token scope enforcement (workload vs execution)."""
 
-    def test_workload_scope_rejected_on_default_endpoints(self, client, session, create_task_instance):
-        """workload scoped tokens should be rejected on endpoints without token:workload Security scope."""
+    def _register_scoped_validator(self, ti_id, scope):
+        """Register a JWTValidator mock returning claims with the given scope."""
+        validator = mock.AsyncMock(spec=JWTValidator)
+        claims = {"sub": str(ti_id), "exp": 9999999999, "iat": 1000000000, "nbf": 1000000000}
+        if scope is not None:
+            claims["scope"] = scope
+        validator.avalidated_claims.side_effect = lambda cred, validators: claims
+        lifespan.registry.register_value(JWTValidator, validator)
+
+    def test_workload_scope_rejected_on_heartbeat_endpoint(self, client, session, create_task_instance):
+        """Workload scoped tokens should be rejected on /heartbeat."""
         ti = create_task_instance(task_id="test_ti_run_heartbeat", state=State.RUNNING)
         session.commit()
 
-        validator = mock.AsyncMock(spec=JWTValidator)
-        validator.avalidated_claims.side_effect = lambda cred, validators: {
-            "sub": str(ti.id),
-            "scope": "workload",
-            "exp": 9999999999,
-            "iat": 1000000000,
-            "nbf": 1000000000,
-        }
-        lifespan.registry.register_value(JWTValidator, validator)
+        self._register_scoped_validator(ti.id, "workload")
 
         payload = {"hostname": "test-host", "pid": 100}
         resp = client.put(f"/execution/task-instances/{ti.id}/heartbeat", json=payload)
         assert resp.status_code == 403
         assert "Token type 'workload' not allowed" in resp.json()["detail"]
 
+    def test_workload_scope_rejected_on_state_endpoint(self, client, session, create_task_instance):
+        """Workload scoped tokens should be rejected on PATCH /state."""
+        ti = create_task_instance(task_id="test_workload_state", state=State.RUNNING)
+        session.commit()
+
+        self._register_scoped_validator(ti.id, "workload")
+
+        payload = {"state": "success", "end_date": "2024-10-31T13:00:00Z"}
+        resp = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert resp.status_code == 403
+        assert "Token type 'workload' not allowed" in resp.json()["detail"]
+
+    def test_workload_scope_rejected_on_connections_endpoint(self, client, session, create_task_instance):
+        """Workload scoped tokens should be rejected on GET /connections (different router)."""
+        ti = create_task_instance(task_id="test_workload_conn", state=State.RUNNING)
+        session.commit()
+
+        self._register_scoped_validator(ti.id, "workload")
+
+        resp = client.get("/execution/connections/test_conn")
+        assert resp.status_code == 403
+        assert "Token type 'workload' not allowed" in resp.json()["detail"]
+
     def test_execution_scope_accepted_on_all_endpoints(self, client, session, create_task_instance):
-        """execution scoped tokens should be able to call all endpoints."""
+        """Execution scoped tokens should be accepted on all endpoints."""
         ti = create_task_instance(task_id="test_ti_star", state=State.RUNNING)
         session.commit()
 
-        validator = mock.AsyncMock(spec=JWTValidator)
-        validator.avalidated_claims.side_effect = lambda cred, validators: {
-            "sub": str(ti.id),
-            "scope": "execution",
-            "exp": 9999999999,
-            "iat": 1000000000,
-            "nbf": 1000000000,
-        }
-        lifespan.registry.register_value(JWTValidator, validator)
+        self._register_scoped_validator(ti.id, "execution")
 
         payload = {"state": "success", "end_date": "2024-10-31T13:00:00Z"}
         resp = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
@@ -3483,15 +3608,7 @@ class TestTokenTypeValidation:
         ti = create_task_instance(task_id="test_invalid_scope", state=State.QUEUED)
         session.commit()
 
-        validator = mock.AsyncMock(spec=JWTValidator)
-        validator.avalidated_claims.side_effect = lambda cred, validators: {
-            "sub": str(ti.id),
-            "scope": "bogus:scope",
-            "exp": 9999999999,
-            "iat": 1000000000,
-            "nbf": 1000000000,
-        }
-        lifespan.registry.register_value(JWTValidator, validator)
+        self._register_scoped_validator(ti.id, "bogus:scope")
 
         payload = {
             "state": "running",
@@ -3505,19 +3622,43 @@ class TestTokenTypeValidation:
         assert resp.status_code == 403
         assert "Invalid auth token" in resp.json()["detail"]
 
+    def test_workload_scope_accepted_on_run_endpoint(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """Workload scoped tokens should be accepted on the /run endpoint."""
+        instant = timezone.parse("2024-10-31T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_workload_run",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        self._register_scoped_validator(ti.id, "workload")
+
+        resp = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "test-host",
+                "unixname": "test-user",
+                "pid": 100,
+                "start_date": "2024-10-31T12:00:00Z",
+            },
+        )
+        assert resp.status_code == 200
+
     def test_no_scope_defaults_to_execution(self, client, session, create_task_instance):
         """Tokens without scope claim should default to 'execution'."""
         ti = create_task_instance(task_id="test_no_scope", state=State.RUNNING)
         session.commit()
 
-        validator = mock.AsyncMock(spec=JWTValidator)
-        validator.avalidated_claims.side_effect = lambda cred, validators: {
-            "sub": str(ti.id),
-            "exp": 9999999999,
-            "iat": 1000000000,
-            "nbf": 1000000000,
-        }
-        lifespan.registry.register_value(JWTValidator, validator)
+        self._register_scoped_validator(ti.id, None)
 
         payload = {"state": "success", "end_date": "2024-10-31T13:00:00Z"}
         resp = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
