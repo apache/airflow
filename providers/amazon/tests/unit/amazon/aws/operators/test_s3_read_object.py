@@ -26,7 +26,6 @@ from moto import mock_aws
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3 import S3ReadObjectOperator
 from airflow.providers.common.compat.openlineage.facet import Dataset
-from airflow.providers.openlineage.extractors import OperatorLineage
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
