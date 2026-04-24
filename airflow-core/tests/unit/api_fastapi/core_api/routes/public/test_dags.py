@@ -388,6 +388,9 @@ class TestGetDags(TestDagEndpoint):
             ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
             ({"dag_id_pattern": "1|2"}, 2, [DAG1_ID, DAG2_ID]),
             ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
+            ({"dag_id_prefix_pattern": "test_dag1"}, 1, [DAG1_ID]),
+            ({"dag_id_prefix_pattern": "test_dag1|test_dag2"}, 2, [DAG1_ID, DAG2_ID]),
+            ({"dag_display_name_prefix_pattern": "test_dag2"}, 1, [DAG2_ID]),
             # Bundle filters
             (
                 {"bundle_name": "dag_maker"},
@@ -788,7 +791,7 @@ class TestPatchDags(TestDagEndpoint):
             assert {dag["dag_id"] for dag in body["dags"]} == set(expected_ids)
             paused_dag_ids = {dag["dag_id"] for dag in body["dags"] if dag["is_paused"]}
             assert paused_dag_ids == set(expected_paused_ids)
-            check_last_log(session, dag_id=DAG1_ID, event="patch_dag", logical_date=None)
+            check_last_log(session, dag_id=None, event="patch_dags", logical_date=None)
 
     @pytest.mark.parametrize(
         ("tags_to_add", "query_params", "body", "expected_ids", "expected_paused_ids"),

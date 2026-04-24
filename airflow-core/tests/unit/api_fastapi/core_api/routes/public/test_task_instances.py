@@ -1228,6 +1228,19 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"pool": "test_pool_1"},
+                    {"pool": "test_pool_2"},
+                    {"pool": "test_pool_3"},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"pool_name_prefix_pattern": "test_pool"},
+                3,
+                3,
+                id="test pool_name_prefix_pattern filter",
+            ),
+            pytest.param(
+                [
                     {"queue": "test_queue_1"},
                     {"queue": "test_queue_2"},
                     {"queue": "test_queue_3"},
@@ -1269,6 +1282,21 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"queue": "test_queue_1"},
+                    {"queue": "test_queue_2"},
+                    {"queue": "test_queue_3"},
+                    {"queue": "other_queue_3"},
+                    {"queue": "other_queue_3"},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"queue_name_prefix_pattern": "test"},
+                3,
+                3,
+                id="test queue_name_prefix_pattern filter",
+            ),
+            pytest.param(
+                [
                     {"executor": "test_exec_1"},
                     {"executor": "test_exec_2"},
                     {"executor": "test_exec_3"},
@@ -1305,6 +1333,19 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 2,
                 3,
                 id="test task_display_name_pattern filter",
+            ),
+            pytest.param(
+                [
+                    {"_task_display_property_value": "task_name_1"},
+                    {"_task_display_property_value": "task_name_2"},
+                    {"_task_display_property_value": "task_not_match_name_3"},
+                ],
+                True,
+                ("/dags/~/dagRuns/~/taskInstances"),
+                {"task_display_name_prefix_pattern": "task_name"},
+                2,
+                3,
+                id="test task_display_name_prefix_pattern filter",
             ),
             pytest.param(
                 "task_group_test",
@@ -1412,6 +1453,21 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"custom_operator_name": "CustomFirstOperator"},
+                    {"custom_operator_name": "CustomSecondOperator"},
+                    {"custom_operator_name": "SecondOperator"},
+                    {"custom_operator_name": "ThirdOperator"},
+                    {"custom_operator_name": "ThirdOperator"},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"operator_name_prefix_pattern": "Custom"},
+                2,
+                3,
+                id="test operator_name_prefix_pattern filter",
+            ),
+            pytest.param(
+                [
                     {"map_index": 0},
                     {"map_index": 1},
                     {"map_index": 2},
@@ -1439,6 +1495,17 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 # the create_task_instances method
                 3,
                 id="test run_id_pattern filter",
+            ),
+            pytest.param(
+                [
+                    {},
+                ],
+                True,
+                ("/dags/~/dagRuns/~/taskInstances"),
+                {"run_id_prefix_pattern": "TEST_DAG_"},
+                1,
+                3,
+                id="test run_id_prefix_pattern filter",
             ),
             pytest.param(
                 "dag_id_pattern_test",  # Special marker for multi-DAG test
@@ -1475,6 +1542,42 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 0,
                 3,
                 id="test dag_id_pattern no match",
+            ),
+            pytest.param(
+                "dag_id_pattern_test",
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_prefix_pattern": "example_python_operator"},
+                14,
+                3,
+                id="test dag_id_prefix_pattern exact match",
+            ),
+            pytest.param(
+                "dag_id_pattern_test",
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_prefix_pattern": "example_"},
+                22,
+                3,
+                id="test dag_id_prefix_pattern prefix",
+            ),
+            pytest.param(
+                "dag_id_pattern_test",
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_prefix_pattern": "example_skip"},
+                8,
+                3,
+                id="test dag_id_prefix_pattern specific prefix",
+            ),
+            pytest.param(
+                "dag_id_pattern_test",
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_prefix_pattern": "nonexistent"},
+                0,
+                3,
+                id="test dag_id_prefix_pattern no match",
             ),
         ],
     )
