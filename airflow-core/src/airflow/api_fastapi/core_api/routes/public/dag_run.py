@@ -54,6 +54,7 @@ from airflow.api_fastapi.common.parameters import (
     LimitFilter,
     OffsetFilter,
     QueryConsumingAssetPatternSearch,
+    QueryDagRunPartitionKeyPrefixSearch,
     QueryDagRunPartitionKeySearch,
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
@@ -63,10 +64,12 @@ from airflow.api_fastapi.common.parameters import (
     Range,
     RangeFilter,
     SortParam,
+    _PrefixSearchParam,
     _SearchParam,
     datetime_range_filter_factory,
     filter_param_factory,
     float_range_filter_factory,
+    prefix_search_param_factory,
     search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -417,12 +420,27 @@ def get_dag_runs(
     session: SessionDep,
     dag_bag: DagBagDep,
     run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.run_id, "run_id_pattern"))],
+    run_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(DagRun.run_id, "run_id_prefix_pattern")),
+    ],
     triggering_user_name_pattern: Annotated[
         _SearchParam,
         Depends(search_param_factory(DagRun.triggering_user_name, "triggering_user_name_pattern")),
     ],
+    triggering_user_name_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(
+            prefix_search_param_factory(DagRun.triggering_user_name, "triggering_user_name_prefix_pattern")
+        ),
+    ],
     dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.dag_id, "dag_id_pattern"))],
+    dag_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(DagRun.dag_id, "dag_id_prefix_pattern")),
+    ],
     partition_key_pattern: QueryDagRunPartitionKeySearch,
+    partition_key_prefix_pattern: QueryDagRunPartitionKeyPrefixSearch,
     consuming_asset_pattern: QueryConsumingAssetPatternSearch,
     cursor: str | None = Query(
         None,
@@ -470,9 +488,13 @@ def get_dag_runs(
         bundle_version,
         readable_dag_runs_filter,
         run_id_pattern,
+        run_id_prefix_pattern,
         triggering_user_name_pattern,
+        triggering_user_name_prefix_pattern,
         dag_id_pattern,
+        dag_id_prefix_pattern,
         partition_key_pattern,
+        partition_key_prefix_pattern,
         consuming_asset_pattern,
     ]
 

@@ -32,6 +32,7 @@ from airflow.api_fastapi.common.db.dag_runs import attach_dag_versions_to_runs
 from airflow.api_fastapi.common.parameters import (
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
+    QueryDagRunTriggeringUserPrefixSearch,
     QueryDagRunTriggeringUserSearch,
     QueryIncludeDownstream,
     QueryIncludeUpstream,
@@ -140,6 +141,7 @@ def get_dag_structure(
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
+    triggering_user_prefix: QueryDagRunTriggeringUserPrefixSearch,
     include_upstream: QueryIncludeUpstream = False,
     include_downstream: QueryIncludeDownstream = False,
     depth: int | None = None,
@@ -173,7 +175,7 @@ def get_dag_structure(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after, run_type, state, triggering_user],
+        filters=[run_after, run_type, state, triggering_user, triggering_user_prefix],
         limit=limit,
     )
     run_ids = list(session.scalars(dag_runs_select_filter))
@@ -277,6 +279,7 @@ def get_grid_runs(
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
+    triggering_user_prefix: QueryDagRunTriggeringUserPrefixSearch,
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
     # Retrieve, sort the previous DAG Runs
@@ -319,7 +322,7 @@ def get_grid_runs(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after, run_type, state, triggering_user],
+        filters=[run_after, run_type, state, triggering_user, triggering_user_prefix],
         limit=limit,
         return_total_entries=False,
     )

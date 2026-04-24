@@ -35,8 +35,11 @@ from airflow.api_fastapi.common.parameters import (
     QueryBundleNameFilter,
     QueryBundleVersionFilter,
     QueryDagDisplayNamePatternSearch,
+    QueryDagDisplayNamePrefixPatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPatternSearchWithNone,
+    QueryDagIdPrefixPatternSearch,
+    QueryDagIdPrefixPatternSearchWithNone,
     QueryExcludeStaleFilter,
     QueryFavoriteFilter,
     QueryHasAssetScheduleFilter,
@@ -86,7 +89,9 @@ def get_dags(
     tags: QueryTagsFilter,
     owners: QueryOwnersFilter,
     dag_id_pattern: QueryDagIdPatternSearch,
+    dag_id_prefix_pattern: QueryDagIdPrefixPatternSearch,
     dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
+    dag_display_name_prefix_pattern: QueryDagDisplayNamePrefixPatternSearch,
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
     has_import_errors: QueryHasImportErrorsFilter,
@@ -151,7 +156,9 @@ def get_dags(
             paused,
             has_import_errors,
             dag_id_pattern,
+            dag_id_prefix_pattern,
             dag_display_name_pattern,
+            dag_display_name_prefix_pattern,
             tags,
             is_favorite,
             owners,
@@ -319,6 +326,7 @@ def patch_dags(
     tags: QueryTagsFilter,
     owners: QueryOwnersFilter,
     dag_id_pattern: QueryDagIdPatternSearchWithNone,
+    dag_id_prefix_pattern: QueryDagIdPrefixPatternSearchWithNone,
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
     editable_dags_filter: EditableDagsFilterDep,
@@ -328,9 +336,9 @@ def patch_dags(
     """
     Patch multiple DAGs.
 
-    If `dag_id_pattern` is not provided, no DAGs will be matched regardless
-    of other filters. To match all DAGs, pass a wildcard value such as `~`
-    or `%` for `dag_id_pattern`.
+    If neither `dag_id_pattern` nor `dag_id_prefix_pattern` is provided, no DAGs will be
+    matched regardless of other filters. To match all DAGs, pass a wildcard value such as
+    `~` or `%` for `dag_id_pattern`.
     """
     if update_mask:
         if update_mask != ["is_paused"]:
@@ -349,6 +357,7 @@ def patch_dags(
             exclude_stale,
             paused,
             dag_id_pattern,
+            dag_id_prefix_pattern,
             tags,
             owners,
             editable_dags_filter,
@@ -366,6 +375,7 @@ def patch_dags(
             exclude_stale,
             paused,
             dag_id_pattern,
+            dag_id_prefix_pattern,
             tags,
             owners,
             editable_dags_filter,
