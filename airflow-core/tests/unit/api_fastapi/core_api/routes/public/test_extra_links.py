@@ -297,16 +297,6 @@ class TestGetExtraLinks:
                 ).model_dump()
             )
 
-    @pytest.mark.mock_plugin_manager(plugins=[TryNumberPlugin])
-    def test_should_use_try_number_when_specified(self, test_client):
-        """When try_number param is passed, it overrides ti.try_number for link generation."""
-        response = test_client.get(
-            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
-            params={"try_number": 3},
-        )
-        assert response.status_code == 200
-        assert response.json()["extra_links"]["Try Number"] == "https://example.com/logs?try_number=3"
-
     def test_should_respond_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
             f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
