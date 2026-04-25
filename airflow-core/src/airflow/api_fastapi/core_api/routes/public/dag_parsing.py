@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.models.batch_apis import IsAuthorizedDagRequest
 
 dag_parsing_router = AirflowRouter(tags=["DAG Parsing"], prefix="/parseDagFile/{file_token}")
+dag_reparse_router = AirflowRouter(tags=["DAG Parsing"], prefix="/dags/{dag_id}")
 
 
 @dag_parsing_router.put(
@@ -72,4 +73,30 @@ def reparse_dag_file(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
 
     parsing_request = DagPriorityParsingRequest(bundle_name=bundle_name, relative_fileloc=relative_fileloc)
+    session.add(parsing_request)
+
+
+@dag_reparse_router.put(
+    "/reparse",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(requires_access_dag(method="PUT")), Depends(action_logging())],
+)
+def reparse_dag(
+    dag_id: str,
+    session: SessionDep,
+) -> None:
+    """Request re-parsing of the file that contains the given DAG."""
+    dag = session.get(DagModel, dag_id)
+    if dag is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with id '{dag_id}' not found")
+    if dag.relative_fileloc is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"DAG with id '{dag_id}' has no file location and cannot be re-parsed",
+        )
+
+    parsing_request = DagPriorityParsingRequest(
+        bundle_name=dag.bundle_name, relative_fileloc=dag.relative_fileloc
+    )
     session.add(parsing_request)

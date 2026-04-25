@@ -87,3 +87,52 @@ class TestDagParsingEndpoint:
 
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests == []
+
+
+class TestReparseDagEndpoint:
+    @staticmethod
+    def clear_db():
+        clear_db_dag_parsing_requests()
+
+    @pytest.fixture(autouse=True)
+    def setup(self, session) -> None:
+        self.clear_db()
+        clear_db_logs()
+
+    def test_reparse_dag_201_and_409(self, session, test_client):
+        parse_and_sync_to_db(EXAMPLE_DAG_FILE)
+        test_dag = DBDagBag(load_op_links=False).get_latest_version_of_dag(TEST_DAG_ID, session=session)
+
+        url = f"/dags/{TEST_DAG_ID}/reparse"
+        response = test_client.put(url, headers={"Accept": "application/json"})
+        assert response.status_code == 201
+        parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
+        assert len(parsing_requests) == 1
+        assert parsing_requests[0].bundle_name == test_dag.bundle_name
+        assert parsing_requests[0].relative_fileloc == test_dag.relative_fileloc
+        _check_last_log(session, dag_id=None, event="reparse_dag", logical_date=None)
+
+        # Same DAG already queued — primary key collision -> 409 via integrity error handler.
+        response = test_client.put(url, headers={"Accept": "application/json"})
+        assert response.status_code == 409
+        parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
+        assert len(parsing_requests) == 1
+
+    def test_reparse_dag_unknown_dag_id_returns_404(self, session, test_client):
+        response = test_client.put(
+            "/dags/non_existent_dag_xyz/reparse", headers={"Accept": "application/json"}
+        )
+        assert response.status_code == 404
+        assert session.scalars(select(DagPriorityParsingRequest)).all() == []
+
+    def test_reparse_dag_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.put(
+            f"/dags/{TEST_DAG_ID}/reparse", headers={"Accept": "application/json"}
+        )
+        assert response.status_code == 401
+
+    def test_reparse_dag_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.put(
+            f"/dags/{TEST_DAG_ID}/reparse", headers={"Accept": "application/json"}
+        )
+        assert response.status_code == 403
