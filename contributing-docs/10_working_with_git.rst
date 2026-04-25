@@ -63,6 +63,33 @@ The production images are released in DockerHub from:
 * ``2.*.*``, ``2.*.*rc*`` releases from the ``v2-*-stable`` branch when we prepare release candidates and
   final releases.
 
+Airflow Helm Chart branches
+---------------------------
+
+The Airflow Helm Chart follows a different branch model from Airflow core, because
+the chart's major version cadence is independent of Airflow's:
+
+* ``main`` — development branch for the next **Airflow Helm Chart 2.x** major release.
+  This is where deprecations are *removed*, restructurings land, and a number of
+  optional features are being **extracted from the core chart into separate
+  kustomizable overlays** (users will compose them on top of the rendered chart with
+  ``kustomize`` instead of toggling them via ever-growing ``values.yaml`` keys). PRs
+  with new features, refactorings, or breaking changes for the chart should target
+  ``main``.
+
+* ``chart/v1-2x-test`` — maintenance branch for the **1.2x.x** release line. This
+  branch is **strictly for bug-fixes, doc-fixes, and deprecation warnings** that give
+  1.2x.x users notice before features are removed in 2.x. No new features, no
+  restructurings, and no overlay extractions land here. ``1.2x.x`` chart releases are
+  cut from this branch.
+
+The full workflow — which PRs target which branch, which commits are cherry-picked
+across, milestones, and the umbrella refurbish project — is documented in
+`dev/README_HELM_CHART2_DEV.md <../dev/README_HELM_CHART2_DEV.md>`__. Read it before
+opening a chart PR. The current 2.0 scope and chart release schedule live on the
+`Release Plan <https://cwiki.apache.org/confluence/display/AIRFLOW/Release+Plan>`__
+wiki page, which is the source of truth as the plan evolves.
+
 How to sync your fork
 =====================
 
