@@ -78,6 +78,16 @@ def install_development_dependencies(constraint: str, github_actions: bool):
     )
     for provider_id in providers_dependencies:
         development_dependencies.extend(providers_dependencies[provider_id]["devel-deps"])
+    # The shared distributions under shared/<name>/ provide the canonical
+    # ``airflow_shared.<name>`` namespace used by devel-common. They are marked
+    # ``Private :: Do Not Upload`` so they don't get pulled from PyPI by Airflow's
+    # transitive deps; install them explicitly from the local source tree so that
+    # ``import airflow_shared.X`` works in Lowest Deps and Compat test images that
+    # otherwise only ship the embedded ``airflow._shared.X`` / ``airflow.sdk._shared.X``.
+    shared_distributions = sorted(
+        path.parent.as_posix() for path in (AIRFLOW_ROOT_PATH / "shared").glob("*/pyproject.toml")
+    )
+    development_dependencies.extend(shared_distributions)
     command = ["uv", "pip", "install", *development_dependencies, "--constraints", constraint]
     result = run_command(command, check=False, github_actions=github_actions)
     if result.returncode != 0:
