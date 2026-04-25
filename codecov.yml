@@ -74,7 +74,9 @@ coverage:
     patch:
       default:
         # basic
-        target: 80%
+        # Temporarily keep patch coverage non-blocking until the repo-level Codecov
+        # integration is verified end-to-end in this fork.
+        target: auto
         threshold: 0%
         base: auto
         # advanced
