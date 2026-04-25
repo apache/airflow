@@ -28,6 +28,36 @@ Changelog
 ---------
 
 
+21.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add quota project id support to Google cloud base hook (#56324)``
+* ``Return list of destination URIs from S3ToGCSOperator (#64851)``
+
+Bug Fixes
+~~~~~~~~~
+* ``Fix passing labels to BQ job (#65663)``
+
+Misc
+~~~~
+* ``Fix Google Dataflow hook failing import when apache-beam not installed (#65659)``
+
+Doc-only
+~~~~~~~~
+
+* ``Rename Cloud Composer service in the operator docs (#64257)``
+* ``Update Compute SSH documentation about TPC (#65662)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make werkzeug import optional in Google provider test conftest (#65581)``
+   * ``Avoid unspecced MagicMock for execute_complete context in S3ToGCS test (#65087)``
+   * ``Fix stale system test documentation links (#65071)``
+   * ``Update gen ai batch api system test (#64964)``
+
 21.1.0
 ......
 

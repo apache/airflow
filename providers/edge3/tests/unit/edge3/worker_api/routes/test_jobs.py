@@ -29,21 +29,23 @@ from airflow.providers.edge3.worker_api.routes.jobs import fetch, state
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-try:
-    from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
+pytestmark = pytest.mark.db_test
 
-    stats_reference = "airflow.sdk._shared.observability.metrics.dual_stats_manager.DualStatsManager"
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager
+
+    stats_reference = f"{DualStatsManager.__module__}.DualStatsManager"
     expected_call_count = 1
-except ImportError:
+else:
     from airflow.providers.common.compat.sdk import Stats
 
     stats_reference = f"{Stats.__module__}.Stats"
     expected_call_count = 2
-
-pytestmark = pytest.mark.db_test
 
 
 DAG_ID = "my_dag"

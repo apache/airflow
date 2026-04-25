@@ -88,7 +88,6 @@ LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
-ALLOW_TRANSACTION_CHANGE_LABEL = "allow translation change"
 ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
@@ -96,9 +95,6 @@ ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
     "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]"
 )
-
-# Set to True to enter a translation freeze period. Set to False to exit a translation freeze period.
-FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED = False
 
 
 class FileGroupForCi(Enum):
@@ -136,12 +132,16 @@ class FileGroupForCi(Enum):
     ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES = auto()
     ALL_DEV_PYTHON_FILES = auto()
     ALL_DEVEL_COMMON_PYTHON_FILES = auto()
+    ALL_SCRIPTS_PYTHON_FILES = auto()
+    ALL_HELM_TESTS_PYTHON_FILES = auto()
+    ALL_AIRFLOW_E2E_TESTS_PYTHON_FILES = auto()
+    ALL_DOCKER_TESTS_PYTHON_FILES = auto()
+    ALL_KUBERNETES_TESTS_PYTHON_FILES = auto()
     ALL_PROVIDER_YAML_FILES = auto()
     TESTS_UTILS_FILES = auto()
     ASSET_FILES = auto()
     UNIT_TEST_FILES = auto()
     DEVEL_TOML_FILES = auto()
-    UI_ENGLISH_TRANSLATION_FILES = auto()
     SCRIPTS_FILES = auto()
     UV_LOCK_FILE = auto()
 
@@ -298,6 +298,21 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.ALL_DEVEL_COMMON_PYTHON_FILES: [
             r"^devel-common/.*\.py$",
         ],
+        FileGroupForCi.ALL_SCRIPTS_PYTHON_FILES: [
+            r"^scripts/.*\.py$",
+        ],
+        FileGroupForCi.ALL_HELM_TESTS_PYTHON_FILES: [
+            r"^helm-tests/.*\.py$",
+        ],
+        FileGroupForCi.ALL_AIRFLOW_E2E_TESTS_PYTHON_FILES: [
+            r"^airflow-e2e-tests/.*\.py$",
+        ],
+        FileGroupForCi.ALL_DOCKER_TESTS_PYTHON_FILES: [
+            r"^docker-tests/.*\.py$",
+        ],
+        FileGroupForCi.ALL_KUBERNETES_TESTS_PYTHON_FILES: [
+            r"^kubernetes-tests/.*\.py$",
+        ],
         FileGroupForCi.ALL_SOURCE_FILES: [
             r"^.pre-commit-config.yaml$",
             r"^airflow-core/src/.*",
@@ -364,9 +379,6 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.DEVEL_TOML_FILES: [
             r"^devel-common/pyproject\.toml$",
-        ],
-        FileGroupForCi.UI_ENGLISH_TRANSLATION_FILES: [
-            r"^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$",
         ],
         FileGroupForCi.SCRIPTS_FILES: [
             r"^scripts/ci/.*\.py$",
@@ -1486,12 +1498,42 @@ class SelectiveChecks:
                 prek_hooks_to_skip.add("mypy-airflow-core")
             if not self._matching_files(FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-dev")
+            if not self._matching_files(FileGroupForCi.ALL_SCRIPTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-scripts")
             if not self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-task-sdk")
             if not self._matching_files(FileGroupForCi.ALL_DEVEL_COMMON_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-devel-common")
             if not self._matching_files(FileGroupForCi.ALL_AIRFLOW_CTL_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-airflow-ctl")
+            if not self._matching_files(
+                FileGroupForCi.AIRFLOW_CTL_INTEGRATION_TEST_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-airflow-ctl-tests")
+            if not self._matching_files(FileGroupForCi.ALL_HELM_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-helm-tests")
+            if not self._matching_files(
+                FileGroupForCi.ALL_AIRFLOW_E2E_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-airflow-e2e-tests")
+            if not self._matching_files(
+                FileGroupForCi.TASK_SDK_INTEGRATION_TEST_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-task-sdk-integration-tests")
+            if not self._matching_files(FileGroupForCi.ALL_DOCKER_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-docker-tests")
+            if not self._matching_files(
+                FileGroupForCi.ALL_KUBERNETES_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-kubernetes-tests")
+            # One mypy-shared-<dist> hook per shared/<dist> workspace member; each is only
+            # kept when that distribution's own files changed.
+            for dist in sorted(
+                p.name for p in (AIRFLOW_ROOT_PATH / "shared").iterdir() if (p / "pyproject.toml").exists()
+            ):
+                pattern = re.compile(rf"^shared/{re.escape(dist)}/.*\.py$")
+                if not any(pattern.match(f) for f in self._files):
+                    prek_hooks_to_skip.add(f"mypy-shared-{dist}")
         return ",".join(sorted(prek_hooks_to_skip))
 
     @cached_property
@@ -1758,36 +1800,13 @@ class SelectiveChecks:
         return json.dumps([file.name for file in (AIRFLOW_ROOT_PATH / "shared").iterdir() if file.is_dir()])
 
     @cached_property
-    def ui_english_translation_changed(self) -> bool:
-        _translation_changed = bool(
-            self._matching_files(
-                FileGroupForCi.UI_ENGLISH_TRANSLATION_FILES,
-                CI_FILE_GROUP_MATCHES,
-            )
-        )
-        if FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED and _translation_changed and not self._is_canary_run():
-            if ALLOW_TRANSACTION_CHANGE_LABEL in self._pr_labels:
-                console_print(
-                    "[warning]The 'allow translation change' label is set and English "
-                    "translation files changed. Bypassing the freeze period."
-                )
-                return True
-            console_print(
-                "[error]English translation changed but we are in a period of translation"
-                "freeze and label to allow it ('allow translation change') is not set"
-            )
-            console_print()
-            console_print(
-                "[warning]To allow translation change, please set the label "
-                "'allow translation change' on the PR, but this has to be communicated "
-                "and agreed to at the #i18n channel in slack"
-            )
-            sys.exit(1)
-        return _translation_changed
-
-    @cached_property
     def provider_dependency_bump(self) -> bool:
         """Check for apache-airflow-providers dependency bumps in pyproject.toml files."""
+        # Only enforce on PRs targeting main. On release branches (e.g. v3-X-test)
+        # cherry-picks routinely bump provider dependency lower bounds, and the
+        # override label is meant for that flow on main.
+        if self._default_branch != "main":
+            return False
         pyproject_files = self._matching_files(
             FileGroupForCi.ALL_PYPROJECT_TOML_FILES,
             CI_FILE_GROUP_MATCHES,
@@ -2014,6 +2033,11 @@ class SelectiveChecks:
         comment for their common-compat dependency.
         """
         if self._github_event != GithubEvents.PULL_REQUEST:
+            return False
+        # Only enforce on PRs targeting main. On release branches (e.g. v3-X-test)
+        # cherry-picked common.compat changes don't follow the '# use next version'
+        # convention, and the override label is meant for that flow on main.
+        if self._default_branch != "main":
             return False
 
         if not self._has_common_compat_changed():

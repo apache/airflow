@@ -63,6 +63,33 @@ The production images are released in DockerHub from:
 * ``2.*.*``, ``2.*.*rc*`` releases from the ``v2-*-stable`` branch when we prepare release candidates and
   final releases.
 
+Airflow Helm Chart branches
+---------------------------
+
+The Airflow Helm Chart follows a different branch model from Airflow core, because
+the chart's major version cadence is independent of Airflow's:
+
+* ``main`` — development branch for the next **Airflow Helm Chart 2.x** major release.
+  This is where deprecations are *removed*, restructurings land, and a number of
+  optional features are being **extracted from the core chart into separate
+  kustomizable overlays** (users will compose them on top of the rendered chart with
+  ``kustomize`` instead of toggling them via ever-growing ``values.yaml`` keys). PRs
+  with new features, refactorings, or breaking changes for the chart should target
+  ``main``.
+
+* ``chart/v1-2x-test`` — maintenance branch for the **1.2x.x** release line. This
+  branch is **strictly for bug-fixes, doc-fixes, and deprecation warnings** that give
+  1.2x.x users notice before features are removed in 2.x. No new features, no
+  restructurings, and no overlay extractions land here. ``1.2x.x`` chart releases are
+  cut from this branch.
+
+The full workflow — which PRs target which branch, which commits are cherry-picked
+across, milestones, and the umbrella refurbish project — is documented in
+`dev/README_HELM_CHART2_DEV.md <../dev/README_HELM_CHART2_DEV.md>`__. Read it before
+opening a chart PR. The current 2.0 scope and chart release schedule live on the
+`Release Plan <https://cwiki.apache.org/confluence/display/AIRFLOW/Release+Plan>`__
+wiki page, which is the source of truth as the plan evolves.
+
 How to sync your fork
 =====================
 
@@ -74,6 +101,38 @@ way to sync your fork in GitHub's web UI with the `Fetch upstream feature
 
 This will force-push the ``main`` branch from ``apache/airflow`` to the ``main`` branch
 in your fork. Note that in case you modified the main in your fork, you might loose those changes.
+
+Syncing multiple branches with the helper script
+------------------------------------------------
+
+If you also backport to the current release branch (for example ``v3-2-test``) you usually
+want to keep more than one branch of your fork in sync with upstream. The
+``dev/sync_fork.sh`` helper does that in one go — it fetches ``upstream`` and force-pushes
+each listed branch from ``upstream/<branch>`` directly to ``origin/<branch>`` without
+touching your local working tree or checked-out branch.
+
+.. warning::
+
+   The script uses ``git push --force`` and will **overwrite** the listed branches
+   on your fork. By default it targets ``main`` and the current release branch
+   (currently ``v3-2-test``). Any commits you have on those branches in your fork
+   that are not in upstream will be lost. If you keep work on those branches,
+   commit it to a different branch first.
+
+Assumes your remotes are named ``upstream`` (for ``apache/airflow``) and ``origin``
+(for your fork). Override with the ``UPSTREAM_REMOTE`` and ``ORIGIN_REMOTE``
+environment variables if yours are named differently.
+
+.. code-block:: console
+
+    # Sync the default branches (main and the current release branch)
+    ./dev/sync_fork.sh
+
+    # Sync only main
+    ./dev/sync_fork.sh main
+
+    # Sync a specific set of branches
+    ./dev/sync_fork.sh main v3-2-test v3-1-test
 
 
 How to rebase PR

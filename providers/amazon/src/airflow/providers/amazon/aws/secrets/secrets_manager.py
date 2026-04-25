@@ -207,7 +207,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         if self.connections_prefix is None:
             return None
 
-        secret = self._get_secret(self.connections_prefix, conn_id, self.connections_lookup_pattern)
+        secret = self._get_secret(
+            self.connections_prefix, conn_id, self.connections_lookup_pattern, team_name
+        )
 
         if secret is not None and secret.strip().startswith("{"):
             # Before Airflow 2.3, the AWS SecretsManagerBackend added support for JSON secrets.
@@ -237,7 +239,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         if self.variables_prefix is None:
             return None
 
-        return self._get_secret(self.variables_prefix, key, self.variables_lookup_pattern)
+        return self._get_secret(self.variables_prefix, key, self.variables_lookup_pattern, team_name)
 
     def get_config(self, key: str) -> str | None:
         """
@@ -251,7 +253,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.config_prefix, key, self.config_lookup_pattern)
 
-    def _get_secret(self, path_prefix, secret_id: str, lookup_pattern: str | None) -> str | None:
+    def _get_secret(
+        self, path_prefix, secret_id: str, lookup_pattern: str | None, team_name: str | None = None
+    ) -> str | None:
         """
         Get secret value from Secrets Manager.
 
@@ -264,7 +268,10 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             return None
 
         error_msg = "An error occurred when calling the get_secret_value operation"
-        if path_prefix:
+        if path_prefix and team_name:
+            secrets_path = self.build_path(path_prefix, team_name, self.sep)
+            secrets_path = self.build_path(secrets_path, secret_id, self.sep)
+        elif path_prefix:
             secrets_path = self.build_path(path_prefix, secret_id, self.sep)
         else:
             secrets_path = secret_id

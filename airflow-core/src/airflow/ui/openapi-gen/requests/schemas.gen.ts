@@ -445,10 +445,16 @@ export const $BackfillPostBody = {
             default: false
         },
         dag_run_conf: {
-            additionalProperties: true,
-            type: 'object',
-            title: 'Dag Run Conf',
-            default: {}
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Run Conf'
         },
         reprocess_behavior: {
             '$ref': '#/components/schemas/ReprocessBehavior',
@@ -1262,6 +1268,33 @@ export const $BulkUpdateAction_VariableBody_ = {
     type: 'object',
     required: ['action', 'entities'],
     title: 'BulkUpdateAction[VariableBody]'
+} as const;
+
+export const $ClearTaskInstanceCollectionResponse = {
+    properties: {
+        task_instances: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/TaskInstanceResponse'
+                    },
+                    {
+                        '$ref': '#/components/schemas/NewTaskResponse'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'Task Instances'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['task_instances', 'total_entries'],
+    title: 'ClearTaskInstanceCollectionResponse',
+    description: 'Response for clear dag run dry run, which may contain new tasks without full TaskInstance data.'
 } as const;
 
 export const $ClearTaskInstancesBody = {
@@ -2493,6 +2526,12 @@ export const $DAGRunClearBody = {
             title: 'Only Failed',
             default: false
         },
+        only_new: {
+            type: 'boolean',
+            title: 'Only New',
+            description: 'Only queue newly added tasks in the latest DAG version without clearing existing tasks.',
+            default: false
+        },
         run_on_latest_version: {
             type: 'boolean',
             title: 'Run On Latest Version',
@@ -2516,14 +2555,53 @@ export const $DAGRunCollectionResponse = {
             title: 'Dag Runs'
         },
         total_entries: {
-            type: 'integer',
-            title: 'Total Entries'
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Total Entries',
+            description: 'Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.'
+        },
+        next_cursor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Next Cursor',
+            description: 'Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.'
+        },
+        previous_cursor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Previous Cursor',
+            description: 'Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.'
         }
     },
     type: 'object',
-    required: ['dag_runs', 'total_entries'],
+    required: ['dag_runs'],
     title: 'DAGRunCollectionResponse',
-    description: 'DAG Run Collection serializer for responses.'
+    description: `DAG Run collection response supporting both offset and cursor pagination.
+
+A single flat model is used instead of a discriminated union
+(\`\`Annotated[Offset | Cursor, Field(discriminator=...)]\`\`) because
+the OpenAPI \`\`oneOf\`\` + \`\`discriminator\`\` construct is not handled
+correctly by \`\`@hey-api/openapi-ts\`\` / \`\`@7nohe/openapi-react-query-codegen\`\`:
+return types degrade to \`\`unknown\`\` in JSDoc and can produce
+incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).`
 } as const;
 
 export const $DAGRunPatchBody = {
@@ -4593,6 +4671,23 @@ export const $MaterializeAssetBody = {
     type: 'object',
     title: 'MaterializeAssetBody',
     description: 'Materialize asset request.'
+} as const;
+
+export const $NewTaskResponse = {
+    properties: {
+        task_id: {
+            type: 'string',
+            title: 'Task Id'
+        },
+        task_display_name: {
+            type: 'string',
+            title: 'Task Display Name'
+        }
+    },
+    type: 'object',
+    required: ['task_id', 'task_display_name'],
+    title: 'NewTaskResponse',
+    description: "Lightweight response for new tasks that don't have TaskInstances yet."
 } as const;
 
 export const $PatchTaskInstanceBody = {
@@ -8065,17 +8160,6 @@ export const $DeadlineAlertResponse = {
             ],
             title: 'Name'
         },
-        description: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Description'
-        },
         reference_type: {
             type: 'string',
             title: 'Reference Type'
@@ -8146,6 +8230,18 @@ export const $DeadlineResponse = {
             type: 'string',
             title: 'Dag Run Id'
         },
+        alert_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Alert Id'
+        },
         alert_name: {
             anyOf: [
                 {
@@ -8156,17 +8252,6 @@ export const $DeadlineResponse = {
                 }
             ],
             title: 'Alert Name'
-        },
-        alert_description: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Alert Description'
         }
     },
     type: 'object',
@@ -8238,7 +8323,8 @@ export const $ExtraMenuItem = {
     },
     type: 'object',
     required: ['text', 'href'],
-    title: 'ExtraMenuItem'
+    title: 'ExtraMenuItem',
+    description: 'Define a menu item that can be added to the menu by auth managers or plugins.'
 } as const;
 
 export const $GanttResponse = {
