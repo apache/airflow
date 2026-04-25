@@ -464,6 +464,61 @@ class TestEdgeWorker:
         await worker_with_job.heartbeat()
         assert worker_with_job.drain
 
+    @patch("airflow.providers.edge3.cli.worker.os.kill")
+    @patch("airflow.providers.edge3.cli.worker.time.monotonic")
+    def test_enforce_drain_timeout_disabled(self, mock_monotonic, mock_kill, worker_with_job: EdgeWorker):
+        worker_with_job.drain_timeout_sec = 0
+        worker_with_job.drain = True
+        worker_with_job.drain_started_at = 0.0
+        mock_monotonic.return_value = 9999.0
+        assert worker_with_job._enforce_drain_timeout() is False
+        mock_kill.assert_not_called()
+
+    @patch("airflow.providers.edge3.cli.worker.os.kill")
+    @patch("airflow.providers.edge3.cli.worker.time.monotonic")
+    def test_enforce_drain_timeout_within_deadline(
+        self, mock_monotonic, mock_kill, worker_with_job: EdgeWorker
+    ):
+        worker_with_job.drain_timeout_sec = 60
+        worker_with_job.drain = True
+        worker_with_job.drain_started_at = 100.0
+        worker_with_job.jobs[0].process = mock.MagicMock(pid=4242)
+        mock_monotonic.return_value = 120.0  # 20s < 60s
+        assert worker_with_job._enforce_drain_timeout() is False
+        mock_kill.assert_not_called()
+
+    @patch("airflow.providers.edge3.cli.worker.os.kill")
+    @patch("airflow.providers.edge3.cli.worker.time.monotonic")
+    def test_enforce_drain_timeout_sigterm_on_deadline(
+        self, mock_monotonic, mock_kill, worker_with_job: EdgeWorker
+    ):
+        worker_with_job.drain_timeout_sec = 60
+        worker_with_job.drain_kill_grace_sec = 30
+        worker_with_job.drain = True
+        worker_with_job.drain_started_at = 100.0
+        worker_with_job.jobs[0].process = mock.MagicMock(pid=4242)
+        mock_monotonic.return_value = 170.0  # 70s >= 60s, first trigger
+        assert worker_with_job._enforce_drain_timeout() is False
+        mock_kill.assert_called_once_with(4242, signal.SIGTERM)
+        assert worker_with_job.drain_timed_out is True
+        assert worker_with_job.drain_kill_deadline == 200.0
+
+    @patch("airflow.providers.edge3.cli.worker.os.kill")
+    @patch("airflow.providers.edge3.cli.worker.time.monotonic")
+    def test_enforce_drain_timeout_sigkill_after_grace(
+        self, mock_monotonic, mock_kill, worker_with_job: EdgeWorker
+    ):
+        worker_with_job.drain_timeout_sec = 60
+        worker_with_job.drain_kill_grace_sec = 30
+        worker_with_job.drain = True
+        worker_with_job.drain_started_at = 100.0
+        worker_with_job.drain_timed_out = True
+        worker_with_job.drain_kill_deadline = 200.0
+        worker_with_job.jobs[0].process = mock.MagicMock(pid=4242)
+        mock_monotonic.return_value = 210.0  # past kill deadline
+        assert worker_with_job._enforce_drain_timeout() is True
+        mock_kill.assert_called_once_with(4242, signal.SIGKILL)
+
     @pytest.mark.parametrize(
         "http_error",
         [

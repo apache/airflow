@@ -20,6 +20,7 @@ import logging
 import os
 import signal
 import sys
+import time
 import traceback
 from asyncio import Task, create_task, get_running_loop, sleep
 from collections.abc import Awaitable, Callable
@@ -105,6 +106,10 @@ class EdgeWorker:
     """List of jobs that the worker is running currently."""
     drain: bool = False
     """Flag if job processing should be completed and no new jobs fetched for a graceful stop/shutdown."""
+    drain_started_at: float | None = None
+    """``time.monotonic()`` timestamp of when drain was first requested."""
+    drain_timed_out: bool = False
+    drain_kill_deadline: float | None = None
     maintenance_mode: bool = False
     """Flag if job processing should be completed and no new jobs fetched for maintenance mode. """
     maintenance_comments: str | None = None
@@ -142,6 +147,8 @@ class EdgeWorker:
 
         self.job_poll_interval = self.conf.getint("edge", "job_poll_interval")
         self.hb_interval = self.conf.getint("edge", "heartbeat_interval")
+        self.drain_timeout_sec = self.conf.getint("edge", "drain_timeout_sec")
+        self.drain_kill_grace_sec = self.conf.getint("edge", "drain_kill_grace_sec")
         self.base_log_folder: str = (
             self.conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE") or ""
         )
@@ -210,18 +217,76 @@ class EdgeWorker:
         )
 
     def signal_drain(self):
-        self.drain = True
-        logger.info("Request to shut down Edge Worker received, waiting for jobs to complete.")
+        if self._start_draining():
+            logger.info(
+                "Request to shut down Edge Worker received, waiting for jobs to complete. %s",
+                self._drain_policy_description(),
+            )
 
     def shutdown_handler(self):
-        if self.drain:
+        if not self._start_draining():
             return
-        self.drain = True
         logger.info("SIGTERM received. Sending SIGTERM to all jobs and quit")
+        self._terminate_jobs(signal.SIGTERM)
+
+    def _start_draining(self) -> bool:
+        """Mark drain start. Returns ``True`` on the first call, ``False`` on subsequent calls."""
+        if self.drain:
+            return False
+        self.drain = True
+        self.drain_started_at = time.monotonic()
+        return True
+
+    def _drain_policy_description(self) -> str:
+        """One-line description of the configured drain-timeout policy for logging."""
+        if self.drain_timeout_sec <= 0:
+            return "Drain timeout disabled; will wait indefinitely."
+        return (
+            f"Drain timeout: {self.drain_timeout_sec}s (then SIGTERM), "
+            f"kill grace: {self.drain_kill_grace_sec}s (then SIGKILL)."
+        )
+
+    def _terminate_jobs(self, sig: int) -> None:
+        """Send ``sig`` to every running job process. Safe to call repeatedly."""
         for job in self.jobs:
             if job.process.pid:
                 with suppress(ProcessLookupError, PermissionError):
-                    os.kill(job.process.pid, signal.SIGTERM)
+                    os.kill(job.process.pid, sig)
+
+    def _enforce_drain_timeout(self) -> bool:
+        """
+        Apply drain-timeout policy when configured.
+
+        Two-phase escalation: once ``drain_timeout_sec`` elapses, SIGTERM remaining jobs;
+        after ``drain_kill_grace_sec`` more, SIGKILL and return ``True`` so the loop exits.
+        Returns ``False`` otherwise (not configured, not draining, deadline not hit, or waiting out grace).
+        """
+        if self.drain_timeout_sec <= 0:
+            return False
+        if not self.drain or not self.jobs or self.drain_started_at is None:
+            return False
+        now = time.monotonic()
+        if now - self.drain_started_at < self.drain_timeout_sec:
+            return False
+        if not self.drain_timed_out:
+            self.drain_timed_out = True
+            self.drain_kill_deadline = now + self.drain_kill_grace_sec
+            logger.warning(
+                "Drain timeout of %ds exceeded with %d job(s) still running. Sending SIGTERM.",
+                self.drain_timeout_sec,
+                len(self.jobs),
+            )
+            self._terminate_jobs(signal.SIGTERM)
+            return False
+        if self.drain_kill_deadline is not None and now >= self.drain_kill_deadline:
+            logger.warning(
+                "Drain kill grace of %ds exceeded with %d job(s) still running. Sending SIGKILL and exiting.",
+                self.drain_kill_grace_sec,
+                len(self.jobs),
+            )
+            self._terminate_jobs(signal.SIGKILL)
+            return True
+        return False
 
     async def _get_sysinfo(self) -> dict[str, str | int | float | datetime]:
         """Produce the sysinfo from worker to post to central site."""
@@ -406,6 +471,9 @@ class EdgeWorker:
             else:
                 logger.info("%i %s running", len(self.jobs), "job is" if len(self.jobs) == 1 else "jobs are")
 
+            if self._enforce_drain_timeout():
+                break
+
             await self.interruptible_sleep()
 
     async def fetch_and_run_job(self) -> None:
@@ -498,14 +566,13 @@ class EdgeWorker:
                 self.maintenance_comments = worker_info.maintenance_comments
             else:
                 self.maintenance_comments = None
-            if worker_info.state == EdgeWorkerState.SHUTDOWN_REQUEST:
+            if worker_info.state == EdgeWorkerState.SHUTDOWN_REQUEST and self._start_draining():
                 logger.info("Shutdown requested!")
-                self.drain = True
 
             worker_state_changed = worker_info.state != state
         except EdgeWorkerVersionException:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
-            self.drain = True
+            self._start_draining()
         return worker_state_changed
 
     async def interruptible_sleep(self):
