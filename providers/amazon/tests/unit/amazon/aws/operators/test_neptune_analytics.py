@@ -22,8 +22,14 @@ from unittest import mock
 import pytest
 from botocore.exceptions import ClientError
 
+from airflow.providers.amazon.aws.exceptions import (
+    NeptuneGraphDeletionFailedError,
+    NeptuneImportTaskCancellationFailedError,
+    NeptunePrivateEndpointCreationFailedError,
+    NeptunePrivateEndpointDeletionFailedError,
+)
 from airflow.providers.amazon.aws.hooks.neptune_analytics import NeptuneAnalyticsHook
-from airflow.providers.amazon.aws.links.neptune_analytics import NeptuneGraphLink
+from airflow.providers.amazon.aws.links.neptune_analytics import NeptuneGraphLink, NeptuneImportTaskLink
 from airflow.providers.amazon.aws.operators.neptune_analytics import (
     NeptuneCancelImportTaskOperator,
     NeptuneCreateGraphOperator,
@@ -37,7 +43,7 @@ from airflow.providers.amazon.aws.triggers.neptune_analytics import (
     NeptuneGraphAvailableTrigger,
     NeptuneImportTaskCompleteTrigger,
 )
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 GRAPH_NAME = "test_graph"
 GRAPH_ID = "test-graph-id"
@@ -381,7 +387,10 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
             vpc_id=VPC_ID,
         )
 
-        with pytest.raises(AirflowException, match=f"Private endpoint failed to create for graph {GRAPH_ID}"):
+        with pytest.raises(
+            NeptunePrivateEndpointCreationFailedError,
+            match=f"Private endpoint failed to create for graph {GRAPH_ID}",
+        ):
             operator.execute(None)
 
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
@@ -517,8 +526,6 @@ class TestNeptuneDeletePrivateGraphEndpointOperator:
 
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     def test_delete_endpoint_failed_status(self, mock_conn):
-        from airflow.providers.common.compat.sdk import AirflowException
-
         mock_conn.delete_private_graph_endpoint.return_value = {
             "status": "FAILED",
             "vpcEndpointId": ENDPOINT_ID,
@@ -531,7 +538,10 @@ class TestNeptuneDeletePrivateGraphEndpointOperator:
             vpc_id=VPC_ID,
         )
 
-        with pytest.raises(AirflowException, match=f"Failed to delete private endpoint {ENDPOINT_ID}"):
+        with pytest.raises(
+            NeptunePrivateEndpointDeletionFailedError,
+            match=f"Failed to delete private endpoint {ENDPOINT_ID}",
+        ):
             operator.execute(None)
 
     def test_execute_complete_success(self):
@@ -608,7 +618,8 @@ class TestNeptuneDeleteGraphOperator:
         )
 
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_delete_graph_no_wait(self, mock_conn):
+    @mock.patch.object(NeptuneAnalyticsHook, "get_waiter")
+    def test_delete_graph_no_wait(self, mock_get_waiter, mock_conn):
         mock_conn.delete_graph.return_value = {
             "id": GRAPH_ID,
             "name": GRAPH_NAME,
@@ -624,17 +635,18 @@ class TestNeptuneDeleteGraphOperator:
         operator.execute(None)
 
         mock_conn.delete_graph.assert_called_once()
-        mock_conn.get_waiter.assert_not_called()
+        mock_get_waiter.assert_not_called()
 
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_delete_graph_wait_for_completion(self, mock_conn):
+    @mock.patch.object(NeptuneAnalyticsHook, "get_waiter")
+    def test_delete_graph_wait_for_completion(self, mock_get_waiter, mock_conn):
         mock_conn.delete_graph.return_value = {
             "id": GRAPH_ID,
             "name": GRAPH_NAME,
             "status": "DELETING",
         }
         mock_waiter = mock.MagicMock()
-        mock_conn.get_waiter.return_value = mock_waiter
+        mock_get_waiter.return_value = mock_waiter
 
         operator = NeptuneDeleteGraphOperator(
             task_id="test_task",
@@ -644,7 +656,7 @@ class TestNeptuneDeleteGraphOperator:
         )
         operator.execute(None)
 
-        mock_conn.get_waiter.assert_called_once_with("graph_deleted")
+        mock_get_waiter.assert_called_once_with("graph_deleted")
         mock_waiter.wait.assert_called_once_with(
             graphIdentifier=GRAPH_ID,
             WaiterConfig={"Delay": 30, "MaxAttempts": 60},
@@ -700,8 +712,8 @@ class TestNeptuneDeleteGraphOperator:
             skip_snapshot=True,
         )
 
-        # Should raise AirflowException for non-ResourceNotFoundException errors
-        with pytest.raises(AirflowException):
+        # Should raise NeptuneGraphDeletionFailedError for non-ResourceNotFoundException errors
+        with pytest.raises(NeptuneGraphDeletionFailedError):
             operator.execute(None)
 
 
@@ -987,8 +999,6 @@ class TestNeptuneStartImportTaskOperator:
         assert NeptuneStartImportTaskOperator.template_fields_renderers == {"import_options": "json"}
 
     def test_operator_extra_links(self):
-        from airflow.providers.amazon.aws.links.neptune_analytics import NeptuneImportTaskLink
-
         assert len(NeptuneStartImportTaskOperator.operator_extra_links) == 1
         assert isinstance(NeptuneStartImportTaskOperator.operator_extra_links[0], NeptuneImportTaskLink)
 
@@ -1296,6 +1306,5 @@ class TestNeptuneCancelImportTaskOperator:
             import_task_id=TASK_ID,
         )
 
-        result = operator.execute_complete(None, None)
-
-        assert result == {"import_task_id": ""}
+        with pytest.raises(NeptuneImportTaskCancellationFailedError):
+            operator.execute_complete(None, None)
