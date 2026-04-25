@@ -40,7 +40,7 @@ Create a new Neptune Graph
 ==========================
 
 To create a new Neptune Analytics Graph, you can use
-:class:`~airflow.providers.amazon.aws.operators.neptune.NeptuneCreateGraphOperator`.
+:class:`~airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneCreateGraphOperator`.
 This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
 the aiobotocore module to be installed.
 
@@ -57,7 +57,7 @@ Delete a Neptune Graph
 ======================
 
 To delete an existing Neptune Analytics Graph, you can use
-:class:`~airflow.providers.amazon.aws.operators.neptune.NeptuneDeleteGraphOperator`.
+:class:`~airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneDeleteGraphOperator`.
 This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
 the aiobotocore module to be installed.
 
@@ -73,7 +73,7 @@ Create a Neptune Graph private endpoint
 =======================================
 
 To create a VPC Endpoint for connecting to an existing Neptune Graph, you can use
-:class:`~airflow.providers.amazon.aws.operators.neptune.NeptuneCreatePrivateGraphEndpointOperator`.
+:class:`~airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneCreatePrivateGraphEndpointOperator`.
 This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
 the aiobotocore module to be installed.
 
@@ -89,7 +89,7 @@ Delete a Neptune Graph private endpoint
 =======================================
 
 To delete a VPC Endpoint attached to an existing Neptune Graph, you can use
-:class:`~airflow.providers.amazon.aws.operators.neptune.NeptuneDeletePrivateGraphEndpointOperator`.
+:class:`~airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneDeletePrivateGraphEndpointOperator`.
 This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
 the aiobotocore module to be installed.
 
@@ -105,7 +105,7 @@ Create a Neptune Graph with a data import task
 ==============================================
 
 To create a Neptune Analytics Graph and immediately import data, you can use
-:class:`~airflow.providers.amazon.aws.operators.neptune.NeptuneCreateGraphWithImportOperator`.
+:class:`~airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneCreateGraphWithImportOperator`.
 This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
 the aiobotocore module to be installed.
 
@@ -121,7 +121,7 @@ Import data into an existing Neptune Graph
 ==========================================
 
 To import data into an existing Neptune Analytics Graph, you can use
-:class:`~airflow.providers.amazon.aws.operators.neptune.NeptuneStartImportTaskOperator`.
+:class:`~airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneStartImportTaskOperator`.
 This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
 the aiobotocore module to be installed.
 
@@ -137,7 +137,7 @@ Cancel a running import task
 ============================
 
 To cancel an existing import task, you can use
-:class:`~airflow.providers.amazon.aws.operators.neptune.NeptuneCancelImportTaskOperator`.
+:class:`~airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneCancelImportTaskOperator`.
 This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
 the aiobotocore module to be installed.
 

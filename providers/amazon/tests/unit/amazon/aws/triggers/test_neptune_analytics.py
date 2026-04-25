@@ -271,7 +271,7 @@ class TestNeptuneImportTaskCancelledTrigger:
         generator = trigger.run()
         resp = await generator.asend(None)
 
-        assert resp == TriggerEvent({"status": "success", "task_identifier": TASK_ID})
+        assert resp == TriggerEvent({"status": "success", "import_task_id": TASK_ID})
         assert mock_get_waiter().wait.call_count == 1
 
     @pytest.mark.asyncio
@@ -291,7 +291,7 @@ class TestNeptuneImportTaskCancelledTrigger:
         resp = await generator.asend(None)
 
         assert resp.payload["status"] == "error"
-        assert resp.payload["task_identifier"] == TASK_ID
+        assert resp.payload["import_task_id"] == TASK_ID
         assert "Import task cancellation failed" in resp.payload["message"]
 
 
