@@ -35,7 +35,7 @@ class PIDLockFile:
     This is a minimal replacement for ``lockfile.pidlockfile.PIDLockFile``.
     """
 
-    def __init__(self, path: str, **kwargs):
+    def __init__(self, path: str):
         self.path = path
 
     def read_pid(self) -> int | None:
@@ -68,7 +68,6 @@ class PIDLockFile:
         If *timeout* > 0 wait up to that many seconds; if 0 or negative
         raise immediately on conflict; if ``None`` wait forever.
         """
-        timeout = timeout if timeout is not None else getattr(self, "timeout", None)
         end_time = time.monotonic()
         if timeout is not None and timeout > 0:
             end_time += timeout
@@ -103,14 +102,14 @@ class TimeoutPIDLockFile(PIDLockFile):
     Drop-in replacement for ``daemon.pidfile.TimeoutPIDLockFile``.
     """
 
-    def __init__(self, path: str, acquire_timeout: float | None = None, **kwargs):
-        super().__init__(path, **kwargs)
+    def __init__(self, path: str, acquire_timeout: float | None = None):
+        super().__init__(path)
         self.acquire_timeout = acquire_timeout
 
-    def acquire(self, timeout=None, **kwargs):
+    def acquire(self, timeout=None):
         if timeout is None:
             timeout = self.acquire_timeout
-        super().acquire(timeout, **kwargs)
+        super().acquire(timeout)
 
 
 def read_pid_from_pidfile(pidfile_path: str) -> int | None:
