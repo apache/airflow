@@ -92,7 +92,7 @@ class AzureSynapsePipelineTrigger(BaseTrigger):
         if pipeline_status in AzureSynapsePipelineRunStatus.FAILURE_STATES:
             return TriggerEvent(
                 {
-                    "status": "failure",
+                    "status": "error",
                     "message": f"Pipeline run {self.run_id} finished with state {pipeline_status}.",
                     "run_id": self.run_id,
                 }
@@ -121,7 +121,7 @@ class AzureSynapsePipelineTrigger(BaseTrigger):
                             yield event
                             return
 
-                        self.log.debug(
+                        self.log.info(
                             "Pipeline %s not finished yet (state=%s). Sleeping %s seconds.",
                             self.run_id,
                             pipeline_status,
@@ -138,6 +138,7 @@ class AzureSynapsePipelineTrigger(BaseTrigger):
                         await hook.refresh_conn()
                         executed_after_token_refresh = False
 
+                await hook.cancel_pipeline_run(self.run_id)
                 yield TriggerEvent(
                     {
                         "status": "error",

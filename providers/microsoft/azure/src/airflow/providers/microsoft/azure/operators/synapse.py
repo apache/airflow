@@ -326,7 +326,6 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
         if status == "success":
             self.log.info(message)
             return
-
         if status == "error":
             raise AzureSynapsePipelineRunException(message)
 

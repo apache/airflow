@@ -63,8 +63,8 @@ class TestAzureSynapsePipelineTrigger:
         ("status", "expected"),
         [
             ("Succeeded", "success"),
-            ("Failed", "failure"),
-            ("Cancelled", "failure"),
+            ("Failed", "error"),
+            ("Cancelled", "error"),
         ],
     )
     def test_build_trigger_event_terminal_states(self, status, expected):
@@ -108,7 +108,7 @@ class TestAzureSynapsePipelineTrigger:
 
         assert actual == TriggerEvent(
             {
-                "status": "failure",
+                "status": "error",
                 "message": f"Pipeline run {RUN_ID} finished with state Failed.",
                 "run_id": RUN_ID,
             }

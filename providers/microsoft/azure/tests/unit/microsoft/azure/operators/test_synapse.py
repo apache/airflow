@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import functools
+import time
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -516,3 +517,33 @@ class TestAzureSynapseRunPipelineOperatorWithDeferrable:
                     "run_id": PIPELINE_RUN_RESPONSE["run_id"],
                 },
             )
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "pipeline_state",
+        [
+            AzureSynapsePipelineRunStatus.FAILED,
+            AzureSynapsePipelineRunStatus.CANCELLED,
+        ],
+    )
+    def test_failure_states_roundtrip(self, pipeline_state):
+        trigger = AzureSynapsePipelineTrigger(
+            run_id=PIPELINE_RUN_RESPONSE["run_id"],
+            azure_synapse_conn_id=AZURE_SYNAPSE_CONN_ID,
+            azure_synapse_workspace_dev_endpoint=AZURE_SYNAPSE_WORKSPACE_DEV_ENDPOINT,
+            end_time=time.time() + 100,
+            check_interval=1,
+        )
+
+        event = trigger._build_trigger_event(pipeline_state)
+
+        assert event is not None
+
+        payload = event.payload
+
+        assert payload["status"] == "error"
+
+        with pytest.raises(AzureSynapsePipelineRunException) as exc:
+            self.task.execute_complete(context={}, event=payload)
+
+        assert f"state {pipeline_state}" in str(exc.value)
