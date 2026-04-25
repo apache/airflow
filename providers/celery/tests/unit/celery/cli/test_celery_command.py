@@ -139,11 +139,15 @@ class TestWorkerStart:
             importlib.reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 
+    @mock.patch("airflow.providers.celery.cli.celery_command.kombu.pools.reset")
+    @mock.patch("airflow.providers.celery.cli.celery_command.Celery")
     @mock.patch("airflow.providers.celery.cli.celery_command.setup_locations")
     @mock.patch("airflow.providers.celery.cli.celery_command.Process")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     @conf_vars({("celery", "pool"): "prefork"})
-    def test_worker_started_with_required_arguments(self, mock_celery_app, mock_popen, mock_locations):
+    def test_worker_started_with_required_arguments(
+        self, mock_celery_app, mock_popen, mock_locations, mock_celery_cls, mock_pools_reset
+    ):
         pid_file = "pid_file"
         mock_locations.return_value = (pid_file, None, None, None)
         concurrency = "1"
