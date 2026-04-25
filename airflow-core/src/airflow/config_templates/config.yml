@@ -1606,6 +1606,31 @@ api:
       type: string
       example: ~
       default: "False"
+    dag_cache_size:
+      description: |
+        Size of the LRU cache for SerializedDAG objects in the API server.
+        Set to 0 to use an unbounded dict (no eviction, matching pre-3.2 behavior).
+        The cache is keyed by Dag version ID, so lookups by Dag ID
+        (e.g., viewing a Dag's details) always query the database for the latest
+        version, but the deserialized result is cached for subsequent
+        version-specific lookups.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "64"
+    dag_cache_ttl:
+      description: |
+        Time-to-live (seconds) for cached SerializedDAG objects in the API server.
+        After this time, cached DAGs will be re-fetched from the database on next access.
+        Set to 0 to disable TTL (cache entries will only be evicted by LRU policy).
+
+        Note: After a DAG is updated, the API server may serve the previous version
+        until the cached entry expires. Lower values reduce staleness but increase
+        database load.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "3600"
     base_url:
       description: |
         The base url of the API server. Airflow cannot guess what domain or CNAME you are using.
@@ -2561,6 +2586,10 @@ scheduler:
     task_queued_timeout:
       description: |
         Amount of time a task can be in the queued state before being retried or set to failed.
+
+        This value also sets the lifetime of the workload JWT token that is sent with the task
+        to an executor queue, so a task waiting in the queue can still authenticate to the
+        Execution API until its queue-starvation deadline.
       version_added: 2.6.0
       type: float
       example: ~
@@ -2665,6 +2694,15 @@ triggerer:
       type: integer
       example: ~
       default: "50"
+    on_kill_timeout:
+      description: |
+        Maximum number of seconds the triggerer will wait for ``BaseTrigger.on_kill()`` to complete
+        before giving up and logging a warning. Prevents a slow or hung external API call from
+        blocking the triggerer indefinitely when a deferred task is killed by a user.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "30"
     queues_enabled:
       description: |
         When set to True, deferred tasks will register triggers with the task queue they originated from,

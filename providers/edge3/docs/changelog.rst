@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add extended sysinfo for Edge worker (#65472)``
+* ``Add bulk support for maintenance mode entry and exit for edge workers (#65015)``
+
+Misc
+~~~~
+
+* ``Bump the edge-ui-package-updates group across 1 directory with 20 updates (#65434)``
+* ``Fix Edge provider plugin broken by Vite 8 upgrade (#65387)``
+* ``Bump vite in Edge Provider to 8.0 (#65175)``
+* ``Move ExecutorCallback execution into a supervised process (#62645)``
+* ``Bump axios in /providers/edge3/src/airflow/providers/edge3/plugins/www (#65004)``
+* ``Keep DualStatsManager as a try/except import as it is soon going to be removed (#65676)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#65521)``
+   * ``Isolate non-provider mypy hooks per distribution with dedicated .build/ venvs (#65492)``
+   * ``Remove AirflowException from Edge Example Dag (#64975)``
+
 3.4.0
 .....
 

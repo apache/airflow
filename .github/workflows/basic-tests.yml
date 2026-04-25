@@ -203,7 +203,7 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: 'airflow-core/src/airflow/**/pnpm-lock.yaml'
       - name: "Restore eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
         with:
           path: airflow-core/src/airflow/ui/node_modules/
           # yamllint disable-line rule:line-length
@@ -214,7 +214,7 @@ jobs:
         env:
           FORCE_COLOR: 2
       - name: "Save eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
         with:
           path: airflow-core/src/airflow/ui/node_modules/
           key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
@@ -222,7 +222,7 @@ jobs:
           retention-days: '2'
         if: steps.restore-eslint-cache-ui.outputs.stash-hit != 'true'
       - name: "Restore eslint cache (simple auth manager UI)"
-        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
         with:
           path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >
@@ -234,7 +234,7 @@ jobs:
         env:
           FORCE_COLOR: 2
       - name: "Save eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
         with:
           path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >

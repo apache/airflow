@@ -32,7 +32,7 @@ import time
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Any, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, cast
 
 from celery import states as celery_states
 from deprecated import deprecated
@@ -64,11 +64,16 @@ if TYPE_CHECKING:
     from airflow.providers.celery.executors.celery_executor_utils import TaskTuple, WorkloadInCelery
 
     if AIRFLOW_V_3_2_PLUS:
-        from airflow.executors.workloads.types import WorkloadKey as _WorkloadKey
+        from airflow.executors.workloads.types import (
+            WorkloadKey as _WorkloadKey,
+            WorkloadState as _WorkloadState,
+        )
 
         WorkloadKey: TypeAlias = _WorkloadKey
+        WorkloadState: TypeAlias = _WorkloadState
     else:
         WorkloadKey: TypeAlias = TaskInstanceKey  # type: ignore[no-redef, misc]
+        WorkloadState: TypeAlias = TaskInstanceState  # type: ignore[no-redef, misc]
 
 
 # PEP562
@@ -103,6 +108,7 @@ class CeleryExecutor(BaseExecutor):
     supports_ad_hoc_ti_run: bool = True
     supports_callbacks: bool = True
     sentry_integration: str = "sentry_sdk.integrations.celery.CeleryIntegration"
+    pre_assigns_external_executor_id: ClassVar[bool] = True
 
     # TODO: Remove this flag once providers depend on Airflow 3.2.
     supports_sentry: bool = True
@@ -277,9 +283,7 @@ class CeleryExecutor(BaseExecutor):
             if state:
                 self.update_task_state(cast("TaskInstanceKey", key), state, info)
 
-    def change_state(
-        self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
-    ) -> None:
+    def change_state(self, key: WorkloadKey, state: WorkloadState, info=None, remove_running=True) -> None:
         super().change_state(key, state, info, remove_running=remove_running)
         self.workloads.pop(key, None)
 
@@ -309,21 +313,22 @@ class CeleryExecutor(BaseExecutor):
         pass
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
-        # See which of the TIs are still alive (or have finished even!)
+        # The scheduler pre-assigns external_executor_id at queuing time (committed to DB
+        # atomically with the QUEUED state), and the same ID is used as the Celery task_id
+        # in apply_async(). This means external_executor_id is always set for tasks queued
+        # by current code, and always matches the Celery task.
         #
-        # Since Celery doesn't store "SENT" state for queued commands (if we create an AsyncResult with a made
-        # up id it just returns PENDING state for it), we have to store Celery's task_id against the TI row to
-        # look at in future.
+        # A narrow window remains: the scheduler could die after committing the QUEUED
+        # state (with the pre-assigned ID) but before executor.heartbeat() calls
+        # apply_async(). In that case the ID is in the DB but the Celery task was never
+        # submitted. AsyncResult returns PENDING and the task is adopted and monitored
+        # until task_queued_timeout fires. This is an acceptable trade-off: the window is
+        # small (within a single scheduler loop iteration) and the task is eventually
+        # recovered, whereas the pre-fix behaviour caused duplicate execution.
         #
-        # This process is not perfect -- we could have sent the task to celery, and crashed before we were
-        # able to record the AsyncResult.task_id in the TaskInstance table, in which case we won't adopt the
-        # task (it'll either run and update the TI state, or the scheduler will clear and re-queue it. Either
-        # way it won't get executed more than once)
-        #
-        # (If we swapped it around, and generated a task_id for Celery, stored that in TI and enqueued that
-        # there is also still a race condition where we could generate and store the task_id, but die before
-        # we managed to enqueue the command. Since neither way is perfect we always have to deal with this
-        # process not being perfect.)
+        # Tasks with external_executor_id=None were queued by older scheduler code.
+        # We cannot adopt these — there is no Celery task_id to look up — so they go to
+        # not_adopted_tis and get reset by the caller.
         from celery.result import AsyncResult
 
         celery_tasks = {}
@@ -349,8 +354,8 @@ class CeleryExecutor(BaseExecutor):
             result, ti = celery_tasks[celery_task_id]
             result.backend = cached_celery_backend
             if isinstance(result.result, BaseException):
-                e = result.result
                 # Log the exception we got from the remote end
+                e = result.result
                 self.log.warning("Task %s failed with error", ti.key, exc_info=e)
 
             # Set the correct elements of the state dicts, then update this

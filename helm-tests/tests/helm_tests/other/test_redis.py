@@ -56,8 +56,10 @@ class TestRedis:
         return password_in_obj
 
     @staticmethod
-    def get_broker_url_secret_in_deployment(k8s_obj_by_key, kind: str, name: str) -> str:
-        deployment_obj = k8s_obj_by_key[(kind, f"{RELEASE_NAME_REDIS}-{name}")]
+    def get_broker_url_secret_in_deployment(
+        k8s_obj_by_key, kind: str, name: str, airflow_fullname: str = RELEASE_NAME_REDIS
+    ) -> str:
+        deployment_obj = k8s_obj_by_key[(kind, f"{airflow_fullname}-{name}")]
         containers = deployment_obj["spec"]["template"]["spec"]["containers"]
         container = next(obj for obj in containers if obj["name"] == name)
 
@@ -82,14 +84,17 @@ class TestRedis:
             assert REDIS_OBJECTS["SECRET_BROKER_URL"] not in k8s_obj_by_key.keys()
 
     def assert_broker_url_env(
-        self, k8s_obj_by_key, expected_broker_url_secret_name=REDIS_OBJECTS["SECRET_BROKER_URL"][1]
+        self,
+        k8s_obj_by_key,
+        expected_broker_url_secret_name=REDIS_OBJECTS["SECRET_BROKER_URL"][1],
+        airflow_fullname: str = RELEASE_NAME_REDIS,
     ):
         broker_url_secret_in_scheduler = self.get_broker_url_secret_in_deployment(
-            k8s_obj_by_key, "StatefulSet", "worker"
+            k8s_obj_by_key, "Deployment", "scheduler", airflow_fullname
         )
         assert broker_url_secret_in_scheduler == expected_broker_url_secret_name
         broker_url_secret_in_worker = self.get_broker_url_secret_in_deployment(
-            k8s_obj_by_key, "Deployment", "scheduler"
+            k8s_obj_by_key, "StatefulSet", "worker", airflow_fullname
         )
         assert broker_url_secret_in_worker == expected_broker_url_secret_name
 
@@ -275,6 +280,36 @@ class TestRedis:
         )
 
         self.assert_broker_url_env(k8s_obj_by_key, expected_broker_url_secret_name)
+
+    @pytest.mark.parametrize("executor", CELERY_EXECUTORS_PARAMS)
+    def test_redis_secrets_support_fullname_override(self, executor):
+        fullname_override = "redis-fullname-override"
+        fullname_override_objects = {
+            "NETWORK_POLICY": ("NetworkPolicy", f"{fullname_override}-redis-policy"),
+            "SERVICE": ("Service", f"{fullname_override}-redis"),
+            "STATEFUL_SET": ("StatefulSet", f"{fullname_override}-redis"),
+            "SECRET_PASSWORD": ("Secret", f"{fullname_override}-redis-password"),
+            "SECRET_BROKER_URL": ("Secret", f"{fullname_override}-broker-url"),
+        }
+
+        k8s_objects = render_chart(
+            RELEASE_NAME_REDIS,
+            {
+                "fullnameOverride": fullname_override,
+                "useStandardNaming": True,
+                "networkPolicies": {"enabled": True},
+                "executor": executor,
+                "redis": {"enabled": True},
+            },
+        )
+        k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
+        created_redis_objects = set(fullname_override_objects.values()) & set(k8s_obj_by_key.keys())
+        assert created_redis_objects == set(fullname_override_objects.values())
+        self.assert_broker_url_env(
+            k8s_obj_by_key,
+            expected_broker_url_secret_name=fullname_override_objects["SECRET_BROKER_URL"][1],
+            airflow_fullname=fullname_override,
+        )
 
     def test_default_redis_secrets_created_with_non_celery_executor(self):
         # We want to make sure default redis secrets (if needed) are still

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime, timedelta
 from unittest import mock
@@ -25,8 +26,7 @@ import pytest
 import time_machine
 from sqlalchemy import delete, select
 
-from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.providers.common.compat.sdk import Stats, conf, timezone
+from airflow.providers.common.compat.sdk import Stats, TaskInstanceKey, conf, timezone
 from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
@@ -240,15 +240,15 @@ class TestEdgeExecutor:
                     datetime(2023, 1, 1, 0, 59, 10, tzinfo=timezone.utc),
                 ),
             ]:
-                session.add(
-                    EdgeWorkerModel(
-                        worker_name=worker_name,
-                        state=state,
-                        last_update=last_heartbeat,
-                        queues="",
-                        first_online=timezone.utcnow(),
-                    )
+                ewm = EdgeWorkerModel(
+                    worker_name=worker_name,
+                    state=state,
+                    last_update=last_heartbeat,
+                    queues="",
+                    first_online=timezone.utcnow(),
                 )
+                ewm.sysinfo = {"status": logging.INFO, "status_text": "I am good, sun is shining 🌞"}
+                session.add(ewm)
                 session.commit()
 
         with time_machine.travel(datetime(2023, 1, 1, 1, 0, 0, tzinfo=timezone.utc), tick=False):
@@ -259,13 +259,19 @@ class TestEdgeExecutor:
             for worker in session.scalars(select(EdgeWorkerModel)).all():
                 print(worker.worker_name)
                 if "maintenance_" in worker.worker_name:
-                    EdgeWorkerState.OFFLINE_MAINTENANCE
+                    assert worker.state == EdgeWorkerState.OFFLINE_MAINTENANCE
                 elif "offline_" in worker.worker_name:
                     assert worker.state == EdgeWorkerState.OFFLINE
                 elif "inactive_" in worker.worker_name:
                     assert worker.state == EdgeWorkerState.UNKNOWN
+                    assert worker.sysinfo
+                    assert worker.sysinfo["status"] == logging.NOTSET
+                    assert "status_text" not in worker.sysinfo
                 else:
                     assert worker.state == EdgeWorkerState.IDLE
+                    assert worker.sysinfo
+                    assert worker.sysinfo["status"] == logging.INFO
+                    assert "status_text" in worker.sysinfo
 
     def test_revoke_task(self):
         """Test that revoke_task removes task from executor and database."""

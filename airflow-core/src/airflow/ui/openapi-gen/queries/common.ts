@@ -6,24 +6,27 @@ import { DagRunState, DagWarningType } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetsKey = "AssetServiceGetAssets";
-export const UseAssetServiceGetAssetsKeyFn = ({ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }: {
+export const UseAssetServiceGetAssetsKeyFn = ({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uriPattern, uriPrefixPattern }: {
   dagIds?: string[];
   limit?: number;
   namePattern?: string;
+  namePrefixPattern?: string;
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string[];
   uriPattern?: string;
-} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetsKey, ...(queryKey ?? [{ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }])];
+  uriPrefixPattern?: string;
+} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetsKey, ...(queryKey ?? [{ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uriPattern, uriPrefixPattern }])];
 export type AssetServiceGetAssetAliasesDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetAliases>>;
 export type AssetServiceGetAssetAliasesQueryResult<TData = AssetServiceGetAssetAliasesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetAliasesKey = "AssetServiceGetAssetAliases";
-export const UseAssetServiceGetAssetAliasesKeyFn = ({ limit, namePattern, offset, orderBy }: {
+export const UseAssetServiceGetAssetAliasesKeyFn = ({ limit, namePattern, namePrefixPattern, offset, orderBy }: {
   limit?: number;
   namePattern?: string;
+  namePrefixPattern?: string;
   offset?: number;
   orderBy?: string[];
-} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetAliasesKey, ...(queryKey ?? [{ limit, namePattern, offset, orderBy }])];
+} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetAliasesKey, ...(queryKey ?? [{ limit, namePattern, namePrefixPattern, offset, orderBy }])];
 export type AssetServiceGetAssetAliasDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetAlias>>;
 export type AssetServiceGetAssetAliasQueryResult<TData = AssetServiceGetAssetAliasDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetAliasKey = "AssetServiceGetAssetAlias";
@@ -33,10 +36,11 @@ export const UseAssetServiceGetAssetAliasKeyFn = ({ assetAliasId }: {
 export type AssetServiceGetAssetEventsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetEvents>>;
 export type AssetServiceGetAssetEventsQueryResult<TData = AssetServiceGetAssetEventsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetEventsKey = "AssetServiceGetAssetEvents";
-export const UseAssetServiceGetAssetEventsKeyFn = ({ assetId, limit, namePattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
+export const UseAssetServiceGetAssetEventsKeyFn = ({ assetId, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
   assetId?: number;
   limit?: number;
   namePattern?: string;
+  namePrefixPattern?: string;
   offset?: number;
   orderBy?: string[];
   sourceDagId?: string;
@@ -47,7 +51,7 @@ export const UseAssetServiceGetAssetEventsKeyFn = ({ assetId, limit, namePattern
   timestampGte?: string;
   timestampLt?: string;
   timestampLte?: string;
-} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetEventsKey, ...(queryKey ?? [{ assetId, limit, namePattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }])];
+} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetEventsKey, ...(queryKey ?? [{ assetId, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }])];
 export type AssetServiceGetAssetQueuedEventsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetQueuedEvents>>;
 export type AssetServiceGetAssetQueuedEventsQueryResult<TData = AssetServiceGetAssetQueuedEventsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetQueuedEventsKey = "AssetServiceGetAssetQueuedEvents";
@@ -116,12 +120,13 @@ export const UseConnectionServiceGetConnectionKeyFn = ({ connectionId }: {
 export type ConnectionServiceGetConnectionsDefaultResponse = Awaited<ReturnType<typeof ConnectionService.getConnections>>;
 export type ConnectionServiceGetConnectionsQueryResult<TData = ConnectionServiceGetConnectionsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConnectionServiceGetConnectionsKey = "ConnectionServiceGetConnections";
-export const UseConnectionServiceGetConnectionsKeyFn = ({ connectionIdPattern, limit, offset, orderBy }: {
+export const UseConnectionServiceGetConnectionsKeyFn = ({ connectionIdPattern, connectionIdPrefixPattern, limit, offset, orderBy }: {
   connectionIdPattern?: string;
+  connectionIdPrefixPattern?: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-} = {}, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionsKey, ...(queryKey ?? [{ connectionIdPattern, limit, offset, orderBy }])];
+} = {}, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionsKey, ...(queryKey ?? [{ connectionIdPattern, connectionIdPrefixPattern, limit, offset, orderBy }])];
 export type ConnectionServiceHookMetaDataDefaultResponse = Awaited<ReturnType<typeof ConnectionService.hookMetaData>>;
 export type ConnectionServiceHookMetaDataQueryResult<TData = ConnectionServiceHookMetaDataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConnectionServiceHookMetaDataKey = "ConnectionServiceHookMetaData";
@@ -143,12 +148,14 @@ export const UseDagRunServiceGetUpstreamAssetEventsKeyFn = ({ dagId, dagRunId }:
 export type DagRunServiceGetDagRunsDefaultResponse = Awaited<ReturnType<typeof DagRunService.getDagRuns>>;
 export type DagRunServiceGetDagRunsQueryResult<TData = DagRunServiceGetDagRunsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagRunServiceGetDagRunsKey = "DagRunServiceGetDagRuns";
-export const UseDagRunServiceGetDagRunsKeyFn = ({ bundleVersion, confContains, consumingAssetPattern, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }: {
+export const UseDagRunServiceGetDagRunsKeyFn = ({ bundleVersion, confContains, consumingAssetPattern, cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, partitionKeyPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, triggeringUserNamePrefixPattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }: {
   bundleVersion?: string;
   confContains?: string;
   consumingAssetPattern?: string;
+  cursor?: string;
   dagId: string;
   dagIdPattern?: string;
+  dagIdPrefixPattern?: string;
   dagVersion?: number[];
   durationGt?: number;
   durationGte?: number;
@@ -166,11 +173,13 @@ export const UseDagRunServiceGetDagRunsKeyFn = ({ bundleVersion, confContains, c
   offset?: number;
   orderBy?: string[];
   partitionKeyPattern?: string;
+  partitionKeyPrefixPattern?: string;
   runAfterGt?: string;
   runAfterGte?: string;
   runAfterLt?: string;
   runAfterLte?: string;
   runIdPattern?: string;
+  runIdPrefixPattern?: string;
   runType?: string[];
   startDateGt?: string;
   startDateGte?: string;
@@ -178,11 +187,12 @@ export const UseDagRunServiceGetDagRunsKeyFn = ({ bundleVersion, confContains, c
   startDateLte?: string;
   state?: string[];
   triggeringUserNamePattern?: string;
+  triggeringUserNamePrefixPattern?: string;
   updatedAtGt?: string;
   updatedAtGte?: string;
   updatedAtLt?: string;
   updatedAtLte?: string;
-}, queryKey?: Array<unknown>) => [useDagRunServiceGetDagRunsKey, ...(queryKey ?? [{ bundleVersion, confContains, consumingAssetPattern, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }])];
+}, queryKey?: Array<unknown>) => [useDagRunServiceGetDagRunsKey, ...(queryKey ?? [{ bundleVersion, confContains, consumingAssetPattern, cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, partitionKeyPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, triggeringUserNamePrefixPattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }])];
 export type DagRunServiceWaitDagRunUntilFinishedDefaultResponse = Awaited<ReturnType<typeof DagRunService.waitDagRunUntilFinished>>;
 export type DagRunServiceWaitDagRunUntilFinishedQueryResult<TData = DagRunServiceWaitDagRunUntilFinishedDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagRunServiceWaitDagRunUntilFinishedKey = "DagRunServiceWaitDagRunUntilFinished";
@@ -247,12 +257,14 @@ export const UseDagWarningServiceListDagWarningsKeyFn = ({ dagId, limit, offset,
 export type DagServiceGetDagsDefaultResponse = Awaited<ReturnType<typeof DagService.getDags>>;
 export type DagServiceGetDagsQueryResult<TData = DagServiceGetDagsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetDagsKey = "DagServiceGetDags";
-export const UseDagServiceGetDagsKeyFn = ({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, timetableType }: {
+export const UseDagServiceGetDagsKeyFn = ({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, timetableType }: {
   assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
   dagDisplayNamePattern?: string;
+  dagDisplayNamePrefixPattern?: string;
   dagIdPattern?: string;
+  dagIdPrefixPattern?: string;
   dagRunEndDateGt?: string;
   dagRunEndDateGte?: string;
   dagRunEndDateLt?: string;
@@ -275,7 +287,7 @@ export const UseDagServiceGetDagsKeyFn = ({ assetDependency, bundleName, bundleV
   tags?: string[];
   tagsMatchMode?: "any" | "all";
   timetableType?: string[];
-} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagsKey, ...(queryKey ?? [{ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, timetableType }])];
+} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagsKey, ...(queryKey ?? [{ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, timetableType }])];
 export type DagServiceGetDagDefaultResponse = Awaited<ReturnType<typeof DagService.getDag>>;
 export type DagServiceGetDagQueryResult<TData = DagServiceGetDagDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetDagKey = "DagServiceGetDag";
@@ -291,21 +303,24 @@ export const UseDagServiceGetDagDetailsKeyFn = ({ dagId }: {
 export type DagServiceGetDagTagsDefaultResponse = Awaited<ReturnType<typeof DagService.getDagTags>>;
 export type DagServiceGetDagTagsQueryResult<TData = DagServiceGetDagTagsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetDagTagsKey = "DagServiceGetDagTags";
-export const UseDagServiceGetDagTagsKeyFn = ({ limit, offset, orderBy, tagNamePattern }: {
+export const UseDagServiceGetDagTagsKeyFn = ({ limit, offset, orderBy, tagNamePattern, tagNamePrefixPattern }: {
   limit?: number;
   offset?: number;
   orderBy?: string[];
   tagNamePattern?: string;
-} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagTagsKey, ...(queryKey ?? [{ limit, offset, orderBy, tagNamePattern }])];
+  tagNamePrefixPattern?: string;
+} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagTagsKey, ...(queryKey ?? [{ limit, offset, orderBy, tagNamePattern, tagNamePrefixPattern }])];
 export type DagServiceGetDagsUiDefaultResponse = Awaited<ReturnType<typeof DagService.getDagsUi>>;
 export type DagServiceGetDagsUiQueryResult<TData = DagServiceGetDagsUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetDagsUiKey = "DagServiceGetDagsUi";
-export const UseDagServiceGetDagsUiKeyFn = ({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+export const UseDagServiceGetDagsUiKeyFn = ({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
   assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
   dagDisplayNamePattern?: string;
+  dagDisplayNamePrefixPattern?: string;
   dagIdPattern?: string;
+  dagIdPrefixPattern?: string;
   dagIds?: string[];
   dagRunsLimit?: number;
   excludeStale?: boolean;
@@ -321,7 +336,7 @@ export const UseDagServiceGetDagsUiKeyFn = ({ assetDependency, bundleName, bundl
   paused?: boolean;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
-} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagsUiKey, ...(queryKey ?? [{ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }])];
+} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagsUiKey, ...(queryKey ?? [{ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }])];
 export type DagServiceGetLatestRunInfoDefaultResponse = Awaited<ReturnType<typeof DagService.getLatestRunInfo>>;
 export type DagServiceGetLatestRunInfoQueryResult<TData = DagServiceGetLatestRunInfoDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetLatestRunInfoKey = "DagServiceGetLatestRunInfo";
@@ -337,13 +352,15 @@ export const UseEventLogServiceGetEventLogKeyFn = ({ eventLogId }: {
 export type EventLogServiceGetEventLogsDefaultResponse = Awaited<ReturnType<typeof EventLogService.getEventLogs>>;
 export type EventLogServiceGetEventLogsQueryResult<TData = EventLogServiceGetEventLogsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useEventLogServiceGetEventLogsKey = "EventLogServiceGetEventLogs";
-export const UseEventLogServiceGetEventLogsKeyFn = ({ after, before, dagId, dagIdPattern, event, eventPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerPattern, runId, runIdPattern, taskId, taskIdPattern, tryNumber }: {
+export const UseEventLogServiceGetEventLogsKeyFn = ({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerPattern, ownerPrefixPattern, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, tryNumber }: {
   after?: string;
   before?: string;
   dagId?: string;
   dagIdPattern?: string;
+  dagIdPrefixPattern?: string;
   event?: string;
   eventPattern?: string;
+  eventPrefixPattern?: string;
   excludedEvents?: string[];
   includedEvents?: string[];
   limit?: number;
@@ -352,12 +369,15 @@ export const UseEventLogServiceGetEventLogsKeyFn = ({ after, before, dagId, dagI
   orderBy?: string[];
   owner?: string;
   ownerPattern?: string;
+  ownerPrefixPattern?: string;
   runId?: string;
   runIdPattern?: string;
+  runIdPrefixPattern?: string;
   taskId?: string;
   taskIdPattern?: string;
+  taskIdPrefixPattern?: string;
   tryNumber?: number;
-} = {}, queryKey?: Array<unknown>) => [useEventLogServiceGetEventLogsKey, ...(queryKey ?? [{ after, before, dagId, dagIdPattern, event, eventPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerPattern, runId, runIdPattern, taskId, taskIdPattern, tryNumber }])];
+} = {}, queryKey?: Array<unknown>) => [useEventLogServiceGetEventLogsKey, ...(queryKey ?? [{ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerPattern, ownerPrefixPattern, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, tryNumber }])];
 export type ExtraLinksServiceGetExtraLinksDefaultResponse = Awaited<ReturnType<typeof ExtraLinksService.getExtraLinks>>;
 export type ExtraLinksServiceGetExtraLinksQueryResult<TData = ExtraLinksServiceGetExtraLinksDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useExtraLinksServiceGetExtraLinksKey = "ExtraLinksServiceGetExtraLinks";
@@ -387,7 +407,7 @@ export const UseTaskInstanceServiceGetTaskInstanceKeyFn = ({ dagId, dagRunId, ta
 export type TaskInstanceServiceGetMappedTaskInstancesDefaultResponse = Awaited<ReturnType<typeof TaskInstanceService.getMappedTaskInstances>>;
 export type TaskInstanceServiceGetMappedTaskInstancesQueryResult<TData = TaskInstanceServiceGetMappedTaskInstancesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTaskInstanceServiceGetMappedTaskInstancesKey = "TaskInstanceServiceGetMappedTaskInstances";
-export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = ({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
+export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = ({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
   dagId: string;
   dagRunId: string;
   durationGt?: number;
@@ -408,11 +428,14 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = ({ dagId, dagRu
   offset?: number;
   operator?: string[];
   operatorNamePattern?: string;
+  operatorNamePrefixPattern?: string;
   orderBy?: string[];
   pool?: string[];
   poolNamePattern?: string;
+  poolNamePrefixPattern?: string;
   queue?: string[];
   queueNamePattern?: string;
+  queueNamePrefixPattern?: string;
   runAfterGt?: string;
   runAfterGte?: string;
   runAfterLt?: string;
@@ -429,7 +452,7 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = ({ dagId, dagRu
   updatedAtLt?: string;
   updatedAtLte?: string;
   versionNumber?: number[];
-}, queryKey?: Array<unknown>) => [useTaskInstanceServiceGetMappedTaskInstancesKey, ...(queryKey ?? [{ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }])];
+}, queryKey?: Array<unknown>) => [useTaskInstanceServiceGetMappedTaskInstancesKey, ...(queryKey ?? [{ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }])];
 export type TaskInstanceServiceGetTaskInstanceDependenciesByMapIndexDefaultResponse = Awaited<ReturnType<typeof TaskInstanceService.getTaskInstanceDependenciesByMapIndex>>;
 export type TaskInstanceServiceGetTaskInstanceDependenciesByMapIndexQueryResult<TData = TaskInstanceServiceGetTaskInstanceDependenciesByMapIndexDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKey = "TaskInstanceServiceGetTaskInstanceDependenciesByMapIndex";
@@ -478,9 +501,11 @@ export const UseTaskInstanceServiceGetMappedTaskInstanceKeyFn = ({ dagId, dagRun
 export type TaskInstanceServiceGetTaskInstancesDefaultResponse = Awaited<ReturnType<typeof TaskInstanceService.getTaskInstances>>;
 export type TaskInstanceServiceGetTaskInstancesQueryResult<TData = TaskInstanceServiceGetTaskInstancesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTaskInstanceServiceGetTaskInstancesKey = "TaskInstanceServiceGetTaskInstances";
-export const UseTaskInstanceServiceGetTaskInstancesKeyFn = ({ dagId, dagIdPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskGroupId, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
+export const UseTaskInstanceServiceGetTaskInstancesKeyFn = ({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
+  cursor?: string;
   dagId: string;
   dagIdPattern?: string;
+  dagIdPrefixPattern?: string;
   dagRunId: string;
   durationGt?: number;
   durationGte?: number;
@@ -500,22 +525,27 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = ({ dagId, dagIdPatter
   offset?: number;
   operator?: string[];
   operatorNamePattern?: string;
+  operatorNamePrefixPattern?: string;
   orderBy?: string[];
   pool?: string[];
   poolNamePattern?: string;
+  poolNamePrefixPattern?: string;
   queue?: string[];
   queueNamePattern?: string;
+  queueNamePrefixPattern?: string;
   runAfterGt?: string;
   runAfterGte?: string;
   runAfterLt?: string;
   runAfterLte?: string;
   runIdPattern?: string;
+  runIdPrefixPattern?: string;
   startDateGt?: string;
   startDateGte?: string;
   startDateLt?: string;
   startDateLte?: string;
   state?: string[];
   taskDisplayNamePattern?: string;
+  taskDisplayNamePrefixPattern?: string;
   taskGroupId?: string;
   taskId?: string;
   tryNumber?: number[];
@@ -524,7 +554,7 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = ({ dagId, dagIdPatter
   updatedAtLt?: string;
   updatedAtLte?: string;
   versionNumber?: number[];
-}, queryKey?: Array<unknown>) => [useTaskInstanceServiceGetTaskInstancesKey, ...(queryKey ?? [{ dagId, dagIdPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskGroupId, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }])];
+}, queryKey?: Array<unknown>) => [useTaskInstanceServiceGetTaskInstancesKey, ...(queryKey ?? [{ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }])];
 export type TaskInstanceServiceGetTaskInstanceTryDetailsDefaultResponse = Awaited<ReturnType<typeof TaskInstanceService.getTaskInstanceTryDetails>>;
 export type TaskInstanceServiceGetTaskInstanceTryDetailsQueryResult<TData = TaskInstanceServiceGetTaskInstanceTryDetailsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTaskInstanceServiceGetTaskInstanceTryDetailsKey = "TaskInstanceServiceGetTaskInstanceTryDetails";
@@ -590,7 +620,7 @@ export const UseTaskInstanceServiceGetHitlDetailTryDetailKeyFn = ({ dagId, dagRu
 export type TaskInstanceServiceGetHitlDetailsDefaultResponse = Awaited<ReturnType<typeof TaskInstanceService.getHitlDetails>>;
 export type TaskInstanceServiceGetHitlDetailsQueryResult<TData = TaskInstanceServiceGetHitlDetailsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTaskInstanceServiceGetHitlDetailsKey = "TaskInstanceServiceGetHitlDetails";
-export const UseTaskInstanceServiceGetHitlDetailsKeyFn = ({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }: {
+export const UseTaskInstanceServiceGetHitlDetailsKeyFn = ({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern }: {
   bodySearch?: string;
   createdAtGt?: string;
   createdAtGte?: string;
@@ -598,6 +628,7 @@ export const UseTaskInstanceServiceGetHitlDetailsKeyFn = ({ bodySearch, createdA
   createdAtLte?: string;
   dagId: string;
   dagIdPattern?: string;
+  dagIdPrefixPattern?: string;
   dagRunId: string;
   limit?: number;
   mapIndex?: number;
@@ -610,7 +641,8 @@ export const UseTaskInstanceServiceGetHitlDetailsKeyFn = ({ bodySearch, createdA
   subjectSearch?: string;
   taskId?: string;
   taskIdPattern?: string;
-}, queryKey?: Array<unknown>) => [useTaskInstanceServiceGetHitlDetailsKey, ...(queryKey ?? [{ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }])];
+  taskIdPrefixPattern?: string;
+}, queryKey?: Array<unknown>) => [useTaskInstanceServiceGetHitlDetailsKey, ...(queryKey ?? [{ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern }])];
 export type ImportErrorServiceGetImportErrorDefaultResponse = Awaited<ReturnType<typeof ImportErrorService.getImportError>>;
 export type ImportErrorServiceGetImportErrorQueryResult<TData = ImportErrorServiceGetImportErrorDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useImportErrorServiceGetImportErrorKey = "ImportErrorServiceGetImportError";
@@ -620,12 +652,13 @@ export const UseImportErrorServiceGetImportErrorKeyFn = ({ importErrorId }: {
 export type ImportErrorServiceGetImportErrorsDefaultResponse = Awaited<ReturnType<typeof ImportErrorService.getImportErrors>>;
 export type ImportErrorServiceGetImportErrorsQueryResult<TData = ImportErrorServiceGetImportErrorsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useImportErrorServiceGetImportErrorsKey = "ImportErrorServiceGetImportErrors";
-export const UseImportErrorServiceGetImportErrorsKeyFn = ({ filenamePattern, limit, offset, orderBy }: {
+export const UseImportErrorServiceGetImportErrorsKeyFn = ({ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
   filenamePattern?: string;
+  filenamePrefixPattern?: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-} = {}, queryKey?: Array<unknown>) => [useImportErrorServiceGetImportErrorsKey, ...(queryKey ?? [{ filenamePattern, limit, offset, orderBy }])];
+} = {}, queryKey?: Array<unknown>) => [useImportErrorServiceGetImportErrorsKey, ...(queryKey ?? [{ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }])];
 export type JobServiceGetJobsDefaultResponse = Awaited<ReturnType<typeof JobService.getJobs>>;
 export type JobServiceGetJobsQueryResult<TData = JobServiceGetJobsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useJobServiceGetJobsKey = "JobServiceGetJobs";
@@ -667,12 +700,13 @@ export const UsePoolServiceGetPoolKeyFn = ({ poolName }: {
 export type PoolServiceGetPoolsDefaultResponse = Awaited<ReturnType<typeof PoolService.getPools>>;
 export type PoolServiceGetPoolsQueryResult<TData = PoolServiceGetPoolsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const usePoolServiceGetPoolsKey = "PoolServiceGetPools";
-export const UsePoolServiceGetPoolsKeyFn = ({ limit, offset, orderBy, poolNamePattern }: {
+export const UsePoolServiceGetPoolsKeyFn = ({ limit, offset, orderBy, poolNamePattern, poolNamePrefixPattern }: {
   limit?: number;
   offset?: number;
   orderBy?: string[];
   poolNamePattern?: string;
-} = {}, queryKey?: Array<unknown>) => [usePoolServiceGetPoolsKey, ...(queryKey ?? [{ limit, offset, orderBy, poolNamePattern }])];
+  poolNamePrefixPattern?: string;
+} = {}, queryKey?: Array<unknown>) => [usePoolServiceGetPoolsKey, ...(queryKey ?? [{ limit, offset, orderBy, poolNamePattern, poolNamePrefixPattern }])];
 export type ProviderServiceGetProvidersDefaultResponse = Awaited<ReturnType<typeof ProviderService.getProviders>>;
 export type ProviderServiceGetProvidersQueryResult<TData = ProviderServiceGetProvidersDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useProviderServiceGetProvidersKey = "ProviderServiceGetProviders";
@@ -695,8 +729,9 @@ export const UseXcomServiceGetXcomEntryKeyFn = ({ dagId, dagRunId, deserialize, 
 export type XcomServiceGetXcomEntriesDefaultResponse = Awaited<ReturnType<typeof XcomService.getXcomEntries>>;
 export type XcomServiceGetXcomEntriesQueryResult<TData = XcomServiceGetXcomEntriesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useXcomServiceGetXcomEntriesKey = "XcomServiceGetXcomEntries";
-export const UseXcomServiceGetXcomEntriesKeyFn = ({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKey, xcomKeyPattern }: {
+export const UseXcomServiceGetXcomEntriesKeyFn = ({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }: {
   dagDisplayNamePattern?: string;
+  dagDisplayNamePrefixPattern?: string;
   dagId: string;
   dagRunId: string;
   limit?: number;
@@ -707,16 +742,20 @@ export const UseXcomServiceGetXcomEntriesKeyFn = ({ dagDisplayNamePattern, dagId
   mapIndex?: number;
   mapIndexFilter?: number;
   offset?: number;
+  orderBy?: string[];
   runAfterGt?: string;
   runAfterGte?: string;
   runAfterLt?: string;
   runAfterLte?: string;
   runIdPattern?: string;
+  runIdPrefixPattern?: string;
   taskId: string;
   taskIdPattern?: string;
+  taskIdPrefixPattern?: string;
   xcomKey?: string;
   xcomKeyPattern?: string;
-}, queryKey?: Array<unknown>) => [useXcomServiceGetXcomEntriesKey, ...(queryKey ?? [{ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKey, xcomKeyPattern }])];
+  xcomKeyPrefixPattern?: string;
+}, queryKey?: Array<unknown>) => [useXcomServiceGetXcomEntriesKey, ...(queryKey ?? [{ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }])];
 export type TaskServiceGetTasksDefaultResponse = Awaited<ReturnType<typeof TaskService.getTasks>>;
 export type TaskServiceGetTasksQueryResult<TData = TaskServiceGetTasksDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTaskServiceGetTasksKey = "TaskServiceGetTasks";
@@ -740,12 +779,13 @@ export const UseVariableServiceGetVariableKeyFn = ({ variableKey }: {
 export type VariableServiceGetVariablesDefaultResponse = Awaited<ReturnType<typeof VariableService.getVariables>>;
 export type VariableServiceGetVariablesQueryResult<TData = VariableServiceGetVariablesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useVariableServiceGetVariablesKey = "VariableServiceGetVariables";
-export const UseVariableServiceGetVariablesKeyFn = ({ limit, offset, orderBy, variableKeyPattern }: {
+export const UseVariableServiceGetVariablesKeyFn = ({ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }: {
   limit?: number;
   offset?: number;
   orderBy?: string[];
   variableKeyPattern?: string;
-} = {}, queryKey?: Array<unknown>) => [useVariableServiceGetVariablesKey, ...(queryKey ?? [{ limit, offset, orderBy, variableKeyPattern }])];
+  variableKeyPrefixPattern?: string;
+} = {}, queryKey?: Array<unknown>) => [useVariableServiceGetVariablesKey, ...(queryKey ?? [{ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }])];
 export type DagVersionServiceGetDagVersionDefaultResponse = Awaited<ReturnType<typeof DagVersionService.getDagVersion>>;
 export type DagVersionServiceGetDagVersionQueryResult<TData = DagVersionServiceGetDagVersionDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagVersionServiceGetDagVersionKey = "DagVersionServiceGetDagVersion";
@@ -866,7 +906,7 @@ export const UseStructureServiceStructureDataKeyFn = ({ dagId, depth, externalDe
 export type GridServiceGetDagStructureDefaultResponse = Awaited<ReturnType<typeof GridService.getDagStructure>>;
 export type GridServiceGetDagStructureQueryResult<TData = GridServiceGetDagStructureDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useGridServiceGetDagStructureKey = "GridServiceGetDagStructure";
-export const UseGridServiceGetDagStructureKeyFn = ({ dagId, depth, includeDownstream, includeUpstream, limit, offset, orderBy, root, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, state, triggeringUser }: {
+export const UseGridServiceGetDagStructureKeyFn = ({ dagId, depth, includeDownstream, includeUpstream, limit, offset, orderBy, root, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, state, triggeringUser, triggeringUserPrefix }: {
   dagId: string;
   depth?: number;
   includeDownstream?: boolean;
@@ -882,11 +922,12 @@ export const UseGridServiceGetDagStructureKeyFn = ({ dagId, depth, includeDownst
   runType?: string[];
   state?: string[];
   triggeringUser?: string;
-}, queryKey?: Array<unknown>) => [useGridServiceGetDagStructureKey, ...(queryKey ?? [{ dagId, depth, includeDownstream, includeUpstream, limit, offset, orderBy, root, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, state, triggeringUser }])];
+  triggeringUserPrefix?: string;
+}, queryKey?: Array<unknown>) => [useGridServiceGetDagStructureKey, ...(queryKey ?? [{ dagId, depth, includeDownstream, includeUpstream, limit, offset, orderBy, root, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, state, triggeringUser, triggeringUserPrefix }])];
 export type GridServiceGetGridRunsDefaultResponse = Awaited<ReturnType<typeof GridService.getGridRuns>>;
 export type GridServiceGetGridRunsQueryResult<TData = GridServiceGetGridRunsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useGridServiceGetGridRunsKey = "GridServiceGetGridRuns";
-export const UseGridServiceGetGridRunsKeyFn = ({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, state, triggeringUser }: {
+export const UseGridServiceGetGridRunsKeyFn = ({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, state, triggeringUser, triggeringUserPrefix }: {
   dagId: string;
   limit?: number;
   offset?: number;
@@ -898,7 +939,8 @@ export const UseGridServiceGetGridRunsKeyFn = ({ dagId, limit, offset, orderBy, 
   runType?: string[];
   state?: string[];
   triggeringUser?: string;
-}, queryKey?: Array<unknown>) => [useGridServiceGetGridRunsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, state, triggeringUser }])];
+  triggeringUserPrefix?: string;
+}, queryKey?: Array<unknown>) => [useGridServiceGetGridRunsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, state, triggeringUser, triggeringUserPrefix }])];
 export type GridServiceGetGridTiSummariesStreamDefaultResponse = Awaited<ReturnType<typeof GridService.getGridTiSummariesStream>>;
 export type GridServiceGetGridTiSummariesStreamQueryResult<TData = GridServiceGetGridTiSummariesStreamDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useGridServiceGetGridTiSummariesStreamKey = "GridServiceGetGridTiSummariesStream";

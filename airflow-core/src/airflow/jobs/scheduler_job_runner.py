@@ -33,7 +33,7 @@ from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
 
-from sqlalchemy import CTE, and_, delete, exists, func, inspect, or_, select, text, tuple_, update
+from sqlalchemy import CTE, and_, case, delete, exists, func, inspect, or_, select, text, tuple_, update
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -98,6 +98,7 @@ from airflow.utils.sqlalchemy import (
     get_dialect_name,
     is_lock_not_available_error,
     prohibit_commit,
+    random_db_uuid,
     with_row_locks,
 )
 from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
@@ -909,18 +910,65 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             filter_for_tis = TI.filter_for_tis(executable_tis)
             if filter_for_tis is None:
                 return []
-            session.execute(
+
+            queued_values: dict[str, Any] = {
+                "state": TaskInstanceState.QUEUED,
+                "queued_dttm": timezone.utcnow(),
+                "queued_by_job_id": self.job.id,
+            }
+
+            # Pre-assign external_executor_id atomically with the QUEUED state so it
+            # survives a scheduler crash. Only done when an executor opts in via
+            # pre_assigns_external_executor_id (e.g. CeleryExecutor uses it as the
+            # Celery task_id passed to apply_async). In mixed-executor deployments,
+            # a CASE expression limits the UUID to TIs targeting an opt-in executor.
+            pre_assign_executors = {e for e in self.executors if e.pre_assigns_external_executor_id}
+            if pre_assign_executors == set(self.executors):
+                # All executors opt in — unconditional UUID for every TI.
+                queued_values["external_executor_id"] = random_db_uuid()
+            elif pre_assign_executors:
+                # Mixed — only TIs routed to an opt-in executor get a UUID.
+                opt_in_names: set[str] = set()
+                default_opts_in = self.executor in pre_assign_executors
+                for exc in pre_assign_executors:
+                    if exc.name:
+                        if exc.name.alias:
+                            opt_in_names.add(exc.name.alias)
+                        opt_in_names.add(exc.name.module_path)
+                whens = []
+                if opt_in_names:
+                    whens.append((TI.executor.in_(opt_in_names), random_db_uuid()))
+                if default_opts_in:
+                    whens.append((TI.executor.is_(None), random_db_uuid()))
+                if whens:
+                    queued_values["external_executor_id"] = case(*whens, else_=TI.external_executor_id)
+
+            queued_update = (
                 update(TI)
                 .where(filter_for_tis)
-                .values(
-                    # TODO[ha]: should we use func.now()? How does that work with DB timezone
-                    # on mysql when it's not UTC?
-                    state=TaskInstanceState.QUEUED,
-                    queued_dttm=timezone.utcnow(),
-                    queued_by_job_id=self.job.id,
-                )
+                .values(**queued_values)
                 .execution_options(synchronize_session=False)
             )
+
+            if pre_assign_executors:
+                # Read the DB-generated UUIDs back onto the in-memory objects so the
+                # workload DTO carries them through to send_workload_to_executor (the
+                # objects are about to be detached by make_transient). Use RETURNING
+                # where supported (PostgreSQL); fall back to a SELECT for MySQL and
+                # SQLite (RETURNING requires SQLite 3.35+ which isn't guaranteed).
+                if get_dialect_name(session) == "postgresql":
+                    result = session.execute(queued_update.returning(TI.id, TI.external_executor_id))
+                    id_map = {row[0]: row[1] for row in result}
+                else:
+                    session.execute(queued_update)
+                    id_rows = session.execute(
+                        select(TI.id, TI.external_executor_id).where(filter_for_tis)
+                    ).all()
+                    id_map = {row[0]: row[1] for row in id_rows}
+                for ti in executable_tis:
+                    ti.external_executor_id = id_map.get(ti.id)
+            else:
+                session.execute(queued_update)
 
             for ti in executable_tis:
                 ti.emit_state_change_metric(TaskInstanceState.QUEUED)
@@ -971,9 +1019,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
 
             self.log.debug(
-                "Queueing workload for TI: %s id=%s try_number=%d state=%s scheduler_job_id=%s executor=%s",
+                "Queueing workload for TI: %s try_number=%d state=%s scheduler_job_id=%s executor=%s",
                 ti,
-                ti.id,
                 ti.try_number,
                 ti.state,
                 self.job.id,
@@ -1250,12 +1297,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if ti.try_number != try_number:
                 cls.logger().warning(
                     "TI try_number mismatch: db_try_number=%d event_try_number=%d "
-                    "ti=%s ti_id=%s state=%s job_id=%s. "
+                    "ti=%s state=%s job_id=%s. "
                     "Another scheduler may have already modified this TI.",
                     ti.try_number,
                     try_number,
                     ti,
-                    ti.id,
                     ti.state,
                     job_id,
                 )
@@ -1267,7 +1313,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
 
             msg = (
-                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
+                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, ti_id=%s, "
                 "run_start_date=%s, run_end_date=%s, "
                 "run_duration=%s, state=%s, executor=%s, executor_state=%s, try_number=%s, max_tries=%s, "
                 "pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, scheduled_dttm=%s,"
@@ -1279,6 +1325,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.task_id,
                 ti.run_id,
                 ti.map_index,
+                ti.id,
                 ti.start_date,
                 ti.end_date,
                 ti.duration,
@@ -1387,7 +1434,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Handle cleared tasks that were successfully terminated by executor
                 if ti.state == TaskInstanceState.RESTARTING and state == TaskInstanceState.SUCCESS:
                     cls.logger().info(
-                        "Task %s was cleared and successfully terminated. Setting to scheduled for retry.", ti
+                        "Task %s was cleared and successfully terminated. Setting to scheduled for retry.",
+                        ti,
                     )
                     # Adjust max_tries to allow retry beyond normal limits (like clearing does)
                     ti.max_tries = ti.try_number + ti.task.retries
@@ -2766,7 +2814,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         .where(Job.state.is_distinct_from(JobState.RUNNING))
                         .join(TI.dag_run)
                         .where(DagRun.state == DagRunState.RUNNING)
-                        .options(load_only(TI.dag_id, TI.task_id, TI.run_id))
+                        .options(load_only(TI.dag_id, TI.task_id, TI.run_id, TI.external_executor_id))
                     )
 
                     # Lock these rows, so that another scheduler can't try and adopt these too

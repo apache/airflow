@@ -84,6 +84,11 @@ from airflow.sdk.execution_time.comms import (
     _new_encoder,
     _RequestFrame,
 )
+from airflow.sdk.execution_time.request_handlers import (
+    handle_get_connection,
+    handle_get_variable,
+    handle_mask_secret,
+)
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.serialization.serialized_objects import DagSerialization
@@ -105,6 +110,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
+# Private sentinel passed as the cancel message when a trigger is cancelled by user action
+_USER_ACTION_CANCEL_MSG = "__airflow_user_action__"
+
+_ON_CANCEL_TIMEOUT: int = conf.getint("triggerer", "on_kill_timeout", fallback=30)
 
 
 def _make_trigger_span(
@@ -447,14 +456,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import (
-            ConnectionResponse,
             TaskStatesResponse,
-            VariableResponse,
             XComResponse,
         )
 
         resp: BaseModel | None = None
-        dump_opts = {}
+        dump_opts: dict[str, bool] = {}
 
         if isinstance(msg, messages.TriggerStateChanges):
             if msg.events:
@@ -482,29 +489,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp = response
 
         elif isinstance(msg, GetConnection):
-            conn = self.client.connections.get(msg.conn_id)
-            if isinstance(conn, ConnectionResponse):
-                conn_result = ConnectionResult.from_conn_response(conn)
-                resp = conn_result
-                # `by_alias=True` is used to convert the `schema` field to `schema_` in the Connection model
-                dump_opts = {"exclude_unset": True, "by_alias": True}
-            else:
-                resp = conn
+            resp, dump_opts = handle_get_connection(self.client, msg)
         elif isinstance(msg, DeleteVariable):
             resp = self.client.variables.delete(msg.key)
         elif isinstance(msg, GetVariable):
-            var = self.client.variables.get(msg.key)
-            if isinstance(var, VariableResponse):
-                # TODO: call for help to figure out why this is needed
-                if var.value:
-                    from airflow.sdk.log import mask_secret
-
-                    mask_secret(var.value, var.key)
-                var_result = VariableResult.from_variable_response(var)
-                resp = var_result
-                dump_opts = {"exclude_unset": True}
-            else:
-                resp = var
+            resp, dump_opts = handle_get_variable(self.client, msg)
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, DeleteXCom):
@@ -583,9 +572,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             api_resp = self.client.hitl.get_detail_response(ti_id=msg.ti_id)
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
         elif isinstance(msg, MaskSecret):
-            from airflow.sdk.log import mask_secret
-
-            mask_secret(msg.value, msg.name)
+            handle_mask_secret(msg)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
@@ -883,12 +870,14 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
     def _read_frame(self):
         from asgiref.sync import async_to_sync
 
-        return async_to_sync(self._aread_frame)()
+        with self._thread_lock:
+            return async_to_sync(self._aread_frame)()
 
     def send(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
         from asgiref.sync import async_to_sync
 
-        return async_to_sync(self.asend)(msg)
+        with self._thread_lock:
+            return async_to_sync(self.asend)(msg)
 
     async def _aread_frame(self):
         try:
@@ -1135,12 +1124,15 @@ class TriggerRunner:
         Drain the to_cancel queue and ensure all triggers that are not in the DB are cancelled.
 
         This allows the cleanup job to delete them.
+        Passes "user-action" as the cancel message so that run_trigger() knows to invoke
+        on_kill(). Triggers in this queue are always removed because this is the path in which
+        the user performed some action on the task. Trigger redistribution goes through a separate
+        path.
         """
         while self.to_cancel:
             trigger_id = self.to_cancel.popleft()
             if trigger_id in self.triggers:
-                # We only delete if it did not exit already
-                self.triggers[trigger_id]["task"].cancel()
+                self.triggers[trigger_id]["task"].cancel(_USER_ACTION_CANCEL_MSG)
             await asyncio.sleep(0)
 
     async def cleanup_finished_triggers(self) -> list[int]:
@@ -1303,7 +1295,16 @@ class TriggerRunner:
 
             await greenback.ensure_portal()
 
-        bind_log_contextvars(trigger_id=trigger_id)
+        ti = trigger.task_instance
+        bind_log_contextvars(
+            trigger_id=trigger_id,
+            ti_id=str(ti.id) if ti else None,
+            dag_id=ti.dag_id if ti else None,
+            task_id=ti.task_id if ti else None,
+            run_id=ti.run_id if ti else None,
+            try_number=ti.try_number if ti else None,
+            map_index=ti.map_index if ti else None,
+        )
 
         name = self.triggers[trigger_id]["name"]
         self.log.info("trigger %s starting", name)
@@ -1320,14 +1321,32 @@ class TriggerRunner:
                     self.events.append((trigger_id, event))
                 span.set_status(Status(StatusCode.OK))
             except asyncio.CancelledError as e:
-                # We get cancelled by the scheduler changing the task state. But if we do lets give a nice error
-                # message about it
+                # A trigger can be cancelled for two reasons:
+                #   - The user acted on the task (mark failed / clear / mark succeeded).
+                #   - The triggerer is shutting down, here cancel_triggers() is not
+                #     involved — the shutdown path cancels tasks directly without a message.
+                # Only first case should invoke on_kill().
+                #
+                # For timeout, raise immediately without calling on_kill().
                 if timeout := timeout_after:
                     timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
                     if timeout < timezone.utcnow():
                         await self.log.aerror("Trigger cancelled due to timeout")
                         span.set_status(Status(StatusCode.ERROR), description=str(e))
                         raise
+                if e.args and e.args[0] == _USER_ACTION_CANCEL_MSG:
+                    await self.log.ainfo("Trigger cancelled by user action, invoking on_kill", name=name)
+                    try:
+                        await asyncio.wait_for(trigger.on_kill(), timeout=_ON_CANCEL_TIMEOUT)
+                    except TimeoutError:
+                        await self.log.awarning("on_kill() timed out", timeout=_ON_CANCEL_TIMEOUT, name=name)
+                    except asyncio.CancelledError:
+                        # on_kill() was itself cancelled (e.g. triggerer shutting down
+                        # while on_kill() was running). Swallow it so the outer
+                        # CancelledError (variable `e`) can be re-raised below.
+                        pass
+                    except Exception:
+                        await self.log.awarning("on_kill() raised an exception", name=name, exc_info=True)
                 span.set_status(Status(StatusCode.OK), description=str(e))
                 raise
             except Exception as e:

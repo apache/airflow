@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -24,7 +25,9 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy import delete, select
 
+from airflow import __version__ as airflow_version
 from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.edge3 import __version__ as edge_provider_version
 from airflow.providers.edge3.cli.worker import EdgeWorker
 from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerModel,
@@ -46,6 +49,16 @@ pytestmark = pytest.mark.db_test
 
 
 class TestWorkerApiRoutes:
+    MOCK_SYSINFO: dict[str, str | int | float | datetime] = {
+        "status": 20,
+        "airflow_version": airflow_version,
+        "edge_provider_version": edge_provider_version,
+        "python_version": "3.10.17 (main, Apr  9 2025, 04:03:39) [Clang 20.1.0 ]",
+        "worker_start_time": "2026-04-18T21:10:42.714344",
+        "concurrency": 8,
+        "free_concurrency": 8,
+    }
+
     @pytest.fixture
     def cli_worker(self, tmp_path: Path) -> EdgeWorker:
         test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
@@ -88,7 +101,7 @@ class TestWorkerApiRoutes:
             state=EdgeWorkerState.STARTING,
             jobs_active=0,
             queues=input_queues,
-            sysinfo=cli_worker._get_sysinfo(),
+            sysinfo=self.MOCK_SYSINFO,
         )
         register("test_worker", body, session)
         session.commit()
@@ -107,7 +120,7 @@ class TestWorkerApiRoutes:
             state=EdgeWorkerState.STARTING,
             jobs_active=0,
             queues=["default"],
-            sysinfo=cli_worker._get_sysinfo(),
+            sysinfo=self.MOCK_SYSINFO,
             team_name="team_a",
         )
         register("test_worker", body, session)
@@ -137,7 +150,7 @@ class TestWorkerApiRoutes:
             state=EdgeWorkerState.STARTING,
             jobs_active=0,
             queues=["default"],
-            sysinfo=cli_worker._get_sysinfo(),
+            sysinfo=self.MOCK_SYSINFO,
             team_name="team_b",
         )
         with pytest.raises(HTTPException) as exc_info:
@@ -163,7 +176,7 @@ class TestWorkerApiRoutes:
             state=EdgeWorkerState.STARTING,
             jobs_active=0,
             queues=["default"],
-            sysinfo=cli_worker._get_sysinfo(),
+            sysinfo=self.MOCK_SYSINFO,
             team_name="team_b",
         )
         register("test_worker", body, session)
@@ -206,7 +219,7 @@ class TestWorkerApiRoutes:
             state=EdgeWorkerState.STARTING,
             jobs_active=0,
             queues=["default"],
-            sysinfo=cli_worker._get_sysinfo(),
+            sysinfo=self.MOCK_SYSINFO,
         )
 
         if should_raise:
@@ -315,7 +328,7 @@ class TestWorkerApiRoutes:
             state=EdgeWorkerState.RUNNING,
             jobs_active=1,
             queues=["default2"],
-            sysinfo=cli_worker._get_sysinfo(),
+            sysinfo=self.MOCK_SYSINFO,
         )
         return_queues = set_state("test2_worker", body, session).queues
 
@@ -342,7 +355,7 @@ class TestWorkerApiRoutes:
             state=EdgeWorkerState.RUNNING,
             jobs_active=0,
             queues=["default"],
-            sysinfo=cli_worker._get_sysinfo(),
+            sysinfo=self.MOCK_SYSINFO,
         )
         result = set_state("test2_worker", body, session)
         assert result.concurrency == 16
@@ -364,7 +377,7 @@ class TestWorkerApiRoutes:
             state=EdgeWorkerState.RUNNING,
             jobs_active=0,
             queues=["default"],
-            sysinfo=cli_worker._get_sysinfo(),
+            sysinfo=self.MOCK_SYSINFO,
         )
         result = set_state("test2_worker", body, session)
         assert result.concurrency is None

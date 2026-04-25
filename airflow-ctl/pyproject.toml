@@ -29,12 +29,15 @@ requires-python = ">=3.10,!=3.15"
 dependencies = [
     # TODO there could be still missing deps such as airflow-core
     "argcomplete>=1.10",
-    "httpx>=0.27.0",
+    # Remove the <1.0 cap after migrating to httpx 1.x (ground-up API rewrite — no HTTPStatusError etc.);
+    # tracked at https://github.com/apache/airflow/issues/65609
+    "httpx>=0.27.0,<1.0",
     "keyring>=25.7.0",
     "lazy-object-proxy>=1.2.0",
     "methodtools>=0.4.7",
     "platformdirs>=4.3.6",
     "pydantic>=2.11.0", # https://github.com/apache/airflow/issues/56482
+    "pyyaml>=6.0.3",
     "rich-argparse>=1.0.0",
     "structlog>=25.4.0",
     "uuid6>=2024.7.10",
@@ -73,7 +76,7 @@ apache-airflow-ctl = "airflowctl.__main__:main"
 [build-system]
 requires = [
     "hatchling==1.29.0",
-    "packaging==26.0",
+    "packaging==26.1",
     "pathspec==1.0.4",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
@@ -151,6 +154,10 @@ codegen = [
 ]
 
 # uv run --verbose --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --url="http://0.0.0.0:28080/auth/openapi.json" --output=src/airflowctl/api/datamodels/auth_generated.py
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]
+
 [tool.datamodel-codegen]
 capitalise-enum-members=true # `State.RUNNING` not `State.running`
 disable-timestamp=true

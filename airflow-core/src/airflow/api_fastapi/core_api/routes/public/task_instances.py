@@ -27,13 +27,19 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.cursors import (
+    apply_cursor_filter,
+    encode_cursor,
+    make_backward_cursor,
+    parse_cursor,
+)
 from airflow.api_fastapi.common.dagbag import (
     DagBagDep,
     get_dag_for_run,
     get_dag_for_run_or_latest_version,
     get_latest_version_of_dag,
 )
-from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -47,24 +53,31 @@ from airflow.api_fastapi.common.parameters import (
     QueryTIMapIndexFilter,
     QueryTIOperatorFilter,
     QueryTIOperatorNamePatternSearch,
+    QueryTIOperatorNamePrefixPatternSearch,
     QueryTIPoolFilter,
     QueryTIPoolNamePatternSearch,
+    QueryTIPoolNamePrefixPatternSearch,
     QueryTIQueueFilter,
     QueryTIQueueNamePatternSearch,
+    QueryTIQueueNamePrefixPatternSearch,
     QueryTIStateFilter,
     QueryTITaskDisplayNamePatternSearch,
+    QueryTITaskDisplayNamePrefixPatternSearch,
     QueryTITaskGroupFilter,
     QueryTITryNumberFilter,
     Range,
     RangeFilter,
     SortParam,
+    _PrefixSearchParam,
     _SearchParam,
     datetime_range_filter_factory,
     filter_param_factory,
     float_range_filter_factory,
+    prefix_search_param_factory,
     search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.task_instance_history import (
     TaskInstanceHistoryCollectionResponse,
@@ -156,13 +169,16 @@ def get_mapped_task_instances(
     state: QueryTIStateFilter,
     pool: QueryTIPoolFilter,
     pool_name_pattern: QueryTIPoolNamePatternSearch,
+    pool_name_prefix_pattern: QueryTIPoolNamePrefixPatternSearch,
     queue: QueryTIQueueFilter,
     queue_name_pattern: QueryTIQueueNamePatternSearch,
+    queue_name_prefix_pattern: QueryTIQueueNamePrefixPatternSearch,
     executor: QueryTIExecutorFilter,
     version_number: QueryTIDagVersionFilter,
     try_number: QueryTITryNumberFilter,
     operator: QueryTIOperatorFilter,
     operator_name_pattern: QueryTIOperatorNamePatternSearch,
+    operator_name_prefix_pattern: QueryTIOperatorNamePrefixPatternSearch,
     map_index: QueryTIMapIndexFilter,
     limit: QueryLimit,
     offset: QueryOffset,
@@ -229,13 +245,16 @@ def get_mapped_task_instances(
             state,
             pool,
             pool_name_pattern,
+            pool_name_prefix_pattern,
             queue,
             queue_name_pattern,
+            queue_name_prefix_pattern,
             executor,
             version_number,
             try_number,
             operator,
             operator_name_pattern,
+            operator_name_prefix_pattern,
             map_index,
         ],
         order_by=order_by,
@@ -423,19 +442,31 @@ def get_task_instances(
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
     task_display_name_pattern: QueryTITaskDisplayNamePatternSearch,
+    task_display_name_prefix_pattern: QueryTITaskDisplayNamePrefixPatternSearch,
     task_group_id: QueryTITaskGroupFilter,
     dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(TI.dag_id, "dag_id_pattern"))],
+    dag_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(TI.dag_id, "dag_id_prefix_pattern")),
+    ],
     run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(TI.run_id, "run_id_pattern"))],
+    run_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(TI.run_id, "run_id_prefix_pattern")),
+    ],
     state: QueryTIStateFilter,
     pool: QueryTIPoolFilter,
     pool_name_pattern: QueryTIPoolNamePatternSearch,
+    pool_name_prefix_pattern: QueryTIPoolNamePrefixPatternSearch,
     queue: QueryTIQueueFilter,
     queue_name_pattern: QueryTIQueueNamePatternSearch,
+    queue_name_prefix_pattern: QueryTIQueueNamePrefixPatternSearch,
     executor: QueryTIExecutorFilter,
     version_number: QueryTIDagVersionFilter,
     try_number: QueryTITryNumberFilter,
     operator: QueryTIOperatorFilter,
     operator_name_pattern: QueryTIOperatorNamePatternSearch,
+    operator_name_prefix_pattern: QueryTIOperatorNamePrefixPatternSearch,
     map_index: QueryTIMapIndexFilter,
     limit: QueryLimit,
     offset: QueryOffset,
@@ -470,13 +501,29 @@ def get_task_instances(
     ],
     readable_ti_filter: ReadableTIFilterDep,
     session: SessionDep,
+    cursor: str | None = Query(
+        None,
+        description="Cursor for keyset-based pagination. "
+        "Pass an empty string for the first page, then use ``next_cursor`` from the response. "
+        "When ``cursor`` is provided, ``offset`` is ignored.",
+    ),
 ) -> TaskInstanceCollectionResponse:
     """
     Get list of task instances.
 
-    This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
-    and DAG runs.
+    This endpoint allows specifying `~` as the dag_id, dag_run_id
+    to retrieve task instances for all DAGs and DAG runs.
+
+    Supports two pagination modes:
+
+    **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+
+    **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
+    When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
+    ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
+    on the first page.
     """
+    use_cursor = cursor is not None
     dag_run = None
     query = eager_load_TI_and_TIH_for_validation(select(TI))
     if dag_run_id != "~":
@@ -498,40 +545,90 @@ def get_task_instances(
         if dag:
             task_group_id.dag = dag
 
+    filters: list[OrmClause] = [
+        run_after_range,
+        logical_date_range,
+        start_date_range,
+        end_date_range,
+        update_at_range,
+        duration_range,
+        state,
+        pool,
+        pool_name_pattern,
+        pool_name_prefix_pattern,
+        queue,
+        queue_name_pattern,
+        queue_name_prefix_pattern,
+        executor,
+        task_id,
+        task_display_name_pattern,
+        task_display_name_prefix_pattern,
+        task_group_id,
+        dag_id_pattern,
+        dag_id_prefix_pattern,
+        run_id_pattern,
+        run_id_prefix_pattern,
+        version_number,
+        readable_ti_filter,
+        try_number,
+        operator,
+        operator_name_pattern,
+        operator_name_prefix_pattern,
+        map_index,
+    ]
+
+    if use_cursor:
+        # Fetch one extra row so we can detect whether a next page exists.
+        page_limit = cast(
+            "int", limit.value
+        )  # LimitFilter value is guaranteed to be set to the default value of QueryLimit
+        cursor_limit = LimitFilter().set_value(page_limit + 1)
+        task_instance_select = apply_filters_to_select(
+            statement=query, filters=[*filters, order_by, cursor_limit]
+        )
+
+        is_backward = False
+        if cursor:
+            token, is_backward = parse_cursor(cursor)
+            if is_backward:
+                task_instance_select = order_by.to_orm(task_instance_select, reversed=True)
+            task_instance_select = apply_cursor_filter(
+                task_instance_select, token, order_by, is_backward=is_backward
+            )
+
+        fetched = list(session.scalars(task_instance_select))
+        has_more = len(fetched) > page_limit
+        task_instances = fetched[:page_limit]
+
+        if is_backward:
+            task_instances.reverse()
+            has_prev = has_more
+            has_next = True
+        else:
+            has_prev = bool(cursor)
+            has_next = has_more
+
+        return TaskInstanceCollectionResponse(
+            task_instances=task_instances,
+            next_cursor=(
+                encode_cursor(task_instances[-1], order_by) if has_next and task_instances else None
+            ),
+            previous_cursor=(
+                make_backward_cursor(encode_cursor(task_instances[0], order_by))
+                if has_prev and task_instances
+                else None
+            ),
+        )
+
     task_instance_select, total_entries = paginated_select(
         statement=query,
-        filters=[
-            run_after_range,
-            logical_date_range,
-            start_date_range,
-            end_date_range,
-            update_at_range,
-            duration_range,
-            state,
-            pool,
-            pool_name_pattern,
-            queue,
-            queue_name_pattern,
-            executor,
-            task_id,
-            task_display_name_pattern,
-            task_group_id,
-            dag_id_pattern,
-            run_id_pattern,
-            version_number,
-            readable_ti_filter,
-            try_number,
-            operator,
-            operator_name_pattern,
-            map_index,
-        ],
+        filters=filters,
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
-
-    task_instances = session.scalars(task_instance_select)
+    task_instances = list(session.scalars(task_instance_select))
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
         total_entries=total_entries,
