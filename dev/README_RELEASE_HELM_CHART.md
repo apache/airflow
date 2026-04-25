@@ -1027,7 +1027,7 @@ I invite everyone to help improve the chart for the next release, a list of open
 
 ## Update issue template with the new release
 
-Updating issue templates in `.github/ISSUE_TEMPLATE/4-airflow_helmchart_bug_report.yml` with the new version
+Updating issue templates in `.github/ISSUE_TEMPLATE/1-airflow_bug_report.yml.yml` with the new version
 
 ## Announce the release on the community slack
 
