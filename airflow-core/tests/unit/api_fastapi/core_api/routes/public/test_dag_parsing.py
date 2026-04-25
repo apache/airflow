@@ -108,9 +108,9 @@ class TestReparseDagEndpoint:
         assert response.status_code == 201
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert len(parsing_requests) == 1
-        assert parsing_requests[0].bundle_name == test_dag.bundle_name
+        assert parsing_requests[0].bundle_name == "dags-folder"
         assert parsing_requests[0].relative_fileloc == test_dag.relative_fileloc
-        _check_last_log(session, dag_id=None, event="reparse_dag", logical_date=None)
+        _check_last_log(session, dag_id=TEST_DAG_ID, event="reparse_dag", logical_date=None)
 
         # Same DAG already queued — primary key collision -> 409 via integrity error handler.
         response = test_client.put(url, headers={"Accept": "application/json"})
