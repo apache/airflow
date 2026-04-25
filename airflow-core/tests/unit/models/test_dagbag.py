@@ -44,16 +44,17 @@ class TestDBDagBag:
         self.session = MagicMock()
 
     def test__read_dag_stores_and_returns_dag(self):
-        """It should store the SerializedDAG in _dags and return it."""
+        """It should store the (SerializedDAG, dag_hash) tuple in _dags and return the dag."""
         mock_dag = MagicMock(spec=SerializedDAG)
         mock_serdag = MagicMock(spec=SerializedDagModel)
         mock_serdag.dag = mock_dag
         mock_serdag.dag_version_id = "v1"
+        mock_serdag.dag_hash = "h1"
 
         result = self.db_dag_bag._read_dag(mock_serdag)
 
         assert result == mock_dag
-        assert self.db_dag_bag._dags["v1"] == mock_dag
+        assert self.db_dag_bag._dags["v1"] == (mock_dag, "h1")
         assert mock_serdag.load_op_links is True
 
     def test__read_dag_returns_none_when_no_dag(self):
@@ -83,9 +84,14 @@ class TestDBDagBag:
         assert result == mock_dag
 
     def test_get_dag_returns_cached_on_hit(self):
-        """It should return cached DAG without querying DB."""
+        """It should return cached DAG without re-loading the full row from DB.
+
+        A cheap ``dag_hash`` lookup is still issued to detect in-place updates
+        (issue #65696), but the heavy ``session.get(DagVersion, ...)`` is skipped.
+        """
         mock_dag = MagicMock(spec=SerializedDAG)
-        self.db_dag_bag._dags["v1"] = mock_dag
+        self.db_dag_bag._dags["v1"] = (mock_dag, "h1")
+        self.session.scalar.return_value = "h1"
 
         result = self.db_dag_bag.get_dag("v1", session=self.session)
 
@@ -99,6 +105,54 @@ class TestDBDagBag:
         result = self.db_dag_bag.get_dag("v1", session=self.session)
 
         assert result is None
+
+    def test_get_dag_invalidates_cache_when_dag_hash_changes_in_place(self):
+        """Regression test for issue #65696.
+
+        ``SerializedDagModel.write_dag`` updates the serialized DAG in-place under the
+        same ``dag_version_id`` when the version has no associated task instances. Long-lived
+        ``DBDagBag`` instances (e.g. the scheduler's ``self.scheduler_dag_bag``) cache by
+        ``dag_version_id`` and previously had no staleness check, so the scheduler kept
+        returning the stale cached ``SerializedDAG`` until restart.
+
+        The fix: cache the ``dag_hash`` alongside the deserialized DAG and compare against
+        the current DB ``dag_hash`` on each cache lookup. A mismatch triggers re-deserialization.
+        """
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        # First read: cache the original DAG with its hash
+        original_dag = MagicMock(spec=SerializedDAG)
+        original_serdag = MagicMock(spec=SerializedDagModel)
+        original_serdag.dag = original_dag
+        original_serdag.dag_version_id = "v1"
+        original_serdag.dag_hash = "hash_original"
+        original_dag_version = MagicMock()
+        original_dag_version.serialized_dag = original_serdag
+        self.session.get.return_value = original_dag_version
+
+        first = self.db_dag_bag.get_dag("v1", session=self.session)
+        assert first is original_dag
+
+        # Simulate write_dag in-place update: same dag_version_id, new content + hash
+        updated_dag = MagicMock(spec=SerializedDAG)
+        updated_serdag = MagicMock(spec=SerializedDagModel)
+        updated_serdag.dag = updated_dag
+        updated_serdag.dag_version_id = "v1"
+        updated_serdag.dag_hash = "hash_updated"
+        updated_dag_version = MagicMock()
+        updated_dag_version.serialized_dag = updated_serdag
+
+        # Configure session: scalar() returns the new hash; get() returns the new full row.
+        self.session.scalar.return_value = "hash_updated"
+        self.session.get.return_value = updated_dag_version
+
+        second = self.db_dag_bag.get_dag("v1", session=self.session)
+
+        # Should NOT be the stale cached original
+        assert second is updated_dag, (
+            "DBDagBag returned stale cached SerializedDAG after in-place update of dag_version "
+            "(see issue #65696)"
+        )
 
 
 class TestDBDagBagCache:
@@ -257,7 +311,10 @@ class TestDBDagBagCache:
         """Test that cache hit metric is emitted when caching is enabled."""
         dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
         mock_session = MagicMock()
-        dag_bag._dags["test_version"] = MagicMock()
+        mock_dag = MagicMock()
+        dag_bag._dags["test_version"] = (mock_dag, "h")
+        # Hash matches so the cache entry is considered fresh.
+        mock_session.scalar.return_value = "h"
 
         dag_bag._get_dag("test_version", mock_session)
 

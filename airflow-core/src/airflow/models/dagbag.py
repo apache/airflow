@@ -67,7 +67,11 @@ class DBDagBag:
         :param cache_ttl: Time-to-live for cache entries in seconds. If None or 0, no TTL (LRU only).
         """
         self.load_op_links = load_op_links
-        self._dags: MutableMapping[UUID | str, SerializedDAG] = {}
+        # Cache value is (deserialized_dag, dag_hash). The hash is checked against the DB
+        # on every lookup to detect in-place updates of the SerializedDagModel under the
+        # same dag_version_id (see ``SerializedDagModel.write_dag`` fast-path for versions
+        # with no associated task instances). See issue #65696.
+        self._dags: MutableMapping[UUID | str, tuple[SerializedDAG, str]] = {}
         self._use_cache = False
 
         # Initialize bounded cache if cache_size is provided and > 0
@@ -90,21 +94,44 @@ class DBDagBag:
         if not dag:
             return None
         with self._lock:
-            self._dags[serdag.dag_version_id] = dag
+            self._dags[serdag.dag_version_id] = (dag, serdag.dag_hash)
             cache_size = len(self._dags)
         if self._use_cache:
             Stats.gauge("api_server.dag_bag.cache_size", cache_size, rate=0.1)
         return dag
 
+    def _current_db_hash(self, version_id: UUID | str, session: Session) -> str | None:
+        """
+        Fetch the current ``dag_hash`` for a ``dag_version_id`` from the DB.
+
+        Cheap single-column lookup used to detect stale cache entries when
+        ``SerializedDagModel`` rows are updated in-place under the same
+        ``dag_version_id`` (issue #65696).
+        """
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        return session.scalar(
+            select(SerializedDagModel.dag_hash).where(SerializedDagModel.dag_version_id == version_id)
+        )
+
     def _get_dag(self, version_id: UUID | str, session: Session) -> SerializedDAG | None:
         # Check cache first
         with self._lock:
-            dag = self._dags.get(version_id)
+            cached = self._dags.get(version_id)
 
-        if dag:
-            if self._use_cache:
-                Stats.incr("api_server.dag_bag.cache_hit")
-            return dag
+        if cached is not None:
+            cached_dag, cached_hash = cached
+            # Verify the cache entry is still fresh. ``SerializedDagModel.write_dag``
+            # may update the row in-place under the same dag_version_id, leaving our
+            # cached deserialized DAG stale (issue #65696).
+            current_hash = self._current_db_hash(version_id, session)
+            if current_hash is not None and current_hash == cached_hash:
+                if self._use_cache:
+                    Stats.incr("api_server.dag_bag.cache_hit")
+                return cached_dag
+            # Stale or removed: drop the entry and fall through to a fresh load.
+            with self._lock:
+                self._dags.pop(version_id, None)
 
         dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
         if not dag_version:
@@ -117,9 +144,10 @@ class DBDagBag:
         # counting a single lookup as both a miss and a hit.
         if self._use_cache:
             with self._lock:
-                if dag := self._dags.get(version_id):
-                    Stats.incr("api_server.dag_bag.cache_hit")
-                    return dag
+                cached = self._dags.get(version_id)
+            if cached is not None and cached[1] == serdag.dag_hash:
+                Stats.incr("api_server.dag_bag.cache_hit")
+                return cached[0]
             Stats.incr("api_server.dag_bag.cache_miss")
         return self._read_dag(serdag)
 
