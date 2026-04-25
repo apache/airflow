@@ -56,7 +56,6 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TaskInstanceState,
     TaskStatesResponse,
-    VariableResponse,
     XComSequenceIndexResponse,
 )
 from airflow.sdk.configuration import conf
@@ -116,14 +115,17 @@ from airflow.sdk.execution_time.comms import (
     ToSupervisor,
     TriggerDagRun,
     ValidateInletsAndOutlets,
-    VariableResult,
     XComResult,
     XComSequenceIndexResult,
     XComSequenceSliceResult,
     _RequestFrame,
     _ResponseFrame,
 )
-from airflow.sdk.log import mask_secret
+from airflow.sdk.execution_time.request_handlers import (
+    handle_get_connection,
+    handle_get_variable,
+    handle_mask_secret,
+)
 
 try:
     from socket import send_fds
@@ -195,10 +197,18 @@ Note: Only Linux-based distros supported as "Production" execution environment f
 
 macOS
 -----
- 1. Due to limitations in Apple's libraries not every process might 'fork' safe.
-    One of the general error is unable to query the macOS system configuration for network proxies.
-    If your are not using a proxy you could disable it by set environment variable 'no_proxy' to '*'.
-    See: https://github.com/python/cpython/issues/58037 and https://bugs.python.org/issue30385#msg293958
+ Apple's Objective-C runtime and system frameworks (Security.framework,
+ CoreFoundation, libdispatch) are not safe to use after fork() without exec().
+ Airflow's task supervisor uses fork+exec on macOS to avoid this, but other
+ code paths (DAG processor, triggerer) still use bare fork.  If you see
+ crashes mentioning "+[NSNumber initialize]" or "_scproxy", the most likely
+ cause is a bare fork touching Apple frameworks.
+
+ Common triggers: socket.getaddrinfo (DNS resolver), urllib proxy lookup,
+ SSL context initialization via Security.framework.
+
+ See: https://github.com/python/cpython/issues/105912
+      https://github.com/python/cpython/issues/58037
 ********************************************************************************************************"""
 
 
@@ -441,6 +451,55 @@ def _fork_main(
             exit(125)
 
 
+_FORK_EXEC_PLATFORMS = {"darwin"}
+"""Platforms where we fork+exec instead of bare ``os.fork`` for task execution.
+
+macOS system libraries (Security.framework, CoreFoundation, ``_scproxy``) use
+Objective-C, which is not fork-safe.  A bare ``os.fork()`` copies the parent's
+ObjC runtime state; if the child then triggers ObjC class initialization
+(e.g. via ``socket.getaddrinfo`` -> system DNS resolver -> proxy lookup), the
+runtime detects the corrupted state and crashes with SIGABRT.
+
+Calling ``os.execv`` immediately after ``os.fork`` replaces the child's address
+space, giving it clean ObjC state.  Before exec, the supervisor ``dup2``s the
+socketpairs onto FDs 0 (requests/stdin), 1 (stdout), 2 (stderr).  The duplicated
+FDs survive the upcoming exec because ``os.dup2(inheritable=True)`` (the default)
+clears ``FD_CLOEXEC`` on the destination FDs.  The log channel is obtained after
+startup via the existing ``ResendLoggingFD`` mechanism.
+
+Currently only task execution opts in (via ``ActivitySubprocess.start``).  DAG
+processor and triggerer can also hit this crash and will need the same treatment
+as a follow-up (see https://github.com/apache/airflow/issues/65691).
+
+See: https://github.com/python/cpython/issues/105912
+     https://github.com/apache/airflow/discussions/24463
+"""
+
+
+def _child_exec_main():
+    """
+    Entry point for the child process when using fork+exec (macOS).
+
+    After exec, FDs 0/1/2 are already the requests/stdout/stderr sockets
+    (dup2'd by the parent before exec).  The log channel is NOT inherited;
+    instead, the task runner requests it from the supervisor via the existing
+    ``ResendLoggingFD`` mechanism after startup.
+    """
+    # FDs 0, 1, 2 were dup2'd onto the socketpairs before exec.
+    child_requests = socket(fileno=0)
+    child_stdout = socket(fileno=1)
+    child_stderr = socket(fileno=2)
+
+    # _fork_main always exits via os._exit(), so the socket objects above are
+    # never GC'd (which would close their underlying FDs). This is safe but
+    # depends on that invariant -- do not refactor _fork_main to return.
+    #
+    # log_fd=0 tells _fork_main to skip structured log channel setup.
+    # Signal to the task runner to request it via ResendLoggingFD after startup.
+    os.environ["_AIRFLOW_FORK_EXEC"] = "1"
+    _fork_main(child_requests, child_stdout, child_stderr, 0, _subprocess_main)
+
+
 @attrs.define(kw_only=True)
 class WatchedSubprocess:
     """
@@ -488,9 +547,24 @@ class WatchedSubprocess:
         *,
         target: Callable[[], None] = _subprocess_main,
         logger: FilteringBoundLogger | None = None,
+        use_exec: bool = False,
         **constructor_kwargs,
     ) -> Self:
-        """Fork and start a new subprocess with the specified target function."""
+        """
+        Fork and start a new subprocess with the specified target function.
+
+        :param use_exec: If True, on platforms that need it (currently macOS),
+            immediately ``os.execv`` a fresh Python interpreter after ``os.fork``.
+            This avoids macOS fork-safety issues with Objective-C frameworks.
+            Task execution opts in; DAG processor and triggerer do not.
+
+        The exec'd child always runs ``_subprocess_main``, so ``use_exec=True``
+        is only valid when ``target is _subprocess_main``.
+        """
+        if use_exec and target is not _subprocess_main:
+            raise ValueError(
+                f"use_exec=True is only supported with target=_subprocess_main; got target={target!r}"
+            )
         # Create socketpairs/"pipes" to connect to the stdin and out from the subprocess
         child_stdout, read_stdout = socketpair()
         child_stderr, read_stderr = socketpair()
@@ -512,14 +586,34 @@ class WatchedSubprocess:
             del logger
 
             try:
-                # Run the child entrypoint
-                _fork_main(child_requests, child_stdout, child_stderr, child_logs.fileno(), target)
+                if use_exec:
+                    # macOS: exec a fresh Python interpreter to replace the
+                    # inherited ObjC/CoreFoundation state that is not fork-safe.
+                    # dup2 copies the socketpairs onto FDs 0/1/2; os.dup2 clears
+                    # FD_CLOEXEC on the destination FDs, so they survive exec.
+                    # The log channel is requested later via ResendLoggingFD.
+                    os.dup2(child_requests.fileno(), 0)
+                    os.dup2(child_stdout.fileno(), 1)
+                    os.dup2(child_stderr.fileno(), 2)
+                    os.execv(
+                        sys.executable,
+                        [
+                            sys.executable,
+                            "-c",
+                            "from airflow.sdk.execution_time.supervisor import _child_exec_main;"
+                            " _child_exec_main()",
+                        ],
+                    )
+                    # execv replaces the process -- unreachable on success
+                else:
+                    # Run the child entrypoint
+                    _fork_main(child_requests, child_stdout, child_stderr, child_logs.fileno(), target)
             except BaseException as e:
                 import traceback
 
                 with suppress(BaseException):
-                    # We can't use log here, as if we except out of _fork_main something _weird_ went on.
-                    print("Exception in _fork_main, exiting with code 124", file=sys.stderr)
+                    # We can't use log here, as if we except out of the child something _weird_ went on.
+                    print("Exception in child process, exiting with code 124", file=sys.stderr)
                     traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
 
             # It's really super super important we never exit this block. We are in the forked child, and if we
@@ -908,6 +1002,33 @@ def _fetch_remote_logging_conn(conn_id: str, client: Client) -> Connection | Non
 
 
 @contextlib.contextmanager
+def _ensure_client(
+    server: str | None,
+    token: str,
+    client: Client | None = None,
+    dry_run: bool = False,
+) -> Generator[Client, None, None]:
+    """
+    Yield an API client, creating one if not provided.
+
+    If a client is created internally, it will be closed when the context exits.
+    Pre-existing clients are yielded as-is and left open for the caller to manage.
+    """
+    if client:
+        yield client
+        return
+
+    limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
+    new_client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
+    log.debug("Connecting to execution API server", server=server)
+    try:
+        yield new_client
+    finally:
+        with suppress(Exception):
+            new_client.close()
+
+
+@contextlib.contextmanager
 def _remote_logging_conn(client: Client):
     """
     Pre-fetch the needed remote logging connection with caching.
@@ -1007,7 +1128,13 @@ class ActivitySubprocess(WatchedSubprocess):
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
-        proc: Self = super().start(id=what.id, client=client, target=target, logger=logger, **kwargs)
+        # Opt in to fork+exec on platforms that need it (currently macOS).
+        # Tests override `target` with a local stub to exercise the base
+        # infrastructure; keep bare fork for those.
+        use_exec = target is _subprocess_main and sys.platform in _FORK_EXEC_PLATFORMS
+        proc: Self = super().start(
+            id=what.id, client=client, target=target, logger=logger, use_exec=use_exec, **kwargs
+        )
         # Tell the task process what it needs to do!
         proc._on_child_started(
             ti=what,
@@ -1265,7 +1392,7 @@ class ActivitySubprocess(WatchedSubprocess):
         else:
             log.debug("Received message from task runner", msg=msg)
         resp: BaseModel | None = None
-        dump_opts = {}
+        dump_opts: dict[str, bool] = {}
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
@@ -1291,27 +1418,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 rendered_map_index=self._rendered_map_index,
             )
         elif isinstance(msg, GetConnection):
-            conn = self.client.connections.get(msg.conn_id)
-            if isinstance(conn, ConnectionResponse):
-                if conn.password:
-                    mask_secret(conn.password)
-                if conn.extra:
-                    mask_secret(conn.extra)
-                conn_result = ConnectionResult.from_conn_response(conn)
-                resp = conn_result
-                dump_opts = {"exclude_unset": True, "by_alias": True}
-            else:
-                resp = conn
+            resp, dump_opts = handle_get_connection(self.client, msg)
         elif isinstance(msg, GetVariable):
-            var = self.client.variables.get(msg.key)
-            if isinstance(var, VariableResponse):
-                if var.value:
-                    mask_secret(var.value, var.key)
-                var_result = VariableResult.from_variable_response(var)
-                resp = var_result
-                dump_opts = {"exclude_unset": True}
-            else:
-                resp = var
+            resp, dump_opts = handle_get_variable(self.client, msg)
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
@@ -1497,7 +1606,7 @@ class ActivitySubprocess(WatchedSubprocess):
             resp = HITLDetailRequestResult.from_api_response(hitl_detail_request)
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, MaskSecret):
-            mask_secret(msg.value, msg.name)
+            handle_mask_secret(msg)
         elif isinstance(msg, GetDag):
             dag = self.client.dags.get(
                 dag_id=msg.dag_id,
@@ -2092,58 +2201,49 @@ def supervise_task(
     if not dag_rel_path:
         raise ValueError("dag_path is required")
 
-    close_client = False
-    if not client:
-        limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
-        client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
-        close_client = True
-        log.debug("Connecting to execution API server", server=server)
+    with _ensure_client(server, token, client=client, dry_run=dry_run) as client:
+        start = time.monotonic()
 
-    start = time.monotonic()
+        # TODO: Use logging providers to handle the chunked upload for us etc.
+        logger: FilteringBoundLogger | None = None
+        log_file_descriptor: BinaryIO | TextIO | None = None
+        if log_path:
+            logger, log_file_descriptor = _configure_logging(log_path, client)
 
-    # TODO: Use logging providers to handle the chunked upload for us etc.
-    logger: FilteringBoundLogger | None = None
-    log_file_descriptor: BinaryIO | TextIO | None = None
-    if log_path:
-        logger, log_file_descriptor = _configure_logging(log_path, client)
-
-    backends = ensure_secrets_backend_loaded()
-    log.info(
-        "Secrets backends loaded for worker",
-        count=len(backends),
-        backend_classes=[type(b).__name__ for b in backends],
-    )
-
-    reset_secrets_masker()
-
-    try:
-        process = ActivitySubprocess.start(
-            dag_rel_path=dag_rel_path,
-            what=ti,
-            client=client,
-            logger=logger,
-            bundle_info=bundle_info,
-            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
-            sentry_integration=sentry_integration,
-        )
-
-        exit_code = process.wait()
-        end = time.monotonic()
+        backends = ensure_secrets_backend_loaded()
         log.info(
-            "Workload finished",
-            workload_type="ExecuteTask",
-            workload_id=str(ti.id),
-            exit_code=exit_code,
-            duration=end - start,
-            final_state=process.final_state,
+            "Secrets backends loaded for worker",
+            count=len(backends),
+            backend_classes=[type(b).__name__ for b in backends],
         )
-        return exit_code
-    finally:
-        if log_path and log_file_descriptor:
-            log_file_descriptor.close()
-        if close_client and client:
-            with suppress(Exception):
-                client.close()
+
+        reset_secrets_masker()
+
+        try:
+            process = ActivitySubprocess.start(
+                dag_rel_path=dag_rel_path,
+                what=ti,
+                client=client,
+                logger=logger,
+                bundle_info=bundle_info,
+                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                sentry_integration=sentry_integration,
+            )
+
+            exit_code = process.wait()
+            end = time.monotonic()
+            log.info(
+                "Workload finished",
+                workload_type="ExecuteTask",
+                workload_id=str(ti.id),
+                exit_code=exit_code,
+                duration=end - start,
+                final_state=process.final_state,
+            )
+            return exit_code
+        finally:
+            if log_path and log_file_descriptor:
+                log_file_descriptor.close()
 
 
 def supervise(**kwargs) -> int:

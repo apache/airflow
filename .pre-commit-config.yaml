@@ -245,6 +245,7 @@ repos:
         files: >
           (?x)
           ^pyproject\.toml$|
+          ^dev/breeze/src/airflow_breeze/utils/check_release_files\.py$|
           ^dev/breeze/tests/test_environment_check\.py$
         require_serial: true
       - id: check-distribution-gitignore

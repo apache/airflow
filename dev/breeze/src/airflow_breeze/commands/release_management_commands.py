@@ -112,6 +112,7 @@ from airflow_breeze.prepare_providers.provider_distributions import (
     PrepareReleasePackageTagExistException,
     PrepareReleasePackageWrongSetupException,
     build_provider_distribution,
+    check_flit_worktree_compatibility,
     cleanup_build_remnants,
     get_packages_list_to_act_on,
     move_built_distributions_and_cleanup,
@@ -1157,6 +1158,11 @@ def prepare_provider_distributions(
     version_suffix: str,
 ):
     perform_environment_checks()
+    # Workaround for pypa/flit#798 (fix PR pypa/flit#799) plus the Breeze
+    # Docker-mount case. Remove this call and the helper it invokes once
+    # the conditions in the tracking issue are met:
+    # https://github.com/apache/airflow/issues/65772
+    check_flit_worktree_compatibility(distribution_format)
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     console_print("\n[info]Cleaning generated _api folders from docs directories")
@@ -2457,13 +2463,14 @@ def get_suffix_from_package_in_dist(dist_files: list[str], package: str) -> str 
     return None
 
 
-def get_prs_for_package(provider_id: str) -> list[int]:
+def get_prs_for_package(provider_id: str, current_release_version: str | None = None) -> list[int]:
     pr_matcher = re.compile(r".*\(#([0-9]*)\)``$")
     prs = []
-    provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
-    if not provider_yaml_dict:
-        raise RuntimeError(f"The provider id {provider_id} does not have provider.yaml file")
-    current_release_version = provider_yaml_dict["versions"][0]
+    if current_release_version is None:
+        provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
+        if not provider_yaml_dict:
+            raise RuntimeError(f"The provider id {provider_id} does not have provider.yaml file")
+        current_release_version = provider_yaml_dict["versions"][0]
     provider_details = get_provider_details(provider_id)
     changelog_lines = provider_details.changelog_path.read_text().splitlines()
     extract_prs = False
@@ -2486,6 +2493,25 @@ def get_prs_for_package(provider_id: str) -> list[int]:
             if match_result:
                 prs.append(int(match_result.group(1)))
     return prs
+
+
+def _is_initial_provider_release(provider_yaml_dict: dict[str, Any] | None) -> bool:
+    """Return True when metadata indicates this is the provider's first release."""
+    if not provider_yaml_dict:
+        return False
+    versions = provider_yaml_dict.get("versions", [])
+    return len(versions) == 1
+
+
+def _should_include_provider_in_issue(
+    provider_yaml_dict: dict[str, Any] | None,
+    prs_for_current_release: list[int],
+    prs_after_exclusions: list[int],
+) -> bool:
+    """Return True when provider should be included in provider testing issue."""
+    return bool(prs_after_exclusions) or (
+        _is_initial_provider_release(provider_yaml_dict) and not prs_for_current_release
+    )
 
 
 def create_github_issue_url(title: str, body: str, labels: Iterable[str]) -> str:
@@ -2595,19 +2621,21 @@ def generate_issue_content_providers(
         version: str
         pr_list: list[PullRequest.PullRequest | Issue.Issue]
         suffix: str
+        is_new: bool
 
     if not provider_distributions:
         provider_distributions = list(get_provider_dependencies().keys())
     with ci_group("Generates GitHub issue content with people who can test it"):
+        provider_distributions_metadata = get_provider_distributions_metadata()
         if excluded_pr_list:
-            excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
+            excluded_prs = {int(pr) for pr in excluded_pr_list.split(",")}
         else:
-            excluded_prs = []
+            excluded_prs = set()
         commented_prs = get_commented_out_prs_from_provider_changelogs()
         console_print(
             "[info]Automatically excluding {len(commented_prs)} PRs that are only commented out in changelog:"
         )
-        excluded_prs.extend(commented_prs)
+        excluded_prs.update(commented_prs)
         all_prs: set[int] = set()
         all_retrieved_prs: set[int] = set()
         provider_prs: dict[str, list[int]] = {}
@@ -2620,15 +2648,23 @@ def generate_issue_content_providers(
             else:
                 console_print(f"Skipping extracting PRs for provider {provider_id} as it is missing in dist")
                 continue
-            prs = get_prs_for_package(provider_id)
-            if not prs:
+            provider_yaml_dict = provider_distributions_metadata.get(provider_id)
+            if not provider_yaml_dict:
+                raise RuntimeError(f"The provider id {provider_id} does not have provider.yaml file")
+            prs = get_prs_for_package(provider_id, current_release_version=provider_yaml_dict["versions"][0])
+            filtered_prs = [pr for pr in prs if pr not in excluded_prs]
+            if not _should_include_provider_in_issue(provider_yaml_dict, prs, filtered_prs):
                 console_print(
                     f"[warning]Skipping provider {provider_id}. "
-                    "The changelog file doesn't contain any PRs for the release.\n"
+                    "The changelog file does not contain PR references for the release.\n"
                 )
                 continue
+            if not prs and _is_initial_provider_release(provider_yaml_dict):
+                console_print(
+                    f"[info]Including provider {provider_id}: initial release without PR references in changelog."
+                )
             all_prs.update(prs)
-            provider_prs[provider_id] = [pr for pr in prs if pr not in excluded_prs]
+            provider_prs[provider_id] = filtered_prs
             all_retrieved_prs.update(provider_prs[provider_id])
         if not github_token:
             # Get GitHub token from gh CLI and set it in environment copy
@@ -2651,8 +2687,8 @@ def generate_issue_content_providers(
             f"Retrieving {all_retrieved_prs_len} (excluded {all_prs_len - all_retrieved_prs_len})"
         )
         console_print(f"Retrieved PRs: {all_retrieved_prs}")
-        excluded_prs = sorted(set(all_prs) - set(all_retrieved_prs))
-        console_print(f"Excluded PRs: {excluded_prs}")
+        excluded_prs_for_report = sorted(set(all_prs) - set(all_retrieved_prs))
+        console_print(f"Excluded PRs: {excluded_prs_for_report}")
         with Progress(console=get_console(), disable=disable_progress) as progress:
             task = progress.add_task(f"Retrieving {all_retrieved_prs_len} PRs ", total=all_retrieved_prs_len)
             for pr_number in all_retrieved_prs:
@@ -2701,25 +2737,26 @@ def generate_issue_content_providers(
                                 f"Failed to retrieve linked issue #{linked_issue_number}: Unknown Issue"
                             )
                 progress.advance(task)
-        get_provider_distributions_metadata.cache_clear()
         providers: dict[str, ProviderPRInfo] = {}
         for provider_id in prepared_package_ids:
             if provider_id not in provider_prs:
                 continue
             pull_request_list = [pull_requests[pr] for pr in provider_prs[provider_id] if pr in pull_requests]
-            provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
-            if pull_request_list:
-                if only_available_in_dist:
-                    package_suffix = get_suffix_from_package_in_dist(files_in_dist, provider_id)
-                else:
-                    package_suffix = ""
-                providers[provider_id] = ProviderPRInfo(
-                    version=provider_yaml_dict["versions"][0],
-                    provider_id=provider_id,
-                    pypi_package_name=provider_yaml_dict["package-name"],
-                    pr_list=pull_request_list,
-                    suffix=package_suffix if package_suffix else "",
-                )
+            provider_yaml_dict = provider_distributions_metadata.get(provider_id)
+            if not provider_yaml_dict:
+                continue
+            if only_available_in_dist:
+                package_suffix = get_suffix_from_package_in_dist(files_in_dist, provider_id)
+            else:
+                package_suffix = ""
+            providers[provider_id] = ProviderPRInfo(
+                version=provider_yaml_dict["versions"][0],
+                provider_id=provider_id,
+                pypi_package_name=provider_yaml_dict["package-name"],
+                pr_list=pull_request_list,
+                suffix=package_suffix if package_suffix else "",
+                is_new=_is_initial_provider_release(provider_yaml_dict),
+            )
         template = jinja2.Template(
             (Path(__file__).parents[1] / "provider_issue_TEMPLATE.md.jinja2").read_text()
         )

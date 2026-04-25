@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-04-06"
+API_VERSION: Final[str] = "2026-04-17"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -647,6 +647,7 @@ class DagRun(BaseModel):
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     note: Annotated[str | None, Field(title="Note")] = None
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class TIRunContext(BaseModel):
