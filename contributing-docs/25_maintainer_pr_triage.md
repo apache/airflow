@@ -46,6 +46,61 @@ keeping the maintainer firmly in control of every decision.
   review threads, main-branch failure patterns, and LLM assessments into a single
   interactive session, maintainers can make faster and more consistent decisions.
 
+## Why the first pass is automated
+
+The triage workflow is deliberately split so that the **first pass is AI-assisted
+automation** and the **subsequent review and merge decisions are made by human
+maintainers**. This split is not an accident of the tooling — it is a choice about
+where a maintainer's time is most valuable.
+
+Apache Airflow is a volunteer-driven project. Maintainer attention is the scarcest
+resource on the project, and every minute a maintainer spends on mechanical checks
+("did CI pass?", "is this PR rebased?", "are there unresolved review threads?",
+"is the title descriptive?") is a minute not spent on the things only a human can
+do: understanding a contributor's intent, talking through design tradeoffs, mentoring
+new contributors, and making the judgement calls that move a PR from "technically
+green" to "ready to merge".
+
+The automated first pass therefore exists to **free up maintainer time for the
+human conversation**. Concretely:
+
+- **Deterministic checks are automated** — CI status, merge conflicts, unresolved
+  review threads, rebase status, and "have I already triaged this PR?" are all
+  things a tool can evaluate faster and more consistently than a human scrolling
+  through the PR queue.
+- **AI drafts the contributor-facing explanations** — When a PR needs to be
+  converted to draft or have its issues listed back to the author, the comment is
+  drafted by an AI-assisted tool using templates the project has tuned over time.
+  This keeps tone consistent across the project and removes the "blank page"
+  problem for the maintainer.
+- **Every mutation is still maintainer-confirmed** — The tool proposes; the
+  maintainer disposes. No comment is posted, no PR is drafted, no workflow is
+  approved without a maintainer explicitly confirming the action in the
+  interactive session.
+- **Human maintainers take over for the actual review** — Once a PR clears the
+  automated first pass (earning the `ready for maintainer review` label), a
+  human maintainer takes over for the substantive code review, the discussion
+  of design alternatives, and the merge decision. The AI does not merge PRs and
+  does not approve code changes on the maintainer's behalf.
+
+**What this means for contributors:** The first comment you receive on a PR from
+the triage tool is an AI-drafted message, and it may contain mistakes. The
+maintainers still stand behind it — the tool uses templates the project has
+reviewed and tuned — but please calibrate accordingly:
+
+- Treat the feedback as a starting point, not the last word. If one of the points
+  doesn't apply to your PR, push a fix for the ones that do and reply in-thread
+  explaining why the rest doesn't apply.
+- A real maintainer will look at your PR after you address the feedback. The AI
+  pass is not the gate; the human maintainer is.
+- If the tool is clearly wrong about something, please say so in the thread — the
+  maintainers read the replies and iterate on the templates when they spot
+  systemic mistakes.
+
+This is the same deal the Airflow maintainers have made with themselves: automate
+the parts where automation is reliable, and preserve human attention for the
+parts where it is not.
+
 ## Two-stage workflow
 
 The auto-triage tool operates in two modes that correspond to the two stages of the PR
