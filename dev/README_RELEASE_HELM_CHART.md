@@ -214,12 +214,15 @@ the same between voted release candidate and final release.
 Because of this the version in the built artifacts that will become the
 official Apache releases must not include the rcN suffix.
 
-Make sure you have `apache` remote set up pointing to the apache git repo.
+Make sure you have the `upstream` remote set up pointing to the apache git repo
+(per the standard convention `upstream` → `apache/airflow`, `origin` → your fork —
+see
+[`contributing-docs/10_working_with_git.rst`](../contributing-docs/10_working_with_git.rst#git-remote-naming-conventions)).
 If needed, add it with:
 
 ```shell
-git remote add apache git@github.com:apache/airflow.git
-git fetch apache
+git remote add upstream git@github.com:apache/airflow.git
+git fetch upstream
 ```
 
 - We currently release Helm Chart from `main` branch:
@@ -233,7 +236,7 @@ git checkout apache/chart/v1-2x-test
 For releasing 2.x.x and onwards
 
 ```shell
-git checkout apache/main
+git checkout upstream/main
 ```
 
 - Clean the checkout: (note that this step will also clean any IDE settings you might have so better to
@@ -359,7 +362,7 @@ popd
 
   ```shell
   cd ${AIRFLOW_REPO_ROOT}
-  git push apache tag helm-chart/${VERSION}${VERSION_SUFFIX}
+  git push upstream tag helm-chart/${VERSION}${VERSION_SUFFIX}
   ```
 
 ## Publish rc documentation
@@ -863,7 +866,7 @@ Create and push the release tag:
 cd "${AIRFLOW_REPO_ROOT}"
 git checkout helm-chart/${VERSION}${VERSION_SUFFIX}
 git tag -s helm-chart/${VERSION} -m "Apache Airflow Helm Chart ${VERSION}"
-git push apache helm-chart/${VERSION}
+git push upstream helm-chart/${VERSION}
 ```
 
 ## Publish final documentation
@@ -1024,7 +1027,7 @@ I invite everyone to help improve the chart for the next release, a list of open
 
 ## Update issue template with the new release
 
-Updating issue templates in `.github/ISSUE_TEMPLATE/4-airflow_helmchart_bug_report.yml` with the new version
+Updating issue templates in `.github/ISSUE_TEMPLATE/1-airflow_bug_report.yml.yml` with the new version
 
 ## Announce the release on the community slack
 

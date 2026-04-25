@@ -401,14 +401,16 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
 * Release candidate packages:
 
-Assume that your remote for apache repository is called `apache` you should now
-set tags for the providers in the repo.
+These instructions assume the standard remote naming convention
+(`upstream` → `apache/airflow`, `origin` → your fork — see
+[`contributing-docs/10_working_with_git.rst`](../contributing-docs/10_working_with_git.rst#git-remote-naming-conventions)).
+Set tags for the providers in the repo.
 
 
 ```shell script
 echo "Tagging with providers/${RELEASE_DATE}"
 git tag -s providers/${RELEASE_DATE} -m "Tag providers for ${RELEASE_DATE}" --force
-git push apache providers/${RELEASE_DATE}
+git push upstream providers/${RELEASE_DATE}
 breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both
 breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 ```
@@ -421,7 +423,7 @@ if you only build few packages, run:
 ```shell script
 echo "Tagging with providers/${RELEASE_DATE}"
 git tag -s providers/${RELEASE_DATE} -m "Tag providers for ${RELEASE_DATE}" --force
-git push apache providers/${RELEASE_DATE}
+git push upstream providers/${RELEASE_DATE}
 breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both PACKAGE PACKAGE ....
 breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 
@@ -853,7 +855,7 @@ cd "$AIRFLOW_REPO_ROOT"
 
 ```shell
 cd "$AIRFLOW_REPO_ROOT"
-git fetch apache --tags
+git fetch upstream --tags
 git checkout providers/${RELEASE_DATE}
 ```
 
@@ -1390,8 +1392,13 @@ Copy links to updated packages, sort it alphabetically and save it on the side. 
 
 ## Add the final release tag in git
 
-Assume that your remote for apache repository is called `apache` you should now
-set tags for the providers in the repository.
+These instructions assume the standard remote naming convention
+(`upstream` → `apache/airflow`, `origin` → your fork — see
+[`contributing-docs/10_working_with_git.rst`](../contributing-docs/10_working_with_git.rst#git-remote-naming-conventions)).
+`breeze release-management tag-providers` auto-detects which of your remotes points
+at `apache/airflow`, so it also works for release-manager setups where the
+apache/airflow clone is configured as `origin`. Set tags for the providers in the
+repository.
 
 Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
 and lead to annoying errors. The default behavior would be to clean such local tags up.
@@ -1468,7 +1475,7 @@ Create PR and open it to be merged:
 ```shell script
 cd "$AIRFLOW_REPO_ROOT"
 git checkout main
-git pull apache main
+git pull upstream main
 current_date=$(date '+%Y-%m-%d%n')
 branch="update-providers-metadata-${current_date}"
 git checkout -b "${branch}"
