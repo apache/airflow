@@ -51,6 +51,7 @@ LOGIN_OUTPUT = "Login successful! Welcome to airflowctl!"
 TEST_COMMANDS = [
     # Auth commands
     f"auth token {CREDENTIAL_SUFFIX}",
+    "auth list-envs",
     # Assets commands
     "assets list",
     "assets get --asset-id=1",
@@ -122,11 +123,13 @@ TEST_COMMANDS = [
     "variables delete --variable-key=test_key",
     "variables delete --variable-key=test_import_var",
     "variables delete --variable-key=test_import_var_with_desc",
-    # Version command
-    "version --remote",
     # Plugins command
     "plugins list",
     "plugins list-import-errors",
+]
+
+NO_AUTH_TEST_COMMANDS = [
+    "version --remote",
 ]
 
 DATE_PARAM_1 = date_param()
@@ -189,3 +192,17 @@ def test_airflowctl_commands_skip_keyring(command: str, api_token: str, run_comm
     env_vars["AIRFLOW_CLI_ENVIRONMENT"] = "nokeyring"
 
     run_command(command, env_vars, skip_login=True)
+
+
+@pytest.mark.parametrize("command", NO_AUTH_TEST_COMMANDS)
+def test_airflowctl_no_auth_commands(command: str, run_command, tmp_path):
+    """Test airflowctl no-auth commands without login or persisted credentials."""
+    run_command(
+        command=command,
+        env_vars={
+            "AIRFLOW_HOME": str(tmp_path),
+            "AIRFLOW_CLI_ENVIRONMENT": "no-auth",
+            "AIRFLOW_CLI_DEBUG_MODE": "false",
+        },
+        skip_login=True,
+    )
