@@ -799,6 +799,7 @@ sanity check.
    breeze k8s setup-env
    breeze k8s create-cluster
    breeze k8s configure-cluster
+   breeze ui compile-assets  # ensures the UI is built so the API server can serve index.html
    breeze k8s build-k8s-image --rebuild-base-image
    breeze k8s upload-k8s-image
    ```
