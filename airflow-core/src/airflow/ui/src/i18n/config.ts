@@ -63,18 +63,20 @@ const basePath = new URL(baseUrl).pathname.replace(/\/$/u, "");
 
 const getAirflowVersion = (): Promise<string> =>
   fetch(`${basePath}/api/v2/version`)
-    .then((r) => r.json() as Promise<{ version?: string }>)
+    .then<{ version?: string }>((r) => r.json())
     .then((d) => d.version ?? "")
     .catch(() => "");
 
 void getAirflowVersion().then((version) => {
+  const queryString = version ? `?v=${version}` : "";
+
   void i18n
     .use(Backend)
     .use(LanguageDetector)
     .use(initReactI18next)
     .init({
       backend: {
-        loadPath: `${basePath}/static/i18n/locales/{{lng}}/{{ns}}.json${version ? `?v=${version}` : ""}`,
+        loadPath: `${basePath}/static/i18n/locales/{{lng}}/{{ns}}.json${queryString}`,
       },
       defaultNS: "common",
       detection: {
