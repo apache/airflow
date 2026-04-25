@@ -3888,6 +3888,12 @@ export type ReparseDagFileData = {
 
 export type ReparseDagFileResponse = unknown;
 
+export type ReparseDagData = {
+    dagId: string;
+};
+
+export type ReparseDagResponse = unknown;
+
 export type GetDagVersionData = {
     dagId: string;
     versionNumber: number;
@@ -7040,6 +7046,37 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/reparse': {
+        put: {
+            req: ReparseDagData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                201: unknown;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

@@ -1000,6 +1000,7 @@ export type BackfillServicePauseBackfillMutationResult = Awaited<ReturnType<type
 export type BackfillServiceUnpauseBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.unpauseBackfill>>;
 export type BackfillServiceCancelBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.cancelBackfill>>;
 export type DagParsingServiceReparseDagFileMutationResult = Awaited<ReturnType<typeof DagParsingService.reparseDagFile>>;
+export type DagParsingServiceReparseDagMutationResult = Awaited<ReturnType<typeof DagParsingService.reparseDag>>;
 export type ConnectionServicePatchConnectionMutationResult = Awaited<ReturnType<typeof ConnectionService.patchConnection>>;
 export type ConnectionServiceBulkConnectionsMutationResult = Awaited<ReturnType<typeof ConnectionService.bulkConnections>>;
 export type DagRunServicePatchDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.patchDagRun>>;
