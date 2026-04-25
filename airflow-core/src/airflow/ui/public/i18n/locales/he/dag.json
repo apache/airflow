@@ -120,9 +120,12 @@
       "label": "כיוון התרשים"
     },
     "graphFilters": {
+      "buttonTooltip": "פילטרים משימות (Ctrl+Shift+F)",
       "clearFilters": "נקה פילטרים",
       "durationGte": "משך מינימלי (בשניות)",
-      "mapIndex": "מספר מיפוי אינדקס",
+      "durationGteHint": "למשימות ממופות, מודד את סך כל הזמן לאורך כל המופעים",
+      "mapIndex": "אינדקס מיפוי מינימלי",
+      "mapIndexHint": "מציג משימות ממופות מורחבות לפחות באינדקס הזה",
       "selectStatus": "בחר סטטוס",
       "selectTaskGroup": "בחר קבוצת משימות",
       "title": "פילטרים משימות"

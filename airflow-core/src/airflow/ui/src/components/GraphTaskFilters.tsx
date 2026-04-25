@@ -25,7 +25,7 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiSearch } from "react-icons/fi";
@@ -65,38 +65,86 @@ export const GraphTaskFilters = () => {
     (item) => item.value !== "all" && item.value !== "none",
   );
 
+  const allGraphFilterKeys = [
+    SearchParamsKeys.GRAPH_OPERATOR,
+    SearchParamsKeys.GRAPH_TASK_GROUP,
+    SearchParamsKeys.GRAPH_TASK_STATE,
+    SearchParamsKeys.GRAPH_MAP_INDEX,
+    SearchParamsKeys.GRAPH_DURATION_GTE,
+  ];
+
   const handleMultiChange = (key: string) => (values: Array<string> | undefined) => {
-    searchParams.delete(key);
-    values?.forEach((val) => searchParams.append(key, val));
-    setSearchParams(searchParams);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+
+        next.delete(key);
+        values?.forEach((val) => next.append(key, val));
+
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const handleNumberChange =
     (key: string, condition: (n: number) => boolean) => (details: NumberInputValueChangeDetails) => {
-      if (condition(details.valueAsNumber)) {
-        searchParams.set(key, details.value);
-      } else {
-        searchParams.delete(key);
-      }
-      setSearchParams(searchParams);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+
+          if (condition(details.valueAsNumber)) {
+            next.set(key, details.value);
+          } else {
+            next.delete(key);
+          }
+
+          return next;
+        },
+        { replace: true },
+      );
     };
 
   const clearAllFilters = () => {
-    [
-      SearchParamsKeys.GRAPH_OPERATOR,
-      SearchParamsKeys.GRAPH_TASK_GROUP,
-      SearchParamsKeys.GRAPH_TASK_STATE,
-      SearchParamsKeys.GRAPH_MAP_INDEX,
-      SearchParamsKeys.GRAPH_DURATION_GTE,
-    ].forEach((key) => searchParams.delete(key));
-    setSearchParams(searchParams);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+
+        allGraphFilterKeys.forEach((key) => next.delete(key));
+
+        return next;
+      },
+      { replace: true },
+    );
   };
+
+  const isInitialMount = useRef(true);
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+
+      return;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+
+        allGraphFilterKeys.forEach((key) => next.delete(key));
+
+        return next;
+      },
+      { replace: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allOperators, allTaskGroups]);
 
   const [isOpen, setIsOpen] = useState(false);
 
   useHotkeys("mod+shift+f", () => setIsOpen(true), { preventDefault: true });
 
-  const tooltipContent = translate("dag:panel.graphFilters.title");
+  const panelTitle = translate("dag:panel.graphFilters.title");
+  const buttonTooltip = translate("dag:panel.graphFilters.buttonTooltip");
 
   return (
     <Menu.Root
@@ -106,10 +154,10 @@ export const GraphTaskFilters = () => {
     >
       <Menu.Trigger asChild>
         <IconButton
-          aria-label={tooltipContent}
+          aria-label={buttonTooltip}
           colorPalette="brand"
           size="md"
-          title={tooltipContent}
+          title={buttonTooltip}
           variant={hasActiveFilters ? "solid" : "ghost"}
         >
           <FiSearch />
@@ -119,7 +167,7 @@ export const GraphTaskFilters = () => {
         <Menu.Positioner>
           <Menu.Content alignItems="start" display="flex" flexDirection="column" gap={2} p={4}>
             <Text fontSize="sm" fontWeight="semibold">
-              {translate("dag:panel.graphFilters.title")}
+              {panelTitle}
             </Text>
 
             <Separator my={2} />
@@ -190,6 +238,9 @@ export const GraphTaskFilters = () => {
                   >
                     <NumberInputField placeholder={translate("dag:panel.graphFilters.mapIndex")} />
                   </NumberInputRoot>
+                  <Text color="fg.muted" fontSize="xs">
+                    {translate("dag:panel.graphFilters.mapIndexHint")}
+                  </Text>
                 </VStack>
                 <VStack alignItems="flex-start" width="100%">
                   <Text fontSize="xs">{translate("dag:panel.graphFilters.durationGte")}</Text>
@@ -203,6 +254,9 @@ export const GraphTaskFilters = () => {
                   >
                     <NumberInputField placeholder={translate("dag:panel.graphFilters.durationGte")} />
                   </NumberInputRoot>
+                  <Text color="fg.muted" fontSize="xs">
+                    {translate("dag:panel.graphFilters.durationGteHint")}
+                  </Text>
                 </VStack>
               </>
             )}
