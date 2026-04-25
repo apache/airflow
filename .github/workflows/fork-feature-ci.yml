@@ -1,0 +1,160 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Fork Feature CI
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - feature/**
+      - fix/**
+      - bugfix/**
+      - chore/**
+      - test/**
+      - ci/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-feature-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-lineage-tests:
+    name: Backend lineage tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install Breeze
+        uses: ./.github/actions/breeze
+
+      - name: Run backend lineage tests
+        run: >
+          breeze testing core-tests
+          airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py
+          -k TestGetAssetLineage
+
+  frontend-lineage-unit-tests:
+    name: Frontend lineage unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320  # v5.0.0
+        with:
+          version: 9
+          run_install: false
+
+      - name: Setup node
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: airflow-core/src/airflow/ui/pnpm-lock.yaml
+
+      - name: Install UI dependencies
+        run: cd airflow-core/src/airflow/ui && pnpm install --frozen-lockfile
+
+      - name: Run frontend lineage unit tests
+        run: >
+          cd airflow-core/src/airflow/ui &&
+          pnpm vitest run
+          src/pages/Asset/AssetInsightsPanel.test.tsx
+          src/pages/Asset/AssetLineageGraph.test.tsx
+          src/pages/Asset/assetInsightsUtils.test.ts
+          src/pages/Asset/lineageHighlightUtils.test.ts
+
+  frontend-lineage-e2e:
+    name: Frontend lineage e2e
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install Breeze
+        uses: ./.github/actions/breeze
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320  # v5.0.0
+        with:
+          version: 9
+          run_install: false
+
+      - name: Setup node
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: airflow-core/src/airflow/ui/pnpm-lock.yaml
+
+      - name: Install UI dependencies
+        run: cd airflow-core/src/airflow/ui && pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: cd airflow-core/src/airflow/ui && pnpm exec playwright install --with-deps chromium
+
+      - name: Start Airflow with example DAGs
+        run: breeze start-airflow --load-example-dags
+
+      - name: Wait for Airflow UI
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:28080/health >/dev/null; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Airflow UI did not become ready in time"
+          exit 1
+
+      - name: Run lineage e2e
+        env:
+          AIRFLOW_UI_BASE_URL: http://localhost:28080
+        run: >
+          cd airflow-core/src/airflow/ui &&
+          pnpm playwright test
+          tests/e2e/specs/asset.spec.ts
+          --project=chromium
+          --grep "lineage search recenters the graph to the matched node"
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        with:
+          name: fork-feature-playwright-report
+          path: |
+            airflow-core/src/airflow/ui/playwright-report/
+            airflow-core/src/airflow/ui/test-results/
+          retention-days: 7
+          if-no-files-found: warn
