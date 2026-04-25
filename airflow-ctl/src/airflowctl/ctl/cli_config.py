@@ -35,12 +35,12 @@ from typing import Any, NamedTuple
 
 import httpx
 import rich
-import yaml
 
 import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.ctl.console_formatting import AirflowConsole
+from airflowctl.ctl.utils.yaml import safe_load
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
     AirflowCtlCredentialNotFoundException,
@@ -199,7 +199,7 @@ def _load_help_texts_yaml() -> dict[str, dict[str, str]]:
     """Load the help texts yaml for the auto-generated commands."""
     help_texts_path = Path(__file__).parent / "help_texts.yaml"
     with open(help_texts_path) as yaml_file:
-        help_texts = yaml.safe_load(yaml_file)
+        help_texts = safe_load(yaml_file)
     return help_texts
 
 
