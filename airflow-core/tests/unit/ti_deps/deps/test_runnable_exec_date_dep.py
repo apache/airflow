@@ -42,11 +42,11 @@ def clean_db(session):
 @pytest.mark.parametrize(
     ("logical_date", "is_met"),
     [
-        (datetime(2016, 11, 3), False),
+        (datetime(2016, 11, 3), True),
         (datetime(2016, 11, 1), True),
     ],
 )
-def test_logical_date_dep(
+def test_logical_date_dep_manual_run(
     dag_maker,
     session,
     create_dummy_dag,
@@ -54,7 +54,7 @@ def test_logical_date_dep(
     is_met,
 ):
     """
-    If the dag's logical date is in the future, this dep should fail
+    Manual runs should be allowed even if the logical date is in the future.
     """
     create_dummy_dag(
         "test_localtaskjob_heartbeat",
@@ -68,10 +68,14 @@ def test_logical_date_dep(
     assert RunnableExecDateDep().is_met(ti=ti) == is_met
 
 
-@time_machine.travel("2016-01-01")
-def test_logical_date_after_end_date(session, dag_maker, create_dummy_dag):
+@time_machine.travel("2016-11-01")
+def test_logical_date_dep_scheduled_run_future_fails(
+    dag_maker,
+    session,
+    create_dummy_dag,
+):
     """
-    If the dag's logical date is in the future this dep should fail
+    Scheduled runs with a future logical date should still fail.
     """
     create_dummy_dag(
         "test_localtaskjob_heartbeat",
@@ -81,14 +85,20 @@ def test_logical_date_after_end_date(session, dag_maker, create_dummy_dag):
         with_dagrun_type=DagRunType.MANUAL,
         session=session,
     )
-    (ti,) = dag_maker.create_dagrun(logical_date=datetime(2016, 11, 2)).task_instances
+    (ti,) = dag_maker.create_dagrun(
+        run_id="scheduled",
+        run_type=DagRunType.SCHEDULED,
+        logical_date=datetime(2016, 11, 3),
+    ).task_instances
     assert not RunnableExecDateDep().is_met(ti=ti)
 
 
 class TestRunnableExecDateDep:
-    def _get_task_instance(self, logical_date, dag_end_date=None, task_end_date=None):
+    def _get_task_instance(
+        self, logical_date, dag_end_date=None, task_end_date=None, run_type=DagRunType.MANUAL
+    ):
         dag = Mock(end_date=dag_end_date)
-        dagrun = Mock(logical_date=logical_date)
+        dagrun = Mock(logical_date=logical_date, run_type=run_type)
         task = Mock(dag=dag, end_date=task_end_date)
         return Mock(task=task, get_dagrun=Mock(return_value=dagrun))
 
