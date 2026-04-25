@@ -27,18 +27,22 @@ from unittest import mock
 
 import pendulum
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import delete, func, select, update
 
 from airflow._shared.timezones.timezone import datetime
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import DagRun, Log, TaskInstance
+from airflow.models import DagModel, DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
+from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import BaseOperator, TaskGroup
@@ -51,6 +55,7 @@ from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_runs,
+    clear_db_teams,
     clear_rendered_ti_fields,
 )
 from tests_common.test_utils.logs import check_last_log
@@ -5570,6 +5575,14 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     BASH_TASK_ID = "also_run_this"
     WILDCARD_ENDPOINT = "/dags/~/dagRuns/~/taskInstances"
 
+    @pytest.fixture(autouse=True)
+    def clean_db(self, session):
+        clear_db_runs()
+        clear_db_teams()
+        yield
+        clear_db_teams()
+        clear_db_runs()
+
     @pytest.mark.parametrize(
         ("default_ti", "actions", "expected_results", "endpoint_url", "setup_dags"),
         [
@@ -6137,10 +6150,24 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     ):
         # Setup task instances
         if setup_dags:
-            for dag_id in setup_dags:
+            if setup_dags == [self.BASH_DAG_ID, self.DAG_ID]:
                 self.create_task_instances(
-                    session, task_instances=default_ti, dag_id=dag_id, update_extras=True
+                    session,
+                    task_instances=[{"task_id": self.BASH_TASK_ID, "state": default_ti[0]["state"]}],
+                    dag_id=self.BASH_DAG_ID,
+                    update_extras=True,
                 )
+                self.create_task_instances(
+                    session,
+                    task_instances=[{"task_id": self.TASK_ID, "state": default_ti[1]["state"]}],
+                    dag_id=self.DAG_ID,
+                    update_extras=True,
+                )
+            else:
+                for dag_id in setup_dags:
+                    self.create_task_instances(
+                        session, task_instances=default_ti, dag_id=dag_id, update_extras=True
+                    )
         else:
             self.create_task_instances(session, task_instances=default_ti)
 
@@ -6150,6 +6177,212 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
         response_data = response.json()
         for task_id, value in expected_results.items():
             assert sorted(response_data[task_id]) == sorted(value)
+
+    @pytest.mark.parametrize(
+        ("map_index", "new_state"),
+        [
+            pytest.param(0, "failed", id="mapped-ti-map-index-0-failed"),
+            pytest.param(1, "failed", id="mapped-ti-map-index-1-failed"),
+            pytest.param(2, "success", id="mapped-ti-map-index-2-success"),
+        ],
+    )
+    def test_bulk_update_mapped_task_instance_state_is_persisted(
+        self, test_client, session, map_index, new_state
+    ):
+        """Verify that bulk-updating a specific mapped TI actually persists the new state in the DB."""
+        self.create_task_instances(
+            session,
+            task_instances=[{"state": State.RUNNING, "map_indexes": (0, 1, 2)}],
+        )
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "task_id": self.TASK_ID,
+                                "map_index": map_index,
+                                "new_state": new_state,
+                            }
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["update"]["success"] == [
+            f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[{map_index}]"
+        ]
+
+        session.expire_all()
+        # Verify only the targeted mapped TI changed state; others remain unchanged.
+        for mi in [0, 1, 2]:
+            ti = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == self.DAG_ID,
+                    TaskInstance.run_id == self.RUN_ID,
+                    TaskInstance.task_id == self.TASK_ID,
+                    TaskInstance.map_index == mi,
+                )
+            )
+            assert ti is not None
+            if mi == map_index:
+                assert ti.state == new_state, f"Expected map_index={mi} to be {new_state!r}, got {ti.state!r}"
+            else:
+                assert ti.state == State.RUNNING, (
+                    f"Expected map_index={mi} to remain running, got {ti.state!r}"
+                )
+
+    def test_bulk_task_instances_rejects_unauthorized_dag_ids_from_request_body(self, test_client, session):
+        restricted_bundle_name = "restricted-bundle-update"
+        restricted_team_name = "restricted-team-update"
+        self.create_task_instances(
+            session,
+            task_instances=[{"task_id": self.BASH_TASK_ID, "state": State.RUNNING}],
+            dag_id=self.BASH_DAG_ID,
+            update_extras=True,
+        )
+        self.create_task_instances(
+            session,
+            task_instances=[{"task_id": self.TASK_ID, "state": State.RUNNING}],
+            dag_id=self.DAG_ID,
+            update_extras=True,
+        )
+        restricted_bundle = DagBundleModel(name=restricted_bundle_name)
+        restricted_team = Team(name=restricted_team_name)
+        restricted_bundle.teams.append(restricted_team)
+        session.add_all([restricted_bundle, restricted_team])
+        session.flush()
+        session.execute(
+            update(DagModel)
+            .where(DagModel.dag_id == self.BASH_DAG_ID)
+            .values(bundle_name=restricted_bundle_name)
+        )
+        session.commit()
+
+        auth_manager = test_client.app.state.auth_manager
+        token = auth_manager._get_token_signer().generate(
+            auth_manager.serialize_user(
+                SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
+            )
+        )
+        with (
+            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
+            TestClient(
+                test_client.app,
+                headers={"Authorization": f"Bearer {token}"},
+                base_url=str(test_client.base_url),
+            ) as limited_test_client,
+        ):
+            response = limited_test_client.patch(
+                self.WILDCARD_ENDPOINT,
+                json={
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "dag_id": self.BASH_DAG_ID,
+                                    "dag_run_id": self.RUN_ID,
+                                    "task_id": self.BASH_TASK_ID,
+                                    "new_state": "success",
+                                },
+                                {
+                                    "dag_id": self.DAG_ID,
+                                    "dag_run_id": self.RUN_ID,
+                                    "task_id": self.TASK_ID,
+                                    "new_state": "success",
+                                },
+                            ],
+                        }
+                    ]
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json()["update"]["success"] == [f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[-1]"]
+        assert response.json()["update"]["errors"] == [
+            {
+                "error": f"User is not authorized to update task instances for DAG '{self.BASH_DAG_ID}'",
+                "status_code": 403,
+            }
+        ]
+
+    def test_bulk_delete_rejects_unauthorized_dag_ids_from_request_body(self, test_client, session):
+        restricted_bundle_name = "restricted-bundle-delete"
+        restricted_team_name = "restricted-team-delete"
+        self.create_task_instances(
+            session,
+            task_instances=[{"task_id": self.BASH_TASK_ID, "state": State.SUCCESS}],
+            dag_id=self.BASH_DAG_ID,
+            update_extras=True,
+        )
+        self.create_task_instances(
+            session,
+            task_instances=[{"task_id": self.TASK_ID, "state": State.SUCCESS}],
+            dag_id=self.DAG_ID,
+            update_extras=True,
+        )
+        restricted_bundle = DagBundleModel(name=restricted_bundle_name)
+        restricted_team = Team(name=restricted_team_name)
+        restricted_bundle.teams.append(restricted_team)
+        session.add_all([restricted_bundle, restricted_team])
+        session.flush()
+        session.execute(
+            update(DagModel)
+            .where(DagModel.dag_id == self.BASH_DAG_ID)
+            .values(bundle_name=restricted_bundle_name)
+        )
+        session.commit()
+
+        auth_manager = test_client.app.state.auth_manager
+        token = auth_manager._get_token_signer().generate(
+            auth_manager.serialize_user(
+                SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
+            )
+        )
+        with (
+            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
+            TestClient(
+                test_client.app,
+                headers={"Authorization": f"Bearer {token}"},
+                base_url=str(test_client.base_url),
+            ) as limited_test_client,
+        ):
+            response = limited_test_client.patch(
+                self.WILDCARD_ENDPOINT,
+                json={
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {
+                                    "dag_id": self.BASH_DAG_ID,
+                                    "dag_run_id": self.RUN_ID,
+                                    "task_id": self.BASH_TASK_ID,
+                                },
+                                {
+                                    "dag_id": self.DAG_ID,
+                                    "dag_run_id": self.RUN_ID,
+                                    "task_id": self.TASK_ID,
+                                },
+                            ],
+                        }
+                    ]
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json()["delete"]["success"] == [f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[-1]"]
+        assert response.json()["delete"]["errors"] == [
+            {
+                "error": f"User is not authorized to delete task instances for DAG '{self.BASH_DAG_ID}'",
+                "status_code": 403,
+            }
+        ]
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={})
