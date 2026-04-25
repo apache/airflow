@@ -1041,6 +1041,37 @@ class TestSchedulerJob:
         # Task should NOT have been scheduled — the scheduler returned early
         assert tis[0].state is None
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_schedule_dag_run_operator_triggered_with_future_logical_date(self, session, dag_maker):
+        """Operator-triggered DAG runs with a future logical_date should be scheduled immediately."""
+        with dag_maker(
+            dag_id="test_operator_triggered_future_logical_date",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        future_date = timezone.utcnow() + timedelta(days=1)
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.OPERATOR_TRIGGERED,
+            logical_date=future_date,
+            state=DagRunState.RUNNING,
+            start_date=timezone.utcnow(),
+        )
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
+
+        session.refresh(dr)
+        # The run should not have been skipped due to future logical_date
+        tis = dr.get_task_instances(session=session)
+        assert len(tis) == 1
+        assert tis[0].state is not None
+
     def test_execute_task_instances_is_paused_wont_execute(self, session, dag_maker):
         dag_id = "SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute"
         task_id_1 = "dummy_task"

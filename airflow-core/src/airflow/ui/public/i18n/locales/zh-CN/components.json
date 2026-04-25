@@ -130,6 +130,7 @@
     "loading": "正在加载 Dag 信息...",
     "loadingFailed": "加载 Dag 信息失败，请重试。",
     "manualRunDenied": "此 Dag 不允许手动执行",
+    "runImmediately": "立即运行（逻辑日期在未来）",
     "runIdHelp": "选填 - 若未提供将会自动生成",
     "selectDescription": "触发此 Dag 单次执行",
     "selectLabel": "单次执行",

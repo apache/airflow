@@ -132,6 +132,7 @@
     "loading": "Dag bilgisi yükleniyor...",
     "loadingFailed": "Dag bilgisi yüklenemedi. Lütfen tekrar deneyin.",
     "manualRunDenied": "El ile tetikleme bu Dag için devre dışı bırakıldı.",
+    "runImmediately": "Hemen çalıştır (mantıksal tarih gelecekte)",
     "runIdHelp": "İsteğe bağlı - sağlanmazsa oluşturulacaktır",
     "selectDescription": "Bu Dag'ın tek bir çalıştırmasını tetikle",
     "selectLabel": "Tek Çalıştırma",

@@ -119,6 +119,7 @@
     "button": "Trigger",
     "loading": "Cargando información del Dag...",
     "loadingFailed": "Error al cargar la información del Dag. Por favor, inténtelo de nuevo.",
+    "runImmediately": "Ejecutar inmediatamente (la fecha lógica está en el futuro)",
     "runIdHelp": "Opcional - se generará si no se proporciona",
     "selectDescription": "Activar una ejecución única de este Dag",
     "selectLabel": "Ejecución Única",

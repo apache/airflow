@@ -93,6 +93,31 @@ def test_logical_date_dep_scheduled_run_future_fails(
     assert not RunnableExecDateDep().is_met(ti=ti)
 
 
+@time_machine.travel("2016-11-01")
+def test_logical_date_dep_operator_triggered_run(
+    dag_maker,
+    session,
+    create_dummy_dag,
+):
+    """
+    Operator-triggered runs should be allowed even if the logical date is in the future.
+    """
+    create_dummy_dag(
+        "test_localtaskjob_heartbeat",
+        start_date=datetime(2015, 1, 1),
+        end_date=datetime(2016, 11, 5),
+        schedule=None,
+        with_dagrun_type=DagRunType.MANUAL,
+        session=session,
+    )
+    (ti,) = dag_maker.create_dagrun(
+        run_id="operator_triggered",
+        run_type=DagRunType.OPERATOR_TRIGGERED,
+        logical_date=datetime(2016, 11, 3),
+    ).task_instances
+    assert RunnableExecDateDep().is_met(ti=ti)
+
+
 class TestRunnableExecDateDep:
     def _get_task_instance(
         self, logical_date, dag_end_date=None, task_end_date=None, run_type=DagRunType.MANUAL

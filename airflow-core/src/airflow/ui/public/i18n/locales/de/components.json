@@ -132,6 +132,7 @@
     "loading": "Lade Dag Information...",
     "loadingFailed": "Das Laden der Dag Informationen ist fehlgeschlagen. Bitte versuchen Sie es noch einmal.",
     "manualRunDenied": "Manuelles Auslösen dieses Dags ist nicht erlaubt.",
+    "runImmediately": "Sofort ausführen (logisches Datum liegt in der Zukunft)",
     "runIdHelp": "Optional - wird automatisch erzeugt wenn nicht angegeben",
     "selectDescription": "Einen einzelnen Lauf dieses Dags auslösen",
     "selectLabel": "Einzelner Lauf",

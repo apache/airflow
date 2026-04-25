@@ -38,7 +38,10 @@ class RunnableExecDateDep(BaseTIDep):
 
         cur_date = timezone.utcnow()
 
-        if logical_date > cur_date and dagrun.run_type != DagRunType.MANUAL:
+        if logical_date > cur_date and dagrun.run_type not in (
+            DagRunType.MANUAL,
+            DagRunType.OPERATOR_TRIGGERED,
+        ):
             yield self._failing_status(
                 reason=(
                     f"Logical date {logical_date.isoformat()} is in the future "

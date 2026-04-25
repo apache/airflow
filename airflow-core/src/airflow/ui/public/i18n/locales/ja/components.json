@@ -115,6 +115,7 @@
     "button": "トリガー",
     "loading": "Dag 情報を読込中...",
     "loadingFailed": "情報読込に失敗しました。もう一度試してください",
+    "runImmediately": "すぐに実行（論理日付が未来の日付です）",
     "runIdHelp": "オプション- 指定しない場合自動的に生成されます",
     "selectDescription": "この Dag の単体での実行をトリガーします",
     "selectLabel": "単体での実行",
