@@ -26,7 +26,7 @@ from airflow_shared.state import BaseStateBackend, StateScope, TaskScope
 class TestBaseStateBackend:
     @pytest.fixture
     def backend(self) -> BaseStateBackend:
-        class SyncBackend(BaseStateBackend):
+        class ConcreteBackend(BaseStateBackend):
             def __init__(self):
                 self.calls: list[str] = []
 
@@ -43,29 +43,42 @@ class TestBaseStateBackend:
             def clear(self, scope: StateScope) -> None:
                 self.calls.append("clear")
 
-        return SyncBackend()
+            async def aget(self, scope: StateScope, key: str) -> str | None:
+                self.calls.append("aget")
+                return "value"
 
-    def test_aget_delegates_to_get(self, backend):
-        """aget calls get and returns its value."""
+            async def aset(self, scope: StateScope, key: str, value: str) -> None:
+                self.calls.append("aset")
+
+            async def adelete(self, scope: StateScope, key: str) -> None:
+                self.calls.append("adelete")
+
+            async def aclear(self, scope: StateScope) -> None:
+                self.calls.append("aclear")
+
+        return ConcreteBackend()
+
+    def test_aget_is_callable(self, backend):
+        """aget can be awaited and returns a value."""
         scope = TaskScope("d", "r", "t")
         result = asyncio.run(backend.aget(scope, "k"))
         assert result == "value"
-        assert "get" in backend.calls
+        assert "aget" in backend.calls
 
-    def test_aset_delegates_to_set(self, backend):
-        """aset calls set."""
+    def test_aset_is_callable(self, backend):
+        """aset can be awaited."""
         scope = TaskScope("d", "r", "t")
         asyncio.run(backend.aset(scope, "k", "v"))
-        assert "set" in backend.calls
+        assert "aset" in backend.calls
 
-    def test_adelete_delegates_to_delete(self, backend):
-        """adelete calls delete."""
+    def test_adelete_is_callable(self, backend):
+        """adelete can be awaited."""
         scope = TaskScope("d", "r", "t")
         asyncio.run(backend.adelete(scope, "k"))
-        assert "delete" in backend.calls
+        assert "adelete" in backend.calls
 
-    def test_aclear_delegates_to_clear(self, backend):
-        """aclear calls clear."""
+    def test_aclear_is_callable(self, backend):
+        """aclear can be awaited."""
         scope = TaskScope("d", "r", "t")
         asyncio.run(backend.aclear(scope))
-        assert "clear" in backend.calls
+        assert "aclear" in backend.calls

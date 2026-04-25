@@ -72,7 +72,6 @@ class TestTaskStateModel:
             dag_id=DAG_ID,
             run_id=RUN_ID,
             value="application_1234",
-            updated_by_try=1,
         )
         session.add(row)
         session.flush()
@@ -87,7 +86,6 @@ class TestTaskStateModel:
         )
         assert result is not None
         assert result.value == "application_1234"
-        assert result.updated_by_try == 1
         assert result.dag_id == DAG_ID
         assert result.run_id == RUN_ID
 
@@ -121,7 +119,7 @@ class TestTaskStateModel:
             session.flush()
 
     def test_retries_share_state(self, session: Session, dag_run: DagRun):
-        """Validates that retries share state."""
+        """Retries of the same task share the same row — updates are visible across retries."""
         row = TaskStateModel(
             dag_run_id=dag_run.id,
             task_id=TASK_ID,
@@ -130,13 +128,11 @@ class TestTaskStateModel:
             dag_id=DAG_ID,
             run_id=RUN_ID,
             value="application_try1",
-            updated_by_try=1,
         )
         session.add(row)
         session.flush()
 
         row.value = "application_try2"
-        row.updated_by_try = 2
         session.flush()
 
         result = session.scalar(
@@ -147,7 +143,7 @@ class TestTaskStateModel:
             )
         )
         assert result is not None
-        assert result.updated_by_try == 2
+        assert result.value == "application_try2"
 
     def test_map_index_isolation(self, session: Session, dag_run: DagRun):
         """Each mapped task instance gets its own independent state namespace."""

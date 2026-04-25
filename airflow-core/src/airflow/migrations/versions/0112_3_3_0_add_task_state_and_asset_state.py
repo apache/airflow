@@ -53,7 +53,6 @@ def upgrade():
         Column("run_id", String(length=250), nullable=False),
         Column("value", Text, nullable=False),
         Column("updated_at", UtcDateTime, nullable=False, default=timezone.utcnow),
-        Column("updated_by_try", Integer, nullable=True),
         ForeignKeyConstraint(
             ["dag_run_id"],
             ["dag_run.id"],

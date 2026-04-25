@@ -41,14 +41,7 @@ StateScope = TaskScope | AssetScope
 
 
 class BaseStateBackend(ABC):
-    """
-    Abstract backend for reading and writing task and asset state.
-
-    - Sync methods are abstract.
-    - Async methods default to calling their sync counterparts so that sync-only backends (e.g. the default metastore backend)
-    get async support for free. Backends with native async I/O (e.g. S3) should
-    override the async methods.
-    """
+    """Abstract backend for reading and writing task and asset state."""
 
     @abstractmethod
     def get(self, scope: StateScope, key: str) -> str | None:
@@ -66,14 +59,18 @@ class BaseStateBackend(ABC):
     def clear(self, scope: StateScope) -> None:
         """Delete all keys under the given scope."""
 
+    @abstractmethod
     async def aget(self, scope: StateScope, key: str) -> str | None:
-        return self.get(scope, key)
+        """Async variant of get."""
 
+    @abstractmethod
     async def aset(self, scope: StateScope, key: str, value: str) -> None:
-        self.set(scope, key, value)
+        """Async variant of set."""
 
+    @abstractmethod
     async def adelete(self, scope: StateScope, key: str) -> None:
-        self.delete(scope, key)
+        """Async variant of delete."""
 
+    @abstractmethod
     async def aclear(self, scope: StateScope) -> None:
-        self.clear(scope)
+        """Async variant of clear."""

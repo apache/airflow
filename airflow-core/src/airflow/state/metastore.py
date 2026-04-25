@@ -26,13 +26,14 @@ from airflow._shared.timezones import timezone
 from airflow.models.asset_state import AssetStateModel
 from airflow.models.dagrun import DagRun
 from airflow.models.task_state import TaskStateModel
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session_async, provide_session
 from airflow.utils.sqlalchemy import get_dialect_name
 
 if TYPE_CHECKING:
     from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
     from sqlalchemy.dialects.postgresql.dml import Insert as PostgreSQLInsert
     from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
 
@@ -65,6 +66,33 @@ class MetastoreStateBackend(BaseStateBackend):
             self._clear_task(scope, session=session)
         else:
             self._clear_asset(scope, session=session)
+
+    async def aget(self, scope: StateScope, key: str) -> str | None:
+        async with create_session_async() as session:
+            if isinstance(scope, TaskScope):
+                return await self._aget_task(scope, key, session=session)
+            return await self._aget_asset(scope, key, session=session)
+
+    async def aset(self, scope: StateScope, key: str, value: str) -> None:
+        async with create_session_async() as session:
+            if isinstance(scope, TaskScope):
+                await self._aset_task(scope, key, value, session=session)
+            else:
+                await self._aset_asset(scope, key, value, session=session)
+
+    async def adelete(self, scope: StateScope, key: str) -> None:
+        async with create_session_async() as session:
+            if isinstance(scope, TaskScope):
+                await self._adelete_task(scope, key, session=session)
+            else:
+                await self._adelete_asset(scope, key, session=session)
+
+    async def aclear(self, scope: StateScope) -> None:
+        async with create_session_async() as session:
+            if isinstance(scope, TaskScope):
+                await self._aclear_task(scope, session=session)
+            else:
+                await self._aclear_asset(scope, session=session)
 
     def _get_task(self, scope: TaskScope, key: str, *, session: Session) -> str | None:
         row = session.scalar(
@@ -211,6 +239,158 @@ class MetastoreStateBackend(BaseStateBackend):
 
     def _clear_asset(self, scope: AssetScope, *, session: Session) -> None:
         session.execute(
+            delete(AssetStateModel).where(
+                AssetStateModel.asset_id == scope.asset_id,
+            )
+        )
+
+    async def _aget_task(self, scope: TaskScope, key: str, *, session: AsyncSession) -> str | None:
+        row = await session.scalar(
+            select(TaskStateModel).where(
+                TaskStateModel.dag_id == scope.dag_id,
+                TaskStateModel.run_id == scope.run_id,
+                TaskStateModel.task_id == scope.task_id,
+                TaskStateModel.map_index == scope.map_index,
+                TaskStateModel.key == key,
+            )
+        )
+        return row.value if row is not None else None
+
+    async def _aset_task(self, scope: TaskScope, key: str, value: str, *, session: AsyncSession) -> None:
+        dag_run_id = await session.scalar(
+            select(DagRun.id).where(
+                DagRun.dag_id == scope.dag_id,
+                DagRun.run_id == scope.run_id,
+            )
+        )
+        now = timezone.utcnow()
+        stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
+        # get_dialect_name expects a sync Session; sync_session is the underlying Session the async wrapper delegates to
+        dialect = get_dialect_name(session.sync_session)
+        if dialect == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            stmt = pg_insert(TaskStateModel).values(
+                dag_run_id=dag_run_id,
+                dag_id=scope.dag_id,
+                run_id=scope.run_id,
+                task_id=scope.task_id,
+                map_index=scope.map_index,
+                key=key,
+                value=value,
+                updated_at=now,
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["dag_run_id", "task_id", "map_index", "key"],
+                set_=dict(value=value, updated_at=now),
+            )
+        elif dialect == "mysql":
+            from sqlalchemy.dialects.mysql import insert as mysql_insert
+
+            stmt = mysql_insert(TaskStateModel).values(
+                dag_run_id=dag_run_id,
+                dag_id=scope.dag_id,
+                run_id=scope.run_id,
+                task_id=scope.task_id,
+                map_index=scope.map_index,
+                key=key,
+                value=value,
+                updated_at=now,
+            )
+            stmt = stmt.on_duplicate_key_update(value=value, updated_at=now)
+        else:
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+            stmt = sqlite_insert(TaskStateModel).values(
+                dag_run_id=dag_run_id,
+                dag_id=scope.dag_id,
+                run_id=scope.run_id,
+                task_id=scope.task_id,
+                map_index=scope.map_index,
+                key=key,
+                value=value,
+                updated_at=now,
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["dag_run_id", "task_id", "map_index", "key"],
+                set_=dict(value=value, updated_at=now),
+            )
+        await session.execute(stmt)
+
+    async def _adelete_task(self, scope: TaskScope, key: str, *, session: AsyncSession) -> None:
+        await session.execute(
+            delete(TaskStateModel).where(
+                TaskStateModel.dag_id == scope.dag_id,
+                TaskStateModel.run_id == scope.run_id,
+                TaskStateModel.task_id == scope.task_id,
+                TaskStateModel.map_index == scope.map_index,
+                TaskStateModel.key == key,
+            )
+        )
+
+    async def _aclear_task(self, scope: TaskScope, *, session: AsyncSession) -> None:
+        await session.execute(
+            delete(TaskStateModel).where(
+                TaskStateModel.dag_id == scope.dag_id,
+                TaskStateModel.run_id == scope.run_id,
+                TaskStateModel.task_id == scope.task_id,
+                TaskStateModel.map_index == scope.map_index,
+            )
+        )
+
+    async def _aget_asset(self, scope: AssetScope, key: str, *, session: AsyncSession) -> str | None:
+        row = await session.scalar(
+            select(AssetStateModel).where(
+                AssetStateModel.asset_id == scope.asset_id,
+                AssetStateModel.key == key,
+            )
+        )
+        return row.value if row is not None else None
+
+    async def _aset_asset(self, scope: AssetScope, key: str, value: str, *, session: AsyncSession) -> None:
+        now = timezone.utcnow()
+        stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
+        # get_dialect_name expects a sync Session; sync_session is the underlying Session the async wrapper delegates to
+        dialect = get_dialect_name(session.sync_session)
+        if dialect == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            stmt = pg_insert(AssetStateModel).values(
+                asset_id=scope.asset_id, key=key, value=value, updated_at=now
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["asset_id", "key"],
+                set_=dict(value=value, updated_at=now),
+            )
+        elif dialect == "mysql":
+            from sqlalchemy.dialects.mysql import insert as mysql_insert
+
+            stmt = mysql_insert(AssetStateModel).values(
+                asset_id=scope.asset_id, key=key, value=value, updated_at=now
+            )
+            stmt = stmt.on_duplicate_key_update(value=value, updated_at=now)
+        else:
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+            stmt = sqlite_insert(AssetStateModel).values(
+                asset_id=scope.asset_id, key=key, value=value, updated_at=now
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["asset_id", "key"],
+                set_=dict(value=value, updated_at=now),
+            )
+        await session.execute(stmt)
+
+    async def _adelete_asset(self, scope: AssetScope, key: str, *, session: AsyncSession) -> None:
+        await session.execute(
+            delete(AssetStateModel).where(
+                AssetStateModel.asset_id == scope.asset_id,
+                AssetStateModel.key == key,
+            )
+        )
+
+    async def _aclear_asset(self, scope: AssetScope, *, session: AsyncSession) -> None:
+        await session.execute(
             delete(AssetStateModel).where(
                 AssetStateModel.asset_id == scope.asset_id,
             )
