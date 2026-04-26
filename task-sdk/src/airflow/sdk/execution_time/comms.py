@@ -52,13 +52,13 @@ import asyncio
 import itertools
 import threading
 from collections.abc import Iterator
+from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
 from functools import cached_property
 from pathlib import Path
 from socket import socket
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Generic, Literal, TypeVar, overload
 from uuid import UUID
-from contextlib import asynccontextmanager, contextmanager
 
 import attrs
 import msgspec

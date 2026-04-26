@@ -20,12 +20,9 @@ from __future__ import annotations
 import asyncio
 import datetime
 import itertools
-import msgspec
 import os
 import selectors
-import structlog
 import time
-import threading
 import typing
 import uuid
 from collections.abc import AsyncIterator
@@ -34,8 +31,10 @@ from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
+import msgspec
 import pendulum
 import pytest
+import structlog
 from asgiref.sync import sync_to_async
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -70,7 +69,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, BaseHook, BaseOperator
-from airflow.sdk.execution_time.comms import ToSupervisor, ToTask, _RequestFrame, _ResponseFrame
+from airflow.sdk.execution_time.comms import ToSupervisor, ToTask, _RequestFrame
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
@@ -1542,6 +1541,7 @@ class TestMakeTriggerSpan:
         assert "airflow.dag_id" not in attrs
         assert "airflow.task_id" not in attrs
 
+
 class TestTriggerCommsDecoder:
     """Tests for the low‑level TriggerCommsDecoder socket communication."""
 
@@ -1593,7 +1593,7 @@ class TestTriggerCommsDecoder:
                     break
                 data.extend(chunk)
 
-            req = decoder.resp_decoder.decode(data)   # This is a _RequestFrame
+            req = decoder.resp_decoder.decode(data)  # This is a _RequestFrame
             # Deserialize the TriggerStateChanges request body
             changes = messages.TriggerStateChanges(**req.body)
 
@@ -1618,9 +1618,7 @@ class TestTriggerCommsDecoder:
             log=structlog.get_logger(),
         )
 
-        server_task = asyncio.create_task(
-            self._run_trigger_comms_server(w, 1, decoder)
-        )
+        server_task = asyncio.create_task(self._run_trigger_comms_server(w, 1, decoder))
 
         msg = messages.TriggerStateChanges(events=None, finished=None, failures=None)
         result = await decoder.asend(msg)
@@ -1649,9 +1647,7 @@ class TestTriggerCommsDecoder:
         )
 
         num_requests = 5
-        server_task = asyncio.create_task(
-            self._run_trigger_comms_server(w, num_requests, decoder)
-        )
+        server_task = asyncio.create_task(self._run_trigger_comms_server(w, num_requests, decoder))
 
         async def make_request(idx: int):
             msg = messages.TriggerStateChanges(
