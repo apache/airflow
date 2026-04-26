@@ -293,8 +293,8 @@ export const TaskInstances = () => {
     },
   );
 
-  const nextCursor = data && "next_cursor" in data ? data.next_cursor : undefined;
-  const previousCursor = data && "previous_cursor" in data ? data.previous_cursor : undefined;
+  const nextCursor = data?.next_cursor ?? undefined;
+  const previousCursor = data?.previous_cursor ?? undefined;
 
   const columns = taskInstanceColumns({
     dagId,
