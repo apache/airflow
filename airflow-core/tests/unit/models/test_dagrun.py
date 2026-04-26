@@ -43,7 +43,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import StaleDataError
 
-from airflow import settings
+from airflow import plugins_manager, settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import (
     DAGRUN_PARENT_TRACE_CONTEXT_KEY,
@@ -95,6 +95,7 @@ from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
+from unit.plugins.priority_weight_strategy import DecreasingPriorityStrategy, TestPriorityWeightStrategyPlugin
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -2725,6 +2726,67 @@ def test_schedule_tis_up_for_reschedule_does_not_increment_try_number(dag_maker,
     )
     assert refreshed_ti.state == TaskInstanceState.SCHEDULED
     assert refreshed_ti.try_number == 3
+
+
+@pytest.mark.mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin])
+def test_schedule_tis_refreshes_task_instance_only_on_retry(dag_maker, session, request):
+    request.addfinalizer(plugins_manager.get_priority_weight_strategy_plugins.cache_clear)
+
+    with dag_maker(session=session) as dag:
+        for task_id in ("first_attempt", "retry", "reschedule"):
+            BashOperator(task_id=task_id, bash_command="echo 1", weight_rule=DecreasingPriorityStrategy())
+
+    dr = dag_maker.create_dagrun(session=session)
+    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+    for task_id, state, try_number in (
+        ("first_attempt", None, 0),
+        ("retry", TaskInstanceState.UP_FOR_RETRY, 1),
+        ("reschedule", TaskInstanceState.UP_FOR_RESCHEDULE, 3),
+    ):
+        tis[task_id].refresh_from_task(dag.get_task(task_id))
+        tis[task_id].state = state
+        tis[task_id].try_number = try_number
+    session.commit()
+
+    hook_calls = []
+
+    def route_to_retry_queue(task_instance, dag_run=None):
+        hook_calls.append((task_instance.task_id, task_instance.try_number, dag_run))
+        task_instance.queue = "retry_queue"
+
+    with _registered_mutation_hook(route_to_retry_queue):
+        assert dr.schedule_tis(tis.values(), session=session) == 3
+    session.commit()
+
+    assert hook_calls == [("retry", 2, dr)]
+    session.expire_all()
+    retry_ti = dr.get_task_instance("retry", session=session)
+    assert retry_ti.state == TaskInstanceState.SCHEDULED
+    assert retry_ti.try_number == 2
+    assert retry_ti.queue == "retry_queue"
+    assert retry_ti.priority_weight == 2
+
+
+def test_schedule_tis_restores_try_number_when_retry_refresh_fails(dag_maker, session):
+    with dag_maker(session=session) as dag:
+        BashOperator(task_id="task", bash_command="echo 1")
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task", session=session)
+    ti.refresh_from_task(dag.get_task("task"))
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    ti.try_number = 1
+    session.commit()
+
+    def failing_hook(task_instance, dag_run=None):
+        raise RuntimeError("hook failed")
+
+    with _registered_mutation_hook(failing_hook), pytest.raises(RuntimeError, match="hook failed"):
+        dr.schedule_tis((ti,), session=session)
+    session.commit()
+
+    session.expire_all()
+    assert dr.get_task_instance("task", session=session).try_number == 1
 
 
 def test_schedule_tis_empty_operator_is_noop_if_ti_already_running(dag_maker, session):
