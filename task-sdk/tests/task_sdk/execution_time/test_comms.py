@@ -242,7 +242,7 @@ class TestCommsDecoder:
     async def test_asend_concurrent_safety(self):
         """Multiple concurrent asend calls must not interleave and must each receive the correct response."""
         r, w = socketpair()
-        r.setblocking(False)  # <-- required for asyncio
+        r.setblocking(False)
         w.setblocking(False)
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
         num_requests = 5
