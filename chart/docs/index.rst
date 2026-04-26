@@ -68,9 +68,8 @@ Requirements
 Features
 --------
 
-* Supported executors (all Airflow versions): ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``
-* Supported hybrid static executors (Airflow version ``2.11.X``): ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
-* Supported multiple Executors (``2.11+``)
+* Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``
+* Supported multiple Executors
 * Supported AWS executors with AWS provider version ``8.21.0+``:
 
    * ``airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor``
@@ -84,7 +83,7 @@ Features
 
    * ``airflow.providers.edge3.executors.EdgeExecutor``
 
-* Supported Airflow version: ``2.11+``, ``3.0+``
+* Supported Airflow version: ``3.1+``
 * Supported database backend: ``PostgreSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA
 * ``PostgreSQL`` and ``PgBouncer`` with a battle-tested configuration
@@ -188,7 +187,7 @@ To run database migrations with Argo CD automatically, you will need to add:
 
 This will run database migrations every time there is a ``Sync`` event in Argo CD. While it is not ideal to run the migrations on every sync, it is a trade-off that allows them to be run automatically.
 
-If you use the ``CeleryExecutor`` or ``CeleryKubernetesExecutor`` with the built-in Redis, it is recommended that you set up a static Redis password either by supplying ``redis.passwordSecretName`` and ``data.brokerUrlSecretName`` or ``redis.password``.
+If you use the ``CeleryExecutor`` with the built-in Redis, it is recommended that you set up a static Redis password either by supplying ``redis.passwordSecretName`` and ``data.brokerUrlSecretName`` or ``redis.password``.
 
 .. note::
 

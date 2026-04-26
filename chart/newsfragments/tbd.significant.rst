@@ -1,0 +1,3 @@
+Dropped support for Airflow <= 3.1.0
+
+If you want to use the Chart for older versions you need to use one of the charts from the version 1.x-line.
