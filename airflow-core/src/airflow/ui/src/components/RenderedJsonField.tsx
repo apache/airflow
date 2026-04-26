@@ -21,7 +21,7 @@ import Editor, { type OnMount } from "@monaco-editor/react";
 import { useCallback, useState } from "react";
 
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
-import { useColorMode } from "src/context/colorMode";
+import { useMonacoTheme } from "src/context/colorMode";
 
 const MAX_HEIGHT = 300;
 const MIN_HEIGHT = 40;
@@ -34,12 +34,11 @@ type Props = {
 
 const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true, ...rest }: Props) => {
   const contentFormatted = JSON.stringify(content, undefined, 2);
-  const { colorMode } = useColorMode();
+  const { beforeMount, theme } = useMonacoTheme();
   const lineCount = contentFormatted.split("\n").length;
   const expandedHeight = Math.min(Math.max(lineCount * 19 + 10, MIN_HEIGHT), MAX_HEIGHT);
   const [editorHeight, setEditorHeight] = useState(collapsed ? MIN_HEIGHT : expandedHeight);
   const [isReady, setIsReady] = useState(!collapsed);
-  const theme = colorMode === "dark" ? "vs-dark" : "vs-light";
 
   const handleMount: OnMount = useCallback(
     (editorInstance) => {
@@ -75,6 +74,7 @@ const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true,
       {...rest}
     >
       <Editor
+        beforeMount={beforeMount}
         height={`${editorHeight}px`}
         language="json"
         onMount={handleMount}
