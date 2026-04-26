@@ -20,6 +20,7 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Collect ambiguities during the release (for a follow-up doc PR)](#collect-ambiguities-during-the-release-for-a-follow-up-doc-pr)
 - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Prepare the Apache Airflow Helm Chart Release Candidate](#prepare-the-apache-airflow-helm-chart-release-candidate)
   - [Pre-requisites](#pre-requisites)
@@ -64,6 +65,21 @@
 
 You can find the prerequisites to release Apache Airflow in [README.md](README.md). This document
 details the steps for releasing Helm Chart.
+
+# Collect ambiguities during the release (for a follow-up doc PR)
+
+These instructions are imperfect. Every release uncovers at least one command
+that has drifted, one step that is under-documented, or one automation that
+silently did the wrong thing. As you run through this document, jot down any
+such observations in a scratch file kept **outside** the repo (anywhere that
+is not tracked by git — a note in your home directory, a scratchpad, a
+gist). Once the release has landed, turn those notes into a follow-up PR
+against this document.
+
+Keeping the scratch file out of the repo avoids accidentally committing
+release-manager notes along with the release-prep PR, and makes it obvious
+that the notes are input to the next doc PR rather than something to keep
+around long-term.
 
 # Perform review of security issues that are marked for the release
 
@@ -198,18 +214,29 @@ the same between voted release candidate and final release.
 Because of this the version in the built artifacts that will become the
 official Apache releases must not include the rcN suffix.
 
-Make sure you have `apache` remote set up pointing to the apache git repo.
+Make sure you have the `upstream` remote set up pointing to the apache git repo
+(per the standard convention `upstream` → `apache/airflow`, `origin` → your fork —
+see
+[`contributing-docs/10_working_with_git.rst`](../contributing-docs/10_working_with_git.rst#git-remote-naming-conventions)).
 If needed, add it with:
 
 ```shell
-git remote add apache git@github.com:apache/airflow.git
-git fetch apache
+git remote add upstream git@github.com:apache/airflow.git
+git fetch upstream
 ```
 
 - We currently release Helm Chart from `main` branch:
 
+For releasing 1.2x.0
+
 ```shell
-git checkout apache/main
+git checkout apache/chart/v1-2x-test
+```
+
+For releasing 2.x.x and onwards
+
+```shell
+git checkout upstream/main
 ```
 
 - Clean the checkout: (note that this step will also clean any IDE settings you might have so better to
@@ -219,6 +246,39 @@ git checkout apache/main
 git clean -fxd
 rm -rf dist/*
 ```
+
+- Verify your GPG signing key is ready.
+
+  Before you spend 10+ minutes building artifacts only to discover that signing
+  fails, run these checks once:
+
+  ```shell
+  # 1. The apache.org key has a secret signing subkey available locally.
+  gpg --list-secret-keys apache.org
+
+  # 2. Signing actually works (exits 0, writes a .asc, verifies cleanly).
+  echo test > /tmp/sign-check && \
+      gpg --yes --armor --local-user apache.org \
+          --output /tmp/sign-check.asc --detach-sig /tmp/sign-check && \
+      gpg --verify /tmp/sign-check.asc /tmp/sign-check && \
+      rm -f /tmp/sign-check /tmp/sign-check.asc && \
+      echo "GPG signing OK"
+
+  # 3. The fingerprint of your signing (sub)key appears in the Airflow KEYS file.
+  #    Without this, PMC verifiers cannot validate the release.
+  FINGERPRINT=$(gpg --list-keys --with-colons apache.org | awk -F: '/^fpr:/ {print $10; exit}')
+  curl -fsS https://dist.apache.org/repos/dist/release/airflow/KEYS | \
+      grep -q "${FINGERPRINT}" && echo "Key ${FINGERPRINT} is in KEYS" || \
+      echo "MISSING: add your key to KEYS before releasing"
+  ```
+
+  If any of these fail, fix them before the build step. For first-time release
+  managers, adding your key to the `KEYS` file is a separate PR against
+  `https://dist.apache.org/repos/dist/release/airflow/` (SVN).
+
+  `sign.sh` defaults to `SIGN_WITH=apache.org`. If your `apache.org` uid resolves
+  to multiple keys (rare), set `SIGN_WITH` explicitly to the fingerprint of the
+  key you want to use.
 
 - Generate the source tarball:
 
@@ -302,7 +362,7 @@ popd
 
   ```shell
   cd ${AIRFLOW_REPO_ROOT}
-  git push apache tag helm-chart/${VERSION}${VERSION_SUFFIX}
+  git push upstream tag helm-chart/${VERSION}${VERSION_SUFFIX}
   ```
 
 ## Publish rc documentation
@@ -342,7 +402,7 @@ Content is generated with:
 
 ```shell
 breeze release-management generate-issue-content-helm-chart \
---previous-release helm-chart/<PREVIOUS_RELEASE> --current-release helm-chart/${VERSION}${VERSION_SUFFIX}
+--previous-release helm-chart/${PREVIOUS_VERSION_WITH_SUFFIX} --current-release helm-chart/${VERSION}${VERSION_SUFFIX}
 ```
 
 Copy the URL of the issue.
@@ -398,7 +458,7 @@ gpg:                using RSA key E1A1E984F55B8F280BD9CBA20BB7163892A2E48E
 gpg: Good signature from "Jed Cunningham <jedcunningham@apache.org>" [ultimate]
 plugin: Chart SHA verified. sha256:b33eac716e0416a18af89fb4fa1043fcfcf24f9f903cda3912729815213525df
 
-The documentation is available at https://airflow.staged.apache.org/helm-chart/${VERSION}/.
+The documentation is available at https://airflow.staged.apache.org/docs/helm-chart/${VERSION}/index.html.
 
 The vote will be open for at least 72 hours ($VOTE_END_TIME UTC) or until the necessary number of votes is reached.
 
@@ -421,7 +481,7 @@ https://github.com/apache/airflow/blob/main/dev/README_RELEASE_HELM_CHART.md#ver
 
 Consider this my (binding) +1.
 
-For license checks, the .rat-excludes files is included, so you can run the following to verify licenses (just update your path to rat):
+For license checks, the .rat-excludes files are included, so you can run the following to verify licenses (just update your path to rat):
 
 tar -xvf airflow-chart-${VERSION}-source.tar.gz
 cd airflow-chart-${VERSION}
@@ -806,7 +866,7 @@ Create and push the release tag:
 cd "${AIRFLOW_REPO_ROOT}"
 git checkout helm-chart/${VERSION}${VERSION_SUFFIX}
 git tag -s helm-chart/${VERSION} -m "Apache Airflow Helm Chart ${VERSION}"
-git push apache helm-chart/${VERSION}
+git push upstream helm-chart/${VERSION}
 ```
 
 ## Publish final documentation
@@ -967,7 +1027,7 @@ I invite everyone to help improve the chart for the next release, a list of open
 
 ## Update issue template with the new release
 
-Updating issue templates in `.github/ISSUE_TEMPLATE/4-airflow_helmchart_bug_report.yml` with the new version
+Updating issue templates in `.github/ISSUE_TEMPLATE/1-airflow_bug_report.yml.yml` with the new version
 
 ## Announce the release on the community slack
 

@@ -20,6 +20,7 @@ import os
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from azure.identity import AzureAuthorityHosts
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
@@ -156,6 +157,7 @@ class TestBaseAzureHook:
             client_id=mocked_connection.login,
             client_secret=mocked_connection.password,
             tenant_id=mocked_connection.extra_dejson["tenantId"],
+            authority=AzureAuthorityHosts.AZURE_PUBLIC_CLOUD,
         )
         assert cred == "foo-bar"
 
@@ -221,3 +223,41 @@ class TestBaseAzureHook:
 
         mock_spc.assert_called_once_with()
         assert token == "new-token"
+
+    @patch(f"{MODULE}.ClientSecretCredential")
+    @pytest.mark.parametrize(
+        ("cloud_env", "expected_authority"),
+        [
+            pytest.param(None, AzureAuthorityHosts.AZURE_PUBLIC_CLOUD, id="default_public_cloud"),
+            pytest.param(
+                "AzurePublicCloud", AzureAuthorityHosts.AZURE_PUBLIC_CLOUD, id="explicit_public_cloud"
+            ),
+            pytest.param("AzureUSGovernment", AzureAuthorityHosts.AZURE_GOVERNMENT, id="us_government"),
+            pytest.param("AzureChinaCloud", AzureAuthorityHosts.AZURE_CHINA, id="china_cloud"),
+        ],
+    )
+    def test_get_credential_cloud_environment(
+        self, mock_csc, cloud_env, expected_authority, create_mock_connection
+    ):
+        extras = {"tenantId": "my_tenant", "use_azure_identity_object": True}
+        if cloud_env is not None:
+            extras["cloud_environment"] = cloud_env
+
+        create_mock_connection(
+            Connection(
+                conn_id="azure_default",
+                login="my_login",
+                password="my_password",
+                extra=extras,
+            )
+        )
+        mock_csc.return_value = "credential"
+        cred = AzureBaseHook().get_credential()
+
+        mock_csc.assert_called_once_with(
+            client_id="my_login",
+            client_secret="my_password",
+            tenant_id="my_tenant",
+            authority=expected_authority,
+        )
+        assert cred == "credential"

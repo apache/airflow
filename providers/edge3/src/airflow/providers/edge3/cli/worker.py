@@ -23,6 +23,7 @@ import sys
 import traceback
 from asyncio import Task, create_task, get_running_loop, sleep
 from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from datetime import datetime
 from functools import cached_property
 from http import HTTPStatus
@@ -76,6 +77,25 @@ else:
 def _edge_hostname() -> str:
     """Get the hostname of the edge worker that should be reported by tasks."""
     return os.environ.get("HOSTNAME", getfqdn())
+
+
+def _reset_parent_signal_state() -> None:
+    """
+    Detach a forked child from the parent's asyncio signal plumbing.
+
+    The parent installs asyncio signal handlers for SIGTERM/SIGINT/SIG_STATUS
+    via ``loop.add_signal_handler``, which internally uses
+    ``signal.set_wakeup_fd`` on one end of a shared socketpair. On Linux
+    ``fork()`` duplicates that fd into the child; signals delivered to the
+    child then write bytes into the socketpair the parent is reading from,
+    re-firing the parent's handlers. Reset the inherited state before the
+    child runs any supervised code.
+    """
+    signal.set_wakeup_fd(-1)
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    with suppress(ValueError, OSError):
+        signal.signal(SIG_STATUS, signal.SIG_DFL)
 
 
 class EdgeWorker:
@@ -194,13 +214,14 @@ class EdgeWorker:
         logger.info("Request to shut down Edge Worker received, waiting for jobs to complete.")
 
     def shutdown_handler(self):
+        if self.drain:
+            return
         self.drain = True
-        msg = "SIGTERM received. Sending SIGTERM to all jobs and quit"
-        logger.info(msg)
+        logger.info("SIGTERM received. Sending SIGTERM to all jobs and quit")
         for job in self.jobs:
             if job.process.pid:
-                os.setpgid(job.process.pid, 0)
-                os.kill(job.process.pid, signal.SIGTERM)
+                with suppress(ProcessLookupError, PermissionError):
+                    os.kill(job.process.pid, signal.SIGTERM)
 
     async def _get_sysinfo(self) -> dict[str, str | int | float | datetime]:
         """Produce the sysinfo from worker to post to central site."""
@@ -240,6 +261,8 @@ class EdgeWorker:
         return EdgeWorkerState.IDLE
 
     def _run_job_via_supervisor(self, workload: ExecuteTask, results_queue: Queue) -> int:
+        _reset_parent_signal_state()
+
         from airflow.sdk.execution_time.supervisor import supervise
 
         # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion

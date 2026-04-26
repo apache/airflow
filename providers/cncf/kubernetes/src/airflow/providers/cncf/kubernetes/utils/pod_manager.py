@@ -538,8 +538,12 @@ class PodManager(LoggingMixin):
                 since_seconds = None
                 if since_time:
                     try:
+                        if isinstance(
+                            since_time, str
+                        ):  # against interface spec but accept string as safeguard
+                            since_time = pendulum.parse(since_time.replace("Z", "+00:00"))
                         since_seconds = math.ceil((pendulum.now() - since_time).total_seconds())
-                    except TypeError:
+                    except (TypeError, ValueError):
                         self.log.warning(
                             "Error calculating since_seconds with since_time %s. Using None instead.",
                             since_time,

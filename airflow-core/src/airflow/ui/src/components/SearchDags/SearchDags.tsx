@@ -54,7 +54,7 @@ export const SearchDags = ({
       void queryClient.fetchQuery({
         queryFn: () =>
           DagService.getDags({
-            dagDisplayNamePattern: inputValue,
+            dagDisplayNamePrefixPattern: inputValue,
             limit: SEARCH_LIMIT,
           }).then((data: DAGCollectionResponse) => {
             const options = data.dags.map((dag: DAGResponse) => ({
@@ -67,7 +67,7 @@ export const SearchDags = ({
             return options;
           }),
         queryKey: UseDagServiceGetDagsKeyFn({
-          dagDisplayNamePattern: inputValue,
+          dagDisplayNamePrefixPattern: inputValue,
         }),
         staleTime: 0,
       });

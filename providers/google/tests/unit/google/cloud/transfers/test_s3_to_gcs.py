@@ -625,7 +625,7 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
         }
         operator = S3ToGCSOperator(task_id=TASK_ID, bucket=S3_BUCKET)
         with pytest.raises(AirflowException, match=expected_event_message):
-            operator.execute_complete(context=mock.MagicMock(), event=event)
+            operator.execute_complete(context={}, event=event)
 
         mock_log.return_value.info.assert_not_called()
 

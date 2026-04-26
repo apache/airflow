@@ -374,16 +374,20 @@ def create_async_metadata_engine(
     sql_alchemy_conn_async: str,
     *,
     connect_args: dict[str, Any],
+    engine_args: dict[str, Any] | None = None,
 ) -> AsyncEngine:
     """
     Create the async SQLAlchemy Engine for the Airflow metadata database.
 
     Override in ``airflow_local_settings.py`` to customize async engine creation.
     For ``do_connect`` handlers, register on ``engine.sync_engine``.
+
+    :param engine_args: Pool and engine configuration (pool_size, pool_recycle, etc.).
     """
     return create_async_engine(
         sql_alchemy_conn_async,
         connect_args=connect_args,
+        **(engine_args or {}),
         future=True,
     )
 
@@ -403,9 +407,23 @@ def _configure_async_session() -> None:
         AsyncSession = None
         return
 
+    # Apply the same pool health settings used by the sync engine.
+    # Without these, the async pool uses SQLAlchemy defaults (pool_recycle=-1,
+    # pool_pre_ping=False) which means dead connections from PostgreSQL idle
+    # timeouts or pgbouncer disconnects are never detected.
+    engine_args: dict[str, Any] = {}
+    if not conf.getboolean("database", "SQL_ALCHEMY_POOL_ENABLED"):
+        engine_args["poolclass"] = NullPool
+    elif not SQL_ALCHEMY_CONN_ASYNC.startswith("sqlite"):
+        engine_args["pool_size"] = conf.getint("database", "SQL_ALCHEMY_POOL_SIZE", fallback=5)
+        engine_args["pool_recycle"] = conf.getint("database", "SQL_ALCHEMY_POOL_RECYCLE", fallback=1800)
+        engine_args["pool_pre_ping"] = conf.getboolean("database", "SQL_ALCHEMY_POOL_PRE_PING", fallback=True)
+        engine_args["max_overflow"] = conf.getint("database", "SQL_ALCHEMY_MAX_OVERFLOW", fallback=10)
+
     async_engine = create_async_metadata_engine(
         SQL_ALCHEMY_CONN_ASYNC,
         connect_args=_get_connect_args("async"),
+        engine_args=engine_args,
     )
     AsyncSession = async_sessionmaker(
         bind=async_engine,

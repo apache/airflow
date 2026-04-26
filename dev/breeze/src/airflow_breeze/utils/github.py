@@ -136,13 +136,14 @@ ACTIVE_TAG_MATCH = re.compile(r"^(\d+)\.\d+\.\d+$")
 
 
 def get_active_airflow_versions(
-    confirm: bool = True, remote_name: str = "apache"
+    confirm: bool = True, remote_name: str = "upstream"
 ) -> tuple[list[str], dict[str, str]]:
     """
     Gets list of active Airflow versions from GitHub.
 
     :param confirm: if True, will ask the user before proceeding with the versions found
-    :param remote_name: name of the remote to fetch tags from (e.g., 'apache')
+    :param remote_name: name of the remote to fetch tags from (default: 'upstream' per the
+        project's git remote naming convention)
     :return: tuple: list of active Airflow versions and dict of Airflow release dates (in iso format)
     """
     from git import GitCommandError, Repo
@@ -158,12 +159,18 @@ def get_active_airflow_versions(
     try:
         ref_tags = repo.git.ls_remote("--tags", remote_name).splitlines()
     except GitCommandError as ex:
-        console_print("[error]Could not fetch tags from `apache` remote! Make sure to have it configured.\n")
+        console_print(
+            f"[error]Could not fetch tags from `{remote_name}` remote! Make sure to have it configured.\n"
+        )
         console_print(f"{ex}\n")
         console_print(
-            "[info]You can add apache remote with on of those commands (depend which protocol you use):\n"
-            " * git remote add apache https://github.com/apache/airflow.git\n"
-            " * git remote add apache git@github.com:apache/airflow.git\n"
+            "[info]Airflow standardises on `upstream` for the apache/airflow remote and `origin` "
+            "for your fork. You can add the upstream remote with one of these commands "
+            "(depending on which protocol you use):\n"
+            " * git remote add upstream https://github.com/apache/airflow.git\n"
+            " * git remote add upstream git@github.com:apache/airflow.git\n"
+            "If you already have it configured under a different name, rename it with "
+            "`git remote rename <old-name> upstream`, or pass `--remote-name <old-name>`.\n"
         )
         sys.exit(1)
     tags = [tag.split("refs/tags/")[1].strip() for tag in ref_tags if "refs/tags/" in tag]

@@ -188,7 +188,8 @@ repos:
           (?x)
           ^scripts/ci/license-templates/|
           ^\.github/instructions/|
-          ^\.github/skills/airflow-translations/SKILL\.md$
+          ^\.github/skills/airflow-translations/SKILL\.md$|
+          ^\.github/skills/pr-triage/SKILL\.md$
       - id: insert-license
         name: Add license for all other files
         args:
@@ -245,6 +246,7 @@ repos:
         files: >
           (?x)
           ^pyproject\.toml$|
+          ^dev/breeze/src/airflow_breeze/utils/check_release_files\.py$|
           ^dev/breeze/tests/test_environment_check\.py$
         require_serial: true
       - id: check-distribution-gitignore
@@ -461,7 +463,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.10']
+        additional_dependencies: ['ruff==0.15.11']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -601,6 +603,7 @@ repos:
           ^README\.md$|
           ^pyproject\.toml$|
           ^generated/PYPI_README\.md$|
+          ^airflow-core/src/airflow/ui/public/i18n/README\.md$|
           ^airflow-core/docs/.*commits\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|
           ^airflow-core/newsfragments/41761.significant\.rst$|

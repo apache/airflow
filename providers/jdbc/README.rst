@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-jdbc``
 
-Release: ``5.4.3``
+Release: ``5.4.4``
 
 
 `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``jdbc`` provider. All classes for this provider 
 are in ``airflow.providers.jdbc`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.4.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.4.4/>`_.
 
 Installation
 ------------
@@ -50,14 +50,23 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 Requirements
 ------------
 
-==========================================  ==================
+==========================================  ==========================================================================================================
 PIP package                                 Version required
-==========================================  ==================
+==========================================  ==========================================================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.14.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``jaydebeapi``                              ``>=1.1.1``
-==========================================  ==================
+``jpype1``                                  ``>=1.4.0,!=1.7.0; python_version == "3.10" and sys_platform == "darwin" and platform_machine == "arm64"``
+``jpype1``                                  ``>=1.4.0; python_version == "3.10" and (sys_platform != "darwin" or platform_machine != "arm64")``
+``jpype1``                                  ``>=1.4.1,!=1.7.0; python_version == "3.11" and sys_platform == "darwin" and platform_machine == "arm64"``
+``jpype1``                                  ``>=1.4.1; python_version == "3.11" and (sys_platform != "darwin" or platform_machine != "arm64")``
+``jpype1``                                  ``>=1.5.0,!=1.7.0; python_version == "3.12" and sys_platform == "darwin" and platform_machine == "arm64"``
+``jpype1``                                  ``>=1.5.0; python_version == "3.12" and (sys_platform != "darwin" or platform_machine != "arm64")``
+``jpype1``                                  ``>=1.5.1,!=1.7.0; python_version == "3.13" and sys_platform == "darwin" and platform_machine == "arm64"``
+``jpype1``                                  ``>=1.5.1; python_version == "3.13" and (sys_platform != "darwin" or platform_machine != "arm64")``
+``jpype1``                                  ``>=1.7.0; python_version >= "3.14"``
+==========================================  ==========================================================================================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -80,4 +89,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.4.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.4.4/changelog.html>`_.
