@@ -210,6 +210,7 @@ class TestCommsDecoder:
                     break
                 data.extend(chunk)
             req = decoder.resp_decoder.decode(data)
+            assert req.body is not None
             key = req.body["key"]
             resp = {"type": "VariableResult", "key": key, "value": f"value_{key}"}
             resp_frame = _ResponseFrame(req.id, resp, None)
