@@ -3994,11 +3994,12 @@ def prepare_python_client(
                 f"but default version is {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} - this might cause "
                 f"reproducibility problems with prepared package.[/]"
             )
+            console_print(f"[info]Please rerun breeze with Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}.[/]")
             console_print(
-                f"[info]Please reinstall breeze with uv using Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:[/]"
-            )
-            console_print(
-                f"\nuv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
+                "\n  - For the recommended uvx-based setup, set UV_PYTHON before invoking breeze:\n"
+                f"        UV_PYTHON={DEFAULT_PYTHON_MAJOR_MINOR_VERSION} breeze ...\n"
+                "  - For a legacy global install, reinstall with the right Python:\n"
+                f"        uv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
             )
             sys.exit(1)
 
