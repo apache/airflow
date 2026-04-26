@@ -118,6 +118,9 @@ jobs:
           cache: pnpm
           cache-dependency-path: airflow-core/src/airflow/ui/pnpm-lock.yaml
 
+      - name: Compile UI assets
+        run: breeze ui compile-assets
+
       - name: Run PR frontend e2e
         run: breeze testing ui-e2e-tests --browser chromium --test-pattern "asset.spec.ts"
 
