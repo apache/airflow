@@ -196,6 +196,26 @@ class TestCommsDecoder:
             assert results[idx].key == f"key{idx}", f"Out-of-order or missing response for thread {idx}"
             assert results[idx].value == f"value{idx}", f"Incorrect value for thread {idx}"
 
+    async def _variable_server_side(w_sock, num_requests: int, decoder: CommsDecoder) -> None:
+        """Handle ``num_requests`` GetVariable frames, responding with VariableResult."""
+        loop = asyncio.get_running_loop()
+        for _ in range(num_requests):
+            len_bytes = await loop.sock_recv(w_sock, 4)
+            length = int.from_bytes(len_bytes, "big")
+            data = bytearray()
+            while len(data) < length:
+                chunk = await loop.sock_recv(w_sock, length - len(data))
+                if not chunk:
+                    break
+                data.extend(chunk)
+            req = decoder.resp_decoder.decode(data)
+            key = req.body["key"]
+            resp = {"type": "VariableResult", "key": key, "value": f"value_{key}"}
+            resp_frame = _ResponseFrame(req.id, resp, None)
+            resp_bytes = msgspec.msgpack.encode(resp_frame)
+            await loop.sock_sendall(w_sock, len(resp_bytes).to_bytes(4, "big") + resp_bytes)
+        w_sock.close()
+
     @pytest.mark.asyncio
     async def test_asend_basic(self):
         """Verify a single async request‑response cycle via asend."""
@@ -204,27 +224,7 @@ class TestCommsDecoder:
         w.setblocking(False)
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
 
-        async def server():
-            loop = asyncio.get_running_loop()
-            # read length
-            len_bytes = await loop.sock_recv(w, 4)
-            length = int.from_bytes(len_bytes, "big")
-            data = bytearray()
-            while len(data) < length:
-                chunk = await loop.sock_recv(w, length - len(data))
-                if not chunk:
-                    break
-                data.extend(chunk)
-            req = decoder.resp_decoder.decode(data)
-            # build a VariableResult matching the request
-            key = req.body["key"]
-            resp = {"type": "VariableResult", "key": key, "value": f"value_{key}"}
-            resp_frame = _ResponseFrame(req.id, resp, None)
-            resp_bytes = msgspec.msgpack.encode(resp_frame)
-            await loop.sock_sendall(w, len(resp_bytes).to_bytes(4, "big") + resp_bytes)
-            w.close()  # signal EOF for clean shutdown
-
-        server_task = asyncio.create_task(server())
+        server_task = asyncio.create_task(TestCommsDecoder._variable_server_side(w, 1, decoder))
 
         msg = GetVariable(key="basic_key")
         result = await decoder.asend(msg)
@@ -245,27 +245,7 @@ class TestCommsDecoder:
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
         num_requests = 5
 
-        async def server():
-            loop = asyncio.get_running_loop()
-            for _ in range(num_requests):
-                # read one frame
-                len_bytes = await loop.sock_recv(w, 4)
-                length = int.from_bytes(len_bytes, "big")
-                data = bytearray()
-                while len(data) < length:
-                    chunk = await loop.sock_recv(w, length - len(data))
-                    if not chunk:
-                        break
-                    data.extend(chunk)
-                req = decoder.resp_decoder.decode(data)
-                key = req.body["key"]
-                resp = {"type": "VariableResult", "key": key, "value": f"value_{key}"}
-                resp_frame = _ResponseFrame(req.id, resp, None)
-                resp_bytes = msgspec.msgpack.encode(resp_frame)
-                await loop.sock_sendall(w, len(resp_bytes).to_bytes(4, "big") + resp_bytes)
-            w.close()
-
-        server_task = asyncio.create_task(server())
+        server_task = asyncio.create_task(TestCommsDecoder._variable_server_side(w, num_requests, decoder))
 
         async def make_request(idx: int) -> VariableResult:
             msg = GetVariable(key=f"key{idx}")
