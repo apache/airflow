@@ -38,7 +38,7 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import parse_and_sync_to_db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.common.compat.sdk import DagRunTriggerException
@@ -294,10 +294,14 @@ class TestDagRunOperator:
                 {}, {"dag_id": "dag_id", "run_ids": ["run_id_1"], "poll_interval": 15, "run_id_1": "success"}
             )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_2_PLUS,
+        reason="Test only for Airflow 3.0 and 3.1",
+    )
     def test_trigger_dag_run_with_fail_when_dag_is_paused_should_fail(self):
         with pytest.raises(
-            NotImplementedError, match="Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.x"
+            NotImplementedError,
+            match="Setting `fail_when_dag_is_paused` is only supported for Airflow 3.2 and above",
         ):
             TriggerDagRunOperator(
                 task_id="test_task",
@@ -305,6 +309,24 @@ class TestDagRunOperator:
                 conf={"foo": "bar"},
                 fail_when_dag_is_paused=True,
             )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test only for Airflow 3.2+")
+    def test_trigger_dag_run_with_fail_when_dag_is_paused_raises_dag_is_paused(self):
+        from airflow.providers.standard.operators.trigger_dagrun import DagIsPaused
+        from airflow.sdk.types import RuntimeTaskInstanceProtocol
+
+        ti = mock.Mock(spec=RuntimeTaskInstanceProtocol)
+        ti.get_dag.return_value = mock.Mock(is_paused=True)
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            conf={"foo": "bar"},
+            fail_when_dag_is_paused=True,
+        )
+
+        with pytest.raises(DagIsPaused, match=f"^Dag {TRIGGERED_DAG_ID} is paused$"):
+            task.execute(context={"ti": ti})
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
     def test_trigger_dagrun_with_str_conf(self):
@@ -1042,6 +1064,7 @@ class TestDagRunOperatorAF2:
         # The second DagStateTrigger call should still use the original `logical_date` value.
         assert mock_task_defer.call_args_list[1].kwargs["trigger"].run_ids == [run_id]
 
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 2")
     def test_trigger_dagrun_with_fail_when_dag_is_paused(self, dag_maker, session):
         """Test TriggerDagRunOperator with fail_when_dag_is_paused set to True."""
         session.execute(
