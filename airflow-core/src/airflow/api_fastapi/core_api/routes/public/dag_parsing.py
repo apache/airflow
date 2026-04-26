@@ -92,11 +92,11 @@ def reparse_dag(
     """Request re-parsing of the file that contains the given DAG."""
     dag = session.get(DagModel, dag_id)
     if dag is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with id '{dag_id}' not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id '{dag_id}' not found")
     if dag.relative_fileloc is None:
         raise HTTPException(
             HTTP_422_UNPROCESSABLE_CONTENT,
-            f"DAG with id '{dag_id}' has no file location and cannot be re-parsed",
+            f"Dag with id '{dag_id}' has no file location and cannot be re-parsed",
         )
 
     parsing_request = DagPriorityParsingRequest(
