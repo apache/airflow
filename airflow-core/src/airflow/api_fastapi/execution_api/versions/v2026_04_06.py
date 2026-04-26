@@ -178,6 +178,19 @@ class AddNoteField(VersionChange):
             response.body["dag_run"].pop("note", None)
 
 
+class AddTaskInstanceStartDateField(VersionChange):
+    """Add `start_date` field to TIRunContext."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("start_date").didnt_exist,)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_start_date_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Remove start_date field for older API versions."""
+        response.body.pop("start_date", None)
+
+
 class AddDagEndpoint(VersionChange):
     """Add the `/dags/{dag_id}` endpoint."""
 
