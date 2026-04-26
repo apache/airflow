@@ -82,6 +82,16 @@ breeze = "airflow_breeze.breeze:main"
 [tool.flit.module]
 name = "airflow_breeze"
 
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "autocomplete/",
+    "doc/",
+    "tests/",
+    "uv.lock",
+]
+
 [tool.black]
 line-length = 110
 target-version = ['py310', 'py311', 'py312']

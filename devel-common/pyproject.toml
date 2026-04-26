@@ -187,6 +187,16 @@ src = ["src"]
 [tool.flit.module]
 name = "tests_common"
 
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "sphinx_design/",
+    "src/docs/",
+    "src/sphinx_exts/",
+    "tests/",
+]
+
 [tool.ruff.lint.extend-per-file-ignores]
 "src/tests_common/*" = ["S101", "TRY002"]
 # Test compat imports banned imports to allow testing against older airflow versions
