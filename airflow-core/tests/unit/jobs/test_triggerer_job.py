@@ -1597,6 +1597,7 @@ class TestTriggerCommsDecoder:
 
             req = decoder.resp_decoder.decode(data)  # This is a _RequestFrame
             # Deserialize the TriggerStateChanges request body
+            assert req.body is not None, "Expected a non-None body in the test frame"
             messages.TriggerStateChanges(**req.body)
 
             # Prepare the TriggerStateSync response
