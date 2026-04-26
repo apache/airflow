@@ -1547,6 +1547,7 @@ class TestTriggerCommsDecoder:
 
     @pytest.mark.asyncio
     async def test_recv_trigger_message(self):
+        """Verify low-level receiving of a TriggerStateSync message through the TriggerCommsDecoder."""
         r, w = socketpair()
         r.setblocking(False)
         w.setblocking(False)
@@ -1582,6 +1583,7 @@ class TestTriggerCommsDecoder:
     async def _run_trigger_comms_server(
         self, w_sock: socket, num_requests: int, decoder: TriggerCommsDecoder
     ) -> None:
+        """Mock server that receives ``TriggerStateChanges`` requests and replies with ``TriggerStateSync`` responses."""
         loop = asyncio.get_running_loop()
         for _ in range(num_requests):
             len_bytes = await loop.sock_recv(w_sock, 4)
@@ -1606,6 +1608,7 @@ class TestTriggerCommsDecoder:
 
     @pytest.mark.asyncio
     async def test_asend_basic(self):
+        """Test basic async send of a ``TriggerStateChanges`` message and receiving of a ``TriggerStateSync`` response."""
         r, w = socketpair()
         r.setblocking(False)
         w.setblocking(False)
@@ -1634,6 +1637,7 @@ class TestTriggerCommsDecoder:
 
     @pytest.mark.asyncio
     async def test_asend_concurrent_safety(self):
+        """Ensure that multiple concurrent ``asend()`` calls to the ``TriggerCommsDecoder`` are serialised correctly and each receives its proper response."""
         r, w = socketpair()
         r.setblocking(False)
         w.setblocking(False)
