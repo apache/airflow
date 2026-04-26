@@ -21,6 +21,8 @@ import LanguageDetector from "i18next-browser-languagedetector";
 import Backend from "i18next-http-backend";
 import { initReactI18next } from "react-i18next";
 
+import { VersionService } from "openapi/requests/services.gen";
+
 export const supportedLanguages = [
   { code: "en", name: "English" },
   { code: "ar", name: "العربية" },
@@ -61,13 +63,7 @@ const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? 
 const baseUrl = new URL(baseHref, globalThis.location.origin);
 const basePath = new URL(baseUrl).pathname.replace(/\/$/u, "");
 
-const getAirflowVersion = (): Promise<string> =>
-  fetch(`${basePath}/api/v2/version`)
-    .then<{ version?: string }>((r) => r.json())
-    .then((d) => d.version ?? "")
-    .catch(() => "");
-
-void getAirflowVersion().then((version) => {
+const initI18n = (version: string) => {
   const queryString = version ? `?v=${version}` : "";
 
   void i18n
@@ -93,6 +89,14 @@ void getAirflowVersion().then((version) => {
       },
       supportedLngs: supportedLanguages.map((lang) => lang.code),
     });
-});
+};
+
+void VersionService.getVersion()
+  .then((data) => {
+    initI18n(data.version);
+  })
+  .catch(() => {
+    initI18n("");
+  });
 
 export { default } from "i18next";
