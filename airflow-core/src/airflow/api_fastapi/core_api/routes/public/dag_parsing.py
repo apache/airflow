@@ -26,6 +26,7 @@ from sqlalchemy import select
 from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
@@ -78,7 +79,9 @@ def reparse_dag_file(
 
 @dag_reparse_router.put(
     "/reparse",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_CONTENT]
+    ),
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(requires_access_dag(method="PUT")), Depends(action_logging())],
 )
@@ -92,7 +95,7 @@ def reparse_dag(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with id '{dag_id}' not found")
     if dag.relative_fileloc is None:
         raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
+            HTTP_422_UNPROCESSABLE_CONTENT,
             f"DAG with id '{dag_id}' has no file location and cannot be re-parsed",
         )
 

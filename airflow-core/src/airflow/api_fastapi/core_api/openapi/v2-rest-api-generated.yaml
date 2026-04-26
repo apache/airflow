@@ -9335,11 +9335,11 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
         '422':
-          description: Validation Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unprocessable Entity
   /api/v2/dagTags:
     get:
       tags:

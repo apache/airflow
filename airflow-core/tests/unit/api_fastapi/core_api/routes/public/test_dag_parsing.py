@@ -19,6 +19,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
+from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest, DBDagBag
 
 from tests_common.test_utils.api_fastapi import _check_last_log
@@ -123,6 +124,17 @@ class TestReparseDagEndpoint:
             "/dags/non_existent_dag_xyz/reparse", headers={"Accept": "application/json"}
         )
         assert response.status_code == 404
+        assert session.scalars(select(DagPriorityParsingRequest)).all() == []
+
+    def test_reparse_dag_without_relative_fileloc_returns_422(self, session, test_client):
+        parse_and_sync_to_db(EXAMPLE_DAG_FILE)
+        session.execute(
+            DagModel.__table__.update().where(DagModel.dag_id == TEST_DAG_ID).values(relative_fileloc=None)
+        )
+        session.commit()
+
+        response = test_client.put(f"/dags/{TEST_DAG_ID}/reparse", headers={"Accept": "application/json"})
+        assert response.status_code == 422
         assert session.scalars(select(DagPriorityParsingRequest)).all() == []
 
     def test_reparse_dag_should_respond_401(self, unauthenticated_test_client):
