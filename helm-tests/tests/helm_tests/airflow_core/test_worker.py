@@ -2352,6 +2352,82 @@ class TestWorkerCeleryLogGroomer(LogGroomerTestBase):
     obj_name = "workers-celery"
     folder = "workers"
 
+    @pytest.mark.parametrize(
+        ("persistence_enabled", "log_groomer_enabled", "require_persistence", "expect_log_groomer"),
+        [
+            # With requirePersistence=true (default behavior, backwards compatible)
+            # persistence default (true) + logGroomer default (true) -> renders
+            (None, None, None, True),
+            # persistence default (true) + logGroomer false -> no render
+            (None, False, None, False),
+            # persistence true + logGroomer default (true) -> renders
+            (True, None, None, True),
+            # persistence true + logGroomer true -> renders
+            (True, True, None, True),
+            # persistence true + logGroomer false -> no render
+            (True, False, None, False),
+            # persistence false + logGroomer default (true) + requirePersistence default (true) -> NO render
+            (False, None, None, False),
+            # persistence false + logGroomer true + requirePersistence default (true) -> NO render
+            (False, True, None, False),
+            # persistence false + logGroomer true + requirePersistence true -> NO render
+            (False, True, True, False),
+            # persistence false + logGroomer false -> no render
+            (False, False, None, False),
+            # With requirePersistence=false (new behavior)
+            # persistence false + logGroomer true + requirePersistence false -> renders
+            (False, True, False, True),
+            # persistence false + logGroomer default (true) + requirePersistence false -> renders
+            (False, None, False, True),
+            # persistence true + logGroomer true + requirePersistence false -> renders
+            (True, True, False, True),
+        ],
+    )
+    def test_log_groomer_with_persistence_and_require_persistence_combinations(
+        self, persistence_enabled, log_groomer_enabled, require_persistence, expect_log_groomer
+    ):
+        """Test log groomer sidecar rendering with various persistence, enabled, and requirePersistence combinations."""
+        celery_values = {}
+        if persistence_enabled is not None:
+            celery_values["persistence"] = {"enabled": persistence_enabled}
+
+        log_groomer_values = {}
+        if log_groomer_enabled is not None:
+            log_groomer_values["enabled"] = log_groomer_enabled
+        if require_persistence is not None:
+            log_groomer_values["requirePersistence"] = require_persistence
+        if log_groomer_values:
+            celery_values["logGroomerSidecar"] = log_groomer_values
+
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {"celery": celery_values} if celery_values else {},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        # Verify resource kind based on persistence
+        expected_kind = "StatefulSet" if persistence_enabled is not False else "Deployment"
+        assert jmespath.search("kind", docs[0]) == expected_kind
+
+        # Verify log groomer presence
+        containers = jmespath.search("spec.template.spec.containers", docs[0])
+        container_names = [c["name"] for c in containers]
+
+        if expect_log_groomer:
+            assert "worker-log-groomer" in container_names, (
+                f"Expected log groomer with persistence={persistence_enabled}, "
+                f"enabled={log_groomer_enabled}, requirePersistence={require_persistence}"
+            )
+            assert len(containers) == 2
+        else:
+            assert "worker-log-groomer" not in container_names, (
+                f"Did not expect log groomer with persistence={persistence_enabled}, "
+                f"enabled={log_groomer_enabled}, requirePersistence={require_persistence}"
+            )
+            assert len(containers) == 1
+
 
 class TestWorkerKedaAutoScaler:
     """Tests worker keda auto scaler."""

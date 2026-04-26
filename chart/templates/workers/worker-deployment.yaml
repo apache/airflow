@@ -35,6 +35,7 @@
 {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
 ---
 {{- $persistence := or .Values.workers.persistence.enabled }}
+{{- $logGroomerRequirePersistence := .Values.workers.logGroomerSidecar.requirePersistence }}
 {{- $keda := .Values.workers.keda.enabled }}
 {{- $hpa := and .Values.workers.hpa.enabled (not .Values.workers.keda.enabled) }}
 {{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
@@ -348,7 +349,7 @@ spec:
         {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | nindent 8 }}
         {{- end }}
-        {{- if and $persistence .Values.workers.logGroomerSidecar.enabled }}
+        {{- if and .Values.workers.logGroomerSidecar.enabled (or $persistence (not $logGroomerRequirePersistence)) }}
         - name: worker-log-groomer
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}

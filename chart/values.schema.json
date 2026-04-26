@@ -2445,6 +2445,11 @@
                             "type": "boolean",
                             "default": true
                         },
+                        "requirePersistence": {
+                            "description": "Whether persistence is required for log groomer sidecar. When false, the log groomer can run on Deployments (without persistence) using an emptyDir volume for logs (deprecated, use ``workers.celery.logGroomerSidecar.requirePersistence`` instead).",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "command": {
                             "description": "Command to use when running the Airflow log groomer sidecar (templated) (deprecated, use ``workers.celery.logGroomerSidecar.command`` instead).",
                             "type": [
@@ -3663,6 +3668,14 @@
                             "properties": {
                                 "enabled": {
                                     "description": "Whether to deploy the Airflow log groomer sidecar.",
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "requirePersistence": {
+                                    "description": "Whether persistence is required for log groomer sidecar. When false, the log groomer can run on Deployments (without persistence) using an emptyDir volume for logs.",
                                     "type": [
                                         "boolean",
                                         "null"
