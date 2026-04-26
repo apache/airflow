@@ -72,7 +72,7 @@ def _make_execute_callback() -> ExecuteCallback:
     )
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecuteTypeBody union requires Airflow 3.2+")
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="ExecuteTypeBody union requires Airflow 3.3+")
 class TestIsCallbackExecute:
     def test_returns_false_for_execute_task(self):
         workload = _make_execute_task()
@@ -83,7 +83,7 @@ class TestIsCallbackExecute:
         assert is_callback_execute(workload) is True
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecuteTypeBody union requires Airflow 3.2+")
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="ExecuteTypeBody union requires Airflow 3.3+")
 class TestExecuteTypeBody:
     def setup_method(self):
         self.adapter: TypeAdapter = TypeAdapter(ExecuteTypeBody)
