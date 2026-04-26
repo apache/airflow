@@ -920,6 +920,7 @@ def test_kwargs_not_encrypted():
     assert trigger.kwargs["param1"] == "value1"
     assert trigger.kwargs["param2"] == "value2"
 
+
 def test_asset_trigger_unassigned_included(session):
     """Asset triggers with triggerer_id=None are returned."""
     asset = AssetModel("test_asset")
