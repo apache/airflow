@@ -15,19 +15,20 @@
     specific language governing permissions and limitations
     under the License.
 
+==================
+Amazon S3 Tables
+==================
 
+.. _howto/operator:S3TablesCreateTableOperator:
 
-Amazon AWS Operators
-======================
+Create an Amazon S3 Table
+=========================
 
+To create a new Iceberg table in an Amazon S3 Tables namespace you can use
+:class:`~airflow.providers.amazon.aws.operators.s3tables.S3TablesCreateTableOperator`.
 
-.. toctree::
-    :maxdepth: 1
-    :glob:
-
-    athena/index
-    emr/index
-    redshift/index
-    s3/index
-    s3tables/s3tables
-    *
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3tables.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3tables_create_table]
+    :end-before: [END howto_operator_s3tables_create_table]
