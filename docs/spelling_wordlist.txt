@@ -651,6 +651,7 @@ formatter
 formatters
 forwardability
 forwardable
+fpr
 fqdn
 frontend
 fs

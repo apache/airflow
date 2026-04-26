@@ -299,6 +299,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
             dag_bag=self.dag_bag,
             body=entity,
             session=self.session,
+            map_index=map_index,
             update_mask=update_mask,
         )
 
@@ -337,17 +338,17 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         """Bulk Update Task Instances."""
         # Validate and categorize entities into specific and all map index update sets
         update_specific_map_index_task_keys, update_all_map_index_task_keys = self._categorize_entities(
-            action.entities, results, method="PUT", action_name=action.action
+            action.entities, results, method="PUT", action_name=action.action.value
         )
 
         try:
             specific_entity_map = {
-                (entity.dag_id, entity.dag_run_id, entity.task_id, entity.map_index): entity
+                self._extract_task_identifiers(entity): entity
                 for entity in action.entities
                 if entity.map_index is not None
             }
             all_map_entity_map = {
-                (entity.dag_id, entity.dag_run_id, entity.task_id): entity
+                self._extract_task_identifiers(entity)[:3]: entity
                 for entity in action.entities
                 if entity.map_index is None
             }
@@ -439,7 +440,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         """Bulk delete task instances."""
         # Validate and categorize entities into specific and all map index delete sets
         delete_specific_map_index_task_keys, delete_all_map_index_task_keys = self._categorize_entities(
-            action.entities, results, method="DELETE", action_name=action.action
+            action.entities, results, method="DELETE", action_name=action.action.value
         )
 
         try:
