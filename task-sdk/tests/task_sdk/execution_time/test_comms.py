@@ -196,6 +196,7 @@ class TestCommsDecoder:
             assert results[idx].key == f"key{idx}", f"Out-of-order or missing response for thread {idx}"
             assert results[idx].value == f"value{idx}", f"Incorrect value for thread {idx}"
 
+    @staticmethod
     async def _variable_server_side(w_sock, num_requests: int, decoder: CommsDecoder) -> None:
         """Handle ``num_requests`` GetVariable frames, responding with VariableResult."""
         loop = asyncio.get_running_loop()
