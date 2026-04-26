@@ -75,3 +75,9 @@ with DAG(
     get_dynamic = PythonOperator(task_id="get_dynamic_secret", python_callable=_get_dynamic_secret)
 
     get_secret >> list_items >> get_dynamic
+
+
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
+test_run = get_test_run(dag)
