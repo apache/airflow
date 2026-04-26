@@ -2399,6 +2399,66 @@ class TestWorkerKedaAutoScaler:
             == "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ('default')"
         )
 
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            # workers - custom static query
+            {
+                "keda": {
+                    "enabled": True,
+                    "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
+                }
+            },
+            # workers - custom template query
+            {
+                "keda": {
+                    "enabled": True,
+                    "query": "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.celery.worker_concurrency 2 }}) FROM task_instance",
+                }
+            },
+            # workers.celery - custom static query
+            {
+                "celery": {
+                    "keda": {
+                        "enabled": True,
+                        "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
+                    }
+                }
+            },
+            # workers.celery - custom template query
+            {
+                "celery": {
+                    "keda": {
+                        "enabled": True,
+                        "query": "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.celery.worker_concurrency 2 }}) FROM task_instance",
+                    }
+                }
+            },
+            # workers.celery overrides workers when both are set
+            {
+                "keda": {"query": "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance"},
+                "celery": {
+                    "keda": {
+                        "enabled": True,
+                        "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
+                    }
+                },
+            },
+        ],
+    )
+    def test_keda_query_overwrite(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        assert (
+            jmespath.search("spec.triggers[0].metadata.query", docs[0])
+            == "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance"
+        )
+
     def test_mysql_db_backend_keda_worker(self):
         docs = render_chart(
             values={
