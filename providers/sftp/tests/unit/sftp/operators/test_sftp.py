@@ -694,7 +694,6 @@ class TestSFTPOperatorDeferrable:
         )
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(context={})
-        from airflow.providers.sftp.triggers.sftp import SFTPOperatorTrigger
         assert isinstance(exc.value.trigger, SFTPOperatorTrigger)
         assert exc.value.method_name == "execute_complete"
 
@@ -732,7 +731,6 @@ class TestSFTPOperatorTrigger:
 
     def test_serialize_roundtrip(self):
         """Test that serialize() produces correct output for reconstruction."""
-        from airflow.providers.sftp.triggers.sftp import SFTPOperatorTrigger
         trigger = SFTPOperatorTrigger(
             ssh_conn_id="ssh_default",
             local_filepath="/tmp/test.txt",
@@ -759,7 +757,6 @@ class TestSFTPOperatorTrigger:
         """Test run() yields TriggerEvent with status success."""
         import asyncio
         from unittest.mock import patch
-        from airflow.providers.sftp.triggers.sftp import SFTPOperatorTrigger
         trigger = SFTPOperatorTrigger(
             ssh_conn_id="ssh_default",
             local_filepath="/tmp/test.txt",
@@ -779,7 +776,6 @@ class TestSFTPOperatorTrigger:
         """Test run() yields TriggerEvent with status error on exception."""
         import asyncio
         from unittest.mock import patch
-        from airflow.providers.sftp.triggers.sftp import SFTPOperatorTrigger
         trigger = SFTPOperatorTrigger(
             ssh_conn_id="ssh_default",
             local_filepath="/tmp/test.txt",
