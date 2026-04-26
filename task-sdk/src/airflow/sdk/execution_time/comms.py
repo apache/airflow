@@ -218,12 +218,13 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
     def send(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """Send a request to the parent and block until the response is received."""
-        frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
-        frame_bytes = frame.as_bytes()
 
         # We must make sure sockets aren't intermixed between sync and async calls,
         # thus we need a dual locking mechanism to ensure that.
         with self._lock_sync():
+            frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
+            frame_bytes = frame.as_bytes()
+
             self.socket.sendall(frame_bytes)
             if isinstance(msg, ResendLoggingFD):
                 if recv_fds is None:
@@ -247,13 +248,13 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
         Uses async lock for coroutine safety and thread lock for socket safety.
         """
-        frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
-        frame_bytes = frame.as_bytes()
 
         async with self._lock_async():
-            # Acquire the threading lock without blocking the event loop
-            loop = asyncio.get_running_loop()
+            frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
+            frame_bytes = frame.as_bytes()
+
             # Async write to socket
+            loop = asyncio.get_running_loop()
             await loop.sock_sendall(self.socket, frame_bytes)
 
             if isinstance(msg, ResendLoggingFD):
