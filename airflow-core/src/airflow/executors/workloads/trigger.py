@@ -24,6 +24,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 # Using noqa because Ruff wants this in a TYPE_CHECKING block but Pydantic fails if it is.
+from airflow.executors.workloads.base import BundleInfo  # noqa: TCH001
 from airflow.executors.workloads.task import TaskInstanceDTO  # noqa: TCH001
 
 
@@ -46,3 +47,7 @@ class RunTrigger(BaseModel):
     dag_run_data: dict | None = (
         None  # Serialized DagRun data in dict format so it can be deserialized in trigger subprocess.
     )
+    # DAG bundle metadata so the triggerer subprocess can initialize the bundle
+    # and append its root to ``sys.path`` before importing the trigger classpath.
+    # ``None`` for asset-based triggers, which ship as provider-installed classes.
+    bundle_info: BundleInfo | None = None

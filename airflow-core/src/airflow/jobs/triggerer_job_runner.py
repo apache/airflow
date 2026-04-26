@@ -692,6 +692,19 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             session=session,
         )
 
+        # Resolve the bundle the DAG lives in so the triggerer subprocess can
+        # add its root to ``sys.path`` before importing the trigger classpath.
+        # This fixes ``ModuleNotFoundError`` for triggers whose classpath
+        # points into ``dags/`` (helpers inside a DAG bundle). Mirrors the
+        # pattern used by the task runner and callback supervisor.
+        bundle_info: workloads.BundleInfo | None = None
+        dag_version = getattr(serialized_dag_model, "dag_version", None) if serialized_dag_model else None
+        if dag_version and dag_version.bundle_name:
+            bundle_info = workloads.BundleInfo(
+                name=dag_version.bundle_name,
+                version=dag_version.bundle_version,
+            )
+
         if serialized_dag_model:
             task = serialized_dag_model.dag.get_task(trigger.task_instance.task_id)
 
@@ -710,6 +723,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     timeout_after=trigger.task_instance.trigger_timeout,
                     dag_data=serialized_dag_model.data,
                     dag_run_data=dag_run.dag_run_data.model_dump(exclude_unset=True),
+                    bundle_info=bundle_info,
                 )
         return workloads.RunTrigger(
             id=trigger.id,
@@ -717,6 +731,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             encrypted_kwargs=trigger.encrypted_kwargs,
             ti=ser_ti,
             timeout_after=trigger.task_instance.trigger_timeout,
+            bundle_info=bundle_info,
         )
 
     def update_triggers(self, requested_trigger_ids: set[int]):
@@ -954,6 +969,11 @@ class TriggerRunner:
         self.failed_triggers = deque()
         self.job_id = None
         self._stop_event = None
+        # Tracks DAG bundle paths this triggerer has already appended to
+        # ``sys.path`` so we don't re-initialize a bundle every time a trigger
+        # from it is created. Matches the "initialize-once" semantics used by
+        # the task runner and callback supervisor.
+        self._bundle_paths_added: set[str] = set()
 
     def _handle_signal(self, signum, frame) -> None:
         """Handle termination signals gracefully."""
@@ -1065,6 +1085,12 @@ class TriggerRunner:
             if trigger_id in self.triggers:
                 self.log.warning("Trigger %s had insertion attempted twice", trigger_id)
                 continue
+
+            # Ensure the DAG bundle root is on ``sys.path`` so that trigger
+            # classpaths pointing into ``dags/`` (bundle-local helper modules)
+            # can be imported. No-op for asset triggers or when bundle info
+            # is unavailable.
+            self._ensure_bundle_on_syspath(workload.bundle_info)
 
             try:
                 trigger_class = self.get_trigger_by_classpath(workload.classpath)
@@ -1361,6 +1387,51 @@ class TriggerRunner:
                     await trigger.cleanup()
 
                 await self.log.ainfo("trigger completed", name=name)
+
+    def _ensure_bundle_on_syspath(self, bundle_info: workloads.BundleInfo | None) -> None:
+        """
+        Initialize a DAG bundle and append its root to ``sys.path``.
+
+        This lets trigger classpaths that point at helper modules stored
+        inside the DAG bundle (e.g. ``helpers.my_trigger.MyTrigger``) be
+        imported successfully. Idempotent per-bundle-path within the
+        triggerer subprocess: ``bundle.initialize()`` only runs the first
+        time a given bundle path is seen. Mirrors
+        ``airflow.sdk.execution_time.callback_supervisor`` and the task
+        runner bundle-initialisation pattern.
+
+        Failures are logged and swallowed: a single broken bundle should
+        not take down the triggerer.
+        """
+        if bundle_info is None or not bundle_info.name:
+            return
+        try:
+            from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+            bundle = DagBundlesManager().get_bundle(
+                name=bundle_info.name,
+                version=bundle_info.version,
+            )
+            bundle_path = str(bundle.path)
+            if bundle_path in self._bundle_paths_added:
+                return
+            bundle.initialize()
+            self._bundle_paths_added.add(bundle_path)
+            if bundle_path not in sys.path:
+                sys.path.append(bundle_path)
+                self.log.debug(
+                    "Added DAG bundle path to sys.path",
+                    bundle_name=bundle_info.name,
+                    bundle_version=bundle_info.version,
+                    path=bundle_path,
+                )
+        except Exception:
+            self.log.warning(
+                "Failed to initialize DAG bundle for trigger",
+                bundle_name=bundle_info.name,
+                bundle_version=bundle_info.version,
+                exc_info=True,
+            )
 
     def get_trigger_by_classpath(self, classpath: str) -> type[BaseTrigger]:
         """

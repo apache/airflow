@@ -593,6 +593,80 @@ class TestTriggerRunner:
         assert len(first_call.events) == 3
         assert len(second_call.events) == 2
 
+    def test_ensure_bundle_on_syspath_appends_once(self, tmp_path) -> None:
+        """
+        ``_ensure_bundle_on_syspath`` appends the bundle root to ``sys.path``
+        and calls ``bundle.initialize()`` only the first time a given bundle
+        path is seen, even when the helper is called repeatedly. This is the
+        counterpart to PR #55894 for the triggerer subprocess (issue #65455).
+        """
+        import sys
+
+        bundle_path = tmp_path
+        original_syspath = list(sys.path)
+        try:
+            fake_bundle = MagicMock()
+            fake_bundle.path = bundle_path
+
+            runner = TriggerRunner()
+            with patch("airflow.dag_processing.bundles.manager.DagBundlesManager") as mock_manager_cls:
+                mock_manager_cls.return_value.get_bundle.return_value = fake_bundle
+
+                info = workloads.BundleInfo(name="dags-folder", version=None)
+                runner._ensure_bundle_on_syspath(info)
+                runner._ensure_bundle_on_syspath(info)
+
+            # Bundle was initialized exactly once despite two calls.
+            assert fake_bundle.initialize.call_count == 1
+            # The path appears exactly once in sys.path.
+            assert sys.path.count(str(bundle_path)) == 1
+            # And is tracked internally so future calls are no-ops.
+            assert str(bundle_path) in runner._bundle_paths_added
+        finally:
+            sys.path[:] = original_syspath
+
+    def test_ensure_bundle_on_syspath_none_is_noop(self) -> None:
+        """
+        ``_ensure_bundle_on_syspath`` is a no-op when ``bundle_info`` is
+        ``None`` or has an empty ``name`` (the asset-based trigger case).
+        """
+        import sys
+
+        original_syspath = list(sys.path)
+        try:
+            runner = TriggerRunner()
+            with patch("airflow.dag_processing.bundles.manager.DagBundlesManager") as mock_manager_cls:
+                runner._ensure_bundle_on_syspath(None)
+                runner._ensure_bundle_on_syspath(workloads.BundleInfo(name="", version=None))
+
+                mock_manager_cls.assert_not_called()
+
+            assert sys.path == original_syspath
+            assert runner._bundle_paths_added == set()
+        finally:
+            sys.path[:] = original_syspath
+
+    def test_ensure_bundle_on_syspath_swallows_exceptions(self) -> None:
+        """
+        A broken bundle (e.g. network failure during ``initialize()``) must
+        not take the triggerer down; the helper logs a warning and returns.
+        """
+        import sys
+
+        original_syspath = list(sys.path)
+        try:
+            runner = TriggerRunner()
+            with patch("airflow.dag_processing.bundles.manager.DagBundlesManager") as mock_manager_cls:
+                mock_manager_cls.return_value.get_bundle.side_effect = RuntimeError("boom")
+
+                # Must not raise.
+                runner._ensure_bundle_on_syspath(workloads.BundleInfo(name="dags-folder", version=None))
+
+            assert sys.path == original_syspath
+            assert runner._bundle_paths_added == set()
+        finally:
+            sys.path[:] = original_syspath
+
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("testing_dag_bundle")
