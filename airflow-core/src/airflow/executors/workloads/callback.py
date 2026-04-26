@@ -72,6 +72,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
     """Execute the given Callback."""
 
     callback: CallbackDTO
+
     type: Literal["ExecuteCallback"] = Field(init=False, default="ExecuteCallback")
 
     @property
