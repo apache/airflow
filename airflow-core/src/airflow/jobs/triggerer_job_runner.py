@@ -870,14 +870,18 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
     def _read_frame(self):
         from asgiref.sync import async_to_sync
 
-        with self._thread_lock:
+        with self._lock_sync(): 
             return async_to_sync(self._aread_frame)()
 
     def send(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
         from asgiref.sync import async_to_sync
 
-        with self._thread_lock:
+        with self._lock_sync():
             return async_to_sync(self._asend)(msg)
+
+    async def asend(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
+        async with self._lock_async():
+            return await self._asend(msg)
 
     async def _aread_frame(self):
         try:
@@ -904,16 +908,6 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
         bytes = frame.as_bytes()
         self._async_writer.write(bytes)
         return await self._aget_response(frame.id)
-
-    async def asend(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
-        async with self._async_lock:
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, self._thread_lock.acquire)
-            try:
-                return await self._asend(msg)
-            finally:
-                self._thread_lock.release()
-
 
 class TriggerRunner:
     """
