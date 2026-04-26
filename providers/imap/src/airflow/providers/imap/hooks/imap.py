@@ -289,7 +289,9 @@ class ImapHook(BaseHook):
             return mail.get_attachments_by_name(name, check_regex, find_first=latest_only)
         return []
 
-    def _create_files(self, mail_attachments: list, local_output_directory: str, overwrite: bool = True) -> None:
+    def _create_files(
+        self, mail_attachments: list, local_output_directory: str, overwrite: bool = True
+    ) -> None:
         for name, payload in mail_attachments:
             if self._is_symlink(name):
                 self.log.error("Can not create file because it is a symlink!")
@@ -313,7 +315,9 @@ class ImapHook(BaseHook):
             else local_output_directory + "/" + name
         )
 
-    def _create_file(self, name: str, payload: Any, local_output_directory: str, overwrite: bool = True) -> None:
+    def _create_file(
+        self, name: str, payload: Any, local_output_directory: str, overwrite: bool = True
+    ) -> None:
         file_path = self._correct_path(name, local_output_directory)
 
         if not overwrite and os.path.exists(file_path):
