@@ -47,7 +47,7 @@ class TestAkeylessBackend:
         api = mock_sdk.V2Api.return_value
         api.auth.return_value = MagicMock(token="t")
         api.get_secret_value.return_value = {
-            "/airflow/connections/postgres_default": "postgresql://user:pw@host/db"
+            "/airflow/connections/postgres_default": "postgresql://user:secret123@host/db"
         }
         backend = _backend()
         conn = backend.get_connection("postgres_default")
@@ -60,13 +60,13 @@ class TestAkeylessBackend:
         api = mock_sdk.V2Api.return_value
         api.auth.return_value = MagicMock(token="t")
         api.get_secret_value.return_value = {
-            "/airflow/connections/pg": json.dumps({"conn_uri": "postgresql://u:p@h/d"})
+            "/airflow/connections/pg": json.dumps({"conn_uri": "postgresql://user:secret123@dbhost/mydb"})
         }
         backend = _backend()
         conn = backend.get_connection("pg")
         assert conn is not None
-        assert conn.host == "h"
-        assert conn.login == "u"
+        assert conn.host == "dbhost"
+        assert conn.login == "user"
 
     @patch(f"{BACKEND_MODULE}.akeyless")
     def test_get_connection_json_kwargs(self, mock_sdk):
@@ -258,12 +258,14 @@ class TestAkeylessBackend:
         """Team-scoped connection lookup."""
         api = mock_sdk.V2Api.return_value
         api.auth.return_value = MagicMock(token="t")
-        api.get_secret_value.return_value = {"/airflow/connections/team_a/pg": "postgresql://u:p@h/d"}
+        api.get_secret_value.return_value = {
+            "/airflow/connections/team_a/pg": "postgresql://user:secret123@dbhost/mydb"
+        }
         with conf_vars({("core", "multi_team"): "True"}):
             backend = _backend()
             conn = backend.get_connection("pg", team_name="team_a")
         assert conn is not None
-        assert conn.host == "h"
+        assert conn.host == "dbhost"
 
     @patch(f"{BACKEND_MODULE}.akeyless")
     def test_get_variable_no_team_when_multi_team_off(self, mock_sdk):
