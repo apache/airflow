@@ -218,7 +218,6 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
     def send(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """Send a request to the parent and block until the response is received."""
-
         # We must make sure sockets aren't intermixed between sync and async calls,
         # thus we need a dual locking mechanism to ensure that.
         with self._lock_sync():
@@ -248,7 +247,6 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
         Uses async lock for coroutine safety and thread lock for socket safety.
         """
-
         async with self._lock_async():
             frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
             frame_bytes = frame.as_bytes()
