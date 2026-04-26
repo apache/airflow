@@ -273,7 +273,7 @@ class EdgeWorker:
                 await logs_push(
                     task=job.edge_job.key,
                     log_chunk_time=timezone.utcnow(),
-                    log_chunk_data=message,
+                    log_chunk_data=f"{message}\n",
                 )
             except Exception:
                 logger.exception("Failed to push drain notice to task log for %s", job.edge_job.identifier)
@@ -563,7 +563,7 @@ class EdgeWorker:
             await logs_push(
                 task=job.edge_job.key,
                 log_chunk_time=timezone.utcnow(),
-                log_chunk_data=f"Error starting job:\n{ex_txt}",
+                log_chunk_data=f"Error executing job:\n{ex_txt}",
             )
             await jobs_set_state(job.edge_job.key, TaskInstanceState.FAILED)
 
