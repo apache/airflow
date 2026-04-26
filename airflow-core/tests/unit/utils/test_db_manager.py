@@ -230,10 +230,76 @@ class TestRunDBManager:
     def test_initdb_and_upgradedb_pass_use_migration_files_to_var_kwarg_manager(self, session):
         VarKwargExternalManager.initdb_kwargs = []
         VarKwargExternalManager.upgradedb_kwargs = []
-
         run_db_manager = _create_run_db_manager(VarKwargExternalManager)
         run_db_manager.initdb(session=session, use_migration_files=True)
         run_db_manager.upgradedb(session=session, use_migration_files=False)
 
         assert VarKwargExternalManager.initdb_kwargs == [{"use_migration_files": True}]
         assert VarKwargExternalManager.upgradedb_kwargs == [{"use_migration_files": False}]
+
+    @mock.patch("airflow.utils.db_manager.import_string")
+    def test_run_db_manager_uses_providers_manager_when_auth_manager_fails(self, mock_import):
+        """
+        When create_auth_manager() raises in a migration-only context (e.g. the Helm
+        migrateDatabaseJob), RunDBManager must still load managers discovered via
+        ProvidersManager — the exception must not silently drop all DB managers.
+        """
+        sentinel = object()
+        mock_import.return_value = sentinel
+
+        with (
+            mock.patch(
+                "airflow.providers_manager.ProvidersManager",
+            ) as mock_pm,
+            mock.patch(
+                "airflow.api_fastapi.app.create_auth_manager",
+                side_effect=RuntimeError("No app context"),
+            ),
+        ):
+            mock_pm.return_value.db_managers = ["airflow.providers.fab.auth_manager.models.db.FABDBManager"]
+            with mock.patch("airflow.utils.db_manager.conf") as mock_conf:
+                mock_conf.get.return_value = None
+                rdm = RunDBManager.__new__(RunDBManager)
+                # Manually call __init__ so we control all side-effects
+                RunDBManager.__init__(rdm)
+
+        # The sentinel class returned by import_string must be in _managers
+        assert sentinel in rdm._managers
+
+    @mock.patch("airflow.utils.db_manager.import_string")
+    def test_run_db_manager_includes_auth_manager_db_manager_when_available(self, mock_import):
+        """
+        When create_auth_manager() succeeds and returns a DB manager class name not
+        already in the ProvidersManager list, it must be appended to _managers.
+        """
+        sentinel_pm = object()
+        sentinel_am = object()
+        call_order = []
+
+        def _import(path):
+            if "fab" in path:
+                call_order.append("fab")
+                return sentinel_pm
+            call_order.append("auth_manager_extra")
+            return sentinel_am
+
+        mock_import.side_effect = _import
+
+        mock_am = mock.MagicMock()
+        mock_am.get_db_manager.return_value = "some.extra.AuthManagerDBManager"
+
+        with (
+            mock.patch("airflow.providers_manager.ProvidersManager") as mock_pm,
+            mock.patch(
+                "airflow.api_fastapi.app.create_auth_manager",
+                return_value=mock_am,
+            ),
+        ):
+            mock_pm.return_value.db_managers = ["airflow.providers.fab.auth_manager.models.db.FABDBManager"]
+            with mock.patch("airflow.utils.db_manager.conf") as mock_conf:
+                mock_conf.get.return_value = None
+                rdm = RunDBManager.__new__(RunDBManager)
+                RunDBManager.__init__(rdm)
+
+        assert sentinel_pm in rdm._managers
+        assert sentinel_am in rdm._managers
