@@ -184,6 +184,13 @@ def get_provider_info():
                         "example": None,
                         "default": "30",
                     },
+                    "auth_role_public": {
+                        "description": "Role that Anonymous (unauthenticated) users are granted. When set, the FAB auth manager\nwill allow access to the API server and UI without requiring a login, and anonymous\nrequests will be treated as members of the given role. Leave empty (the default) to\nrequire authentication.\n\nThis replaces the previous ``AUTH_ROLE_PUBLIC`` setting in ``webserver_config.py``. When\nboth are set, this ``[fab] auth_role_public`` config takes precedence. Setting this\nconfig also applies the equivalent ``AUTH_ROLE_PUBLIC`` to the Flask app used by the FAB\nauth manager, so all FAB auth code paths (FastAPI-based API server and legacy Flask\nviews) honor it consistently.\n",
+                        "version_added": "3.6.2",
+                        "type": "string",
+                        "example": "Admin",
+                        "default": "",
+                    },
                 },
             }
         },

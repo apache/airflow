@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from functools import cached_property
 
 from azure.core.exceptions import ResourceNotFoundError
@@ -35,6 +36,8 @@ from azure.keyvault.secrets import SecretClient
 from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+TEAM_SEP = "--"
 
 
 class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
@@ -154,7 +157,10 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         if self.connections_prefix is None:
             return None
 
-        return self._get_secret(self.connections_prefix, conn_id)
+        if self._is_team_specific_accessed_as_global(conn_id, team_name):
+            return None
+
+        return self._get_secret(self.connections_prefix, conn_id, team_name=team_name)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
@@ -167,7 +173,10 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         if self.variables_prefix is None:
             return None
 
-        return self._get_secret(self.variables_prefix, key)
+        if self._is_team_specific_accessed_as_global(key, team_name):
+            return None
+
+        return self._get_secret(self.variables_prefix, key, team_name=team_name)
 
     def get_config(self, key: str) -> str | None:
         """
@@ -200,13 +209,34 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
             path = f"{path_prefix}{sep}{secret_id}"
         return path.replace("_", sep)
 
-    def _get_secret(self, path_prefix: str, secret_id: str) -> str | None:
+    def _build_team_secret_name(self, path_prefix: str, team_name: str, secret_id: str) -> str:
+        """Build a team-scoped secret name using a dedicated separator before the secret id."""
+        team_prefix = self.build_path(path_prefix, team_name, self.sep)
+        normalized_secret_id = secret_id.replace("_", self.sep)
+        return f"{team_prefix}{TEAM_SEP}{normalized_secret_id}"
+
+    def _is_team_specific_accessed_as_global(self, secret_id: str, team_name: str | None = None) -> bool:
+        normalized_secret_id = self.build_path("", secret_id, self.sep)
+        return team_name is None and bool(re.fullmatch(rf".+{re.escape(TEAM_SEP)}.+", normalized_secret_id))
+
+    def _get_secret(self, path_prefix: str, secret_id: str, team_name: str | None = None) -> str | None:
         """
         Get an Azure Key Vault secret value.
 
         :param path_prefix: Prefix for the Path to get Secret
         :param secret_id: Secret Key
         """
+        if team_name:
+            team_secret = self._get_secret_value(
+                path_prefix, self._build_team_secret_name("", team_name, secret_id)
+            )
+            if team_secret is not None:
+                return team_secret
+
+        return self._get_secret_value(path_prefix, secret_id)
+
+    def _get_secret_value(self, path_prefix: str, secret_id: str) -> str | None:
+        """Get an Azure Key Vault secret value for the given prefix and key."""
         name = self.build_path(path_prefix, secret_id, self.sep)
         try:
             secret = self.client.get_secret(name=name)

@@ -35,7 +35,6 @@ class TestHPA:
         "executor",
         [
             "CeleryExecutor",
-            "CeleryKubernetesExecutor",
             "CeleryExecutor,KubernetesExecutor",
         ],
     )
@@ -90,9 +89,7 @@ class TestHPA:
         assert jmespath.search("spec.minReplicas", docs[0]) == 2
         assert jmespath.search("spec.maxReplicas", docs[0]) == 8
 
-    @pytest.mark.parametrize(
-        "executor", ["CeleryExecutor", "CeleryKubernetesExecutor", "CeleryExecutor,KubernetesExecutor"]
-    )
+    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryExecutor,KubernetesExecutor"])
     @pytest.mark.parametrize(
         "workers_values",
         [

@@ -17,9 +17,9 @@
  under the License.
 */}}
 
-################################
+###############################
 ## Airflow Worker NetworkPolicy
-#################################
+###############################
 {{- $globals := deepCopy . -}}
 {{- $filteredCelery := include "removeNilFields" .Values.workers.celery | fromYaml -}}
 {{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer" "kerberosSidecar")) | fromYaml) -}}
@@ -32,7 +32,7 @@
   {{- $workers := (include "workersMergeValues" (list $mergedWorkers $workerSet "" list) | fromYaml) -}}
   {{- $_ := set $globals.Values "workers" $workers -}}
   {{- with $globals -}}
-{{- if and .Values.networkPolicies.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+{{- if and .Values.networkPolicies.enabled (contains "CeleryExecutor" .Values.executor) }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

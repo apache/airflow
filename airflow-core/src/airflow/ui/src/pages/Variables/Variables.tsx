@@ -164,7 +164,7 @@ export const Variables = () => {
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
-    variableKeyPattern: variableKeyPattern ?? undefined,
+    variableKeyPrefixPattern: variableKeyPattern ?? undefined,
   });
 
   const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =

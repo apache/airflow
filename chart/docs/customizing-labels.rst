@@ -69,7 +69,7 @@ Pod annotations can be customized similarly to labels using ``podAnnotations`` a
 Global Pod Annotations
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Global pod annotations can be set using ``airflowPodAnnotations``. These are applied to all Airflow component pods (scheduler, api-server/webserver, triggerer, dag-processor and workers):
+Global pod annotations can be set using ``airflowPodAnnotations``. These are applied to all Airflow component pods (scheduler, api-server, triggerer, dag-processor and workers):
 
 .. code-block:: yaml
    :caption: values.yaml

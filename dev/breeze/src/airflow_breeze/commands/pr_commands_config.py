@@ -18,63 +18,10 @@ from __future__ import annotations
 
 PR_COMMANDS: dict[str, str | list[str]] = {
     "name": "PR commands",
-    "commands": ["auto-triage", "stats"],
+    "commands": ["stats"],
 }
 
 PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
-    "breeze pr auto-triage": [
-        {
-            "name": "Mode",
-            "options": ["--mode", "--tui", "--llm-use"],
-        },
-        {
-            "name": "Select people",
-            "options": [
-                "--author",
-                "--authors",
-                "--reviews-for-me",
-                "--reviews-for",
-            ],
-        },
-        {
-            "name": "Target selection",
-            "options": ["--pr"],
-        },
-        {
-            "name": "Filter options",
-            "options": [
-                "--label",
-                "--exclude-label",
-                "--created-after",
-                "--created-before",
-                "--updated-after",
-                "--updated-before",
-                "--pending-approval-only",
-                "--checks-state",
-                "--min-commits-behind",
-            ],
-        },
-        {
-            "name": "Pagination and sorting",
-            "options": ["--batch-size", "--max-num", "--sort"],
-        },
-        {
-            "name": "Assessment options",
-            "options": [
-                "--llm-model",
-                "--llm-concurrency",
-                "--clear-cache",
-            ],
-        },
-        {
-            "name": "Other",
-            "options": [
-                "--answer-triage",
-                "--github-token",
-                "--github-repository",
-            ],
-        },
-    ],
     "breeze pr stats": [
         {
             "name": "Options",

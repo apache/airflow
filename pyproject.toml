@@ -101,6 +101,9 @@ apache-airflow = "airflow.__main__:main"
 "airbyte" = [
     "apache-airflow-providers-airbyte>=5.0.0"
 ]
+"akeyless" = [
+    "apache-airflow-providers-akeyless>=1.0.0" # Set from local provider pyproject.toml
+]
 "alibaba" = [
     "apache-airflow-providers-alibaba>=3.0.0"
 ]
@@ -399,6 +402,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,gunicorn,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
+    "apache-airflow-providers-akeyless>=1.0.0", # Set from local provider pyproject.toml
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
@@ -1056,6 +1060,8 @@ mypy_path = [
     # Automatically generated mypy paths (update_airflow_pyproject_toml.py)
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/akeyless/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/akeyless/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/alibaba/src",
     "$MYPY_CONFIG_FILE_DIR/providers/alibaba/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/amazon/src",
@@ -1375,6 +1381,7 @@ apache-airflow-kubernetes-tests = false
 apache-airflow-mypy = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
+apache-airflow-providers-akeyless = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-apache-cassandra = false
@@ -1512,6 +1519,7 @@ apache-airflow-kubernetes-tests = false
 apache-airflow-mypy = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
+apache-airflow-providers-akeyless = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-apache-cassandra = false
@@ -1665,6 +1673,7 @@ apache-airflow-shared-template-rendering = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
+apache-airflow-providers-akeyless = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
 apache-airflow-providers-apache-cassandra = { workspace = true }
@@ -1800,6 +1809,7 @@ members = [
     "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
+    "providers/akeyless",
     "providers/alibaba",
     "providers/amazon",
     "providers/apache/cassandra",

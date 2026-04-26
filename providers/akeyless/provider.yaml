@@ -1,0 +1,104 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-akeyless
+name: Akeyless
+description: |
+  `Akeyless <https://www.akeyless.io/>`__ Vault Platform provider for Apache Airflow.
+  Provides a Hook, Connection type, and Secrets Backend for managing static secrets,
+  dynamic secrets, rotated secrets, and more.
+
+state: ready
+lifecycle: incubation
+source-date-epoch: 1712361600
+versions:
+  - 1.0.0
+
+integrations:
+  - integration-name: Akeyless
+    external-doc-url: https://docs.akeyless.io/
+    tags: [software]
+
+hooks:
+  - integration-name: Akeyless
+    python-modules:
+      - airflow.providers.akeyless.hooks.akeyless
+
+connection-types:
+  - hook-class-name: airflow.providers.akeyless.hooks.akeyless.AkeylessHook
+    hook-name: "Akeyless"
+    connection-type: akeyless
+    ui-field-behaviour:
+      hidden-fields: ["extra", "schema", "port"]
+      relabeling:
+        login: "Access ID"
+        password: "Access Key"
+        host: "API URL"
+    conn-fields:
+      access_type:
+        label: Access type
+        schema:
+          type:
+            - string
+            - 'null'
+        description: "One of: api_key, aws_iam, gcp, azure_ad, uid, jwt, k8s, certificate"
+      uid_token:
+        label: UID Token
+        schema:
+          type:
+            - string
+            - 'null'
+      gcp_audience:
+        label: GCP Audience
+        schema:
+          type:
+            - string
+            - 'null'
+      azure_object_id:
+        label: Azure Object ID
+        schema:
+          type:
+            - string
+            - 'null'
+      jwt:
+        label: JWT
+        schema:
+          type:
+            - string
+            - 'null'
+      k8s_auth_config_name:
+        label: K8s Auth Config Name
+        schema:
+          type:
+            - string
+            - 'null'
+      certificate_data:
+        label: Certificate Data (PEM)
+        schema:
+          type:
+            - string
+            - 'null'
+      private_key_data:
+        label: Private Key Data (PEM)
+        schema:
+          type:
+            - string
+            - 'null'
+
+secrets-backends:
+  - airflow.providers.akeyless.secrets.akeyless.AkeylessBackend

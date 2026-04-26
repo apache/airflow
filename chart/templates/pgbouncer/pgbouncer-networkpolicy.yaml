@@ -17,14 +17,14 @@
  under the License.
 */}}
 
-################################
+##########################
 ## Pgbouncer NetworkPolicy
-#################################
+##########################
 {{- $kedaEnabled := .Values.workers.keda.enabled }}
 {{- if hasKey .Values.workers "celery" }}
   {{- $kedaEnabled = or .Values.workers.celery.keda.enabled (and (not (has .Values.workers.celery.keda.enabled (list true false))) .Values.workers.keda.enabled) }}
 {{- end }}
-{{- $workersKedaEnabled := and $kedaEnabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+{{- $workersKedaEnabled := and $kedaEnabled (contains "CeleryExecutor" .Values.executor) }}
 {{- $triggererKedaEnabled := and .Values.triggerer.enabled .Values.triggerer.keda.enabled }}
 {{- if and .Values.pgbouncer.enabled .Values.networkPolicies.enabled }}
 apiVersion: networking.k8s.io/v1

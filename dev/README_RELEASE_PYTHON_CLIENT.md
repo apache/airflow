@@ -181,7 +181,7 @@ git diff HEAD
 git checkout -b release-${VERSION}
 git add .
 git commit -m "Update Python Client to ${VERSION_RC}"
-git push apache release-${VERSION}
+git push upstream release-${VERSION}
 ```
 
 Then open a PR and merge it into main.
@@ -195,10 +195,10 @@ Then open a PR and merge it into main.
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
 git tag -s python-client/${VERSION_RC} -m "Airflow Python Client ${VERSION_RC}"
-git push apache python-client/${VERSION_RC}
+git push upstream python-client/${VERSION_RC}
 cd ${CLIENT_REPO_ROOT}
 git tag -s ${VERSION_RC} -m "Airflow Python Client ${VERSION_RC}"
-git push apache tag ${VERSION_RC}
+git push upstream tag ${VERSION_RC}
 ```
 
 - Build the source package after the above tags have been pushed:
@@ -492,11 +492,14 @@ binary-reproduced when built from the sources.
 cd "${AIRFLOW_REPO_ROOT}"
 ```
 
-2) Check out the ``python-client`` tag (assume apache is the remote name of the repository):
+2) Check out the ``python-client`` tag (the commands below assume the standard
+   remote naming convention `upstream` → `apache/airflow`, `origin` → your fork —
+   see
+   [`contributing-docs/10_working_with_git.rst`](../contributing-docs/10_working_with_git.rst#git-remote-naming-conventions)):
 
 ```shell
 cd "${AIRFLOW_REPO_ROOT}"
-git fetch apache --tags
+git fetch upstream --tags
 git checkout python-client/${VERSION_RC}
 ```
 
@@ -880,7 +883,7 @@ twine upload -r pypi *${VERSION}.tar.gz *.whl
 cd ${AIRFLOW_REPO_ROOT}
 git checkout python-client/${VERSION}${VERSION_SUFFIX}
 git tag -s python-client/${VERSION} -m "Airflow Python Client ${VERSION}"
-git push apache tag python-client/${VERSION}
+git push upstream tag python-client/${VERSION}
 cd ${CLIENT_REPO_ROOT}
 git checkout ${VERSION}${VERSION_SUFFIX}
 git tag -s ${VERSION} -m ${VERSION}

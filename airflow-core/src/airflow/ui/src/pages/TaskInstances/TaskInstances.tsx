@@ -299,7 +299,7 @@ export const TaskInstances = () => {
     {
       cursor: cursor ?? "",
       dagId: dagId ?? "~",
-      dagIdPattern: filteredDagIdPattern ?? undefined,
+      dagIdPrefixPattern: filteredDagIdPattern ?? undefined,
       dagRunId: runId ?? "~",
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
@@ -308,14 +308,14 @@ export const TaskInstances = () => {
       logicalDateGte: logicalDateGte ?? undefined,
       logicalDateLte: logicalDateLte ?? undefined,
       mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
-      operatorNamePattern: operatorNamePattern ?? undefined,
+      operatorNamePrefixPattern: operatorNamePattern ?? undefined,
       orderBy,
-      poolNamePattern: poolNamePattern ?? undefined,
-      queueNamePattern: queueNamePattern ?? undefined,
-      runIdPattern: filteredRunId ?? undefined,
+      poolNamePrefixPattern: poolNamePattern ?? undefined,
+      queueNamePrefixPattern: queueNamePattern ?? undefined,
+      runIdPrefixPattern: filteredRunId ?? undefined,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
-      taskDisplayNamePattern: taskDisplayNamePattern ?? undefined,
+      taskDisplayNamePrefixPattern: taskDisplayNamePattern ?? undefined,
       taskGroupId: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
       tryNumber: tryNumberFilter !== null && tryNumberFilter !== "" ? [Number(tryNumberFilter)] : undefined,
@@ -330,8 +330,8 @@ export const TaskInstances = () => {
     },
   );
 
-  const nextCursor = data && "next_cursor" in data ? data.next_cursor : undefined;
-  const previousCursor = data && "previous_cursor" in data ? data.previous_cursor : undefined;
+  const nextCursor = data?.next_cursor ?? undefined;
+  const previousCursor = data?.previous_cursor ?? undefined;
 
   const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
     useRowSelection({
