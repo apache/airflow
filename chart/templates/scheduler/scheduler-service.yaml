@@ -20,7 +20,7 @@
 ############################
 ## Airflow Scheduler Service
 ############################
-{{- if and .Values.scheduler.enabled (or (contains "LocalExecutor" .Values.executor)) }}
+{{- if and .Values.scheduler.enabled (contains "LocalExecutor" .Values.executor) }}
 apiVersion: v1
 kind: Service
 metadata:
