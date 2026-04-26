@@ -3004,7 +3004,7 @@ class TestRuntimeTaskInstance:
 
     @pytest.mark.enable_redact
     def test_rendered_templates_mask_nested_keys_with_truncation(
-        self, create_runtime_ti, mock_supervisor_comms
+        self, create_runtime_ti, mock_supervisor_comms, monkeypatch
     ):
         """Nested sensitive-key masking applies consistently across the truncation path.
 
@@ -3017,12 +3017,25 @@ class TestRuntimeTaskInstance:
         """
         from airflow.sdk._shared.secrets_masker import _secrets_masker
 
+        # Earlier tests in this file (e.g. test_get_connection_from_context) call
+        # mask_secret(conn.password) where the fixture's password value is the literal
+        # "password"; that registers "password" as a regex pattern in the singleton
+        # masker. Without isolation, str(redacted) gets that regex applied and the
+        # dict KEY name "password" itself becomes "***", obscuring whether the
+        # structured nested-key walk fired. Reset the regex patterns for this test
+        # (monkeypatch restores them on teardown) so the assertion can distinguish
+        # value-masking (what we are testing) from key-token replacement.
+        masker = _secrets_masker()
+        monkeypatch.setattr(masker, "patterns", set())
+        monkeypatch.setattr(masker, "replacer", None)
         # The SDK masker starts with an empty sensitive-fields list in the test runtime
         # (settings.py has not run); register `password` explicitly so the structured
         # walker has something to match. Production workers get this from settings.py.
-        masker = _secrets_masker()
-        if "password" not in masker.sensitive_variables_fields:
-            masker.sensitive_variables_fields = list(masker.sensitive_variables_fields) + ["password"]
+        monkeypatch.setattr(
+            masker,
+            "sensitive_variables_fields",
+            list(masker.sensitive_variables_fields) + ["password"],
+        )
 
         nested_value = "REGRESSION-FIXTURE-NESTED-PASSWORD-VALUE"
 
