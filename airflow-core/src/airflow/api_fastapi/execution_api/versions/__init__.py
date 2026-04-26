@@ -39,13 +39,17 @@ from airflow.api_fastapi.execution_api.versions.v2026_04_06 import (
     MovePreviousRunEndpoint,
     RemoveUpstreamMapIndexesField,
 )
-from airflow.api_fastapi.execution_api.versions.v2026_04_17 import AddTeamNameField
+from airflow.api_fastapi.execution_api.versions.v2026_04_17 import (
+    AddRunAfterToTriggerPayload,
+    AddTeamNameField,
+)
 
 bundle = VersionBundle(
     HeadVersion(),
     Version(
         "2026-04-17",
         AddTeamNameField,
+        AddRunAfterToTriggerPayload,
     ),
     Version(
         "2026-04-06",

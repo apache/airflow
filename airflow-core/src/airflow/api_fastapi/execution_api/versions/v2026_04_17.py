@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
 
+from airflow.api_fastapi.execution_api.datamodels.dagrun import TriggerDAGRunPayload
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TIRunContext
 
 
@@ -34,3 +35,13 @@ class AddTeamNameField(VersionChange):
         """Remove the ``team_name`` field from dag_run for older API versions."""
         if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
             response.body["dag_run"].pop("team_name", None)
+
+
+class AddRunAfterToTriggerPayload(VersionChange):
+    """Add the ``run_after`` field to TriggerDAGRunPayload."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TriggerDAGRunPayload).field("run_after").didnt_exist,
+    )

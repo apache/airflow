@@ -713,10 +713,15 @@ class DagRunOperations:
         logical_date: datetime | None = None,
         reset_dag_run: bool = False,
         note: str | None = None,
+        run_after: datetime | None = None,
     ) -> OKResponse | ErrorResponse:
         """Trigger a Dag run via the API server."""
         body = TriggerDAGRunPayload(
-            logical_date=logical_date, conf=conf or {}, reset_dag_run=reset_dag_run, note=note
+            logical_date=logical_date,
+            run_after=run_after,
+            conf=conf or {},
+            reset_dag_run=reset_dag_run,
+            note=note,
         )
 
         try:

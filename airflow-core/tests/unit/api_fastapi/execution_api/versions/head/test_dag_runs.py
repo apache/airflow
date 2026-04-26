@@ -184,6 +184,56 @@ class TestDagRunTrigger:
             }
         }
 
+    def test_trigger_dag_run_with_run_after(self, client, session, dag_maker):
+        """Test that run_after is passed through to the created DagRun."""
+        dag_id = "test_trigger_dag_run_run_after"
+        run_id = "test_run_id"
+        logical_date = timezone.datetime(2025, 6, 1)
+        run_after = timezone.datetime(2025, 6, 1)
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        session.commit()
+
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/{run_id}",
+            json={
+                "logical_date": logical_date.isoformat(),
+                "run_after": run_after.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+
+        dag_run = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
+        assert dag_run.logical_date == logical_date
+        assert dag_run.run_after == run_after
+
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_trigger_dag_run_without_run_after_defaults_to_utcnow(self, client, session, dag_maker):
+        """When run_after is not provided, trigger_dag() defaults run_after to utcnow()."""
+        dag_id = "test_trigger_dag_run_no_run_after"
+        run_id = "test_run_id"
+        logical_date = timezone.datetime(2025, 6, 1)
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        session.commit()
+
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/{run_id}",
+            json={"logical_date": logical_date.isoformat()},
+        )
+
+        assert response.status_code == 204
+
+        dag_run = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
+        assert dag_run.logical_date == logical_date
+        # run_after defaults to utcnow() via trigger_dag() when not provided
+        assert dag_run.run_after == timezone.datetime(2025, 1, 1)
+
     def test_trigger_dag_run_already_exists(self, client, session, dag_maker):
         """Test that error is raised when a DAG Run already exists."""
 
