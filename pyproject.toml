@@ -384,7 +384,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-vertica>=3.9.1"
 ]
 "vespa" = [
-    "apache-airflow-providers-vespa>=0.1.0" # Set from local provider pyproject.toml
+    "apache-airflow-providers-vespa>=0.1.0"
 ]
 "weaviate" = [
     "apache-airflow-providers-weaviate>=3.0.0"
@@ -496,7 +496,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-teradata>=2.6.1",
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
-    "apache-airflow-providers-vespa>=0.1.0", # Set from local provider pyproject.toml
+    "apache-airflow-providers-vespa>=0.1.0",
     "apache-airflow-providers-weaviate>=3.0.0",
     "apache-airflow-providers-yandex>=4.0.0",
     "apache-airflow-providers-ydb>=1.4.0",
