@@ -110,6 +110,7 @@ from airflow.sdk.execution_time.comms import (
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
+    TaskExecutionTimeout,
     TaskState,
     TaskStatesResult,
     ToSupervisor,
@@ -155,6 +156,9 @@ SOCKET_CLEANUP_TIMEOUT: float = conf.getfloat("workers", "socket_cleanup_timeout
 # Maximum possible time (in seconds) that task will have for execution of auxiliary processes
 # like listeners after task is complete.
 TASK_OVERTIME_THRESHOLD: float = conf.getfloat("core", "task_success_overtime")
+
+# Seconds to wait after SIGTERM before escalating to SIGKILL on execution timeout
+SIGKILL_GRACE_PERIOD: float = 5.0
 
 SERVER_TERMINATED = "SERVER_TERMINATED"
 
@@ -1110,6 +1114,16 @@ class ActivitySubprocess(WatchedSubprocess):
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
     _rendered_map_index: str | None = attrs.field(default=None, init=False)
 
+    # Execution timeout tracking
+    _execution_timeout_seconds: float | None = attrs.field(default=None, init=False)
+    """Task execution timeout in seconds, received from the task process."""
+
+    _task_execution_start_time: float | None = attrs.field(default=None, init=False)
+    """Monotonic time when task execution actually started (after parsing DAG)."""
+
+    _timeout_sigterm_sent_at: float | None = attrs.field(default=None, init=False)
+    """Monotonic time when SIGTERM was sent due to timeout."""
+
     decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
     ti: RuntimeTI | None = None
@@ -1285,6 +1299,38 @@ class ActivitySubprocess(WatchedSubprocess):
                 self._send_heartbeat_if_needed()
 
                 self._handle_process_overtime_if_needed()
+                self._handle_execution_timeout_if_needed()
+
+    def _handle_execution_timeout_if_needed(self):
+        """Handle task execution timeout by sending SIGTERM, then SIGKILL if needed."""
+        # Only check timeout if we have received timeout configuration and task is still running
+        if self._execution_timeout_seconds is None or self._terminal_state:
+            return
+
+        if self._task_execution_start_time is None:
+            return
+
+        elapsed_time = time.monotonic() - self._task_execution_start_time
+
+        if elapsed_time > self._execution_timeout_seconds:
+            if self._timeout_sigterm_sent_at is None:
+                # First timeout - send SIGTERM
+                log.warning(
+                    "Task execution timeout exceeded; sending SIGTERM",
+                    ti_id=self.id,
+                    timeout_seconds=self._execution_timeout_seconds,
+                    elapsed_seconds=elapsed_time,
+                )
+                self.kill(signal.SIGTERM)
+                self._timeout_sigterm_sent_at = time.monotonic()
+            elif (time.monotonic() - self._timeout_sigterm_sent_at) > SIGKILL_GRACE_PERIOD:
+                # SIGTERM didn't work, escalate to SIGKILL
+                log.error(
+                    "Task did not respond to SIGTERM; sending SIGKILL",
+                    ti_id=self.id,
+                    grace_period_seconds=SIGKILL_GRACE_PERIOD,
+                )
+                self.kill(signal.SIGKILL, force=True)
 
     def _handle_process_overtime_if_needed(self):
         """Handle termination of auxiliary processes if the task exceeds the configured overtime."""
@@ -1397,6 +1443,14 @@ class ActivitySubprocess(WatchedSubprocess):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
+        elif isinstance(msg, TaskExecutionTimeout):
+            # Task has sent us its execution timeout configuration
+            self._execution_timeout_seconds = msg.timeout_seconds
+            self._task_execution_start_time = time.monotonic()
+            log.info(
+                "Received task execution timeout from task process",
+                timeout_seconds=msg.timeout_seconds,
+            )
         elif isinstance(msg, SucceedTask):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()

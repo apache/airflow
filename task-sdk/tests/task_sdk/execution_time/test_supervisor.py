@@ -119,6 +119,7 @@ from airflow.sdk.execution_time.comms import (
     SkipDownstreamTasks,
     SucceedTask,
     TaskBreadcrumbsResult,
+    TaskExecutionTimeout,
     TaskRescheduleStartDate,
     TaskState,
     TaskStatesResult,
@@ -2616,6 +2617,12 @@ REQUEST_TEST_CASES = [
             ),
         ),
         test_id="get_dag",
+    ),
+    RequestTestCase(
+        message=TaskExecutionTimeout(timeout_seconds=300.0),
+        test_id="task_execution_timeout",
+        client_mock=None,
+        expected_body=None,
     ),
 ]
 
