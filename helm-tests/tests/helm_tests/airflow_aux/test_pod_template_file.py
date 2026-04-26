@@ -1895,7 +1895,7 @@ class TestPodTemplateFile:
             ({"kerberosInitContainer": {"enabled": True}}, True, "api-server-config"),
         ],
     )
-    def test_webserver_config_for_kerberos(
+    def test_api_server_config_for_kerberos(
         self, workers_values, kerberos_init_container, expected_config_name
     ):
         values = {

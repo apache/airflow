@@ -23,7 +23,6 @@ import pytest
 from chart_utils.helm_template_generator import render_chart as _render_chart
 
 
-# Everything in here needcs to set airflowVersion to get the API server to render
 def render_chart(values=None, **kwargs):
     return _render_chart(values=values or {}, **kwargs)
 
