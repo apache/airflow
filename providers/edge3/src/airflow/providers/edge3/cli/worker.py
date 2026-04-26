@@ -309,7 +309,6 @@ class EdgeWorker:
         # See _spawn_workers_with_gc_freeze() in airflow-core/src/airflow/executors/local_executor.py
         results_queue: Queue[Exception] = Queue()
         process = Process(
-            # TODO : change the supervisor by using in https://github.com/apache/airflow/pull/62645
             target=self._run_job_via_supervisor,
             kwargs={"workload": workload, "results_queue": results_queue},
         )

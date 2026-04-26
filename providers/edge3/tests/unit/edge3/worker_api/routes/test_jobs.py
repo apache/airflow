@@ -33,7 +33,7 @@ from airflow.providers.edge3.worker_api.routes.jobs import fetch, parse_command,
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -44,6 +44,8 @@ if TYPE_CHECKING:
 if AIRFLOW_V_3_3_PLUS:
     from airflow.executors.workloads import CallbackFetchMethod, ExecuteCallback, TaskInstanceDTO
     from airflow.executors.workloads.callback import CallbackDTO
+
+if AIRFLOW_V_3_2_PLUS:
     from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager
 
     stats_reference = f"{DualStatsManager.__module__}.DualStatsManager"
