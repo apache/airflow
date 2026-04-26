@@ -1597,7 +1597,7 @@ class TestTriggerCommsDecoder:
 
             req = decoder.resp_decoder.decode(data)  # This is a _RequestFrame
             # Deserialize the TriggerStateChanges request body
-            changes = messages.TriggerStateChanges(**req.body)
+            messages.TriggerStateChanges(**req.body)
 
             # Prepare the TriggerStateSync response
             resp = messages.TriggerStateSync(to_create=[], to_cancel=set())
@@ -1667,5 +1667,5 @@ class TestTriggerCommsDecoder:
         await writer.wait_closed()
         r.close()
 
-        for idx, result in enumerate(results):
+        for _idx, result in enumerate(results):
             assert isinstance(result, messages.TriggerStateSync)
