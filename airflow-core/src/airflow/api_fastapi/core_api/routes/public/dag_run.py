@@ -35,8 +35,14 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+from airflow.api_fastapi.common.cursors import (
+    apply_cursor_filter,
+    encode_cursor,
+    make_backward_cursor,
+    parse_cursor,
+)
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
-from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.db.dag_runs import (
     attach_dag_versions_to_runs,
     eager_load_dag_run_for_list,
@@ -64,6 +70,7 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
+from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
     DAGRunClearBody,
@@ -387,12 +394,28 @@ def get_dag_runs(
     dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.dag_id, "dag_id_pattern"))],
     partition_key_pattern: QueryDagRunPartitionKeySearch,
     consuming_asset_pattern: QueryConsumingAssetPatternSearch,
+    cursor: str | None = Query(
+        None,
+        description="Cursor for keyset-based pagination. "
+        "Pass an empty string for the first page, then use ``next_cursor`` from the response. "
+        "When ``cursor`` is provided, ``offset`` is ignored.",
+    ),
 ) -> DAGRunCollectionResponse:
     """
     Get all DAG Runs.
 
     This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
+
+    Supports two pagination modes:
+
+    **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+
+    **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
+    When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
+    ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
+    on the first page.
     """
+    use_cursor = cursor is not None
     query = select(DagRun).options(*eager_load_dag_run_for_list())
 
     if dag_id != "~":
@@ -403,27 +426,66 @@ def get_dag_runs(
     if dag_version.value:
         query = query.join(DagVersion, DagRun.created_dag_version_id == DagVersion.id)
 
+    filters: list[OrmClause] = [
+        run_after,
+        logical_date,
+        start_date_range,
+        end_date_range,
+        update_at_range,
+        duration_range,
+        conf_contains,
+        state,
+        run_type,
+        dag_version,
+        bundle_version,
+        readable_dag_runs_filter,
+        run_id_pattern,
+        triggering_user_name_pattern,
+        dag_id_pattern,
+        partition_key_pattern,
+        consuming_asset_pattern,
+    ]
+
+    if use_cursor:
+        # Fetch one extra row so we can detect whether a next page exists.
+        page_limit = cast(
+            "int", limit.value
+        )  # LimitFilter value is guaranteed to be set to the default value of QueryLimit
+        cursor_limit = LimitFilter().set_value(page_limit + 1)
+        dag_run_select = apply_filters_to_select(statement=query, filters=[*filters, order_by, cursor_limit])
+
+        is_backward = False
+        if cursor:
+            token, is_backward = parse_cursor(cursor)
+            if is_backward:
+                dag_run_select = order_by.to_orm(dag_run_select, reversed=True)
+            dag_run_select = apply_cursor_filter(dag_run_select, token, order_by, is_backward=is_backward)
+
+        fetched = list(session.scalars(dag_run_select).unique())
+        has_more = len(fetched) > page_limit
+        dag_runs = fetched[:page_limit]
+
+        if is_backward:
+            dag_runs.reverse()
+            has_prev = has_more
+            has_next = True
+        else:
+            has_prev = bool(cursor)
+            has_next = has_more
+
+        attach_dag_versions_to_runs(dag_runs, session=session)
+
+        return DAGRunCollectionResponse(
+            dag_runs=dag_runs,
+            next_cursor=(encode_cursor(dag_runs[-1], order_by) if has_next and dag_runs else None),
+            previous_cursor=(
+                make_backward_cursor(encode_cursor(dag_runs[0], order_by)) if has_prev and dag_runs else None
+            ),
+        )
+
     dag_run_select, total_entries = paginated_select(
         statement=query,
-        filters=[
-            run_after,
-            logical_date,
-            start_date_range,
-            end_date_range,
-            update_at_range,
-            duration_range,
-            conf_contains,
-            state,
-            run_type,
-            dag_version,
-            bundle_version,
-            readable_dag_runs_filter,
-            run_id_pattern,
-            triggering_user_name_pattern,
-            dag_id_pattern,
-            partition_key_pattern,
-            consuming_asset_pattern,
-        ],
+        filters=filters,
         order_by=order_by,
         offset=offset,
         limit=limit,

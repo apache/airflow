@@ -975,8 +975,18 @@ export class DagRunService {
      * Get all DAG Runs.
      *
      * This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
+     *
+     * Supports two pagination modes:
+     *
+     * **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+     *
+     * **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
+     * When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
+     * ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
+     * on the first page.
      * @param data The data for the request.
      * @param data.dagId
+     * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
      * @param data.limit
      * @param data.offset
      * @param data.runAfterGte
@@ -1025,6 +1035,7 @@ export class DagRunService {
                 dag_id: data.dagId
             },
             query: {
+                cursor: data.cursor,
                 limit: data.limit,
                 offset: data.offset,
                 run_after_gte: data.runAfterGte,
