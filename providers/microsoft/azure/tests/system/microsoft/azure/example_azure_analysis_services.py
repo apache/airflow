@@ -65,6 +65,8 @@ def create_connection(conn_id: str) -> None:
         password=CLIENT_SECRET,
         extra={"tenantId": TENANT_ID},
     )
+    if settings.Session is None:
+        raise RuntimeError("Session not configured. Call configure_orm() first.")
     session = settings.Session()
     session.add(conn)
     session.commit()
