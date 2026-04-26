@@ -1095,7 +1095,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         prefix = f"<TaskInstance: {self.dag_id}.{self.task_id} {self.run_id} "
         if self.map_index != -1:
             prefix += f"map_index={self.map_index} "
-        return prefix + f"[{self.state}]>"
+        return prefix + f"[{self.state}] ti_id={self.id}>"
 
     def next_retry_datetime(self):
         """

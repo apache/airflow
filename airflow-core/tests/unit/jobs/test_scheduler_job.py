@@ -691,7 +691,7 @@ class TestSchedulerJob:
             bundle_name="dag_maker",
             bundle_version=None,
             msg=f"Executor {executor} reported that the task instance "
-            "<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> "
+            f"<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued] ti_id={ti1.id}> "
             "finished with state failed, but the task instance's state attribute is queued. "
             "Learn more: https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#task-state-changed-externally",
             context_from_server=mock.ANY,
@@ -1903,11 +1903,13 @@ class TestSchedulerJob:
         some_pool = Pool(pool="some_pool", slots=2, description="my pool", include_deferred=False)
         session.add(some_pool)
         session.commit()
+        cannot_run_ti_id = next(t for t in dr.task_instances if t.task_id == "cannot_run").id
         with caplog.at_level(logging.WARNING):
             self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
             assert (
-                "Not executing <TaskInstance: "
-                "SchedulerJobTest.test_test_not_enough_pool_slots.cannot_run test [scheduled]>. "
+                f"Not executing <TaskInstance: "
+                f"SchedulerJobTest.test_test_not_enough_pool_slots.cannot_run test [scheduled] "
+                f"ti_id={cannot_run_ti_id}>. "
                 "Requested pool slots (4) are greater than total pool slots: '2' for pool: some_pool"
                 in caplog.text
             )
