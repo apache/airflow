@@ -80,7 +80,7 @@ export class AssetDetailPage extends BasePage {
    * Uses stable selectors based on text content and ARIA roles
    */
   private async verifyStatSection(labelText: string): Promise<void> {
-    const label = this.page.getByText(labelText, { exact: true });
+    const label = this.page.getByRole("heading", { exact: true, name: labelText });
 
     await expect(label).toBeVisible();
 

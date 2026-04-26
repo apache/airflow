@@ -118,35 +118,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: airflow-core/src/airflow/ui/pnpm-lock.yaml
 
-      - name: Install UI dependencies
-        run: cd airflow-core/src/airflow/ui && pnpm install --frozen-lockfile
-
-      - name: Install Playwright browser
-        run: cd airflow-core/src/airflow/ui && pnpm exec playwright install --with-deps chromium
-
-      - name: Start Airflow with example DAGs
-        run: breeze start-airflow --load-example-dags
-
-      - name: Wait for Airflow UI
-        run: |
-          for i in {1..30}; do
-            if curl -sf http://localhost:28080/health >/dev/null; then
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "Airflow UI did not become ready in time"
-          exit 1
-
-      - name: Run lineage e2e
-        env:
-          AIRFLOW_UI_BASE_URL: http://localhost:28080
-        run: >
-          cd airflow-core/src/airflow/ui &&
-          pnpm playwright test
-          tests/e2e/specs/asset.spec.ts
-          --project=chromium
-          --grep "lineage search recenters the graph to the matched node"
+      - name: Run PR frontend e2e
+        run: breeze testing ui-e2e-tests --browser chromium --test-pattern "asset.spec.ts"
 
       - name: Upload Playwright artifacts
         if: always()
