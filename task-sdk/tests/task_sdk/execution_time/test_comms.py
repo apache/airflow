@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import threading
 import uuid
 from socket import socketpair
@@ -29,6 +30,7 @@ from airflow.sdk import timezone
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
     CommsDecoder,
+    GetVariable,
     MaskSecret,
     StartupDetails,
     VariableResult,
@@ -193,3 +195,87 @@ class TestCommsDecoder:
             assert errors[idx] is None, f"Thread {idx} error: {errors[idx]}"
             assert results[idx].key == f"key{idx}", f"Out-of-order or missing response for thread {idx}"
             assert results[idx].value == f"value{idx}", f"Incorrect value for thread {idx}"
+
+    @pytest.mark.asyncio
+    async def test_asend_basic(self):
+        """Verify a single async request‑response cycle via asend."""
+        r, w = socketpair()
+        r.setblocking(False)   # <-- required for asyncio
+        w.setblocking(False)
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+
+        async def server():
+            loop = asyncio.get_running_loop()
+            # read length
+            len_bytes = await loop.sock_recv(w, 4)
+            length = int.from_bytes(len_bytes, "big")
+            data = bytearray()
+            while len(data) < length:
+                chunk = await loop.sock_recv(w, length - len(data))
+                if not chunk:
+                    break
+                data.extend(chunk)
+            req = decoder.resp_decoder.decode(data)
+            # build a VariableResult matching the request
+            key = req.body["key"]
+            resp = {"type": "VariableResult", "key": key, "value": f"value_{key}"}
+            resp_frame = _ResponseFrame(req.id, resp, None)
+            resp_bytes = msgspec.msgpack.encode(resp_frame)
+            await loop.sock_sendall(w, len(resp_bytes).to_bytes(4, "big") + resp_bytes)
+            w.close()  # signal EOF for clean shutdown
+
+        server_task = asyncio.create_task(server())
+
+        msg = GetVariable(key="basic_key")
+        result = await decoder.asend(msg)
+
+        assert isinstance(result, VariableResult)
+        assert result.key == "basic_key"
+        assert result.value == "value_basic_key"
+
+        await server_task
+        r.close()  # clean up the read end
+
+    @pytest.mark.asyncio
+    async def test_asend_concurrent_safety(self):
+        """Multiple concurrent asend calls must not interleave and must each receive the correct response."""
+        r, w = socketpair()
+        r.setblocking(False)   # <-- required for asyncio
+        w.setblocking(False)
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+        num_requests = 5
+
+        async def server():
+            loop = asyncio.get_running_loop()
+            for _ in range(num_requests):
+                # read one frame
+                len_bytes = await loop.sock_recv(w, 4)
+                length = int.from_bytes(len_bytes, "big")
+                data = bytearray()
+                while len(data) < length:
+                    chunk = await loop.sock_recv(w, length - len(data))
+                    if not chunk:
+                        break
+                    data.extend(chunk)
+                req = decoder.resp_decoder.decode(data)
+                key = req.body["key"]
+                resp = {"type": "VariableResult", "key": key, "value": f"value_{key}"}
+                resp_frame = _ResponseFrame(req.id, resp, None)
+                resp_bytes = msgspec.msgpack.encode(resp_frame)
+                await loop.sock_sendall(w, len(resp_bytes).to_bytes(4, "big") + resp_bytes)
+            w.close()
+
+        server_task = asyncio.create_task(server())
+
+        async def make_request(idx: int) -> VariableResult:
+            msg = GetVariable(key=f"key{idx}")
+            return await decoder.asend(msg)
+
+        # Start all requests concurrently
+        results = await asyncio.gather(*[make_request(i) for i in range(num_requests)])
+        await server_task
+        r.close()
+
+        for idx, result in enumerate(results):
+            assert result.key == f"key{idx}"
+            assert result.value == f"value_key{idx}"
