@@ -2286,6 +2286,153 @@ def test_schedule_tis_up_for_reschedule_does_not_increment_try_number(dag_maker,
     assert refreshed_ti.try_number == 3
 
 
+def test_schedule_tis_reapplies_mutation_hook_on_retry(dag_maker, session, monkeypatch):
+    def reroute_retries(task_instance):
+        if (task_instance.try_number or 0) >= 2:
+            task_instance.queue = "retry_queue"
+
+    monkeypatch.setattr("airflow.models.taskinstance.task_instance_mutation_hook", reroute_retries)
+
+    with dag_maker(session=session) as dag:
+        BashOperator(task_id="task", bash_command="echo 1", queue="default")
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task", session=session)
+    ti.refresh_from_task(dag.get_task("task"))
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    ti.try_number = 1
+    session.commit()
+
+    assert dr.schedule_tis((ti,), session=session) == 1
+    session.commit()
+
+    session.expire_all()
+    refreshed_ti = session.scalar(
+        select(TI).where(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.run_id == ti.run_id,
+            TI.map_index == ti.map_index,
+        )
+    )
+    assert refreshed_ti.state == TaskInstanceState.SCHEDULED
+    assert refreshed_ti.try_number == 2
+    assert refreshed_ti.queue == "retry_queue"
+
+
+def test_schedule_tis_does_not_apply_retry_mutation_hook_on_first_attempt(dag_maker, session, monkeypatch):
+    def reroute_retries(task_instance):
+        if (task_instance.try_number or 0) >= 1:
+            task_instance.queue = "retry_queue"
+
+    monkeypatch.setattr("airflow.models.taskinstance.task_instance_mutation_hook", reroute_retries)
+
+    with dag_maker(session=session) as dag:
+        BashOperator(task_id="task", bash_command="echo 1", queue="default")
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task", session=session)
+    ti.refresh_from_task(dag.get_task("task"))
+    ti.state = None
+    ti.try_number = 0
+    ti.queue = "default"
+    session.merge(ti)
+    session.commit()
+
+    assert dr.schedule_tis((ti,), session=session) == 1
+    session.commit()
+
+    session.expire_all()
+    refreshed_ti = session.scalar(
+        select(TI).where(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.run_id == ti.run_id,
+            TI.map_index == ti.map_index,
+        )
+    )
+    assert refreshed_ti.state == TaskInstanceState.SCHEDULED
+    assert refreshed_ti.try_number == 1
+    assert refreshed_ti.queue == "default"
+
+
+def test_schedule_tis_recomputes_priority_weight_for_dynamic_strategy(dag_maker, session):
+    from airflow import plugins_manager
+
+    from tests_common.test_utils.mock_plugins import mock_plugin_manager
+    from unit.plugins.priority_weight_strategy import (
+        DecreasingPriorityStrategy,
+        TestPriorityWeightStrategyPlugin,
+    )
+
+    try:
+        with mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin]):
+            with dag_maker(session=session) as dag:
+                BashOperator(
+                    task_id="task",
+                    bash_command="echo 1",
+                    weight_rule=DecreasingPriorityStrategy(),
+                )
+
+            dr = dag_maker.create_dagrun(session=session)
+            ti = dr.get_task_instance("task", session=session)
+            ti.refresh_from_task(dag.get_task("task"))
+            ti.state = TaskInstanceState.UP_FOR_RETRY
+            ti.try_number = 1
+            session.merge(ti)
+            session.commit()
+
+            assert dr.schedule_tis((ti,), session=session) == 1
+            session.commit()
+
+            session.expire_all()
+            refreshed_ti = session.scalar(
+                select(TI).where(
+                    TI.dag_id == ti.dag_id,
+                    TI.task_id == ti.task_id,
+                    TI.run_id == ti.run_id,
+                    TI.map_index == ti.map_index,
+                )
+            )
+            # DecreasingPriorityStrategy returns max(3 - try + 1, 1). After schedule_tis
+            # bumps try_number 1 -> 2, the strategy is re-evaluated against try=2 giving 2.
+            assert refreshed_ti.try_number == 2
+            assert refreshed_ti.priority_weight == 2
+    finally:
+        # mock_plugin_manager clears strategy caches on entry but not on exit.
+        plugins_manager.get_priority_weight_strategy_plugins.cache_clear()
+
+
+def test_schedule_tis_does_not_touch_priority_weight_for_static_strategy(dag_maker, session):
+    with dag_maker(session=session) as dag:
+        BashOperator(task_id="task", bash_command="echo 1", priority_weight=42)
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task", session=session)
+    ti.refresh_from_task(dag.get_task("task"))
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    ti.try_number = 1
+    original_priority = ti.priority_weight
+    original_queue = ti.queue
+    session.commit()
+
+    assert dr.schedule_tis((ti,), session=session) == 1
+    session.commit()
+
+    session.expire_all()
+    refreshed_ti = session.scalar(
+        select(TI).where(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.run_id == ti.run_id,
+            TI.map_index == ti.map_index,
+        )
+    )
+    assert refreshed_ti.try_number == 2
+    assert refreshed_ti.priority_weight == original_priority
+    assert refreshed_ti.queue == original_queue
+
+
 def test_schedule_tis_empty_operator_is_noop_if_ti_already_running(dag_maker, session):
     with dag_maker(session=session) as dag:
         EmptyOperator(task_id="empty_task")
