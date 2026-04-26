@@ -104,13 +104,13 @@ class EdgeExecutor(BaseExecutor):
     ) -> None:
         """Put new workload to queue. Airflow 3 entry point to execute a task."""
         if is_callback_execute(workload):
-            from airflow.providers.edge3.utils.types import EXECUTE_CALLBACK_PREFIX
+            from airflow.providers.edge3.utils.types import EXECUTE_CALLBACK_TAG
 
             existing_job = session.scalars(
                 select(EdgeJobModel).where(
-                    EdgeJobModel.dag_id == EXECUTE_CALLBACK_PREFIX,
+                    EdgeJobModel.dag_id == EXECUTE_CALLBACK_TAG,
                     EdgeJobModel.task_id == workload.callback.key,
-                    EdgeJobModel.run_id == f"{EXECUTE_CALLBACK_PREFIX}-{workload.callback.key}",
+                    EdgeJobModel.run_id == f"{EXECUTE_CALLBACK_TAG}-{workload.callback.key}",
                 )
             ).first()
 
@@ -120,9 +120,9 @@ class EdgeExecutor(BaseExecutor):
             else:
                 session.add(
                     EdgeJobModel(
-                        dag_id=EXECUTE_CALLBACK_PREFIX,
+                        dag_id=EXECUTE_CALLBACK_TAG,
                         task_id=workload.callback.key,
-                        run_id=f"{EXECUTE_CALLBACK_PREFIX}-{workload.callback.key}",
+                        run_id=f"{EXECUTE_CALLBACK_TAG}-{workload.callback.key}",
                         map_index=-1,
                         try_number=0,
                         queue=self.conf.get_mandatory_value("operators", "default_queue"),

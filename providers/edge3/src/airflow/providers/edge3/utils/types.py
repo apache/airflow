@@ -19,13 +19,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypeAlias, TypeGuard
 
 from airflow.executors.workloads import ExecuteTask
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
     from airflow.executors import workloads
     from airflow.executors.workloads import ExecuteCallback
 
-if not AIRFLOW_V_3_2_PLUS:
+if not AIRFLOW_V_3_3_PLUS:
     ExecuteTypeBody: TypeAlias = ExecuteTask
 else:
     from airflow.executors.workloads import ExecutorWorkload
@@ -34,11 +34,12 @@ else:
 
 
 def is_callback_execute(workload: workloads.All) -> TypeGuard[ExecuteCallback]:
-    if AIRFLOW_V_3_2_PLUS:
+    if AIRFLOW_V_3_3_PLUS:
         from airflow.executors.workloads import ExecuteCallback
 
         return isinstance(workload, ExecuteCallback)
     return False
 
+
 # Do not modify it,
-EXECUTE_CALLBACK_PREFIX = "execute_callback"
+EXECUTE_CALLBACK_TAG = "ExecuteCallback"

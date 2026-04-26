@@ -27,21 +27,21 @@ from sqlalchemy import delete, select
 
 from airflow.executors.workloads import BundleInfo, ExecuteTask
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
+from airflow.providers.edge3.utils.types import EXECUTE_CALLBACK_TAG
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueuesBody
 from airflow.providers.edge3.worker_api.routes.jobs import fetch, parse_command, state
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.executors.workloads import ExecuteCallback
 
-pytestmark = pytest.mark.db_test
 
-if AIRFLOW_V_3_2_PLUS:
+if AIRFLOW_V_3_3_PLUS:
     from airflow.executors.workloads import CallbackFetchMethod, ExecuteCallback, TaskInstanceDTO
     from airflow.executors.workloads.callback import CallbackDTO
     from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager
@@ -53,6 +53,9 @@ else:
 
     stats_reference = f"{Stats.__module__}.Stats"
     expected_call_count = 2
+
+
+pytestmark = pytest.mark.db_test
 
 
 DAG_ID = "my_dag"
@@ -220,7 +223,7 @@ class TestJobsApiRoutes:
             assert fetched_dag_ids == {"dag_a", "dag_b"}
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="The tests should be skipped for Airflow < 3.2")
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The tests should be skipped for Airflow < 3.3")
 class TestParseCommand:
     def _make_execute_task(self) -> ExecuteTask:
         ti = TaskInstanceDTO(
@@ -273,9 +276,9 @@ class TestParseCommand:
     def test_parse_command_execute_callback(self):
         workload = self._make_execute_callback()
         command_json = workload.model_dump_json()
-        # Mimic how edge_executor stores callback jobs
-        dag_id = ExecuteCallback.TYPE
-        run_id = f"ExecuteCallback-{workload.callback.key}"
+
+        dag_id = EXECUTE_CALLBACK_TAG
+        run_id = f"{EXECUTE_CALLBACK_TAG}-{workload.callback.key}"
 
         result = parse_command(command_json, dag_id=dag_id, run_id=run_id)
 
@@ -288,6 +291,6 @@ class TestParseCommand:
         workload = self._make_execute_task()
         command_json = workload.model_dump_json()
 
-        result = parse_command(command_json, dag_id="some_dag", run_id="ExecuteCallback-something")
+        result = parse_command(command_json, dag_id="some_dag", run_id=f"{EXECUTE_CALLBACK_TAG}-something")
 
         assert isinstance(result, ExecuteTask)

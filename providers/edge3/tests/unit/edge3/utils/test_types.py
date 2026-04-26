@@ -25,9 +25,9 @@ from pydantic import TypeAdapter
 from airflow.executors.workloads import BundleInfo, ExecuteTask
 from airflow.providers.edge3.utils.types import ExecuteTypeBody, is_callback_execute
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
-if AIRFLOW_V_3_2_PLUS:
+if AIRFLOW_V_3_3_PLUS:
     from airflow.executors.workloads import CallbackFetchMethod, ExecuteCallback, TaskInstanceDTO
     from airflow.executors.workloads.callback import CallbackDTO
 

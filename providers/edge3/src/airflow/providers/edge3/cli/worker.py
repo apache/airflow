@@ -37,7 +37,6 @@ from aiohttp import ClientResponseError
 from lockfile.pidlockfile import remove_existing_pidfile
 
 from airflow import __version__ as airflow_version
-from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.common.compat.sdk import conf, timezone
 from airflow.providers.edge3 import __version__ as edge_provider_version
 from airflow.providers.edge3.cli.api_client import (
@@ -59,10 +58,9 @@ from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerState,
     EdgeWorkerVersionException,
 )
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.utils.net import getfqdn
 from airflow.utils.state import TaskInstanceState
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
-
 
 if TYPE_CHECKING:
     from airflow.configuration import AirflowConfigParser
@@ -263,24 +261,33 @@ class EdgeWorker:
         return EdgeWorkerState.IDLE
 
     def _run_job_via_supervisor(self, workload: ExecuteTypeBody, results_queue: Queue) -> int:
-        from airflow.sdk.execution_time.supervisor import supervise
-
         _reset_parent_signal_state()
+
         # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
 
         os.setpgrp()
 
         logger.info("Worker starting up pid=%d", os.getpid())
 
-        if not AIRFLOW_V_3_2_PLUS:
-            ti = workload.ti
-            setproctitle(
-                "airflow edge supervisor executing task: "
-                f"dag_id={ti.dag_id} task_id={ti.task_id} run_id={ti.run_id} map_index={ti.map_index} "
-                f"try_number={ti.try_number}"
-            )
+        try:
+            if AIRFLOW_V_3_3_PLUS:
+                proctitle = f"airflow edge supervisor executing callback: {workload.ti.task_id} "
 
-            try:
+                from airflow.executors.base_executor import BaseExecutor
+
+                BaseExecutor.run_workload(
+                    workload=workload, server=self._execution_api_server_url, proctitle=proctitle
+                )
+            else:
+                from airflow.sdk.execution_time.supervisor import supervise
+
+                ti = workload.ti
+                setproctitle(
+                    "airflow edge supervisor executing task: "
+                    f"dag_id={ti.dag_id} task_id={ti.task_id} run_id={ti.run_id} map_index={ti.map_index} "
+                    f"try_number={ti.try_number}"
+                )
+
                 supervise(
                     # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
                     # Same like in airflow/executors/local_executor.py:_execute_workload()
@@ -291,20 +298,7 @@ class EdgeWorker:
                     server=self._execution_api_server_url,
                     log_path=workload.log_path,
                 )
-                return 0
-            except Exception as e:
-                logger.exception("Task execution failed")
-                results_queue.put(e)
-                return 1
-
-        proctitle = f"airflow edge supervisor executing callback: {workload.ti.task_id} "
-
-        try:
-            return BaseExecutor.run_workload(
-            workload=workload,
-            server=self._execution_api_server_url,
-            proctitle=proctitle
-        )
+            return 0
         except Exception as e:
             logger.exception("Task execution failed")
             results_queue.put(e)
@@ -439,7 +433,7 @@ class EdgeWorker:
 
         logger.info("Received job: %s", edge_job.identifier)
 
-        workload: ExecuteTypeBody  = edge_job.command
+        workload: ExecuteTypeBody = edge_job.command
         process, results_queue = self._launch_job(workload)
         if TYPE_CHECKING:
             assert workload.log_path  # We need to assume this is defined in here

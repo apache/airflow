@@ -33,13 +33,14 @@ from airflow.providers.common.compat.sdk import Stats, TaskInstanceKey, conf, ti
 from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
+from airflow.providers.edge3.utils.types import EXECUTE_CALLBACK_TAG
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
 
-if AIRFLOW_V_3_2_PLUS:
+if AIRFLOW_V_3_3_PLUS:
     from airflow.executors.workloads import CallbackFetchMethod, ExecuteCallback, TaskInstanceDTO
     from airflow.executors.workloads.callback import CallbackDTO
 
@@ -568,7 +569,7 @@ class TestEdgeExecutorMultiTeam:
             assert len(remaining_jobs) == 2
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecuteTypeBody union requires Airflow 3.2+")
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="ExecuteTypeBody union requires Airflow 3.3+")
 class TestQueueWorkload:
     @pytest.fixture(autouse=True)
     def setup(self):
@@ -648,9 +649,9 @@ class TestQueueWorkload:
         with create_session() as session:
             job = session.scalar(select(EdgeJobModel))
             assert job is not None
-            assert job.dag_id == ExecuteCallback.TYPE
+            assert job.dag_id == EXECUTE_CALLBACK_TAG
             assert job.task_id == id
-            assert job.run_id == f"{ExecuteCallback.TYPE}-{id}"
+            assert job.run_id == f"{EXECUTE_CALLBACK_TAG}-{id}"
             assert job.state == TaskInstanceState.QUEUED
             assert '"type":"ExecuteCallback"' in job.command or '"type": "ExecuteCallback"' in job.command
 

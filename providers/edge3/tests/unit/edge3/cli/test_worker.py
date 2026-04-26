@@ -45,6 +45,7 @@ from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerState,
     EdgeWorkerVersionException,
 )
+from airflow.providers.edge3.utils.types import EXECUTE_CALLBACK_TAG
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
     WorkerRegistrationReturn,
@@ -52,12 +53,12 @@ from airflow.providers.edge3.worker_api.datamodels import (
 )
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
     from airflow.executors.workloads import ExecuteCallback
 
-if AIRFLOW_V_3_2_PLUS:
+if AIRFLOW_V_3_3_PLUS:
     from airflow.executors.workloads import ExecuteCallback
 
 
@@ -233,7 +234,7 @@ class TestEdgeWorker:
 
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @pytest.mark.asyncio
-    @pytest.mark.skipif(AIRFLOW_V_3_2_PLUS, reason="The tests should be skipped for Airflow > 3.2")
+    @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="The tests should be skipped for Airflow > 3.3")
     async def test_supervise_launch(
         self,
         mock_supervise,
@@ -249,7 +250,7 @@ class TestEdgeWorker:
 
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @pytest.mark.asyncio
-    @pytest.mark.skipif(AIRFLOW_V_3_2_PLUS, reason="The tests should be skipped for Airflow > 3.2")
+    @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="The tests should be skipped for Airflow > 3.3")
     async def test_supervise_launch_fail(
         self,
         mock_supervise,
@@ -263,10 +264,9 @@ class TestEdgeWorker:
         assert result == 1
         q.put.assert_called_once()
 
-
     @patch("airflow.sdk.execution_time.supervisor.supervise_task")
     @pytest.mark.asyncio
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="The tests should be skipped for Airflow < 3.2")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The tests should be skipped for Airflow < 3.3")
     async def test_supervise_task_launch(
         self,
         mock_supervise_task,
@@ -282,7 +282,7 @@ class TestEdgeWorker:
 
     @patch("airflow.sdk.execution_time.supervisor.supervise_task")
     @pytest.mark.asyncio
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="The tests should be skipped for Airflow < 3.2")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The tests should be skipped for Airflow < 3.3")
     async def test_supervise_task_launch_fail(
         self,
         mock_supervise_task,
@@ -297,7 +297,6 @@ class TestEdgeWorker:
 
         assert result == 1
         q.put.assert_called_once()
-
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
     @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job", return_value=(Process(), Queue()))
@@ -715,6 +714,7 @@ class TestSignalHandling:
             for sig, prev in original.items():
                 signal.signal(sig, prev)
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The tests should be skipped for Airflow < 3.3")
     def test_run_job_via_supervisor_resets_signals_before_supervise(self, tmp_path):
         """Reset must run first: before ``os.setpgrp`` and before ``supervise``."""
         worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
@@ -727,7 +727,7 @@ class TestSignalHandling:
             ),
             mock.patch("os.setpgrp", side_effect=lambda: order("setpgrp")),
             mock.patch(
-                "airflow.sdk.execution_time.supervisor.supervise",
+                "airflow.executors.base_executor.BaseExecutor.run_workload",
                 side_effect=lambda **_: order("supervise"),
             ),
         ):
@@ -756,15 +756,16 @@ class TestSignalHandling:
             worker_with_one_job.shutdown_handler()
         assert worker_with_one_job.drain is True
 
+
 class TestEdgeJobFetchedSerialization:
     """Test that EdgeJobFetched serializes and deserializes with both ExecuteTask and ExecuteCallback."""
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="The tests should be skipped for Airflow < 3.2")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The tests should be skipped for Airflow < 3.3")
     def test_serialize_with_execute_callback(self):
         fetched = EdgeJobFetched(
-            dag_id="ExecuteCallback",
+            dag_id=EXECUTE_CALLBACK_TAG,
             task_id="12345678-1234-5678-1234-567812345678",
-            run_id="ExecuteCallback-12345678-1234-5678-1234-567812345678",
+            run_id=f"{EXECUTE_CALLBACK_TAG}-12345678-1234-5678-1234-567812345678",
             map_index=-1,
             try_number=0,
             concurrency_slots=1,
@@ -773,6 +774,6 @@ class TestEdgeJobFetchedSerialization:
         serialized = fetched.model_dump_json()
         deserialized = EdgeJobFetched(**json.loads(serialized))
 
-        assert deserialized.dag_id == "ExecuteCallback"
-        assert deserialized.command.type == "ExecuteCallback"
+        assert deserialized.dag_id == EXECUTE_CALLBACK_TAG
+        assert deserialized.command.type == EXECUTE_CALLBACK_TAG
         assert isinstance(deserialized.command, ExecuteCallback)
