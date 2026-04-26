@@ -2,7 +2,7 @@
 name: pr-stats
 description: |
   Produce maintainer-facing statistics about open pull requests on
-  `apache/airflow` (or another target repo). Inspired by
+  `apache/airflow` (or another target repo). Successor to
   `breeze pr stats`: read-only, no mutations — just two summary
   tables grouped by `area:*` label (Triaged final-state, and
   Triaged still-open) plus per-area age-bucket breakdowns so the

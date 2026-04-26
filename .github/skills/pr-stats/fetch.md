@@ -127,7 +127,7 @@ GitHub's GraphQL exposes two fields for a comment:
 - `bodyText` — plain-text rendering; HTML comments (`<!-- … -->`) are **stripped**.
 - `body` — raw Markdown as stored; HTML comments are preserved.
 
-`breeze pr auto-triage` posts its *staleness-close* comments with the marker embedded as an HTML comment:
+The now-removed `breeze pr auto-triage` command posted *staleness-close* comments with the marker embedded as an HTML comment, and those comments are still present on PRs that were triaged before the command was removed:
 
 ```markdown
 This pull request has had no activity from the author for over 4 weeks.
@@ -140,8 +140,8 @@ In this case the visible body contains no "Pull Request quality criteria" text a
 
 **Always use `body`, not `bodyText`.** The marker detection is a simple substring search for `Pull Request quality criteria` against the raw body — it matches both:
 
-- the visible `[Pull Request quality criteria](https://…)` link that the pr-triage skill and breeze's violations-triage both emit, and
-- the `<!-- Pull Request quality criteria -->` HTML comment that breeze's staleness-triage embeds as a hidden marker.
+- the visible `[Pull Request quality criteria](https://…)` link that the `pr-triage` skill (and the removed breeze violations-triage) emits, and
+- the `<!-- Pull Request quality criteria -->` HTML comment that the removed breeze staleness-triage embedded as a hidden marker (still present on legacy triaged PRs).
 
 Raw bodies are slightly noisier (Markdown formatting characters) but the marker string is distinctive enough that false positives are not a concern on `apache/airflow`.
 

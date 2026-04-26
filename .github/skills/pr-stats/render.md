@@ -3,7 +3,7 @@
 
 # Render
 
-Print the two tables, the legend, and a summary line. **Primary output is Rich-rendered colored tables to the terminal** — the same library `breeze pr auto-triage` uses, so the colour scheme and state-marker vocabulary match what the maintainer already knows. Rich handles wide tables correctly (horizontal overflow, per-column wrapping) so Table 2's 20+ columns don't fall apart in a normal terminal.
+Print the two tables, the legend, and a summary line. **Primary output is Rich-rendered colored tables to the terminal** — the same library the now-removed `breeze pr auto-triage` and `breeze pr stats` commands used, so the colour scheme and state-marker vocabulary stay consistent with what the maintainer already knows. Rich handles wide tables correctly (horizontal overflow, per-column wrapping) so Table 2's 20+ columns don't fall apart in a normal terminal.
 
 A Markdown fallback is produced when the maintainer explicitly asks for shareable output (`markdown` flag, or the output is being piped to a non-tty).
 
@@ -16,13 +16,13 @@ The first cut of this skill emitted GitHub-flavoured Markdown tables. In practic
 1. Table 2's width (20+ columns) exceeded the rendering width of common Markdown viewers. The table collapsed into a wrapped mess of `|`-separated values that read as prose, not a table.
 2. Markdown carries no colour, so state-relevant cells (CI failing, many commits behind, etc.) had no visual cue — the maintainer had to compare numbers by eye.
 
-Rich solves both: its table renderer computes column widths from the actual terminal size, overflows horizontally instead of wrapping (or truncates cells with an ellipsis if set), and supports inline colour markup. Moving to Rich also aligns the output with `breeze pr stats` and `breeze pr auto-triage`, so the maintainer sees familiar colours and state names between skills.
+Rich solves both: its table renderer computes column widths from the actual terminal size, overflows horizontally instead of wrapping (or truncates cells with an ellipsis if set), and supports inline colour markup. Rich is also what the now-removed `breeze pr stats` and `breeze pr auto-triage` commands used, so anyone migrating from the old breeze CLI sees the same colours and state names.
 
 ---
 
 ## Rich rendering
 
-Use `rich.console.Console` + `rich.table.Table`, the same shape `breeze pr stats` uses (see `dev/breeze/src/airflow_breeze/commands/pr_commands.py::_render_stats_tables`).
+Use `rich.console.Console` + `rich.table.Table`. The shape mirrors what the now-removed `breeze pr stats` command used, kept verbatim so the output stays familiar to maintainers used to that command.
 
 Minimum table setup:
 
@@ -56,13 +56,13 @@ Key settings:
 
 - `show_lines=True` — horizontal separators between rows make the 20-column Table 2 readable.
 - `show_footer=True` with a `footer=` on each column — column headers repeat at the bottom for long tables.
-- `end_section=True` on the TOTAL row plus `style="on grey7"` — the totals row is visually separated and tinted, matching `breeze pr stats`.
+- `end_section=True` on the TOTAL row plus `style="on grey7"` — the totals row is visually separated and tinted, matching the look the predecessor `breeze pr stats` command used.
 
 ---
 
-## Colour scheme (matches `breeze pr auto-triage`)
+## Colour scheme (inherited from the predecessor breeze commands)
 
-Use the same palette as auto-triage so state meanings transfer without relearning. Markup uses Rich's inline `[color]…[/]` syntax.
+Use the same palette the now-removed `breeze pr auto-triage` and `breeze pr stats` commands used so state meanings transfer without relearning. Markup uses Rich's inline `[color]…[/]` syntax.
 
 | Concept | Colour | Used in |
 |---|---|---|
@@ -78,13 +78,13 @@ Use the same palette as auto-triage so state meanings transfer without relearnin
 | Unknown / ambiguous | `dim` | fallback for `?` / `-` |
 | TOTAL row | `bold white` on `grey7` | the footer-before-footer TOTAL row |
 
-When a percentage cell is a close call (e.g. `%Responded` of exactly 50%), keep the happier colour — `green` above 50, `yellow` below — consistent with auto-triage's "when in doubt, show it as still-ok".
+When a percentage cell is a close call (e.g. `%Responded` of exactly 50%), keep the happier colour — `green` above 50, `yellow` below — matching the "when in doubt, show it as still-ok" convention the predecessor breeze commands used.
 
 ---
 
-## Auto-triage state markers
+## Triage state markers
 
-`breeze pr auto-triage` categorises every non-collab PR into one of four states in its overview table:
+The triage workflow categorises every non-collab PR into one of four states (the same four the now-removed `breeze pr auto-triage` overview table surfaced, and that the [`pr-triage`](../pr-triage/SKILL.md) skill continues to use):
 
 | Marker | Meaning | Colour |
 |---|---|---|
@@ -93,11 +93,11 @@ When a percentage cell is a close call (e.g. `%Responded` of exactly 50%), keep 
 | `Responded` | author commented / pushed after the triage comment | `bright_cyan` |
 | `-` | not yet triaged | `blue` |
 
-`pr-stats` surfaces the same buckets at the area level. After Table 2, print a small **state-breakdown panel** that slices the full open-PR set into the four auto-triage markers:
+`pr-stats` surfaces the same buckets at the area level. After Table 2, print a small **state-breakdown panel** that slices the full open-PR set into the four triage-state markers:
 
 ```python
 state_panel_lines = [
-    "Triage-state breakdown (auto-triage markers):",
+    "Triage-state breakdown:",
     f"  [green]Ready for review[/]    : {ready} PRs",
     f"  [bright_cyan]Responded[/]           : {responded} PRs (triaged, author has replied)",
     f"  [yellow]Waiting for Author[/]  : {waiting} PRs (triaged, no response) + {drafts_not_ready} drafts",
@@ -110,7 +110,7 @@ Exact counting rules:
 
 - `ready` — `ready_for_review` label present (takes precedence over the other markers).
 - `responded` — triaged with author reply after the triage comment (and NOT marked ready).
-- `waiting` — triaged with no author reply (and NOT marked ready). Drafts without a triage marker fall into `waiting` too, matching auto-triage's "drafts are author's court" logic.
+- `waiting` — triaged with no author reply (and NOT marked ready). Drafts without a triage marker fall into `waiting` too, matching the "drafts are author's court" logic the predecessor breeze commands used.
 - `untriaged` — none of the above. Non-draft PR that hasn't been triaged yet.
 
 Counts must sum to the open-PR total (non-bot). If they don't, print a warning and the discrepancy.
