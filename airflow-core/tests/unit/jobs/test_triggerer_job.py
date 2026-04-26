@@ -20,13 +20,16 @@ from __future__ import annotations
 import asyncio
 import datetime
 import itertools
+import msgspec
 import os
 import selectors
+import structlog
 import time
+import threading
 import typing
 import uuid
 from collections.abc import AsyncIterator
-from socket import socket
+from socket import socket, socketpair
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
@@ -67,7 +70,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, BaseHook, BaseOperator
-from airflow.sdk.execution_time.comms import ToSupervisor, ToTask
+from airflow.sdk.execution_time.comms import ToSupervisor, ToTask, _RequestFrame, _ResponseFrame
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
@@ -1538,3 +1541,131 @@ class TestMakeTriggerSpan:
         assert attrs["airflow.trigger.name"] == "OnlyTrigger"
         assert "airflow.dag_id" not in attrs
         assert "airflow.task_id" not in attrs
+
+class TestTriggerCommsDecoder:
+    """Tests for the low‑level TriggerCommsDecoder socket communication."""
+
+    @pytest.mark.asyncio
+    async def test_recv_trigger_message(self):
+        r, w = socketpair()
+        r.setblocking(False)
+        w.setblocking(False)
+
+        # Create asyncio reader/writer for the decoder side (using socket r)
+        reader, writer = await asyncio.open_connection(sock=r)
+
+        # Pass the socket explicitly to avoid ENOTSOCK (fd 0 is not a socket)
+        decoder = TriggerCommsDecoder(
+            socket=r,
+            async_reader=reader,
+            async_writer=writer,
+            log=None,
+        )
+
+        # Prepare a TriggerStateSync response frame, send it on the other socket (w)
+        sync = messages.TriggerStateSync(to_create=[], to_cancel=set())
+        frame = _RequestFrame(id=0, body=sync.model_dump())
+        data = msgspec.msgpack.encode(frame)
+        loop = asyncio.get_running_loop()
+        await loop.sock_sendall(w, len(data).to_bytes(4, "big") + data)
+
+        # Use async internal methods to avoid AsyncToSync in an async context
+        resp_frame = await decoder._aread_frame()
+        msg = decoder._from_frame(resp_frame)
+        assert isinstance(msg, messages.TriggerStateSync)
+        assert msg.to_create == []
+        assert msg.to_cancel == set()
+
+        writer.close()
+        await writer.wait_closed()
+
+    async def _run_trigger_comms_server(
+        self, w_sock: socket, num_requests: int, decoder: TriggerCommsDecoder
+    ) -> None:
+        loop = asyncio.get_running_loop()
+        for _ in range(num_requests):
+            len_bytes = await loop.sock_recv(w_sock, 4)
+            length = int.from_bytes(len_bytes, "big")
+            data = bytearray()
+            while len(data) < length:
+                chunk = await loop.sock_recv(w_sock, length - len(data))
+                if not chunk:
+                    break
+                data.extend(chunk)
+
+            req = decoder.resp_decoder.decode(data)   # This is a _RequestFrame
+            # Deserialize the TriggerStateChanges request body
+            changes = messages.TriggerStateChanges(**req.body)
+
+            # Prepare the TriggerStateSync response
+            resp = messages.TriggerStateSync(to_create=[], to_cancel=set())
+            resp_frame = _RequestFrame(id=req.id, body=resp.model_dump())
+            resp_bytes = msgspec.msgpack.encode(resp_frame)
+            await loop.sock_sendall(w_sock, len(resp_bytes).to_bytes(4, "big") + resp_bytes)
+        w_sock.close()
+
+    @pytest.mark.asyncio
+    async def test_asend_basic(self):
+        r, w = socketpair()
+        r.setblocking(False)
+        w.setblocking(False)
+
+        reader, writer = await asyncio.open_connection(sock=r)
+        decoder = TriggerCommsDecoder(
+            socket=r,
+            async_reader=reader,
+            async_writer=writer,
+            log=structlog.get_logger(),
+        )
+
+        server_task = asyncio.create_task(
+            self._run_trigger_comms_server(w, 1, decoder)
+        )
+
+        msg = messages.TriggerStateChanges(events=None, finished=None, failures=None)
+        result = await decoder.asend(msg)
+
+        assert isinstance(result, messages.TriggerStateSync)
+        assert result.to_create == []
+        assert result.to_cancel == set()
+
+        await server_task
+        writer.close()
+        await writer.wait_closed()
+        r.close()
+
+    @pytest.mark.asyncio
+    async def test_asend_concurrent_safety(self):
+        r, w = socketpair()
+        r.setblocking(False)
+        w.setblocking(False)
+
+        reader, writer = await asyncio.open_connection(sock=r)
+        decoder = TriggerCommsDecoder(
+            socket=r,
+            async_reader=reader,
+            async_writer=writer,
+            log=structlog.get_logger(),
+        )
+
+        num_requests = 5
+        server_task = asyncio.create_task(
+            self._run_trigger_comms_server(w, num_requests, decoder)
+        )
+
+        async def make_request(idx: int):
+            msg = messages.TriggerStateChanges(
+                events=[(idx, TriggerEvent(payload={"index": idx}))],
+                finished=None,
+                failures=None,
+            )
+            return await decoder.asend(msg)
+
+        results = await asyncio.gather(*(make_request(i) for i in range(num_requests)))
+        await server_task
+        writer.close()
+        await writer.wait_closed()
+        r.close()
+
+        for idx, result in enumerate(results):
+            assert isinstance(result, messages.TriggerStateSync)
