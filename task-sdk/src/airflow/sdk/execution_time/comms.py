@@ -58,6 +58,7 @@ from pathlib import Path
 from socket import socket
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Generic, Literal, TypeVar, overload
 from uuid import UUID
+from contextlib import asynccontextmanager, contextmanager
 
 import attrs
 import msgspec
@@ -193,6 +194,28 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     # Async lock for async operations
     _async_lock: asyncio.Lock = attrs.field(factory=asyncio.Lock, repr=False)
 
+    @contextmanager
+    def _lock_sync(self):
+        """Acquire the thread lock for synchronous operations."""
+        with self._thread_lock:
+            yield
+
+    @asynccontextmanager
+    async def _lock_async(self):
+        """
+        Acquire both the async lock and the thread lock for asynchronous operations.
+
+        The thread lock is acquired via a thread executor so the event loop
+        is not blocked while waiting for other holders.
+        """
+        async with self._async_lock:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, self._thread_lock.acquire)
+            try:
+                yield
+            finally:
+                self._thread_lock.release()
+
     def send(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """Send a request to the parent and block until the response is received."""
         frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
@@ -200,7 +223,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
         # We must make sure sockets aren't intermixed between sync and async calls,
         # thus we need a dual locking mechanism to ensure that.
-        with self._thread_lock:
+        with self._lock_sync():
             self.socket.sendall(frame_bytes)
             if isinstance(msg, ResendLoggingFD):
                 if recv_fds is None:
@@ -227,30 +250,26 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
         frame_bytes = frame.as_bytes()
 
-        async with self._async_lock:
+        async with self._lock_async():
             # Acquire the threading lock without blocking the event loop
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, self._thread_lock.acquire)
-            try:
-                # Async write to socket
-                await loop.sock_sendall(self.socket, frame_bytes)
+            # Async write to socket
+            await loop.sock_sendall(self.socket, frame_bytes)
 
-                if isinstance(msg, ResendLoggingFD):
-                    if recv_fds is None:
-                        return None
-                    # Blocking read in a thread
-                    frame, fds = await asyncio.to_thread(self._read_frame, maxfds=1)
-                    resp = self._from_frame(frame)
-                    if TYPE_CHECKING:
-                        assert isinstance(resp, SentFDs)
-                    resp.fds = fds
-                    return resp  # type: ignore[return-value]
+            if isinstance(msg, ResendLoggingFD):
+                if recv_fds is None:
+                    return None
+                # Blocking read in a thread
+                frame, fds = await asyncio.to_thread(self._read_frame, maxfds=1)
+                resp = self._from_frame(frame)
+                if TYPE_CHECKING:
+                    assert isinstance(resp, SentFDs)
+                resp.fds = fds
+                return resp  # type: ignore[return-value]
 
-                # Normal blocking read in a thread
-                frame = await asyncio.to_thread(self._read_frame)
-                return self._from_frame(frame)
-            finally:
-                self._thread_lock.release()
+            # Normal blocking read in a thread
+            frame = await asyncio.to_thread(self._read_frame)
+            return self._from_frame(frame)
 
     @overload
     def _read_frame(self, maxfds: None = None) -> _ResponseFrame: ...
