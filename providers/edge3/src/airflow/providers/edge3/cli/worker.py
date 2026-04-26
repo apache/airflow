@@ -22,7 +22,7 @@ import signal
 import sys
 import time
 import traceback
-from asyncio import Task, create_task, get_running_loop, sleep
+from asyncio import Task, create_task, gather, get_running_loop, sleep
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from datetime import datetime
@@ -227,6 +227,18 @@ class EdgeWorker:
         if not self._start_draining():
             return
         logger.info("SIGTERM received. Sending SIGTERM to all jobs and quit")
+        try:
+            loop = get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            task = loop.create_task(
+                self._push_drain_notice_to_all_jobs(
+                    "Edge worker received external SIGTERM; terminating task supervisor."
+                )
+            )
+            self.background_tasks.add(task)
+            task.add_done_callback(self.background_tasks.discard)
         self._terminate_jobs(signal.SIGTERM)
 
     def _start_draining(self) -> bool:
@@ -253,7 +265,22 @@ class EdgeWorker:
                 with suppress(ProcessLookupError, PermissionError):
                     os.kill(job.process.pid, sig)
 
-    def _enforce_drain_timeout(self) -> bool:
+    async def _push_drain_notice_to_all_jobs(self, message: str) -> None:
+        """Best-effort push of ``message`` into each running job's task log stream."""
+
+        async def push_one(job: Job) -> None:
+            try:
+                await logs_push(
+                    task=job.edge_job.key,
+                    log_chunk_time=timezone.utcnow(),
+                    log_chunk_data=message,
+                )
+            except Exception:
+                logger.exception("Failed to push drain notice to task log for %s", job.edge_job.identifier)
+
+        await gather(*(push_one(job) for job in list(self.jobs)))
+
+    async def _enforce_drain_timeout(self) -> bool:
         """
         Apply drain-timeout policy when configured.
 
@@ -276,6 +303,11 @@ class EdgeWorker:
                 self.drain_timeout_sec,
                 len(self.jobs),
             )
+            await self._push_drain_notice_to_all_jobs(
+                f"Edge worker drain timeout of {self.drain_timeout_sec}s expired; "
+                f"sending SIGTERM to task supervisor. "
+                f"Will escalate to SIGKILL after {self.drain_kill_grace_sec}s grace."
+            )
             self._terminate_jobs(signal.SIGTERM)
             return False
         if self.drain_kill_deadline is not None and now >= self.drain_kill_deadline:
@@ -283,6 +315,10 @@ class EdgeWorker:
                 "Drain kill grace of %ds exceeded with %d job(s) still running. Sending SIGKILL and exiting.",
                 self.drain_kill_grace_sec,
                 len(self.jobs),
+            )
+            await self._push_drain_notice_to_all_jobs(
+                f"Edge worker drain kill-grace of {self.drain_kill_grace_sec}s expired; "
+                f"sending SIGKILL and exiting worker."
             )
             self._terminate_jobs(signal.SIGKILL)
             return True
@@ -471,7 +507,7 @@ class EdgeWorker:
             else:
                 logger.info("%i %s running", len(self.jobs), "job is" if len(self.jobs) == 1 else "jobs are")
 
-            if self._enforce_drain_timeout():
+            if await self._enforce_drain_timeout():
                 break
 
             await self.interruptible_sleep()
