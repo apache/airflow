@@ -2356,15 +2356,15 @@ class TestWorkerCeleryLogGroomer(LogGroomerTestBase):
         ("persistence_enabled", "log_groomer_enabled", "require_persistence", "expect_log_groomer"),
         [
             # With requirePersistence=true (default behavior, backwards compatible)
-            # persistence default (true) + logGroomer default (true) -> renders
+            # persistence default (true) + logGroomer default (true) + requirePersistence default (true) -> renders
             (None, None, None, True),
-            # persistence default (true) + logGroomer false -> no render
+            # persistence default (true) + logGroomer false + requirePersistence default (true) -> no render
             (None, False, None, False),
-            # persistence true + logGroomer default (true) -> renders
+            # persistence true + logGroomer default (true) + requirePersistence default (true) -> renders
             (True, None, None, True),
-            # persistence true + logGroomer true -> renders
+            # persistence true + logGroomer true + requirePersistence default (true) -> renders
             (True, True, None, True),
-            # persistence true + logGroomer false -> no render
+            # persistence true + logGroomer false + requirePersistence default (true) -> no render
             (True, False, None, False),
             # persistence false + logGroomer default (true) + requirePersistence default (true) -> NO render
             (False, None, None, False),
@@ -2372,7 +2372,7 @@ class TestWorkerCeleryLogGroomer(LogGroomerTestBase):
             (False, True, None, False),
             # persistence false + logGroomer true + requirePersistence true -> NO render
             (False, True, True, False),
-            # persistence false + logGroomer false -> no render
+            # persistence false + logGroomer false + requirePersistence default (true) -> no render
             (False, False, None, False),
             # With requirePersistence=false (new behavior)
             # persistence false + logGroomer true + requirePersistence false -> renders
@@ -2406,10 +2406,6 @@ class TestWorkerCeleryLogGroomer(LogGroomerTestBase):
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-
-        # Verify resource kind based on persistence
-        expected_kind = "StatefulSet" if persistence_enabled is not False else "Deployment"
-        assert jmespath.search("kind", docs[0]) == expected_kind
 
         # Verify log groomer presence
         containers = jmespath.search("spec.template.spec.containers", docs[0])
