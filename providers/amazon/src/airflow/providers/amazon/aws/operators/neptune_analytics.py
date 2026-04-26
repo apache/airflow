@@ -342,9 +342,10 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
         vpc_endpoint_id = self._get_graph_endpoint_id()
-        status = event["status"]
-        if status.lower() != "success":
-            raise NeptunePrivateEndpointCreationFailedError("Endpoint failed to create")
+        if event:
+            status = event["status"]
+            if status.lower() != "success":
+                raise NeptunePrivateEndpointCreationFailedError("Endpoint failed to create")
 
         return {"vpc_endpoint_id": vpc_endpoint_id, "graph_id": self.graph_identifier, "vpc_id": self.vpc_id}
 
@@ -750,16 +751,17 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
         self, context: Context, event: dict[str, Any] | None = None, import_task_id: str | None = None
     ) -> None:
         """Defers for import task completion."""
-        self.log.info("Deferring for import task %s completion", import_task_id)
-        self.defer(
-            trigger=NeptuneImportTaskCompleteTrigger(
-                import_task_id=import_task_id,
-                waiter_delay=self.waiter_delay,
-                waiter_max_attempts=self.waiter_max_attempts,
-                aws_conn_id=self.aws_conn_id,
-            ),
-            method_name="execute_complete",
-        )
+        if import_task_id:
+            self.log.info("Deferring for import task %s completion", import_task_id)
+            self.defer(
+                trigger=NeptuneImportTaskCompleteTrigger(
+                    import_task_id=import_task_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
         if event is None or event.get("status") != "success":
