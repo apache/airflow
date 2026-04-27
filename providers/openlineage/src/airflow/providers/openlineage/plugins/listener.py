@@ -699,7 +699,7 @@ class OpenLineageListener:
             return
 
         try:
-            if not self.executor:
+            if self._executor is None:
                 self.log.debug("Executor has not started before `_on_task_instance_manual_state_change`")
                 return
 
@@ -730,16 +730,15 @@ class OpenLineageListener:
                 clear_number=dagrun.clear_number,
             )
 
-            data_interval_start: str | None = (
-                dagrun.data_interval_start.isoformat()
-                if isinstance(dagrun.data_interval_start, datetime)
-                else None
-            )
-            data_interval_end: str | None = (
-                dagrun.data_interval_end.isoformat()
-                if isinstance(dagrun.data_interval_end, datetime)
-                else None
-            )
+            # Mirror the pattern used in the other listener call sites: convert
+            # `datetime` to ISO-8601 string, but preserve any non-`datetime`
+            # value as-is in case a duck-typed caller already passed a string.
+            data_interval_start: str | datetime | None = dagrun.data_interval_start
+            if isinstance(data_interval_start, datetime):
+                data_interval_start = data_interval_start.isoformat()
+            data_interval_end: str | datetime | None = dagrun.data_interval_end
+            if isinstance(data_interval_end, datetime):
+                data_interval_end = data_interval_end.isoformat()
 
             dag_tags: list | None = None
             owners: list[str] | None = None
@@ -780,7 +779,7 @@ class OpenLineageListener:
             if ti_state == TaskInstanceState.FAILED:
                 adapter_kwargs["error"] = error
 
-            operator_name = (ti.operator or "").lower()
+            operator_name = (ti.operator or "unknown").lower()
             self.submit_callable(
                 _emit_manual_state_change_event,
                 adapter_method,
@@ -867,7 +866,7 @@ class OpenLineageListener:
                 )
                 return
 
-            if not self.executor:
+            if self._executor is None:
                 self.log.debug("Executor have not started before `on_dag_run_running`")
                 return
 
@@ -919,7 +918,7 @@ class OpenLineageListener:
                 )
                 return
 
-            if not self.executor:
+            if self._executor is None:
                 self.log.debug("Executor have not started before `on_dag_run_success`")
                 return
 
@@ -971,7 +970,7 @@ class OpenLineageListener:
                 )
                 return
 
-            if not self.executor:
+            if self._executor is None:
                 self.log.debug("Executor have not started before `on_dag_run_failed`")
                 return
 
