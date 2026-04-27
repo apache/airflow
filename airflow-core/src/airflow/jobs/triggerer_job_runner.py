@@ -25,8 +25,8 @@ import signal
 import sys
 import time
 from collections import deque
-from collections.abc import Callable, Generator, Iterable
-from contextlib import suppress
+from collections.abc import Callable, Generator, Iterable, Iterator
+from contextlib import contextmanager, suppress
 from datetime import datetime
 from socket import socket
 from traceback import format_exception
@@ -580,21 +580,35 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
-        while not self.stop:
-            if not self.is_alive():
-                log.error("Trigger runner process has died! Exiting.")
-                break
-            self.load_triggers()
+        with self.run_context():
+            while not self.should_stop():
+                if not self.is_alive():
+                    log.error("Trigger runner process has died! Exiting.")
+                    break
+                self.run_once()
 
-            # Wait for up to 1 second for activity
-            self._service_subprocess(1)
+    @contextmanager
+    def run_context(self) -> Iterator[None]:
+        """Wrap the run loop. Subclasses can override to install setup/teardown."""
+        yield
 
-            self.handle_events()
-            self.handle_failed_triggers()
-            self.clean_unused()
-            self.heartbeat()
+    def should_stop(self) -> bool:
+        """Return True when the run loop should exit."""
+        return self.stop
 
-            self.emit_metrics()
+    def run_once(self) -> None:
+        """Perform a single iteration of the run loop."""
+        self.load_triggers()
+
+        # Wait for up to 1 second for activity
+        self._service_subprocess(1)
+
+        self.handle_events()
+        self.handle_failed_triggers()
+        self.clean_unused()
+        self.heartbeat()
+
+        self.emit_metrics()
 
     def heartbeat(self):
         perform_heartbeat(self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True)
