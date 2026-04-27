@@ -277,7 +277,10 @@ def get_provider_info():
                 "integration-name": "AWS Glue",
                 "external-doc-url": "https://aws.amazon.com/glue/",
                 "logo": "/docs/integration-logos/AWS-Glue_light-bg@4x.png",
-                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/glue.rst"],
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-amazon/operators/glue.rst",
+                    "/docs/apache-airflow-providers-amazon/operators/glue_catalog.rst",
+                ],
                 "tags": ["aws"],
             },
             {
@@ -421,6 +424,7 @@ def get_provider_info():
                 "integration-name": "AWS Glue",
                 "python-modules": [
                     "airflow.providers.amazon.aws.operators.glue",
+                    "airflow.providers.amazon.aws.operators.glue_catalog",
                     "airflow.providers.amazon.aws.operators.glue_crawler",
                 ],
             },
