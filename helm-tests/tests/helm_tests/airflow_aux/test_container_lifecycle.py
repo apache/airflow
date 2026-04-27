@@ -40,7 +40,6 @@ class TestContainerLifecycleHooks:
             show_only=[
                 "templates/flower/flower-deployment.yaml",
                 "templates/scheduler/scheduler-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
@@ -74,7 +73,6 @@ class TestContainerLifecycleHooks:
             show_only=[
                 "templates/flower/flower-deployment.yaml",
                 "templates/scheduler/scheduler-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
@@ -137,7 +135,6 @@ class TestContainerLifecycleHooks:
                 "containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE},
                 "flower": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
                 "scheduler": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
-                "webserver": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
                 "workers": workers_values,
                 "migrateDatabaseJob": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
                 "triggerer": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
@@ -155,7 +152,6 @@ class TestContainerLifecycleHooks:
             show_only=[
                 "templates/flower/flower-deployment.yaml",
                 "templates/scheduler/scheduler-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",

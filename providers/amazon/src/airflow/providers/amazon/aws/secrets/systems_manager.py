@@ -169,6 +169,19 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.config_prefix, key, self.config_lookup_pattern)
 
+    def _get_parameter_value(self, ssm_path: str) -> str | None:
+        """
+        Fetch a parameter value from SSM, returning None if not found.
+
+        :param ssm_path: SSM parameter path
+        """
+        try:
+            response = self.client.get_parameter(Name=ssm_path, WithDecryption=True)
+            return response["Parameter"]["Value"]
+        except self.client.exceptions.ParameterNotFound:
+            self.log.debug("Parameter %s not found.", ssm_path)
+            return None
+
     def _get_secret(
         self, path_prefix: str, secret_id: str, lookup_pattern: str | None, team_name: str | None = None
     ) -> str | None:
@@ -183,19 +196,19 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         """
         if lookup_pattern and not re.match(lookup_pattern, secret_id, re.IGNORECASE):
             return None
+        if team_name is None and re.fullmatch(r"[^-]+--.+", secret_id):
+            return None
         if team_name:
-            ssm_path = self.build_path(path_prefix, team_name)
-            ssm_path = self.build_path(ssm_path, secret_id)
-        else:
-            ssm_path = self.build_path(path_prefix, secret_id)
+            ssm_path = self.build_path(path_prefix, f"{team_name}--{secret_id}")
+            ssm_path = self._ensure_leading_slash(ssm_path)
+            value = self._get_parameter_value(ssm_path)
+            if value is not None:
+                return value
+
+        ssm_path = self.build_path(path_prefix, secret_id)
         ssm_path = self._ensure_leading_slash(ssm_path)
 
-        try:
-            response = self.client.get_parameter(Name=ssm_path, WithDecryption=True)
-            return response["Parameter"]["Value"]
-        except self.client.exceptions.ParameterNotFound:
-            self.log.debug("Parameter %s not found.", ssm_path)
-            return None
+        return self._get_parameter_value(ssm_path=ssm_path)
 
     def _ensure_leading_slash(self, ssm_path: str):
         """

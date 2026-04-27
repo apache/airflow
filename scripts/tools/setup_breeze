@@ -20,7 +20,6 @@ set -euo pipefail
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 AIRFLOW_SOURCES=$(cd "${MY_DIR}/../.." && pwd)
 
-BREEZE_BINARY=breeze
 COLOR_RED=$'\e[31m'
 COLOR_GREEN=$'\e[32m'
 COLOR_YELLOW=$'\e[33m'
@@ -29,63 +28,149 @@ COLOR_RESET=$'\e[0m'
 
 UV_VERSION="0.11.7"
 
+SHIM_DIR="${HOME}/.local/bin"
+SHIM_PATH="${SHIM_DIR}/breeze"
+
+# Marker line embedded in the shim — used to tell our own shim apart from a
+# foreign breeze binary (e.g. left over from `uv tool install`).
+SHIM_MARKER="# Apache Airflow breeze shim — managed by scripts/tools/setup_breeze (ADR 0017)."
+
+# The shim itself. Runs breeze via 'uvx' against the dev/breeze folder of the
+# *current* git worktree, so multiple checkouts / agentic worktrees never
+# share a single global install. See ADR 0017.
+read -r -d '' BREEZE_SHIM_BODY <<BREEZE_SHIM || true
+#!/usr/bin/env bash
+${SHIM_MARKER}
+# Runs breeze from the dev/breeze folder of the current git worktree via 'uvx',
+# so each worktree (e.g. parallel agentic runs) gets its own ephemerally-installed
+# breeze tied to that worktree's source.
+set -e
+repo_root=\$(git rev-parse --show-toplevel 2>/dev/null) || {
+    echo "breeze: not inside a git repository — cd into an Airflow worktree first" >&2
+    exit 1
+}
+if [ ! -d "\${repo_root}/dev/breeze" ]; then
+    echo "breeze: \${repo_root} is not an Airflow worktree (no dev/breeze)" >&2
+    exit 1
+fi
+exec env AIRFLOW_ROOT_PATH="\${repo_root}" SKIP_BREEZE_SELF_UPGRADE_CHECK=1 \\
+    uvx --from "\${repo_root}/dev/breeze" --quiet breeze "\$@"
+BREEZE_SHIM
+
 function manual_instructions() {
     echo
-    echo "${COLOR_BLUE}Please run those commands manually (you might need to restart shell between them)${COLOR_RESET}"
+    echo "${COLOR_BLUE}Please complete the setup manually:${COLOR_RESET}"
     echo
-    echo "    python -m pip install \"uv==${UV_VERSION}\""
-    echo "    uv tool install -e '${AIRFLOW_SOURCES}/dev/breeze/'"
-    echo "    breeze setup autocomplete --force"
+    echo "  1. Install uv (any reasonably recent version, >= ${UV_VERSION}):"
     echo
-    echo "   After that, both pipx and breeze should be available on your path"
+    echo "        python -m pip install \"uv>=${UV_VERSION}\""
+    echo
+    echo "  2. Make sure ${SHIM_DIR} exists and is on your PATH."
+    echo
+    echo "  3. Write the following file to ${SHIM_PATH} and mark it executable (chmod +x):"
+    echo
+    echo "${BREEZE_SHIM_BODY}" | sed 's/^/        /'
     echo
     exit 1
 }
 
-function check_breeze_installed() {
-    set +e
-    command -v "${BREEZE_BINARY}" >/dev/null 2>/dev/null
-    local breeze_on_path=$?
-    command -v "uv" >/dev/null 2>/dev/null
-    local uv_on_path=$?
-    set -e
-    if [[ ${breeze_on_path} != "0" || ${uv_on_path} != "0"  ]]; then
+function ensure_uv_installed() {
+    if ! command -v "uv" >/dev/null 2>/dev/null; then
         echo
-        if [[ ${uv_on_path} != 0 ]]; then
-            echo "${COLOR_RED}The 'uv' is not on path. It should be installed and 'uv' should be available on your PATH.${COLOR_RESET}"
-            export TIMEOUT=0
-            if "${MY_DIR}/confirm" "Installing uv?"; then
-                python -m pip install "uv==${UV_VERSION}" --upgrade
-                echo
-                echo "${COLOR_YELLOW}Please close and re-open the shell and retry. You might need to add 'uv' to the PATH!${COLOR_RESET}"
-                echo
-                exit
-            else
-                manual_instructions
-            fi
-        fi
-        if [[ ${breeze_on_path} != 0 ]]; then
-            echo "${COLOR_RED}The '${BREEZE_BINARY}' is not on path. Breeze should be installed and 'breeze' should be available on your PATH!${COLOR_RESET}"
-            export TIMEOUT=0
+        echo "${COLOR_RED}'uv' is not on PATH. It is required to run breeze via uvx.${COLOR_RESET}"
+        export TIMEOUT=0
+        if "${MY_DIR}/confirm" "Installing uv via pip"; then
+            python -m pip install "uv>=${UV_VERSION}" --upgrade
             echo
-            echo "${COLOR_YELLOW}Installing Breeze. This will install breeze via uv and modify your ${SHELL} to run it${COLOR_RESET}"
+            echo "${COLOR_YELLOW}Please close and re-open the shell, then re-run this script.${COLOR_RESET}"
             echo
-            if "${MY_DIR}/confirm" "installing and modifying the startup scripts"; then
-                uv tool install -e "${AIRFLOW_SOURCES}/dev/breeze/" --force
-                ${BREEZE_BINARY} setup autocomplete --force --answer yes
-                echo
-                echo "${COLOR_YELLOW}Please close and re-open the shell and retry. Then rerun your last command!${COLOR_RESET}"
-                echo
-                exit
-            else
-                manual_instructions
-            fi
+            exit
+        else
+            manual_instructions
         fi
     fi
 }
 
-check_breeze_installed
+function fail_on_legacy_global_install() {
+    # If a previous setup did `uv tool install -e ./dev/breeze`, both that install
+    # and our shim want to live at ~/.local/bin/breeze. Refuse to proceed until
+    # the user removes the legacy install — silent overwrite would corrupt uv's
+    # tool state and confuse later upgrades.
+    local legacy_uv=0 legacy_pipx=0
+    if uv tool list 2>/dev/null | grep -q '^apache-airflow-breeze\b'; then
+        legacy_uv=1
+    fi
+    if command -v pipx >/dev/null 2>&1 && pipx list --short 2>/dev/null | grep -q '^apache-airflow-breeze\b'; then
+        legacy_pipx=1
+    fi
+    if [[ ${legacy_uv} -eq 0 && ${legacy_pipx} -eq 0 ]]; then
+        return
+    fi
+    echo
+    echo "${COLOR_RED}A legacy global breeze install was detected.${COLOR_RESET}"
+    echo "${COLOR_YELLOW}It must be removed before installing the new shim, otherwise both${COLOR_RESET}"
+    echo "${COLOR_YELLOW}write to ${SHIM_PATH} and conflict. Run:${COLOR_RESET}"
+    echo
+    if [[ ${legacy_uv} -eq 1 ]]; then
+        echo "    uv tool uninstall apache-airflow-breeze"
+    fi
+    if [[ ${legacy_pipx} -eq 1 ]]; then
+        echo "    pipx uninstall apache-airflow-breeze"
+    fi
+    echo
+    echo "${COLOR_YELLOW}Then re-run this script.${COLOR_RESET}"
+    echo
+    exit 1
+}
+
+function check_shim_dir_on_path() {
+    case ":${PATH}:" in
+        *":${SHIM_DIR}:"*) return ;;
+    esac
+    echo
+    echo "${COLOR_YELLOW}Note: ${SHIM_DIR} is not on your PATH.${COLOR_RESET}"
+    echo "${COLOR_YELLOW}Add this to your shell rc to make 'breeze' available:${COLOR_RESET}"
+    echo
+    echo "    export PATH=\"${SHIM_DIR}:\$PATH\""
+    echo
+}
+
+function install_breeze_shim() {
+    mkdir -p "${SHIM_DIR}"
+
+    # If something exists at SHIM_PATH that we did not write, do not overwrite it
+    # silently — it could be the user's own script.
+    if [[ -e "${SHIM_PATH}" ]] && ! grep -qF "${SHIM_MARKER}" "${SHIM_PATH}"; then
+        echo
+        echo "${COLOR_RED}${SHIM_PATH} already exists and is not the breeze shim managed by this script.${COLOR_RESET}"
+        echo "${COLOR_YELLOW}Inspect it; if it is safe to replace, remove it and re-run this script.${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+
+    if [[ -f "${SHIM_PATH}" ]] && grep -qF "${SHIM_MARKER}" "${SHIM_PATH}"; then
+        # Refresh in place — body might have changed across releases.
+        printf '%s\n' "${BREEZE_SHIM_BODY}" > "${SHIM_PATH}"
+        chmod +x "${SHIM_PATH}"
+        echo "${COLOR_GREEN}Refreshed breeze shim at ${SHIM_PATH}.${COLOR_RESET}"
+        return
+    fi
+
+    export TIMEOUT=0
+    if "${MY_DIR}/confirm" "Install breeze shim at ${SHIM_PATH}"; then
+        printf '%s\n' "${BREEZE_SHIM_BODY}" > "${SHIM_PATH}"
+        chmod +x "${SHIM_PATH}"
+        echo "${COLOR_GREEN}Installed breeze shim at ${SHIM_PATH}.${COLOR_RESET}"
+    else
+        manual_instructions
+    fi
+}
+
+ensure_uv_installed
+fail_on_legacy_global_install
+install_breeze_shim
+check_shim_dir_on_path
 
 echo
-echo "${COLOR_GREEN}Breeze is correctly installed! You can run it via 'breeze' command. Go ahead and develop Airflow.${COLOR_RESET}"
+echo "${COLOR_GREEN}Breeze is configured. Run 'breeze' from any Airflow worktree.${COLOR_RESET}"
 echo

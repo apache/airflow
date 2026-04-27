@@ -50,12 +50,7 @@ roleRef:
   kind: ClusterRole
   name: system:openshift:scc:anyuid
 subjects:
-  {{- if and .Values.webserver.enabled (semverCompare "<3.0.0" .Values.airflowVersion) }}
-  - kind: ServiceAccount
-    name: {{ include "webserver.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
-  {{- end }}
-  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "LocalKubernetesExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
+  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) }}
   - kind: ServiceAccount
     name: {{ include "worker.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
@@ -65,7 +60,7 @@ subjects:
     name: {{ include "scheduler.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  {{- if and .Values.apiServer.enabled (semverCompare ">=3.0.0" .Values.airflowVersion) }}
+  {{- if .Values.apiServer.enabled }}
   - kind: ServiceAccount
     name: {{ include "apiServer.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
@@ -75,7 +70,7 @@ subjects:
     name: {{ include "statsd.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  {{- if and .Values.flower.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+  {{- if and .Values.flower.enabled (contains "CeleryExecutor" .Values.executor) }}
   - kind: ServiceAccount
     name: {{ include "flower.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"

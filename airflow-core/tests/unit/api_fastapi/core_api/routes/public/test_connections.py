@@ -234,6 +234,7 @@ class TestGetConnections(TestConnectionEndpoint):
             ({"order_by": "-id"}, 2, [TEST_CONN_ID_2, TEST_CONN_ID]),
             # Search
             ({"connection_id_pattern": "n_id_2"}, 1, [TEST_CONN_ID_2]),
+            ({"connection_id_prefix_pattern": "test_connection_id_2"}, 1, [TEST_CONN_ID_2]),
         ],
     )
     def test_should_respond_200(

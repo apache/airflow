@@ -166,7 +166,7 @@ export const XCom = () => {
   const runAfterLte = searchParams.get(RUN_AFTER_LTE);
 
   const apiParams = {
-    dagDisplayNamePattern: filteredDagDisplayName ?? undefined,
+    dagDisplayNamePrefixPattern: filteredDagDisplayName ?? undefined,
     dagId,
     dagRunId: runId,
     limit: pagination.pageSize,
@@ -182,10 +182,10 @@ export const XCom = () => {
     orderBy,
     runAfterGte: runAfterGte ?? undefined,
     runAfterLte: runAfterLte ?? undefined,
-    runIdPattern: filteredRunId ?? undefined,
+    runIdPrefixPattern: filteredRunId ?? undefined,
     taskId,
-    taskIdPattern: filteredTaskId ?? undefined,
-    xcomKeyPattern: filteredKey ?? undefined,
+    taskIdPrefixPattern: filteredTaskId ?? undefined,
+    xcomKeyPrefixPattern: filteredKey ?? undefined,
   };
 
   const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);

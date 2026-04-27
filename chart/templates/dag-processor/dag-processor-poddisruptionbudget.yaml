@@ -17,14 +17,10 @@
  under the License.
 */}}
 
-################################
+############################################
 ## Airflow Dag Processor PodDisruptionBudget
-#################################
-{{- $enabled := .Values.dagProcessor.enabled }}
-{{- if eq $enabled nil}}
-  {{ $enabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
-{{- end }}
-{{- if and $enabled .Values.dagProcessor.podDisruptionBudget.enabled }}
+############################################
+{{- if and .Values.dagProcessor.enabled .Values.dagProcessor.podDisruptionBudget.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:

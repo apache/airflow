@@ -710,7 +710,9 @@ def upgrade(
     else:
         at_apache_branch = False
         console_print(
-            "[warning]No apache remote found. The command expects remote pointing to apache/airflow[/]"
+            "[warning]No remote pointing to apache/airflow was found. "
+            "Airflow uses `upstream` for this remote by convention — "
+            "run `git remote add upstream https://github.com/apache/airflow.git` to add it.[/]"
         )
 
     # Track whether user chose to reset to target branch
