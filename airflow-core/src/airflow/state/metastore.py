@@ -123,6 +123,8 @@ class MetastoreStateBackend(BaseStateBackend):
                 DagRun.run_id == scope.run_id,
             )
         )
+        if dag_run_id is None:
+            raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
         dialect = get_dialect_name(session)
         stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
@@ -275,6 +277,8 @@ class MetastoreStateBackend(BaseStateBackend):
                 DagRun.run_id == scope.run_id,
             )
         )
+        if dag_run_id is None:
+            raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
         stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
         # get_dialect_name expects a sync Session; sync_session is the underlying Session the async wrapper delegates to
