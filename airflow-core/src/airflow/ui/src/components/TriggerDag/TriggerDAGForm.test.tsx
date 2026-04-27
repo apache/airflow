@@ -31,7 +31,7 @@ import TriggerDAGForm from "./TriggerDAGForm";
 // Replace the Monaco with a plain textarea so we can assert
 // on its value and simulate edit/blur.
 vi.mock("src/components/JsonEditor", () => ({
-  JsonEditor: ({ onBlur, onChange, value }: { onBlur?: () => void; onChange?: (val: string) => void; value?: string }) =>
+  JsonEditor: ({ onBlur, onChange, value }: { readonly onBlur?: () => void; readonly onChange?: (val: string) => void; readonly value?: string }) =>
     createElement("textarea", {
       "data-testid": "json-editor",
       onBlur: () => onBlur?.(),
@@ -100,6 +100,7 @@ describe("TriggerDAGForm", () => {
     fireEvent.change(tableInput!, { target: { value: "new-table" } });
 
     const triggerButton = screen.getByTestId("trigger-dag-submit");
+
     triggerButton.click();
 
     await waitFor(() => {
@@ -142,8 +143,10 @@ describe("TriggerDAGForm", () => {
     fireEvent.change(tableInput, { target: { value: "updated-via-form" } });
 
     const jsonEditor = screen.getByTestId("json-editor");
+
     await waitFor(() => {
       const parsed = JSON.parse((jsonEditor as HTMLTextAreaElement).value) as Record<string, unknown>;
+
       expect(parsed).toEqual({ "last-x-days": 7, "target-table": "updated-via-form" });
     });
   });
@@ -215,6 +218,7 @@ describe("TriggerDAGForm", () => {
     fireEvent.change(input!, { target: { value: "edited-table" } });
 
     const triggerButton = screen.getByTestId("trigger-dag-submit");
+
     triggerButton.click();
 
     await waitFor(() => {
