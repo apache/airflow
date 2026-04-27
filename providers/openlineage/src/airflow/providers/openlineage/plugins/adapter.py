@@ -41,8 +41,9 @@ try:
     from airflow.sdk.observability.stats import DualStatsManager
 except ImportError:
     DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
-from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
+from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.utils.utils import (
+    _PRODUCER,
     OpenLineageRedactor,
     build_dag_run_ol_run_id,
     build_task_instance_ol_run_id,
@@ -68,7 +69,6 @@ else:
         except ImportError:
             from airflow.utils.log.secrets_masker import SecretsMasker, _secrets_masker
 
-_PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
 
 set_producer(_PRODUCER)
 
