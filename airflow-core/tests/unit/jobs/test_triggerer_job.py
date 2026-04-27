@@ -229,6 +229,62 @@ def supervisor_builder(mocker, session):
     return builder
 
 
+def test_run_invokes_seams_in_order(supervisor_builder, mocker):
+    """run() enters run_context, drives run_once while not should_stop, then exits run_context."""
+    from contextlib import contextmanager
+
+    supervisor = supervisor_builder()
+    events: list[str] = []
+
+    @contextmanager
+    def fake_run_context(self):
+        events.append("enter")
+        try:
+            yield
+        finally:
+            events.append("exit")
+
+    counter = {"n": 0}
+
+    def fake_run_once(self):
+        counter["n"] += 1
+        events.append(f"tick-{counter['n']}")
+
+    mocker.patch.object(TriggerRunnerSupervisor, "run_context", fake_run_context)
+    mocker.patch.object(TriggerRunnerSupervisor, "run_once", fake_run_once)
+    mocker.patch.object(TriggerRunnerSupervisor, "should_stop", side_effect=lambda: counter["n"] >= 3)
+    mocker.patch.object(TriggerRunnerSupervisor, "is_alive", return_value=True)
+
+    supervisor.run()
+
+    assert events == ["enter", "tick-1", "tick-2", "tick-3", "exit"]
+
+
+def test_run_context_exits_when_subprocess_dies(supervisor_builder, mocker):
+    """Breaking out of the loop on a dead subprocess still unwinds run_context."""
+    from contextlib import contextmanager
+
+    supervisor = supervisor_builder()
+    events: list[str] = []
+
+    @contextmanager
+    def fake_run_context(self):
+        events.append("enter")
+        try:
+            yield
+        finally:
+            events.append("exit")
+
+    mocker.patch.object(TriggerRunnerSupervisor, "run_context", fake_run_context)
+    mocker.patch.object(TriggerRunnerSupervisor, "run_once", side_effect=lambda: events.append("tick"))
+    mocker.patch.object(TriggerRunnerSupervisor, "should_stop", return_value=False)
+    mocker.patch.object(TriggerRunnerSupervisor, "is_alive", side_effect=[True, False])
+
+    supervisor.run()
+
+    assert events == ["enter", "tick", "exit"]
+
+
 def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
     """
     Checks that the triggerer will correctly see a new Trigger in the database
@@ -1250,6 +1306,63 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries(session, supe
     assert trigger_orm.id not in supervisor.cancelling_triggers
     assert not any(trigger_id == trigger_orm.id for trigger_id, _ in supervisor.events)
     assert not any(trigger_id == trigger_orm.id for trigger_id, _ in supervisor.failed_triggers)
+
+
+def test_update_triggers_delegates_workload_creation(supervisor_builder, mocker):
+    supervisor = supervisor_builder()
+    supervisor.running_triggers = {1, 3}
+    workload = workloads.RunTrigger(id=2, classpath="some.trigger", encrypted_kwargs="", ti=None)
+    build_trigger_workloads = mocker.patch.object(
+        TriggerRunnerSupervisor, "build_trigger_workloads", autospec=True, return_value=[workload]
+    )
+
+    supervisor.update_triggers({2, 3})
+
+    build_trigger_workloads.assert_called_once_with(supervisor, {2})
+    assert list(supervisor.creating_triggers) == [workload]
+    assert supervisor.cancelling_triggers == {1}
+
+
+def test_update_triggers_uses_fetch_hooks(session, supervisor_builder, mocker):
+    trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
+    _, _, trigger_orm, _ = create_trigger_in_db(session, trigger)
+
+    supervisor = supervisor_builder()
+    fetch_trigger_details_calls = []
+    fetch_non_task_trigger_ids_calls = []
+    original_fetch_trigger_details = TriggerRunnerSupervisor.fetch_trigger_details
+    original_fetch_non_task_trigger_ids = TriggerRunnerSupervisor.fetch_non_task_trigger_ids
+
+    def fetch_trigger_details(self, trigger_ids, *, session):
+        fetch_trigger_details_calls.append((trigger_ids, session))
+        return original_fetch_trigger_details(self, trigger_ids, session=session)
+
+    def fetch_non_task_trigger_ids(self, *, session):
+        fetch_non_task_trigger_ids_calls.append(session)
+        return original_fetch_non_task_trigger_ids(self, session=session)
+
+    mocker.patch.object(
+        TriggerRunnerSupervisor, "fetch_trigger_details", autospec=True, side_effect=fetch_trigger_details
+    )
+    mocker.patch.object(
+        TriggerRunnerSupervisor,
+        "fetch_non_task_trigger_ids",
+        autospec=True,
+        side_effect=fetch_non_task_trigger_ids,
+    )
+
+    supervisor.update_triggers({trigger_orm.id})
+
+    assert len(fetch_trigger_details_calls) == 1
+    assert len(fetch_non_task_trigger_ids_calls) == 1
+    assert fetch_trigger_details_calls == [({trigger_orm.id}, fetch_non_task_trigger_ids_calls[0])]
+    assert len(supervisor.creating_triggers) == 1
+    assert supervisor.creating_triggers[0].id == trigger_orm.id
+
+    supervisor.update_triggers({trigger_orm.id})
+
+    assert len(supervisor.creating_triggers) == 1
+    assert supervisor.creating_triggers[0].id == trigger_orm.id
 
 
 def test_update_triggers_prevents_duplicate_creation_queue_entries_with_multiple_triggers(

@@ -242,7 +242,13 @@ class TestMerge:
         assert result_providers[0]["id"] == "amazon"
 
     def test_missing_new_modules_file(self, tmp_path, output_dir):
-        """Incremental extract with --provider skips modules.json; merge should keep existing modules."""
+        """When new_modules.json is missing, merge preserves all existing modules.
+
+        Driving module drops off the new_modules payload (rather than new_providers)
+        means an extract run that wrote providers.json without writing modules.json
+        leaves the global catalog untouched, instead of silently dropping every
+        targeted provider's modules.
+        """
         existing_providers = _write_json(
             tmp_path / "existing_providers.json",
             {
@@ -265,16 +271,94 @@ class TestMerge:
             tmp_path / "new_providers.json",
             {"providers": [_provider("amazon", "Amazon", "2025-01-01")]},
         )
-        # new_modules file does not exist (--provider mode skips modules.json)
+        # new_modules file does not exist (extract failure or skipped write)
         new_modules = tmp_path / "nonexistent_modules.json"
 
         merge(existing_providers, existing_modules, new_providers, new_modules, output_dir)
 
         result_modules = json.loads((output_dir / "modules.json").read_text())["modules"]
-        # Existing modules for non-updated providers are kept
+        # Both providers' existing modules are preserved -- no replacement available
+        assert any(m["id"] == "amazon-s3-op" for m in result_modules)
         assert any(m["id"] == "google-bq-op" for m in result_modules)
-        # Existing modules for the updated provider are removed (no new ones to replace them)
-        assert not any(m["provider_id"] == "amazon" for m in result_modules)
+
+    def test_empty_new_modules_preserves_existing(self, tmp_path, output_dir):
+        """An empty modules: [] payload behaves the same as a missing file.
+
+        Same scenario as test_missing_new_modules_file but the file exists with an
+        empty list, which is what older extract runs would write before the
+        unconditional-write fix.
+        """
+        existing_providers = _write_json(
+            tmp_path / "existing_providers.json",
+            {"providers": [_provider("amazon", "Amazon", "2024-01-01")]},
+        )
+        existing_modules = _write_json(
+            tmp_path / "existing_modules.json",
+            {"modules": [_module("amazon-s3-op", "amazon")]},
+        )
+        new_providers = _write_json(
+            tmp_path / "new_providers.json",
+            {"providers": [_provider("amazon", "Amazon", "2025-01-01")]},
+        )
+        new_modules = _write_json(tmp_path / "new_modules.json", {"modules": []})
+
+        merge(existing_providers, existing_modules, new_providers, new_modules, output_dir)
+
+        result_modules = json.loads((output_dir / "modules.json").read_text())["modules"]
+        assert any(m["id"] == "amazon-s3-op" for m in result_modules)
+
+    def test_partial_new_modules_replaces_only_listed_providers(self, tmp_path, output_dir):
+        """Partial modules.json (one of several updated providers) replaces only that provider's modules.
+
+        Mirrors --provider single-target extraction: providers.json may list multiple
+        provider updates, but the modules payload covers only the one whose runtime
+        extraction produced new module data. The merge must not touch the others.
+        """
+        existing_providers = _write_json(
+            tmp_path / "existing_providers.json",
+            {
+                "providers": [
+                    _provider("amazon", "Amazon", "2024-01-01"),
+                    _provider("google", "Google", "2024-02-01"),
+                    _provider("snowflake", "Snowflake", "2024-03-01"),
+                ]
+            },
+        )
+        existing_modules = _write_json(
+            tmp_path / "existing_modules.json",
+            {
+                "modules": [
+                    _module("amazon-s3-op", "amazon"),
+                    _module("google-bq-op", "google"),
+                    _module("snowflake-warehouse-op", "snowflake"),
+                ]
+            },
+        )
+        new_providers = _write_json(
+            tmp_path / "new_providers.json",
+            {
+                "providers": [
+                    _provider("amazon", "Amazon", "2025-01-01"),
+                    _provider("google", "Google", "2025-02-01"),
+                ]
+            },
+        )
+        # Only amazon has fresh module data; google's modules are not in the payload
+        new_modules = _write_json(
+            tmp_path / "new_modules.json",
+            {"modules": [_module("amazon-lambda-op", "amazon")]},
+        )
+
+        merge(existing_providers, existing_modules, new_providers, new_modules, output_dir)
+
+        result_modules = json.loads((output_dir / "modules.json").read_text())["modules"]
+        # Amazon's existing module is replaced
+        assert any(m["id"] == "amazon-lambda-op" for m in result_modules)
+        assert not any(m["id"] == "amazon-s3-op" for m in result_modules)
+        # Google's existing module is preserved (no replacement payload)
+        assert any(m["id"] == "google-bq-op" for m in result_modules)
+        # Snowflake (not in new_providers either) is untouched
+        assert any(m["id"] == "snowflake-warehouse-op" for m in result_modules)
 
     def test_output_directory_created_if_missing(self, tmp_path):
         output_dir = tmp_path / "does" / "not" / "exist"

@@ -264,6 +264,22 @@ config:
         type: integer
         example: ~
         default: "30"
+      auth_role_public:
+        description: |
+          Role that Anonymous (unauthenticated) users are granted. When set, the FAB auth manager
+          will allow access to the API server and UI without requiring a login, and anonymous
+          requests will be treated as members of the given role. Leave empty (the default) to
+          require authentication.
+
+          This replaces the previous ``AUTH_ROLE_PUBLIC`` setting in ``webserver_config.py``. When
+          both are set, this ``[fab] auth_role_public`` config takes precedence. Setting this
+          config also applies the equivalent ``AUTH_ROLE_PUBLIC`` to the Flask app used by the FAB
+          auth manager, so all FAB auth code paths (FastAPI-based API server and legacy Flask
+          views) honor it consistently.
+        version_added: 3.6.2
+        type: string
+        example: "Admin"
+        default: ""
 
 auth-managers:
   - airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager

@@ -73,6 +73,7 @@ class GenAIGenerativeModelHook(GoogleBaseHook):
             vertexai=True,
             project=project_id,
             location=location,
+            credentials=self.get_credentials(),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id

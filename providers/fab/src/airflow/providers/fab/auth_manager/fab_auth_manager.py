@@ -93,6 +93,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from flask import Flask
+    from starlette.middleware import _MiddlewareFactory
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.cli.cli_config import (
@@ -300,10 +301,65 @@ class FabAuthManager(BaseAuthManager[User]):
         """Return whether the user is logged in."""
         user = self.get_user()
         return bool(
-            self.appbuilder
-            and self.appbuilder.app.config.get("AUTH_ROLE_PUBLIC", None)
-            or (not user.is_anonymous and user.is_active)
+            (self.appbuilder and self._get_auth_role_public()) or (not user.is_anonymous and user.is_active)
         )
+
+    def _get_auth_role_public(self) -> str | None:
+        """
+        Return the role granted to anonymous users, or ``None`` if public access is disabled.
+
+        Reads ``[fab] auth_role_public`` from the Airflow config first so this works
+        during FastAPI startup, before any Flask application context exists. Falls back
+        to ``AUTH_ROLE_PUBLIC`` on the Flask app config when an app context is available,
+        which covers the legacy ``AUTH_ROLE_PUBLIC`` entry in ``webserver_config.py``.
+        """
+        role_public = conf.get("fab", "auth_role_public", fallback="") or None
+        if role_public:
+            return role_public
+        if self.appbuilder is None:
+            return None
+        try:
+            return self.appbuilder.app.config.get("AUTH_ROLE_PUBLIC", None)
+        except RuntimeError:
+            # ``appbuilder.app`` is a werkzeug ``LocalProxy``; accessing it outside a
+            # Flask application context raises ``RuntimeError``. This happens during
+            # FastAPI startup when ``get_fastapi_middlewares`` is invoked.
+            return None
+
+    @provide_session
+    def build_public_user(self, *, session: Session = NEW_SESSION) -> AnonymousUser | None:
+        """
+        Build an :class:`AnonymousUser` pre-populated with the configured public role.
+
+        Returns ``None`` when neither ``[fab] auth_role_public`` nor the legacy
+        ``AUTH_ROLE_PUBLIC`` entry in ``webserver_config.py`` is set.
+
+        The role and its permissions are resolved via the database so the caller does not
+        need a Flask app/request context to use the returned user (see #60897).
+
+        :meta private:
+        """
+        public_role_name = self._get_auth_role_public()
+        if not public_role_name:
+            return None
+
+        user = AnonymousUser()
+        role = session.scalar(select(Role).where(Role.name == public_role_name))
+        if role is not None:
+            # ``AnonymousUser.roles``/``perms`` normally resolve lazily through Flask's
+            # ``current_app``. Writing ``_roles``/``_perms`` directly freezes a snapshot for
+            # the lifetime of a single FastAPI authorization check.
+            user._roles = {role}
+            user._perms = {(perm.action.name, perm.resource.name) for perm in role.permissions}
+        return user
+
+    def get_fastapi_middlewares(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
+        """Register the FAB public-access middleware when public access is configured."""
+        if not self._get_auth_role_public():
+            return []
+        from airflow.providers.fab.auth_manager.middleware import FabAuthRolePublicMiddleware
+
+        return [(FabAuthRolePublicMiddleware, {})]
 
     def create_token(self, headers: dict[str, str], body: dict[str, Any]) -> User | None:
         """

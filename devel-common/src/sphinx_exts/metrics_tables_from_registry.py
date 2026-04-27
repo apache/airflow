@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow._shared.observability.metrics.metrics_registry import generate_metrics_rst_from_registry
+from airflow_shared.observability.metrics.metrics_registry import generate_metrics_rst_from_registry
 
 
 def generate_metrics(app):
