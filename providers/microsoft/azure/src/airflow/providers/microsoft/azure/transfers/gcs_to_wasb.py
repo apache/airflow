@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-import os
+import posixpath
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
@@ -143,7 +143,7 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
         :return: The transformed file path for Azure Blob destination
         """
         if self.flatten_structure:
-            return os.path.basename(file_path)
+            return posixpath.basename(file_path)
         return file_path
 
     @staticmethod
@@ -186,7 +186,7 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
 
         blob_prefix = self.blob_prefix
         if not self.keep_directory_structure and self.prefix and not self.flatten_structure:
-            blob_prefix = os.path.join(blob_prefix, self.prefix)
+            blob_prefix = posixpath.join(blob_prefix, self.prefix)
 
         existing_blobs_set: set[str] = set()
         if not self.replace:
@@ -227,7 +227,7 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
                     object_name=file, bucket_name=str(self.gcs_bucket), user_project=self.gcp_user_project
                 ) as local_tmp_file:
                     transformed_path = self._transform_file_path(file)
-                    dest_blob = os.path.join(blob_prefix, transformed_path)
+                    dest_blob = posixpath.join(blob_prefix, transformed_path)
                     self.log.info("Saving file from %s to %s", file, dest_blob)
                     wasb_hook.load_file(
                         file_path=local_tmp_file.name,
