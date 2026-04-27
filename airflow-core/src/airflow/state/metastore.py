@@ -42,57 +42,67 @@ class MetastoreStateBackend(BaseStateBackend):
 
     @provide_session
     def get(self, scope: StateScope, key: str, *, session: Session = NEW_SESSION) -> str | None:
-        if isinstance(scope, TaskScope):
-            return self._get_task(scope, key, session=session)
-        return self._get_asset(scope, key, session=session)
+        match scope:
+            case TaskScope():
+                return self._get_task(scope, key, session=session)
+            case AssetScope():
+                return self._get_asset(scope, key, session=session)
 
     @provide_session
     def set(self, scope: StateScope, key: str, value: str, *, session: Session = NEW_SESSION) -> None:
-        if isinstance(scope, TaskScope):
-            self._set_task(scope, key, value, session=session)
-        else:
-            self._set_asset(scope, key, value, session=session)
+        match scope:
+            case TaskScope():
+                self._set_task(scope, key, value, session=session)
+            case AssetScope():
+                self._set_asset(scope, key, value, session=session)
 
     @provide_session
     def delete(self, scope: StateScope, key: str, *, session: Session = NEW_SESSION) -> None:
-        if isinstance(scope, TaskScope):
-            self._delete_task(scope, key, session=session)
-        else:
-            self._delete_asset(scope, key, session=session)
+        match scope:
+            case TaskScope():
+                self._delete_task(scope, key, session=session)
+            case AssetScope():
+                self._delete_asset(scope, key, session=session)
 
     @provide_session
     def clear(self, scope: StateScope, *, session: Session = NEW_SESSION) -> None:
-        if isinstance(scope, TaskScope):
-            self._clear_task(scope, session=session)
-        else:
-            self._clear_asset(scope, session=session)
+        match scope:
+            case TaskScope():
+                self._clear_task(scope, session=session)
+            case AssetScope():
+                self._clear_asset(scope, session=session)
 
     async def aget(self, scope: StateScope, key: str) -> str | None:
         async with create_session_async() as session:
-            if isinstance(scope, TaskScope):
-                return await self._aget_task(scope, key, session=session)
-            return await self._aget_asset(scope, key, session=session)
+            match scope:
+                case TaskScope():
+                    return await self._aget_task(scope, key, session=session)
+                case AssetScope():
+                    return await self._aget_asset(scope, key, session=session)
 
     async def aset(self, scope: StateScope, key: str, value: str) -> None:
         async with create_session_async() as session:
-            if isinstance(scope, TaskScope):
-                await self._aset_task(scope, key, value, session=session)
-            else:
-                await self._aset_asset(scope, key, value, session=session)
+            match scope:
+                case TaskScope():
+                    await self._aset_task(scope, key, value, session=session)
+                case AssetScope():
+                    await self._aset_asset(scope, key, value, session=session)
 
     async def adelete(self, scope: StateScope, key: str) -> None:
         async with create_session_async() as session:
-            if isinstance(scope, TaskScope):
-                await self._adelete_task(scope, key, session=session)
-            else:
-                await self._adelete_asset(scope, key, session=session)
+            match scope:
+                case TaskScope():
+                    await self._adelete_task(scope, key, session=session)
+                case AssetScope():
+                    await self._adelete_asset(scope, key, session=session)
 
     async def aclear(self, scope: StateScope) -> None:
         async with create_session_async() as session:
-            if isinstance(scope, TaskScope):
-                await self._aclear_task(scope, session=session)
-            else:
-                await self._aclear_asset(scope, session=session)
+            match scope:
+                case TaskScope():
+                    await self._aclear_task(scope, session=session)
+                case AssetScope():
+                    await self._aclear_asset(scope, session=session)
 
     def _get_task(self, scope: TaskScope, key: str, *, session: Session) -> str | None:
         row = session.scalar(
