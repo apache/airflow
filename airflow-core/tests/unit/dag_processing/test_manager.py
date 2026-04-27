@@ -1281,7 +1281,7 @@ class TestDagFileProcessorManager:
 
     @conf_vars({("core", "load_examples"): "False"})
     def test_fetch_callbacks_from_database(self, configure_testing_dag_bundle):
-        """Test _fetch_callbacks returns callbacks ordered by priority_weight desc."""
+        """Test _fetch_callbacks_from_db returns callbacks ordered by priority_weight desc."""
 
         dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
 
@@ -1311,7 +1311,7 @@ class TestDagFileProcessorManager:
             manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
 
             with create_session() as session:
-                callbacks = manager._fetch_callbacks(session=session)
+                callbacks = manager._fetch_callbacks_from_db(session=session)
 
                 # Should return callbacks ordered by priority_weight desc (highest first)
                 assert callbacks[0].run_id == "123"
@@ -1385,7 +1385,7 @@ class TestDagFileProcessorManager:
             manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
 
             with create_session() as session:
-                callbacks = manager._fetch_callbacks(session=session)
+                callbacks = manager._fetch_callbacks_from_db(session=session)
 
                 # Only the matching callback should be returned
                 assert [c.run_id for c in callbacks] == ["match"]
@@ -1441,7 +1441,7 @@ class TestDagFileProcessorManager:
             manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
 
             with create_session() as session:
-                callbacks = manager._fetch_callbacks(session=session)
+                callbacks = manager._fetch_callbacks_from_db(session=session)
 
                 assert [c.run_id for c in callbacks] == ["match"]
 
@@ -1733,7 +1733,7 @@ class TestDagFileProcessorManager:
     def test_fetch_callbacks_delegates_to_private_method(self):
         manager = DagFileProcessorManager(max_runs=1)
         expected: list = [mock.sentinel.callback]
-        with mock.patch.object(manager, "_fetch_callbacks", return_value=expected) as private:
+        with mock.patch.object(manager, "_fetch_callbacks_from_db", return_value=expected) as private:
             assert manager.fetch_callbacks() is expected
         private.assert_called_once_with()
 

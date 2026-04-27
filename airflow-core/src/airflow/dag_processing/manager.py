@@ -574,11 +574,11 @@ class DagFileProcessorManager(LoggingMixin):
 
         Default implementation reads from the metadata DB; override to source callbacks from an API.
         """
-        return self._fetch_callbacks()
+        return self._fetch_callbacks_from_db()
 
     @provide_session
     @retry_db_transaction
-    def _fetch_callbacks(
+    def _fetch_callbacks_from_db(
         self,
         session: Session = NEW_SESSION,
     ) -> list[CallbackRequest]:
