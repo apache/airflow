@@ -17,12 +17,16 @@ PRs. For each one, the maintainer must decide:
    **all** open PRs by the same author and labels them.
 3. **Skip** — leave the PR as-is for another maintainer.
 
-The decision is **always per-PR**, never batched — workflow
-approval is the one category where batch-confirm is forbidden
-regardless of group size, because a single missed malicious
-approval lets untrusted code run against the project's CI
-secrets. See the group-presentation rule in
-[`interaction-loop.md#group-action-override`](interaction-loop.md).
+The presentation is a **list-then-select** flow: print the full
+inspection rubric for *every* PR in the group up front, then
+present a single selection screen that lets the maintainer pick
+which subset to approve in one go. The maintainer must type
+indices explicitly — there is no "approve all" shortcut, and
+the default for any PR with a suspicious-pattern match is
+*never* approve. A single missed malicious approval lets
+untrusted code run against the project's CI secrets, so the
+selection step is the safety gate. The detail-print step
+ensures the selection is informed.
 
 ---
 
@@ -145,15 +149,24 @@ Not causes for flagging, but surface to the maintainer anyway:
 
 ## Presenting the inspection to the maintainer
 
-Layout (one PR at a time):
+Two-phase layout. Phase 1 prints every PR's inspection block
+back-to-back (no prompts in between — the maintainer scrolls
+through them). Phase 2 is a single selection screen with the
+group summary, where the maintainer picks indices.
+
+### Phase 1 — print every inspection block
+
+For each PR in the group, in the order returned by the
+classifier (which is age-ascending so the freshest PRs land
+first), print:
 
 ```
 ─────────────────────────────────────────────────────
-PR #NNNNN  "<title>"
-Author: @<login>  (account: N days old, K repos, M merged PRs)
+[N] PR #NNNNN  "<title>"
+Author: @<login>  (account: D days old, R repos, M merged PRs)
 AuthorAssociation: FIRST_TIME_CONTRIBUTOR
 
-Changed files (N):
+Changed files (F):
   .github/workflows/new.yml           (+42 / -0)    ← WORKFLOW
   scripts/ci/deploy.sh                (+10 / -2)    ← CI
   airflow-core/src/airflow/x.py       (+3 / -1)
@@ -163,47 +176,116 @@ Suspicious-pattern matches: <count>
   - scripts/ci/deploy.sh:8        — echoes ${{ secrets.AWS_KEY }}
 
 [diff excerpts — CI-adjacent full, other trimmed]
-─────────────────────────────────────────────────────
-
-Decide:
-  [A]pprove workflow — CI runs, triage continues next sweep
-  [F]lag suspicious — close ALL N open PRs by this author, add 'suspicious changes detected' label
-  [S]kip             — no action, decide later
-  [Q]uit
 ```
 
-When there are no suspicious-pattern matches and the changed
+`[N]` is the 1-based selection index used in Phase 2. Print all
+blocks before showing the selection screen — do not ask the
+maintainer to confirm anything between them.
+
+When a PR has no suspicious-pattern matches and the changed
 files are all "other" (no CI-adjacent changes), say so
-explicitly: *"No CI-adjacent changes and no suspicious patterns
-matched"*. That's the green-light case for `approve`.
+explicitly inline: *"No CI-adjacent changes and no suspicious
+patterns matched"*. That's the green-light pre-classification.
 
-The maintainer's default keystroke should match the pattern
-count:
+### Phase 2 — selection screen
 
-- 0 matches, no CI changes → default `A` (approve)
-- 1+ matches or any CI change → no default, maintainer must
-  type the letter
+After all blocks are printed, render the summary table and
+prompt for selection:
+
+```
+─────────────────────────────────────────────────────
+pending_workflow_approval — N PRs · choose what to approve
+─────────────────────────────────────────────────────
+
+  [1] #65401  @alice    0 matches  no CI changes      ← default APPROVE
+  [2] #65417  @bob      0 matches  no CI changes      ← default APPROVE
+  [3] #65422  @carol    2 matches  workflow + script  ← default SKIP
+  [4] #65445  @dave     0 matches  workflow only      ← default SKIP
+                                   (CI changes — type to override)
+
+Approve (indices, e.g. "1,2" or "default"):
+Flag-suspicious (close ALL PRs by these authors):
+Skip (leave for next sweep):  [implicit for any unlisted index]
+
+  [Q]uit  — exit triage session
+```
+
+Defaults are encoded per row, not preselected — the
+maintainer always has to type the indices to act. The
+"default" line on each row is *guidance*, not auto-fill.
+
+Default rules:
+
+- 0 suspicious-pattern matches **and** no CI-adjacent file
+  change → default **APPROVE**.
+- Any suspicious-pattern match, or any CI-adjacent file change
+  (even with 0 matches) → default **SKIP**.
+- A row never defaults to FLAG. The maintainer always picks
+  flag explicitly.
+
+Input handling:
+
+- The maintainer types comma-separated indices on each line.
+  Whitespace is tolerated. Ranges (`1-3`) are accepted.
+- The literal token `default` on the *Approve* line means
+  "approve every row whose default was APPROVE". It is
+  rejected on the *Flag* and *Skip* lines.
+- An index can appear on at most one line — the same PR can't
+  be both approved and flagged. Reject the input with a one-
+  line error and re-prompt if it does.
+- Empty *Approve* line + empty *Flag* line is allowed and
+  means "skip everything in this group" (equivalent to
+  pressing the old `[S]` key).
+- `[Q]` quits the session immediately, regardless of the lines
+  above. Pending input is discarded.
+
+After the maintainer submits, print a one-screen confirmation
+with the resolved verb per PR and the explicit list of
+authors-to-be-affected for any flag, then ask `proceed?
+[y/N]`. `y` runs all selected actions in sequence (approve
+first, flag last); anything else discards the selection and
+re-shows the selection screen with the same indices pre-
+filled in the input lines so the maintainer can edit.
 
 Never auto-approve. The skill's job is to surface signal, not
-to decide. The decision reaches a human.
+to decide. Every approval reaches a human via the explicit-
+indices step.
 
 ---
 
 ## Execution after the decision
 
-- **[A]pprove**: run [`actions.md#approve-workflow`](actions.md)
-  against the PR's head SHA. On success, update the session
-  cache with `action_taken: "approve-workflow"` so the PR
-  doesn't resurface in this session.
-- **[F]lag**: run [`actions.md#flag-suspicious`](actions.md)
-  against the *author*, not just the PR. The flag is an
-  author-level decision — all their currently-open PRs close
-  with the `suspicious changes detected` label. The body comes
-  from
-  [`comment-templates.md#suspicious-changes`](comment-templates.md).
-- **[S]kip**: no mutations, no cache update (so another
-  maintainer running the skill later picks it up fresh).
-- **[Q]uit**: leave the session, print the summary.
+After the confirmation `y`, run the selected actions in this
+fixed order so the cheapest, most reversible mutations land
+first:
+
+1. **Approve indices**: for each PR, run
+   [`actions.md#approve-workflow`](actions.md) against the PR's
+   head SHA. On success, update the session cache with
+   `action_taken: "approve-workflow"` so the PR doesn't
+   resurface in this session.
+2. **Flag-suspicious indices**: for each PR, run
+   [`actions.md#flag-suspicious`](actions.md) against the
+   *author*, not just the PR. The flag is an author-level
+   decision — all their currently-open PRs close with the
+   `suspicious changes detected` label. The body comes from
+   [`comment-templates.md#suspicious-changes`](comment-templates.md).
+   Two flagged PRs by the same author collapse to a single
+   author-level flag (don't double-close their PRs).
+3. **Skip indices** (and any unlisted index): no mutations, no
+   cache update, so another maintainer running the skill later
+   picks them up fresh.
+
+If any individual `approve-workflow` or `flag-suspicious` call
+fails (network, permission, race), surface the error with the
+PR number and continue with the rest of the queue. Never abort
+the whole batch on one failure — the maintainer already
+authorized each item, and partial completion is the same shape
+as a per-PR session getting Ctrl-C'd between PRs.
+
+`[Q]` (whether typed at the selection screen or the
+confirmation prompt) leaves the session and prints the
+summary as if every unprocessed item was skipped.
 
 ---
 
@@ -213,18 +295,21 @@ The `approve` REST endpoint requires at least `WRITE`. A viewer
 with `TRIAGE` can read and classify these PRs but cannot
 approve. In that case:
 
-- Present the inspection as normal (so the TRIAGE-level
-  maintainer can still flag suspicious patterns).
-- Replace the `[A]pprove` option with
-  `[R]equest approval from a WRITE-level maintainer` — the
-  skill composes a short message the triager can post in
-  `#airflow-maintainers` or wherever the team coordinates, and
-  logs the PR as "pending WRITE-level approval".
-- `[F]lag suspicious` is still available — closing and labeling
-  require WRITE on the PR but a TRIAGE viewer does have WRITE
+- Phase 1 (printing the inspection blocks) runs unchanged so
+  the TRIAGE-level maintainer can still spot suspicious
+  patterns.
+- Phase 2 swaps the *Approve* line label to
+  *Request approval (indices)*. Indices listed there generate
+  a short message the triager can post in
+  `#airflow-maintainers` (or wherever the team coordinates),
+  one PR per line, and log each as "pending WRITE-level
+  approval" in the session.
+- *Flag-suspicious* is still available — closing and labeling
+  require WRITE on the PR, but a TRIAGE viewer does have WRITE
   on labels and can close PRs via `gh pr close`. If a TRIAGE
-  viewer does hit a permission error on the close, surface and
-  stop.
+  viewer hits a permission error on the close, surface it and
+  stop the flag step (other approve / skip indices already
+  ran).
 
 Cache `viewer.permission` from the pre-flight query — don't
 re-check per PR.
