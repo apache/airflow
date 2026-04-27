@@ -47,8 +47,7 @@
     "referenceType": {
       "AverageRuntimeDeadline": "average runtime",
       "DagRunLogicalDateDeadline": "logical date",
-      "DagRunQueuedAtDeadline": "queue time",
-      "FixedDatetimeDeadline": "fixed datetime"
+      "DagRunQueuedAtDeadline": "queue time"
     },
     "title": "Deadline Alerts"
   },

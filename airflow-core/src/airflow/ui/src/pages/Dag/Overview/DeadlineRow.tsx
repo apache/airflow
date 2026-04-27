@@ -23,8 +23,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { DAGRunResponse, DeadlineAlertResponse, DeadlineResponse } from "openapi/requests/types.gen";
-import { StateBadge } from "src/components/StateBadge";
+import type { DeadlineAlertResponse, DeadlineResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 
 dayjs.extend(duration);
@@ -33,10 +32,9 @@ dayjs.extend(relativeTime);
 type DeadlineRowProps = {
   readonly alert?: DeadlineAlertResponse;
   readonly deadline: DeadlineResponse;
-  readonly run?: DAGRunResponse;
 };
 
-export const DeadlineRow = ({ alert, deadline, run }: DeadlineRowProps) => {
+export const DeadlineRow = ({ alert, deadline }: DeadlineRowProps) => {
   const { t: translate } = useTranslation("dag");
 
   const reference = alert
@@ -49,40 +47,23 @@ export const DeadlineRow = ({ alert, deadline, run }: DeadlineRowProps) => {
   return (
     <HStack justifyContent="space-between" px={2} py={1.5} width="100%">
       <VStack alignItems="flex-start" gap={0}>
-        <HStack gap={1}>
-          <Link asChild color="fg.info" fontSize="sm" fontWeight="bold">
-            <RouterLink to={`/dags/${deadline.dag_id}/runs/${deadline.dag_run_id}`}>
-              {deadline.dag_run_id}
-            </RouterLink>
-          </Link>
-          {run === undefined ? undefined : <StateBadge size="sm" state={run.state} />}
-        </HStack>
+        <Link asChild color="fg.info" fontSize="sm" fontWeight="bold">
+          <RouterLink to={`/dags/${deadline.dag_id}/runs/${deadline.dag_run_id}`}>
+            {deadline.dag_run_id}
+          </RouterLink>
+        </Link>
         {reference !== undefined && interval !== undefined ? (
           <Text color="fg.muted" fontSize="xs">
             {translate("deadlineAlerts.completionRule", { interval, reference })}
           </Text>
         ) : undefined}
       </VStack>
-      <VStack alignItems="flex-end" gap={0}>
-        <HStack gap={1}>
-          <Text color="fg.muted" fontSize="xs">
-            {translate("deadlineStatus.expected")}:
-          </Text>
-          <Time datetime={deadline.deadline_time} fontSize="xs" />
-        </HStack>
-        <HStack gap={1}>
-          <Text color="fg.muted" fontSize="xs">
-            {translate("deadlineStatus.actual")}:
-          </Text>
-          {run?.end_date !== undefined && run.end_date !== null ? (
-            <Time datetime={run.end_date} fontSize="xs" />
-          ) : (
-            <Text color="fg.muted" fontSize="xs">
-              {translate("deadlineStatus.stillRunning")}
-            </Text>
-          )}
-        </HStack>
-      </VStack>
+      <HStack gap={1}>
+        <Text color="fg.muted" fontSize="xs">
+          {translate("deadlineStatus.expected")}:
+        </Text>
+        <Time datetime={deadline.deadline_time} fontSize="xs" />
+      </HStack>
     </HStack>
   );
 };

@@ -19,11 +19,11 @@
 import { Heading, HStack, Separator, Skeleton, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 
-import { useDagRunServiceGetDagRuns, useDeadlinesServiceGetDeadlines } from "openapi/queries";
-import type { DAGRunResponse, DeadlineAlertResponse } from "openapi/requests/types.gen";
+import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { Dialog } from "src/components/ui";
 import { Pagination } from "src/components/ui/Pagination";
+import { useDeadlines } from "src/queries/useDeadlines";
 
 import { DeadlineRow } from "./DeadlineRow";
 
@@ -55,42 +55,16 @@ export const AllDeadlinesModal = ({
   const [page, setPage] = useState(1);
   const offset = (page - 1) * PAGE_LIMIT;
 
-  const { data, error, isLoading } = useDeadlinesServiceGetDeadlines(
-    missed
-      ? {
-          dagId,
-          dagRunId: "~",
-          lastUpdatedAtGte: startDate,
-          lastUpdatedAtLte: endDate,
-          limit: PAGE_LIMIT,
-          missed: true,
-          offset,
-          orderBy: ["-last_updated_at"],
-        }
-      : {
-          dagId,
-          dagRunId: "~",
-          deadlineTimeGte: endDate,
-          limit: PAGE_LIMIT,
-          missed: false,
-          offset,
-          orderBy: ["deadline_time"],
-        },
-    undefined,
-    { enabled: open, refetchInterval },
-  );
-
-  const { data: runsData } = useDagRunServiceGetDagRuns(
-    { dagId, limit: 100, runAfterGte: startDate, runAfterLte: endDate },
-    undefined,
-    { enabled: open, refetchInterval },
-  );
-
-  const runMap = new Map<string, DAGRunResponse>();
-
-  for (const run of runsData?.dag_runs ?? []) {
-    runMap.set(run.dag_run_id, run);
-  }
+  const { data, error, isLoading } = useDeadlines({
+    dagId,
+    enabled: open,
+    endDate,
+    limit: PAGE_LIMIT,
+    missed,
+    offset,
+    refetchInterval,
+    startDate,
+  });
 
   const deadlines = data?.deadlines ?? [];
   const totalEntries = data?.total_entries ?? 0;
@@ -122,12 +96,7 @@ export const AllDeadlinesModal = ({
           ) : (
             <VStack gap={0} separator={<Separator />}>
               {deadlines.map((dl) => (
-                <DeadlineRow
-                  alert={getAlert(dl.alert_id)}
-                  deadline={dl}
-                  key={dl.id}
-                  run={runMap.get(dl.dag_run_id)}
-                />
+                <DeadlineRow alert={getAlert(dl.alert_id)} deadline={dl} key={dl.id} />
               ))}
             </VStack>
           )}

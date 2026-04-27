@@ -21,13 +21,10 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
-import {
-  useDagRunServiceGetDagRuns,
-  useDeadlinesServiceGetDagDeadlineAlerts,
-  useDeadlinesServiceGetDeadlines,
-} from "openapi/queries";
-import type { DAGRunResponse, DeadlineAlertResponse } from "openapi/requests/types.gen";
+import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
+import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { useDeadlines } from "src/queries/useDeadlines";
 import { useAutoRefresh } from "src/utils";
 
 import { AllDeadlinesModal } from "./AllDeadlinesModal";
@@ -50,52 +47,29 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
     data: pendingData,
     error: pendingError,
     isLoading: isPendingLoading,
-  } = useDeadlinesServiceGetDeadlines(
-    {
-      dagId,
-      dagRunId: "~",
-      deadlineTimeGte: endDate,
-      limit: LIMIT,
-      missed: false,
-      orderBy: ["deadline_time"],
-    },
-    undefined,
-    { refetchInterval },
-  );
+  } = useDeadlines({
+    dagId,
+    endDate,
+    limit: LIMIT,
+    missed: false,
+    refetchInterval,
+    startDate,
+  });
 
   const {
     data: missedData,
     error: missedError,
     isLoading: isMissedLoading,
-  } = useDeadlinesServiceGetDeadlines(
-    {
-      dagId,
-      dagRunId: "~",
-      lastUpdatedAtGte: startDate,
-      lastUpdatedAtLte: endDate,
-      limit: LIMIT,
-      missed: true,
-      orderBy: ["-last_updated_at"],
-    },
-    undefined,
-    { refetchInterval },
-  );
-
-  const { data: runsData } = useDagRunServiceGetDagRuns(
-    { dagId, limit: 100, runAfterGte: startDate, runAfterLte: endDate },
-    undefined,
-    { refetchInterval },
-  );
-
-  const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId, limit: 100 }, undefined, {
+  } = useDeadlines({
+    dagId,
+    endDate,
+    limit: LIMIT,
+    missed: true,
     refetchInterval,
+    startDate,
   });
 
-  const runMap = new Map<string, DAGRunResponse>();
-
-  for (const run of runsData?.dag_runs ?? []) {
-    runMap.set(run.dag_run_id, run);
-  }
+  const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId, limit: 100 });
 
   const alertMap = new Map<string, DeadlineAlertResponse>();
 
@@ -151,12 +125,7 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
             ) : (
               <VStack gap={0} separator={<Separator />}>
                 {pendingDeadlines.map((dl) => (
-                  <DeadlineRow
-                    alert={getAlert(dl.alert_id)}
-                    deadline={dl}
-                    key={dl.id}
-                    run={runMap.get(dl.dag_run_id)}
-                  />
+                  <DeadlineRow alert={getAlert(dl.alert_id)} deadline={dl} key={dl.id} />
                 ))}
                 {(pendingData?.total_entries ?? 0) > LIMIT ? (
                   <Button
@@ -197,12 +166,7 @@ export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) =
             ) : (
               <VStack gap={0} separator={<Separator />}>
                 {missedDeadlines.map((dl) => (
-                  <DeadlineRow
-                    alert={getAlert(dl.alert_id)}
-                    deadline={dl}
-                    key={dl.id}
-                    run={runMap.get(dl.dag_run_id)}
-                  />
+                  <DeadlineRow alert={getAlert(dl.alert_id)} deadline={dl} key={dl.id} />
                 ))}
                 {(missedData?.total_entries ?? 0) > LIMIT ? (
                   <Button
