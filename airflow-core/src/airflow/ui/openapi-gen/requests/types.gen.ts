@@ -75,12 +75,18 @@ export type AssetEventResponse = {
     partition_key?: string | null;
 };
 
+export type ColumnLineageSource = {
+    source_asset_uri: string;
+    source_column: string;
+};
+
 /**
  * A directed edge in the asset lineage graph.
  */
 export type AssetLineageEdge = {
     source_id: string;
     target_id: string;
+    column_lineage?: Record<string, Array<ColumnLineageSource>> | null;
 };
 
 /**
@@ -2363,6 +2369,13 @@ export type GetAssetLineageData = {
 };
 
 export type GetAssetLineageResponse = AssetLineageGraphResponse;
+
+export type GetAssetOnlyLineageData = {
+    assetId: number;
+    depth?: number;
+};
+
+export type GetAssetOnlyLineageResponse = AssetLineageGraphResponse;
 
 export type GetDagAssetQueuedEventsData = {
     before?: string | null;

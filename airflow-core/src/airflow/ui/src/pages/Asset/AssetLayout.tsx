@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Box, Text, Code, Button } from "@chakra-ui/react";
+import { HStack, Box, Text, Code, Button, VStack } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -30,6 +30,7 @@ import { SearchBar } from "src/components/SearchBar";
 import { ProgressBar } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { OpenGroupsProvider } from "src/context/openGroups";
+import { useAssetLineage } from "src/queries/useAssetLineage";
 import { useAssetDetailData, useAssetEventsData } from "src/queries/useMockAssetData";
 
 import { AssetGraph } from "./AssetGraph";
@@ -39,6 +40,8 @@ import { AssetPanelButtons } from "./AssetPanelButtons";
 import { CreateAssetEvent } from "./CreateAssetEvent";
 import { Header } from "./Header";
 import type { LineageDirection } from "./lineageHighlightUtils";
+
+type LineageMode = "asset_only" | "full";
 
 export const AssetLayout = () => {
   const { i18n, t: translate } = useTranslation(["assets", "common"]);
@@ -53,6 +56,7 @@ export const AssetLayout = () => {
   );
   const [lineageSearch, setLineageSearch] = useState("");
   const [lineageDirection, setLineageDirection] = useState<LineageDirection>("downstream");
+  const [lineageMode, setLineageMode] = useState<LineageMode>("full");
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -62,6 +66,12 @@ export const AssetLayout = () => {
   const { data: asset, isLoading } = useAssetDetailData(
     assetId === undefined ? undefined : parseInt(assetId, 10),
   );
+  const {
+    data: lineageData = { edges: [], nodes: [] },
+    error: lineageError,
+    isError: isLineageError,
+    isLoading: isLineageLoading,
+  } = useAssetLineage(assetId, { mode: lineageMode });
 
   const links = [
     {
@@ -102,6 +112,18 @@ export const AssetLayout = () => {
     setActiveNodeId(assetId === undefined ? undefined : `asset:${assetId}`);
   }, [assetId]);
 
+  const lineageNodesById = useMemo(
+    () => new Map(lineageData.nodes.map((node) => [node.id, node])),
+    [lineageData.nodes],
+  );
+  const activeAssetColumnLineage = useMemo(
+    () =>
+      lineageMode !== "asset_only" || activeNodeId === undefined
+        ? []
+        : lineageData.edges.filter((edge) => edge.target_id === activeNodeId && edge.column_lineage),
+    [activeNodeId, lineageData.edges, lineageMode],
+  );
+
   return (
     <>
       <HStack justifyContent="space-between" mb={2}>
@@ -131,6 +153,26 @@ export const AssetLayout = () => {
                       />
                     </Box>
                     <Button
+                      colorPalette={lineageMode === "full" ? "blue" : "gray"}
+                      onClick={() => {
+                        setLineageMode("full");
+                      }}
+                      size="sm"
+                      variant={lineageMode === "full" ? "solid" : "outline"}
+                    >
+                      {translate("assets:lineage_full", { defaultValue: "Full" })}
+                    </Button>
+                    <Button
+                      colorPalette={lineageMode === "asset_only" ? "blue" : "gray"}
+                      onClick={() => {
+                        setLineageMode("asset_only");
+                      }}
+                      size="sm"
+                      variant={lineageMode === "asset_only" ? "solid" : "outline"}
+                    >
+                      {translate("assets:lineage_asset_only", { defaultValue: "Asset Only" })}
+                    </Button>
+                    <Button
                       colorPalette={lineageDirection === "upstream" ? "blue" : "gray"}
                       onClick={() => {
                         setLineageDirection("upstream");
@@ -158,7 +200,11 @@ export const AssetLayout = () => {
                   <AssetLineageGraph
                     activeNodeId={activeNodeId}
                     asset={asset}
+                    error={lineageError}
                     highlightDirection={lineageDirection}
+                    isError={isLineageError}
+                    isLoading={isLineageLoading}
+                    lineageData={lineageData}
                     searchTerm={lineageSearch}
                     setActiveNodeId={setActiveNodeId}
                   />
@@ -181,38 +227,74 @@ export const AssetLayout = () => {
             <Box bg="fg.subtle" cursor="col-resize" h="100%" transition="background 0.2s" w={0.5} />
           </PanelResizeHandle>
           <Panel defaultSize={30} minSize={20}>
-            <Header asset={asset} />
-            <AssetInsightsPanel asset={asset} />
-            {asset?.extra && Object.keys(asset.extra).length > 0 ? (
-              <Box mb={3} mt={3} px={3}>
-                <Text fontWeight="bold" mb={2}>
-                  {translate("assets:additional_data")}
-                </Text>
-                <Code
-                  background="bg.subtle"
-                  borderRadius="md"
-                  color="fg.default"
-                  display="block"
-                  fontSize="sm"
-                  p={2}
-                  w="full"
-                  whiteSpace="pre"
-                >
-                  {JSON.stringify(asset.extra, undefined, 2)}
-                </Code>
-              </Box>
-            ) : undefined}
+            <Box display="flex" flexDirection="column" h="100%" minH={0}>
+              <Header asset={asset} />
+              <Box flex={1} minH={0} overflow="auto">
+                <AssetInsightsPanel asset={asset} />
+                {lineageMode === "asset_only" && activeAssetColumnLineage.length > 0 ? (
+                  <Box mb={3} mt={3} px={3}>
+                    <Text fontWeight="bold" mb={2}>
+                      {translate("assets:column_lineage", { defaultValue: "Column Lineage" })}
+                    </Text>
+                    <VStack align="stretch" gap={2}>
+                      {activeAssetColumnLineage.map((edge) => {
+                        const sourceName = lineageNodesById.get(edge.source_id)?.name ?? edge.source_id;
+                        const targetName = lineageNodesById.get(edge.target_id)?.name ?? edge.target_id;
 
-            <Box h="100%" overflow="auto" pt={2}>
-              <AssetEvents
-                assetId={asset?.id}
-                data={data}
-                isLoading={isLoadingEvents}
-                setOrderBy={setOrderBy}
-                setTableUrlState={setTableURLState}
-                showFilters={true}
-                tableUrlState={tableURLState}
-              />
+                        return (
+                          <Box key={`${edge.source_id}-${edge.target_id}`}>
+                            <Text fontWeight="medium" mb={1}>
+                              {`${sourceName} -> ${targetName}`}
+                            </Text>
+                            <VStack align="stretch" gap={1} pl={3}>
+                              {Object.entries(edge.column_lineage ?? {}).map(([targetColumn, sources]) =>
+                                sources.map((source) => (
+                                  <Text
+                                    key={`${edge.source_id}-${targetColumn}-${source.source_asset_uri}-${source.source_column}`}
+                                  >
+                                    {`${targetName}.${targetColumn} <- ${sourceName}.${source.source_column}`}
+                                  </Text>
+                                )),
+                              )}
+                            </VStack>
+                          </Box>
+                        );
+                      })}
+                    </VStack>
+                  </Box>
+                ) : undefined}
+                {asset?.extra && Object.keys(asset.extra).length > 0 ? (
+                  <Box mb={3} mt={3} px={3}>
+                    <Text fontWeight="bold" mb={2}>
+                      {translate("assets:additional_data")}
+                    </Text>
+                    <Code
+                      background="bg.subtle"
+                      borderRadius="md"
+                      color="fg.default"
+                      display="block"
+                      fontSize="sm"
+                      p={2}
+                      w="full"
+                      whiteSpace="pre"
+                    >
+                      {JSON.stringify(asset.extra, undefined, 2)}
+                    </Code>
+                  </Box>
+                ) : undefined}
+
+                <Box pt={2}>
+                  <AssetEvents
+                    assetId={asset?.id}
+                    data={data}
+                    isLoading={isLoadingEvents}
+                    setOrderBy={setOrderBy}
+                    setTableUrlState={setTableURLState}
+                    showFilters={true}
+                    tableUrlState={tableURLState}
+                  />
+                </Box>
+              </Box>
             </Box>
           </Panel>
         </PanelGroup>

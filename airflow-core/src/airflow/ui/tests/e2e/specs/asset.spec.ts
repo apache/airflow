@@ -139,4 +139,18 @@ test.describe("Assets Page", () => {
       })
       .not.toBe(initialTransform);
   });
+
+  test("verify asset only lineage mode hides task nodes", async ({ page }) => {
+    const assetDetailPage = new AssetDetailPage(page);
+
+    await assetDetailPage.gotoMockAsset(1);
+
+    await expect(assetDetailPage.lineageSearchInput).toBeVisible();
+    await expect(assetDetailPage.graphNode("producer_task")).toBeVisible();
+
+    await assetDetailPage.switchToAssetOnly();
+
+    await expect(assetDetailPage.graphNode("producer_task")).toHaveCount(0);
+    await expect(assetDetailPage.graphNode("team_b_player_stats")).toBeVisible();
+  });
 });

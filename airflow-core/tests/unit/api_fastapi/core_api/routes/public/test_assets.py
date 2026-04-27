@@ -1875,3 +1875,182 @@ class TestGetAssetLineage(TestAssets):
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/assets/1/lineage")
         assert response.status_code == 403
+
+
+class TestGetAssetOnlyLineage(TestAssets):
+    @provide_session
+    def test_should_respond_200_with_asset_only_lineage(self, test_client, testing_dag_bundle, session):
+        asset_a = AssetModel(name="asset_a", uri="warehouse://raw/orders")
+        asset_b = AssetModel(name="asset_b", uri="warehouse://curated/orders")
+        session.add_all([asset_a, asset_b])
+        session.flush()
+
+        session.add(DagModel(dag_id="dag1", bundle_name="testing"))
+        session.add(TaskInletAssetReference(dag_id="dag1", task_id="t1", asset=asset_a))
+        session.add(TaskOutletAssetReference(dag_id="dag1", task_id="t1", asset=asset_b))
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset_a.id}/lineage/asset-only")
+        assert response.status_code == 200
+
+        data = response.json()
+        nodes = {node["id"]: node for node in data["nodes"]}
+        edges = {(edge["source_id"], edge["target_id"]) for edge in data["edges"]}
+
+        assert set(nodes) == {f"asset:{asset_a.id}", f"asset:{asset_b.id}"}
+        assert all(node["node_type"] == "asset" for node in nodes.values())
+        assert edges == {(f"asset:{asset_a.id}", f"asset:{asset_b.id}")}
+
+    @provide_session
+    def test_should_collapse_multi_hop_asset_only_lineage(self, test_client, testing_dag_bundle, session):
+        asset_a = AssetModel(name="asset_a", uri="s3://a")
+        asset_b = AssetModel(name="asset_b", uri="s3://b")
+        asset_c = AssetModel(name="asset_c", uri="s3://c")
+        session.add_all([asset_a, asset_b, asset_c])
+        session.flush()
+
+        session.add(DagModel(dag_id="dag1", bundle_name="testing"))
+        session.add(DagModel(dag_id="dag2", bundle_name="testing"))
+        session.add(TaskInletAssetReference(dag_id="dag1", task_id="t1", asset=asset_a))
+        session.add(TaskOutletAssetReference(dag_id="dag1", task_id="t1", asset=asset_b))
+        session.add(TaskInletAssetReference(dag_id="dag2", task_id="t2", asset=asset_b))
+        session.add(TaskOutletAssetReference(dag_id="dag2", task_id="t2", asset=asset_c))
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset_a.id}/lineage/asset-only")
+        assert response.status_code == 200
+
+        data = response.json()
+        nodes = {node["id"]: node for node in data["nodes"]}
+        edges = {(edge["source_id"], edge["target_id"]) for edge in data["edges"]}
+
+        assert set(nodes) == {f"asset:{asset_a.id}", f"asset:{asset_b.id}", f"asset:{asset_c.id}"}
+        assert edges == {
+            (f"asset:{asset_a.id}", f"asset:{asset_b.id}"),
+            (f"asset:{asset_b.id}", f"asset:{asset_c.id}"),
+        }
+
+    @provide_session
+    def test_should_include_matching_column_lineage_on_asset_only_edge(
+        self, test_client, testing_dag_bundle, session
+    ):
+        asset_a = AssetModel(name="asset_a", uri="warehouse://raw/orders")
+        asset_b = AssetModel(name="asset_b", uri="warehouse://curated/orders")
+        session.add_all([asset_a, asset_b])
+        session.flush()
+
+        session.add(DagModel(dag_id="dag1", bundle_name="testing"))
+        session.add(TaskInletAssetReference(dag_id="dag1", task_id="t1", asset=asset_a))
+        session.add(TaskOutletAssetReference(dag_id="dag1", task_id="t1", asset=asset_b))
+        session.add(
+            AssetEvent(
+                asset_id=asset_b.id,
+                extra={
+                    "column_lineage": {
+                        "customer_id": [
+                            {
+                                "source_asset_uri": asset_a.uri,
+                                "source_column": "id",
+                            }
+                        ],
+                        "total_amount": [
+                            {
+                                "source_asset_uri": asset_a.uri,
+                                "source_column": "amount",
+                            }
+                        ],
+                    }
+                },
+                source_dag_id="dag1",
+                source_task_id="t1",
+                source_run_id="run_1",
+                timestamp=DEFAULT_DATE,
+            )
+        )
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset_a.id}/lineage/asset-only")
+        assert response.status_code == 200
+
+        [edge] = response.json()["edges"]
+        assert edge["source_id"] == f"asset:{asset_a.id}"
+        assert edge["target_id"] == f"asset:{asset_b.id}"
+        assert edge["column_lineage"] == {
+            "customer_id": [{"source_asset_uri": asset_a.uri, "source_column": "id"}],
+            "total_amount": [{"source_asset_uri": asset_a.uri, "source_column": "amount"}],
+        }
+
+    @provide_session
+    def test_should_ignore_non_matching_column_lineage_entries(self, test_client, testing_dag_bundle, session):
+        asset_a = AssetModel(name="asset_a", uri="warehouse://raw/orders")
+        asset_b = AssetModel(name="asset_b", uri="warehouse://curated/orders")
+        session.add_all([asset_a, asset_b])
+        session.flush()
+
+        session.add(DagModel(dag_id="dag1", bundle_name="testing"))
+        session.add(TaskInletAssetReference(dag_id="dag1", task_id="t1", asset=asset_a))
+        session.add(TaskOutletAssetReference(dag_id="dag1", task_id="t1", asset=asset_b))
+        session.add(
+            AssetEvent(
+                asset_id=asset_b.id,
+                extra={
+                    "column_lineage": {
+                        "customer_id": [
+                            {
+                                "source_asset_uri": "warehouse://some/other/source",
+                                "source_column": "id",
+                            }
+                        ]
+                    }
+                },
+                source_dag_id="dag1",
+                source_task_id="t1",
+                source_run_id="run_1",
+                timestamp=DEFAULT_DATE,
+            )
+        )
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset_a.id}/lineage/asset-only")
+        assert response.status_code == 200
+
+        [edge] = response.json()["edges"]
+        assert edge["source_id"] == f"asset:{asset_a.id}"
+        assert edge["target_id"] == f"asset:{asset_b.id}"
+        assert edge["column_lineage"] is None
+
+    @provide_session
+    def test_should_return_root_only_when_asset_has_no_asset_only_lineage(
+        self, test_client, testing_dag_bundle, session
+    ):
+        asset = AssetModel(name="standalone_asset", uri="s3://standalone")
+        session.add(asset)
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset.id}/lineage/asset-only")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["nodes"] == [
+            {
+                "group": "",
+                "id": f"asset:{asset.id}",
+                "name": "standalone_asset",
+                "node_type": "asset",
+                "uri": "s3://standalone",
+            }
+        ]
+        assert data["edges"] == []
+
+    def test_should_respond_404(self, test_client):
+        response = test_client.get("/assets/999/lineage/asset-only")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "The Asset with ID: `999` was not found"
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/assets/1/lineage/asset-only")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/assets/1/lineage/asset-only")
+        assert response.status_code == 403

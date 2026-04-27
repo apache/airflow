@@ -25,9 +25,8 @@ import { BaseWrapper } from "src/utils/Wrapper";
 
 import { AssetLineageGraph } from "./AssetLineageGraph";
 
-const { mockSetCenter, mockUseAssetLineage, mockUseGraphLayout } = vi.hoisted(() => ({
+const { mockSetCenter, mockUseGraphLayout } = vi.hoisted(() => ({
   mockSetCenter: vi.fn(),
-  mockUseAssetLineage: vi.fn(),
   mockUseGraphLayout: vi.fn(),
 }));
 
@@ -38,7 +37,6 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 vi.mock("src/context/colorMode", () => ({ useColorMode: () => ({ colorMode: "light" }) }));
-vi.mock("src/queries/useAssetLineage", () => ({ useAssetLineage: mockUseAssetLineage }));
 vi.mock("src/components/Graph/useGraphLayout", () => ({ useGraphLayout: mockUseGraphLayout }));
 vi.mock("src/components/Graph/DownloadButton", () => ({ DownloadButton: () => <div data-testid="download-button" /> }));
 
@@ -55,10 +53,21 @@ vi.mock("@xyflow/react", () => ({
 type LineageNode = { data?: { label?: string; lineageStyle?: "downstream" | "focus" | "upstream" }; height?: number; id: string; position?: { x: number; y: number }; width?: number };
 type LineageEdge = { data?: { rest?: { isSelected?: boolean; lineageDirection?: "downstream" | "upstream" } }; id: string };
 
-const renderAssetLineageGraph = ({ activeNodeId = "asset:1", direction, searchTerm = "", setActiveNodeId = vi.fn() }: { readonly activeNodeId?: string; readonly direction: "downstream" | "upstream"; readonly searchTerm?: string; readonly setActiveNodeId?: ReturnType<typeof vi.fn> }) =>
+const mockLineageData = {
+  edges: [
+    { source_id: "upstream_dag", target_id: "upstream_dag.producer_task" }, { source_id: "upstream_dag.producer_task", target_id: "asset:1" },
+    { source_id: "asset:1", target_id: "downstream_dag.consumer_task" }, { source_id: "downstream_dag.consumer_task", target_id: "asset:2" },
+  ],
+  nodes: [
+    { id: "upstream_dag", name: "upstream_dag", node_type: "dag" }, { id: "upstream_dag.producer_task", name: "producer_task", node_type: "task" },
+    { id: "asset:1", name: "asset_1", node_type: "asset" }, { id: "downstream_dag.consumer_task", name: "consumer_task", node_type: "task" }, { id: "asset:2", name: "asset_2", node_type: "asset" },
+  ],
+} as const;
+
+const renderAssetLineageGraph = ({ activeNodeId = "asset:1", direction, lineageData = mockLineageData, searchTerm = "", setActiveNodeId = vi.fn() }: { readonly activeNodeId?: string; readonly direction: "downstream" | "upstream"; readonly lineageData?: { edges: Array<{ source_id: string; target_id: string; column_lineage?: null }>; nodes: Array<{ id: string; name: string; node_type: string }> }; readonly searchTerm?: string; readonly setActiveNodeId?: ReturnType<typeof vi.fn> }) =>
   render(
     <MemoryRouter initialEntries={["/assets/1"]}>
-      <Routes><Route element={<AssetLineageGraph activeNodeId={activeNodeId} highlightDirection={direction} searchTerm={searchTerm} setActiveNodeId={setActiveNodeId} />} path="/assets/:assetId" /></Routes>
+      <Routes><Route element={<AssetLineageGraph activeNodeId={activeNodeId} error={undefined} highlightDirection={direction} isError={false} isLoading={false} lineageData={lineageData} searchTerm={searchTerm} setActiveNodeId={setActiveNodeId} />} path="/assets/:assetId" /></Routes>
     </MemoryRouter>, { wrapper: BaseWrapper }
   );
 
@@ -70,20 +79,7 @@ const getRenderedGraph = () => {
 
 describe("AssetLineageGraph integration", () => {
   beforeEach(() => {
-    mockSetCenter.mockReset(); mockUseAssetLineage.mockReset(); mockUseGraphLayout.mockReset();
-    mockUseAssetLineage.mockReturnValue({
-      data: {
-        edges: [
-          { source_id: "upstream_dag", target_id: "upstream_dag.producer_task" }, { source_id: "upstream_dag.producer_task", target_id: "asset:1" },
-          { source_id: "asset:1", target_id: "downstream_dag.consumer_task" }, { source_id: "downstream_dag.consumer_task", target_id: "asset:2" },
-        ],
-        nodes: [
-          { id: "upstream_dag", name: "upstream_dag", node_type: "dag" }, { id: "upstream_dag.producer_task", name: "producer_task", node_type: "task" },
-          { id: "asset:1", name: "asset_1", node_type: "asset" }, { id: "downstream_dag.consumer_task", name: "consumer_task", node_type: "task" }, { id: "asset:2", name: "asset_2", node_type: "asset" },
-        ],
-      },
-      error: undefined, isError: false, isLoading: false,
-    });
+    mockSetCenter.mockReset(); mockUseGraphLayout.mockReset();
     mockUseGraphLayout.mockImplementation(({ edges, nodes }: { readonly edges: Array<LineageEdge>; readonly nodes: Array<LineageNode> }) => ({ data: { edges, nodes } }));
   });
 
@@ -161,5 +157,21 @@ describe("AssetLineageGraph integration", () => {
     await waitFor(() => {
       expect(setActiveNodeId).not.toHaveBeenCalled(); expect(mockSetCenter).not.toHaveBeenCalled();
     });
+  });
+
+  it("renders asset-only lineage data without task or dag nodes", () => {
+    renderAssetLineageGraph({
+      direction: "downstream",
+      lineageData: {
+        edges: [{ source_id: "asset:1", target_id: "asset:2", column_lineage: null }],
+        nodes: [
+          { id: "asset:1", name: "asset_1", node_type: "asset" },
+          { id: "asset:2", name: "asset_2", node_type: "asset" },
+        ],
+      },
+    });
+    const { nodes } = getRenderedGraph();
+
+    expect(nodes.map((node) => node.id)).toEqual(["asset:1", "asset:2"]);
   });
 });

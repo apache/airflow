@@ -37,6 +37,14 @@ export class AssetDetailPage extends BasePage {
     return this.page.getByPlaceholder("Search lineage nodes");
   }
 
+  public get assetOnlyButton(): Locator {
+    return this.page.getByRole("button", { name: /^Asset Only$/ });
+  }
+
+  public get fullLineageButton(): Locator {
+    return this.page.getByRole("button", { name: /^Full$/ });
+  }
+
   public graphNode(name: string): Locator {
     return this.page.locator(".react-flow__node").filter({
       has: this.page.getByRole("link", { exact: true, name }),
@@ -61,6 +69,10 @@ export class AssetDetailPage extends BasePage {
 
   public async searchLineage(term: string): Promise<void> {
     await this.lineageSearchInput.fill(term);
+  }
+
+  public async switchToAssetOnly(): Promise<void> {
+    await this.assetOnlyButton.click();
   }
 
   public async verifyAssetDetails(name: string): Promise<void> {

@@ -31,7 +31,7 @@ import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
-import type { AssetResponse, EdgeResponse, NodeResponse } from "openapi/requests/types.gen";
+import type { AssetLineageGraphResponse, AssetResponse, EdgeResponse, NodeResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
@@ -39,7 +39,6 @@ import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { ProgressBar } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
-import { useAssetLineage } from "src/queries/useAssetLineage";
 import { getReactFlowThemeStyle } from "src/theme";
 
 import { getHighlightedLineage, type LineageDirection } from "./lineageHighlightUtils";
@@ -47,13 +46,21 @@ import { getHighlightedLineage, type LineageDirection } from "./lineageHighlight
 export const AssetLineageGraph = ({
   activeNodeId,
   asset,
+  error,
   highlightDirection,
+  isError,
+  isLoading,
+  lineageData,
   searchTerm,
   setActiveNodeId,
 }: {
   readonly activeNodeId?: string;
   readonly asset?: AssetResponse;
+  readonly error: unknown;
   readonly highlightDirection: LineageDirection;
+  readonly isError: boolean;
+  readonly isLoading: boolean;
+  readonly lineageData: AssetLineageGraphResponse;
   readonly searchTerm: string;
   readonly setActiveNodeId: Dispatch<SetStateAction<string | undefined>>;
 }) => {
@@ -62,14 +69,6 @@ export const AssetLineageGraph = ({
   const { setCenter } = useReactFlow();
   const { t: translate } = useTranslation(["assets"]);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | undefined>(undefined);
-
-  // Fetch the lineage graph data
-  const {
-    data: lineageData = { edges: [], nodes: [] },
-    error,
-    isError,
-    isLoading,
-  } = useAssetLineage(assetId);
 
   const mappedNodes: Array<NodeResponse> = useMemo(
     () =>
