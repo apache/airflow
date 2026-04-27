@@ -235,8 +235,15 @@ def app():
     ):
         _app = application.create_app(enable_plugins=False)
         _app.config["WTF_CSRF_ENABLED"] = False
-        with _app.app_context():
-            yield _app
+        try:
+            with _app.app_context():
+                yield _app
+        finally:
+            # Dispose the flask_sqlalchemy per-app engine so its pooled
+            # connections don't survive the module in long CI runs.
+            with _app.app_context():
+                for fab_engine in _app.extensions["sqlalchemy"].engines.values():
+                    fab_engine.dispose()
 
 
 @pytest.fixture(scope="module")
