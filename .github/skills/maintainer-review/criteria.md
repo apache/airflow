@@ -1,216 +1,172 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      https://www.apache.org/licenses/LICENSE-2.0 -->
 
-# Review criteria — quick reference
+# Review criteria — pointers to source
 
-This file is a **summary checklist** of the project's review
-criteria. It is not authoritative — the source files are:
+This file is a **navigation map** for the project's review
+criteria. It does not restate the rules — those live in the
+source files below and are the single source of truth. The
+skill's review pass reads them at session start (and re-reads
+the per-area `AGENTS.md` files as PRs route into different
+trees) and quotes the **source rule verbatim** in any finding
+it raises.
 
-- [`.github/instructions/code-review.instructions.md`](../../../.github/instructions/code-review.instructions.md) — the
-  rule set every Apache Airflow PR is reviewed against.
-- [`AGENTS.md`](../../../AGENTS.md) — repo-wide AI/agent
-  instructions, coding standards, testing standards, commit /
-  PR conventions, the security model summary.
-- Per-area `AGENTS.md` files, picked up automatically when the
-  PR touches code under their tree:
-  - [`registry/AGENTS.md`](../../../registry/AGENTS.md)
-  - [`dev/AGENTS.md`](../../../dev/AGENTS.md)
-  - [`dev/ide_setup/AGENTS.md`](../../../dev/ide_setup/AGENTS.md)
-  - [`providers/AGENTS.md`](../../../providers/AGENTS.md)
-  - [`providers/elasticsearch/AGENTS.md`](../../../providers/elasticsearch/AGENTS.md)
-  - [`providers/opensearch/AGENTS.md`](../../../providers/opensearch/AGENTS.md)
-  - …and any other `AGENTS.md` discovered under a touched path
-    (the per-PR review flow re-runs `git ls-files
-    "<touched-tree>/**/AGENTS.md"`).
-- Provider docs and shared-library READMEs when the PR touches
-  one of them — the relevant boundaries are usually documented
-  inline.
-
-When you find a violation, **quote the rule from the source
-file** in the review finding (with file:line), not from this
-summary. Do not invent rules; do not soften documented ones. If
-the rules conflict (rare — usually a per-area `AGENTS.md`
-specialising a repo-wide rule), the more specific one wins,
-**provided the maintainer explicitly accepts the override** in
-the per-PR confirmation step. Surface the conflict.
+If you find yourself wanting to "summarise the rule" in this
+file or in a finding body, **stop and link to the source line
+or section instead**. Summaries drift; links don't.
 
 ---
 
-## Categories at a glance
+## Source files
 
-The headings below mirror the structure of the source files so
-you can map findings 1:1.
+| File | What it covers |
+|---|---|
+| [`.github/instructions/code-review.instructions.md`](../../../.github/instructions/code-review.instructions.md) | The rule set every Apache Airflow PR is reviewed against (architecture / DB / quality / testing / API / UI / generated files / AI-generated-code signals / quality signals). |
+| [`AGENTS.md`](../../../AGENTS.md) | Repo-wide AI/agent instructions (architecture boundaries, security model, coding standards, testing standards, commits & PR conventions). |
+| [`registry/AGENTS.md`](../../../registry/AGENTS.md) | Registry-tree-specific rules. |
+| [`dev/AGENTS.md`](../../../dev/AGENTS.md) | `dev/` scripts conventions. |
+| [`dev/ide_setup/AGENTS.md`](../../../dev/ide_setup/AGENTS.md) | IDE bootstrap conventions. |
+| [`providers/AGENTS.md`](../../../providers/AGENTS.md) | Provider-tree boundary, compat-layer, and provider-yaml expectations. |
+| [`providers/elasticsearch/AGENTS.md`](../../../providers/elasticsearch/AGENTS.md) | Elasticsearch-specific rules. |
+| [`providers/opensearch/AGENTS.md`](../../../providers/opensearch/AGENTS.md) | OpenSearch-specific rules. |
+| [`airflow-core/docs/security/security_model.rst`](../../../airflow-core/docs/security/security_model.rst) | The documented security model — what *is* and *isn't* a vulnerability. |
+
+The per-PR review flow re-runs `git ls-files` against the
+touched paths to discover any other `AGENTS.md` not in this
+table; see [`review-flow.md#area-specific-overlay`](review-flow.md).
+
+---
+
+## Categories — link out to the source section
+
+The headings below mirror the section structure of the source
+files; click through for the actual rule text.
 
 ### Architecture boundaries
 
-- Scheduler must never run user code; it processes serialized
-  Dags only.
-- Workers must never access the metadata DB directly — they go
-  through the Execution API.
-- Dag Processor / Triggerer have direct DB access and bypass JWT
-  via in-process Execution API transport. **This is intentional
-  per the documented security model**, not a vulnerability —
-  flag any code that violates the documented security model, not
-  the documented design.
-- Providers must not import core internals (`SUPERVISOR_COMMS`,
-  task-runner plumbing). Providers interact through public SDK
-  and Execution API only.
+[`code-review.instructions.md` § Architecture Boundaries](../../../.github/instructions/code-review.instructions.md#architecture-boundaries) ·
+[`AGENTS.md` § Architecture Boundaries](../../../AGENTS.md#architecture-boundaries)
 
 ### Database / query correctness
 
-- N+1 queries: SQLAlchemy relationship access inside a loop
-  without `joinedload()` / `selectinload()`.
-- Queries on `run_id` without `dag_id` (run_id is unique only
-  per DAG).
-- `session.commit()` inside a function in `airflow-core` that
-  receives a `session` parameter (callers manage the
-  transaction, not callees).
-- `session` parameter that is not keyword-only (`*, session`)
-  in `airflow-core`.
-- Database-specific SQL (LATERAL joins, PostgreSQL-only or
-  MySQL-only syntax) without cross-DB handling.
+[`code-review.instructions.md` § Database and Query Correctness](../../../.github/instructions/code-review.instructions.md#database-and-query-correctness)
 
 ### Code quality
 
-- `assert` in non-test code (stripped under `python -O`).
-- `time.time()` for measuring durations (use `time.monotonic()`).
-- Imports inside function/method bodies (top-of-file only,
-  except: circular-import workaround, lazy load for worker
-  isolation, `TYPE_CHECKING` blocks).
-- `@lru_cache(maxsize=None)` (unbounded cache).
-- Heavy imports (e.g. `kubernetes.client`) in multi-process code
-  paths not behind `TYPE_CHECKING`.
-- Files / connections / sessions opened without a context
-  manager or `try/finally`.
-- Raising the broad `AirflowException` directly — prefer
-  dedicated exception classes or stdlib exceptions
-  (`ValueError`, etc.).
-- New files without the Apache License header (prek enforces
-  this; flag if missing).
+[`code-review.instructions.md` § Code Quality Rules](../../../.github/instructions/code-review.instructions.md#code-quality-rules) ·
+[`AGENTS.md` § Coding Standards](../../../AGENTS.md#coding-standards)
 
 ### Testing
 
-- New public method or behavior without corresponding tests.
-- `unittest.TestCase` subclass (use pytest patterns).
-- `mock.Mock()` / `mock.MagicMock()` without `spec` / `autospec`.
-- `time.sleep` / `datetime.now()` in tests (use `time_machine`).
-- Issue numbers in test docstrings (test names should describe
-  behavior, not track tickets).
-- For bug-fix PRs: missing regression test (a test that fails
-  without the fix, passes with it).
-- Existing tests modified to accommodate new behavior — may
-  indicate a regression rather than a fix.
-- `caplog` in tests — prefer asserting on logic, not log output
-  (per `AGENTS.md`).
-- Newsfragments — only on major / breaking changes; flag if
-  added unnecessarily.
+[`code-review.instructions.md` § Testing Requirements](../../../.github/instructions/code-review.instructions.md#testing-requirements) ·
+[`AGENTS.md` § Testing Standards](../../../AGENTS.md#testing-standards)
 
 ### API correctness
 
-- Queries on mapped task instances missing a `map_index` filter.
-- Execution API change without a Cadwyn version migration
-  (CalVer format).
+[`code-review.instructions.md` § API Correctness](../../../.github/instructions/code-review.instructions.md#api-correctness)
 
 ### UI (React/TypeScript)
 
-- `useState + useEffect` to sync derived state — use nullish
-  coalescing or nullable override patterns.
-- Logic copy-pasted across components — extract into a custom
-  hook.
+[`code-review.instructions.md` § UI Code (React/TypeScript)](../../../.github/instructions/code-review.instructions.md#ui-code-reacttypescript)
 
 ### Generated files
 
-- Manual edits to `openapi-gen/` / Task SDK generated models —
-  must be regenerated, not hand-edited.
+[`code-review.instructions.md` § Generated Files](../../../.github/instructions/code-review.instructions.md#generated-files)
 
 ### AI-generated code signals
 
-- Fabricated diffs (changes to nonexistent files / paths).
-- Unrelated files included.
-- Description doesn't match the code.
-- Claims of fixes without test evidence; "I cannot run the test
-  suite" admissions.
-- Over-engineered solutions (caching layers, complex locking,
-  benchmark scripts where the problem is misunderstood).
-- Narrating comments (`# Add the item to the list` before
-  `list.append(item)`).
-- Empty PR descriptions / boilerplate template only.
+[`code-review.instructions.md` § AI-Generated Code Signals](../../../.github/instructions/code-review.instructions.md#ai-generated-code-signals)
+
+### Quality signals to check
+
+[`code-review.instructions.md` § Quality Signals to Check](../../../.github/instructions/code-review.instructions.md#quality-signals-to-check)
+
+### Commits and PRs (newsfragments, commit messages, tracking issues)
+
+[`AGENTS.md` § Commits and PRs](../../../AGENTS.md#commits-and-prs)
 
 ---
 
 ## Provider-specific signals
 
-When the PR touches `providers/<name>/`, additionally check:
+When a PR touches `providers/<name>/`, the skill reads (and
+quotes from) the provider-tree files in addition to the
+repo-wide ones:
 
-- **Provider boundary**: the provider does not import core
-  internals (`from airflow.jobs.*`, `from
-  airflow.dag_processing.*`, `from airflow.models.dagbag`, etc.
-  outside `TYPE_CHECKING`). Providers depend on `airflow.sdk`
-  and the public Execution API only.
-- **Compat layer**: changes that need to work across multiple
-  Airflow core versions go through
-  `providers/common/compat/`, not direct version branches in
-  the provider source.
-- **`pyproject.toml`** changes: dependency bumps need an
-  accompanying `provider.yaml` regen if the dep version is
-  pinned there (look for `airflow.providers_manager`
-  metadata).
-- **Provider-specific `AGENTS.md`** if present (e.g.
-  `providers/elasticsearch/AGENTS.md`,
-  `providers/opensearch/AGENTS.md`) — quote any rule from there
-  that the diff violates.
+- [`providers/AGENTS.md`](../../../providers/AGENTS.md) — the
+  provider-boundary, compat-layer, and `provider.yaml`
+  expectations apply.
+- `providers/<name>/AGENTS.md` if present — provider-specific
+  rules (e.g.
+  [`providers/elasticsearch/AGENTS.md`](../../../providers/elasticsearch/AGENTS.md),
+  [`providers/opensearch/AGENTS.md`](../../../providers/opensearch/AGENTS.md)).
+
+If the provider's tree has no `AGENTS.md`, the repo-wide rules
+are still in effect.
 
 ---
 
 ## Security model — calibration
 
-When you spot something that looks security-flavoured, check
-against the documented security model
-([`airflow-core/docs/security/security_model.rst`](../../../airflow-core/docs/security/security_model.rst))
-**before** flagging:
+Before flagging anything that looks security-flavoured, read
+the documented security model at
+[`airflow-core/docs/security/security_model.rst`](../../../airflow-core/docs/security/security_model.rst)
+and the
+[`AGENTS.md` § Security Model](../../../AGENTS.md#security-model)
+calibration guide. The latter is short and tells you how to
+distinguish:
 
-1. **Actual vulnerability** — code violates the documented
-   model (e.g. a worker gaining DB access; an unauthenticated
-   user reaching a protected endpoint). Flag as a blocking
-   finding.
-2. **Known limitation** — already-documented gap (DFP/Triggerer
-   DB access, shared Execution API resources, multi-team
-   gaps). **Do not flag as a new finding** — it's intentional.
-3. **Deployment hardening** — measure the deployment manager
-   could take (per-component config, asymmetric JWT keys,
-   network policies). Belongs in deployment guidance, not as
-   a code finding.
+1. an **actual vulnerability** that violates the documented
+   model — flag as blocking,
+2. a **known limitation** that's already documented as
+   intentional — do not flag,
+3. a **deployment-hardening opportunity** — belongs in
+   deployment guidance, not as a code finding.
 
-The `AGENTS.md` "Security Model" section calls this out
-explicitly; quote it when downgrading what looked like a
-finding.
+When the skill downgrades what looked like a finding because
+the documented model permits it, the review body **quotes the
+relevant model paragraph** so the contributor sees the
+calibration explicitly. Don't paraphrase.
 
 ---
 
 ## Backports and version-specific PRs
 
 Branch `vX-Y-test` PRs are backports of already-merged `main`
-work. The review bar is:
+work. They aren't called out in the repo-wide files, so the
+calibration is local to this skill:
 
 - **Diff parity**: does this match what was merged on `main`?
-- **Cherry-pick conflicts**: any resolution introduced new
+- **Cherry-pick conflicts**: did the resolution introduce new
   changes that need scrutiny?
 - **API/migration version markers**: backports should not
   introduce new Cadwyn version bumps; if they do, that's a
-  finding.
+  finding (cite
+  [`code-review.instructions.md` § API Correctness](../../../.github/instructions/code-review.instructions.md#api-correctness)).
 
 For these PRs, prefer `COMMENT` over `REQUEST_CHANGES` unless
 the cherry-pick has clearly drifted from the `main` change.
 
 ---
 
+## Conflict between source rules
+
+If the per-area `AGENTS.md` rules **conflict** with the
+repo-wide ones (rare; usually a more specific override), the
+more specific one wins — but the conflict is surfaced to the
+maintainer for explicit acceptance during disposition pick
+(see [`review-flow.md`](review-flow.md)).
+
+---
+
 ## When in doubt — defer
 
-If after reading the diff you're not sure whether something is a
-finding or just a style preference, **do not flag it**. Surface
-the uncertainty to the maintainer (one line: *"Hmm — line N
-does X, which I'm not sure violates the rules; flagging for
-your eye."*) and let them decide. The cost of an over-zealous
-auto-finding is a contributor who feels nitpicked; the cost of
-a missed nit is one round of back-and-forth a maintainer can
-catch easily on their own pass.
+If after reading the diff you're not sure whether something is
+a finding or just a style preference, **do not flag it**.
+Surface the uncertainty to the maintainer (one line:
+*"Hmm — line N does X, which I'm not sure violates the rules;
+flagging for your eye."*) and let them decide. The cost of an
+over-zealous auto-finding is a contributor who feels
+nitpicked; the cost of a missed nit is one round of
+back-and-forth a maintainer can catch easily on their own
+pass.

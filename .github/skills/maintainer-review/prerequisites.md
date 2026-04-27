@@ -46,58 +46,70 @@ maintainer to run `gh auth login`. Do not proceed.
 
 ---
 
-## 2. Detect locally-configured adversarial reviewer (DEGRADES)
+## 2. Resolve adversarial-reviewer configuration (DEGRADES)
 
-The skill checks for a second-reviewer plugin / configuration so
-it can propose invoking it during the per-PR flow (see
-[`adversarial.md`](adversarial.md)). Today the skill knows about
-one explicitly:
+The skill does not auto-discover plugins or scan installed
+extensions. Adversarial-reviewer integration is opt-in: the
+maintainer names the slash command at invocation time, or
+documents it in their agent-instructions file.
 
-### OpenAI Codex plugin (`codex@openai-codex`)
+In priority order:
 
-```bash
-jq -e '.plugins["codex@openai-codex"]' \
-  ~/.claude/plugins/installed_plugins.json >/dev/null 2>&1 \
-  && echo "codex installed" \
-  || echo "codex not installed"
-```
+1. **`with-reviewer:<command>` selector** on the current
+   invocation — wins over everything else; the maintainer is
+   explicit.
+2. **Project-scope `AGENTS.md`** at the repo root, if it has a
+   `## Review preferences` (or equivalent) section that names
+   a slash command.
+3. **Harness-specific project file** (e.g. `.claude/CLAUDE.md`)
+   under the working directory, same convention.
+4. **User-scope harness file** (e.g. `~/.claude/CLAUDE.md`),
+   same convention.
 
-If installed, announce once at session start:
+If a command is found, announce once at session start:
 
-> *Adversarial reviewer detected: `codex@openai-codex`. After
-> my review of each PR I'll propose `/codex:adversarial-review`
-> so we get a second read.*
+> *Adversarial reviewer configured: `<COMMAND>`. After my
+> review of each PR I'll propose typing it so we get a
+> second read.*
 
-If the maintainer passed `no-adversarial`, skip the per-PR
-proposal entirely (still announce: *"adversarial reviewer
-disabled for this session"*).
+If none is found, announce:
 
-### Other / future reviewers
+> *No adversarial reviewer configured. Reviews this session
+> use only my own pass. Pass `with-reviewer:<command>` next
+> time if you want a second read.*
 
-If the maintainer has documented their own adversarial reviewer
-in **any of**:
+If the maintainer passed `no-adversarial` explicitly, skip the
+per-PR proposal regardless of what's configured (still
+announce: *"adversarial reviewer disabled for this session"*).
 
-- a project-scope memory file under
-  `~/.claude/projects/-<repo-slug>/memory/feedback_*.md` whose
-  body matches `/adversarial.review|second.reviewer/i`,
-- a project-scope `CLAUDE.md` rule under the working directory's
-  `.claude/CLAUDE.md` that mentions a slash-command-driven
-  reviewer,
-- the user-scope `~/.claude/CLAUDE.md` mentioning the same,
-
-…surface the rule's `How to apply:` instruction once at session
-start and follow it during the per-PR flow. Do not try to
-auto-discover *new* adversarial reviewers; if the user installs
-one the skill doesn't know about, the user names it explicitly
-when invoking the skill (e.g. `maintainer-review with-reviewer:foo`).
+See [`adversarial.md`](adversarial.md) for the full integration
+mechanics — including why the assistant proposes the slash
+command but never fires it.
 
 ---
 
-## 3. Resolve the selector (DEGRADES)
+## 3. Resolve the selector and compute working set (DEGRADES)
 
 Translate the selector from [`selectors.md`](selectors.md) into a
-GraphQL query and fetch the working list. If the selector
-produces zero PRs, say so and exit:
+GraphQL query and fetch the working list. The default selector
+is the union of two signals:
+
+1. **Review-requested** — open PRs where review is requested
+   from `<viewer>`.
+2. **Touching files I've been working on** — open PRs that
+   change any file in the maintainer's "active set" (files
+   from the maintainer's open PRs on `<repo>` and files the
+   maintainer has authored commits to on the base branch in
+   the past 30 days). See
+   [`selectors.md#touching-mine`](selectors.md) for the exact
+   queries and how to tune the window with `since:<window>`.
+
+The active-set computation runs once at the start of the
+session and is cached for the rest of the run. It uses local
+`git log` against `<base>` plus a small batch of `gh` calls,
+so it stays well under the maintainer's GraphQL budget.
+
+If the selector produces zero PRs, say so and exit:
 
 > *No PRs match `<selector>` on `<repo>`. Nothing to review.*
 

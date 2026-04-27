@@ -272,21 +272,21 @@ the others).
 
 ## Adversarial-reviewer attribution
 
-When a finding came from the adversarial reviewer (Codex),
-mark it inline:
+When a finding came from the adversarial reviewer, mark it
+inline:
 
 ```markdown
 ### Blocking — Race condition on lock release (`scheduler.py:312`)
 
 […]
 
-*Flagged by Codex; cross-checked.*
+*Flagged by the adversarial reviewer; cross-checked.*
 ```
 
 When two reviewers landed on the same finding:
 
 ```markdown
-*Flagged by both Claude and Codex.*
+*Flagged by both the primary and adversarial reviewers.*
 ```
 
 This makes the contributor's mental model accurate — they're
@@ -298,9 +298,10 @@ agreed.
 
 ## Confirm-before-post
 
-Per the user's personal `~/.claude/CLAUDE.md` rule on
-confirmation before sending messages on the maintainer's
-behalf, the post step is **always** preceded by:
+The maintainer's harness-level instructions (`AGENTS.md`,
+`~/.claude/CLAUDE.md`) typically include a "confirm before
+sending" rule for any message authored on their behalf. The
+post step is **always** preceded by:
 
 > *Drafted review (disposition: `<DISP>`):*
 >
@@ -319,17 +320,17 @@ exact text it approved.
 
 ## Per-tone overrides
 
-The user's personal `~/.claude/CLAUDE.md` defines tone overrides
-for specific contributors (e.g. `Sebb` → polite-but-firm,
-`Jim Jagielski` → sharper edge with light humour). When the PR
-author or commenter matches one of those names, the **summary
-line** and the body wording shift accordingly. The findings
+If the maintainer's harness-level instructions (`AGENTS.md`,
+`~/.claude/CLAUDE.md`) define **per-contributor tone overrides**
+— e.g. one contributor expects a sharper register, another
+gets a more measured tone — the **summary line** and body
+wording for the affected PR shift accordingly. The findings
 themselves don't change; the framing does.
 
 If a tone override applies, surface it before the maintainer
 confirms the body:
 
-> *Tone override active for `<author>` per personal CLAUDE.md
+> *Tone override active for `<author>` per harness instructions
 > (`<override-summary>`). Drafted body reflects that — please
 > double-check.*
 

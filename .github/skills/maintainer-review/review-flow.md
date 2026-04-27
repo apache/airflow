@@ -33,9 +33,17 @@ PR #65934 — Fix scheduler N+1 on serialized DAG load
   CI:     ✅ SUCCESS  •  Threads: 0 unresolved  •  Reviews: 0
   Files:  3 changed  +47 −12
   Labels: area:scheduler
-
-  Triggered me as reviewer 2 days ago.
+  Match:  [both] — review-requested 2 days ago; touches
+                   airflow-core/src/airflow/jobs/scheduler_job_runner.py
 ```
+
+The `Match:` line carries the chip computed in Step 1 of
+`SKILL.md`. It is one of:
+
+- `[review-requested] — N days ago`
+- `[touches: <path>]` (or `[touches: <path> +N more]` if the
+  PR matches multiple active-set files)
+- `[both] — review-requested N days ago; touches <path>`
 
 The headline is your at-a-glance frame. Below it, ask:
 
@@ -103,33 +111,29 @@ as a finding (don't fail the review on it alone).
 ## Step 4 — Examine the diff
 
 **Read** the diff line-by-line, classifying findings into the
-categories from [`criteria.md`](criteria.md):
+categories from [`criteria.md`](criteria.md). The skill does
+**not** carry its own copy of the rules — for each category,
+read the source section linked from `criteria.md` and quote
+from it verbatim when raising a finding:
 
-1. **Architecture boundaries** — scheduler/worker/DFP/triggerer
-   isolation; provider-to-core imports.
-2. **Database / query correctness** — N+1, `run_id` without
-   `dag_id`, `session.commit()` in `airflow-core`, non-keyword
-   `session`, DB-specific SQL.
-3. **Code quality** — `assert`, `time.time()` for durations,
-   non-top-level imports, unbounded `lru_cache`, unguarded
-   heavy imports, missing context managers, raising broad
-   `AirflowException`, missing license header.
-4. **Testing** — missing tests for new behavior,
-   `unittest.TestCase`, unspec'd mocks, `time.sleep` /
-   `datetime.now()` in tests, issue numbers in docstrings,
-   missing regression tests for bug fixes, modified existing
-   tests, `caplog`, unwarranted newsfragments.
-5. **API correctness** — mapped TI without `map_index`,
-   Execution API changes without Cadwyn migration.
-6. **UI** — derived-state `useState + useEffect`, copy-paste
-   instead of hooks.
-7. **Generated files** — manual edits to `openapi-gen/` or
-   generated SDK models.
-8. **AI-generated-code signals** — fabricated diffs, unrelated
-   files, description-vs-code mismatch, no test evidence,
-   over-engineering, narrating comments, empty body.
+1. **Architecture boundaries** — see
+   [`criteria.md` § Architecture boundaries](criteria.md#architecture-boundaries).
+2. **Database / query correctness** —
+   [`criteria.md` § Database / query correctness](criteria.md#database--query-correctness).
+3. **Code quality** —
+   [`criteria.md` § Code quality](criteria.md#code-quality).
+4. **Testing** —
+   [`criteria.md` § Testing](criteria.md#testing).
+5. **API correctness** —
+   [`criteria.md` § API correctness](criteria.md#api-correctness).
+6. **UI** —
+   [`criteria.md` § UI (React/TypeScript)](criteria.md#ui-reacttypescript).
+7. **Generated files** —
+   [`criteria.md` § Generated files](criteria.md#generated-files).
+8. **AI-generated code signals** —
+   [`criteria.md` § AI-generated code signals](criteria.md#ai-generated-code-signals).
 9. **Per-area `AGENTS.md` rules** — anything specific to the
-   touched tree.
+   touched tree (the per-PR `AGENTS.md` discovery in Step 2).
 
 For each finding, record:
 
@@ -137,34 +141,48 @@ For each finding, record:
 - file: providers/foo/src/airflow/providers/foo/hook.py
   line: 142
   rule_source: .github/instructions/code-review.instructions.md
-  rule_id: "Imports inside function bodies"
+  rule_section: "#code-quality-rules"
+  rule_id: |
+    a short identifier copied verbatim from the source rule
+    (e.g. "Flag any from or import statement inside a function
+    or method body")
   quoted_rule: |
-    Flag any `from` or `import` statement inside a function or
-    method body. Imports must be at the top of the file. The
-    only valid exceptions are: (1) circular import avoidance,
-    (2) lazy loading for worker isolation, (3) `TYPE_CHECKING`
-    blocks.
+    paste the rule paragraph verbatim from the source file —
+    never paraphrase. The contributor will read this; the
+    source link is what makes a finding defensible.
   excerpt: |
     def get_client():
-        import boto3  # ← this should be at module level
+        import boto3  # ← arrow at the offending line
         return boto3.client(...)
   severity: nit | minor | major | blocking
   suggestion: |
-    Move `import boto3` to the top of the file (line 5).
+    short, concrete fix. If short enough, also include a
+    GitHub `suggestion` block in the eventual review body
+    (see posting.md).
 ```
 
-**Severity heuristic** (use sparingly — most findings are
-`minor` or `major`):
+If the source rule has no anchor that fits, link to the
+section header (`rule_section`) and let the reader find the
+exact paragraph. The point is to avoid restating the rule in
+the finding; restating drifts.
+
+**Severity heuristic** (use sparingly):
 
 - `nit` — style or wording, not a bug. Don't escalate to
   `REQUEST_CHANGES` for nits alone.
 - `minor` — quality issue (missing test, narrating comment,
   unguarded heavy import that doesn't actively break anything).
-- `major` — likely a bug (N+1, `assert` in prod code,
-  `session.commit()` in core, `run_id` without `dag_id`).
-- `blocking` — security or correctness violation (worker
-  reaching DB; scheduler running user code; SQL injection;
-  missing migration on a public-API change).
+- `major` — likely a bug. Use when the source rule's wording
+  signals a *correctness* concern (the source files use words
+  like *"silent no-op in production"*, *"silently collide
+  across DAGs"*, *"hides real bugs"* — those calibrate as
+  major).
+- `blocking` — security or correctness violation that the
+  documented model treats as one (worker reaching DB,
+  scheduler running user code, SQL injection, missing
+  migration on a public-API change). Calibrate against
+  [`AGENTS.md` § Security Model](../../../AGENTS.md#security-model)
+  before assigning.
 
 A single `blocking` finding pushes the disposition to
 `REQUEST_CHANGES`. Multiple `major` findings push to
@@ -176,25 +194,29 @@ Zero findings, plus green CI, plus all threads resolved →
 
 ## Step 5 — (Optional) Adversarial reviewer
 
-If a second reviewer was detected at session start (see
+If an adversarial reviewer was configured at session start (see
 [`prerequisites.md`](prerequisites.md)) and the maintainer
-hasn't passed `no-adversarial`, **propose** invoking it now. The
-exact mechanic depends on the reviewer; for the OpenAI Codex
-plugin, see [`adversarial.md`](adversarial.md).
+hasn't passed `no-adversarial`, **propose** invoking it now.
+See [`adversarial.md`](adversarial.md) for full mechanics.
 
 The proposal is:
 
-> *Now I'd like a second read. Want me to wait while you run
-> `/codex:adversarial-review`? `[Y]es` (default), `[N]o`,
-> `[Q]uit`.*
+> *Now I'd like a second read. Type `<ADVERSARIAL_COMMAND>`
+> and I'll wait. Or `[N]o` / `[Q]uit` to skip.*
 
-If the maintainer says `[Y]`, the skill **pauses**. The
-maintainer fires the slash command (the assistant cannot do
-this — see [`adversarial.md`](adversarial.md)). When Codex's
-output appears in the conversation, the skill folds the new
-findings into the list from Step 4 (deduplicate where the two
-reviewers landed on the same line; mark each finding with its
-source: `claude` / `codex` / `both`).
+`<ADVERSARIAL_COMMAND>` is the slash command resolved at
+session start (from the `with-reviewer:` selector or a
+"Review preferences" entry in the maintainer's
+agent-instructions file). The assistant types it back literally
+so the maintainer can copy-paste — it does not paraphrase or
+rename it.
+
+If the maintainer types the command, the skill **pauses**.
+When the second reviewer's output appears in the conversation,
+the skill folds the new findings into the list from Step 4
+(deduplicate where the two reviewers landed on the same line;
+mark each finding with its source:
+`primary` / `adversarial` / `both`).
 
 If the maintainer says `[N]`, proceed without; note in the
 session summary that this PR did not have adversarial coverage.
@@ -249,8 +271,10 @@ The composed body is shown to the maintainer in full:
 > *Post as-is? `[Y]es`, `[E]dit`, `[S]kip-for-now`, `[Q]uit`.*
 
 Hold for explicit confirmation. Substantive edits trigger a
-re-show of the new body before posting (per the user's
-personal CLAUDE.md rule on confirmation before sending).
+re-show of the new body before posting (the maintainer's
+harness-level instructions — `AGENTS.md`, `~/.claude/CLAUDE.md`
+— typically include a "confirm before sending" rule; this step
+honours it).
 
 ---
 

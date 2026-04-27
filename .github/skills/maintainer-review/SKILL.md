@@ -94,14 +94,16 @@ A summary checklist lives in [`criteria.md`](criteria.md) for
 quick reference, but the source files are the ground truth.
 
 **Golden rule 4 — adversarial reviewers are additive, not
-substitutes.** If the maintainer has a second AI reviewer
-configured locally (today: the OpenAI Codex plugin), the skill
+substitutes.** If the maintainer has named a second LLM
+reviewer (via the `with-reviewer:` selector or a "Review
+preferences" entry in their agent-instructions file —
+`AGENTS.md` or a harness-specific equivalent), the skill
 proposes invoking it **in addition** to its own pass — not
-instead of. Codex is run *after* the skill has drafted its own
-findings, so the maintainer can see two independent reads. See
-[`adversarial.md`](adversarial.md) for the
-"assistant-proposes-user-fires" pattern (the assistant cannot
-itself invoke `/codex:` slash commands).
+instead of. The second reviewer runs *after* the skill has
+drafted its own findings, so the maintainer can see two
+independent reads. See [`adversarial.md`](adversarial.md) for
+the "assistant-proposes-user-fires" pattern (slash commands
+cannot be invoked from the assistant side).
 
 **Golden rule 5 — every review body ends with the AI-attribution
 footer.** Reviews this skill posts are AI-drafted on the
@@ -165,21 +167,26 @@ query:
 
 | Selector | Resolves to |
 |---|---|
-| (no selector — default) | open PRs where review is requested from `<viewer>` (individually, not via team), most recently updated first |
+| (no selector — default) | union of (a) open PRs where review is requested from `<viewer>` and (b) open PRs that touch files `<viewer>` has been actively working on (open PRs by `<viewer>` + recent commits on `<base>` by `<viewer>`); de-duplicated, most recently updated first |
 | `pr:<N>` | the single PR number `<N>` — useful for a one-off review or re-review after a push |
-| `area:<LBL>` | open PRs where review is requested from `<viewer>` **and** the PR carries label `area:<LBL>` (or matches the wildcard, e.g. `area:provider*`, `area:scheduler`, `provider:amazon`) |
+| `area:<LBL>` | additionally require the PR carry label `area:<LBL>` (or matches the wildcard, e.g. `area:provider*`, `area:scheduler`, `provider:amazon`) |
 | `collab:true` | restrict to PRs whose author is a collaborator on `<repo>` (`COLLABORATOR`/`MEMBER`/`OWNER` author association) |
 | `collab:false` | restrict to PRs whose author is **not** a collaborator (`CONTRIBUTOR`/`FIRST_TIME_CONTRIBUTOR`/`NONE`) |
 | `team:<NAME>` | open PRs where review is requested from team `<NAME>` that `<viewer>` belongs to |
 | `ready` | open PRs carrying the `ready for maintainer review` label (review-requested OR not, regardless of whether `<viewer>` is on the request list) — useful when the maintainer wants to pick from the curated triage queue rather than only their own assignments |
+| `mine-only` | drop the review-requested half of the default; use only the touching-mine signal |
+| `requested-only` | drop the touching-mine half of the default; use only the review-requested signal |
+| `since:<window>` | tune the recency window for the touching-mine main-branch source (default `30d`; accepts `7d`, `2w`, `90d`, …) |
+| `with-reviewer:<command>` | name the slash command the skill should propose at Step 5 for second-read coverage |
 | `repo:<owner>/<name>` | override the target repository |
 | `max:<N>` | stop after `<N>` PRs have been reviewed this session |
 | `dry-run` | examine and draft but refuse to actually post any review |
-| `no-adversarial` | skip the optional adversarial-reviewer step even if a plugin is configured |
+| `no-adversarial` | skip the optional adversarial-reviewer step for this session |
 
 Selectors compose: `area:scheduler collab:false max:5` means
-"first five non-collaborator PRs in `area:scheduler` where I'm a
-reviewer."
+"first five non-collaborator PRs in `area:scheduler` that I'm
+either a requested reviewer on or that touch files I've been
+working on."
 
 If the resolved query produces zero PRs, the skill says so
 explicitly and exits — it does not silently widen the search.
@@ -201,13 +208,15 @@ touching any PR:
    account must be a collaborator on `<repo>` (without
    collaborator access, posting reviews via `gh pr review` will
    silently fail with a permission error).
-2. Detect any locally-configured adversarial reviewer (today:
-   the `codex@openai-codex` plugin in
-   `~/.claude/plugins/installed_plugins.json`). Note presence,
-   announce it once at session start; the per-PR flow will
-   propose using it.
-3. Resolve the selector against `<repo>` and produce the working
-   list of PR numbers to review, in order.
+2. Resolve adversarial-reviewer configuration — the
+   `with-reviewer:` selector wins; otherwise check the
+   maintainer's agent-instructions file (`AGENTS.md` first,
+   then any harness-specific `CLAUDE.md`) for a "Review
+   preferences" entry. Announce the resolution once at session
+   start.
+3. Resolve the selector against `<repo>`, including the
+   touching-mine active-set computation, and produce the
+   working list of PR numbers to review, in order.
 
 A failure of step 1 is a **stop** — surface it and ask the
 maintainer to run `gh auth login`. Steps 2 and 3 degrade
@@ -217,13 +226,19 @@ gracefully.
 
 ## Step 1 — Resolve the selector and fetch the working list
 
-Translate the selector into the GraphQL PR-list query from
-[`selectors.md`](selectors.md). Fetch the PR list eagerly (one
-page is usually enough — review-requested queues are small for
-any one maintainer; if the maintainer asks for `ready` or
-`area:*` it may grow, but rarely past 50). For each PR on the
-list, capture only the headline data needed to **decide whether
-to start the review**:
+Translate the selector into the GraphQL queries from
+[`selectors.md`](selectors.md). The default runs **both** halves
+of the union (review-requested + touching-mine), de-duplicates,
+and assigns each PR a **match-reason chip**:
+
+- `[review-requested]` — review explicitly requested from
+  `<viewer>`
+- `[touches: <path>]` — review not explicitly requested, but
+  the PR touches a file in the active set (path = first match)
+- `[both]` — both signals fire on the same PR
+
+For each PR on the list, capture only the headline data needed
+to **decide whether to start the review**:
 
 - PR number, title, author, author association
 - head SHA, base ref, draft flag, mergeable state
@@ -231,10 +246,15 @@ to start the review**:
 - count of unresolved review threads
 - labels
 - last-activity timestamp
+- match-reason chip (carried into the per-PR headline)
 
-Do not fetch diffs at this stage. The diff for PR N+1 is fetched
-in parallel while the maintainer reviews PR N (see
-[`review-flow.md#prefetch`](review-flow.md)).
+Do not fetch full diffs at this stage. The
+touching-mine path-intersection only needs the per-PR
+`files[].path` list, which the GraphQL query in
+[`selectors.md`](selectors.md) returns alongside the metadata.
+The full diff for PR N+1 is fetched in parallel while the
+maintainer reviews PR N (see
+[`review-flow.md#area-specific-overlay`](review-flow.md)).
 
 ---
 
@@ -333,7 +353,11 @@ writes a session log to disk.
 | `area:<LBL>` | restrict to PRs carrying `area:<LBL>` (wildcards supported) |
 | `collab:true|false` | restrict to PRs whose author is / isn't a collaborator |
 | `team:<NAME>` | restrict to PRs requesting review from a team `<viewer>` is on |
-| `ready` | source from the `ready for maintainer review` label instead of review-requested |
+| `ready` | source from the `ready for maintainer review` label instead of the default union |
+| `mine-only` | drop the review-requested half of the default; touching-mine signal only |
+| `requested-only` | drop the touching-mine half of the default; review-requested only |
+| `since:<window>` | tune the touching-mine main-branch recency window (default `30d`) |
+| `with-reviewer:<command>` | name the slash command to propose for second-read coverage |
 | `repo:<owner>/<name>` | override the target repository |
 | `max:<N>` | stop after `<N>` PRs reviewed |
 | `dry-run` | draft but never post |
