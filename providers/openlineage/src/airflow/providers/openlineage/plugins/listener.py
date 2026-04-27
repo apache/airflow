@@ -87,7 +87,10 @@ def _executor_initializer():
     try:
         from airflow.observability.metrics import stats_utils
 
-        Stats.initialize(factory=stats_utils.get_stats_factory(Stats))
+        Stats.initialize(
+            factory=stats_utils.get_stats_factory(),
+            export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+        )
     except ImportError:
         # ``stats_utils`` lives under ``airflow.observability.metrics`` in current Airflow; if the
         # import path changes or is unavailable, fall through silently — gauge calls will simply
