@@ -138,14 +138,34 @@ class AzureSynapsePipelineTrigger(BaseTrigger):
                         await hook.refresh_conn()
                         executed_after_token_refresh = False
 
-                await hook.cancel_pipeline_run(self.run_id)
-                yield TriggerEvent(
-                    {
-                        "status": "error",
-                        "message": f"Timeout waiting for pipeline run {self.run_id}.",
-                        "run_id": self.run_id,
-                    }
-                )
+                try:
+                    pipeline_status = await hook.get_pipeline_run_status(self.run_id)
+
+                except ServiceRequestError:
+                    # Azure token may expire after timeout period has elapsed.
+                    await hook.refresh_conn()
+                    pipeline_status = await hook.get_pipeline_run_status(self.run_id)
+
+                # Yielding terminal event in case pipeline reaches terminal state
+                # i.e. FAILED/SUCCEEDED during last sleep.
+                event = self._build_trigger_event(pipeline_status)
+
+                if event:
+                    yield event
+                    return
+
+                try:
+                    await hook.cancel_pipeline_run(self.run_id)
+                except Exception:
+                    self.log.exception("Pipeline %s cancellation failed.", self.run_id)
+                finally:
+                    yield TriggerEvent(
+                        {
+                            "status": "error",
+                            "message": f"Timeout waiting for pipeline run {self.run_id}.",
+                            "run_id": self.run_id,
+                        }
+                    )
 
             except Exception as e:
                 self.log.exception(e)

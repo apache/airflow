@@ -205,7 +205,7 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
         time the trigger will wait before emitting a timeout event. Used only if ``wait_for_termination`` is True.
     :param check_interval: Time in seconds to check on a pipeline run's status for non-asynchronous waits.
         Used only if ``wait_for_termination`` is True.
-    :param deferrable: Run operator in deferrable mode. Used only if ``wait_for_termination`` is True. Default is False.
+    :param deferrable: Run operator in deferrable mode.
     """
 
     template_fields: Sequence[str] = ("azure_synapse_conn_id",)

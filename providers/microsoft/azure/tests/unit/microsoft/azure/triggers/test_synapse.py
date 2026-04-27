@@ -17,11 +17,11 @@
 
 from __future__ import annotations
 
-import asyncio
 import time
 from unittest import mock
 
 import pytest
+from azure.core.exceptions import ServiceRequestError
 
 from airflow.providers.microsoft.azure.triggers.synapse import (
     AzureSynapsePipelineRunStatus,
@@ -115,20 +115,107 @@ class TestAzureSynapsePipelineTrigger:
         )
 
     @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.hooks.synapse.AzureSynapsePipelineAsyncHook.cancel_pipeline_run")
     @mock.patch(f"{MODULE}.hooks.synapse.AzureSynapsePipelineAsyncHook.get_pipeline_run_status")
-    async def test_trigger_waiting(self, mock_status):
-        mock_status.return_value = AzureSynapsePipelineRunStatus.QUEUED
+    async def test_trigger_exception(self, mock_status, mock_cancel):
+        mock_status.side_effect = Exception("API failure")
 
-        task = asyncio.create_task(self.TRIGGER.run().__anext__())
+        events = [event async for event in self.TRIGGER.run()]
 
-        await asyncio.sleep(0.5)
+        mock_cancel.assert_awaited_once_with(RUN_ID)
 
-        assert task.done() is False
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "error",
+                    "message": "API failure",
+                    "run_id": RUN_ID,
+                }
+            )
+        ]
 
     @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.triggers.synapse.asyncio.sleep", new_callable=mock.AsyncMock)
+    @mock.patch(f"{MODULE}.hooks.synapse.AzureSynapsePipelineAsyncHook.refresh_conn")
     @mock.patch(f"{MODULE}.hooks.synapse.AzureSynapsePipelineAsyncHook.get_pipeline_run_status")
-    async def test_trigger_exception(self, mock_status):
-        mock_status.side_effect = Exception("API failure")
+    async def test_trigger_refresh_on_service_request_error(self, mock_status, mock_refresh, _mock_sleep):
+        mock_status.side_effect = [
+            ServiceRequestError("token expired"),
+            AzureSynapsePipelineRunStatus.SUCCEEDED,
+        ]
+
+        events = [event async for event in self.TRIGGER.run()]
+
+        mock_refresh.assert_awaited_once()
+
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "success",
+                    "message": f"Pipeline run {RUN_ID} succeeded.",
+                    "run_id": RUN_ID,
+                }
+            )
+        ]
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.triggers.synapse.time")
+    @mock.patch(f"{MODULE}.hooks.synapse.AzureSynapsePipelineAsyncHook.cancel_pipeline_run")
+    @mock.patch(f"{MODULE}.hooks.synapse.AzureSynapsePipelineAsyncHook.get_pipeline_run_status")
+    async def test_trigger_timeout_pipeline_already_succeeded(self, mock_status, mock_cancel, mock_time):
+        mock_status.return_value = AzureSynapsePipelineRunStatus.SUCCEEDED
+
+        mock_time.time.return_value = AZ_PIPELINE_END_TIME + 60
+
+        events = [event async for event in self.TRIGGER.run()]
+
+        mock_cancel.assert_not_awaited()
+
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "success",
+                    "message": f"Pipeline run {RUN_ID} succeeded.",
+                    "run_id": RUN_ID,
+                }
+            )
+        ]
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.triggers.synapse.time")
+    @mock.patch(f"{MODULE}.hooks.synapse.AzureSynapsePipelineAsyncHook.cancel_pipeline_run")
+    @mock.patch(f"{MODULE}.hooks.synapse.AzureSynapsePipelineAsyncHook.get_pipeline_run_status")
+    async def test_trigger_timeout_cancellation(self, mock_status, mock_cancel, mock_time):
+
+        mock_status.return_value = AzureSynapsePipelineRunStatus.IN_PROGRESS
+
+        mock_time.time.return_value = AZ_PIPELINE_END_TIME + 60
+
+        events = [event async for event in self.TRIGGER.run()]
+
+        mock_cancel.assert_awaited_once_with(RUN_ID)
+
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "error",
+                    "message": f"Timeout waiting for pipeline run {RUN_ID}.",
+                    "run_id": RUN_ID,
+                }
+            )
+        ]
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.triggers.synapse.time")
+    @mock.patch(f"{MODULE}.hooks.synapse.AzureSynapsePipelineAsyncHook.cancel_pipeline_run")
+    @mock.patch(f"{MODULE}.hooks.synapse.AzureSynapsePipelineAsyncHook.get_pipeline_run_status")
+    async def test_trigger_timeout_cancel_failure_still_yields_timeout(
+        self, mock_status, mock_cancel, mock_time
+    ):
+        mock_status.return_value = AzureSynapsePipelineRunStatus.IN_PROGRESS
+        mock_cancel.side_effect = Exception("cancel failed")
+
+        mock_time.time.return_value = AZ_PIPELINE_END_TIME + 60
 
         events = [event async for event in self.TRIGGER.run()]
 
@@ -136,7 +223,7 @@ class TestAzureSynapsePipelineTrigger:
             TriggerEvent(
                 {
                     "status": "error",
-                    "message": "API failure",
+                    "message": f"Timeout waiting for pipeline run {RUN_ID}.",
                     "run_id": RUN_ID,
                 }
             )

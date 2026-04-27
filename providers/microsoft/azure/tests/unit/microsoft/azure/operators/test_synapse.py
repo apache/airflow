@@ -488,7 +488,12 @@ class TestAzureSynapseRunPipelineOperatorWithDeferrable:
         with pytest.raises(TaskDeferred) as exc:
             self.task.execute(context=self.create_context(self.task))
 
-        assert isinstance(exc.value.trigger, AzureSynapsePipelineTrigger)
+        trigger = exc.value.trigger
+
+        assert isinstance(trigger, AzureSynapsePipelineTrigger)
+
+        assert trigger.run_id == PIPELINE_RUN_RESPONSE["run_id"]
+        assert trigger.check_interval == self.task.check_interval
 
     @pytest.mark.db_test
     def test_synapse_run_pipeline_operator_async_execute_complete_success(self):
@@ -516,6 +521,19 @@ class TestAzureSynapseRunPipelineOperatorWithDeferrable:
                     "message": "error",
                     "run_id": PIPELINE_RUN_RESPONSE["run_id"],
                 },
+            )
+
+    @pytest.mark.db_test
+    def test_execute_complete_no_event(self):
+        with pytest.raises(AzureSynapsePipelineRunException, match="no event"):
+            self.task.execute_complete(context={}, event=None)
+
+    @pytest.mark.db_test
+    def test_execute_complete_unexpected_event(self):
+        with pytest.raises(AzureSynapsePipelineRunException, match="Unexpected"):
+            self.task.execute_complete(
+                context={},
+                event={"status": "unknown", "message": "??"},
             )
 
     @pytest.mark.db_test
