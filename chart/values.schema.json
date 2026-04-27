@@ -10093,11 +10093,6 @@
                     "description": "OTel Collector OTLP gRPC port.",
                     "type": "integer",
                     "default": 4317
-                },
-                "otelCollectorScrape": {
-                    "description": "OTel Collector Prometheus scrape port.",
-                    "type": "integer",
-                    "default": 8889
                 }
             }
         },

@@ -52,8 +52,4 @@ spec:
       protocol: TCP
       port: {{ .Values.ports.otelCollectorOtlpHttp }}
       targetPort: {{ .Values.ports.otelCollectorOtlpHttp }}
-    - name: metrics
-      protocol: TCP
-      port: {{ .Values.ports.otelCollectorScrape }}
-      targetPort: {{ .Values.ports.otelCollectorScrape }}
 {{- end }}

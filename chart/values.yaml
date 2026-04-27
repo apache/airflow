@@ -3667,7 +3667,6 @@ ports:
   statsdScrape: 9102
   otelCollectorOtlpHttp: 4318
   otelCollectorOtlpGrpc: 4317
-  otelCollectorScrape: 8889
   pgbouncer: 6543
   pgbouncerScrape: 9127
   apiServer: 8080

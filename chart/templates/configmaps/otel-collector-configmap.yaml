@@ -57,8 +57,6 @@ data:
     exporters:
       logging:
         verbosity: basic
-      prometheus:
-        endpoint: "0.0.0.0:{{ .Values.ports.otelCollectorScrape }}"
 
     service:
       extensions: [health_check]
@@ -70,6 +68,6 @@ data:
         metrics:
           receivers: [otlp]
           processors: [batch]
-          exporters: [logging, prometheus]
+          exporters: [logging]
 {{- end }}
 {{- end }}

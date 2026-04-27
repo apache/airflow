@@ -90,9 +90,6 @@ spec:
             - name: otlp-http
               containerPort: {{ .Values.ports.otelCollectorOtlpHttp }}
               protocol: TCP
-            - name: metrics
-              containerPort: {{ .Values.ports.otelCollectorScrape }}
-              protocol: TCP
           livenessProbe:
             httpGet:
               path: /
