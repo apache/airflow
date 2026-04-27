@@ -20,7 +20,7 @@
 ################################
 ## OTel Collector ConfigMap
 ################################
-{{- if .Values.otelCollector.enabled }}
+{{- if or .Values.otelCollector.tracesEnabled .Values.otelCollector.metricsEnabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

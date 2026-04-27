@@ -20,7 +20,7 @@
 ################################
 ## OTel Collector Deployment
 ################################
-{{- if .Values.otelCollector.enabled }}
+{{- if or .Values.otelCollector.tracesEnabled .Values.otelCollector.metricsEnabled }}
 {{- $nodeSelector := or .Values.otelCollector.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.otelCollector.affinity .Values.affinity }}
 {{- $tolerations := or .Values.otelCollector.tolerations .Values.tolerations }}

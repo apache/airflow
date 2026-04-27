@@ -3185,13 +3185,10 @@ statsd:
 
 # OpenTelemetry Collector settings
 otelCollector:
-  enabled: true
-
   # Send Airflow traces to the OTel Collector (sets [traces] otel_on).
   tracesEnabled: true
 
   # Send Airflow metrics to the OTel Collector (sets [metrics] otel_on and disables statsd).
-  # Requires enabled: true.
   metricsEnabled: false
 
   # Max number of old ReplicaSets to retain

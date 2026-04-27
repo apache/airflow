@@ -20,7 +20,7 @@
 ################################
 ## OTel Collector Service
 ################################
-{{- if .Values.otelCollector.enabled }}
+{{- if or .Values.otelCollector.tracesEnabled .Values.otelCollector.metricsEnabled }}
 apiVersion: v1
 kind: Service
 metadata:
