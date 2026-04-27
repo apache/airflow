@@ -195,7 +195,7 @@ export const HITLTaskInstances = () => {
       createdAtGte,
       createdAtLte,
       dagId: dagId ?? "~",
-      dagIdPattern,
+      dagIdPrefixPattern: dagIdPattern,
       dagRunId: runId ?? "~",
       limit: pagination.pageSize,
       mapIndex: parseInt(mapIndex, 10),
@@ -209,7 +209,7 @@ export const HITLTaskInstances = () => {
       state: effectiveResponseReceived === "false" ? ["deferred"] : undefined,
       subjectSearch,
       taskId,
-      taskIdPattern,
+      taskIdPrefixPattern: taskIdPattern,
     },
     undefined,
     {

@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-opensearch"
-version = "1.9.0"
+version = "1.9.1"
 description = "Provider package apache-airflow-providers-opensearch for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -99,8 +99,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-opensearch/1.9.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-opensearch/1.9.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-opensearch/1.9.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-opensearch/1.9.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
@@ -112,3 +112,14 @@ provider_info = "airflow.providers.opensearch.get_provider_info:get_provider_inf
 
 [tool.flit.module]
 name = "airflow.providers.opensearch"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "docs/",
+    "provider.yaml",
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "tests/",
+]

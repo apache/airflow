@@ -67,7 +67,7 @@ Option A – Breeze on Your Laptop
 
     git clone https://github.com/<you>/airflow.git
     cd airflow
-    uv tool install -e ./dev/breeze
+    ./scripts/tools/setup_breeze
 
 2. Setup your idea workspace to detect project src/ and tests/ folders as source roots.
 
@@ -183,7 +183,7 @@ Option B – One-Click GitHub Codespaces
       uv tool install prek
       prek install -f
       prek install -f --hook-type pre-push # for running mypy checks when pushing to repo
-      uv tool install -e ./dev/breeze
+      ./scripts/tools/setup_breeze
       uv run dev/ide_setup/setup_vscode.py
       breeze start-airflow
 

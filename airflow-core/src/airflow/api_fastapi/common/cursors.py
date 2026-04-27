@@ -103,7 +103,7 @@ def encode_cursor(row: Any, sort_param: SortParam) -> str:
     if not resolved:
         raise ValueError("SortParam has no resolved columns.")
 
-    parts = [getattr(row, attr_name, None) for attr_name, _col, _desc in resolved]
+    parts = [sort_param.row_value(row, attr_name) for attr_name, _col, _desc in resolved]
     payload = msgspec.msgpack.encode(parts)
     return base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
 

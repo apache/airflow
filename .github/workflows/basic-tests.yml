@@ -352,8 +352,8 @@ jobs:
           --answer yes --dry-run
       - name: "Test providers metadata generation"
         run: |
-          git remote add apache https://github.com/apache/airflow.git
-          git fetch apache --tags
+          git remote add upstream https://github.com/apache/airflow.git
+          git fetch upstream --tags
           breeze release-management generate-providers-metadata --refresh-constraints-and-airflow-releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

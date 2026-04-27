@@ -162,7 +162,7 @@ class TestMigrateDatabaseJob:
     @pytest.mark.parametrize(
         ("use_default_image", "expected_image"),
         [
-            (True, "apache/airflow:2.11.0"),
+            (True, "apache/airflow:3.1.0"),
             (False, "apache/airflow:user-image"),
         ],
     )
@@ -170,7 +170,7 @@ class TestMigrateDatabaseJob:
         docs = render_chart(
             values={
                 "defaultAirflowRepository": "apache/airflow",
-                "defaultAirflowTag": "2.11.0",
+                "defaultAirflowTag": "3.1.0",
                 "images": {
                     "airflow": {
                         "repository": "apache/airflow",
@@ -351,12 +351,8 @@ class TestMigrateDatabaseJob:
         spec = jmespath.search("spec", docs[0])
         assert "ttlSecondsAfterFinished" not in spec
 
-    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
-    def test_default_command_and_args_airflow_version(self, airflow_version):
+    def test_default_command_and_args_airflow_version(self):
         docs = render_chart(
-            values={
-                "airflowVersion": airflow_version,
-            },
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
 
