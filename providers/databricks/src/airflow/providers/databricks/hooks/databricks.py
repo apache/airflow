@@ -303,13 +303,13 @@ class DatabricksHook(BaseDatabricksHook):
         response = self._do_api_call(CREATE_ENDPOINT, json)
         return response["job_id"]
 
-    def delete_job(self, job_id: int) -> None:
+    def delete_job(self, job_id: str | int) -> None:
         """
         Call the ``api/2.2/jobs/delete`` endpoint.
 
-        :param job_id: The unique identifier of the job to be deleted.
+        :param job_id: The unique identifier of the job to be deleted, as a string or integer.
         """
-        self._do_api_call(DELETE_ENDPOINT, {"job_id": job_id})
+        self._do_api_call(DELETE_ENDPOINT, {"job_id": int(job_id)})
 
     def reset_job(self, job_id: str, json: dict) -> None:
         """
