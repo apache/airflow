@@ -3226,6 +3226,10 @@ otelCollector:
   #         processors: [batch]
   #         exporters: [logging]
 
+  # Args to pass to the OTel Collector container (templated).
+  args:
+    - "--config=/etc/otel-collector/config.yml"
+
   # Max number of old ReplicaSets to retain
   revisionHistoryLimit: ~
 

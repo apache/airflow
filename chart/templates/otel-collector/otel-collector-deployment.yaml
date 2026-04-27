@@ -82,8 +82,7 @@ spec:
           image: {{ template "otel_collector_image" . }}
           imagePullPolicy: {{ .Values.images.otelCollector.pullPolicy }}
           securityContext: {{- toYaml .Values.otelCollector.securityContexts.container | nindent 12 }}
-          args:
-            - "--config=/etc/otel-collector/config.yml"
+          args: {{- tpl (toYaml .Values.otelCollector.args) . | nindent 12 }}
           ports:
             - name: otlp-grpc
               containerPort: {{ .Values.ports.otelCollectorOtlpGrpc }}

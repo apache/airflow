@@ -8660,6 +8660,19 @@
                     "type": "string",
                     "default": ""
                 },
+                "args": {
+                    "description": "Args to pass to the OTel Collector container (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "--config=/etc/otel-collector/config.yml"
+                    ]
+                },
                 "revisionHistoryLimit": {
                     "description": "Number of old ReplicaSets to retain.",
                     "type": [
