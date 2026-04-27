@@ -63,15 +63,7 @@ def upgrade():
         sa.Column("is_encrypted", sa.Boolean(), nullable=False, server_default="0"),
         sa.Column("is_extra_encrypted", sa.Boolean(), nullable=False, server_default="0"),
         sa.Column("commit_on_success", sa.Boolean(), nullable=False, server_default="0"),
-        sa.Column(
-            "active_connection_id",
-            sa.String(250),
-            sa.Computed(
-                "CASE WHEN state IN ('pending', 'queued', 'running') THEN connection_id ELSE NULL END",
-                persisted=True,
-            ),
-            nullable=True,
-        ),
+        sa.Column("active_connection_id", sa.String(250), nullable=True),
         sa.PrimaryKeyConstraint("id", name=op.f("connection_test_request_pkey")),
         sa.UniqueConstraint("token", name=op.f("connection_test_request_token_uq")),
         sa.UniqueConstraint(

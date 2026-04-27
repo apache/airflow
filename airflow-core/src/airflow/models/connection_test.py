@@ -27,7 +27,6 @@ import structlog
 import uuid6
 from sqlalchemy import (
     Boolean,
-    Computed,
     Index,
     Integer,
     String,
@@ -36,7 +35,7 @@ from sqlalchemy import (
     Uuid,
     select,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
@@ -112,16 +111,7 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
         Boolean, nullable=False, default=False, server_default="0"
     )
 
-    # NULL in terminal states so the UNIQUE constraint below only fires on
-    # active rows (NULLs don't collide in UNIQUE) — works on every backend.
-    active_connection_id: Mapped[str | None] = mapped_column(
-        String(250),
-        Computed(
-            "CASE WHEN state IN ('pending', 'queued', 'running') THEN connection_id ELSE NULL END",
-            persisted=True,
-        ),
-        nullable=True,
-    )
+    active_connection_id: Mapped[str | None] = mapped_column(String(250), nullable=True)
 
     __table_args__ = (
         Index("idx_connection_test_request_state_created_at", state, created_at),
@@ -161,6 +151,11 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
         self.queue = queue
         self.token = secrets.token_urlsafe(32)
         self.state = ConnectionTestState.PENDING
+
+    @validates("state")
+    def _sync_active_connection_id(self, _key: str, value: str) -> str:
+        self.active_connection_id = self.connection_id if value in ACTIVE_STATES else None
+        return value
 
     def __repr__(self) -> str:
         return (
