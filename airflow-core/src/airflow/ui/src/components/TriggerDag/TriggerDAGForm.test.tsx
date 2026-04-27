@@ -35,7 +35,7 @@ vi.mock("src/components/JsonEditor", () => ({
     createElement("textarea", {
       "data-testid": "json-editor",
       onBlur: () => onBlur?.(),
-      onChange: (e: ChangeEvent<HTMLTextAreaElement>) => onChange?.(e.target.value),
+      onChange: (event: ChangeEvent<HTMLTextAreaElement>) => onChange?.(event.target.value),
       value: value ?? "",
     }),
 }));
