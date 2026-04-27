@@ -165,6 +165,8 @@ class TriggerDagRunOperator(BaseOperator):
     )
 
     attributes_not_supported_in_airflow_2 = {
+        # `run_after` uses NOTSET here so we can detect whether the user
+        # explicitly provided it and warn in Airflow 2.
         "run_after": NOTSET,
         "note": None,
     }
