@@ -188,33 +188,37 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
         if not self.keep_directory_structure and self.prefix and not self.flatten_structure:
             blob_prefix = os.path.join(blob_prefix, self.prefix)
 
+        existing_blobs_set: set[str] = set()
         if not self.replace:
-            existing_blobs = wasb_hook.get_blobs_list_recursive(
-                container_name=self.container_name,
-                prefix=blob_prefix or None,
+            existing_blobs = (
+                wasb_hook.get_blobs_list_recursive(
+                    container_name=self.container_name,
+                    prefix=blob_prefix or None,
+                )
+                or []
             )
-            existing_blobs = existing_blobs or []
             if blob_prefix:
                 prefix_str = blob_prefix.rstrip("/") + "/"
                 existing_blobs = [b.removeprefix(prefix_str) for b in existing_blobs]
-
             existing_blobs_set = set(existing_blobs)
-            filtered_files = []
-            seen_transformed = set()
 
-            for file in gcs_files:
-                transformed = self._transform_file_path(file)
-                if transformed not in existing_blobs_set and transformed not in seen_transformed:
-                    filtered_files.append(file)
-                    seen_transformed.add(transformed)
-                elif transformed in seen_transformed:
-                    self.log.warning(
-                        "Skipping duplicate file %s (transforms to %s)",
-                        file,
-                        transformed,
-                    )
+        filtered_files: list[str] = []
+        seen_transformed: set[str] = set()
+        for file in gcs_files:
+            transformed = self._transform_file_path(file)
+            if transformed in existing_blobs_set:
+                continue
+            if transformed in seen_transformed:
+                self.log.warning(
+                    "Skipping duplicate file %s (transforms to %s)",
+                    file,
+                    transformed,
+                )
+                continue
+            filtered_files.append(file)
+            seen_transformed.add(transformed)
 
-            gcs_files = filtered_files
+        gcs_files = filtered_files
 
         uploaded_blobs: list[str] = []
         if gcs_files:

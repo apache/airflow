@@ -184,6 +184,28 @@ class TestGCSToAzureBlobStorageOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.WasbHook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.GCSHook")
+    def test_execute_dedups_collisions_when_replace_true(self, mock_gcs_hook, mock_wasb_hook):
+        mock_gcs_hook.return_value.list.return_value = ["a/file.txt", "b/file.txt"]
+        mock_file = mock.Mock()
+        mock_file.name = "/tmp/local"
+        mock_gcs_hook.return_value.provide_file.return_value.__enter__ = mock.Mock(return_value=mock_file)
+        mock_gcs_hook.return_value.provide_file.return_value.__exit__ = mock.Mock(return_value=None)
+
+        op = GCSToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            gcs_bucket=GCS_BUCKET,
+            container_name=CONTAINER,
+            blob_prefix=BLOB_PREFIX,
+            replace=True,
+            flatten_structure=True,
+        )
+        result = op.execute(context=None)
+
+        assert _norm_paths(result) == _expected_blob_paths(BLOB_PREFIX, "file.txt")
+        mock_wasb_hook.return_value.load_file.assert_called_once()
+
+    @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.GCSHook")
     def test_execute_is_idempotent_on_retry(self, mock_gcs_hook, mock_wasb_hook):
         mock_gcs_hook.return_value.list.return_value = ["data/a.txt"]
         mock_file = mock.Mock()
