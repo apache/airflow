@@ -8695,6 +8695,40 @@
                     "type": "integer",
                     "default": 30
                 },
+                "livenessProbe": {
+                    "description": "Liveness probe configuration for the OTel Collector container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before the liveness probe is initiated.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the liveness probe.",
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                },
+                "readinessProbe": {
+                    "description": "Readiness probe configuration for the OTel Collector container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before the readiness probe is initiated.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the readiness probe.",
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                },
                 "resources": {
                     "description": "Resources for the OTel Collector pod.",
                     "type": "object",

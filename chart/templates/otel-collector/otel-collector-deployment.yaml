@@ -97,14 +97,14 @@ spec:
             httpGet:
               path: /
               port: 13133
-            initialDelaySeconds: 10
-            periodSeconds: 15
+            initialDelaySeconds: {{ .Values.otelCollector.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.otelCollector.livenessProbe.periodSeconds }}
           readinessProbe:
             httpGet:
               path: /
               port: 13133
-            initialDelaySeconds: 10
-            periodSeconds: 15
+            initialDelaySeconds: {{ .Values.otelCollector.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.otelCollector.readinessProbe.periodSeconds }}
           resources: {{- toYaml .Values.otelCollector.resources | nindent 12 }}
           volumeMounts:
             - name: config

@@ -3239,6 +3239,14 @@ otelCollector:
   # Grace period for OTel Collector to finish after SIGTERM
   terminationGracePeriodSeconds: 30
 
+  livenessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 15
+
+  readinessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 15
+
   resources: {}
   #   limits:
   #     cpu: 100m
