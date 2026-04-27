@@ -620,12 +620,12 @@ class TestDatabricksDeleteJobsOperator:
         # Execute the operator
         op.execute({})
 
-        # Verify that the DatabricksHook was initialized with the correct connection ID and default retry arguments
+        # Verify that the DatabricksHook was initialized with the correct connection ID and operator retry arguments
         mock_hook_class.assert_called_once_with(
             "databricks_default",
-            retry_limit=3,
-            retry_delay=1,
-            retry_args=None,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=op.databricks_retry_args,
             caller="DatabricksDeleteJobsOperator",
         )
 

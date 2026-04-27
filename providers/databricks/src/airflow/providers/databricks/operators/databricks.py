@@ -416,6 +416,11 @@ class DatabricksDeleteJobsOperator(BaseOperator):
 
     :param job_id: The ID of the Databricks job to delete. (templated)
     :param databricks_conn_id: Reference to the Databricks connection.
+    :param databricks_retry_limit: Amount of times retry if the Databricks backend is unreachable.
+        Its value must be greater than or equal to 1.
+    :param databricks_retry_delay: Number of seconds to wait between retries (it
+        might be a floating point number).
+    :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying``.
     """
 
     template_fields: Sequence[str] = ("job_id",)
@@ -423,9 +428,8 @@ class DatabricksDeleteJobsOperator(BaseOperator):
     def __init__(
         self,
         *,
-        job_id: int,
+        job_id: int | str,
         databricks_conn_id: str = "databricks_default",
-        polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         databricks_retry_args: dict[Any, Any] | None = None,
@@ -434,7 +438,6 @@ class DatabricksDeleteJobsOperator(BaseOperator):
         super().__init__(**kwargs)
         self.job_id = job_id
         self.databricks_conn_id = databricks_conn_id
-        self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_args = databricks_retry_args
