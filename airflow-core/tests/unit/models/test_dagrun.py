@@ -38,7 +38,7 @@ from sqlalchemy import (
     select,
     update,
 )
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session as SASession, joinedload
 from sqlalchemy.orm.exc import StaleDataError
 
 from airflow import settings
@@ -2072,6 +2072,64 @@ def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
     tis, _ = dr.update_state(execute_callbacks=False, session=session)
     assert tis == []
     assert dr.state == DagRunState.FAILED
+
+
+def test_stale_finished_tis_do_not_cause_stuck_upstream_failed(dag_maker, session):
+    def _assign_serialized_tasks(tis, dag_run):
+        serialized_dag = dag_run.get_dag()
+        for ti in tis:
+            ti.task = serialized_dag.get_task(ti.task_id)
+
+    with dag_maker("test_upstream_failed_race", session=session):
+        fail_task = EmptyOperator(task_id="fail_task")
+        t0 = EmptyOperator(task_id="t0")
+        t1 = EmptyOperator(task_id="t1")
+        t2 = EmptyOperator(task_id="t2")
+        fail_task >> t0 >> t1 >> t2
+
+    dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+
+    tis["fail_task"].state = TaskInstanceState.FAILED
+    tis["t0"].state = TaskInstanceState.UPSTREAM_FAILED
+    session.flush()
+    session.commit()
+
+    scheduler_session = SASession(bind=session.get_bind())
+    try:
+        sched_dr = scheduler_session.get(DagRun, dr.id)
+        sched_dr.dag = dr.dag
+
+        stale_finished_tis = sched_dr.get_task_instances(state=State.finished, session=scheduler_session)
+        _assign_serialized_tasks(stale_finished_tis, sched_dr)
+
+        session.expire_all()
+        api_tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+        api_tis["fail_task"].state = TaskInstanceState.SUCCESS
+        api_tis["t0"].state = None
+        session.flush()
+        session.commit()
+
+        unfinished_tis = sched_dr.get_task_instances(state=State.unfinished, session=scheduler_session)
+        _assign_serialized_tasks(unfinished_tis, sched_dr)
+        sched_dr._are_premature_tis(
+            unfinished_tis=unfinished_tis,
+            finished_tis=stale_finished_tis,
+            session=scheduler_session,
+        )
+        scheduler_session.flush()
+        scheduler_session.commit()
+
+        session.expire_all()
+        final_states = {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)}
+        assert final_states == {
+            "fail_task": TaskInstanceState.SUCCESS,
+            "t0": None,
+            "t1": None,
+            "t2": None,
+        }
+    finally:
+        scheduler_session.close()
 
 
 def test_mapped_task_all_finish_before_downstream(dag_maker, session):
