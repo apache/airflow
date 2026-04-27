@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import json
 import traceback
 from collections.abc import AsyncIterator
 from enum import Enum
@@ -30,16 +31,20 @@ from asgiref.sync import sync_to_async
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    EMPTY_XCOM_RESULT,
     AsyncPodManager,
     OnFinishAction,
     OnKillAction,
     PodLaunchTimeoutException,
     PodPhase,
 )
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.state import TaskInstanceState
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.triggers.base import TaskFailedEvent, TaskSuccessEvent
 
 if TYPE_CHECKING:
     from kubernetes_asyncio.client.models import V1Pod
@@ -94,6 +99,13 @@ class KubernetesPodTrigger(BaseTrigger):
     :param logging_interval: number of seconds to wait before kicking it back to
         the operator to print latest logs. If ``None`` will wait until container done.
     :param last_log_time: where to resume logs from
+    :param do_xcom_push: whether to extract and push XCom values from the pod's xcom sidecar
+        container. When True, XCom data is extracted from the sidecar before the event is fired
+        and included in the TriggerEvent so it can be persisted without requiring a worker.
+    :param callbacks_defined: whether the operator has callbacks defined. When False and the pod
+        completes, the trigger will handle pod cleanup (deletion based on ``on_finish_action``)
+        and emit a terminal event (``TaskSuccessEvent`` or ``TaskFailedEvent``) so the task
+        goes directly to its final state without using a worker slot.
     :param trigger_kwargs: additional keyword parameters to send in the event
     """
 
@@ -118,6 +130,8 @@ class KubernetesPodTrigger(BaseTrigger):
         termination_grace_period: int | None = None,
         last_log_time: DateTime | None = None,
         logging_interval: int | None = None,
+        do_xcom_push: bool = False,
+        callbacks_defined: bool = True,
         trigger_kwargs: dict | None = None,
     ):
         super().__init__()
@@ -140,6 +154,8 @@ class KubernetesPodTrigger(BaseTrigger):
         self.on_finish_action = OnFinishAction(on_finish_action)
         self.on_kill_action = OnKillAction(on_kill_action)
         self.termination_grace_period = termination_grace_period
+        self.do_xcom_push = do_xcom_push
+        self.callbacks_defined = callbacks_defined
         self.trigger_kwargs = trigger_kwargs or {}
         self._fired_event = False
         self._since_time = None
@@ -168,6 +184,8 @@ class KubernetesPodTrigger(BaseTrigger):
                 "termination_grace_period": self.termination_grace_period,
                 "last_log_time": self.last_log_time,
                 "logging_interval": self.logging_interval,
+                "do_xcom_push": self.do_xcom_push,
+                "callbacks_defined": self.callbacks_defined,
                 "trigger_kwargs": self.trigger_kwargs,
             },
         )
@@ -183,25 +201,61 @@ class KubernetesPodTrigger(BaseTrigger):
         try:
             state = await self._wait_for_pod_start()
             if state == ContainerState.TERMINATED:
-                event = TriggerEvent(
-                    {
-                        "status": "success",
-                        "namespace": self.pod_namespace,
-                        "name": self.pod_name,
-                        "message": "All containers inside pod have started successfully.",
-                        **self.trigger_kwargs,
-                    }
-                )
+                if AIRFLOW_V_3_2_PLUS:
+                    xcom_result = await self._extract_xcom_if_needed()
+                    if not self.callbacks_defined:
+                        await self._cleanup_pod_in_trigger(is_success=True)
+                        event = TaskSuccessEvent(xcoms=xcom_result)
+                    else:
+                        event = TriggerEvent(
+                            {
+                                "status": "success",
+                                "namespace": self.pod_namespace,
+                                "name": self.pod_name,
+                                "message": "All containers inside pod have started successfully.",
+                                "xcom_pushed_by_trigger": self.do_xcom_push,
+                                **self.trigger_kwargs,
+                            },
+                            xcoms=xcom_result,
+                        )
+                else:
+                    event = TriggerEvent(
+                        {
+                            "status": "success",
+                            "namespace": self.pod_namespace,
+                            "name": self.pod_name,
+                            "message": "All containers inside pod have started successfully.",
+                            **self.trigger_kwargs,
+                        }
+                    )
             elif state == ContainerState.FAILED:
-                event = TriggerEvent(
-                    {
-                        "status": "failed",
-                        "namespace": self.pod_namespace,
-                        "name": self.pod_name,
-                        "message": "pod failed",
-                        **self.trigger_kwargs,
-                    }
-                )
+                if AIRFLOW_V_3_2_PLUS:
+                    xcom_result = await self._extract_xcom_if_needed()
+                    if not self.callbacks_defined:
+                        await self._cleanup_pod_in_trigger(is_success=False)
+                        event = TaskFailedEvent(xcoms=xcom_result)
+                    else:
+                        event = TriggerEvent(
+                            {
+                                "status": "failed",
+                                "namespace": self.pod_namespace,
+                                "name": self.pod_name,
+                                "message": "pod failed",
+                                "xcom_pushed_by_trigger": self.do_xcom_push,
+                                **self.trigger_kwargs,
+                            },
+                            xcoms=xcom_result,
+                        )
+                else:
+                    event = TriggerEvent(
+                        {
+                            "status": "failed",
+                            "namespace": self.pod_namespace,
+                            "name": self.pod_name,
+                            "message": "pod failed",
+                            **self.trigger_kwargs,
+                        }
+                    )
             else:
                 event = await self._wait_for_container_completion()
             self._fired_event = True
@@ -307,6 +361,22 @@ class KubernetesPodTrigger(BaseTrigger):
             pod = await self._get_pod()
             container_state = self.define_container_state(pod)
             if container_state == ContainerState.TERMINATED:
+                if AIRFLOW_V_3_2_PLUS:
+                    xcom_result = await self._extract_xcom_if_needed()
+                    if not self.callbacks_defined:
+                        await self._cleanup_pod_in_trigger(is_success=True)
+                        return TaskSuccessEvent(xcoms=xcom_result)
+                    return TriggerEvent(
+                        {
+                            "status": "success",
+                            "namespace": self.pod_namespace,
+                            "name": self.pod_name,
+                            "last_log_time": self.last_log_time,
+                            "xcom_pushed_by_trigger": self.do_xcom_push,
+                            **self.trigger_kwargs,
+                        },
+                        xcoms=xcom_result,
+                    )
                 return TriggerEvent(
                     {
                         "status": "success",
@@ -317,6 +387,23 @@ class KubernetesPodTrigger(BaseTrigger):
                     }
                 )
             if container_state == ContainerState.FAILED:
+                if AIRFLOW_V_3_2_PLUS:
+                    xcom_result = await self._extract_xcom_if_needed()
+                    if not self.callbacks_defined:
+                        await self._cleanup_pod_in_trigger(is_success=False)
+                        return TaskFailedEvent(xcoms=xcom_result)
+                    return TriggerEvent(
+                        {
+                            "status": "failed",
+                            "namespace": self.pod_namespace,
+                            "name": self.pod_name,
+                            "message": "Container state failed",
+                            "last_log_time": self.last_log_time,
+                            "xcom_pushed_by_trigger": self.do_xcom_push,
+                            **self.trigger_kwargs,
+                        },
+                        xcoms=xcom_result,
+                    )
                 return TriggerEvent(
                     {
                         "status": "failed",
@@ -346,6 +433,62 @@ class KubernetesPodTrigger(BaseTrigger):
         # Due to AsyncKubernetesHook overriding get_pod, we need to cast the return
         # value to kubernetes_asyncio.V1Pod, because it's perceived as different type
         return cast("V1Pod", pod)
+
+    async def _extract_xcom_if_needed(self) -> dict[str, Any] | None:
+        """
+        Extract XCom from the pod's sidecar container if ``do_xcom_push`` is enabled.
+
+        :return: A dict mapping the return key to the XCom value, or None if XCom push is disabled
+                 or the XCom result is empty.
+        """
+        if not self.do_xcom_push:
+            return None
+
+        try:
+            result = await self.pod_manager.extract_xcom(await self._get_pod())
+            if isinstance(result, str) and result.rstrip() == EMPTY_XCOM_RESULT:
+                self.log.info("xcom result file is empty.")
+                return None
+            self.log.debug("xcom result: \n%s", result)
+            return {"return_value": json.loads(result)}
+        except Exception:
+            self.log.exception("Failed to extract xcom from pod %s", self.pod_name)
+            return None
+
+    async def _cleanup_pod_in_trigger(self, *, is_success: bool) -> None:
+        """
+        Handle pod cleanup directly in the trigger when no callbacks are defined.
+
+        Fetches any remaining logs and deletes the pod based on ``on_finish_action``.
+        This allows the task to go directly to a terminal state via ``TaskSuccessEvent``
+        or ``TaskFailedEvent`` without needing a worker slot.
+        """
+        # Fetch final logs before deleting the pod
+        if self.get_logs:
+            try:
+                pod = await self._get_pod()
+                await self.pod_manager.fetch_container_logs_before_current_sec(
+                    pod, container_name=self.base_container_name, since_time=self.last_log_time
+                )
+            except Exception:
+                self.log.exception("Failed to fetch final logs for pod %s", self.pod_name)
+
+        # Delete pod based on on_finish_action
+        should_delete = self.on_finish_action == OnFinishAction.DELETE_POD or (
+            self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD and is_success
+        )
+        if should_delete:
+            self.log.info("Deleting pod %s in namespace %s.", self.pod_name, self.pod_namespace)
+            try:
+                await self.hook.delete_pod(
+                    name=self.pod_name,
+                    namespace=self.pod_namespace,
+                    grace_period_seconds=self.termination_grace_period,
+                )
+            except Exception:
+                self.log.exception("Failed to delete pod %s", self.pod_name)
+        else:
+            self.log.info("Skipping pod deletion: on_finish_action=%s", self.on_finish_action.value)
 
     @cached_property
     def hook(self) -> AsyncKubernetesHook:

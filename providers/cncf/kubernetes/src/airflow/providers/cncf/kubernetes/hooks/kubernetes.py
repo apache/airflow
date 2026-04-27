@@ -1359,3 +1359,36 @@ class AsyncKubernetesHook(KubernetesHook):
                 break
             self.log.info("Waiting for container '%s' state to be running", container_name)
             await asyncio.sleep(poll_interval)
+
+    @generic_api_retry
+    async def exec_pod_command(
+        self,
+        name: str,
+        namespace: str,
+        container: str,
+        command: list[str],
+    ) -> str:
+        """
+        Execute a command in a container and return the stdout output.
+
+        :param name: Name of the pod.
+        :param namespace: Namespace of the pod.
+        :param container: Container name to exec in.
+        :param command: Command to execute as a list of strings.
+        :return: stdout output from the command.
+        """
+        from kubernetes_asyncio.stream import WsApiClient
+
+        async with WsApiClient() as ws_api_client:
+            v1_api = async_client.CoreV1Api(ws_api_client)
+            response = await v1_api.connect_get_namespaced_pod_exec(
+                name=name,
+                namespace=namespace,
+                container=container,
+                command=command,
+                stdin=False,
+                stdout=True,
+                stderr=True,
+                tty=False,
+            )
+            return response

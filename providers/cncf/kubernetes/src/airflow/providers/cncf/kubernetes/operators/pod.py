@@ -925,6 +925,8 @@ class KubernetesPodOperator(BaseOperator):
             termination_grace_period=self.termination_grace_period,
             last_log_time=last_log_time,
             logging_interval=self.logging_interval,
+            do_xcom_push=self.do_xcom_push,
+            callbacks_defined=bool(self.callbacks),
             trigger_kwargs=self.trigger_kwargs,
         )
         container_state = trigger.define_container_state(self.pod) if self.pod else None
@@ -1000,7 +1002,11 @@ class KubernetesPodOperator(BaseOperator):
                         operator=self,
                     )
 
-                xcom_sidecar_output = self.extract_xcom(pod=self.pod) if self.do_xcom_push else None
+                xcom_sidecar_output = (
+                    self.extract_xcom(pod=self.pod)
+                    if self.do_xcom_push and not event.get("xcom_pushed_by_trigger")
+                    else None
+                )
 
                 if event["status"] != "success":
                     self.log.error(

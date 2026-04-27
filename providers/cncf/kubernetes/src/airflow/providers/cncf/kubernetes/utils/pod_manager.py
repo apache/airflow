@@ -1239,3 +1239,70 @@ class AsyncPodManager(LoggingMixin):
                     level = _parse_log_level(message_to_log)
                     self.log.log(level, "[%s] %s", container_name, message_to_log)
         return now  # Return the current time as the last log time to ensure logs from the current second are read in the next fetch.
+
+    async def extract_xcom(self, pod: V1Pod) -> str:
+        """
+        Retrieve XCom value from the xcom sidecar container asynchronously.
+
+        Reads the content of ``/airflow/xcom/return.json`` from the sidecar container
+        and then kills the sidecar.
+
+        :param pod: The pod to extract XCom from.
+        :return: The XCom JSON string.
+        :raises XComRetrievalError: If the xcom sidecar container is not running or extraction fails.
+        """
+        # Check sidecar is still running
+        refreshed_pod = await self.read_pod(pod)
+        if not container_is_running(refreshed_pod, PodDefaults.SIDECAR_CONTAINER_NAME):
+            raise XComRetrievalError(
+                f"{PodDefaults.SIDECAR_CONTAINER_NAME} container is not running! "
+                f"Not possible to read xcom from pod: {pod.metadata.name}"
+            )
+
+        try:
+            result = await self._extract_xcom_json(pod)
+            return result
+        finally:
+            await self._extract_xcom_kill(pod)
+
+    async def _extract_xcom_json(self, pod: V1Pod) -> str:
+        """Retrieve XCom value and also check if xcom json is valid."""
+        command = [
+            "/bin/sh",
+            "-c",
+            f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; "
+            f"then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; "
+            f"else echo {EMPTY_XCOM_RESULT}; fi",
+        ]
+        self.log.info("Extracting xcom from pod %s", pod.metadata.name)
+        result = await self._hook.exec_pod_command(
+            name=pod.metadata.name,
+            namespace=pod.metadata.namespace,
+            container=PodDefaults.SIDECAR_CONTAINER_NAME,
+            command=command,
+        )
+
+        if result is None:
+            raise XComRetrievalError(f"Failed to extract xcom from pod: {pod.metadata.name}")
+
+        if result and result.rstrip() != EMPTY_XCOM_RESULT:
+            json.loads(result)
+
+        return result
+
+    async def _extract_xcom_kill(self, pod: V1Pod) -> None:
+        """Kill the xcom sidecar container."""
+        kill_command = [
+            "/bin/sh",
+            "-c",
+            "kill -s INT 1",
+        ]
+        try:
+            await self._hook.exec_pod_command(
+                name=pod.metadata.name,
+                namespace=pod.metadata.namespace,
+                container=PodDefaults.SIDECAR_CONTAINER_NAME,
+                command=kill_command,
+            )
+        except Exception:
+            self.log.warning("Failed to kill xcom sidecar container, it may have already terminated")

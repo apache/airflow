@@ -31,7 +31,7 @@ from pendulum import DateTime
 
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
-from airflow.triggers.base import TriggerEvent
+from airflow.triggers.base import TaskFailedEvent, TaskSuccessEvent, TriggerEvent
 from airflow.utils.state import TaskInstanceState
 
 TRIGGER_PATH = "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
@@ -130,6 +130,8 @@ class TestKubernetesPodTrigger:
             "termination_grace_period": None,
             "last_log_time": None,
             "logging_interval": None,
+            "do_xcom_push": False,
+            "callbacks_defined": True,
             "trigger_kwargs": {},
         }
 
@@ -190,6 +192,7 @@ class TestKubernetesPodTrigger:
                 "namespace": "default",
                 "name": "test-pod-name",
                 "message": "All containers inside pod have started successfully.",
+                "xcom_pushed_by_trigger": False,
             }
         )
         actual_event = await trigger.run().asend(None)
@@ -255,6 +258,7 @@ class TestKubernetesPodTrigger:
                 "name": "test-pod-name",
                 "message": "Container state failed",
                 "last_log_time": None,
+                "xcom_pushed_by_trigger": False,
             }
         )
         actual_event = await trigger.run().asend(None)
@@ -313,6 +317,7 @@ class TestKubernetesPodTrigger:
                     "last_log_time": DateTime(2022, 1, 1),
                     "name": POD_NAME,
                     "namespace": NAMESPACE,
+                    "xcom_pushed_by_trigger": False,
                 },
                 id="short_interval",
             ),
@@ -509,6 +514,7 @@ class TestKubernetesPodTrigger:
                     "namespace": NAMESPACE,
                     "message": "All containers inside pod have started successfully.",
                     "status": "success",
+                    "xcom_pushed_by_trigger": False,
                 }
             )
             == actual
@@ -694,4 +700,264 @@ class TestKubernetesPodTrigger:
             on_finish_action="delete_pod",
         )
         await trigger.cleanup()
+        mock_hook.delete_pod.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch(f"{TRIGGER_PATH}.pod_manager", new_callable=mock.PropertyMock)
+    @mock.patch(f"{TRIGGER_PATH}._get_pod", new_callable=mock.AsyncMock)
+    async def test_run_loop_return_success_event_with_xcom(self, mock_get_pod, mock_pm, mock_wait_pod):
+        """When do_xcom_push=True and pod succeeds, XCom should be extracted and included in the event."""
+        mock_wait_pod.return_value = ContainerState.TERMINATED
+        mock_pod_manager = mock.AsyncMock()
+        mock_pod_manager.extract_xcom.return_value = '{"key": "value"}'
+        mock_pm.return_value = mock_pod_manager
+        mock_get_pod.return_value = mock.MagicMock()
+
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            do_xcom_push=True,
+        )
+
+        actual_event = await trigger.run().asend(None)
+
+        assert actual_event.payload["status"] == "success"
+        assert actual_event.payload["xcom_pushed_by_trigger"] is True
+        assert actual_event.xcoms == {"return_value": {"key": "value"}}
+        mock_pod_manager.extract_xcom.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch(f"{TRIGGER_PATH}.pod_manager", new_callable=mock.PropertyMock)
+    @mock.patch(f"{TRIGGER_PATH}._get_pod", new_callable=mock.AsyncMock)
+    async def test_run_loop_xcom_extraction_failure_is_handled(self, mock_get_pod, mock_pm, mock_wait_pod):
+        """When do_xcom_push=True but XCom extraction fails, event should still fire without XCom."""
+        mock_wait_pod.return_value = ContainerState.TERMINATED
+        mock_pod_manager = mock.AsyncMock()
+        mock_pod_manager.extract_xcom.side_effect = Exception("Sidecar terminated")
+        mock_pm.return_value = mock_pod_manager
+        mock_get_pod.return_value = mock.MagicMock()
+
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            do_xcom_push=True,
+        )
+
+        actual_event = await trigger.run().asend(None)
+
+        assert actual_event.payload["status"] == "success"
+        assert actual_event.payload["xcom_pushed_by_trigger"] is True
+        assert actual_event.xcoms is None
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    async def test_run_loop_no_xcom_when_disabled(self, mock_wait_pod, trigger):
+        """When do_xcom_push=False (default), no XCom extraction should happen."""
+        mock_wait_pod.return_value = ContainerState.TERMINATED
+
+        actual_event = await trigger.run().asend(None)
+
+        assert actual_event.payload["status"] == "success"
+        assert actual_event.payload["xcom_pushed_by_trigger"] is False
+        assert actual_event.xcoms is None
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch(f"{TRIGGER_PATH}.pod_manager", new_callable=mock.PropertyMock)
+    @mock.patch(f"{TRIGGER_PATH}._get_pod", new_callable=mock.AsyncMock)
+    async def test_run_loop_return_failed_event_with_xcom(self, mock_get_pod, mock_pm, mock_wait_pod):
+        """When do_xcom_push=True and pod fails, XCom should still be extracted and included in the event."""
+        mock_wait_pod.return_value = ContainerState.FAILED
+        mock_pod_manager = mock.AsyncMock()
+        mock_pod_manager.extract_xcom.return_value = '{"error_details": "out of memory"}'
+        mock_pm.return_value = mock_pod_manager
+        mock_get_pod.return_value = mock.MagicMock()
+
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            do_xcom_push=True,
+        )
+
+        actual_event = await trigger.run().asend(None)
+
+        assert actual_event.payload["status"] == "failed"
+        assert actual_event.payload["xcom_pushed_by_trigger"] is True
+        assert actual_event.xcoms == {"return_value": {"error_details": "out of memory"}}
+        mock_pod_manager.extract_xcom.assert_called_once()
+
+    def test_serialize_with_do_xcom_push(self):
+        """Verify do_xcom_push is included in serialization."""
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            do_xcom_push=True,
+        )
+        _, kwargs_dict = trigger.serialize()
+        assert kwargs_dict["do_xcom_push"] is True
+
+    def test_serialize_with_callbacks_defined(self):
+        """Verify callbacks_defined is included in serialization."""
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            callbacks_defined=False,
+        )
+        _, kwargs_dict = trigger.serialize()
+        assert kwargs_dict["callbacks_defined"] is False
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    @mock.patch(f"{TRIGGER_PATH}.pod_manager", new_callable=mock.PropertyMock)
+    @mock.patch(f"{TRIGGER_PATH}._get_pod", new_callable=mock.AsyncMock)
+    async def test_no_callbacks_success_emits_task_success_event(
+        self, mock_get_pod, mock_pm, mock_hook, mock_wait_pod
+    ):
+        """When callbacks_defined=False and pod succeeds, trigger should emit TaskSuccessEvent."""
+        mock_wait_pod.return_value = ContainerState.TERMINATED
+        mock_pod_manager = mock.AsyncMock()
+        mock_pod_manager.extract_xcom.return_value = '{"result": 42}'
+        mock_pm.return_value = mock_pod_manager
+        mock_get_pod.return_value = mock.MagicMock()
+
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            do_xcom_push=True,
+            callbacks_defined=False,
+        )
+
+        actual_event = await trigger.run().asend(None)
+
+        assert isinstance(actual_event, TaskSuccessEvent)
+        assert actual_event.xcoms == {"return_value": {"result": 42}}
+        mock_hook.delete_pod.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    @mock.patch(f"{TRIGGER_PATH}.pod_manager", new_callable=mock.PropertyMock)
+    @mock.patch(f"{TRIGGER_PATH}._get_pod", new_callable=mock.AsyncMock)
+    async def test_no_callbacks_failure_emits_task_failed_event(
+        self, mock_get_pod, mock_pm, mock_hook, mock_wait_pod
+    ):
+        """When callbacks_defined=False and pod fails, trigger should emit TaskFailedEvent."""
+        mock_wait_pod.return_value = ContainerState.FAILED
+        mock_pod_manager = mock.AsyncMock()
+        mock_pm.return_value = mock_pod_manager
+        mock_get_pod.return_value = mock.MagicMock()
+
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            callbacks_defined=False,
+        )
+
+        actual_event = await trigger.run().asend(None)
+
+        assert isinstance(actual_event, TaskFailedEvent)
+        mock_hook.delete_pod.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    @mock.patch(f"{TRIGGER_PATH}._get_pod", new_callable=mock.AsyncMock)
+    async def test_no_callbacks_keep_pod_action_skips_deletion(self, mock_get_pod, mock_hook, mock_wait_pod):
+        """When on_finish_action=keep_pod, pod should not be deleted even with no callbacks."""
+        mock_wait_pod.return_value = ContainerState.TERMINATED
+        mock_get_pod.return_value = mock.MagicMock()
+
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            callbacks_defined=False,
+            on_finish_action="keep_pod",
+        )
+
+        actual_event = await trigger.run().asend(None)
+
+        assert isinstance(actual_event, TaskSuccessEvent)
+        mock_hook.delete_pod.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    @mock.patch(f"{TRIGGER_PATH}._get_pod", new_callable=mock.AsyncMock)
+    async def test_no_callbacks_delete_succeeded_pod_skips_on_failure(
+        self, mock_get_pod, mock_hook, mock_wait_pod
+    ):
+        """When on_finish_action=delete_succeeded_pod and pod fails, pod should not be deleted."""
+        mock_wait_pod.return_value = ContainerState.FAILED
+        mock_get_pod.return_value = mock.MagicMock()
+
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            callbacks_defined=False,
+            on_finish_action="delete_succeeded_pod",
+        )
+
+        actual_event = await trigger.run().asend(None)
+
+        assert isinstance(actual_event, TaskFailedEvent)
+        mock_hook.delete_pod.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    @mock.patch(f"{TRIGGER_PATH}.pod_manager", new_callable=mock.PropertyMock)
+    @mock.patch(f"{TRIGGER_PATH}._get_pod", new_callable=mock.AsyncMock)
+    async def test_callbacks_defined_emits_regular_trigger_event(
+        self, mock_get_pod, mock_pm, mock_hook, mock_wait_pod
+    ):
+        """When callbacks_defined=True (default), trigger should emit regular TriggerEvent."""
+        mock_wait_pod.return_value = ContainerState.TERMINATED
+        mock_pod_manager = mock.AsyncMock()
+        mock_pm.return_value = mock_pod_manager
+        mock_get_pod.return_value = mock.MagicMock()
+
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            callbacks_defined=True,
+        )
+
+        actual_event = await trigger.run().asend(None)
+
+        assert isinstance(actual_event, TriggerEvent)
+        assert not isinstance(actual_event, TaskSuccessEvent)
+        assert actual_event.payload["status"] == "success"
         mock_hook.delete_pod.assert_not_called()

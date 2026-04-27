@@ -353,6 +353,19 @@ to see and describe PODs in Kubernetes. Instead, pass your secrets via native Ku
 use Connections and Variables from Airflow. For the latter, you need to have ``apache-airflow`` package
 installed in your image in the same version as Airflow you run your Kubernetes Pod Operator from).
 
+Deferrable Mode
+^^^^^^^^^^^^^^^
+
+As in the examples above you can see that KubernetesPodOperator supports deferrable mode. This means that
+the operator can be used in a way that it will not occupy a worker slot while the pod is running in
+Kubernetes. This is achieved by using triggers and sensors under the hood. When the operator is used in
+deferrable mode, it will trigger a KubernetesPodTrigger that will wait for the pod to complete and then
+resume the task.
+
+If Airflow > 3.2.0 is used and no callbacks are defined, the operator will finish all the work on the
+triggerer and push the XCom results. Otherwise once the Pod completes the task is re-scheduled to a worker
+to finish the work and push the XCom results.
+
 Reference
 ^^^^^^^^^
 For further information, look at:
