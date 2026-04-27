@@ -33,7 +33,7 @@ from airflow.providers.edge3.models.db import EdgeDBManager, check_db_manager_co
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
-from airflow.providers.edge3.utils.types import is_callback_execute
+from airflow.providers.edge3.models.types import is_callback_execute
 from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -104,7 +104,7 @@ class EdgeExecutor(BaseExecutor):
     ) -> None:
         """Put new workload to queue. Airflow 3 entry point to execute a task."""
         if is_callback_execute(workload):
-            from airflow.providers.edge3.utils.types import EXECUTE_CALLBACK_TAG
+            from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
 
             existing_job = session.scalars(
                 select(EdgeJobModel).where(
@@ -133,7 +133,6 @@ class EdgeExecutor(BaseExecutor):
                 )
 
         elif isinstance(workload, workloads.ExecuteTask):
-            # TODO: to be updated
             task_instance = workload.ti
             key = task_instance.key
 

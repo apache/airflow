@@ -42,7 +42,7 @@ from airflow.providers.edge3.worker_api.datamodels import (
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.providers.edge3.utils.types import ExecuteTypeBody
+    from airflow.providers.edge3.models.types import ExecuteTypeBody
 
 jobs_router = AirflowRouter(tags=["Jobs"], prefix="/jobs")
 
@@ -50,7 +50,7 @@ jobs_router = AirflowRouter(tags=["Jobs"], prefix="/jobs")
 def parse_command(command: str, dag_id: str, run_id: str) -> ExecuteTypeBody:
     if AIRFLOW_V_3_3_PLUS:
         from airflow.executors.workloads import ExecuteCallback
-        from airflow.providers.edge3.utils.types import EXECUTE_CALLBACK_TAG
+        from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
 
         if dag_id == EXECUTE_CALLBACK_TAG and run_id.startswith(EXECUTE_CALLBACK_TAG):
             return ExecuteCallback.model_validate_json(command)  # type: ignore[return-value]

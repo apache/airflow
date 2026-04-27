@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field
 
 from airflow.providers.common.compat.sdk import TaskInstanceKey
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerState  # noqa: TCH001
-from airflow.providers.edge3.utils.types import ExecuteTypeBody  # noqa: TCH001
+from airflow.providers.edge3.models.types import ExecuteTypeBody  # noqa: TCH001
 
 
 class WorkerApiDocs:

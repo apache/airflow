@@ -64,7 +64,7 @@ from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.configuration import AirflowConfigParser
-    from airflow.providers.edge3.utils.types import ExecuteTypeBody
+    from airflow.providers.edge3.models.types import ExecuteTypeBody
 
 logger = logging.getLogger(__name__)
 
@@ -271,13 +271,9 @@ class EdgeWorker:
 
         try:
             if AIRFLOW_V_3_3_PLUS:
-                proctitle = f"airflow edge supervisor executing callback: {workload.ti.task_id} "
-
                 from airflow.executors.base_executor import BaseExecutor
 
-                BaseExecutor.run_workload(
-                    workload=workload, server=self._execution_api_server_url, proctitle=proctitle
-                )
+                BaseExecutor.run_workload(workload=workload, server=self._execution_api_server_url)
             else:
                 from airflow.sdk.execution_time.supervisor import supervise
 

@@ -23,7 +23,7 @@ import pytest
 from pydantic import TypeAdapter
 
 from airflow.executors.workloads import BundleInfo, ExecuteTask
-from airflow.providers.edge3.utils.types import ExecuteTypeBody, is_callback_execute
+from airflow.providers.edge3.models.types import ExecuteTypeBody, is_callback_execute
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
