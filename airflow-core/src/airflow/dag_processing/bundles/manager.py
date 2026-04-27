@@ -262,7 +262,7 @@ class DagBundlesManager(LoggingMixin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._bundle_config: dict[str, _InternalBundleConfig] = {}
-        self._config_path_mtime: dict[str, float] = {}
+        self._config_path_mtime: dict[str, int] = {}
         self.parse_config()
 
     def parse_config(self) -> None:
@@ -730,26 +730,36 @@ class DagBundlesManager(LoggingMixin):
         path = Path(config_path)
         if not path.exists():
             self.log.warning("DAG bundle config path does not exist: %s", config_path)
+            self._bundle_config.clear()
+            self._config_path_mtime.clear()
             return
 
         if not path.is_dir():
             raise AirflowConfigException(f"dag_bundle_config_path must be a directory, got: {config_path}")
 
-        # Clear old mtime entries before repopulating
+        # Clear old mtime entries before repopulating; track every JSON file we see
+        # (including invalid ones) so check_config_path_changes doesn't fire spuriously.
         self._config_path_mtime.clear()
 
         config_list = []
         seen_bundle_names: set[str] = set()
 
         for file_path in path.glob("*.json"):
+            self._config_path_mtime[str(file_path)] = file_path.stat().st_mtime_ns
             try:
                 config = json.loads(file_path.read_text())
                 if not isinstance(config, dict):
                     self.log.error("Invalid config in %s: Expected dict but got %s", file_path, type(config))
                     continue
 
-                # Check for duplicate bundle names
                 bundle_name = config.get("name")
+                if bundle_name is not None and (not isinstance(bundle_name, str) or not bundle_name):
+                    self.log.warning(
+                        "Invalid 'name' in %s: must be a non-empty string, got %r",
+                        file_path,
+                        bundle_name,
+                    )
+                    continue
                 if bundle_name and bundle_name in seen_bundle_names:
                     self.log.warning(
                         "Duplicate bundle name '%s' found in %s, skipping this file",
@@ -761,8 +771,6 @@ class DagBundlesManager(LoggingMixin):
                     seen_bundle_names.add(bundle_name)
 
                 config_list.append(config)
-                # Track file modification time for change detection
-                self._config_path_mtime[str(file_path)] = file_path.stat().st_mtime
             except json.JSONDecodeError as e:
                 self.log.error("Failed to parse JSON from %s: %s", file_path, e)
             except Exception as e:
@@ -770,6 +778,7 @@ class DagBundlesManager(LoggingMixin):
 
         if not config_list:
             self.log.warning("No valid DAG bundle configs found in %s", config_path)
+            self._bundle_config.clear()
             return
 
         bundle_config_list = _parse_bundle_config(config_list)
@@ -808,9 +817,9 @@ class DagBundlesManager(LoggingMixin):
         if not path.exists() or not path.is_dir():
             return False
 
-        current_files: dict[str, float] = {}
+        current_files: dict[str, int] = {}
         for file_path in path.glob("*.json"):
-            current_files[str(file_path)] = file_path.stat().st_mtime
+            current_files[str(file_path)] = file_path.stat().st_mtime_ns
 
         # Check for added or removed files
         if set(current_files.keys()) != set(self._config_path_mtime.keys()):
