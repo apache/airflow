@@ -21,8 +21,7 @@ import os
 import re
 import socket
 from collections.abc import Callable
-from contextlib import AbstractContextManager, ExitStack
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from .base_stats_logger import NoStatsLogger
 from .metrics_registry import MetricsRegistry
@@ -269,30 +268,43 @@ def timer(
         legacy_kw: dict[str, Any] = {**kwargs}
         if extra_tags:
             legacy_kw["tags"] = extra_tags
-
-        stack = ExitStack()
-        stack.enter_context(
-            cast(
-                "AbstractContextManager[Any]",
-                backend.timer(legacy_name, **legacy_kw),
-            )
+        return _DualTimer(
+            regular_timer=backend.timer(stat, **regular_kw),
+            legacy_timer=backend.timer(legacy_name, **legacy_kw),
         )
-        real_timer = stack.enter_context(backend.timer(stat, **regular_kw))
-        return _ExitStackTimer(stack, real_timer)
 
     return backend.timer(stat, **regular_kw)
 
 
-class _ExitStackTimer(Timer):
-    """Timer wrapper that delegates to a real timer and closes an ExitStack on exit."""
+class _DualTimer(Timer):
+    """
+    Timer that manages both a regular and a legacy backend timer.
 
-    def __init__(self, stack: ExitStack, real_timer: Timer) -> None:
-        super().__init__(real_timer)
-        self._stack = stack
+    Inherits Timer so that it conforms with the Timer type but there are no super calls.
+    Uses composition internally — both timers are started together on entry and stopped together on exit.
+    Supports both context-manager and stopwatch usage.
+    """
+
+    def __init__(self, regular_timer: Timer, legacy_timer: Timer) -> None:
+        self._regular = regular_timer
+        self._legacy = legacy_timer
+        self.duration: float | None = None
+
+    def __enter__(self):
+        return self.start()
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
-        self.stop(send=False)
-        self._stack.__exit__(exc_type, exc_value, traceback)
+        self.stop()
+
+    def start(self):
+        self._legacy.start()
+        self._regular.start()
+        return self
+
+    def stop(self, send: bool = True) -> None:
+        self._regular.stop(send=send)
+        self._legacy.stop(send=send)
+        self.duration = self._regular.duration
 
 
 class Stats:
