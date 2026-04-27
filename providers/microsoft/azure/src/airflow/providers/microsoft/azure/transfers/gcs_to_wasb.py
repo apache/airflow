@@ -182,9 +182,7 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
 
         gcs_files = gcs_hook.list(**list_kwargs)  # type: ignore[call-arg]
 
-        gcs_files = [
-            f for f in gcs_files if not self._should_skip_gcs_object(f) and self._transform_file_path(f)
-        ]
+        gcs_files = [f for f in gcs_files if not self._should_skip_gcs_object(f)]
 
         if not self.keep_directory_structure and self.prefix and not self.flatten_structure:
             self.blob_prefix = os.path.join(self.blob_prefix, self.prefix)
