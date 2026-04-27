@@ -570,6 +570,10 @@ def _create_ti_state_update_query_and_update_state(
                 _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
         elif isinstance(ti_patch_payload, TIRetryStatePayload):
             if ti is not None:
+                ti.end_date = ti_patch_payload.end_date
+                ti.set_duration()
+                if ti_patch_payload.rendered_map_index is not None:
+                    ti.rendered_map_index = ti_patch_payload.rendered_map_index
                 ti.prepare_db_for_next_try(session)
             # Store retry policy overrides so next_retry_datetime() can read them.
             # These are cleared when the task enters RUNNING (ti_run).
