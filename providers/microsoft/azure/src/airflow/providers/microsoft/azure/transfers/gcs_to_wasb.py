@@ -197,7 +197,7 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
             existing_blobs = existing_blobs or []
             if self.blob_prefix:
                 prefix_str = self.blob_prefix.rstrip("/") + "/"
-                existing_blobs = [b.replace(prefix_str, "", 1) for b in existing_blobs]
+                existing_blobs = [b.removeprefix(prefix_str) for b in existing_blobs]
 
             existing_blobs_set = set(existing_blobs)
             filtered_files = []
