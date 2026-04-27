@@ -431,6 +431,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "expanded_ti_count",
         "inlets",
         "outlets",
+        "partition_key",
         "run_id",
         "task_instance_key_str",
         "test_mode",
