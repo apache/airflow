@@ -27,7 +27,7 @@ class TestExecutionAPISecretsBackend:
     """Test ExecutionAPISecretsBackend."""
 
     def test_get_connection_via_supervisor_comms(self, mock_supervisor_comms):
-        """Test that connection is retrieved via SUPERVISOR_COMMS."""
+        """Test that connection is retrieved via supervisor-comms."""
         from airflow.sdk.api.datamodels._generated import ConnectionResponse
         from airflow.sdk.execution_time.comms import ConnectionResult
 
@@ -67,7 +67,7 @@ class TestExecutionAPISecretsBackend:
         mock_supervisor_comms.send.assert_called_once()
 
     def test_get_variable_via_supervisor_comms(self, mock_supervisor_comms):
-        """Test that variable is retrieved via SUPERVISOR_COMMS."""
+        """Test that variable is retrieved via supervisor-comms."""
         from airflow.sdk.execution_time.comms import VariableResult
 
         # Mock variable response
@@ -125,7 +125,7 @@ class TestExecutionAPISecretsBackend:
         """
         Test that RuntimeError from async_to_sync triggers greenback fallback.
 
-        This test verifies the fix for issue #57145: when SUPERVISOR_COMMS.send()
+        This test verifies the fix for issue #57145: when supervisor_send()
         raises the specific RuntimeError about async_to_sync in an event loop,
         the backend catches it and uses greenback to call aget_connection().
         """
@@ -161,7 +161,7 @@ class TestExecutionAPISecretsBackend:
 
         # Mock aget_connection to return the expected connection directly.
         # We need to mock this because the real aget_connection would try to
-        # use SUPERVISOR_COMMS.asend which is not set up for this test.
+        # use supervisor_asend which is not set up for this test.
         async def mock_aget_connection(self, conn_id):
             return expected_conn
 
@@ -183,7 +183,7 @@ class TestContextDetection:
     """Test context detection in ensure_secrets_backend_loaded."""
 
     def test_client_context_with_supervisor_comms(self, mock_supervisor_comms):
-        """Client context: SUPERVISOR_COMMS set → uses worker chain."""
+        """Client context: get_supervisor_comms() set → uses worker chain."""
         from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
         backends = ensure_secrets_backend_loaded()
@@ -191,31 +191,20 @@ class TestContextDetection:
         assert "ExecutionAPISecretsBackend" in backend_classes
         assert "MetastoreBackend" not in backend_classes
 
-    def test_server_context_with_env_var(self, monkeypatch):
+    def test_server_context_with_env_var(self, monkeypatch, mock_unset_supervisor_comms):
         """Server context: env var set → uses server chain."""
-        import sys
-
         from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
         monkeypatch.setenv("_AIRFLOW_PROCESS_CONTEXT", "server")
-        # Ensure SUPERVISOR_COMMS is not available
-        if "airflow.sdk.execution_time.task_runner" in sys.modules:
-            monkeypatch.delitem(sys.modules, "airflow.sdk.execution_time.task_runner")
 
         backends = ensure_secrets_backend_loaded()
         backend_classes = [type(b).__name__ for b in backends]
         assert "MetastoreBackend" in backend_classes
         assert "ExecutionAPISecretsBackend" not in backend_classes
 
-    def test_fallback_context_no_markers(self, monkeypatch):
-        """Fallback context: no SUPERVISOR_COMMS, no env var → only env vars + external."""
-        import sys
-
+    def test_fallback_context_no_markers(self, monkeypatch, mock_unset_supervisor_comms):
+        """Fallback context: no supervisor-comms, no env var → only env vars + external."""
         from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
-
-        # Ensure no SUPERVISOR_COMMS
-        if "airflow.sdk.execution_time.task_runner" in sys.modules:
-            monkeypatch.delitem(sys.modules, "airflow.sdk.execution_time.task_runner")
 
         # Ensure no env var
         monkeypatch.delenv("_AIRFLOW_PROCESS_CONTEXT", raising=False)
