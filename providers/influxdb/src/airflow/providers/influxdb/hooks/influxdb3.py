@@ -19,7 +19,7 @@
 This module allows to connect to an InfluxDB 3 database.
 
 InfluxDB 3.x (Core/Enterprise/Cloud Dedicated) uses SQL queries and a different
-API compared to InfluxDB 2.x. This provider is specifically designed for InfluxDB 3.x.
+API compared to InfluxDB 2.x.
 """
 from __future__ import annotations
 
@@ -38,9 +38,9 @@ except ImportError:
         InfluxDBClient3 = None  # type: ignore[assignment, misc]
         Point = None  # type: ignore[assignment, misc]
 
-from airflow.providers.common.compat.sdk import BaseHook
-
 import pandas as pd
+
+from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -64,7 +64,7 @@ class InfluxDB3Hook(BaseHook):
         super().__init__(*args, **kwargs)
         self.influxdb3_conn_id = conn_id
         self.connection = kwargs.pop("connection", None)
-        self.client: InfluxDBClient3 | None = None
+        self.client: Any = None
         self.extras: dict[str, Any] = {}
         self.uri: str | None = None
 
@@ -111,13 +111,13 @@ class InfluxDB3Hook(BaseHook):
     def get_uri(self, conn: Connection) -> str:
         """Build URI from connection parameters."""
         conn_scheme = "https" if conn.schema is None else conn.schema
-        
+
         # Use appropriate default port based on scheme
         if conn.port is None:
             conn_port = 443 if conn_scheme == "https" else 8086
         else:
             conn_port = conn.port
-        
+
         # For InfluxDB Cloud Dedicated, if host ends with .influxdb.io and using HTTPS,
         # default to port 443 if port is 8086 (common misconfiguration)
         if (
@@ -131,14 +131,14 @@ class InfluxDB3Hook(BaseHook):
                 "Switching to port 443. If this is incorrect, explicitly set the port in connection."
             )
             conn_port = 443
-        
+
         host = conn.host or ""
         return f"{conn_scheme}://{host}:{conn_port}"
 
     def get_conn(self) -> InfluxDBClient3:
         """
         Initiate a new InfluxDB 3.x connection with token and database.
-        
+
         Reads connection parameters from:
         - Custom form fields (token, database, org) - automatically stored in extras
         - Connection password field (as fallback for token)
@@ -190,13 +190,13 @@ class InfluxDB3Hook(BaseHook):
         """
         client = self.get_conn()
         result = client.query(query=query, language="sql", mode="pandas")
-        
+
         if not isinstance(result, pd.DataFrame):
             raise ValueError(
                 f"Query did not return a DataFrame. "
                 f"Result type: {type(result).__module__}.{type(result).__name__}"
             )
-        
+
         return result
 
     def write(

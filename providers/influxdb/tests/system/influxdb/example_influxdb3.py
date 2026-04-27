@@ -32,8 +32,8 @@ except ImportError:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
-from airflow.providers.influxdb3.hooks.influxdb3 import InfluxDB3Hook
-from airflow.providers.influxdb3.operators.influxdb3 import InfluxDB3Operator
+from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook
+from airflow.providers.influxdb.operators.influxdb3 import InfluxDB3Operator
 
 
 @task(task_id="write_data")

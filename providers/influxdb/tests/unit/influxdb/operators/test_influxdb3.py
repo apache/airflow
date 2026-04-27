@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.influxdb3.operators.influxdb3 import InfluxDB3Operator
+from airflow.providers.influxdb.operators.influxdb3 import InfluxDB3Operator
 
 
 class TestInfluxDB3Operator:
@@ -35,7 +35,7 @@ class TestInfluxDB3Operator:
         assert self.operator.influxdb3_conn_id == "influxdb3_default"
         assert "sql" in self.operator.template_fields
 
-    @mock.patch("airflow.providers.influxdb3.operators.influxdb3.InfluxDB3Hook")
+    @mock.patch("airflow.providers.influxdb.operators.influxdb3.InfluxDB3Hook")
     def test_execute(self, mock_hook_class):
         """Test operator execution."""
         import json

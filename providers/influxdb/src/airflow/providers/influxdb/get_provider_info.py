@@ -32,16 +32,26 @@ def get_provider_info():
                 "external-doc-url": "https://www.influxdata.com/",
                 "logo": "/docs/integration-logos/Influxdb.svg",
                 "tags": ["software"],
-            }
+            },
+            {
+                "integration-name": "InfluxDB 3",
+                "external-doc-url": "https://www.influxdata.com/",
+                "tags": ["software"],
+            },
         ],
         "hooks": [
-            {"integration-name": "Influxdb", "python-modules": ["airflow.providers.influxdb.hooks.influxdb"]}
+            {"integration-name": "Influxdb", "python-modules": ["airflow.providers.influxdb.hooks.influxdb"]},
+            {"integration-name": "InfluxDB 3", "python-modules": ["airflow.providers.influxdb.hooks.influxdb3"]},
         ],
         "operators": [
             {
                 "integration-name": "Influxdb",
                 "python-modules": ["airflow.providers.influxdb.operators.influxdb"],
-            }
+            },
+            {
+                "integration-name": "InfluxDB 3",
+                "python-modules": ["airflow.providers.influxdb.operators.influxdb3"],
+            },
         ],
         "connection-types": [
             {
@@ -63,6 +73,10 @@ def get_provider_info():
                         "schema": {"type": ["string", "null"], "default": ""},
                     },
                 },
-            }
+            },
+            {
+                "hook-class-name": "airflow.providers.influxdb.hooks.influxdb3.InfluxDB3Hook",
+                "connection-type": "influxdb3",
+            },
         ],
     }

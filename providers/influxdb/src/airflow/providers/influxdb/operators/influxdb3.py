@@ -22,10 +22,8 @@ import json
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-import pandas as pd
-
 from airflow.providers.common.compat.sdk import BaseOperator
-from airflow.providers.influxdb3.hooks.influxdb3 import InfluxDB3Hook
+from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook
 
 if TYPE_CHECKING:
     try:

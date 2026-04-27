@@ -24,7 +24,7 @@ The InfluxDB 3 connection type provides connection to an InfluxDB 3.x database
 (Core/Enterprise/Cloud Dedicated).
 
 InfluxDB 3.x uses SQL queries and a different API compared to InfluxDB 2.x.
-For InfluxDB 2.x support, use the ``apache-airflow-providers-influxdb`` provider.
+For InfluxDB 2.x support, use the ``influxdb`` connection type instead.
 
 Configuring the Connection
 --------------------------

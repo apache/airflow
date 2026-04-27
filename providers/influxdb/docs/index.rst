@@ -34,7 +34,8 @@
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/influxdb>
+    Connection types (InfluxDB 2.x) <connections/influxdb>
+    Connection types (InfluxDB 3.x) <connections/influxdb3>
     Operators <operators/index>
 
 .. toctree::

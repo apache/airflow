@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.influxdb3.hooks.influxdb3 import InfluxDB3Hook
+from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook
 
 
 class TestInfluxDB3Hook:
@@ -34,7 +34,7 @@ class TestInfluxDB3Hook:
 
         self.connection = Connection(schema="https", host="localhost", port=8086, extra=extra)
 
-    @mock.patch("airflow.providers.influxdb3.hooks.influxdb3.InfluxDBClient3")
+    @mock.patch("airflow.providers.influxdb.hooks.influxdb3.InfluxDBClient3")
     def test_get_conn(self, influx_db_client_3):
         """Test connection to InfluxDB 3.x."""
         self.influxdb3_hook.get_connection = mock.Mock()
@@ -117,7 +117,7 @@ class TestInfluxDB3Hook:
         with pytest.raises(ValueError, match="At least one field is required"):
             self.influxdb3_hook.write(measurement="test", tags={"tag": "value"}, fields=None)
 
-    @mock.patch("airflow.providers.influxdb3.hooks.influxdb3.INFLUXDB_CLIENT_3_AVAILABLE", False)
+    @mock.patch("airflow.providers.influxdb.hooks.influxdb3.INFLUXDB_CLIENT_3_AVAILABLE", False)
     def test_get_client_missing_library(self):
         """Test that ImportError is raised when influxdb3-python is not installed."""
         self.influxdb3_hook.get_connection = mock.Mock()
