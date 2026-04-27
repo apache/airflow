@@ -3194,6 +3194,10 @@ otelCollector:
   # Send Airflow metrics to the OTel Collector (sets [metrics] otel_on and disables statsd).
   metricsEnabled: false
 
+  # Default value for the OTEL_METRIC_EXPORT_INTERVAL env var on Airflow pods.
+  # Interval (in milliseconds) at which the OTel SDK exports metrics to the collector.
+  metricExportIntervalMs: 30000
+
   # Max number of old ReplicaSets to retain
   revisionHistoryLimit: ~
 

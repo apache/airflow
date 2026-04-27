@@ -157,7 +157,7 @@ If release name contains chart name it will be used as a full name.
   - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
     value: "http://{{ include "airflow.fullname" . }}-otel-collector:{{ .Values.ports.otelCollectorOtlpHttp }}/v1/metrics"
   - name: OTEL_METRIC_EXPORT_INTERVAL
-    value: "30000"
+    value: {{ .Values.otelCollector.metricExportIntervalMs | quote }}
   {{- end }}
 {{- end }}
 
@@ -425,7 +425,6 @@ If release name contains chart name it will be used as a full name.
 {{- define "otel_collector_image" -}}
   {{- printf "%s:%s" .Values.images.otelCollector.repository .Values.images.otelCollector.tag }}
 {{- end }}
-
 
 {{- define "fernet_key_secret" -}}
   {{- default (printf "%s-fernet-key" (include "airflow.fullname" .)) .Values.fernetKeySecretName }}
