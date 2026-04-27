@@ -10333,6 +10333,9 @@ def scheduler_job_runner_for_connection_tests(session):
     session.commit()
 
     executor = LocalExecutor()
+    executor.name = ExecutorName(
+        module_path="airflow.executors.local_executor.LocalExecutor", alias="LocalExecutor"
+    )
     executor.queued_connection_tests.clear()
     yield _make_scheduler_runner_for_connection_tests([executor])
     session.execute(delete(ConnectionTestRequest))
@@ -10391,16 +10394,19 @@ class TestDispatchConnectionTests:
             "AIRFLOW__SCHEDULER__CONNECTION_TEST_TIMEOUT": "60",
         },
     )
-    def test_dispatch_fails_fast_when_no_executor_supports(
+    def test_dispatch_fails_fast_when_executor_does_not_support_test(
         self, scheduler_job_runner_for_connection_tests, session
     ):
-        """Tests fail immediately when no executor supports connection testing."""
+        """Failure message names the executor that was tried, not 'no executor'."""
         unsupporting_executor = BaseExecutor()
         unsupporting_executor.supports_connection_test = False
+        unsupporting_executor.name = ExecutorName(
+            module_path="airflow.executors.base_executor.BaseExecutor", alias="celery"
+        )
         scheduler_job_runner_for_connection_tests.executors = [unsupporting_executor]
         scheduler_job_runner_for_connection_tests.executor = unsupporting_executor
 
-        ct = ConnectionTestRequest(conn_type="test_type", connection_id="test_conn")
+        ct = ConnectionTestRequest(conn_type="test_type", connection_id="test_conn", executor="celery")
         session.add(ct)
         session.commit()
 
@@ -10409,7 +10415,7 @@ class TestDispatchConnectionTests:
         session.expire_all()
         ct = session.get(ConnectionTestRequest, ct.id)
         assert ct.state == ConnectionTestState.FAILED
-        assert "No executor supports connection testing" in ct.result_message
+        assert ct.result_message == "Executor 'celery' does not support connection testing"
 
     @mock.patch.dict(
         os.environ,
@@ -10662,7 +10668,7 @@ class TestDispatchConnectionTests:
         session.expire_all()
         ct = session.get(ConnectionTestRequest, ct.id)
         assert ct.state == ConnectionTestState.FAILED
-        assert "No executor supports connection testing" in ct.result_message
+        assert "does not support connection testing" in ct.result_message
 
 
 class TestReapStaleConnectionTests:

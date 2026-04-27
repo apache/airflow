@@ -27,8 +27,8 @@ from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, select
-from sqlalchemy.orm import Mapped, declared_attr, mapped_column, reconstructor, synonym
+from sqlalchemy import ForeignKey, Integer, String, Text, select
+from sqlalchemy.orm import Mapped, mapped_column, reconstructor
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_masker import mask_secret
@@ -145,10 +145,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
     host: Mapped[str | None] = mapped_column(String(500), nullable=True)
     schema: Mapped[str | None] = mapped_column(String(500), nullable=True)
     login: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    # _password and _extra columns inherited from FernetFieldsMixin
     port: Mapped[int | None] = mapped_column(Integer(), nullable=True)
-    is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
-    is_extra_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
     team_name: Mapped[str | None] = mapped_column(
         String(50),
         ForeignKey("team.name", ondelete="SET NULL"),
@@ -367,62 +364,18 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
                 uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
         return uri
 
-    def get_password(self) -> str | None:
-        """Return encrypted password."""
-        if self._password and self.is_encrypted:
-            fernet = get_fernet()
-            if not fernet.is_encrypted:
-                raise AirflowException(
-                    f"Can't decrypt encrypted password for login={self.login}  "
-                    f"FERNET_KEY configuration is missing"
-                )
-            return fernet.decrypt(bytes(self._password, "utf-8")).decode()
-        return self._password
-
-    def set_password(self, value: str | None):
-        """Encrypt password and set in object attribute."""
-        if value:
-            fernet = get_fernet()
-            self._password = fernet.encrypt(bytes(value, "utf-8")).decode()
-            self.is_encrypted = fernet.is_encrypted
-
-    @declared_attr
-    def password(cls):
-        """Password. The value is decrypted/encrypted when reading/setting the value."""
-        return synonym("_password", descriptor=property(cls.get_password, cls.set_password))
-
     def get_extra(self) -> str | None:
-        """Return encrypted extra-data."""
-        extra_val: str | None
-        if self._extra and self.is_extra_encrypted:
-            fernet = get_fernet()
-            if not fernet.is_encrypted:
-                raise AirflowException(
-                    f"Can't decrypt `extra` params for login={self.login}, "
-                    f"FERNET_KEY configuration is missing"
-                )
-            extra_val = fernet.decrypt(bytes(self._extra, "utf-8")).decode()
-        else:
-            extra_val = self._extra
+        """Return decrypted extra-data, validating its JSON shape."""
+        extra_val = super().get_extra()
         if extra_val:
             self._validate_extra(extra_val, self.conn_id)
         return extra_val
 
     def set_extra(self, value: str | None):
-        """Encrypt extra-data and save in object attribute to object."""
+        """Validate JSON shape, then delegate encrypt-and-store to the mixin."""
         if value:
             self._validate_extra(value, self.conn_id)
-            fernet = get_fernet()
-            self._extra = fernet.encrypt(bytes(value, "utf-8")).decode()
-            self.is_extra_encrypted = fernet.is_encrypted
-        else:
-            self._extra = value
-            self.is_extra_encrypted = False
-
-    @declared_attr
-    def extra(cls):
-        """Extra data. The value is decrypted/encrypted when reading/setting the value."""
-        return synonym("_extra", descriptor=property(cls.get_extra, cls.set_extra))
+        super().set_extra(value)
 
     def rotate_fernet_key(self):
         """Encrypts data with a new key. See: :ref:`security/fernet`."""

@@ -20,6 +20,7 @@ import dataclasses
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from airflow.models.connection import Connection
 from airflow.models.connection_test import (
@@ -139,6 +140,36 @@ class TestConnectionTestRequestModel:
     def test_commit_on_success_true(self):
         ct = ConnectionTestRequest(connection_id="test_conn", conn_type="postgres", commit_on_success=True)
         assert ct.commit_on_success is True
+
+
+class TestActiveConnectionUniqueConstraint:
+    """The DB rejects two simultaneously-active tests for the same connection_id."""
+
+    def setup_method(self):
+        clear_db_connection_tests()
+
+    def teardown_method(self):
+        clear_db_connection_tests()
+
+    def test_duplicate_active_connection_id_raises_integrity_error(self, session):
+        first = ConnectionTestRequest(connection_id="dupe", conn_type="postgres")
+        second = ConnectionTestRequest(connection_id="dupe", conn_type="postgres")
+        session.add(first)
+        session.flush()
+        session.add(second)
+        with pytest.raises(IntegrityError):
+            session.flush()
+        session.rollback()
+
+    def test_terminal_state_does_not_block_new_active_test(self, session):
+        first = ConnectionTestRequest(connection_id="dupe", conn_type="postgres")
+        first.state = ConnectionTestState.SUCCESS
+        session.add(first)
+        session.flush()
+
+        second = ConnectionTestRequest(connection_id="dupe", conn_type="postgres")
+        session.add(second)
+        session.flush()
 
 
 class TestToConnection:

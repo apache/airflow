@@ -25,7 +25,17 @@ from uuid import UUID
 
 import structlog
 import uuid6
-from sqlalchemy import Boolean, Index, Integer, String, Text, Uuid, select, text
+from sqlalchemy import (
+    Boolean,
+    Computed,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+    select,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow._shared.timezones import timezone
@@ -93,7 +103,6 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
     executor: Mapped[str | None] = mapped_column(String(256), nullable=True)
     queue: Mapped[str | None] = mapped_column(String(256), nullable=True)
 
-    # Connection fields — password and extra are Fernet-encrypted via FernetFieldsMixin.
     conn_type: Mapped[str] = mapped_column(String(500), nullable=False)
     host: Mapped[str | None] = mapped_column(String(500), nullable=True)
     login: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -103,17 +112,22 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
         Boolean, nullable=False, default=False, server_default="0"
     )
 
+    # NULL in terminal states so the UNIQUE constraint below only fires on
+    # active rows (NULLs don't collide in UNIQUE) — works on every backend.
+    active_connection_id: Mapped[str | None] = mapped_column(
+        String(250),
+        Computed(
+            "CASE WHEN state IN ('pending', 'queued', 'running') THEN connection_id ELSE NULL END",
+            persisted=True,
+        ),
+        nullable=True,
+    )
+
     __table_args__ = (
         Index("idx_connection_test_request_state_created_at", state, created_at),
-        # Partial index on postgres/sqlite scopes lookups to active tests;
-        # mysql lacks filtered indices so it gets a plain index on the same
-        # column. Uniqueness ("one active test per connection") is enforced
-        # at the application layer uniformly across backends.
-        Index(
-            "idx_connection_test_request_active_conn",
-            "connection_id",
-            postgresql_where=text("state IN ('pending', 'queued', 'running')"),
-            sqlite_where=text("state IN ('pending', 'queued', 'running')"),
+        UniqueConstraint(
+            "active_connection_id",
+            name="uq_connection_test_request_active_conn",
         ),
     )
 

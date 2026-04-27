@@ -60,31 +60,33 @@ def upgrade():
         sa.Column("schema", sa.String(500), nullable=True),
         sa.Column("port", sa.Integer(), nullable=True),
         sa.Column("extra", sa.Text(), nullable=True),
+        sa.Column("is_encrypted", sa.Boolean(), nullable=False, server_default="0"),
+        sa.Column("is_extra_encrypted", sa.Boolean(), nullable=False, server_default="0"),
         sa.Column("commit_on_success", sa.Boolean(), nullable=False, server_default="0"),
+        sa.Column(
+            "active_connection_id",
+            sa.String(250),
+            sa.Computed(
+                "CASE WHEN state IN ('pending', 'queued', 'running') THEN connection_id ELSE NULL END",
+                persisted=True,
+            ),
+            nullable=True,
+        ),
         sa.PrimaryKeyConstraint("id", name=op.f("connection_test_request_pkey")),
         sa.UniqueConstraint("token", name=op.f("connection_test_request_token_uq")),
+        sa.UniqueConstraint(
+            "active_connection_id",
+            name=op.f("uq_connection_test_request_active_conn"),
+        ),
     )
     op.create_index(
         op.f("idx_connection_test_request_state_created_at"),
         "connection_test_request",
         ["state", "created_at"],
     )
-    # Partial index on postgres/sqlite scopes lookups to active tests; mysql
-    # lacks filtered indices and ignores the dialect-specific where clauses,
-    # so it gets a plain index on the same column. Uniqueness ("one active
-    # test per connection") is enforced at the application layer uniformly
-    # across backends.
-    op.create_index(
-        op.f("idx_connection_test_request_active_conn"),
-        "connection_test_request",
-        ["connection_id"],
-        postgresql_where=sa.text("state IN ('pending', 'queued', 'running')"),
-        sqlite_where=sa.text("state IN ('pending', 'queued', 'running')"),
-    )
 
 
 def downgrade():
     """Drop connection_test_request table."""
-    op.drop_index(op.f("idx_connection_test_request_active_conn"), table_name="connection_test_request")
     op.drop_index(op.f("idx_connection_test_request_state_created_at"), table_name="connection_test_request")
     op.drop_table("connection_test_request")

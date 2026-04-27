@@ -481,6 +481,7 @@ def test_queue_connection_test_workload_rejected_by_default():
     wl = workloads.TestConnection.make(
         connection_test_id=uuid4(),
         connection_id="test_conn",
+        timeout=60,
     )
     with pytest.raises(NotImplementedError, match="does not support TestConnection workloads"):
         executor.queue_workload(wl, session=mock.MagicMock(spec=Session))
@@ -493,6 +494,7 @@ def test_queue_connection_test_workload_accepted_when_supported():
     wl = workloads.TestConnection.make(
         connection_test_id=uuid4(),
         connection_id="test_conn",
+        timeout=60,
     )
     executor.queue_workload(wl, session=mock.MagicMock(spec=Session))
     assert len(executor.queued_connection_tests) == 1

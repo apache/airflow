@@ -60,8 +60,9 @@ from airflow.api_fastapi.core_api.services.public.connections import (
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Connection
-from airflow.models.connection_test import ACTIVE_STATES, ConnectionTestRequest
+from airflow.models.connection_test import ConnectionTestRequest
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.strings import get_random_string
@@ -79,26 +80,25 @@ def _ensure_test_connection_enabled() -> None:
         )
 
 
-def _check_no_active_test(connection_id: str, session: SessionDep) -> None:
-    """Raise 409 if there is an active connection test request for the given connection_id."""
-    active_test = session.scalar(
-        select(ConnectionTestRequest).filter(
-            ConnectionTestRequest.connection_id == connection_id,
-            ConnectionTestRequest.state.in_(ACTIVE_STATES),
-        )
-    )
-    if active_test is not None:
+def _ensure_executor_is_configured(executor: str | None) -> None:
+    """Raise 422 if the requested executor is not in the configured executors list."""
+    if executor is None:
+        return
+    configured = ExecutorLoader.get_executor_names(validate_teams=False)
+    if not any(
+        executor in (name.alias, name.module_path, name.module_path.split(".")[-1]) for name in configured
+    ):
         raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"Cannot modify connection `{connection_id}` while an async test is running. "
-            "This typically takes only a few seconds — please retry shortly.",
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            f"Executor '{executor}' is not configured. "
+            f"Configured executors: {[name.alias or name.module_path for name in configured]}",
         )
 
 
 @connections_router.delete(
     "/{connection_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_connection(method="DELETE")), Depends(action_logging())],
 )
 def delete_connection(
@@ -106,8 +106,6 @@ def delete_connection(
     session: SessionDep,
 ):
     """Delete a connection entry."""
-    _check_no_active_test(connection_id, session)
-
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
 
     if connection is None:
@@ -225,8 +223,6 @@ def patch_connection(
     update_mask: list[str] | None = Query(None),
 ) -> ConnectionResponse:
     """Update a connection entry."""
-    _check_no_active_test(connection_id, session)
-
     if patch_body.connection_id != connection_id:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
@@ -291,7 +287,13 @@ def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
 @connections_router.post(
     "/test-async",
     status_code=status.HTTP_202_ACCEPTED,
-    responses=create_openapi_http_exception_doc([status.HTTP_403_FORBIDDEN, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_409_CONFLICT,
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        ]
+    ),
     dependencies=[Depends(requires_access_connection(method="POST")), Depends(action_logging())],
 )
 def test_connection_async(
@@ -306,9 +308,7 @@ def test_connection_async(
     GET /connections/test-async/{token}.
     """
     _ensure_test_connection_enabled()
-
-    # Only one active test per connection_id at a time.
-    _check_no_active_test(test_body.connection_id, session)
+    _ensure_executor_is_configured(test_body.executor)
 
     connection_test = ConnectionTestRequest(
         connection_id=test_body.connection_id,

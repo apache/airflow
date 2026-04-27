@@ -3301,14 +3301,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         for ct in pending_tests:
             executor = self._try_to_load_executor(ct, session)
-            if executor is not None and not executor.supports_connection_test:
-                executor = None
             if executor is None:
-                reason = (
-                    f"No executor matches '{ct.executor}'"
-                    if ct.executor
-                    else "No executor supports connection testing"
-                )
+                reason = f"No executor matches '{ct.executor}'"
+                ct.state = ConnectionTestState.FAILED
+                ct.result_message = reason
+                self.log.warning("Failing connection test %s: %s", ct.id, reason)
+                continue
+            if not executor.supports_connection_test:
+                exec_name = executor.name
+                name = ct.executor or (exec_name and (exec_name.alias or exec_name.module_path))
+                reason = f"Executor '{name}' does not support connection testing"
                 ct.state = ConnectionTestState.FAILED
                 ct.result_message = reason
                 self.log.warning("Failing connection test %s: %s", ct.id, reason)
