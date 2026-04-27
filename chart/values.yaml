@@ -1150,6 +1150,8 @@ workers:
 
     # Whether persistence is required for log groomer sidecar. When false, the log groomer
     # can run on Deployments (without persistence) using an emptyDir volume for logs.
+    # Note: This parameter is transitional for chart 1.2x. In chart 2.x, log groomer will
+    # work without persistence by default and this parameter will be removed.
     # (deprecated, use `workers.celery.logGroomerSidecar.requirePersistence` instead)
     requirePersistence: true
 
@@ -1566,6 +1568,8 @@ workers:
 
       # Whether persistence is required for log groomer sidecar. When false, the log groomer
       # can run on Deployments (without persistence) using an emptyDir volume for logs.
+      # Note: This parameter is transitional for chart 1.2x. In chart 2.x, log groomer will
+      # work without persistence by default and this parameter will be removed.
       requirePersistence: ~
 
       # Command to use when running the Airflow Celery worker log groomer sidecar (templated)
