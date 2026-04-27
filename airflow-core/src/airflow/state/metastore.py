@@ -37,6 +37,33 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
+def _build_upsert_stmt(
+    dialect: str | None,
+    model: type,
+    conflict_cols: list[str],
+    values: dict,
+    update_fields: dict,
+):
+    """Return a dialect-specific INSERT ... ON CONFLICT UPDATE statement."""
+    stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        stmt = pg_insert(model).values(**values)
+        stmt = stmt.on_conflict_do_update(index_elements=conflict_cols, set_=update_fields)
+    elif dialect == "mysql":
+        from sqlalchemy.dialects.mysql import insert as mysql_insert
+
+        stmt = mysql_insert(model).values(**values)
+        stmt = stmt.on_duplicate_key_update(**update_fields)
+    else:
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+        stmt = sqlite_insert(model).values(**values)
+        stmt = stmt.on_conflict_do_update(index_elements=conflict_cols, set_=update_fields)
+    return stmt
+
+
 class MetastoreStateBackend(BaseStateBackend):
     """Default state backend for tasks and assets. Stores task and asset state in the Airflow metadata database."""
 
@@ -126,56 +153,23 @@ class MetastoreStateBackend(BaseStateBackend):
         if dag_run_id is None:
             raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
-        dialect = get_dialect_name(session)
-        stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
-        if dialect == "postgresql":
-            from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-            stmt = pg_insert(TaskStateModel).values(
-                dag_run_id=dag_run_id,
-                dag_id=scope.dag_id,
-                run_id=scope.run_id,
-                task_id=scope.task_id,
-                map_index=scope.map_index,
-                key=key,
-                value=value,
-                updated_at=now,
-            )
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["dag_run_id", "task_id", "map_index", "key"],
-                set_=dict(value=value, updated_at=now),
-            )
-        elif dialect == "mysql":
-            from sqlalchemy.dialects.mysql import insert as mysql_insert
-
-            stmt = mysql_insert(TaskStateModel).values(
-                dag_run_id=dag_run_id,
-                dag_id=scope.dag_id,
-                run_id=scope.run_id,
-                task_id=scope.task_id,
-                map_index=scope.map_index,
-                key=key,
-                value=value,
-                updated_at=now,
-            )
-            stmt = stmt.on_duplicate_key_update(value=value, updated_at=now)
-        else:
-            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
-            stmt = sqlite_insert(TaskStateModel).values(
-                dag_run_id=dag_run_id,
-                dag_id=scope.dag_id,
-                run_id=scope.run_id,
-                task_id=scope.task_id,
-                map_index=scope.map_index,
-                key=key,
-                value=value,
-                updated_at=now,
-            )
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["dag_run_id", "task_id", "map_index", "key"],
-                set_=dict(value=value, updated_at=now),
-            )
+        values = dict(
+            dag_run_id=dag_run_id,
+            dag_id=scope.dag_id,
+            run_id=scope.run_id,
+            task_id=scope.task_id,
+            map_index=scope.map_index,
+            key=key,
+            value=value,
+            updated_at=now,
+        )
+        stmt = _build_upsert_stmt(
+            get_dialect_name(session),
+            TaskStateModel,
+            ["dag_run_id", "task_id", "map_index", "key"],
+            values,
+            dict(value=value, updated_at=now),
+        )
         session.execute(stmt)
 
     def _delete_task_state(self, scope: TaskScope, key: str, *, session: Session) -> None:
@@ -210,35 +204,14 @@ class MetastoreStateBackend(BaseStateBackend):
 
     def _set_asset_state(self, scope: AssetScope, key: str, value: str, *, session: Session) -> None:
         now = timezone.utcnow()
-        dialect = get_dialect_name(session)
-        stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
-        if dialect == "postgresql":
-            from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-            stmt = pg_insert(AssetStateModel).values(
-                asset_id=scope.asset_id, key=key, value=value, updated_at=now
-            )
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["asset_id", "key"],
-                set_=dict(value=value, updated_at=now),
-            )
-        elif dialect == "mysql":
-            from sqlalchemy.dialects.mysql import insert as mysql_insert
-
-            stmt = mysql_insert(AssetStateModel).values(
-                asset_id=scope.asset_id, key=key, value=value, updated_at=now
-            )
-            stmt = stmt.on_duplicate_key_update(value=value, updated_at=now)
-        else:
-            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
-            stmt = sqlite_insert(AssetStateModel).values(
-                asset_id=scope.asset_id, key=key, value=value, updated_at=now
-            )
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["asset_id", "key"],
-                set_=dict(value=value, updated_at=now),
-            )
+        values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now)
+        stmt = _build_upsert_stmt(
+            get_dialect_name(session),
+            AssetStateModel,
+            ["asset_id", "key"],
+            values,
+            dict(value=value, updated_at=now),
+        )
         session.execute(stmt)
 
     def _delete_asset_state(self, scope: AssetScope, key: str, *, session: Session) -> None:
@@ -280,57 +253,24 @@ class MetastoreStateBackend(BaseStateBackend):
         if dag_run_id is None:
             raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
-        stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
+        values = dict(
+            dag_run_id=dag_run_id,
+            dag_id=scope.dag_id,
+            run_id=scope.run_id,
+            task_id=scope.task_id,
+            map_index=scope.map_index,
+            key=key,
+            value=value,
+            updated_at=now,
+        )
         # get_dialect_name expects a sync Session; sync_session is the underlying Session the async wrapper delegates to
-        dialect = get_dialect_name(session.sync_session)
-        if dialect == "postgresql":
-            from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-            stmt = pg_insert(TaskStateModel).values(
-                dag_run_id=dag_run_id,
-                dag_id=scope.dag_id,
-                run_id=scope.run_id,
-                task_id=scope.task_id,
-                map_index=scope.map_index,
-                key=key,
-                value=value,
-                updated_at=now,
-            )
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["dag_run_id", "task_id", "map_index", "key"],
-                set_=dict(value=value, updated_at=now),
-            )
-        elif dialect == "mysql":
-            from sqlalchemy.dialects.mysql import insert as mysql_insert
-
-            stmt = mysql_insert(TaskStateModel).values(
-                dag_run_id=dag_run_id,
-                dag_id=scope.dag_id,
-                run_id=scope.run_id,
-                task_id=scope.task_id,
-                map_index=scope.map_index,
-                key=key,
-                value=value,
-                updated_at=now,
-            )
-            stmt = stmt.on_duplicate_key_update(value=value, updated_at=now)
-        else:
-            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
-            stmt = sqlite_insert(TaskStateModel).values(
-                dag_run_id=dag_run_id,
-                dag_id=scope.dag_id,
-                run_id=scope.run_id,
-                task_id=scope.task_id,
-                map_index=scope.map_index,
-                key=key,
-                value=value,
-                updated_at=now,
-            )
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["dag_run_id", "task_id", "map_index", "key"],
-                set_=dict(value=value, updated_at=now),
-            )
+        stmt = _build_upsert_stmt(
+            get_dialect_name(session.sync_session),
+            TaskStateModel,
+            ["dag_run_id", "task_id", "map_index", "key"],
+            values,
+            dict(value=value, updated_at=now),
+        )
         await session.execute(stmt)
 
     async def _adelete_task_state(self, scope: TaskScope, key: str, *, session: AsyncSession) -> None:
@@ -367,36 +307,15 @@ class MetastoreStateBackend(BaseStateBackend):
         self, scope: AssetScope, key: str, value: str, *, session: AsyncSession
     ) -> None:
         now = timezone.utcnow()
-        stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
+        values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now)
         # get_dialect_name expects a sync Session; sync_session is the underlying Session the async wrapper delegates to
-        dialect = get_dialect_name(session.sync_session)
-        if dialect == "postgresql":
-            from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-            stmt = pg_insert(AssetStateModel).values(
-                asset_id=scope.asset_id, key=key, value=value, updated_at=now
-            )
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["asset_id", "key"],
-                set_=dict(value=value, updated_at=now),
-            )
-        elif dialect == "mysql":
-            from sqlalchemy.dialects.mysql import insert as mysql_insert
-
-            stmt = mysql_insert(AssetStateModel).values(
-                asset_id=scope.asset_id, key=key, value=value, updated_at=now
-            )
-            stmt = stmt.on_duplicate_key_update(value=value, updated_at=now)
-        else:
-            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
-            stmt = sqlite_insert(AssetStateModel).values(
-                asset_id=scope.asset_id, key=key, value=value, updated_at=now
-            )
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["asset_id", "key"],
-                set_=dict(value=value, updated_at=now),
-            )
+        stmt = _build_upsert_stmt(
+            get_dialect_name(session.sync_session),
+            AssetStateModel,
+            ["asset_id", "key"],
+            values,
+            dict(value=value, updated_at=now),
+        )
         await session.execute(stmt)
 
     async def _adelete_asset_state(self, scope: AssetScope, key: str, *, session: AsyncSession) -> None:
