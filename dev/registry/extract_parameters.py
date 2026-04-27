@@ -878,14 +878,17 @@ def _main_discover(
             provider_yamls_by_id[pid] = py
             provider_paths_by_id[pid] = yaml_path
 
-    # Filter to single provider if requested
+    # Filter to requested providers if --provider was given (supports space-separated list,
+    # matching extract_metadata.py and extract_connections.py behaviour)
     if only_provider:
-        if only_provider not in provider_paths_by_id:
-            print(f"ERROR: provider '{only_provider}' not found in provider.yaml files")
+        requested_providers = {pid.strip() for pid in only_provider.split() if pid.strip()}
+        missing = requested_providers - set(provider_paths_by_id)
+        if missing:
+            print(f"ERROR: provider(s) {sorted(missing)} not found in provider.yaml files")
             sys.exit(1)
-        provider_paths_by_id = {only_provider: provider_paths_by_id[only_provider]}
-        provider_yamls_by_id = {only_provider: provider_yamls_by_id[only_provider]}
-        print(f"Filtering to provider: {only_provider}")
+        provider_paths_by_id = {pid: provider_paths_by_id[pid] for pid in requested_providers}
+        provider_yamls_by_id = {pid: provider_yamls_by_id[pid] for pid in requested_providers}
+        print(f"Filtering to provider(s): {', '.join(sorted(requested_providers))}")
 
     # Fetch Sphinx inventories in parallel
     print("Fetching Sphinx inventory files ...")
