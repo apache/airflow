@@ -28,6 +28,7 @@ from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.task_state import TaskStateModel
 from airflow.state import AssetScope, TaskScope, resolve_state_backend
 from airflow.state.metastore import MetastoreStateBackend
+from airflow.utils.session import create_session
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs
@@ -73,10 +74,38 @@ def dag_run(session: Session) -> DagRun:
 
 
 @pytest.fixture
+def dag_run_committed() -> DagRun:
+    """DagRun committed to DB so async sessions (which open their own connections) can see it."""
+    with create_session() as session:
+        run = DagRun(
+            dag_id=DAG_ID,
+            run_id=RUN_ID,
+            run_type=DagRunType.SCHEDULED,
+            logical_date=timezone.datetime(2026, 4, 24),
+            run_after=timezone.datetime(2026, 4, 24),
+        )
+        session.add(run)
+        session.flush()
+        session.expunge(run)
+    return run
+
+
+@pytest.fixture
 def asset(session: Session) -> AssetModel:
     a = AssetModel(uri="s3://bucket/prefix", name="test_asset", group="test")
     session.add(a)
     session.flush()
+    return a
+
+
+@pytest.fixture
+def asset_committed() -> AssetModel:
+    """AssetModel committed to DB so async sessions (which open their own connections) can see it."""
+    with create_session() as session:
+        a = AssetModel(uri="s3://bucket/prefix", name="test_asset", group="test")
+        session.add(a)
+        session.flush()
+        session.expunge(a)
     return a
 
 
@@ -261,21 +290,25 @@ class TestMetastoreStateBackendAssetScope:
 
 class TestMetastoreStateBackendAsync:
     @pytest.mark.asyncio
-    async def test_aset_and_aget_task_roundtrip(self, backend: MetastoreStateBackend, dag_run: DagRun):
+    async def test_aset_and_aget_task_roundtrip(
+        self, backend: MetastoreStateBackend, dag_run_committed: DagRun
+    ):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         await backend.aset(scope, "job_id", "app_async")
         result = await backend.aget(scope, "job_id")
         assert result == "app_async"
 
     @pytest.mark.asyncio
-    async def test_adelete_task_removes_key(self, backend: MetastoreStateBackend, dag_run: DagRun):
+    async def test_adelete_task_removes_key(self, backend: MetastoreStateBackend, dag_run_committed: DagRun):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         await backend.aset(scope, "job_id", "app_async")
         await backend.adelete(scope, "job_id")
         assert await backend.aget(scope, "job_id") is None
 
     @pytest.mark.asyncio
-    async def test_aclear_task_removes_all_keys(self, backend: MetastoreStateBackend, dag_run: DagRun):
+    async def test_aclear_task_removes_all_keys(
+        self, backend: MetastoreStateBackend, dag_run_committed: DagRun
+    ):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         await backend.aset(scope, "job_id", "app_async")
         await backend.aset(scope, "checkpoint", "step_1")
@@ -284,22 +317,28 @@ class TestMetastoreStateBackendAsync:
         assert await backend.aget(scope, "checkpoint") is None
 
     @pytest.mark.asyncio
-    async def test_aset_and_aget_asset_roundtrip(self, backend: MetastoreStateBackend, asset: AssetModel):
-        scope = AssetScope(asset_id=asset.id)
+    async def test_aset_and_aget_asset_roundtrip(
+        self, backend: MetastoreStateBackend, asset_committed: AssetModel
+    ):
+        scope = AssetScope(asset_id=asset_committed.id)
         await backend.aset(scope, "watermark", "2026-04-27T00:00:00Z")
         result = await backend.aget(scope, "watermark")
         assert result == "2026-04-27T00:00:00Z"
 
     @pytest.mark.asyncio
-    async def test_adelete_asset_removes_key(self, backend: MetastoreStateBackend, asset: AssetModel):
-        scope = AssetScope(asset_id=asset.id)
+    async def test_adelete_asset_removes_key(
+        self, backend: MetastoreStateBackend, asset_committed: AssetModel
+    ):
+        scope = AssetScope(asset_id=asset_committed.id)
         await backend.aset(scope, "watermark", "2026-04-27T00:00:00Z")
         await backend.adelete(scope, "watermark")
         assert await backend.aget(scope, "watermark") is None
 
     @pytest.mark.asyncio
-    async def test_aclear_asset_removes_all_keys(self, backend: MetastoreStateBackend, asset: AssetModel):
-        scope = AssetScope(asset_id=asset.id)
+    async def test_aclear_asset_removes_all_keys(
+        self, backend: MetastoreStateBackend, asset_committed: AssetModel
+    ):
+        scope = AssetScope(asset_id=asset_committed.id)
         await backend.aset(scope, "watermark", "2026-04-27T00:00:00Z")
         await backend.aset(scope, "file_count", "42")
         await backend.aclear(scope)
