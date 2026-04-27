@@ -494,7 +494,8 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
             yield TriggerEvent({"status": "failure", "message": str(e)})
 
     async def on_kill(self) -> None:
-        """Cancel the EMR Serverless job when the trigger is cancelled by a user action.
+        """
+        Cancel the EMR Serverless job when the trigger is cancelled by a user action.
 
         This hook is available in Airflow 3.3+ via BaseTrigger.on_kill().
         For older Airflow versions, the CancelledError handler in run() provides

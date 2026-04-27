@@ -421,9 +421,7 @@ class TestEmrServerlessStartJobTrigger:
         with mock.patch.object(trigger, "hook", return_value=mock_hook):
             await trigger.on_kill()
 
-        mock_hook.conn.cancel_job_run.assert_called_once_with(
-            applicationId="test_app", jobRunId="test_job"
-        )
+        mock_hook.conn.cancel_job_run.assert_called_once_with(applicationId="test_app", jobRunId="test_job")
 
     @pytest.mark.asyncio
     async def test_on_kill_skips_when_cancel_disabled(self):
