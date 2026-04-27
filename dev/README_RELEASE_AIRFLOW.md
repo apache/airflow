@@ -387,11 +387,16 @@ cd airflow
 export AIRFLOW_REPO_ROOT=$(pwd)
 ```
 
-- Install `breeze` command:
+- Install `breeze` command (recommended — installs a shim at `~/.local/bin/breeze` that runs
+  breeze via `uvx` from the current git worktree's `dev/breeze`; see
+  [ADR 0017](breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md)):
 
 ```shell script
-uv tool install -e ./dev/breeze
+./scripts/tools/setup_breeze
 ```
+
+The legacy global install (`uv tool install -e ./dev/breeze` or `pipx install -e ./dev/breeze`)
+still works but is no longer recommended.
 
 - Verify your GPG signing key is ready.
 
