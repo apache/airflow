@@ -34,7 +34,7 @@ metadata:
     {{- if or .Values.labels .Values.otelCollector.labels }}
       {{- mustMerge .Values.otelCollector.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
-  {{- with .Values.otelCollector.service.extraAnnotations }}
+  {{- with .Values.otelCollector.service.annotations }}
   annotations: {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
