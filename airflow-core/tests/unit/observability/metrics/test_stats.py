@@ -74,7 +74,7 @@ class TestDogStats:
             }
         ):
             importlib.reload(airflow.observability.stats)
-            airflow.observability.stats.Stats.initialize(
+            airflow.observability.stats.initialize(
                 factory=stats_utils.get_stats_factory(), export_legacy_names=True
             )
             backend = airflow._shared.observability.metrics.stats._get_backend()
@@ -93,7 +93,7 @@ class TestDogStats:
             }
         ):
             importlib.reload(airflow.observability.stats)
-            airflow.observability.stats.Stats.initialize(
+            airflow.observability.stats.initialize(
                 factory=stats_utils.get_stats_factory(), export_legacy_names=True
             )
             backend = airflow._shared.observability.metrics.stats._get_backend()
