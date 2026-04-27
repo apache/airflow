@@ -421,6 +421,42 @@ def test_main_sends_reschedule_task_when_startup_reschedules(
     ]
 
 
+def test_run_swallows_supervisor_terminal_send_failure(create_runtime_ti, mock_supervisor_comms):
+    """
+    When the supervisor rejects the terminal-state send (e.g. the server
+    already moved the TI to a terminal state and returns 409), `run()` must
+    not let that exception escape — the task body succeeded, so `run()` should
+    still return (SUCCESS, msg, None) so `main()` can notify listeners with
+    the correct local terminal state.
+    """
+    from airflow.sdk.execution_time.task_runner import run
+
+    class TrivialOperator(BaseOperator):
+        def execute(self, context):
+            return "ok"
+
+    task = TrivialOperator(task_id="trivial")
+    runtime_ti = create_runtime_ti(task=task)
+    context = runtime_ti.get_template_context()
+    log = mock.MagicMock()
+
+    # Let every send succeed except the terminal-state send — simulate the
+    # server rejecting the SucceedTask with a 409-wrapped AirflowRuntimeError.
+    def send_side_effect(msg=None, **kwargs):
+        if isinstance(msg, SucceedTask):
+            raise RuntimeError("409 invalid_state: previous_state=success")
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = send_side_effect
+
+    # Must not raise.
+    state, msg, error = run(runtime_ti, context, log)
+
+    assert state == TaskInstanceState.SUCCESS
+    assert isinstance(msg, SucceedTask)
+    assert error is None
+
+
 def test_task_span_is_child_of_dag_run_span(make_ti_context):
     """Full trace hierarchy: dag_run → task_run.my_task (API server) → worker.my_task (task runner)."""
     # Single provider shared by all spans so contexts are compatible.
