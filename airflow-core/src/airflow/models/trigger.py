@@ -274,6 +274,12 @@ class Trigger(Base):
             handle_event_submit(event, task_instance=task_instance, session=session)
 
         # Send an event to assets
+        if event.xcoms:
+            log.warning(
+                "Trigger event %i contains XCom values, which cannot be sent to assets or callbacks. XCom values: %s",
+                trigger_id,
+                event.xcoms,
+            )
         trigger = session.scalars(select(cls).where(cls.id == trigger_id)).one_or_none()
         if trigger is None:
             # Already deleted for some reason
@@ -463,6 +469,9 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     as well as its state to scheduled. It also adds the event's payload
     into the kwargs for the task.
 
+    If the event includes XCom values, they are pushed to the task instance
+    before the task is rescheduled.
+
     :param task_instance: The task instance to handle the submit event for.
     :param session: The session to be used for the database callback sink.
     """
@@ -490,6 +499,11 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     # (ModifyDeferredTaskKwargsToJsonValue) handles converting this to
     # BaseSerialization format when serving old workers.
     task_instance.next_kwargs = serialize(next_kwargs)
+
+    # Push XCom values if provided by the trigger
+    if event.xcoms:
+        for key, value in event.xcoms.items():
+            task_instance.xcom_push(key=key, value=value, session=session)
 
     # Remove ourselves as its trigger
     task_instance.trigger_id = None

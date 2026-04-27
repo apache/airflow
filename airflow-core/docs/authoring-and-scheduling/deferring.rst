@@ -450,11 +450,13 @@ Triggers can have two options: they can either send execution back to the worker
         async def run(self) -> AsyncIterator[TriggerEvent]:
             await asyncio.sleep(self.duration.total_seconds())
             if self.end_from_trigger:
-                yield TaskSuccessEvent()
+                yield TaskSuccessEvent(xcoms={"wait_duration_s": self.duration.total_seconds()})
             else:
                 yield TriggerEvent({"duration": self.duration})
 
 In the above example, the trigger will end the task instance directly if ``end_from_trigger`` is set to ``True`` by yielding ``TaskSuccessEvent``. Otherwise, it will resume the task instance with the method specified in the operator.
+
+Note also that in case of direct exit, an XCom can be produced and passed with the ``TaskSuccessEvent`` or ``TaskFailureEvent``. This XCom will be pushed when the task instance is marked as success or failure.
 
 .. note::
     Exiting from the trigger works only when listeners are not integrated for the deferrable operator. Currently, when deferrable operator has the ``end_from_trigger`` attribute set to ``True`` and listeners are integrated it raises an exception during parsing to indicate this limitation. While writing the custom trigger, ensure that the trigger is not set to end the task instance directly if the listeners are added from plugins. If the ``end_from_trigger`` attribute is changed to different attribute by author of trigger, the Dag parsing would not raise any exception and the listeners dependent on this task would not work. This limitation will be addressed in future releases.

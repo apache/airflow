@@ -278,8 +278,23 @@ class TriggerEvent(BaseModel):
     Must be natively JSON-serializable, or registered with the airflow serialization code.
     """
 
-    def __init__(self, payload, **kwargs):
-        super().__init__(payload=payload, **kwargs)
+    xcoms: dict[str, JsonValue] | None = None
+    """
+    Optional XCom values to persist when the event is processed.
+
+    If provided, these XCom key-value pairs will be pushed to the task instance
+    before the task is rescheduled. This allows triggers to write XCom values
+    directly without requiring the task to resume on a worker first.
+
+    Keys are XCom keys and values must be JSON-serializable.
+
+    Note: XCom only applies to task instances, not to assets or callbacks. If a trigger event
+    with XCom values is sent to an asset or callback, the XCom values will be ignored and a
+    warning will be logged.
+    """
+
+    def __init__(self, payload, *, xcoms: dict[str, JsonValue] | None = None, **kwargs):
+        super().__init__(payload=payload, xcoms=xcoms, **kwargs)
 
     def __repr__(self) -> str:
         return f"TriggerEvent<{self.payload!r}>"

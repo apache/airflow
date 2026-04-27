@@ -919,3 +919,68 @@ def test_kwargs_not_encrypted():
 
     assert trigger.kwargs["param1"] == "value1"
     assert trigger.kwargs["param2"] == "value2"
+
+
+def test_submit_event_with_xcoms(session, create_task_instance):
+    """
+    Tests that events with xcoms submitted to a trigger push XCom values
+    to the task instance before rescheduling it.
+    """
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.next_kwargs = {}
+    session.commit()
+
+    event = TriggerEvent("payload", xcoms={"return_value": {"key": "value"}, "extra_key": 42})
+    Trigger.submit_event(trigger.id, event, session=session)
+    session.flush()
+
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+
+    xcoms = session.scalars(
+        XComModel.get_many(
+            dag_ids=[task_instance.dag_id],
+            task_ids=[task_instance.task_id],
+            run_id=task_instance.run_id,
+        )
+    ).all()
+    actual_xcoms = {x.key: x.value for x in xcoms}
+    assert actual_xcoms == {
+        "return_value": json.dumps({"key": "value"}),
+        "extra_key": json.dumps(42),
+    }
+
+
+def test_submit_event_without_xcoms_does_not_push(session, create_task_instance):
+    """
+    Tests that events without xcoms don't push any XCom values.
+    """
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.next_kwargs = {}
+    session.commit()
+
+    event = TriggerEvent("payload")
+    Trigger.submit_event(trigger.id, event, session=session)
+    session.flush()
+
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+
+    xcoms = session.scalars(
+        XComModel.get_many(
+            dag_ids=[task_instance.dag_id],
+            task_ids=[task_instance.task_id],
+            run_id=task_instance.run_id,
+        )
+    ).all()
+    assert len(xcoms) == 0
