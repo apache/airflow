@@ -66,7 +66,17 @@ query(
           totalCount
           nodes {
             isResolved
-            comments(first: 1) {
+            # `first: 5` rather than `first: 1`: the
+            # `mark-ready-with-ping` heuristic in
+            # [`suggested-actions.md`](suggested-actions.md) needs
+            # to see whether the PR author has replied in-thread
+            # after the reviewer's first comment. 5 is the smallest
+            # window that catches the typical "reviewer comment →
+            # author reply" exchange without blowing GraphQL
+            # complexity (30 threads × 5 comments × 20 PRs = 3000
+            # nodes, well under the ceiling that `first: 10` here
+            # would push us toward).
+            comments(first: 5) {
               nodes {
                 author { login }
                 authorAssociation
@@ -88,6 +98,7 @@ query(
         comments(last: 10) {
           nodes {
             author { login }
+            authorAssociation
             createdAt
             bodyText
           }
@@ -127,8 +138,13 @@ Every field above is consumed by Step 2 (classify) or Step 3
 - `latestReviews` → stale `CHANGES_REQUESTED` detection and
   `has_collaborator_review` flag (extended grace period)
 - `comments(last: 10)` → "already triaged" detection (viewer's
-  prior triage comment) and "author responded after triage"
-  detection
+  prior triage comment), "author responded after triage"
+  detection, and the active-maintainer-conversation pre-filter
+  (recent collaborator comment + maintainer-to-maintainer
+  `@`-ping detection — see
+  [`classify.md#5-active-maintainer-conversation-on-the-pr`](classify.md))
+  — which is why the comment node carries `authorAssociation`
+  and `bodyText` in addition to author login
 - `baseRef.target.history.totalCount` → commits-behind anchor
   (combined with PR head commit count; see
   [`#commits-behind`](#commits-behind))

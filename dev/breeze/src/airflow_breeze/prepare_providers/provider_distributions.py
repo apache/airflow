@@ -196,6 +196,45 @@ def cleanup_build_remnants(target_provider_root_sources_path: Path):
         shutil.rmtree(file, ignore_errors=True)
     shutil.rmtree(target_provider_root_sources_path / "build", ignore_errors=True)
     shutil.rmtree(target_provider_root_sources_path / "dist", ignore_errors=True)
+    # Drop any untracked or .gitignored files that might leak into the
+    # sdist/wheel via the explicit [tool.flit.sdist] include lists (which
+    # scan directories like docs/, tests/ and src/ rather than git). The
+    # only files that need this protection are ones that get *generated
+    # in-tree* under the provider directory — e.g. docs/_api, sphinx
+    # build caches, __pycache__, *.egg-info, leftover scratch files an RM
+    # produced while iterating. Without `-x` those would survive into
+    # `--no-use-vcs` sdists and break reproducibility against the
+    # released artifacts on dist.apache.org.
+    #
+    # The top-level `.venv`, `.idea` and `.vscode` directories at the
+    # repo root are NOT a concern: they live outside the provider
+    # directory and are not in any flit include path, so flit would
+    # never pick them up regardless of git-clean state. We still pass
+    # `-e .venv -e .idea -e .vscode` purely as a safety net for the
+    # rare case where someone has a per-provider venv or IDE config
+    # *inside* the provider directory — those should be preserved.
+    #
+    # `-n` is run first so the RM sees what is about to be removed
+    # before the destructive pass runs.
+    console_print(
+        f"[warning]Running git clean -fdx in {target_provider_root_sources_path} — "
+        f"this will remove ALL untracked AND .gitignored (generated/local) files "
+        f"under that path. .venv, .idea and .vscode are preserved.[/]"
+    )
+    git_clean_cmd = [
+        "git",
+        "clean",
+        "-fdx",
+        "-e",
+        ".venv",
+        "-e",
+        ".idea",
+        "-e",
+        ".vscode",
+        str(target_provider_root_sources_path),
+    ]
+    run_command([*git_clean_cmd[:2], "-ndx", *git_clean_cmd[3:]], cwd=AIRFLOW_ROOT_PATH, check=False)
+    run_command(git_clean_cmd, cwd=AIRFLOW_ROOT_PATH, check=False)
     console_print(f"[info]Cleaned remnants in {target_provider_root_sources_path}\n")
 
 

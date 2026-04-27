@@ -41,8 +41,7 @@ class TestAirflowCommon:
         docs = render_chart(
             values={
                 "logs": logs_values,
-                "airflowVersion": "3.0.0",
-            },  # airflowVersion is present so webserver gets the mount
+            },
             show_only=[
                 "templates/api-server/api-server-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
@@ -53,23 +52,6 @@ class TestAirflowCommon:
         )
 
         assert len(docs) == 5
-        for doc in docs:
-            assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
-
-        # check for components deployed when airflow version is < 3.0.0
-        docs = render_chart(
-            values={
-                "logs": logs_values,
-                "airflowVersion": "2.11.0",
-            },  # airflowVersion is present so webserver gets the mount
-            show_only=[
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
-            ],
-        )
-
-        assert len(docs) == 3
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
 
@@ -134,10 +116,9 @@ class TestAirflowCommon:
         docs = render_chart(
             values={
                 "dags": dag_values,
-                "airflowVersion": "2.11.0",
             },
             show_only=[
-                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
             ],
         )
@@ -164,49 +145,6 @@ class TestAirflowCommon:
             assert {"name": "GIT_SYNC_HTTP_BIND", "value": ":10"} in envs
             assert {"name": "GITSYNC_HTTP_BIND", "value": ":10"} in envs
 
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"kerberosSidecar": {"enabled": True}},
-            {"celery": {"kerberosSidecar": {"enabled": True}}},
-            {"kerberosSidecar": {"enabled": True}, "celery": {"kerberosSidecar": {"enabled": False}}},
-        ],
-    )
-    def test_webserver_config_configmap_name_volume_mounts(self, workers_values):
-        configmap_name = "my-configmap"
-        docs = render_chart(
-            values={
-                "webserver": {
-                    "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
-                    "webserverConfigConfigMapName": configmap_name,
-                },
-                "workers": workers_values,
-            },
-            show_only=[
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/triggerer/triggerer-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-            ],
-        )
-        for doc in docs:
-            assert "webserver-config" in [
-                c["name"]
-                for r in jmespath.search(
-                    "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'].volumeMounts",
-                    doc,
-                )
-                for c in r
-            ]
-            for container in jmespath.search("spec.template.spec.containers", doc):
-                assert "webserver-config" in [c["name"] for c in jmespath.search("volumeMounts", container)]
-            assert "webserver-config" in [
-                c["name"] for c in jmespath.search("spec.template.spec.volumes", doc)
-            ]
-            assert configmap_name == jmespath.search(
-                "spec.template.spec.volumes[?name=='webserver-config'].configMap.name | [0]", doc
-            )
-
     def test_annotations(self):
         """
         Test Annotations are correctly applied.
@@ -227,7 +165,6 @@ class TestAirflowCommon:
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
                 "templates/api-server/api-server-deployment.yaml",
                 "templates/flower/flower-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
@@ -297,7 +234,6 @@ class TestAirflowCommon:
                 "templates/statsd/statsd-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
                 "templates/api-server/api-server-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
             ],
@@ -349,7 +285,6 @@ class TestAirflowCommon:
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
             ],
@@ -377,7 +312,6 @@ class TestAirflowCommon:
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
             ],
@@ -400,7 +334,6 @@ class TestAirflowCommon:
                     "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__API__SECRET_KEY": False,
                     "AIRFLOW__API_AUTH__JWT_SECRET": False,
-                    "AIRFLOW__WEBSERVER__SECRET_KEY": False,
                     # the following vars only appear if remote logging is set, so disabling them in this test is kind of a no-op
                     "AIRFLOW__ELASTICSEARCH__HOST": False,
                     "AIRFLOW__OPENSEARCH__HOST": False,
@@ -409,7 +342,6 @@ class TestAirflowCommon:
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
             ],
@@ -434,7 +366,6 @@ class TestAirflowCommon:
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
             ],
@@ -475,7 +406,6 @@ class TestAirflowCommon:
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
                 "templates/api-server/api-server-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
@@ -509,7 +439,6 @@ class TestAirflowCommon:
                 "statsd": {"priorityClassName": "low-priority-statsd"},
                 "triggerer": {"priorityClassName": "low-priority-triggerer"},
                 "dagProcessor": {"priorityClassName": "low-priority-dag-processor"},
-                "webserver": {"priorityClassName": "low-priority-webserver"},
                 "workers": workers_values,
                 "cleanup": {"enabled": True, "priorityClassName": "low-priority-airflow-cleanup-pods"},
                 "databaseCleanup": {"enabled": True, "priorityClassName": "low-priority-database-cleanup"},
@@ -523,7 +452,6 @@ class TestAirflowCommon:
                 "templates/statsd/statsd-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/cleanup/cleanup-cronjob.yaml",
                 "templates/database-cleanup/database-cleanup-cronjob.yaml",
@@ -584,7 +512,6 @@ class TestAirflowCommon:
                 "templates/statsd/statsd-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/cleanup/cleanup-cronjob.yaml",
                 "templates/database-cleanup/database-cleanup-cronjob.yaml",

@@ -266,9 +266,9 @@ class VersionedFile(NamedTuple):
 AIRFLOW_PIP_VERSION = "26.0.1"
 AIRFLOW_UV_VERSION = "0.11.7"
 AIRFLOW_USE_UV = False
-GITPYTHON_VERSION = "3.1.46"
+GITPYTHON_VERSION = "3.1.47"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.3.9"
+PREK_VERSION = "0.3.10"
 HATCH_VERSION = "1.16.5"
 PYYAML_VERSION = "6.0.3"
 
@@ -1101,7 +1101,12 @@ def _build_provider_distributions(
 
 @release_management_group.command(
     name="prepare-provider-distributions",
-    help="Prepare sdist/whl distributions of Airflow Providers.",
+    help=(
+        "Prepare sdist/whl distributions of Airflow Providers. "
+        "Each provider directory is wiped with `git clean -fdx` (preserving "
+        ".venv, .idea, .vscode) before build to keep in-tree generated files "
+        "out of the artifact. See dev/breeze release-management docs."
+    ),
 )
 @option_distribution_format
 @option_version_suffix
@@ -3994,11 +3999,12 @@ def prepare_python_client(
                 f"but default version is {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} - this might cause "
                 f"reproducibility problems with prepared package.[/]"
             )
+            console_print(f"[info]Please rerun breeze with Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}.[/]")
             console_print(
-                f"[info]Please reinstall breeze with uv using Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:[/]"
-            )
-            console_print(
-                f"\nuv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
+                "\n  - For the recommended uvx-based setup, set UV_PYTHON before invoking breeze:\n"
+                f"        UV_PYTHON={DEFAULT_PYTHON_MAJOR_MINOR_VERSION} breeze ...\n"
+                "  - For a legacy global install, reinstall with the right Python:\n"
+                f"        uv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
             )
             sys.exit(1)
 

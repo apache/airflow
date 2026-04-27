@@ -27,7 +27,6 @@ class TestJobLauncher:
     @pytest.mark.parametrize(
         ("executor", "rbac", "allow", "expected_accounts"),
         [
-            ("CeleryKubernetesExecutor", True, True, ["scheduler", "worker"]),
             ("KubernetesExecutor", True, True, ["scheduler", "worker"]),
             ("CeleryExecutor", True, True, ["worker"]),
             ("LocalExecutor", True, True, ["scheduler"]),

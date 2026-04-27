@@ -60,7 +60,7 @@
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.9",
-    "vite-plugin-css-injected-by-js": "^4.0.1",
+    "vite-plugin-css-injected-by-js": "^5.0.1",
     "vitest": "^4.1.4"
   },
   "pnpm": {

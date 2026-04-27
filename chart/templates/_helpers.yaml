@@ -97,28 +97,21 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "airflow_metadata_secret" . }}
         key: kedaConnection
   {{- end }}
-  {{- if and (semverCompare "<3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__WEBSERVER__SECRET_KEY }}
-  - name: AIRFLOW__WEBSERVER__SECRET_KEY
-    valueFrom:
-      secretKeyRef:
-        name: {{ template "webserver_secret_key_secret" . }}
-        key: webserver-secret-key
-  {{- end }}
-  {{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__API__SECRET_KEY }}
+  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__API__SECRET_KEY }}
   - name: AIRFLOW__API__SECRET_KEY
     valueFrom:
       secretKeyRef:
         name: {{ template "api_secret_key_secret" . }}
         key: api-secret-key
   {{- end }}
-  {{- if and .IncludeJwtSecret (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__API_AUTH__JWT_SECRET }}
+  {{- if and .IncludeJwtSecret .Values.enableBuiltInSecretEnvVars.AIRFLOW__API_AUTH__JWT_SECRET }}
   - name: AIRFLOW__API_AUTH__JWT_SECRET
     valueFrom:
       secretKeyRef:
         name: {{ template "jwt_secret" . }}
         key: jwt-secret
   {{- end }}
-  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
+  {{- if contains "CeleryExecutor" .Values.executor }}
     {{- if and .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__RESULT_BACKEND (or .Values.data.resultBackendSecretName .Values.data.resultBackendConnection) }}
   - name: AIRFLOW__CELERY__RESULT_BACKEND
     valueFrom:
@@ -419,10 +412,6 @@ If release name contains chart name it will be used as a full name.
   {{- default (printf "%s-jwt-secret" (include "airflow.fullname" .)) .Values.jwtSecretName }}
 {{- end }}
 
-{{- define "webserver_secret_key_secret" -}}
-  {{- default (printf "%s-webserver-secret-key" (include "airflow.fullname" .)) .Values.webserverSecretKeySecretName }}
-{{- end }}
-
 {{- define "api_secret_key_secret" -}}
   {{- default (printf "%s-api-secret-key" (include "airflow.fullname" .)) .Values.apiSecretKeySecretName }}
 {{- end }}
@@ -610,21 +599,6 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- printf "%s/webserver_config.py" .Values.airflowHome | quote }}
 {{- end }}
 
-{{- define "airflow_webserver_config_configmap_name" -}}
-  {{- if .Values.webserver.webserverConfigConfigMapName }}
-    {{- tpl .Values.webserver.webserverConfigConfigMapName . }}
-  {{- else }}
-    {{- printf "%s-webserver-config" (include "airflow.fullname" .) }}
-  {{- end }}
-{{- end }}
-
-{{- define "airflow_webserver_config_mount" -}}
-- name: webserver-config
-  mountPath: {{ template "airflow_webserver_config_path" . }}
-  subPath: webserver_config.py
-  readOnly: True
-{{- end }}
-
 {{- define "airflow_api_server_config_configmap_name" -}}
   {{- if .Values.apiServer.apiServerConfigConfigMapName }}
     {{- tpl .Values.apiServer.apiServerConfigConfigMapName . }}
@@ -679,11 +653,6 @@ server_tls_key_file = /etc/pgbouncer/server.key
     {{- $sa := get (get .Values .key) "serviceAccount" }}
     {{- include "_serviceAccountNameGen" (merge (dict "sa" $sa "key" .key "nameSuffix" .nameSuffix) .) }}
   {{- end }}
-{{- end }}
-
-{{/* Create the name of the webserver service account to use */}}
-{{- define "webserver.serviceAccountName" -}}
-  {{- include "_serviceAccountName" (merge (dict "key" "webserver") .) -}}
 {{- end }}
 
 {{/* Create the name of the API server service account to use */}}
@@ -1037,7 +1006,7 @@ Check if the current executor launches pods
 This helper function returns true if the executor can launch pods (Kubernetes-based executors)
 */}}
 {{- define "airflow.podLaunchingExecutor" -}}
-  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) (contains "LocalKubernetesExecutor" .Values.executor) -}}
+  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) -}}
     {{- print "true" -}}
   {{- end -}}
 {{- end -}}
@@ -1063,15 +1032,9 @@ Usage:
 
 {{/*
 Determine if the create-user job should be enabled.
-When webserver.defaultUser is set (deprecated), it takes precedence to preserve
-backwards compatibility. Otherwise, fall back to createUserJob.enabled.
 */}}
 {{- define "createUserJob.isEnabled" -}}
-  {{- if .Values.webserver.defaultUser -}}
-    {{- .Values.webserver.defaultUser.enabled -}}
-  {{- else -}}
-    {{- .Values.createUserJob.enabled -}}
-  {{- end -}}
+  {{- .Values.createUserJob.enabled -}}
 {{- end -}}
 
 {{/*

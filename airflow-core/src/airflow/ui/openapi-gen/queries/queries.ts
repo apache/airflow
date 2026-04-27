@@ -1903,8 +1903,9 @@ export const useGridServiceGetGridRuns = <TData = Common.GridServiceGetGridRunsD
 * run's task instances have been processed, so the client can render columns
 * progressively without waiting for all runs to complete.
 *
-* The serialized Dag structure is loaded once and reused for all runs that
-* share the same ``dag_version_id``, avoiding repeated deserialization.
+* The serialized Dag structure is served from the app-wide ``DBDagBag`` cache
+* (keyed by ``dag_version_id``), which avoids repeated deserialization across
+* runs of the same version *and* across requests.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.runIds

@@ -61,6 +61,65 @@ thread), **do** include the PR — mark it as a regressed
 passing PR in the interaction loop so the maintainer can decide
 whether to pull the label.
 
+### 5. Active maintainer conversation on the PR
+
+Two sub-cases — if either matches, **skip silently**, regardless
+of conflicts, failing CI, or unresolved threads. These two cases
+override the deterministic-flag classification because acting on
+them would either rush the contributor or talk over a
+maintainer-to-maintainer conversation.
+
+#### 5a. Recent collaborator comment (author-response cooldown)
+
+The most recent comment on the PR is by a `COLLABORATOR`,
+`MEMBER`, or `OWNER` *and* its `createdAt` is **< 72 hours**
+ago *and* it was posted **after** the PR's last commit's
+`committedDate`.
+
+**Rationale.** A maintainer just engaged with the PR; the author
+deserves at least three days to read, think, and reply before
+the triage skill auto-drafts or auto-comments on top of that
+conversation. The 72-hour window is intentionally longer than
+the 24-hour CI grace below — review-style feedback takes longer
+to address than a flaky-CI nudge, and a same-day auto-action
+reads as the bot talking over the maintainer.
+
+#### 5b. Latest collaborator comment is a maintainer-to-maintainer ping
+
+The most recent comment on the PR is by a `COLLABORATOR`,
+`MEMBER`, or `OWNER` *and* its body `@`-mentions one or more
+other GitHub logins **other than the PR author** *and* none of
+those mentioned logins have posted a comment or review on the
+PR after that ping.
+
+Detect via:
+
+- the comment author's `authorAssociation` ∈
+  {`COLLABORATOR`, `MEMBER`, `OWNER`}
+- regex on the comment `bodyText` for `@<login>` mentions, then
+  remove the PR author's login from the resulting set
+- check `comments(last:10).nodes` and `latestReviews.nodes`
+  for any subsequent post by any of the remaining logins
+
+**Rationale.** When a maintainer pings other maintainers (e.g.
+*"@ash @kaxil could you weigh in on the API shape?"*), the PR
+is waiting on **maintainer input**, not on author work.
+Auto-drafting it with a "the author should work on comments"
+message is wrong on two counts: (a) the contributor isn't the
+bottleneck — the maintainer review/conversation is; (b) it
+de-focuses the thread away from the maintainer-to-maintainer
+discussion the original commenter was trying to start. Silently
+skip until one of the pinged collaborators responds, at which
+point 5a's 72-hour window starts ticking from *that* reply.
+
+**Out of scope for 5b.** A `@`-mention of a *team* (e.g.
+`@apache/airflow-committers`) is conservatively treated as a
+maintainer-to-maintainer ping (skip), because we can't cheaply
+expand team membership in the batch query and the false-positive
+cost (skipping a PR that should have been actioned) is much
+lower than the false-negative cost (talking over a real
+maintainer call-out).
+
 ---
 
 ## Classifications
@@ -137,6 +196,39 @@ can't be reviewed yet. The exact *action* to propose depends on
 *which* of the three signals fired (conflicts → rebase, only
 static-check failures → comment, etc.) — see
 [`suggested-actions.md`](suggested-actions.md).
+
+#### Sub-flag: `unresolved_threads_only_likely_addressed`
+
+A boolean computed alongside the C2 classification. It is
+`true` when **all** of the following hold:
+
+- The only `deterministic_flag` signal that fired for this PR is
+  unresolved review threads (no `CONFLICTING` mergeable state,
+  no out-of-grace CI failure).
+- Every unresolved thread has post-first-comment activity by
+  the PR author — **either** an author reply later in the same
+  thread (`reviewThreads.nodes.comments.nodes` has a node where
+  `author.login == pr.author.login` and `createdAt >` the first
+  comment's `createdAt`), **or** a commit was pushed after the
+  thread's first-comment `createdAt`
+  (`commits(last:1).committedDate > comment.createdAt`).
+- The PR's latest commit `committedDate` is **after** the most
+  recent unresolved-thread first-comment `createdAt` — i.e. the
+  most recent author push is plausibly the resolution, not
+  predating the reviewer's feedback.
+
+The flag is consumed only by `suggested-actions.md` to choose
+between the existing `ping` action and the new
+[`mark-ready-with-ping`](actions.md#mark-ready-with-ping)
+action — it does **not** create a separate classification.
+
+**Heuristic, not authoritative.** The maintainer still confirms
+the proposed action and the comment we post invites the
+reviewer to push back if the threads aren't actually resolved
+(see [`comment-templates.md#mark-ready-with-ping`](comment-templates.md)).
+Conservative on purpose: a false-negative degrades to the
+existing `ping` behaviour; a false-positive would advance a PR
+that isn't actually ready, which is the worse failure mode.
 
 ### C2b. `stale_copilot_review`
 
@@ -279,7 +371,13 @@ Extended-engagement logic:
 If the failure is *still* fresh (within the grace window), the
 PR is **not** classified as `deterministic_flag` on the CI-
 failure signal alone. Conflicts and unresolved threads have no
-grace window — they're immediately actionable.
+*CI*-grace window — but the **author-response cooldown** in
+pre-classification filter [`#5a`](#5-active-maintainer-conversation-on-the-pr)
+still applies to them: a fresh maintainer comment (< 72h, after
+the last push) silences the auto-action even when conflicts or
+unresolved threads are present, on the principle that the author
+deserves three days to read maintainer feedback before a bot
+talks over it.
 
 Record the "effective grace" result on the PR record so the
 suggested-action reason string can reference it ("CI failed 8h
@@ -345,9 +443,10 @@ relies on:
 
 | Classification | Required fields |
 |---|---|
+| Pre-filter 5 (active maintainer conversation) | `comments(last:10).nodes.{author.login,authorAssociation,bodyText,createdAt}`, `latestReviews.nodes.{author.login,submittedAt}`, `commits(last:1).nodes.commit.committedDate` |
 | `pending_workflow_approval` | `statusCheckRollup.state`, `authorAssociation`, `head_sha` |
 | `stale_copilot_review` | `reviewThreads.nodes.{isResolved,comments.nodes.{author.login,createdAt,url}}`, `comments(last:10).nodes.{author.login,createdAt}` (to detect author replies after the Copilot comment) |
-| `deterministic_flag` | `mergeable`, `statusCheckRollup.{state,contexts}`, `reviewThreads.nodes.{isResolved,comments.nodes.authorAssociation}`, `updatedAt`, `comments(last:10).nodes.{author.login,authorAssociation,createdAt}` |
+| `deterministic_flag` | `mergeable`, `statusCheckRollup.{state,contexts}`, `reviewThreads.nodes.{isResolved,comments.nodes.{author.login,authorAssociation,createdAt}}`, `updatedAt`, `comments(last:10).nodes.{author.login,authorAssociation,createdAt}`, `commits(last:1).nodes.commit.committedDate`, `author.login` (for the `unresolved_threads_only_likely_addressed` sub-flag — needs author replies in-thread, hence `comments(first: 5)` per thread instead of `first: 1`, see [`fetch-and-batch.md`](fetch-and-batch.md)) |
 | `stale_review` | `latestReviews.nodes.{state,author.login,submittedAt}`, `commits(last:1).nodes.commit.committedDate`, `comments(last:10)` |
 | `already_triaged` | `comments(last:10).nodes.{author.login,bodyText,createdAt}`, viewer login, `commits(last:1).nodes.commit.committedDate` |
 | `passing` | `statusCheckRollup.state`, `statusCheckRollup.contexts`, `mergeable`, `reviewThreads.totalCount` |

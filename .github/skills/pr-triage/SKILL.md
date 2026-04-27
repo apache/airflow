@@ -91,7 +91,11 @@ action must refuse — even if `statusCheckRollup.state` reports
 bot checks (`Mergeable`, `WIP`, `DCO`, `boring-cyborg`) while
 `Tests`, `CodeQL`, and newsfragment-check sit in
 `action_required`; trusting the rollup there fills the
-maintainer-review queue with PRs whose real CI never ran.
+maintainer-review queue with PRs whose real CI never ran. The
+guard applies identically to the
+[`mark-ready-with-ping`](actions.md#mark-ready-with-ping)
+action — any code path that adds the `ready for maintainer
+review` label runs the REST check first.
 Implementation recipe: [`actions.md#mark-ready`](actions.md).
 
 **Golden rule 2 — propose in groups, fall back to per-PR.** The
@@ -181,6 +185,32 @@ Do not paraphrase the footer, do not omit it from templates
 that carry it, and do not let per-PR edits drop it. See
 [`comment-templates.md#ai-attribution-footer`](comment-templates.md).
 
+**Golden rule 9 — never talk over an active maintainer
+conversation.** When a maintainer has commented on the PR
+recently, the skill steps back. Two specific cases, both
+enforced as pre-classification filters in
+[`classify.md#5-active-maintainer-conversation-on-the-pr`](classify.md):
+
+- **Author-response cooldown (≥ 72 hours).** If the most recent
+  comment by a `COLLABORATOR`/`MEMBER`/`OWNER` was posted after
+  the latest author push and is < 72 hours old, skip the PR.
+  The author needs at least three days to read maintainer
+  feedback and respond — auto-drafting in <24 hours reads as
+  the bot rushing the contributor.
+- **Maintainer-to-maintainer ping.** If the most recent
+  collaborator comment `@`-mentions another maintainer (or a
+  team) and that mentioned party hasn't replied yet, skip the
+  PR — the conversation is between maintainers, and a "the
+  author should work on comments" auto-draft de-focuses the
+  thread away from the input the original commenter was asking
+  for.
+
+These filters override every deterministic flag (failing CI,
+conflicts, unresolved threads). The cost of a missed auto-action
+on one of these PRs is one extra day of queue presence; the cost
+of an auto-action that talks over a maintainer is a contributor
+who reads it as the project being chaotic. Prefer the former.
+
 ---
 
 ## Inputs
@@ -257,9 +287,12 @@ pulls a PR out of a group.
 
 Apply the filter rules in
 [`classify.md#pre-classification-filters`](classify.md) to drop
-collaborators, bot accounts, and (for a sweep run)
-already-triaged PRs that are still inside their waiting window.
-Then classify each remaining PR into one of:
+collaborators, bot accounts, already-triaged PRs that are still
+inside their waiting window, and (per Golden rule 9) PRs with an
+active maintainer conversation — fresh `< 72h` collaborator
+comment after the last push, or a maintainer-to-maintainer ping
+that hasn't been answered yet. Then classify each remaining PR
+into one of:
 
 - `pending_workflow_approval` — needs `gh run approve` before
   CI can run (first-time contributor signal)
@@ -297,6 +330,7 @@ string using [`suggested-actions.md`](suggested-actions.md):
 | `deterministic_flag` — ≤2 CI failures, no conflicts, no threads, branch up-to-date | `rerun` |
 | `deterministic_flag` — failures all match recent main-branch failures | `rerun` |
 | `deterministic_flag` — static-check-only failures | `comment` |
+| `deterministic_flag` — unresolved threads only, CI green, threads look addressed (heuristic) | `mark-ready-with-ping` (label + ping reviewers to confirm) |
 | `deterministic_flag` — unresolved review threads only, CI green | `ping` |
 | `deterministic_flag` — author has >3 flagged PRs | `close` |
 | `deterministic_flag` — other | `draft` |
@@ -322,10 +356,13 @@ the order:
 2. `deterministic_flag` with action `close` — destructive,
    review individually
 3. `deterministic_flag` with actions `draft` / `comment` /
-   `rebase` / `rerun` — in that order
+   `rebase` / `rerun` / `ping` — in that order
 4. `stale_review` → `ping`
-5. `passing` → `mark-ready`
-6. Stale sweeps (`stale_draft` → `close`, `inactive_open` →
+5. `deterministic_flag` → `mark-ready-with-ping` (label-bearing
+   group, presented just before plain `mark-ready` so the
+   maintainer reviews all label-add proposals back-to-back)
+6. `passing` → `mark-ready`
+7. Stale sweeps (`stale_draft` → `close`, `inactive_open` →
    `draft`, `stale_workflow_approval` → `draft`)
 
 For each group, present one screen worth of headline info
