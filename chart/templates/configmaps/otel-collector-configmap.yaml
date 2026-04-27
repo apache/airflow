@@ -36,6 +36,9 @@ metadata:
     {{- end }}
 data:
   config.yml: |
+{{- if .Values.otelCollector.config }}
+{{ tpl .Values.otelCollector.config . | indent 4 }}
+{{- else }}
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
@@ -52,10 +55,6 @@ data:
       batch: {}
 
     exporters:
-      otlp/jaeger:
-        endpoint: "{{ include "airflow.fullname" . }}-jaeger:{{ .Values.ports.jaegerOtlpGrpc }}"
-        tls:
-          insecure: true
       logging:
         verbosity: basic
       prometheus:
@@ -67,9 +66,10 @@ data:
         traces:
           receivers: [otlp]
           processors: [batch]
-          exporters: [logging, otlp/jaeger]
+          exporters: [logging]
         metrics:
           receivers: [otlp]
           processors: [batch]
           exporters: [logging, prometheus]
+{{- end }}
 {{- end }}

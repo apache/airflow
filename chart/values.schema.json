@@ -8655,6 +8655,11 @@
                     "type": "integer",
                     "default": 30000
                 },
+                "config": {
+                    "description": "Override the OTel Collector `config.yml`. When set (non-empty), this string replaces the chart's default collector config. The value is rendered with `tpl`, so values like `{{ .Values.ports.otelCollectorOtlpHttp }}` or `{{ include \"airflow.fullname\" . }}` can be referenced from inside the string. Leave empty to use the chart default.",
+                    "type": "string",
+                    "default": ""
+                },
                 "revisionHistoryLimit": {
                     "description": "Number of old ReplicaSets to retain.",
                     "type": [
@@ -10046,11 +10051,6 @@
                     "description": "OTel Collector Prometheus scrape port.",
                     "type": "integer",
                     "default": 8889
-                },
-                "jaegerOtlpGrpc": {
-                    "description": "Jaeger OTLP gRPC port.",
-                    "type": "integer",
-                    "default": 4317
                 }
             }
         },

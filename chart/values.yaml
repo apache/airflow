@@ -3198,6 +3198,34 @@ otelCollector:
   # Interval (in milliseconds) at which the OTel SDK exports metrics to the collector.
   metricExportIntervalMs: 30000
 
+  # Override the OTel Collector config.yml. When set (non-empty), this string replaces
+  # the chart's default collector config. The value is rendered with `tpl`, so you can
+  # reference values like `{{ .Values.ports.otelCollectorOtlpHttp }}` or
+  # `{{ include "airflow.fullname" . }}` from inside the string. Leave empty to use
+  # the chart default.
+  config: ""
+  # config: |
+  #   extensions:
+  #     health_check:
+  #       endpoint: 0.0.0.0:13133
+  #   receivers:
+  #     otlp:
+  #       protocols:
+  #         http:
+  #           endpoint: 0.0.0.0:{{ .Values.ports.otelCollectorOtlpHttp }}
+  #   processors:
+  #     batch: {}
+  #   exporters:
+  #     logging:
+  #       verbosity: basic
+  #   service:
+  #     extensions: [health_check]
+  #     pipelines:
+  #       traces:
+  #         receivers: [otlp]
+  #         processors: [batch]
+  #         exporters: [logging]
+
   # Max number of old ReplicaSets to retain
   revisionHistoryLimit: ~
 
@@ -3628,7 +3656,6 @@ ports:
   otelCollectorOtlpHttp: 4318
   otelCollectorOtlpGrpc: 4317
   otelCollectorScrape: 8889
-  jaegerOtlpGrpc: 4317
   pgbouncer: 6543
   pgbouncerScrape: 9127
   apiServer: 8080
