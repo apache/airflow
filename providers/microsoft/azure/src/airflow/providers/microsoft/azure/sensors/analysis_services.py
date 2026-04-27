@@ -21,7 +21,7 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
+from airflow.providers.common.compat.sdk import BaseSensorOperator, conf
 from airflow.providers.microsoft.azure.hooks.analysis_services import (
     AzureAnalysisServicesHook,
     AzureAnalysisServicesRefreshException,
@@ -110,5 +110,5 @@ class AzureAnalysisServicesSensor(BaseSensorOperator):
         Relies on the trigger to emit an error event on failure.
         """
         if event.get("status") == "error":
-            raise AirflowException(event["message"])
+            raise AzureAnalysisServicesRefreshException(event["message"])
         self.log.info(event.get("message"))
