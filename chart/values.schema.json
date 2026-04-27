@@ -8324,7 +8324,7 @@
                     }
                 },
                 "enabled": {
-                    "description": "Enable StatsD.",
+                    "description": "Enable StatsD. When otelCollector.metricsEnabled is true, [metrics] statsd_on is set to False in the rendered Airflow config because Airflow can only export metrics to one backend at a time.",
                     "type": "boolean",
                     "default": true
                 },

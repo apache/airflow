@@ -3071,6 +3071,9 @@ statsd:
   # Add custom annotations to the StatsD ConfigMap
   configMapAnnotations: {}
 
+  # When otelCollector.metricsEnabled is true, [metrics] statsd_on is set to
+  # False in the rendered Airflow config because Airflow can only export metrics
+  # to one backend at a time.
   enabled: true
 
   # Max number of old ReplicaSets to retain
