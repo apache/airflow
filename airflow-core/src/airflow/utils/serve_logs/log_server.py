@@ -34,7 +34,7 @@ from jwt.exceptions import (
 )
 
 from airflow._shared.module_loading import import_string
-from airflow.api_fastapi.auth.tokens import JWTValidator, get_signing_key
+from airflow.api_fastapi.auth.tokens import JWTValidator, get_sig_validation_args
 from airflow.configuration import conf
 from airflow.utils.docs import get_docs_url
 
@@ -64,7 +64,11 @@ class JWTAuthStaticFiles(StaticFiles):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN, detail="Authorization header missing"
                 )
-            payload = await signer.avalidated_claims(auth)
+            if auth.startswith("Bearer "):
+                token = auth[len("Bearer ") :]
+            else:
+                token = auth
+            payload = await signer.avalidated_claims(token)
             token_filename = payload.get("filename")
             # Extract filename from url path
             request_filename = request.url.path.lstrip("/log/")
@@ -142,9 +146,8 @@ def create_app():
 
     fastapi_app = FastAPI()
     fastapi_app.state.signer = JWTValidator(
+        **get_sig_validation_args(),
         issuer=None,
-        secret_key=get_signing_key("api", "secret_key"),
-        algorithm="HS512",
         leeway=leeway,
         audience="task-instance-logs",
     )
