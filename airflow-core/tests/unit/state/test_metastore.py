@@ -288,8 +288,8 @@ class TestMetastoreStateBackendAssetScope:
         assert backend.get(scope2, "watermark", session=session) is None
 
 
+@pytest.mark.asyncio(loop_scope="class")
 class TestMetastoreStateBackendAsync:
-    @pytest.mark.asyncio
     async def test_aset_and_aget_task_roundtrip(
         self, backend: MetastoreStateBackend, dag_run_committed: DagRun
     ):
@@ -298,14 +298,12 @@ class TestMetastoreStateBackendAsync:
         result = await backend.aget(scope, "job_id")
         assert result == "app_async"
 
-    @pytest.mark.asyncio
     async def test_adelete_task_removes_key(self, backend: MetastoreStateBackend, dag_run_committed: DagRun):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         await backend.aset(scope, "job_id", "app_async")
         await backend.adelete(scope, "job_id")
         assert await backend.aget(scope, "job_id") is None
 
-    @pytest.mark.asyncio
     async def test_aclear_task_removes_all_keys(
         self, backend: MetastoreStateBackend, dag_run_committed: DagRun
     ):
@@ -316,7 +314,6 @@ class TestMetastoreStateBackendAsync:
         assert await backend.aget(scope, "job_id") is None
         assert await backend.aget(scope, "checkpoint") is None
 
-    @pytest.mark.asyncio
     async def test_aset_and_aget_asset_roundtrip(
         self, backend: MetastoreStateBackend, asset_committed: AssetModel
     ):
@@ -325,7 +322,6 @@ class TestMetastoreStateBackendAsync:
         result = await backend.aget(scope, "watermark")
         assert result == "2026-04-27T00:00:00Z"
 
-    @pytest.mark.asyncio
     async def test_adelete_asset_removes_key(
         self, backend: MetastoreStateBackend, asset_committed: AssetModel
     ):
@@ -334,7 +330,6 @@ class TestMetastoreStateBackendAsync:
         await backend.adelete(scope, "watermark")
         assert await backend.aget(scope, "watermark") is None
 
-    @pytest.mark.asyncio
     async def test_aclear_asset_removes_all_keys(
         self, backend: MetastoreStateBackend, asset_committed: AssetModel
     ):
@@ -345,7 +340,6 @@ class TestMetastoreStateBackendAsync:
         assert await backend.aget(scope, "watermark") is None
         assert await backend.aget(scope, "file_count") is None
 
-    @pytest.mark.asyncio
     async def test_aset_task_raises_for_missing_dag_run(self, backend: MetastoreStateBackend):
         scope = TaskScope(dag_id="nonexistent_dag", run_id="nonexistent_run", task_id=TASK_ID)
         with pytest.raises(ValueError, match="No DagRun found"):
