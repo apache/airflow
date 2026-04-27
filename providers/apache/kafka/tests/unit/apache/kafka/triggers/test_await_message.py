@@ -180,6 +180,21 @@ class TestTrigger:
 
         await trigger.cleanup()
 
+    def test_trigger_has_task_instance_attribute(self):
+        """AwaitMessageTrigger must initialise _task_instance via super().__init__().
+
+        Without the super().__init__() call, accessing trigger.task_instance raises
+        AttributeError when used as an AssetWatcher trigger (where the triggerer never
+        sets the attribute via the task_instance setter).
+        """
+        trigger = AwaitMessageTrigger(
+            kafka_config_id="kafka_d",
+            topics=["noop"],
+        )
+
+        assert hasattr(trigger, "_task_instance")
+        assert trigger.task_instance is None
+
 
 @mark_common_msg_queue_test
 class TestMessageQueueTrigger:
