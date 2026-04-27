@@ -127,7 +127,21 @@ If your fix is for the FAB provider and affects both Airflow 2.11 and Airflow 3:
 ### Testing changes for Airflow 2.11.x
 
 To test your changes locally, check out the `v2-11-test` branch. Breeze on Airflow 3 (`main`) is
-not compatible with Airflow 2.11, so you need to reinstall it manually:
+not compatible with Airflow 2.11, so you need a Breeze that matches the branch you're on.
+
+If you installed Breeze via the recommended shim (`./scripts/tools/setup_breeze`), nothing extra
+is needed — the shim runs Breeze via `uvx` from the current git worktree's `dev/breeze`, so
+checking out a different branch (or using a separate git worktree) automatically picks up that
+branch's Breeze:
+
+```bash
+git checkout v2-11-test
+breeze start-airflow
+```
+
+If you used the legacy global install (`uv tool install -e ./dev/breeze`), you must reinstall
+manually after switching branches, because the global install is bound to whichever source tree
+was last used:
 
 ```bash
 git checkout v2-11-test
@@ -138,13 +152,16 @@ After that, you can work as usual — including running `breeze start-airflow` t
 Airflow 2.11 environment for testing.
 
 > [!WARNING]
-> When you switch back to working on Airflow 3 (`main`), don't forget to reinstall Breeze from
-> the `main` branch, as the Airflow 2.11 version of Breeze is not compatible with Airflow 3:
+> If you used the legacy global install, when you switch back to working on Airflow 3 (`main`),
+> don't forget to reinstall Breeze from the `main` branch, as the Airflow 2.11 version of Breeze
+> is not compatible with Airflow 3:
 >
 > ```bash
 > git checkout main
 > uv tool install --force -e ./dev/breeze
 > ```
+>
+> The shim setup avoids this entire class of problem.
 
 ### Other provider changes
 

@@ -102,7 +102,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-airbyte>=5.0.0"
 ]
 "akeyless" = [
-    "apache-airflow-providers-akeyless>=1.0.0" # Set from local provider pyproject.toml
+    "apache-airflow-providers-akeyless>=1.0.0"
 ]
 "alibaba" = [
     "apache-airflow-providers-alibaba>=3.0.0"
@@ -384,7 +384,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-vertica>=3.9.1"
 ]
 "vespa" = [
-    "apache-airflow-providers-vespa>=0.1.0" # Set from local provider pyproject.toml
+    "apache-airflow-providers-vespa>=0.1.0"
 ]
 "weaviate" = [
     "apache-airflow-providers-weaviate>=3.0.0"
@@ -402,7 +402,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,gunicorn,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
-    "apache-airflow-providers-akeyless>=1.0.0", # Set from local provider pyproject.toml
+    "apache-airflow-providers-akeyless>=1.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
@@ -496,7 +496,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-teradata>=2.6.1",
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
-    "apache-airflow-providers-vespa>=0.1.0", # Set from local provider pyproject.toml
+    "apache-airflow-providers-vespa>=0.1.0",
     "apache-airflow-providers-weaviate>=3.0.0",
     "apache-airflow-providers-yandex>=4.0.0",
     "apache-airflow-providers-ydb>=1.4.0",

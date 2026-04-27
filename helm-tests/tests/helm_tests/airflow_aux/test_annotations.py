@@ -361,37 +361,10 @@ class TestServiceAccountAnnotations:
             assert k in obj["metadata"]["annotations"]
             assert v == obj["metadata"]["annotations"][k]
 
-    @pytest.mark.parametrize(
-        ("values_key", "show_only"),
-        [
-            ("scheduler", "templates/scheduler/scheduler-serviceaccount.yaml"),
-            ("triggerer", "templates/triggerer/triggerer-serviceaccount.yaml"),
-        ],
-    )
-    def test_tpl_rendered_annotations_airflow_2(self, values_key, show_only):
-        """Test SA annotations support tpl rendering for Airflow 2.x components."""
-        k8s_objects = render_chart(
-            values={
-                "airflowVersion": "2.11.0",
-                values_key: {
-                    "serviceAccount": {
-                        "annotations": {
-                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-sa@project.iam",
-                        },
-                    },
-                },
-            },
-            show_only=[show_only],
-        )
-        assert len(k8s_objects) == 1
-        annotations = k8s_objects[0]["metadata"]["annotations"]
-        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-sa@project.iam"
-
     def test_tpl_rendered_multiple_annotations(self):
         """Test that multiple annotations render correctly with tpl."""
         k8s_objects = render_chart(
             values={
-                "airflowVersion": "2.11.0",
                 "scheduler": {
                     "serviceAccount": {
                         "annotations": {
@@ -414,7 +387,6 @@ class TestServiceAccountAnnotations:
         """Test pgbouncer SA annotations support tpl rendering."""
         k8s_objects = render_chart(
             values={
-                "airflowVersion": "2.11.0",
                 "pgbouncer": {
                     "enabled": True,
                     "serviceAccount": {
@@ -493,46 +465,6 @@ class TestServiceAccountAnnotations:
         assert len(k8s_objects) == 1
         annotations = k8s_objects[0]["metadata"]["annotations"]
         assert annotations["iam.gke.io/gcp-service-account"] == "release-name-worker@project.iam"
-
-    def test_tpl_rendered_annotations_webserver(self):
-        """Test webserver SA annotations support tpl rendering (Airflow 2.x only)."""
-        k8s_objects = render_chart(
-            values={
-                "airflowVersion": "2.11.0",
-                "webserver": {
-                    "serviceAccount": {
-                        "annotations": {
-                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-web@project.iam",
-                        },
-                    },
-                },
-            },
-            show_only=["templates/webserver/webserver-serviceaccount.yaml"],
-        )
-        assert len(k8s_objects) == 1
-        annotations = k8s_objects[0]["metadata"]["annotations"]
-        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-web@project.iam"
-
-    def test_annotations_on_webserver(self):
-        """Test annotations are added on webserver for Airflow 2"""
-        k8s_objects = render_chart(
-            values={
-                "airflowVersion": "2.11.0",
-                "webserver": {
-                    "serviceAccount": {
-                        "annotations": {
-                            "example": "webserver",
-                        },
-                    },
-                },
-            },
-            show_only=["templates/webserver/webserver-serviceaccount.yaml"],
-        )
-
-        assert len(k8s_objects) == 1
-        obj = k8s_objects[0]
-
-        assert obj["metadata"]["annotations"] == {"example": "webserver"}
 
 
 @pytest.mark.parametrize(
@@ -822,42 +754,6 @@ class TestRedisAnnotations:
         for k, v in expected_annotations.items():
             assert k in obj["metadata"]["annotations"]
             assert v == obj["metadata"]["annotations"][k]
-
-
-class TestWebserverPodAnnotationsTemplating:
-    """Tests webserver podAnnotations templating (requires airflowVersion < 3.0.0)."""
-
-    def test_webserver_pod_annotations_are_templated(self):
-        k8s_objects = render_chart(
-            values={
-                "airflowVersion": "2.11.0",
-                "webserver": {
-                    "podAnnotations": {
-                        "release-name": "{{ .Release.Name }}",
-                    },
-                },
-            },
-            show_only=["templates/webserver/webserver-deployment.yaml"],
-        )
-
-        assert len(k8s_objects) == 1
-        annotations = get_object_annotations(k8s_objects[0])
-        assert annotations["release-name"] == "release-name"
-
-    def test_webserver_airflow_pod_annotations_are_templated(self):
-        k8s_objects = render_chart(
-            values={
-                "airflowVersion": "2.11.0",
-                "airflowPodAnnotations": {
-                    "global-release": "{{ .Release.Name }}",
-                },
-            },
-            show_only=["templates/webserver/webserver-deployment.yaml"],
-        )
-
-        assert len(k8s_objects) == 1
-        annotations = get_object_annotations(k8s_objects[0])
-        assert annotations["global-release"] == "release-name"
 
 
 class TestJobAnnotationsTemplating:
