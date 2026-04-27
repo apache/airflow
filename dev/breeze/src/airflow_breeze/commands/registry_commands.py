@@ -68,9 +68,20 @@ def registry_group():
     default=None,
     help="Extract only this provider ID (e.g. 'amazon'). Omit for full build.",
 )
+@click.option(
+    "--allow-unreleased",
+    is_flag=True,
+    default=False,
+    help=(
+        "Include providers and versions that don't have a matching "
+        "providers-<id>/<ver> git tag. Use for staging builds and local dev "
+        "where maintainers want to preview unreleased provider pages before "
+        "the tag lands. Forwarded to extract_metadata.py."
+    ),
+)
 @option_verbose
 @option_dry_run
-def extract_data(python: str, provider: str | None):
+def extract_data(python: str, provider: str | None, allow_unreleased: bool):
     unique_project_name = f"breeze-registry-{uuid.uuid4().hex[:8]}"
 
     shell_params = ShellParams(
@@ -89,9 +100,13 @@ def extract_data(python: str, provider: str | None):
     install_cmd = f"pip install --quiet {' '.join(suspended_packages)} && " if suspended_packages else ""
 
     provider_flag = f" --provider '{provider}'" if provider else ""
+    # --allow-unreleased only applies to extract_metadata.py (which owns the
+    # version filter). The other two scripts read from providers.json and
+    # don't need it.
+    metadata_extra = " --allow-unreleased" if allow_unreleased else ""
     command = (
         f"{install_cmd}"
-        f"python dev/registry/extract_metadata.py{provider_flag} && "
+        f"python dev/registry/extract_metadata.py{provider_flag}{metadata_extra} && "
         f"python dev/registry/extract_parameters.py{provider_flag} && "
         f"python dev/registry/extract_connections.py{provider_flag}"
     )
