@@ -31,11 +31,11 @@ from pendulum import DateTime
 
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.state import TaskInstanceState
 
 TRIGGER_PATH = "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
-POD_TRIGGER_MODULE = "airflow.providers.cncf.kubernetes.triggers.pod"
 HOOK_PATH = "airflow.providers.cncf.kubernetes.hooks.kubernetes.AsyncKubernetesHook"
 POD_NAME = "test-pod-name"
 NAMESPACE = "default"
@@ -560,9 +560,12 @@ class TestKubernetesPodTrigger:
             await trigger._get_pod()
         assert mock_hook.get_pod.call_count == call_count
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS,
+        reason="Triggerer invokes on_kill for user kills only on Airflow 3.3+",
+    )
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.hook")
-    @mock.patch(f"{POD_TRIGGER_MODULE}.AIRFLOW_V_3_3_PLUS", True)
     async def test_on_kill_does_not_delete_when_fired_event(self, mock_hook):
         trigger = KubernetesPodTrigger(
             pod_name=POD_NAME,
@@ -577,9 +580,12 @@ class TestKubernetesPodTrigger:
         await trigger.on_kill()
         mock_hook.delete_pod.assert_not_called()
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS,
+        reason="Triggerer invokes on_kill for user kills only on Airflow 3.3+",
+    )
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.hook")
-    @mock.patch(f"{POD_TRIGGER_MODULE}.AIRFLOW_V_3_3_PLUS", True)
     async def test_on_kill_does_not_delete_when_on_kill_action_keep_pod(self, mock_hook):
         trigger = KubernetesPodTrigger(
             pod_name=POD_NAME,
@@ -593,9 +599,12 @@ class TestKubernetesPodTrigger:
         await trigger.on_kill()
         mock_hook.delete_pod.assert_not_called()
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS,
+        reason="Triggerer invokes on_kill for user kills only on Airflow 3.3+",
+    )
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.hook")
-    @mock.patch(f"{POD_TRIGGER_MODULE}.AIRFLOW_V_3_3_PLUS", True)
     async def test_on_kill_deletes_pod(self, mock_hook):
         trigger = KubernetesPodTrigger(
             pod_name=POD_NAME,
@@ -614,9 +623,12 @@ class TestKubernetesPodTrigger:
             grace_period_seconds=None,
         )
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS,
+        reason="Triggerer invokes on_kill for user kills only on Airflow 3.3+",
+    )
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.hook")
-    @mock.patch(f"{POD_TRIGGER_MODULE}.AIRFLOW_V_3_3_PLUS", True)
     async def test_on_kill_deletes_pod_even_when_on_finish_action_keep_pod(self, mock_hook):
         """on_finish_action is not consulted during kill -- on_kill_action is the sole control."""
         trigger = KubernetesPodTrigger(
@@ -636,25 +648,11 @@ class TestKubernetesPodTrigger:
             grace_period_seconds=None,
         )
 
+    @pytest.mark.skipif(
+        AIRFLOW_V_3_3_PLUS,
+        reason="Legacy cleanup path runs only on Airflow < 3.3",
+    )
     @pytest.mark.asyncio
-    @mock.patch(f"{POD_TRIGGER_MODULE}.AIRFLOW_V_3_3_PLUS", False)
-    @mock.patch(f"{TRIGGER_PATH}.hook")
-    async def test_on_kill_noop_before_airflow_3_3(self, mock_hook):
-        """on_kill is not wired for user kills on Airflow < 3.3.0."""
-        trigger = KubernetesPodTrigger(
-            pod_name=POD_NAME,
-            pod_namespace=NAMESPACE,
-            base_container_name=BASE_CONTAINER_NAME,
-            trigger_start_time=TRIGGER_START_TIME,
-            schedule_timeout=STARTUP_TIMEOUT_SECS,
-            on_kill_action="delete_pod",
-            on_finish_action="delete_pod",
-        )
-        await trigger.on_kill()
-        mock_hook.delete_pod.assert_not_called()
-
-    @pytest.mark.asyncio
-    @mock.patch(f"{POD_TRIGGER_MODULE}.AIRFLOW_V_3_3_PLUS", False)
     @mock.patch(f"{TRIGGER_PATH}.hook")
     async def test_cleanup_does_not_delete_during_triggerer_restart(self, mock_hook):
         trigger = KubernetesPodTrigger(
@@ -670,8 +668,11 @@ class TestKubernetesPodTrigger:
             await trigger.cleanup()
         mock_hook.delete_pod.assert_not_called()
 
+    @pytest.mark.skipif(
+        AIRFLOW_V_3_3_PLUS,
+        reason="Legacy cleanup path runs only on Airflow < 3.3",
+    )
     @pytest.mark.asyncio
-    @mock.patch(f"{POD_TRIGGER_MODULE}.AIRFLOW_V_3_3_PLUS", False)
     @mock.patch(f"{TRIGGER_PATH}.hook")
     async def test_cleanup_deletes_pod_when_safe_to_cancel(self, mock_hook):
         trigger = KubernetesPodTrigger(
@@ -692,8 +693,11 @@ class TestKubernetesPodTrigger:
             grace_period_seconds=None,
         )
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS,
+        reason="cleanup skips pod deletion only on Airflow 3.3+",
+    )
     @pytest.mark.asyncio
-    @mock.patch(f"{POD_TRIGGER_MODULE}.AIRFLOW_V_3_3_PLUS", True)
     @mock.patch(f"{TRIGGER_PATH}.hook")
     async def test_cleanup_noop_on_airflow_3_3_plus(self, mock_hook):
         """On Airflow 3.3.0+, cleanup does not delete pods (on_kill handles user kill)."""
@@ -735,6 +739,10 @@ class TestKubernetesPodTrigger:
         )
         assert await trigger.safe_to_cancel() is False
 
+    @pytest.mark.skipif(
+        AIRFLOW_V_3_3_PLUS,
+        reason="Legacy cleanup path runs only on Airflow < 3.3",
+    )
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.hook")
     async def test_cleanup_skips_deletion_when_safe_to_cancel_raises(self, mock_hook):
@@ -747,11 +755,10 @@ class TestKubernetesPodTrigger:
             on_kill_action="delete_pod",
             on_finish_action="delete_pod",
         )
-        with mock.patch(f"{POD_TRIGGER_MODULE}.AIRFLOW_V_3_3_PLUS", False):
-            with mock.patch(
-                f"{TRIGGER_PATH}.safe_to_cancel",
-                new_callable=mock.AsyncMock,
-                side_effect=Exception("API down"),
-            ):
-                await trigger.cleanup()
+        with mock.patch(
+            f"{TRIGGER_PATH}.safe_to_cancel",
+            new_callable=mock.AsyncMock,
+            side_effect=Exception("API down"),
+        ):
+            await trigger.cleanup()
         mock_hook.delete_pod.assert_not_called()

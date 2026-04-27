@@ -417,7 +417,7 @@ class KubernetesPodTrigger(BaseTrigger):
         Whether it is safe to delete the pod during trigger cleanup.
 
         Used only on Airflow < 3.3.0 where the triggerer does not invoke ``on_kill()`` for user kills.
-        Cancel is NOT safe when the task is still in DEFERRED state (triggerer restart).
+        Deletion is NOT safe when the task is still in DEFERRED state (triggerer restart).
         """
         task_state = await self.get_task_state()
         return task_state != TaskInstanceState.DEFERRED
@@ -426,11 +426,9 @@ class KubernetesPodTrigger(BaseTrigger):
         """
         Delete the pod when the trigger is cancelled by a user action.
 
-        On Airflow 3.3.0+ the triggerer invokes this for user-initiated kills. On older versions this
-        is a no-op; use ``cleanup()`` and ``safe_to_cancel()`` instead.
+        The triggerer invokes this for user-initiated kills on Airflow 3.3.0+ only; on older versions
+        use ``cleanup()`` and ``safe_to_cancel()`` instead.
         """
-        if not AIRFLOW_V_3_3_PLUS:
-            return
         if self._fired_event:
             self.log.debug("Skipping on_kill since an event has already been fired.")
             return
