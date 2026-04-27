@@ -241,6 +241,41 @@ class TestMerge:
         assert len(result_providers) == 1
         assert result_providers[0]["id"] == "amazon"
 
+    def test_missing_new_modules_file(self, tmp_path, output_dir):
+        """Incremental extract with --provider skips modules.json; merge should keep existing modules."""
+        existing_providers = _write_json(
+            tmp_path / "existing_providers.json",
+            {
+                "providers": [
+                    _provider("amazon", "Amazon", "2024-01-01"),
+                    _provider("google", "Google", "2024-02-01"),
+                ]
+            },
+        )
+        existing_modules = _write_json(
+            tmp_path / "existing_modules.json",
+            {
+                "modules": [
+                    _module("amazon-s3-op", "amazon"),
+                    _module("google-bq-op", "google"),
+                ]
+            },
+        )
+        new_providers = _write_json(
+            tmp_path / "new_providers.json",
+            {"providers": [_provider("amazon", "Amazon", "2025-01-01")]},
+        )
+        # new_modules file does not exist (--provider mode skips modules.json)
+        new_modules = tmp_path / "nonexistent_modules.json"
+
+        merge(existing_providers, existing_modules, new_providers, new_modules, output_dir)
+
+        result_modules = json.loads((output_dir / "modules.json").read_text())["modules"]
+        # Existing modules for non-updated providers are kept
+        assert any(m["id"] == "google-bq-op" for m in result_modules)
+        # Existing modules for the updated provider are removed (no new ones to replace them)
+        assert not any(m["provider_id"] == "amazon" for m in result_modules)
+
     def test_output_directory_created_if_missing(self, tmp_path):
         output_dir = tmp_path / "does" / "not" / "exist"
         existing_providers = _write_json(

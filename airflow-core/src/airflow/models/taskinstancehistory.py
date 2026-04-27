@@ -131,7 +131,7 @@ class TaskInstanceHistory(Base):
         foreign_keys=[run_id, dag_id],
     )
 
-    hitl_detail = relationship("HITLDetailHistory", lazy="noload", uselist=False)
+    hitl_detail = relationship("HITLDetailHistory", lazy="raise", uselist=False)
 
     def __init__(
         self,

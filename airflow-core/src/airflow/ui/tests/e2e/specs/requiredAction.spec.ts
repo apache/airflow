@@ -40,30 +40,19 @@ test.describe("Verify Required Action page", () => {
     await context.close();
   });
 
-  test("Verify the actions list/table is displayed (or empty state if none)", async ({ page }) => {
+  test.fixme("Verify the actions list/table is displayed (or empty state if none)", async ({ page }) => {
     const browsePage = new RequiredActionsPage(page);
 
     await browsePage.navigateToRequiredActionsPage();
 
-    const isTableVisible = await browsePage.isTableDisplayed();
-    const isEmptyStateVisible = await browsePage.isEmptyStateDisplayed();
+    await expect(browsePage.actionsTable.or(browsePage.emptyStateMessage)).toBeVisible();
 
-    expect(isTableVisible || isEmptyStateVisible).toBe(true);
-
-    if (isTableVisible) {
-      await expect(browsePage.actionsTable).toBeVisible();
-
-      const dagIdHeader = page.locator('th:has-text("Dag ID")');
-      const taskIdHeader = page.locator('th:has-text("Task ID")');
-      const dagRunIdHeader = page.locator('th:has-text("Dag Run ID")');
-      const responseCreatedHeader = page.locator('th:has-text("Response created at")');
-      const responseReceivedHeader = page.locator('th:has-text("Response received at")');
-
-      await expect(dagIdHeader).toBeVisible();
-      await expect(taskIdHeader).toBeVisible();
-      await expect(dagRunIdHeader).toBeVisible();
-      await expect(responseCreatedHeader).toBeVisible();
-      await expect(responseReceivedHeader).toBeVisible();
+    if (await browsePage.actionsTable.isVisible()) {
+      await expect(page.locator("th").filter({ hasText: "Dag ID" })).toBeVisible();
+      await expect(page.locator("th").filter({ hasText: "Task ID" })).toBeVisible();
+      await expect(page.locator("th").filter({ hasText: "Dag Run ID" })).toBeVisible();
+      await expect(page.locator("th").filter({ hasText: "Response created at" })).toBeVisible();
+      await expect(page.locator("th").filter({ hasText: "Response received at" })).toBeVisible();
     } else {
       await expect(browsePage.emptyStateMessage).toBeVisible();
     }

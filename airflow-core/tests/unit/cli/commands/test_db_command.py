@@ -40,12 +40,17 @@ class TestCliDb:
     def test_cli_resetdb(self, mock_resetdb):
         db_command.resetdb(self.parser.parse_args(["db", "reset", "--yes"]))
 
-        mock_resetdb.assert_called_once_with(skip_init=False)
+        mock_resetdb.assert_called_once_with(skip_init=False, use_migration_files=False)
 
     @mock.patch("airflow.cli.commands.db_command.db.resetdb")
     def test_cli_resetdb_skip_init(self, mock_resetdb):
         db_command.resetdb(self.parser.parse_args(["db", "reset", "--yes", "--skip-init"]))
-        mock_resetdb.assert_called_once_with(skip_init=True)
+        mock_resetdb.assert_called_once_with(skip_init=True, use_migration_files=False)
+
+    @mock.patch("airflow.cli.commands.db_command.db.resetdb")
+    def test_cli_resetdb_use_migration_files(self, mock_resetdb):
+        db_command.resetdb(self.parser.parse_args(["db", "reset", "--yes", "--use-migration-files"]))
+        mock_resetdb.assert_called_once_with(skip_init=False, use_migration_files=True)
 
     def test_run_db_migrate_command_success_and_messages(self, capsys):
         class Args:
@@ -66,7 +71,12 @@ class TestCliDb:
         out = capsys.readouterr().out
         assert "Performing upgrade" in out
         assert "Database migration done!" in out
-        assert called == {"to_revision": None, "from_revision": None, "show_sql_only": False}
+        assert called == {
+            "to_revision": None,
+            "from_revision": None,
+            "show_sql_only": False,
+            "use_migration_files": False,
+        }
 
     def test_run_db_migrate_command_offline_generation(self, capsys):
         class Args:
@@ -86,7 +96,12 @@ class TestCliDb:
         db_command.run_db_migrate_command(Args(), fake_command, heads)
         out = capsys.readouterr().out
         assert "Generating sql for upgrade" in out
-        assert called == {"to_revision": None, "from_revision": None, "show_sql_only": True}
+        assert called == {
+            "to_revision": None,
+            "from_revision": None,
+            "show_sql_only": True,
+            "use_migration_files": False,
+        }
 
     @pytest.mark.parametrize(
         ("args", "match"),
@@ -185,6 +200,15 @@ class TestCliDb:
                 ),
             ),
             (
+                ["--use-migration-files"],
+                dict(
+                    to_revision=None,
+                    from_revision=None,
+                    show_sql_only=False,
+                    use_migration_files=True,
+                ),
+            ),
+            (
                 ["--to-revision", "abc"],
                 dict(
                     to_revision="abc",
@@ -246,11 +270,11 @@ class TestCliDb:
             ),
         ],
     )
-    @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
+    @mock.patch("airflow.cli.commands.db_command.db.upgradedb", autospec=True)
     def test_cli_upgrade_success(self, mock_upgradedb, args, called_with):
         # TODO(ephraimbuddy): Revisit this when we add more migration files and use other versions/revisions other than 2.10.0/22ed7efa9da2
         db_command.migratedb(self.parser.parse_args(["db", "migrate", *args]))
-        mock_upgradedb.assert_called_once_with(**called_with)
+        mock_upgradedb.assert_called_once_with(**{"use_migration_files": False, **called_with})
 
     @pytest.mark.parametrize(
         ("args", "pattern"),
@@ -321,6 +345,66 @@ class TestCliDb:
         mock_tmp_file.return_value.__enter__.return_value.write.assert_called_once_with(
             b"[client]\nhost     = mysql\nuser     = root\npassword = \nport     = 3306\ndatabase = airflow"
         )
+
+    @pytest.mark.parametrize(
+        ("sql_alchemy_conn", "expected_cnf"),
+        [
+            pytest.param(
+                "mysql://root@mysql:3306/airflow",
+                b"[client]\nhost     = mysql\nuser     = root\npassword = \n"
+                b"port     = 3306\ndatabase = airflow",
+                id="no_query_params",
+            ),
+            pytest.param(
+                "mysql://root@mysql/airflow",
+                b"[client]\nhost     = mysql\nuser     = root\npassword = \n"
+                b"port     = 3306\ndatabase = airflow",
+                id="missing_port_defaults_to_3306",
+            ),
+            pytest.param(
+                "mysql://airflow@mysql:3306/airflow"
+                "?ssl_ca=/etc/ssl/ca.crt&ssl_cert=/etc/ssl/client.crt"
+                "&ssl_key=/etc/ssl/client.key&ssl_mode=VERIFY_CA",
+                b"[client]\nhost     = mysql\nuser     = airflow\npassword = \n"
+                b"port     = 3306\ndatabase = airflow\n"
+                b"ssl-ca = /etc/ssl/ca.crt\n"
+                b"ssl-cert = /etc/ssl/client.crt\n"
+                b"ssl-key = /etc/ssl/client.key\n"
+                b"ssl-mode = VERIFY_CA",
+                id="ssl_params_forwarded_with_hyphen_translation",
+            ),
+            pytest.param(
+                "mysql://root@mysql:3306/airflow?unknown_param=something&ssl_cipher=AES256-SHA",
+                b"[client]\nhost     = mysql\nuser     = root\npassword = \n"
+                b"port     = 3306\ndatabase = airflow\n"
+                b"ssl-cipher = AES256-SHA",
+                id="only_allowlisted_query_keys_are_forwarded",
+            ),
+            pytest.param(
+                "mysql://root@mysql:3306/airflow?charset=utf8mb4",
+                b"[client]\nhost     = mysql\nuser     = root\npassword = \n"
+                b"port     = 3306\ndatabase = airflow\n"
+                b"default-character-set = utf8mb4",
+                id="charset_forwarded_as_default_character_set",
+            ),
+            pytest.param(
+                'mysql://root:pa"ss\\word@mysql:3306/airflow',
+                b'[client]\nhost     = mysql\nuser     = root\npassword = "pa\\"ss\\\\word"\n'
+                b"port     = 3306\ndatabase = airflow",
+                id="password_with_special_chars_is_escaped",
+            ),
+        ],
+    )
+    def test_build_mysql_cnf(self, sql_alchemy_conn, expected_cnf):
+        """
+        Pure-function test of the my.cnf builder — no mocking of ``shell()`` needed.
+
+        Exercises every behavior we care about: bare URL, missing-port default,
+        SSL params forwarded with underscore→hyphen translation, query-string
+        allowlisting, the charset rename, and password escaping. New allowlist
+        keys should be added here first — bug-regressions then fail loudly.
+        """
+        assert db_command._build_mysql_cnf(make_url(sql_alchemy_conn)) == expected_cnf
 
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch(

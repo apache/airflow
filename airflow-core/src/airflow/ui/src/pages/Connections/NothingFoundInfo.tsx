@@ -35,7 +35,7 @@ export const NothingFoundInfo = () => {
         <Text>{translate("connections.nothingFound.description")}</Text>
         <Text>
           {translate("connections.nothingFound.learnMore")}{" "}
-          <Link href={docsLink} target="blank">
+          <Link href={docsLink} rel="noopener noreferrer" target="_blank">
             {translate("connections.nothingFound.documentationLink")}
           </Link>
         </Text>

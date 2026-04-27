@@ -43,6 +43,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.datadog.hooks.datadog.DatadogHook",
+                "hook-name": "Datadog",
                 "connection-type": "datadog",
                 "conn-fields": {
                     "api_host": {"label": "API endpoint", "schema": {"type": ["string", "null"]}},

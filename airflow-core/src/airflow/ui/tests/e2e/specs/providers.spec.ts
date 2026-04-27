@@ -16,51 +16,44 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { test, expect } from "@playwright/test";
-
-import { ProvidersPage } from "../pages/ProvidersPage";
+import { expect, test } from "tests/e2e/fixtures";
 
 test.describe("Providers Page", () => {
-  let providers: ProvidersPage;
-
-  test.beforeEach(async ({ page }) => {
-    providers = new ProvidersPage(page);
-    await providers.navigate();
-    await providers.waitForLoad();
+  test.beforeEach(async ({ providersPage }) => {
+    await providersPage.navigate();
+    await providersPage.waitForLoad();
   });
 
-  test("verify providers page heading", async () => {
-    await expect(providers.heading).toBeVisible();
+  test("verify providers page heading", async ({ providersPage }) => {
+    await expect(providersPage.heading).toBeVisible();
   });
 
-  test("Verify Providers page is accessible via Admin menu", async ({ page }) => {
+  test("Verify Providers page is accessible via Admin menu", async ({ page, providersPage }) => {
     await page.goto("/");
 
     await page.getByRole("button", { name: /^admin$/i }).click();
 
-    // Click Providers
     const providersItem = page.getByRole("menuitem", { name: /^providers$/i });
 
     await expect(providersItem).toBeVisible();
     await providersItem.click();
 
-    await providers.waitForLoad();
-    // Assert Providers page loaded
-    await expect(providers.heading).toBeVisible();
-    expect(await providers.getRowCount()).toBeGreaterThan(0);
+    await providersPage.waitForLoad();
+    await expect(providersPage.heading).toBeVisible();
+    expect(await providersPage.getRowCount()).toBeGreaterThan(0);
   });
 
-  test("Verify the providers list displays", async () => {
-    await expect(providers.table).toBeVisible();
+  test("Verify the providers list displays", async ({ providersPage }) => {
+    await expect(providersPage.table).toBeVisible();
   });
 
-  test("Verify package name, version, and description are not blank", async () => {
-    const count = await providers.getRowCount();
+  test("Verify package name, version, and description are not blank", async ({ providersPage }) => {
+    const count = await providersPage.getRowCount();
 
     expect(count).toBeGreaterThan(0);
 
     for (let i = 0; i < 2; i++) {
-      const { description, packageName, version } = await providers.getRowDetails(i);
+      const { description, packageName, version } = await providersPage.getRowDetails(i);
 
       expect(packageName).not.toEqual("");
       expect(version).not.toEqual("");

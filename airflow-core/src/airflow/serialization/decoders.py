@@ -166,6 +166,7 @@ def decode_deadline_alert(encoded_data: dict):
         reference=reference,
         interval=datetime.timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
         callback=deserialize(data[DeadlineAlertFields.CALLBACK]),
+        name=data.get(DeadlineAlertFields.NAME),
     )
 
 

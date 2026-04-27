@@ -21,6 +21,7 @@ from airflow._shared.module_loading import import_string
 from airflow.cli.commands.db_command import run_db_downgrade_command, run_db_migrate_command
 from airflow.configuration import conf
 from airflow.utils import cli as cli_utils
+from airflow.utils.db_manager import _callable_accepts_use_migration_files
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
@@ -38,7 +39,11 @@ def resetdb(args):
     db_manager = _get_db_manager(args.import_path)
     if not (args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y"):
         raise SystemExit("Cancelled")
-    db_manager(settings.Session()).resetdb(skip_init=args.skip_init)
+    manager = db_manager(settings.Session())
+    kwargs: dict = {"skip_init": args.skip_init}
+    if _callable_accepts_use_migration_files(manager.resetdb):
+        kwargs["use_migration_files"] = getattr(args, "use_migration_files", False)
+    manager.resetdb(**kwargs)
 
 
 @cli_utils.action_cli(check_db=False)

@@ -210,10 +210,7 @@ class TestDataprocClusterTrigger:
     @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.fetch_cluster")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.delete_cluster",
-        return_value=asyncio.Future(),
-    )
+    @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.delete_cluster")
     @mock.patch("google.auth.default")
     async def test_async_cluster_trigger_run_returns_error_event(
         self, mock_auth, mock_delete_cluster, mock_fetch_cluster, cluster_trigger, async_get_cluster, caplog

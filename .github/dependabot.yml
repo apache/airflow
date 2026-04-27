@@ -36,7 +36,7 @@ updates:
     schedule:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
-    target-branch: v3-1-test
+    target-branch: v3-2-test
     groups:
       github-actions-updates:
         patterns:
@@ -200,7 +200,7 @@ updates:
         update-types:
           - "major"
 
-  # Repeat dependency updates on v3-1-test branch as well
+  # Repeat dependency updates on v3-2-test branch as well
   - package-ecosystem: pip
     cooldown:
       default-days: 4
@@ -216,7 +216,7 @@ updates:
       - /
     schedule:
       interval: daily
-    target-branch: v3-1-test
+    target-branch: v3-2-test
     groups:
       pip-dependency-updates:
         patterns:
@@ -229,9 +229,9 @@ updates:
       - /airflow-core/src/airflow/ui
     schedule:
       interval: "weekly"
-    target-branch: v3-1-test
+    target-branch: v3-2-test
     groups:
-      3-1-core-ui-package-updates:
+      3-2-core-ui-package-updates:
         patterns:
           - "*"
         update-types:
@@ -248,9 +248,9 @@ updates:
       - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
     schedule:
       interval: "weekly"
-    target-branch: v3-1-test
+    target-branch: v3-2-test
     groups:
-      3-1-auth-ui-package-updates:
+      3-2-auth-ui-package-updates:
         patterns:
           - "*"
         update-types:

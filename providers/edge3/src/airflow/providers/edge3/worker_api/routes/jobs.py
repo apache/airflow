@@ -22,16 +22,15 @@ from typing import Annotated
 from fastapi import Body, Depends, status
 from sqlalchemy import select, update
 
-from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.executors.workloads import ExecuteTask
-from airflow.providers.common.compat.sdk import Stats, timezone
-
 try:
     from airflow.sdk.observability.stats import DualStatsManager
 except ImportError:
     DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
+from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.executors.workloads import ExecuteTask
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
@@ -80,6 +79,7 @@ def fetch(
     )
     if body.queues:
         query = query.where(EdgeJobModel.queue.in_(body.queues))
+    query = query.where(EdgeJobModel.team_name == body.team_name)
     query = query.limit(1)
     query = query.with_for_update(skip_locked=True)
     job: EdgeJobModel | None = session.scalar(query)
@@ -94,6 +94,8 @@ def fetch(
     if DualStatsManager is not None:
         DualStatsManager.incr("edge_worker.ti.start", tags=tags)
     else:
+        from airflow.providers.common.compat.sdk import Stats
+
         Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
         Stats.incr("edge_worker.ti.start", tags=tags)
     return EdgeJobFetched(
@@ -154,6 +156,8 @@ def state(
                     tags=tags,
                 )
             else:
+                from airflow.providers.common.compat.sdk import Stats
+
                 Stats.incr(
                     f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}",
                     tags=tags,

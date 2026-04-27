@@ -37,9 +37,12 @@ Global labels can be set using the ``labels`` parameter in your values file. The
 Component-Specific Labels
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can also set specific labels for individual Airflow components, which will be merged with the global labels. Component-specific labels take precedence over global labels, allowing you to override them as needed.
+You can also set specific labels for individual Airflow components, which will be merged with the global labels.
 
-For example, to add specific labels to different components:
+If the same label key exists in both global and component-specific labels, the component-specific value takes precedence (overrides the global value).
+
+This allows you to customize labels for specific components while still maintaining common global labels across all resources.
+For example, to add specific labels to different components like scheduler or api-server:
 
 .. code-block:: yaml
    :caption: values.yaml
@@ -52,11 +55,6 @@ For example, to add specific labels to different components:
    scheduler:
      labels:
        role: scheduler
-
-   # Worker specific labels
-   workers:
-     labels:
-       role: worker
 
    # API Server specific labels
    apiServer:
@@ -71,7 +69,7 @@ Pod annotations can be customized similarly to labels using ``podAnnotations`` a
 Global Pod Annotations
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Global pod annotations can be set using ``airflowPodAnnotations``. These are applied to all Airflow component pods (scheduler, api-server/webserver, triggerer, dag-processor and workers):
+Global pod annotations can be set using ``airflowPodAnnotations``. These are applied to all Airflow component pods (scheduler, api-server, triggerer, dag-processor and workers):
 
 .. code-block:: yaml
    :caption: values.yaml

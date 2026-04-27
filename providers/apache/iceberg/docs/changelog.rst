@@ -26,6 +26,30 @@
 Changelog
 ---------
 
+2.0.2
+.....
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.0.1
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Migrate apache/iceberg connection UI metadata to YAML (#63172)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 2.0.0
 .....
 

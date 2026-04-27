@@ -21,8 +21,8 @@ import os
 import pytest
 
 import airflow
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
 from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface

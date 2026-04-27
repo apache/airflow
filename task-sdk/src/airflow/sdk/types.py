@@ -34,11 +34,18 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
     from airflow.sdk._shared.logging.types import Logger as Logger
-    from airflow.sdk.api.datamodels._generated import PreviousTIResponse, TaskInstanceState
+    from airflow.sdk.api.datamodels._generated import (
+        AssetEventDagRunReference,
+        DagRunState,
+        DagRunType,
+        PreviousTIResponse,
+        TaskInstanceState,
+    )
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetRef, BaseAssetUniqueKey
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.sdk.execution_time.comms import DagResult
 
     Operator: TypeAlias = BaseOperator | MappedOperator
 
@@ -99,12 +106,17 @@ class DagRunProtocol(Protocol):
     logical_date: AwareDatetime | None
     data_interval_start: AwareDatetime | None
     data_interval_end: AwareDatetime | None
+    run_after: AwareDatetime
     start_date: AwareDatetime | None
     end_date: AwareDatetime | None
-    run_type: Any
-    run_after: AwareDatetime
+    clear_number: int | None
+    run_type: DagRunType
+    state: DagRunState
     conf: dict[str, Any] | None
     triggering_user_name: str | None
+    consumed_asset_events: list[AssetEventDagRunReference]
+    partition_key: str | None
+    note: str | None
 
 
 class RuntimeTaskInstanceProtocol(Protocol):
@@ -182,6 +194,9 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
     @staticmethod
     def get_dagrun_state(dag_id: str, run_id: str) -> str: ...
+
+    @staticmethod
+    def get_dag(dag_id: str) -> DagResult: ...
 
 
 # Public alias for RuntimeTaskInstanceProtocol

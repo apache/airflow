@@ -31,7 +31,9 @@ from datetime import datetime, timezone
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 
+from airflow.migrations.db_types import StringID
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
 # revision identifiers, used by Alembic.
@@ -56,7 +58,11 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("first_name", sa.String(length=256), nullable=False),
         sa.Column("last_name", sa.String(length=256), nullable=False),
-        sa.Column("username", sa.String(length=512), nullable=False),
+        sa.Column(
+            "username",
+            sa.String(512).with_variant(sa.String(512, collation="NOCASE"), "sqlite"),
+            nullable=False,
+        ),
         sa.Column("email", sa.String(length=512), nullable=False),
         sa.Column("password", sa.String(length=256), nullable=True),
         sa.Column("registration_date", sa.DateTime(), nullable=True),
@@ -76,7 +82,11 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("first_name", sa.String(length=256), nullable=False),
         sa.Column("last_name", sa.String(length=256), nullable=False),
-        sa.Column("username", sa.String(length=512), nullable=False),
+        sa.Column(
+            "username",
+            sa.String(512).with_variant(sa.String(512, collation="NOCASE"), "sqlite"),
+            nullable=False,
+        ),
         sa.Column("email", sa.String(length=512), nullable=False),
         sa.Column("password", sa.String(length=256), nullable=True),
         sa.Column("active", sa.Boolean(), nullable=True),
@@ -106,20 +116,20 @@ def upgrade() -> None:
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("priority_weight", sa.Integer(), nullable=False),
         sa.Column("callback_data", sa.JSON(), nullable=False),
-        sa.Column("callback_type", sa.String(length=20), nullable=False),
-        sa.Column("processor_subdir", sa.String(length=2000), nullable=True),
+        sa.Column("callback_type", StringID(length=20), nullable=False),
+        sa.Column("processor_subdir", StringID(length=2000), nullable=True),
         sa.PrimaryKeyConstraint("id", name="callback_request_pkey"),
     )
     op.create_table(
         "connection",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("conn_id", sa.String(length=250), nullable=False),
-        sa.Column("conn_type", sa.String(length=500), nullable=False),
+        sa.Column("conn_id", StringID(length=250), nullable=False),
+        sa.Column("conn_type", StringID(length=500), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("host", sa.String(length=500), nullable=True),
-        sa.Column("schema", sa.String(length=500), nullable=True),
-        sa.Column("login", sa.String(length=500), nullable=True),
-        sa.Column("password", sa.String(length=5000), nullable=True),
+        sa.Column("host", StringID(length=500), nullable=True),
+        sa.Column("schema", StringID(length=500), nullable=True),
+        sa.Column("login", StringID(length=500), nullable=True),
+        sa.Column("password", StringID(length=5000), nullable=True),
         sa.Column("port", sa.Integer(), nullable=True),
         sa.Column("is_encrypted", sa.Boolean(), nullable=True),
         sa.Column("is_extra_encrypted", sa.Boolean(), nullable=True),
@@ -129,10 +139,10 @@ def upgrade() -> None:
     )
     op.create_table(
         "dag",
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
+        sa.Column("dag_id", StringID(length=250), nullable=False),
         sa.Column("max_active_tasks", sa.Integer(), nullable=False),
         sa.Column("has_task_concurrency_limits", sa.Boolean(), nullable=False),
-        sa.Column("root_dag_id", sa.String(length=250), nullable=True),
+        sa.Column("root_dag_id", StringID(length=250), nullable=True),
         sa.Column("is_paused", sa.Boolean(), nullable=True),
         sa.Column("is_subdag", sa.Boolean(), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=True),
@@ -141,13 +151,13 @@ def upgrade() -> None:
         sa.Column("last_expired", UtcDateTime(timezone=True), nullable=True),
         sa.Column("scheduler_lock", sa.Boolean(), nullable=True),
         sa.Column("pickle_id", sa.Integer(), nullable=True),
-        sa.Column("fileloc", sa.String(length=2000), nullable=True),
-        sa.Column("processor_subdir", sa.String(length=2000), nullable=True),
-        sa.Column("owners", sa.String(length=2000), nullable=True),
+        sa.Column("fileloc", StringID(length=2000), nullable=True),
+        sa.Column("processor_subdir", StringID(length=2000), nullable=True),
+        sa.Column("owners", StringID(length=2000), nullable=True),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("default_view", sa.String(length=25), nullable=True),
+        sa.Column("default_view", StringID(length=25), nullable=True),
         sa.Column("schedule_interval", sa.Text(), nullable=True),
-        sa.Column("timetable_description", sa.String(length=1000), nullable=True),
+        sa.Column("timetable_description", StringID(length=1000), nullable=True),
         sa.Column("max_active_runs", sa.Integer(), nullable=True),
         sa.Column(
             "has_import_errors",
@@ -175,9 +185,9 @@ def upgrade() -> None:
     op.create_table(
         "dag_code",
         sa.Column("fileloc_hash", sa.BigInteger(), nullable=False),
-        sa.Column("fileloc", sa.String(length=2000), nullable=False),
+        sa.Column("fileloc", StringID(length=2000), nullable=False),
         sa.Column("last_updated", UtcDateTime(timezone=True), nullable=False),
-        sa.Column("source_code", sa.Text(), nullable=False),
+        sa.Column("source_code", sa.Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False),
         sa.PrimaryKeyConstraint("fileloc_hash", name="dag_code_pkey"),
     )
     op.create_table(
@@ -191,7 +201,19 @@ def upgrade() -> None:
     op.create_table(
         "dataset",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("uri", sa.String(length=3000), nullable=False),
+        sa.Column(
+            "uri",
+            sa.String(length=3000).with_variant(
+                sa.String(
+                    length=3000,
+                    # latin1 allows for more indexed length in mysql
+                    # and this field should only be ascii chars
+                    collation="latin1_general_cs",
+                ),
+                "mysql",
+            ),
+            nullable=False,
+        ),
         sa.Column("extra", sa.JSON(), nullable=False),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
@@ -210,9 +232,9 @@ def upgrade() -> None:
         sa.Column("dataset_id", sa.Integer(), nullable=False),
         sa.Column("extra", sa.JSON(), nullable=False),
         sa.Column("timestamp", UtcDateTime(timezone=True), nullable=False),
-        sa.Column("source_task_id", sa.String(length=250), nullable=True),
-        sa.Column("source_dag_id", sa.String(length=250), nullable=True),
-        sa.Column("source_run_id", sa.String(length=250), nullable=True),
+        sa.Column("source_task_id", StringID(length=250), nullable=True),
+        sa.Column("source_dag_id", StringID(length=250), nullable=True),
+        sa.Column("source_run_id", StringID(length=250), nullable=True),
         sa.Column("source_map_index", sa.Integer(), server_default="-1", nullable=True),
         sa.PrimaryKeyConstraint("id", name="dataset_event_pkey"),
     )
@@ -226,22 +248,22 @@ def upgrade() -> None:
         "import_error",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("timestamp", UtcDateTime(timezone=True), nullable=True),
-        sa.Column("filename", sa.String(length=1024), nullable=True),
+        sa.Column("filename", StringID(length=1024), nullable=True),
         sa.Column("stacktrace", sa.Text(), nullable=True),
         sa.PrimaryKeyConstraint("id", name="import_error_pkey"),
     )
     op.create_table(
         "job",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=True),
-        sa.Column("state", sa.String(length=20), nullable=True),
-        sa.Column("job_type", sa.String(length=30), nullable=True),
+        sa.Column("dag_id", StringID(length=250), nullable=True),
+        sa.Column("state", StringID(length=20), nullable=True),
+        sa.Column("job_type", StringID(length=30), nullable=True),
         sa.Column("start_date", UtcDateTime(timezone=True), nullable=True),
         sa.Column("end_date", UtcDateTime(timezone=True), nullable=True),
         sa.Column("latest_heartbeat", UtcDateTime(timezone=True), nullable=True),
-        sa.Column("executor_class", sa.String(length=500), nullable=True),
-        sa.Column("hostname", sa.String(length=500), nullable=True),
-        sa.Column("unixname", sa.String(length=1000), nullable=True),
+        sa.Column("executor_class", StringID(length=500), nullable=True),
+        sa.Column("hostname", StringID(length=500), nullable=True),
+        sa.Column("unixname", StringID(length=1000), nullable=True),
         sa.PrimaryKeyConstraint("id", name="job_pkey"),
     )
     op.create_index("idx_job_dag_id", "job", ["dag_id"], unique=False)
@@ -251,12 +273,12 @@ def upgrade() -> None:
         "log",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("dttm", UtcDateTime(timezone=True), nullable=True),
-        sa.Column("dag_id", sa.String(length=250), nullable=True),
-        sa.Column("task_id", sa.String(length=250), nullable=True),
+        sa.Column("dag_id", StringID(length=250), nullable=True),
+        sa.Column("task_id", StringID(length=250), nullable=True),
         sa.Column("map_index", sa.Integer(), nullable=True),
-        sa.Column("event", sa.String(length=30), nullable=True),
+        sa.Column("event", StringID(length=30), nullable=True),
         sa.Column("execution_date", UtcDateTime(timezone=True), nullable=True),
-        sa.Column("owner", sa.String(length=500), nullable=True),
+        sa.Column("owner", StringID(length=500), nullable=True),
         sa.Column("extra", sa.Text(), nullable=True),
         sa.PrimaryKeyConstraint("id", name="log_pkey"),
     )
@@ -273,21 +295,21 @@ def upgrade() -> None:
     )
     op.create_table(
         "serialized_dag",
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
-        sa.Column("fileloc", sa.String(length=2000), nullable=False),
+        sa.Column("dag_id", StringID(length=250), nullable=False),
+        sa.Column("fileloc", StringID(length=2000), nullable=False),
         sa.Column("fileloc_hash", sa.BigInteger(), nullable=False),
         sa.Column("last_updated", UtcDateTime(timezone=True), nullable=False),
-        sa.Column("dag_hash", sa.String(length=32), nullable=False),
+        sa.Column("dag_hash", StringID(length=32), nullable=False),
         sa.Column("data", sa.JSON(), nullable=True),
         sa.Column("data_compressed", sa.LargeBinary(), nullable=True),
-        sa.Column("processor_subdir", sa.String(length=2000), nullable=True),
+        sa.Column("processor_subdir", StringID(length=2000), nullable=True),
         sa.PrimaryKeyConstraint("dag_id", name="serialized_dag_pkey"),
     )
     op.create_index("idx_fileloc_hash", "serialized_dag", ["fileloc_hash"], unique=False)
     op.create_table(
         "slot_pool",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("pool", sa.String(length=256), nullable=True),
+        sa.Column("pool", StringID(length=256), nullable=True),
         sa.Column("slots", sa.Integer(), nullable=True),
         sa.Column("description", sa.Text(), nullable=True),
         sa.PrimaryKeyConstraint("id", name="slot_pool_pkey"),
@@ -296,7 +318,7 @@ def upgrade() -> None:
     op.create_table(
         "trigger",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("classpath", sa.String(length=1000), nullable=False),
+        sa.Column("classpath", StringID(length=1000), nullable=False),
         sa.Column("kwargs", sa.JSON(), nullable=False),
         sa.Column("created_date", UtcDateTime(timezone=True), nullable=False),
         sa.Column("triggerer_id", sa.Integer(), nullable=True),
@@ -305,8 +327,8 @@ def upgrade() -> None:
     op.create_table(
         "variable",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("key", sa.String(length=250), nullable=True),
-        sa.Column("val", sa.Text(), nullable=True),
+        sa.Column("key", StringID(length=250), nullable=True),
+        sa.Column("val", sa.Text().with_variant(MEDIUMTEXT, "mysql"), nullable=True),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("is_encrypted", sa.Boolean(), nullable=True),
         sa.PrimaryKeyConstraint("id", name="variable_pkey"),
@@ -346,30 +368,30 @@ def upgrade() -> None:
     )
     op.create_table(
         "dag_owner_attributes",
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
-        sa.Column("owner", sa.String(length=500), nullable=False),
-        sa.Column("link", sa.String(length=500), nullable=False),
+        sa.Column("dag_id", StringID(length=250), nullable=False),
+        sa.Column("owner", StringID(length=500), nullable=False),
+        sa.Column("link", StringID(length=500), nullable=False),
         sa.ForeignKeyConstraint(["dag_id"], ["dag.dag_id"], name="dag.dag_id", ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("dag_id", "owner", name="dag_owner_attributes_pkey"),
     )
     op.create_table(
         "dag_run",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
+        sa.Column("dag_id", StringID(length=250), nullable=False),
         sa.Column("execution_date", UtcDateTime(timezone=True), nullable=False),
-        sa.Column("run_id", sa.String(length=250), nullable=False),
-        sa.Column("run_type", sa.String(length=50), nullable=False),
+        sa.Column("run_id", StringID(length=250), nullable=False),
+        sa.Column("run_type", StringID(length=50), nullable=False),
         sa.Column("queued_at", UtcDateTime(timezone=True), nullable=True),
         sa.Column("start_date", UtcDateTime(timezone=True), nullable=True),
         sa.Column("end_date", UtcDateTime(timezone=True), nullable=True),
-        sa.Column("state", sa.String(length=50), nullable=True),
+        sa.Column("state", StringID(length=50), nullable=True),
         sa.Column("creating_job_id", sa.Integer(), nullable=True),
         sa.Column("external_trigger", sa.Boolean(), nullable=True),
         sa.Column("conf", sa.LargeBinary(), nullable=True),
         sa.Column("data_interval_start", UtcDateTime(timezone=True), nullable=True),
         sa.Column("data_interval_end", UtcDateTime(timezone=True), nullable=True),
         sa.Column("last_scheduling_decision", UtcDateTime(timezone=True), nullable=True),
-        sa.Column("dag_hash", sa.String(length=32), nullable=True),
+        sa.Column("dag_hash", StringID(length=32), nullable=True),
         sa.Column("log_template_id", sa.Integer(), nullable=True),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(
@@ -394,7 +416,7 @@ def upgrade() -> None:
     op.create_table(
         "dag_schedule_dataset_reference",
         sa.Column("dataset_id", sa.Integer(), nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
+        sa.Column("dag_id", StringID(length=250), nullable=False),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["dag_id"], ["dag.dag_id"], name="dsdr_dag_id_fkey", ondelete="CASCADE"),
@@ -403,15 +425,15 @@ def upgrade() -> None:
     )
     op.create_table(
         "dag_tag",
-        sa.Column("name", sa.String(length=100), nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
+        sa.Column("name", StringID(length=100), nullable=False),
+        sa.Column("dag_id", StringID(length=250), nullable=False),
         sa.ForeignKeyConstraint(["dag_id"], ["dag.dag_id"], name="dag_tag_dag_id_fkey", ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("name", "dag_id", name="dag_tag_pkey"),
     )
     op.create_table(
         "dag_warning",
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
-        sa.Column("warning_type", sa.String(length=50), nullable=False),
+        sa.Column("dag_id", StringID(length=250), nullable=False),
+        sa.Column("warning_type", StringID(length=50), nullable=False),
         sa.Column("message", sa.Text(), nullable=False),
         sa.Column("timestamp", UtcDateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["dag_id"], ["dag.dag_id"], name="dcw_dag_id_fkey", ondelete="CASCADE"),
@@ -420,7 +442,7 @@ def upgrade() -> None:
     op.create_table(
         "dataset_dag_run_queue",
         sa.Column("dataset_id", sa.Integer(), nullable=False),
-        sa.Column("target_dag_id", sa.String(length=250), nullable=False),
+        sa.Column("target_dag_id", StringID(length=250), nullable=False),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["dataset_id"], ["dataset.id"], name="ddrq_dataset_fkey", ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["target_dag_id"], ["dag.dag_id"], name="ddrq_dag_fkey", ondelete="CASCADE"),
@@ -429,8 +451,8 @@ def upgrade() -> None:
     op.create_table(
         "task_outlet_dataset_reference",
         sa.Column("dataset_id", sa.Integer(), nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
-        sa.Column("task_id", sa.String(length=250), nullable=False),
+        sa.Column("dag_id", StringID(length=250), nullable=False),
+        sa.Column("task_id", StringID(length=250), nullable=False),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["dag_id"], ["dag.dag_id"], name="todr_dag_id_fkey", ondelete="CASCADE"),
@@ -461,7 +483,7 @@ def upgrade() -> None:
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=True),
-        sa.Column("content", sa.String(length=1000), nullable=True),
+        sa.Column("content", StringID(length=1000), nullable=True),
         sa.ForeignKeyConstraint(
             ["dag_run_id"],
             ["dag_run.id"],
@@ -503,33 +525,33 @@ def upgrade() -> None:
     )
     op.create_table(
         "task_instance",
-        sa.Column("task_id", sa.String(length=250), nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
-        sa.Column("run_id", sa.String(length=250), nullable=False),
+        sa.Column("task_id", StringID(length=250), nullable=False),
+        sa.Column("dag_id", StringID(length=250), nullable=False),
+        sa.Column("run_id", StringID(length=250), nullable=False),
         sa.Column("map_index", sa.Integer(), server_default="-1", nullable=False),
-        sa.Column("pool", sa.String(length=256), nullable=False),
+        sa.Column("pool", StringID(length=256), nullable=False),
         sa.Column("pool_slots", sa.Integer(), nullable=False),
         sa.Column("start_date", UtcDateTime(timezone=True), nullable=True),
         sa.Column("end_date", UtcDateTime(timezone=True), nullable=True),
         sa.Column("duration", sa.Float(), nullable=True),
-        sa.Column("state", sa.String(length=20), nullable=True),
+        sa.Column("state", StringID(length=20), nullable=True),
         sa.Column("try_number", sa.Integer(), nullable=True),
         sa.Column("max_tries", sa.Integer(), server_default="-1", nullable=True),
-        sa.Column("hostname", sa.String(length=1000), nullable=True),
-        sa.Column("unixname", sa.String(length=1000), nullable=True),
+        sa.Column("hostname", StringID(length=1000), nullable=True),
+        sa.Column("unixname", StringID(length=1000), nullable=True),
         sa.Column("job_id", sa.Integer(), nullable=True),
-        sa.Column("queue", sa.String(length=256), nullable=True),
+        sa.Column("queue", StringID(length=256), nullable=True),
         sa.Column("priority_weight", sa.Integer(), nullable=True),
-        sa.Column("operator", sa.String(length=1000), nullable=True),
+        sa.Column("operator", StringID(length=1000), nullable=True),
         sa.Column("queued_dttm", UtcDateTime(timezone=True), nullable=True),
         sa.Column("queued_by_job_id", sa.Integer(), nullable=True),
         sa.Column("pid", sa.Integer(), nullable=True),
         sa.Column("executor_config", sa.LargeBinary(), nullable=True),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=True),
-        sa.Column("external_executor_id", sa.String(length=250), nullable=True),
+        sa.Column("external_executor_id", StringID(length=250), nullable=True),
         sa.Column("trigger_id", sa.Integer(), nullable=True),
         sa.Column("trigger_timeout", UtcDateTime(timezone=True), nullable=True),
-        sa.Column("next_method", sa.String(length=1000), nullable=True),
+        sa.Column("next_method", StringID(length=1000), nullable=True),
         sa.Column("next_kwargs", ExtendedJSON(), nullable=True),
         sa.ForeignKeyConstraint(
             ["dag_id", "run_id"],
@@ -559,9 +581,9 @@ def upgrade() -> None:
     op.create_index("ti_trigger_id", "task_instance", ["trigger_id"], unique=False)
     op.create_table(
         "rendered_task_instance_fields",
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
-        sa.Column("task_id", sa.String(length=250), nullable=False),
-        sa.Column("run_id", sa.String(length=250), nullable=False),
+        sa.Column("dag_id", StringID(length=250), nullable=False),
+        sa.Column("task_id", StringID(length=250), nullable=False),
+        sa.Column("run_id", StringID(length=250), nullable=False),
         sa.Column("map_index", sa.Integer(), server_default="-1", nullable=False),
         sa.Column("rendered_fields", sa.JSON(), nullable=False),
         sa.Column("k8s_pod_yaml", sa.JSON(), nullable=True),
@@ -587,9 +609,9 @@ def upgrade() -> None:
     op.create_table(
         "task_fail",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("task_id", sa.String(length=250), nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
-        sa.Column("run_id", sa.String(length=250), nullable=False),
+        sa.Column("task_id", StringID(length=250), nullable=False),
+        sa.Column("dag_id", StringID(length=250), nullable=False),
+        sa.Column("run_id", StringID(length=250), nullable=False),
         sa.Column("map_index", sa.Integer(), server_default="-1", nullable=False),
         sa.Column("start_date", UtcDateTime(timezone=True), nullable=True),
         sa.Column("end_date", UtcDateTime(timezone=True), nullable=True),
@@ -615,14 +637,14 @@ def upgrade() -> None:
     )
     op.create_table(
         "task_instance_note",
-        sa.Column("task_id", sa.String(length=250), nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
-        sa.Column("run_id", sa.String(length=250), nullable=False),
+        sa.Column("task_id", StringID(length=250), nullable=False),
+        sa.Column("dag_id", StringID(length=250), nullable=False),
+        sa.Column("run_id", StringID(length=250), nullable=False),
         sa.Column("map_index", sa.Integer(), nullable=False),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=True),
-        sa.Column("content", sa.String(length=1000), nullable=True),
+        sa.Column("content", StringID(length=1000), nullable=True),
         sa.ForeignKeyConstraint(
             ["dag_id", "task_id", "run_id", "map_index"],
             [
@@ -639,9 +661,9 @@ def upgrade() -> None:
     )
     op.create_table(
         "task_map",
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
-        sa.Column("task_id", sa.String(length=250), nullable=False),
-        sa.Column("run_id", sa.String(length=250), nullable=False),
+        sa.Column("dag_id", StringID(length=250), nullable=False),
+        sa.Column("task_id", StringID(length=250), nullable=False),
+        sa.Column("run_id", StringID(length=250), nullable=False),
         sa.Column("map_index", sa.Integer(), nullable=False),
         sa.Column("length", sa.Integer(), nullable=False),
         sa.Column("keys", ExtendedJSON(), nullable=True),
@@ -663,9 +685,9 @@ def upgrade() -> None:
     op.create_table(
         "task_reschedule",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("task_id", sa.String(length=250), nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
-        sa.Column("run_id", sa.String(length=250), nullable=False),
+        sa.Column("task_id", StringID(length=250), nullable=False),
+        sa.Column("dag_id", StringID(length=250), nullable=False),
+        sa.Column("run_id", StringID(length=250), nullable=False),
         sa.Column("map_index", sa.Integer(), server_default="-1", nullable=False),
         sa.Column("try_number", sa.Integer(), nullable=False),
         sa.Column("start_date", UtcDateTime(timezone=True), nullable=False),
@@ -706,11 +728,11 @@ def upgrade() -> None:
     op.create_table(
         "xcom",
         sa.Column("dag_run_id", sa.Integer(), nullable=False),
-        sa.Column("task_id", sa.String(length=250), nullable=False),
+        sa.Column("task_id", StringID(length=250), nullable=False),
         sa.Column("map_index", sa.Integer(), server_default="-1", nullable=False),
-        sa.Column("key", sa.String(length=512), nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
-        sa.Column("run_id", sa.String(length=250), nullable=False),
+        sa.Column("key", StringID(length=512), nullable=False),
+        sa.Column("dag_id", StringID(length=250), nullable=False),
+        sa.Column("run_id", StringID(length=250), nullable=False),
         sa.Column("timestamp", UtcDateTime(timezone=True), nullable=False),
         sa.Column("value", sa.LargeBinary(), nullable=True),
         sa.ForeignKeyConstraint(
@@ -757,7 +779,7 @@ def upgrade() -> None:
         sa.table(
             "slot_pool",
             sa.column("id", sa.Integer()),
-            sa.column("pool", sa.String()),
+            sa.column("pool", StringID()),
             sa.column("slots", sa.Integer()),
             sa.column("description", sa.Text()),
         ),
@@ -774,6 +796,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
+    dialect_name = op.get_bind().dialect.name
     op.drop_index("idx_xcom_task_instance", table_name="xcom")
     op.drop_index("idx_xcom_key", table_name="xcom")
     op.drop_table("xcom")
@@ -840,9 +863,11 @@ def downgrade() -> None:
     op.drop_table("connection")
     op.drop_table("callback_request")
     op.drop_table("ab_view_menu")
-    op.drop_index("idx_ab_user_username", table_name="ab_user")
+    if dialect_name == "postgresql":
+        op.drop_index("idx_ab_user_username", table_name="ab_user")
     op.drop_table("ab_user")
     op.drop_table("ab_role")
-    op.drop_index("idx_ab_register_user_username", table_name="ab_register_user")
+    if dialect_name == "postgresql":
+        op.drop_index("idx_ab_register_user_username", table_name="ab_register_user")
     op.drop_table("ab_register_user")
     op.drop_table("ab_permission")

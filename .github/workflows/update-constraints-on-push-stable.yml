@@ -1,0 +1,172 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Update constraints on push for stable branch (always)
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches:
+      - v[0-9]+-[0-9]+-stable
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  GITHUB_REPOSITORY: ${{ github.repository }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_USERNAME: ${{ github.actor }}
+  VERBOSE: "true"
+jobs:
+  build-info:
+    name: "Build info"
+    runs-on: ["ubuntu-22.04"]
+    env:
+      GITHUB_CONTEXT: ${{ toJson(github) }}
+    outputs:
+      default-branch: ${{ steps.selective-checks.outputs.default-branch }}
+      default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+      default-python-version: ${{ steps.selective-checks.outputs.default-python-version }}
+      python-versions: ${{ steps.selective-checks.outputs.python-versions }}
+      python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Fetch incoming commit ${{ github.sha }} with its parent
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        id: breeze
+      - name: Selective checks
+        id: selective-checks
+        env:
+          PR_LABELS: "[]"
+          COMMIT_REF: "${{ github.sha }}"
+          VERBOSE: "false"
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
+
+  build-ci-images:
+    name: "Build CI images"
+    needs: [build-info]
+    uses: ./.github/workflows/ci-image-build.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      runners: '["ubuntu-22.04"]'
+      platform: "linux/amd64"
+      push-image: "false"
+      upload-image-artifact: "true"
+      upload-mount-cache-artifact: "false"
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      branch: ${{ needs.build-info.outputs.default-branch }}
+      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+      use-uv: "true"
+      upgrade-to-newer-dependencies: "false"
+      docker-cache: "registry"
+      disable-airflow-repo-cache: "false"
+
+  generate-constraints:
+    name: "Generate constraints"
+    needs: [build-info, build-ci-images]
+    uses: ./.github/workflows/generate-constraints.yml
+    with:
+      runners: '["ubuntu-22.04"]'
+      platform: "linux/amd64"
+      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      generate-pypi-constraints: "true"
+      generate-no-providers-constraints: "true"
+      debug-resources: "false"
+      use-uv: "true"
+
+  update-constraints:
+    runs-on: ["ubuntu-22.04"]
+    timeout-minutes: 20
+    name: "Commit and push constraints"
+    needs: [build-info, generate-constraints]
+    permissions:
+      contents: write
+      packages: read
+    env:
+      PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: "Set constraints branch name"
+        id: constraints-branch
+        run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
+      - name: Checkout ${{ steps.constraints-branch.outputs.branch }}
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          path: "constraints"
+          ref: ${{ steps.constraints-branch.outputs.branch }}
+          persist-credentials: true
+          fetch-depth: 0
+      - name: "Download constraints from the generate-constraints job"
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: constraints-*
+          path: ./files
+      - name: "Diff in constraints for Python: ${{ needs.build-info.outputs.python-versions-list-as-string }}"
+        run: ./scripts/ci/constraints/ci_diff_constraints.sh
+      - name: >-
+          Commit changed constraint files for Python:
+          ${{ needs.build-info.outputs.python-versions-list-as-string }}
+        run: ./scripts/ci/constraints/ci_commit_constraints.sh
+      - name: "Push changes"
+        working-directory: "constraints"
+        run: git push
+
+  notify-on-failure:
+    name: "Notify on failure"
+    runs-on: ["ubuntu-22.04"]
+    needs: [build-info, build-ci-images, generate-constraints, update-constraints]
+    if: failure()
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+    steps:
+      - name: "Send Slack notification"
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+        with:
+          method: chat.postMessage
+          token: ${{ env.SLACK_BOT_TOKEN }}
+          # yamllint disable rule:line-length
+          payload: |
+            channel: "internal-airflow-ci-cd"
+            text: "🚨 Update constraints workflow failed on branch *${{ github.ref_name }}*\n\n*Details:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "🚨 Update constraints workflow failed on *${{ github.ref_name }}*\n\n*Details:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+          # yamllint enable rule:line-length

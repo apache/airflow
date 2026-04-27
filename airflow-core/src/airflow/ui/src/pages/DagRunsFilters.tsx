@@ -42,6 +42,7 @@ export const DagRunsFilters = ({ dagId }: DagRunsFiltersProps) => {
     SearchParamsKeys.DAG_VERSION,
     SearchParamsKeys.PARTITION_KEY_PATTERN,
     SearchParamsKeys.BUNDLE_VERSION,
+    SearchParamsKeys.CONSUMING_ASSET_PATTERN,
   ];
 
   if (dagId === undefined) {

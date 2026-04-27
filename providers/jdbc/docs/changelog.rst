@@ -26,6 +26,42 @@
 Changelog
 ---------
 
+5.4.4
+.....
+
+Misc
+~~~~
+
+* ``Set per-Python-version lower bounds for jpype1 in JDBC provider (#65572)``
+* ``Work around jpype1 1.7.0 missing macOS arm64 wheels in jdbc provider (#65532)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+5.4.3
+.....
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 5.4.1
 .....
 

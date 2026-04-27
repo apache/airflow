@@ -673,6 +673,16 @@ ARG_DB_SKIP_INIT = Arg(
     action="store_true",
     default=False,
 )
+ARG_DB_USE_MIGRATION_FILES = Arg(
+    ("-m", "--use-migration-files"),
+    help=(
+        "Use migration files to create the database instead of the ORM. "
+        "This is useful for verifying that the migration files produce the "
+        "same schema as the ORM models."
+    ),
+    action="store_true",
+    default=False,
+)
 
 ARG_DB_MANAGER_PATH = Arg(
     ("import_path",),
@@ -1521,7 +1531,7 @@ DB_COMMANDS = (
         name="reset",
         help="Burn down and rebuild the metadata database",
         func=lazy_load_command("airflow.cli.commands.db_command.resetdb"),
-        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_DB_USE_MIGRATION_FILES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="migrate",
@@ -1541,6 +1551,7 @@ DB_COMMANDS = (
             ARG_DB_SQL_ONLY,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
+            ARG_DB_USE_MIGRATION_FILES,
             ARG_VERBOSE,
         ),
     ),
@@ -1878,7 +1889,7 @@ DB_MANAGERS_COMMANDS = (
         name="reset",
         help="Burn down and rebuild the specified external database",
         func=lazy_load_command("airflow.cli.commands.db_manager_command.resetdb"),
-        args=(ARG_DB_MANAGER_PATH, ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+        args=(ARG_DB_MANAGER_PATH, ARG_YES, ARG_DB_SKIP_INIT, ARG_DB_USE_MIGRATION_FILES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="migrate",
@@ -1899,6 +1910,7 @@ DB_MANAGERS_COMMANDS = (
             ARG_DB_SQL_ONLY,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
+            ARG_DB_USE_MIGRATION_FILES,
             ARG_VERBOSE,
         ),
     ),

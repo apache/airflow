@@ -19,8 +19,7 @@ from __future__ import annotations
 import logging
 from importlib import import_module
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 log = logging.getLogger(__name__)
 

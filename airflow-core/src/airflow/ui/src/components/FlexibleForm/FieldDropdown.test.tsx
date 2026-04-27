@@ -23,7 +23,6 @@ import { Wrapper } from "src/utils/Wrapper";
 
 import { FieldDropdown } from "./FieldDropdown";
 
-// Mock the useParamStore hook
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockParamsDict: Record<string, any> = {};
 const mockSetParamsDict = vi.fn();
@@ -43,7 +42,6 @@ vi.mock("src/queries/useParamStore", () => ({
 
 describe("FieldDropdown", () => {
   beforeEach(() => {
-    // Clear mock params before each test
     Object.keys(mockParamsDict).forEach((key) => {
       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       delete mockParamsDict[key];
@@ -65,9 +63,7 @@ describe("FieldDropdown", () => {
       wrapper: Wrapper,
     });
 
-    const select = screen.getByRole("combobox");
-
-    expect(select).toBeDefined();
+    expect(screen.getByRole("combobox")).toBeDefined();
   });
 
   it("displays custom label for null value via values_display", () => {
@@ -90,9 +86,7 @@ describe("FieldDropdown", () => {
       wrapper: Wrapper,
     });
 
-    const select = screen.getByRole("combobox");
-
-    expect(select).toBeDefined();
+    expect(screen.getByRole("combobox")).toBeDefined();
   });
 
   it("handles string enum with null value", () => {
@@ -109,9 +103,7 @@ describe("FieldDropdown", () => {
       wrapper: Wrapper,
     });
 
-    const select = screen.getByRole("combobox");
-
-    expect(select).toBeDefined();
+    expect(screen.getByRole("combobox")).toBeDefined();
   });
 
   it("handles enum with only null value", () => {
@@ -129,9 +121,7 @@ describe("FieldDropdown", () => {
       wrapper: Wrapper,
     });
 
-    const select = screen.getByRole("combobox");
-
-    expect(select).toBeDefined();
+    expect(screen.getByRole("combobox")).toBeDefined();
   });
 
   it("renders when current value is null", () => {
@@ -149,14 +139,10 @@ describe("FieldDropdown", () => {
       wrapper: Wrapper,
     });
 
-    const select = screen.getByRole("combobox");
-
-    expect(select).toBeDefined();
+    expect(screen.getByRole("combobox")).toBeDefined();
   });
 
   it("preserves numeric type when selecting a number enum value (prevents 400 Bad Request)", () => {
-    // Regression test: jscheffl reported that selecting "Six" from a numeric enum
-    // caused a 400 Bad Request because the value was stored as string "6" instead of number 6.
     mockParamsDict.test_param = {
       schema: {
         // eslint-disable-next-line unicorn/no-null
@@ -175,9 +161,6 @@ describe("FieldDropdown", () => {
       wrapper: Wrapper,
     });
 
-    // Simulate internal handleChange being called with the string "6" (as Select always returns strings)
-    // The component should store the number 6, not the string "6".
-    // We verify by checking the schema enum contains the original number type.
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const enumValues = mockParamsDict.test_param.schema.enum as Array<number | string | null>;
     const selectedString = "6";

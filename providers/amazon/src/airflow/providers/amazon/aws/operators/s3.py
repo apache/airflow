@@ -930,3 +930,67 @@ class S3ListPrefixesOperator(AwsBaseOperator[S3Hook]):
         )
 
         return self.hook.list_prefixes(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
+
+
+class S3ReadObjectOperator(AwsBaseOperator[S3Hook]):
+    """
+    Read an S3 object and return its content as a string.
+
+    Uses ``S3Hook.read_key`` to fetch the object body, decode it as UTF-8,
+    and return the resulting string. The return value is automatically pushed
+    to XCom so downstream tasks can consume it.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3ReadObjectOperator`
+
+    :param s3_bucket: Name of the S3 bucket. (templated)
+        It should be omitted when ``s3_key`` is provided as a full ``s3://`` URL.
+    :param s3_key: The key of the object to read. (templated)
+        It can be either a full ``s3://`` style URL or a relative path from root level.
+        When specified as a full ``s3://`` URL, omit ``s3_bucket``.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    template_fields: Sequence[str] = aws_template_fields("s3_bucket", "s3_key")
+    aws_hook_class = S3Hook
+
+    def __init__(
+        self,
+        *,
+        s3_bucket: str | None = None,
+        s3_key: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.s3_bucket = s3_bucket
+        self.s3_key = s3_key
+
+    def execute(self, context: Context) -> str:
+        bucket, key = self.hook.get_s3_bucket_key(self.s3_bucket, self.s3_key, "s3_bucket", "s3_key")
+        self.log.info("Reading s3://%s/%s", bucket, key)
+        return self.hook.read_key(key=key, bucket_name=bucket)
+
+    def get_openlineage_facets_on_start(self):
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        bucket, key = self.hook.get_s3_bucket_key(self.s3_bucket, self.s3_key, "s3_bucket", "s3_key")
+
+        input_dataset = Dataset(
+            namespace=f"s3://{bucket}",
+            name=key,
+        )
+
+        return OperatorLineage(
+            inputs=[input_dataset],
+        )

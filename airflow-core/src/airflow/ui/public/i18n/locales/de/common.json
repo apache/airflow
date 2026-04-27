@@ -28,6 +28,7 @@
   },
   "collapseAllExtra": "Alle JSON Details ausblenden",
   "collapseDetailsPanel": "Detailansicht ausblenden",
+  "consumingAsset": "Konsumierendes Datenset (Asset)",
   "createdAssetEvent_one": "Erstelltes Ereignis zu Datenset (Asset)",
   "createdAssetEvent_other": "Erstellte Ereignisse zu Datensets (Assets)",
   "dag_one": "Dag",
@@ -103,6 +104,12 @@
     "notFound": "Seite nicht gefunden",
     "title": "Fehler"
   },
+  "errors": {
+    "forbidden": {
+      "description": "Sie haben keine Berechtigung, diese Aktion auszuführen.",
+      "title": "Zugriff verweigert"
+    }
+  },
   "expand": {
     "collapse": "Einklappen",
     "expand": "Ausklappen",
@@ -125,6 +132,7 @@
     "logicalDateTo": "Logisches Datum Bis",
     "runAfterFrom": "Gelaufen-nach von filtern",
     "runAfterTo": "Gelaufen-nach bis filtern",
+    "searchAsset": "Datenset (Asset) suchen",
     "selectDateRange": "Zeitraum auswählen",
     "startTime": "Startzeitpunkt"
   },
@@ -172,6 +180,7 @@
   "reset": "Zurücksetzen",
   "runId": "Lauf Id",
   "runTypes": {
+    "asset_materialization": "Datenset (Asset) Materialisierung",
     "asset_triggered": "Durch Datenset (Asset) ausgelöst",
     "backfill": "Nachträglich Aufgefüllt",
     "manual": "Manuell",
@@ -192,6 +201,7 @@
     "users": "Benutzer"
   },
   "selectLanguage": "Sprache wählen",
+  "selected": "Ausgewählt",
   "showDetailsPanel": "Detailansicht einblenden",
   "signedInAs": "Angemeldet als",
   "source": {
@@ -292,11 +302,25 @@
     "utc": "UTC (Koordinierte Weltzeit)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Fehler beim Zurücksetzen von {{resourceName}}",
+      "success": {
+        "description": "{{count}} von {{resourceName}} wurden erfolgreich zurückgesetzt. Schlüsselwerte: {{keys}}",
+        "title": "Zurücksetzen von {{resourceName}} gestartet"
+      }
+    },
     "bulkDelete": {
       "error": "Massenlöschung von {{resourceName}} fehlgeschlagen",
       "success": {
         "description": "{{count}} von {{resourceName}} wurden erfolgreich gelöscht. Schlüsselwerte: {{keys}}",
         "title": "Massenlöschung von {{resourceName}} gestartet"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Fehler beim Aktualisieren von {{resourceName}}",
+      "success": {
+        "description": "{{count}} von {{resourceName}} wurden erfolgreich aktualisiert. Schlüsselwerte: {{keys}}",
+        "title": "Aktualisierung von {{resourceName}} gestartet"
       }
     },
     "create": {
@@ -312,10 +336,6 @@
         "description": "{{resourceName}} wurde erfolgreich gelöscht.",
         "title": "Löschung von {{resourceName}} gestartet"
       }
-    },
-    "forbidden": {
-      "description": "Keine Berechtigung für diese Aktion.",
-      "title": "Zugriff verweigert"
     },
     "import": {
       "error": "Import von {{resourceName}} fehlgeschlagen",
@@ -348,6 +368,10 @@
   "triggered": "Ausgelöst",
   "tryNumber": "Versuch Nummer",
   "user": "Benutzer",
+  "validation": {
+    "mustBeAtLeast": "Muss mindestens einen Wert von {{min}} haben.",
+    "mustBeValidNumber": "Muss eine gültige Zahl sein."
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Buchstabe {{hotkey}} drücken um den Zeilenumbruch umzuschalten",

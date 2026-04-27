@@ -108,7 +108,7 @@ with DAG(
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
         cluster_name=CLUSTER_NAME,
-        kueue_version="v0.6.2",
+        kueue_version="v0.16.4",
     )
     # [END howto_operator_gke_install_kueue]
 
@@ -193,5 +193,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

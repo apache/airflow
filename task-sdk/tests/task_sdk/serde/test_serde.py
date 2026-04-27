@@ -447,6 +447,38 @@ class TestSerDe:
         e = deserialize(i)
         assert e["extra"] == {"hi": "bye"}
 
+    @pytest.mark.parametrize(
+        ("old_type", "expected"),
+        [
+            ("tuple", (1, 2, 3)),
+            ("set", {1, 2, 3}),
+            ("frozenset", frozenset([1, 2, 3])),
+        ],
+    )
+    def test_backwards_compat_builtin_collections(self, old_type, expected):
+        """Verify deserialization of old-style builtin collections (tuple/set/frozenset)."""
+        data = {"__type": old_type, "__var": [1, 2, 3]}
+        result = deserialize(data)
+        assert result == expected
+        assert type(result) is type(expected)
+
+    def test_backwards_compat_builtin_collection_nested(self):
+        """Verify deserialization of old-style tuple nested inside a dict."""
+        data = {
+            "arg1": "hello",
+            "arg2": {"__type": "tuple", "__var": [1, 2]},
+        }
+        result = deserialize(data)
+        assert result == {"arg1": "hello", "arg2": (1, 2)}
+
+    def test_backwards_compat_timedelta(self):
+        """Verify deserialization of old-style timedelta."""
+        import datetime
+
+        data = {"__type": "timedelta", "__var": 3600.0}
+        result = deserialize(data)
+        assert result == datetime.timedelta(seconds=3600)
+
     def test_encode_asset(self):
         asset = Asset(uri="mytest://asset", name="test")
         obj = deserialize(serialize(asset))

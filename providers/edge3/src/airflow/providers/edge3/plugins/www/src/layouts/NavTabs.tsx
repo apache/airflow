@@ -19,6 +19,7 @@
 import { Center, Flex } from "@chakra-ui/react";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
+import { OpenAPI } from "openapi/requests/core/OpenAPI";
 import { useRef, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 
@@ -34,7 +35,7 @@ export const NavTabs = ({ tabs }: Props) => {
 
   const { data } = useQuery<{version: string, git_version: string | null}>({
     queryFn: async () => {
-      const res = await axios.get("/api/v2/version");
+      const res = await axios.get(`${OpenAPI.BASE}/api/v2/version`);
       return res.data;
     },
     queryKey: ["appVersion"],

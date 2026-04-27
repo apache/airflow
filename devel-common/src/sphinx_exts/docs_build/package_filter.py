@@ -64,7 +64,7 @@ def find_packages_to_build(available_packages: list[str], package_filters: list[
                     try:
                         import tomllib
                     except ImportError:
-                        import tomli as tomllib
+                        import tomli as tomllib  # type: ignore[no-redef]
                     read_toml = tomllib.loads(pyproject_toml_path.read_text())
                     package_name = read_toml["project"]["name"]
                     if package_name == "apache-airflow":

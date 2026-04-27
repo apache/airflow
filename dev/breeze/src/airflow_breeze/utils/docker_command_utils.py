@@ -23,6 +23,7 @@ import json
 import os
 import platform
 import re
+import shlex
 import subprocess
 import sys
 from functools import lru_cache
@@ -57,6 +58,7 @@ from airflow_breeze.global_constants import (
     MIN_DOCKER_VERSION,
 )
 from airflow_breeze.utils.console import Output, console_print, get_console
+from airflow_breeze.utils.environment_check import check_uv_version
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
     check_if_buildx_plugin_installed,
@@ -96,6 +98,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("docker-tests", "/opt/airflow/docker-tests"),
     ("docs", "/opt/airflow/docs"),
     ("generated", "/opt/airflow/generated"),
+    ("go-sdk", "/opt/airflow/go-sdk"),
     ("helm-tests", "/opt/airflow/helm-tests"),
     ("kubernetes-tests", "/opt/airflow/kubernetes-tests"),
     ("logs", "/root/airflow/logs"),
@@ -185,6 +188,7 @@ def check_docker_is_running():
             "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
         )
         if response.stderr:
+            console_print(f"\n[warning]Command attempted:[/]\n{shlex.join(response.args)}")
             console_print(f"\n[warning]Docker error output:[/]\n{response.stderr.strip()}")
         if os.environ.get("CODESPACES", "").lower() == "true":
             console_print(
@@ -606,6 +610,7 @@ def perform_environment_checks(quiet: bool = False):
         check_docker_compose_version(quiet)
         check_windows_filesystem_mount(quiet)
         check_executable_entrypoint_permissions(quiet)
+    check_uv_version(quiet)
     if not quiet:
         console_print(f"[success]Host python version is {sys.version}[/]")
 

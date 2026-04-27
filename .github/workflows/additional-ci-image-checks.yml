@@ -116,8 +116,10 @@ jobs:
       (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
 
   # Check that after earlier cache push, breeze command will build quickly
+  # This build is a bit slow from in-the scratch builds, so we should run it only in
+  # regular PRs
   check-that-image-builds-quickly:
-    timeout-minutes: 17
+    timeout-minutes: 25
     name: Check that image builds quickly
     runs-on: ${{ fromJSON(inputs.runners) }}
     env:
@@ -141,4 +143,6 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Check that image builds quickly"
-        run: breeze shell --max-time 900 --platform "${PLATFORM}"
+        # Synchronize to be a little bit shorter than above timeout-minutes to make sure that
+        # if the build takes too long the job will fail with logs. 22 minutes * 60 s = 1320 seconds
+        run: breeze shell --max-time 1320 --platform "${PLATFORM}"

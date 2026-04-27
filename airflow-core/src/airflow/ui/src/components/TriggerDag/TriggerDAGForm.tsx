@@ -26,7 +26,6 @@ import { FiPlay } from "react-icons/fi";
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
-import { useTrigger } from "src/queries/useTrigger";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 import ConfigForm from "../ConfigForm";
@@ -35,16 +34,17 @@ import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
 import { Checkbox } from "../ui/Checkbox";
 import { RadioCardItem, RadioCardRoot } from "../ui/RadioCard";
 import TriggerDAGAdvancedOptions from "./TriggerDAGAdvancedOptions";
-import type { DagRunTriggerParams } from "./types";
-import { dataIntervalModeOptions } from "./types";
+import { dataIntervalModeOptions, type DagRunTriggerParams } from "./types";
 
 type TriggerDAGFormProps = {
   readonly dagDisplayName: string;
   readonly dagId: string;
+  readonly error?: unknown;
   readonly hasSchedule: boolean;
   readonly isPartitioned: boolean;
   readonly isPaused: boolean;
-  readonly onClose: () => void;
+  readonly isPending?: boolean;
+  readonly onSubmitTrigger?: (params: DagRunTriggerParams) => void;
   readonly open: boolean;
   readonly prefillConfig?:
     | {
@@ -58,10 +58,12 @@ type TriggerDAGFormProps = {
 const TriggerDAGForm = ({
   dagDisplayName,
   dagId,
+  error,
   hasSchedule,
   isPartitioned,
   isPaused,
-  onClose,
+  isPending = false,
+  onSubmitTrigger,
   open,
   prefillConfig,
 }: TriggerDAGFormProps) => {
@@ -69,10 +71,8 @@ const TriggerDAGForm = ({
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
-  const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const { conf, initialParamDict, setConf, setInitialParamDict } = useParamStore();
   const [unpause, setUnpause] = useState(true);
-
   const { mutate: togglePause } = useTogglePause({ dagId });
 
   const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
@@ -106,7 +106,6 @@ const TriggerDAGForm = ({
         note: "",
         partitionKey: undefined,
       });
-
       // Also update the param store to keep it in sync.
       // Wait until we have the initial params so section ordering stays consistent.
       if (confString && Object.keys(initialParamsDict.paramsDict).length > 0) {
@@ -130,16 +129,11 @@ const TriggerDAGForm = ({
   // Automatically reset form when conf is fetched (only if no prefillConfig)
   useEffect(() => {
     if (conf && !prefillConfig && open) {
-      reset((prevValues) => ({
-        ...prevValues,
-        conf,
-      }));
+      reset((prevValues) => ({ ...prevValues, conf }));
     }
   }, [conf, prefillConfig, open, reset]);
 
-  const resetDateError = () => {
-    setErrors((prev) => ({ ...prev, date: undefined }));
-  };
+  const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
 
   const dataIntervalMode = watch("dataIntervalMode");
   const dataIntervalStart = watch("dataIntervalStart");
@@ -150,19 +144,14 @@ const TriggerDAGForm = ({
     (noDataInterval || dayjs(dataIntervalStart).isAfter(dayjs(dataIntervalEnd)));
   const onSubmit = (data: DagRunTriggerParams) => {
     if (unpause && isPaused) {
-      togglePause({
-        dagId,
-        requestBody: {
-          is_paused: false,
-        },
-      });
+      togglePause({ dagId, requestBody: { is_paused: false } });
     }
-    triggerDagRun(data);
+    onSubmitTrigger?.(data);
   };
 
   return (
     <>
-      <ErrorAlert error={errors.date ?? errorTrigger} />
+      <ErrorAlert error={errors.date ?? error} />
       <VStack alignItems="stretch" gap={2} pt={4}>
         {isPartitioned ? undefined : (
           <>
@@ -265,13 +254,14 @@ const TriggerDAGForm = ({
           <Spacer />
           <Button
             colorPalette="brand"
+            data-testid="trigger-dag-submit"
             disabled={
               Boolean(errors.conf) ||
               Boolean(errors.date) ||
               formError ||
               isPending ||
               dataIntervalInvalid ||
-              (Boolean(errorTrigger) && (errorTrigger as ExpandedApiError).status === 403)
+              (Boolean(error) && (error as ExpandedApiError).status === 403)
             }
             onClick={() => void handleSubmit(onSubmit)()}
           >

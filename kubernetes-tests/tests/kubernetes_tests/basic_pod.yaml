@@ -23,7 +23,7 @@ metadata:
 spec:
   containers:
     - name: base
-      image: perl
+      image: ubuntu
       command: ["/bin/bash"]
       args: ["-c", 'echo {\"hello\" : \"world\"} | cat > /airflow/xcom/return.json']
   restartPolicy: Never

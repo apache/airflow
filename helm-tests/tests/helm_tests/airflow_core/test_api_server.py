@@ -23,11 +23,8 @@ import pytest
 from chart_utils.helm_template_generator import render_chart as _render_chart
 
 
-# Everything in here needcs to set airflowVersion to get the API server to render
 def render_chart(values=None, **kwargs):
-    values = values or {}
-    values.setdefault("airflowVersion", "3.0.0")
-    return _render_chart(values=values, **kwargs)
+    return _render_chart(values=values or {}, **kwargs)
 
 
 class TestAPIServerDeployment:
@@ -544,25 +541,23 @@ class TestAPIServerDeployment:
         assert jmespath.search("spec.template.spec.initContainers[0].resources", docs[0]) == {}
 
     @pytest.mark.parametrize(
-        ("airflow_version", "strategy", "expected_strategy"),
+        ("strategy", "expected_strategy"),
         [
             pytest.param(
-                "3.0.0",
                 None,
                 {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0}},
                 id="default",
             ),
             pytest.param(
-                "3.0.0",
-                {"type": "RollingUpdate", "rollingUpdate": {"maxUnavailable": 1}},
-                {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0}},
+                {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 17, "maxUnavailable": 42}},
+                {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 17, "maxUnavailable": 42}},
                 id="custom-strategy",
             ),
         ],
     )
-    def test_update_strategy(self, airflow_version, strategy, expected_strategy):
+    def test_update_strategy(self, strategy, expected_strategy):
         docs = render_chart(
-            values={"airflowVersion": airflow_version, "apiServer": {"strategy": expected_strategy}},
+            values={"apiServer": {"strategy": strategy}},
             show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 

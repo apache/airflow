@@ -45,6 +45,8 @@ airflow_version = "3.0.0"
 
 def upgrade():
     """Apply add dag versioning."""
+    dialect_name = op.get_bind().dialect.name
+
     op.execute("delete from dag_code;")
     op.execute("delete from serialized_dag;")
 
@@ -72,6 +74,14 @@ def upgrade():
     )
 
     with ignore_sqlite_value_error(), op.batch_alter_table("dag_code") as batch_op:
+        if dialect_name == "mysql":
+            # MySQL can't drop a primary key while an AUTO_INCREMENT column depends on it.
+            batch_op.alter_column(
+                "fileloc_hash",
+                existing_type=sa.BigInteger(),
+                existing_nullable=False,
+                autoincrement=False,
+            )
         batch_op.drop_constraint("dag_code_pkey", type_="primary")
 
     with op.batch_alter_table("dag_code") as batch_op:

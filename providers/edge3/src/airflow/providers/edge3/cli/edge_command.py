@@ -33,7 +33,7 @@ import psutil
 from airflow import settings
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.cli.simple_table import AirflowConsole
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.edge3.cli.dataclasses import MaintenanceMarker, WorkerStatus
 from airflow.providers.edge3.cli.signalling import (
     EDGE_WORKER_PROCESS_NAME,
@@ -95,9 +95,8 @@ def _launch_worker(args):
         hostname=args.edge_hostname or getfqdn(),
         queues=args.queues.split(",") if args.queues else None,
         concurrency=args.concurrency,
-        job_poll_interval=conf.getint("edge", "job_poll_interval"),
-        heartbeat_interval=conf.getint("edge", "heartbeat_interval"),
         daemon=args.daemon,
+        team_name=getattr(args, "team_name", None),
     )
     asyncio.run(edge_worker.start())
 

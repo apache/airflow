@@ -1425,7 +1425,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         self.log.info("Check the task run in Databricks: %s", run_page_url)
         run_state = RunState(**run["state"])
         self.log.info(
-            "Current state of the the databricks task %s is %s",
+            "Current state of the databricks task %s is %s",
             self.databricks_task_key,
             run_state.life_cycle_state,
         )
@@ -1666,7 +1666,11 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
     """
 
     CALLER = "DatabricksTaskOperator"
-    template_fields = ("workflow_run_metadata",)
+    template_fields = (
+        "databricks_conn_id",
+        "task_config",
+        "workflow_run_metadata",
+    )
 
     def __init__(
         self,

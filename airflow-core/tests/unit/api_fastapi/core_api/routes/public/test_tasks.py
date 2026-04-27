@@ -543,9 +543,21 @@ class TestGetTasks(TestTaskEndpoint):
             f"{self.api_prefix}/{self.dag_id}/tasks?order_by=invalid_task_colume_name",
         )
         assert response.status_code == 400
-        assert (
-            response.json()["detail"] == "'EmptyOperator' object has no attribute 'invalid_task_colume_name'"
+        assert response.json()["detail"] == (
+            "Ordering with 'invalid_task_colume_name' is disallowed or "
+            "the attribute does not exist on the model"
         )
+
+    def test_should_respond_200_order_by_start_date_with_none(self, test_client):
+        """Sorting by a nullable field should not raise TypeError (issue #63927)."""
+        response = test_client.get(
+            f"{self.api_prefix}/{self.unscheduled_dag_id}/tasks?order_by=start_date",
+        )
+        assert response.status_code == 200
+        tasks = response.json()["tasks"]
+        assert len(tasks) == 2
+        # All start_dates are None for unscheduled tasks; verify they sort without error
+        assert all(t["start_date"] is None for t in tasks)
 
     def test_should_respond_404(self, test_client):
         dag_id = "xxxx_not_existing"

@@ -125,6 +125,46 @@ class TestMetadataConnectionSecret:
             "somedb?sslmode=disable"
         )
 
+    def test_tpl_rendered_user_and_db(self):
+        """Test that metadataConnection.user and .db support tpl rendering."""
+        connection = self._get_connection(
+            {
+                "data": {
+                    "metadataConnection": {
+                        "user": "{{ .Release.Name }}-dbuser",
+                        "pass": "",
+                        "host": "localhost",
+                        "port": 5432,
+                        "db": "{{ .Release.Name }}-mydb",
+                        "protocol": "postgresql",
+                        "sslmode": "disable",
+                    }
+                }
+            }
+        )
+        assert "release-name-dbuser" in connection
+        assert "release-name-mydb" in connection
+
+    def test_tpl_rendered_user_and_db_plain_values(self):
+        """Test that plain (non-template) user and db still work after tpl rendering."""
+        connection = self._get_connection(
+            {
+                "data": {
+                    "metadataConnection": {
+                        "user": "plainuser",
+                        "pass": "plainpass",
+                        "host": "localhost",
+                        "port": 5432,
+                        "db": "plaindb",
+                        "protocol": "postgresql",
+                        "sslmode": "disable",
+                    }
+                }
+            }
+        )
+        assert "plainuser" in connection
+        assert "plaindb" in connection
+
     def test_should_add_annotations_to_metadata_connection_secret(self):
         docs = render_chart(
             values={

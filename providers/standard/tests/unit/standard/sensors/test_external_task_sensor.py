@@ -1120,6 +1120,28 @@ exit 0
             op.execute(context=context)
         assert exc.value.timeout == timedelta(seconds=90)
 
+    @pytest.mark.execution_timeout(10)
+    def test_external_task_sensor_deferrable_check_existence_dag_not_found(self, dag_maker):
+        """Test that deferrable sensor raises ExternalDagNotFoundError when Dag doesn't exist."""
+        context = {"execution_date": DEFAULT_DATE}
+        with dag_maker() as dag:
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="non_existing_dag",
+                external_task_id=None,
+                deferrable=True,
+                check_existence=True,
+            )
+            dag.create_dagrun(
+                run_id="test_run",
+                run_type=DagRunType.MANUAL,
+                state=None,
+            )
+            context.update(logical_date=DEFAULT_DATE)
+
+        with pytest.raises(ExternalDagNotFoundError):
+            op.execute(context=context)
+
     def test_get_logical_date(self):
         """For AF 2, we check for execution_date in context."""
         context = {"execution_date": DEFAULT_DATE}

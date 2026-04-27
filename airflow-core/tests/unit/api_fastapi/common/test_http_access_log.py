@@ -123,7 +123,7 @@ def test_non_http_scope_not_logged():
     import asyncio
 
     with structlog.testing.capture_logs() as logs:
-        asyncio.get_event_loop().run_until_complete(middleware({"type": "lifespan"}, None, None))
+        asyncio.run(middleware({"type": "lifespan"}, None, None))
 
     assert logs == []
 

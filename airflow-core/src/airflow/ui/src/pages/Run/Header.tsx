@@ -105,7 +105,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
             value: (
               <HStack>
                 <RunTypeIcon runType={dagRun.run_type} />
-                <Text>{dagRun.run_type}</Text>
+                <Text>{translate(`runTypes.${dagRun.run_type}`)}</Text>
               </HStack>
             ),
           },

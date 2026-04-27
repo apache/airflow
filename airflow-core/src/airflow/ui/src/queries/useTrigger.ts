@@ -21,16 +21,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
-import {
-  UseDagRunServiceGetDagRunsKeyFn,
-  useDagRunServiceTriggerDagRun,
-  useDagServiceGetDagsUiKey,
-  UseTaskInstanceServiceGetTaskInstancesKeyFn,
-  UseGridServiceGetGridRunsKeyFn,
-} from "openapi/queries";
+import { useDagRunServiceTriggerDagRun, useDagServiceGetDagsUiKey } from "openapi/queries";
 import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
 import { toaster } from "src/components/ui";
+import { gridQueryKeys } from "src/queries/gridViewQueryKeys";
+import { createErrorToaster } from "src/utils";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
@@ -40,14 +36,10 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
   const { dagId: selectedDagId } = useParams();
 
   const onSuccess = async (dagRun: TriggerDagRunResponse) => {
-    const queryKeys = [
-      [useDagServiceGetDagsUiKey],
-      UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
-      UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
-      UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
-    ];
-
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: [useDagServiceGetDagsUiKey] }),
+      ...gridQueryKeys(dagId).map((key) => queryClient.invalidateQueries({ queryKey: key })),
+    ]);
 
     toaster.create({
       description: translate("triggerDag.toaster.success.description"),
@@ -62,13 +54,9 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     }
   };
 
-  const onError = (_error: Error) => {
-    toaster.create({
-      description: _error.message,
-      title: translate("triggerDag.toaster.error.title"),
-      type: "error",
-    });
-    setError(_error);
+  const onError = (apiError: unknown) => {
+    createErrorToaster(apiError, { titleKey: "components:triggerDag.toaster.error.title" }, translate);
+    setError(apiError);
   };
 
   const { isPending, mutate } = useDagRunServiceTriggerDagRun({

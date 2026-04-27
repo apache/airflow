@@ -21,7 +21,7 @@ import inspect
 import logging
 import os
 import re
-from contextlib import redirect_stdout
+from contextlib import nullcontext, redirect_stdout
 from io import StringIO
 
 import pytest
@@ -87,6 +87,43 @@ def initialized_db():
 
 
 class TestDb:
+    def test_initdb_use_migration_files_uses_alembic_for_empty_db(self, mocker):
+        session = mocker.MagicMock()
+        mock_config = object()
+        manager = mocker.MagicMock()
+
+        mocker.patch("airflow.utils.db.timeout_with_traceback", return_value=nullcontext())
+        mocker.patch("airflow.utils.db.RunDBManager", return_value=manager)
+        mocker.patch("airflow.utils.db.import_all_models")
+        mocker.patch("airflow.utils.db._get_current_revision", return_value=None)
+        mocker.patch("airflow.utils.db._get_alembic_config", return_value=mock_config)
+        mock_upgradedb = mocker.patch("airflow.utils.db.upgradedb")
+        mock_create_from_orm = mocker.patch("airflow.utils.db._create_db_from_orm")
+        mocker.patch("airflow.utils.db.add_default_pool_if_not_exists")
+        mocker.patch("airflow.utils.db.synchronize_log_template")
+
+        initdb(session=session, use_migration_files=True)
+
+        mock_upgradedb.assert_called_once_with(session=session, use_migration_files=True)
+        mock_create_from_orm.assert_not_called()
+        manager.initdb.assert_called_once_with(session, use_migration_files=True)
+
+    def test_upgradedb_uses_migrations_for_empty_db_when_flag_enabled(self, mocker):
+        session = mocker.MagicMock()
+        mock_config = object()
+
+        mocker.patch("airflow.utils.db.import_all_models")
+        mocker.patch("airflow.utils.db._check_migration_errors", return_value=())
+        mocker.patch("airflow.utils.db._get_alembic_config", return_value=mock_config)
+        mocker.patch("airflow.utils.db._get_current_revision", return_value=None)
+        mock_run_upgradedb = mocker.patch("airflow.utils.db._run_upgradedb")
+        mock_initdb = mocker.patch("airflow.utils.db.initdb")
+
+        upgradedb(session=session, use_migration_files=True)
+
+        mock_run_upgradedb.assert_called_once_with(mock_config, None, session, use_migration_files=True)
+        mock_initdb.assert_not_called()
+
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self, initialized_db):
         import airflow.models
 
@@ -104,13 +141,6 @@ class TestDb:
         for dbmanager in external_db_managers._managers:
             for table_name, table in dbmanager.metadata.tables.items():
                 all_meta_data._add_table(table_name, table.schema, table)
-        # FAB DB Manager
-        from airflow.providers.fab.auth_manager.models.db import FABDBManager
-
-        # test FAB models
-        for table_name, table in FABDBManager.metadata.tables.items():
-            all_meta_data._add_table(table_name, table.schema, table)
-        # create diff between database schema and SQLAlchemy model
         mctx = MigrationContext.configure(
             settings.engine.connect(),
             opts={"compare_type": compare_type, "compare_server_default": compare_server_default},
@@ -145,6 +175,11 @@ class TestDb:
             lambda t: t[0] == "remove_index" and t[1].name == "rj_order",
             # Ignore _xcom_archive table
             lambda t: t[0] == "remove_table" and t[1].name == "_xcom_archive",
+            # These are conditionally added in ORM by the event listener
+            lambda t: t[0] == "add_index" and t[1].name == "idx_ab_register_user_username",
+            lambda t: t[0] == "add_index" and t[1].name == "idx_ab_user_username",
+            lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_register_user_username",
+            lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_user_username",
         ]
 
         for ignore in ignores:

@@ -53,8 +53,6 @@ export class BasePage {
   }
 
   public async navigateTo(path: string): Promise<void> {
-    await this.page.goto(path, {
-      waitUntil: "domcontentloaded",
-    });
+    await this.page.goto(path, { waitUntil: "domcontentloaded" });
   }
 }

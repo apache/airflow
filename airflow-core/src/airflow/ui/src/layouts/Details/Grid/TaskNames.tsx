@@ -27,6 +27,7 @@ import { TaskName } from "src/components/TaskName";
 import { useHover } from "src/context/hover";
 import { useOpenGroups } from "src/context/openGroups";
 
+import { ROW_HEIGHT } from "./constants";
 import type { GridTask } from "./utils";
 
 type Props = {
@@ -35,8 +36,6 @@ type Props = {
   readonly onRowClick?: () => void;
   readonly virtualItems?: Array<VirtualItem>;
 };
-
-const ROW_HEIGHT = 20;
 
 const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 
@@ -65,6 +64,22 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
     if (groupNodeId !== undefined) {
       toggleGroupId(groupNodeId);
     }
+  };
+
+  const onClick = (event: MouseEvent<HTMLSpanElement>) => {
+    const groupNodeId = event.currentTarget.dataset.groupId;
+
+    if (groupNodeId === undefined || groupNodeId === "") {
+      return;
+    }
+
+    const id = groupNodeId;
+    const isViewingSameGroup = typeof groupId === "string" && groupId === id;
+
+    if (isViewingSameGroup) {
+      toggleGroupId(id);
+    }
+    onRowClick?.();
   };
 
   const search = searchParams.toString();
@@ -109,7 +124,8 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
             {node.isGroup ? (
               <Link asChild data-testid={node.id} display="block" width="100%">
                 <RouterLink
-                  onClick={onRowClick}
+                  data-group-id={node.id}
+                  onClick={onClick}
                   replace
                   style={{ outline: "none" }}
                   to={{

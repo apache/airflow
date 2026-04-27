@@ -22,6 +22,7 @@ from typing import Annotated
 
 from fastapi import Depends, status
 from sqlalchemy import and_, func, select
+from sqlalchemy.orm import defaultload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
@@ -36,7 +37,9 @@ from airflow.api_fastapi.common.parameters import (
     QueryBundleNameFilter,
     QueryBundleVersionFilter,
     QueryDagDisplayNamePatternSearch,
+    QueryDagDisplayNamePrefixPatternSearch,
     QueryDagIdPatternSearch,
+    QueryDagIdPrefixPatternSearch,
     QueryExcludeStaleFilter,
     QueryFavoriteFilter,
     QueryHasAssetScheduleFilter,
@@ -78,6 +81,9 @@ dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
     response_model_exclude_none=True,
     dependencies=[
         Depends(requires_access_dag(method="GET")),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN)),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL)),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
     operation_id="get_dags_ui",
 )
@@ -91,7 +97,9 @@ def get_dags(
         Depends(filter_param_factory(DagModel.dag_id, list[str] | None, FilterOptionEnum.IN, "dag_ids")),
     ],
     dag_id_pattern: QueryDagIdPatternSearch,
+    dag_id_prefix_pattern: QueryDagIdPrefixPatternSearch,
     dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
+    dag_display_name_prefix_pattern: QueryDagDisplayNamePrefixPatternSearch,
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
     has_import_errors: QueryHasImportErrorsFilter,
@@ -134,8 +142,10 @@ def get_dags(
             paused,
             has_import_errors,
             dag_id_pattern,
+            dag_id_prefix_pattern,
             dag_ids,
             dag_display_name_pattern,
+            dag_display_name_prefix_pattern,
             tags,
             owners,
             last_dag_run_state,
@@ -219,6 +229,9 @@ def get_dags(
                 HITLDetail,
             )
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
+            .options(
+                defaultload(HITLDetail.task_instance).joinedload(TaskInstance.rendered_task_instance_fields)
+            )
             .where(
                 HITLDetail.responded_at.is_(None),
                 TaskInstance.state == TaskInstanceState.DEFERRED,

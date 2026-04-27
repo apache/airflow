@@ -124,11 +124,12 @@ class TestCliConnectionCommands:
         }
 
         expected_json_path.write_text(json.dumps(connection_file))
-        with pytest.raises(SystemExit):
+        with pytest.raises(SystemExit) as exc_info:
             connection_command.import_(
                 self.parser.parse_args(["connections", "import", expected_json_path.as_posix()]),
                 api_client=api_client,
             )
+        assert exc_info.value.code == 1
 
     def test_import_without_extra_field(self, api_client_maker, tmp_path, monkeypatch):
         """Import succeeds when JSON omits the ``extra`` field (#62653).

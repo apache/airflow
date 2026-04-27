@@ -68,7 +68,7 @@ from sqlalchemy.exc import IntegrityError, MultipleResultsFound
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.auth_manager.models import (
     Action,
     Group,
@@ -1299,6 +1299,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.session.commit()
                 log.info(const.LOGMSG_INF_SEC_ADD_ROLE, name)
                 return role
+            except IntegrityError:
+                self.session.rollback()
+                role = self.find_role(name)
+                if role is not None:
+                    log.info("Role '%s' was created by a concurrent worker, using existing record", name)
+                    return role
+                raise
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_ROLE, e)
                 self.session.rollback()
@@ -1488,14 +1495,20 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 new_group_ids = {grp.id for grp in user.groups}
                 if existing_role_ids != new_role_ids or existing_group_ids != new_group_ids:
                     user.changed_on = datetime.datetime.now(tz=datetime.timezone.utc)
-            self.session.merge(user)
+            merged_user = self.session.merge(user)
             self.session.commit()
+            self._reset_user_permissions_cache(merged_user)
             log.info(const.LOGMSG_INF_SEC_UPD_USER, user)
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_UPD_USER, e)
             self.session.rollback()
             return False
         return True
+
+    @staticmethod
+    def _reset_user_permissions_cache(user: User) -> None:
+        """Invalidate cached permissions to avoid stale auth checks after role updates."""
+        user._perms = None
 
     def del_register_user(self, register_user) -> bool:
         """
@@ -1570,6 +1583,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.session.add(action)
                 self.session.commit()
                 return action
+            except IntegrityError:
+                self.session.rollback()
+                action = self.get_action(name)
+                if action is not None:
+                    log.info("Action '%s' was created by a concurrent worker, using existing record", name)
+                    return action
+                raise
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_PERMISSION, e)
                 self.session.rollback()
@@ -1628,6 +1648,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.session.add(resource)
                 self.session.commit()
                 return resource
+            except IntegrityError:
+                self.session.rollback()
+                resource = self.get_resource(name)
+                if resource is not None:
+                    log.info("Resource '%s' was created by a concurrent worker, using existing record", name)
+                    return resource
+                raise
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_VIEWMENU, e)
                 self.session.rollback()
@@ -1698,6 +1725,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self.session.commit()
             log.info(const.LOGMSG_INF_SEC_ADD_PERMVIEW, perm)
             return perm
+        except IntegrityError:
+            self.session.rollback()
+            existing = self.get_permission(action_name, resource_name)
+            if existing is not None:
+                log.info(
+                    "Permission '%s'->'%s' was created by a concurrent worker, using existing record",
+                    action_name,
+                    resource_name,
+                )
+                return existing
+            raise
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, e)
             self.session.rollback()
@@ -1954,6 +1992,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             # Sync the user's roles
             if user and user_attributes and self.auth_roles_sync_at_login:
                 user.roles = self._ldap_calculate_user_roles(user_attributes)
+                self._reset_user_permissions_cache(user)
                 log.debug("Calculated new roles for user=%r as: %s", user_dn, user.roles)
 
             # If the user is new, register them
@@ -1981,6 +2020,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 if rotate_session_id:
                     self._rotate_session_id()
                 self.update_user_auth_stat(user)
+                self.session.expire(user, ["roles", "groups"])
+                self._reset_user_permissions_cache(user)
                 return user
             return None
 

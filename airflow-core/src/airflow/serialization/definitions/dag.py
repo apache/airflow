@@ -30,6 +30,7 @@ import attrs
 import structlog
 from sqlalchemy import func, or_, select, tuple_
 
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
@@ -40,7 +41,6 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
-from airflow.sdk._shared.observability.metrics.stats import Stats
 from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
@@ -548,6 +548,9 @@ class SerializedDAG:
         if not isinstance(run_id, str):
             raise ValueError(f"`run_id` should be a str, not {type(run_id)}")
 
+        if ".." in run_id and not airflow_conf.getboolean("core", "allow_double_dot_in_ids", fallback=False):
+            raise ValueError(f"The run_id '{run_id}' must not contain '..' to prevent path traversal")
+
         # This is also done on the DagRun model class, but SQLAlchemy column
         # validator does not work well for some reason.
         if not re.match(RUN_ID_REGEX, run_id):
@@ -943,6 +946,23 @@ class SerializedDAG:
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
     ) -> list[TaskInstance]: ...  # pragma: no cover
+
+    @overload
+    def clear(
+        self,
+        *,
+        dry_run: Literal[True],
+        task_ids: Collection[str | tuple[str, int]] | None = None,
+        run_id: str,
+        only_failed: bool = False,
+        only_running: bool = False,
+        only_new: bool,
+        dag_run_state: DagRunState = DagRunState.QUEUED,
+        session: Session = NEW_SESSION,
+        exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
+        exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
+    ) -> set[str] | list[TaskInstance]: ...  # pragma: no cover
 
     @overload
     def clear(

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from unittest.mock import MagicMock, NonCallableMagicMock
 
 import jinja2
 import pytest
@@ -110,6 +111,193 @@ class TestTemplater:
         rendered_content = templater.render_template(content, context)
 
         assert rendered_content == "template_file.txt"
+
+    def test_do_render_template_fields_basic(self):
+        """Test that _do_render_template_fields renders a simple string template field in-place."""
+        templater = Templater()
+        templater.template_ext = []
+
+        parent = MagicMock(spec=["greeting"])
+        parent.greeting = "Hello {{ name }}"
+
+        context = {"name": "world"}
+        jinja_env = templater.get_template_env()
+
+        templater._do_render_template_fields(parent, ["greeting"], context, jinja_env, set())
+
+        assert parent.greeting == "Hello world"
+
+    def test_do_render_template_fields_multiple_fields(self):
+        """Test rendering multiple template fields at once."""
+        templater = Templater()
+        templater.template_ext = []
+
+        parent = MagicMock(spec=["first", "second"])
+        parent.first = "Hello {{ name }}"
+        parent.second = "Date: {{ ds }}"
+
+        context = {"name": "world", "ds": "2024-01-01"}
+        jinja_env = templater.get_template_env()
+
+        templater._do_render_template_fields(parent, ["first", "second"], context, jinja_env, set())
+
+        assert parent.first == "Hello world"
+        assert parent.second == "Date: 2024-01-01"
+
+    def test_do_render_template_fields_callable_value(self):
+        """Test that callable field values are called with context and jinja_env."""
+        templater = Templater()
+        templater.template_ext = []
+
+        callback = MagicMock(spec=lambda context, jinja_env: None, return_value="resolved")
+        parent = MagicMock(spec=["my_field"])
+        parent.my_field = callback
+
+        context = {"key": "value"}
+        jinja_env = templater.get_template_env()
+
+        templater._do_render_template_fields(parent, ["my_field"], context, jinja_env, set())
+
+        callback.assert_called_once_with(context=context, jinja_env=jinja_env)
+        assert parent.my_field == "resolved"
+
+    def test_do_render_template_fields_skips_falsy_values(self):
+        """Test that falsy field values (empty string, None, 0) are skipped."""
+        templater = Templater()
+        templater.template_ext = []
+
+        parent = MagicMock(spec=["empty_str", "none_val"])
+        parent.empty_str = ""
+        parent.none_val = None
+
+        context = {"name": "world"}
+        jinja_env = templater.get_template_env()
+
+        templater._do_render_template_fields(parent, ["empty_str", "none_val"], context, jinja_env, set())
+
+        # Falsy values should not be touched
+        assert parent.empty_str == ""
+        assert parent.none_val is None
+
+    def test_do_render_template_fields_missing_attribute(self):
+        """Test that a missing attribute on parent raises AttributeError."""
+        templater = Templater()
+        templater.template_ext = []
+
+        parent = MagicMock(spec=["existing"])
+        parent.existing = "value"
+
+        context = {}
+        jinja_env = templater.get_template_env()
+
+        with pytest.raises(
+            AttributeError,
+            match="'nonexistent' is configured as a template field",
+        ):
+            templater._do_render_template_fields(parent, ["nonexistent"], context, jinja_env, set())
+
+    def test_do_render_template_fields_exception_logged_with_task_id(self, caplog):
+        """Test that rendering errors are logged with task_id when available and re-raised."""
+        templater = Templater()
+        templater.template_ext = []
+        templater.task_id = "my_task"
+
+        parent = MagicMock(spec=["bad_field"])
+        parent.bad_field = "{{ undefined_var }}"
+
+        context = {}
+        jinja_env = SandboxedEnvironment(undefined=jinja2.StrictUndefined, cache_size=0)
+
+        with pytest.raises(jinja2.UndefinedError):
+            templater._do_render_template_fields(parent, ["bad_field"], context, jinja_env, set())
+
+        assert "Exception rendering Jinja template for task 'my_task', field 'bad_field'" in caplog.text
+
+    def test_do_render_template_fields_exception_logged_without_task_id(self, caplog):
+        """Test that rendering errors are logged with parent type name when no task_id."""
+        templater = Templater()
+        templater.template_ext = []
+
+        parent = MagicMock(spec=["bad_field"])
+        parent.bad_field = "{{ undefined_var }}"
+
+        context = {}
+        jinja_env = SandboxedEnvironment(undefined=jinja2.StrictUndefined, cache_size=0)
+
+        with pytest.raises(jinja2.UndefinedError):
+            templater._do_render_template_fields(parent, ["bad_field"], context, jinja_env, set())
+
+        assert "Exception rendering Jinja template for MagicMock, field 'bad_field'" in caplog.text
+
+    def test_do_render_template_fields_nested_template_fields(self):
+        """Test rendering nested objects that have their own template_fields."""
+        templater = Templater()
+        templater.template_ext = []
+
+        inner = NonCallableMagicMock(spec=["template_fields", "message"])
+        inner.template_fields = ["message"]
+        inner.message = "Hello {{ name }}"
+
+        parent = MagicMock(spec=["nested"])
+        parent.nested = inner
+
+        context = {"name": "world"}
+        jinja_env = templater.get_template_env()
+
+        templater._do_render_template_fields(parent, ["nested"], context, jinja_env, set())
+
+        assert inner.message == "Hello world"
+
+    def test_do_render_template_fields_seen_oids_prevents_reprocessing(self):
+        """Test that already-seen objects (by id) are not re-rendered."""
+        templater = Templater()
+        templater.template_ext = []
+
+        parent = MagicMock(spec=["greeting"])
+        parent.greeting = "Hello {{ name }}"
+
+        context = {"name": "world"}
+        jinja_env = templater.get_template_env()
+
+        # Pre-populate seen_oids with the parent's greeting value id
+        seen_oids = {id(parent.greeting)}
+
+        templater._do_render_template_fields(parent, ["greeting"], context, jinja_env, seen_oids)
+
+        # The value should NOT be rendered because render_template checks
+        # `id(value) in seen_oids` and short-circuits, returning the original
+        # unrendered string.
+        assert parent.greeting == "Hello {{ name }}"
+
+    def test_do_render_template_fields_renders_dict_values(self):
+        """Test that dict field values have their inner templates rendered."""
+        templater = Templater()
+        templater.template_ext = []
+
+        parent = MagicMock(spec=["params"])
+        parent.params = {"key": "{{ value }}"}
+
+        context = {"value": "rendered"}
+        jinja_env = templater.get_template_env()
+
+        templater._do_render_template_fields(parent, ["params"], context, jinja_env, set())
+
+        assert parent.params == {"key": "rendered"}
+
+    def test_do_render_template_fields_renders_list_values(self):
+        """Test that list field values have their inner templates rendered."""
+        templater = Templater()
+        templater.template_ext = []
+
+        parent = MagicMock(spec=["items"])
+        parent.items = ["{{ a }}", "{{ b }}"]
+
+        context = {"a": "first", "b": "second"}
+        jinja_env = templater.get_template_env()
+
+        templater._do_render_template_fields(parent, ["items"], context, jinja_env, set())
+
+        assert parent.items == ["first", "second"]
 
 
 @pytest.fixture

@@ -31,7 +31,7 @@ from airflow.models.asset import AssetAliasModel, AssetModel, TaskOutletAssetRef
 from airflow.utils import cli as cli_utils
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.types import DagRunTriggeredByType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if typing.TYPE_CHECKING:
     from typing import Any
@@ -157,7 +157,11 @@ def asset_materialize(args, *, session: Session = NEW_SESSION) -> None:
         log.warning("Failed to get user name from os: %s, not setting the triggering user", e)
         user = None
     dagrun = trigger_dag(
-        dag_id=dag_id, triggered_by=DagRunTriggeredByType.CLI, triggering_user_name=user, session=session
+        dag_id=dag_id,
+        triggered_by=DagRunTriggeredByType.CLI,
+        run_type=DagRunType.ASSET_MATERIALIZATION,
+        triggering_user_name=user,
+        session=session,
     )
     if dagrun is not None:
         data = [DAGRunResponse.model_validate(dagrun).model_dump(mode="json")]

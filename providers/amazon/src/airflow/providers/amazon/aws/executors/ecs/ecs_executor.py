@@ -616,9 +616,9 @@ class AwsEcsExecutor(BaseExecutor):
                     self.active_workers.add_task(
                         task,
                         ti.key,
-                        ti.queue,
+                        ti.queue or "",
                         command,
-                        ti.executor_config,
+                        ti.executor_config or {},
                         ti.try_number,
                     )
                     adopted_tis.append(ti)

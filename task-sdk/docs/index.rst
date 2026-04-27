@@ -128,6 +128,13 @@ Use instead:
    # Airflow 3.x
    from airflow.sdk import DAG, task
 
+Choosing Between Deferred and Async Tasks
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Airflow 3.2 introduces Python-native async tasks alongside deferrable operators.
+Both approaches support non-blocking I/O, but they serve different purposes.
+For guidance on when to use each approach, see :doc:`deferred-vs-async-operators`.
+
 4. Example Dag References
 -------------------------
 
@@ -160,5 +167,6 @@ For the full public API reference, see the :doc:`api` page.
 
   examples
   dynamic-task-mapping
+  deferred-vs-async-operators
   api
   concepts

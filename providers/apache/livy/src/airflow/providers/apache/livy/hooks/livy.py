@@ -523,7 +523,7 @@ class LivyAsyncHook(HttpAsyncHook):
         )
 
         try:
-            async with self.session() as session:
+            async with self.session(method=method) as session:
                 response = await session.run(
                     endpoint=endpoint,
                     data=data,

@@ -47,6 +47,7 @@ type DagRunRow = { row: { original: DAGRunResponse } };
 const {
   BUNDLE_VERSION: BUNDLE_VERSION_PARAM,
   CONF_CONTAINS: CONF_CONTAINS_PARAM,
+  CONSUMING_ASSET_PATTERN: CONSUMING_ASSET_PATTERN_PARAM,
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
   DAG_VERSION: DAG_VERSION_PARAM,
   DURATION_GTE: DURATION_GTE_PARAM,
@@ -203,17 +204,18 @@ export const DagRuns = () => {
       partition_key: false,
     },
   });
-  const { pagination, sorting } = tableURLState;
+  const { cursor, pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-run_after"];
 
-  const { pageIndex, pageSize } = pagination;
+  const { pageSize } = pagination;
   const filteredState = searchParams.get(STATE_PARAM);
   const filteredType = searchParams.get(RUN_TYPE_PARAM);
   const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
   const filteredTriggeringUserNamePattern = searchParams.get(TRIGGERING_USER_NAME_PATTERN_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
+  const filteredConsumingAsset = searchParams.get(CONSUMING_ASSET_PATTERN_PARAM);
   const bundleVersion = searchParams.get(BUNDLE_VERSION_PARAM);
   const startDateGte = searchParams.get(START_DATE_GTE_PARAM);
   const startDateLte = searchParams.get(START_DATE_LTE_PARAM);
@@ -234,8 +236,10 @@ export const DagRuns = () => {
     {
       bundleVersion: bundleVersion ?? undefined,
       confContains: confContains !== null && confContains !== "" ? confContains : undefined,
+      consumingAssetPattern: filteredConsumingAsset ?? undefined,
+      cursor: cursor ?? "",
       dagId: dagId ?? "~",
-      dagIdPattern: filteredDagIdPattern ?? undefined,
+      dagIdPrefixPattern: filteredDagIdPattern ?? undefined,
       dagVersion:
         filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
@@ -245,17 +249,16 @@ export const DagRuns = () => {
       limit: pageSize,
       logicalDateGte: logicalDateGte ?? undefined,
       logicalDateLte: logicalDateLte ?? undefined,
-      offset: pageIndex * pageSize,
       orderBy,
-      partitionKeyPattern: partitionKeyPattern ?? undefined,
+      partitionKeyPrefixPattern: partitionKeyPattern ?? undefined,
       runAfterGte: runAfterGte ?? undefined,
       runAfterLte: runAfterLte ?? undefined,
-      runIdPattern: filteredRunIdPattern ?? undefined,
+      runIdPrefixPattern: filteredRunIdPattern ?? undefined,
       runType: filteredType === null ? undefined : [filteredType],
       startDateGte: startDateGte ?? undefined,
       startDateLte: startDateLte ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
-      triggeringUserNamePattern: filteredTriggeringUserNamePattern ?? undefined,
+      triggeringUserNamePrefixPattern: filteredTriggeringUserNamePattern ?? undefined,
     },
     undefined,
     {
@@ -267,6 +270,9 @@ export const DagRuns = () => {
 
   const columns = runColumns(translate, dagId);
 
+  const nextCursor = data?.next_cursor ?? undefined;
+  const previousCursor = data?.previous_cursor ?? undefined;
+
   return (
     <>
       <DagRunsFilters dagId={dagId} />
@@ -277,8 +283,9 @@ export const DagRuns = () => {
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="common:dagRun"
+        nextCursor={nextCursor}
         onStateChange={setTableURLState}
-        total={data?.total_entries}
+        previousCursor={previousCursor}
       />
     </>
   );

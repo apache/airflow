@@ -68,7 +68,7 @@ spec:
   {{- if and $persistence .Values.triggerer.updateStrategy }}
   updateStrategy: {{- toYaml .Values.triggerer.updateStrategy | nindent 4 }}
   {{- end }}
-  {{- if and (not $persistence) (.Values.triggerer.strategy) }}
+  {{- if and (not $persistence) .Values.triggerer.strategy }}
   strategy: {{- toYaml .Values.triggerer.strategy | nindent 4 }}
   {{- end }}
   {{- if and $persistence .Values.triggerer.persistence.persistentVolumeClaimRetentionPolicy }}
@@ -80,7 +80,7 @@ spec:
         tier: airflow
         component: triggerer
         release: {{ .Release.Name }}
-        {{- if or (.Values.labels) (.Values.triggerer.labels) }}
+        {{- if or .Values.labels .Values.triggerer.labels }}
           {{- mustMerge .Values.triggerer.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
@@ -150,9 +150,6 @@ spec:
             {{- if .Values.triggerer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.triggerer.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
-            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
-            {{- end }}
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
@@ -162,7 +159,7 @@ spec:
               {{- tpl (toYaml .Values.triggerer.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
         {{- end }}
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
+        {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.triggerer.extraInitContainers }}
@@ -196,9 +193,6 @@ spec:
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
-            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
-            {{- end }}
             {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
               {{- include "airflow_dags_mount" . | nindent 12 }}
             {{- end }}
@@ -222,7 +216,7 @@ spec:
           ports:
             - name: triggerer-logs
               containerPort: {{ .Values.ports.triggererLogs }}
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
+        {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | nindent 8 }}
         {{- end }}
         {{- if .Values.triggerer.logGroomerSidecar.enabled }}
@@ -278,9 +272,6 @@ spec:
             {{- if .Values.triggerer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.triggerer.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
-            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
-            {{- end }}
           {{- end }}
         {{- if .Values.triggerer.extraContainers }}
           {{- tpl (toYaml .Values.triggerer.extraContainers) . | nindent 8 }}
@@ -289,11 +280,6 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-        - name: webserver-config
-          configMap:
-            name: {{ template "airflow_webserver_config_configmap_name" . }}
-        {{- end }}
         {{- if .Values.dags.persistence.enabled }}
         - name: dags
           persistentVolumeClaim:

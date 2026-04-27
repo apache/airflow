@@ -22,7 +22,7 @@ import logging
 
 import urllib3.util
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 
 log = logging.getLogger(__name__)
 

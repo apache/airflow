@@ -142,7 +142,6 @@ class WinRMOperator(BaseOperator):
                     ssh_conn_id=self.hook.ssh_conn_id,
                     shell_id=shell_id,
                     command_id=command_id,
-                    output_encoding=self.output_encoding,
                     return_output=self.do_xcom_push,
                     max_output_chunks=self.max_output_chunks,
                     poll_interval=self.poll_interval,
@@ -185,14 +184,37 @@ class WinRMOperator(BaseOperator):
 
             if enable_pickling:
                 return stdout_buffer
-            return b64encode(b"".join(stdout_buffer)).decode(self.output_encoding)
+            # Base64-encoded text is ASCII. Decode using ASCII to avoid
+            # producing non-ASCII characters when users set output_encoding
+            # to encodings like UTF-16.
+            return b64encode(b"".join(stdout_buffer)).decode("ascii")
 
         stderr_output = b"".join(stderr_buffer).decode(self.output_encoding)
         error_msg = f"Error running cmd: {self.command}, return code: {return_code}, error: {stderr_output}"
         raise AirflowException(error_msg)
 
     def _decode(self, output: str) -> bytes:
-        decoded_output = base64.standard_b64decode(output)
+        # The trigger emits base64 text which MUST be ASCII. Encode to ASCII
+        # bytes before decoding. Provide a clear error if the string contains
+        # non-ASCII characters so users can diagnose mismatched encodings.
+        try:
+            if isinstance(output, str):
+                output_bytes = output.encode("ascii")
+            else:
+                output_bytes = output
+        except UnicodeEncodeError as e:
+            raise AirflowException(
+                "Failed to decode base64 output from trigger: base64 text contains non-ASCII characters. "
+                "This likely means the trigger encoded the base64 text using the wrong text encoding."
+            ) from e
+
+        try:
+            decoded_output = base64.standard_b64decode(output_bytes)
+        except Exception as e:
+            raise AirflowException(
+                f"Failed to base64-decode trigger output: {e}. Ensure the trigger returns ASCII base64 strings."
+            ) from e
+
         self.hook.log_output(decoded_output, output_encoding=self.output_encoding)
         return decoded_output
 

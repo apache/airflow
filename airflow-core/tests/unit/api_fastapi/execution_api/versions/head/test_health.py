@@ -26,3 +26,13 @@ def test_health(client):
 
     assert response.status_code == 200
     assert response.json() == {"status": "healthy"}
+
+
+def test_ping(client):
+    """All registered services should report healthy, returning 200 with no failures."""
+    response = client.get("/execution/health/ping")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "ok" in body
+    assert body["failing"] == {}, f"Unexpected failing services: {body['failing']}"

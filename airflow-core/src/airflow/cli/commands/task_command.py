@@ -46,7 +46,6 @@ from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
     get_bagged_dag,
-    get_dag_by_file_location,
     get_dags,
     get_db_dag,
     suppress_logs_and_warning,
@@ -208,14 +207,14 @@ def _get_ti(
             try:
                 total = task.get_parse_time_mapped_ti_count()
                 if map_index >= total:
-                    raise ValueError(
+                    raise RuntimeError(
                         f"map_index {map_index} is out of range. "
                         f"Task '{task.task_id}' has {total} mapped instance(s) [0..{total - 1}]."
                     )
             except NotFullyPopulated:
                 pass  # Dynamic mapping — cannot validate at parse time
             except NotMapped:
-                raise ValueError(f"Task '{task.task_id}' is not mapped; map_index must be -1.")
+                raise RuntimeError(f"Task '{task.task_id}' is not mapped; map_index must be -1.")
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         if not dag_version:
             # TODO: Remove this once DagVersion.get_latest_version is guaranteed to return a DagVersion/raise
@@ -234,6 +233,9 @@ def _get_ti(
     ti.refresh_from_task(task, pool_override=pool)
 
     ti.dag_model  # we must ensure dag model is loaded eagerly for bundle info
+    # eagerly load consumed_asset_events for template rendering (needed for triggering_asset_events context)
+    if ti.dag_run is not None:
+        _ = ti.dag_run.consumed_asset_events
 
     return ti, dr_created
 
@@ -496,7 +498,7 @@ def task_clear(args) -> None:
     """Clear all task instances or only those matched by regex for a DAG(s)."""
     logging.basicConfig(level=logging.INFO, format=settings.SIMPLE_LOG_FORMAT)
     if args.dag_id and not args.bundle_name and not args.dag_regex and not args.task_regex:
-        dags = [get_dag_by_file_location(args.dag_id)]
+        dags = [get_db_dag(bundle_names=args.bundle_name, dag_id=args.dag_id)]
     else:
         # todo clear command only accepts a single dag_id. no reason for get_dags with 's' except regex?
         # Reading from_db because clear method still not implemented in Task SDK DAG

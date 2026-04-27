@@ -27,6 +27,70 @@
 Changelog
 ---------
 
+3.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add SSL_MUTUAL_TLS config option to Celery provider for one-way TLS support (#64767)``
+
+Misc
+~~~~
+
+* ``Widen BaseExecutor method signatures to accept WorkloadKey (#65392)``
+* ``Move ExecutorCallback execution into a supervised process (#62645)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Ignore redelivered message for already-running task (#64052)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix amqps:// SSL config and celery_config_options bypass (#64392)``
+
+Misc
+~~~~
+
+* ``Clean up CeleryExecutor to use workload terminology and typing (#63888)``
+* ``Compat sdk conf follow-up: Celery, Common AI, FAB, Edge3 (#64292)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Celery tests after conf-backcompat merge (#64388)``
+
+3.17.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set task name for 2.11.X path (#63746)``
+* ``Fix misaligned 'queued_tasks' types in hybrid executors (#63744)``
+* ``Add gc.freeze to minimize memory usage in celery worker (#62212)``
+* ``Warn about hardcoded 24h visibility_timeout that kills long-running Celery tasks (#62869)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Refactor: remove modules that are supposed to be removed in Airflow 3.2 (#62927)``
+* ``Make test_celery_integration runnable (#64153)``
+* ``Update celery provider conf imports to use common compat SDK (#64134)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``remove useless mock db (#63740)``
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 3.17.1
 ......
 
