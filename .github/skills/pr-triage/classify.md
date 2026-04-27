@@ -197,6 +197,39 @@ can't be reviewed yet. The exact *action* to propose depends on
 static-check failures → comment, etc.) — see
 [`suggested-actions.md`](suggested-actions.md).
 
+#### Sub-flag: `unresolved_threads_only_likely_addressed`
+
+A boolean computed alongside the C2 classification. It is
+`true` when **all** of the following hold:
+
+- The only `deterministic_flag` signal that fired for this PR is
+  unresolved review threads (no `CONFLICTING` mergeable state,
+  no out-of-grace CI failure).
+- Every unresolved thread has post-first-comment activity by
+  the PR author — **either** an author reply later in the same
+  thread (`reviewThreads.nodes.comments.nodes` has a node where
+  `author.login == pr.author.login` and `createdAt >` the first
+  comment's `createdAt`), **or** a commit was pushed after the
+  thread's first-comment `createdAt`
+  (`commits(last:1).committedDate > comment.createdAt`).
+- The PR's latest commit `committedDate` is **after** the most
+  recent unresolved-thread first-comment `createdAt` — i.e. the
+  most recent author push is plausibly the resolution, not
+  predating the reviewer's feedback.
+
+The flag is consumed only by `suggested-actions.md` to choose
+between the existing `ping` action and the new
+[`mark-ready-with-ping`](actions.md#mark-ready-with-ping)
+action — it does **not** create a separate classification.
+
+**Heuristic, not authoritative.** The maintainer still confirms
+the proposed action and the comment we post invites the
+reviewer to push back if the threads aren't actually resolved
+(see [`comment-templates.md#mark-ready-with-ping`](comment-templates.md)).
+Conservative on purpose: a false-negative degrades to the
+existing `ping` behaviour; a false-positive would advance a PR
+that isn't actually ready, which is the worse failure mode.
+
 ### C2b. `stale_copilot_review`
 
 **Condition.** The PR has at least one unresolved review thread
@@ -413,7 +446,7 @@ relies on:
 | Pre-filter 5 (active maintainer conversation) | `comments(last:10).nodes.{author.login,authorAssociation,bodyText,createdAt}`, `latestReviews.nodes.{author.login,submittedAt}`, `commits(last:1).nodes.commit.committedDate` |
 | `pending_workflow_approval` | `statusCheckRollup.state`, `authorAssociation`, `head_sha` |
 | `stale_copilot_review` | `reviewThreads.nodes.{isResolved,comments.nodes.{author.login,createdAt,url}}`, `comments(last:10).nodes.{author.login,createdAt}` (to detect author replies after the Copilot comment) |
-| `deterministic_flag` | `mergeable`, `statusCheckRollup.{state,contexts}`, `reviewThreads.nodes.{isResolved,comments.nodes.authorAssociation}`, `updatedAt`, `comments(last:10).nodes.{author.login,authorAssociation,createdAt}` |
+| `deterministic_flag` | `mergeable`, `statusCheckRollup.{state,contexts}`, `reviewThreads.nodes.{isResolved,comments.nodes.{author.login,authorAssociation,createdAt}}`, `updatedAt`, `comments(last:10).nodes.{author.login,authorAssociation,createdAt}`, `commits(last:1).nodes.commit.committedDate`, `author.login` (for the `unresolved_threads_only_likely_addressed` sub-flag — needs author replies in-thread, hence `comments(first: 5)` per thread instead of `first: 1`, see [`fetch-and-batch.md`](fetch-and-batch.md)) |
 | `stale_review` | `latestReviews.nodes.{state,author.login,submittedAt}`, `commits(last:1).nodes.commit.committedDate`, `comments(last:10)` |
 | `already_triaged` | `comments(last:10).nodes.{author.login,bodyText,createdAt}`, viewer login, `commits(last:1).nodes.commit.committedDate` |
 | `passing` | `statusCheckRollup.state`, `statusCheckRollup.contexts`, `mergeable`, `reviewThreads.totalCount` |

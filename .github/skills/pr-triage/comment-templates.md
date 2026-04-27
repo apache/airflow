@@ -58,12 +58,12 @@ Rules for the footer:
 
 - **Always include it** on every contributor-facing comment the
   skill posts — `draft`, `comment-only`, `close`,
-  `review-nudge`, `reviewer-ping`, `stale-draft-close`,
-  `inactive-to-draft`, `stale-workflow-approval`. The only
-  exception is the `suspicious-changes` template, which is
-  short, operationally sensitive, and already directs the
-  contributor to maintainers on Slack — adding the footer there
-  would dilute the signal.
+  `review-nudge`, `reviewer-ping`, `mark-ready-with-ping`,
+  `stale-draft-close`, `inactive-to-draft`,
+  `stale-workflow-approval`. The only exception is the
+  `suspicious-changes` template, which is short, operationally
+  sensitive, and already directs the contributor to maintainers
+  on Slack — adding the footer there would dilute the signal.
 - **Do not paraphrase it.** Post the block verbatim. If the
   wording needs to change, update this section and propagate —
   do not drift per-template.
@@ -289,6 +289,53 @@ author-primary nudge by default; only use the reviewer-re-review
 variant after an explicit inspection confirms the comments have
 been addressed in a post-review commit or resolved with an
 in-thread reply.
+
+---
+
+## Mark ready with ping
+
+*(`mark-ready-with-ping` — promote-and-invite-reviewers comment)*
+
+Used when the action is `mark-ready-with-ping` (see
+[`actions.md#mark-ready-with-ping`](actions.md)). The PR's
+only outstanding signal is unresolved review threads, the
+[`unresolved_threads_only_likely_addressed`](classify.md#sub-flag-unresolved_threads_only_likely_addressed)
+heuristic fired, and we are promoting the PR to
+`ready for maintainer review` while inviting the original
+reviewer(s) to confirm the resolution.
+
+```markdown
+@<author> — Your unresolved review thread(s) from <reviewers> appear to have been addressed (post-review commits and/or in-thread replies on every thread, with the latest commit pushed after the most recent thread). I've added the `ready for maintainer review` label so the PR re-enters the maintainer review queue.
+
+<reviewers> — could you take another look when you have a chance? If you agree the feedback was addressed, please mark the threads as resolved so the queue signal stays accurate. If a thread still needs work, please reply in-line — @<author> will follow up.
+
+<ai_attribution_footer>
+```
+
+Notes on the body:
+
+- **`@<author>` is mentioned once at the top.** They get one
+  notification with the rationale (so they understand why the
+  label appeared) and a clear ask if a thread comes back open.
+- **Every reviewer with an unresolved thread is `@`-mentioned
+  once** in the second paragraph. They get the prompt that
+  matters for them — "please re-look and resolve the threads if
+  you agree".
+- **No "no rush" line.** Unlike the `draft` / `comment-only`
+  templates, this one is announcing forward motion (PR
+  promoted), not asking the author to fix something — the
+  decompression line would read as out of place.
+- **No "thanks!"** — per the global tone rules, sign-offs are
+  noise.
+- **The `<ai_attribution_footer>` still applies** so the
+  reviewer knows the promotion is AI-drafted; if the
+  heuristic was wrong they have a clear cue to push back
+  rather than assuming a maintainer made the call.
+
+If the heuristic was wrong (the reviewer disagrees that the
+threads are addressed), the reviewer can re-open a thread,
+remove the label, or comment back — the PR re-enters the
+unresolved-threads triage path on the next sweep.
 
 ---
 

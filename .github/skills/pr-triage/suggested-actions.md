@@ -55,6 +55,7 @@ currently-flagged PRs by the same author seen **this page**.
 | Only CI failures, *some* failures match main-branch failures | `rerun` | "K/N CI failures match recent main-branch PRs — likely systemic" |
 | Only CI failures, every failed check is a static check (`ruff`, `mypy-*`, `pre-commit`, etc.) | `comment` | "Only static-check failures — deterministic, needs a code fix, not a rerun" |
 | Only CI failures, `failed_count <= 2`, no conflicts, no unresolved threads, `commits_behind <= 50` | `rerun` | "N CI failure(s) on otherwise clean PR — likely flaky, suggest rerun" |
+| Unresolved review threads only, CI green, no conflict, `unresolved_threads_only_likely_addressed` is true (see [`classify.md#sub-flag-unresolved_threads_only_likely_addressed`](classify.md)) | `mark-ready-with-ping` | "K unresolved thread(s) from <reviewers> appear addressed (post-review commits / in-thread author replies) — promote to ready-for-review and ping reviewers to confirm" |
 | Unresolved review threads only, CI green, no conflict | `ping` | "K unresolved review thread(s) from <reviewers> — ping author + reviewers with the [`reviewer-ping`](comment-templates.md#reviewer-ping) template" |
 | No CI at all (rollup empty / only bot contexts), `mergeable != CONFLICTING` | `rebase` | "No real CI checks triggered, branch mergeable — rebase to re-trigger" |
 | *(fallback)* | `draft` | "Has quality issues — convert to draft with comment listing violations" |
@@ -198,6 +199,38 @@ Collaborator-authored PRs (when `authors:collaborators` is
 active) always default to `comment` — never `draft` — since
 collaborators don't need gentle routing and converting a
 colleague's PR to draft is an overreach.
+
+---
+
+## Choosing between `ping` and `mark-ready-with-ping`
+
+Both actions handle the same upstream classification —
+`deterministic_flag` whose only signal is unresolved review
+threads. The difference is what we believe about the threads:
+
+- `ping` — the threads are unresolved and **may not yet be
+  addressed**; the safe default is to nudge the author to
+  address each one (or explain why the feedback doesn't apply)
+  and mark them resolved themselves.
+- `mark-ready-with-ping` — the threads are unresolved but
+  the author has already engaged with each one (post-comment
+  push or in-thread reply, plus the latest commit post-dates
+  the most recent unresolved thread). The PR is plausibly
+  ready for the maintainer to take another look; we promote
+  it with the `ready for maintainer review` label *and* ping
+  the original reviewer(s) to confirm and resolve their
+  threads. See [`actions.md#mark-ready-with-ping`](actions.md)
+  for the mutation, [`comment-templates.md#mark-ready-with-ping`](comment-templates.md)
+  for the body, and [`classify.md#sub-flag-unresolved_threads_only_likely_addressed`](classify.md)
+  for the heuristic.
+
+The heuristic is conservative — when in doubt it returns
+`false` and the PR falls through to plain `ping`. The
+maintainer still confirms the action; the comment we post
+explicitly invites the reviewer to push back if a thread is
+not actually addressed, so a heuristic false-positive
+self-corrects on the next round-trip rather than silently
+landing the PR.
 
 ---
 
