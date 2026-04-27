@@ -803,11 +803,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         adds them to the dequeues so the subprocess can actually mutate the running
         trigger set.
         """
-        known_trigger_ids = (
-            self.running_triggers.union(x[0] for x in self.events)
-            .union(self.cancelling_triggers)
-            .union(trigger[0] for trigger in self.failed_triggers)
-            .union(trigger.id for trigger in self.creating_triggers)
+        known_trigger_ids = self.running_triggers.union(
+            (x[0] for x in self.events),
+            self.cancelling_triggers,
+            (trigger[0] for trigger in self.failed_triggers),
+            (trigger.id for trigger in self.creating_triggers),
         )
         # Work out the two difference sets
         new_trigger_ids = requested_trigger_ids - known_trigger_ids
