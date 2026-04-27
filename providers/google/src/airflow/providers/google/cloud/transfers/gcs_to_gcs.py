@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException
@@ -31,6 +31,9 @@ from airflow.providers.google.version_compat import BaseOperator
 WILDCARD = "*"
 
 if TYPE_CHECKING:
+    from datetime import datetime
+    from typing import Any
+
     from airflow.providers.common.compat.sdk import Context
 
 
@@ -206,7 +209,7 @@ class GCSToGCSOperator(BaseOperator):
         source_object_required=False,
         exact_match=False,
         match_glob: str | None = None,
-        retain_until_time=None,
+        retain_until_time: datetime | None = None,
         retention_mode: str | None = None,
         **kwargs,
     ):
