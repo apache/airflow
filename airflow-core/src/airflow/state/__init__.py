@@ -24,17 +24,13 @@ from airflow._shared.state import (
     TaskScope as TaskScope,
 )
 
-_DEFAULT_BACKEND = "airflow.state.metastore.MetastoreStateBackend"
-
 
 def resolve_state_backend() -> type[BaseStateBackend]:
     from airflow.configuration import conf
 
-    clazz = conf.getimport("state", "backend", fallback=_DEFAULT_BACKEND)
-    if not clazz:
-        from airflow.state.metastore import MetastoreStateBackend
-
-        return MetastoreStateBackend
+    clazz = conf.getimport("state", "backend")
+    if clazz is None:
+        raise ValueError("state.backend is not configured or resolved to None.")
     if not issubclass(clazz, BaseStateBackend):
         raise TypeError(
             f"Your custom state backend `{clazz.__name__}` is not a subclass of `BaseStateBackend`."
