@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -44,7 +45,7 @@ def _get_asset_events_through_sql_clauses(
 ) -> AssetEventsResponse:
     order_by_clause = AssetEvent.timestamp.asc() if ascending else AssetEvent.timestamp.desc()
     asset_events_query = select(AssetEvent).join(join_clause).where(where_clause).order_by(order_by_clause)
-    if limit:
+    if limit is not None:
         asset_events_query = asset_events_query.limit(limit)
     asset_events = session.scalars(asset_events_query)
     return AssetEventsResponse.model_validate(
@@ -73,6 +74,31 @@ def _get_asset_events_through_sql_clauses(
     )
 
 
+def _validate_partition_key_params(partition_key: str | None, partition_key_pattern: str | None) -> None:
+    """Validate partition_key and partition_key_pattern are not both set, and that the pattern is valid regex."""
+    if partition_key is not None and partition_key_pattern is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "Mutually exclusive parameters",
+                "message": "partition_key and partition_key_pattern cannot both be provided. "
+                "Use partition_key for exact match or partition_key_pattern for regex filtering.",
+            },
+        )
+    if partition_key_pattern is None:
+        return
+    try:
+        re.compile(partition_key_pattern)
+    except re.error as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "Invalid regex",
+                "message": f"The partition_key_pattern is not a valid regular expression: {e}",
+            },
+        )
+
+
 @router.get("/by-asset")
 def get_asset_event_by_asset_name_uri(
     name: Annotated[str | None, Query(description="The name of the Asset")],
@@ -82,6 +108,18 @@ def get_asset_event_by_asset_name_uri(
     before: Annotated[UtcDateTime | None, Query(description="The end of the time range")] = None,
     ascending: Annotated[bool, Query(description="Whether to sort results in ascending order")] = True,
     limit: Annotated[int | None, Query(description="The maximum number of results to return")] = None,
+    partition_key: Annotated[
+        str | None,
+        Query(description="Exact partition key filter."),
+    ] = None,
+    partition_key_pattern: Annotated[
+        str | None,
+        Query(
+            description="Partition key regex filter. Uses database-native regex "
+            "(PostgreSQL ~ operator, MySQL REGEXP, SQLite re.match). "
+            "Note: on SQLite, matching is anchored at the start of the string."
+        ),
+    ] = None,
 ) -> AssetEventsResponse:
     if name and uri:
         where_clause = and_(AssetModel.name == name, AssetModel.uri == uri)
@@ -103,6 +141,12 @@ def get_asset_event_by_asset_name_uri(
     if before:
         where_clause = and_(where_clause, AssetEvent.timestamp <= before)
 
+    _validate_partition_key_params(partition_key, partition_key_pattern)
+    if partition_key is not None:
+        where_clause = and_(where_clause, AssetEvent.partition_key == partition_key)
+    elif partition_key_pattern is not None:
+        where_clause = and_(where_clause, AssetEvent.partition_key.regexp_match(partition_key_pattern))
+
     return _get_asset_events_through_sql_clauses(
         join_clause=AssetEvent.asset,
         where_clause=where_clause,
@@ -120,12 +164,30 @@ def get_asset_event_by_asset_alias(
     before: Annotated[UtcDateTime | None, Query(description="The end of the time range")] = None,
     ascending: Annotated[bool, Query(description="Whether to sort results in ascending order")] = True,
     limit: Annotated[int | None, Query(description="The maximum number of results to return")] = None,
+    partition_key: Annotated[
+        str | None,
+        Query(description="Exact partition key filter."),
+    ] = None,
+    partition_key_pattern: Annotated[
+        str | None,
+        Query(
+            description="Partition key regex filter. Uses database-native regex "
+            "(PostgreSQL ~ operator, MySQL REGEXP, SQLite re.match). "
+            "Note: on SQLite, matching is anchored at the start of the string."
+        ),
+    ] = None,
 ) -> AssetEventsResponse:
     where_clause = AssetAliasModel.name == name
     if after:
         where_clause = and_(where_clause, AssetEvent.timestamp >= after)
     if before:
         where_clause = and_(where_clause, AssetEvent.timestamp <= before)
+
+    _validate_partition_key_params(partition_key, partition_key_pattern)
+    if partition_key is not None:
+        where_clause = and_(where_clause, AssetEvent.partition_key == partition_key)
+    elif partition_key_pattern is not None:
+        where_clause = and_(where_clause, AssetEvent.partition_key.regexp_match(partition_key_pattern))
 
     return _get_asset_events_through_sql_clauses(
         join_clause=AssetEvent.source_aliases,
