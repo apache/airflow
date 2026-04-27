@@ -55,7 +55,7 @@ jobs:
         run: >
           breeze testing core-tests
           airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py
-          -k TestGetAssetLineage
+          -k "TestGetAssetLineage or TestGetAssetOnlyLineage"
 
   frontend-lineage-unit-tests:
     name: Frontend lineage unit tests
@@ -87,10 +87,12 @@ jobs:
         run: >
           cd airflow-core/src/airflow/ui &&
           pnpm vitest run
+          src/pages/Asset/AssetLayout.test.tsx
           src/pages/Asset/AssetInsightsPanel.test.tsx
           src/pages/Asset/AssetLineageGraph.test.tsx
           src/pages/Asset/assetInsightsUtils.test.ts
           src/pages/Asset/lineageHighlightUtils.test.ts
+          src/queries/useAssetLineage.test.tsx
 
   frontend-lineage-e2e:
     name: Frontend lineage e2e
