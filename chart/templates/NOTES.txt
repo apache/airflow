@@ -67,22 +67,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if and .Values.webserver.enabled (or .Values.ingress.web.enabled .Values.ingress.enabled) }}
-Airflow Webserver:
-{{- range .Values.ingress.web.hosts | default (list .Values.ingress.web.host) }}
-      {{- $tlsEnabled := $.Values.ingress.web.tls.enabled -}}
-      {{- $hostname := $.Values.ingress.web.host -}}
-      {{- $path := $.Values.ingress.web.path -}}
-      {{- if . | kindIs "string" | not }}
-      {{- $hostname = .name -}}
-      {{- if .tls }}
-      {{- $tlsEnabled = .tls.enabled -}}
-      {{- end }}
-      {{- end }}
-      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $path }}{{ if (hasSuffix "/" $path) | not }}/{{ end }}
-{{- end }}
-{{- end }}
-{{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+{{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (contains "CeleryExecutor" .Values.executor) }}
 Flower Dashboard:
 {{- range .Values.ingress.flower.hosts | default (list .Values.ingress.flower.host) }}
       {{- $tlsEnabled := $.Values.ingress.flower.tls.enabled -}}
@@ -100,14 +85,10 @@ Flower Dashboard:
 {{- else }}
 You can now access your dashboard(s) by executing the following command(s) and visiting the corresponding port at localhost in your browser:
 
-{{- if semverCompare "<3.0.0" .Values.airflowVersion }}
-Airflow Webserver:     kubectl port-forward svc/{{ include "airflow.fullname" . }}-webserver {{ .Values.ports.airflowUI }}:{{ .Values.ports.airflowUI }} --namespace {{ .Release.Namespace }}
-{{- else }}
 Airflow API Server:     kubectl port-forward svc/{{ include "airflow.fullname" . }}-api-server {{ .Values.ports.airflowUI }}:{{ .Values.ports.airflowUI }} --namespace {{ .Release.Namespace }}
-{{- end }}
 
 {{- if .Values.flower.enabled }}
-{{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)}}
+{{- if contains "CeleryExecutor" .Values.executor }}
 Flower Dashboard:      kubectl port-forward svc/{{ include "airflow.fullname" . }}-flower {{ .Values.ports.flowerUI }}:{{ .Values.ports.flowerUI }} --namespace {{ .Release.Namespace }}
 {{- end }}
 {{- end }}
@@ -151,8 +132,8 @@ DEPRECATION WARNING:
 
 {{- if eq (include "createUserJob.isEnabled" .) "true" }}
 Default user (Airflow UI) Login credentials:
-    username: {{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.username }}{{ else }}{{ .Values.createUserJob.defaultUser.username }}{{ end }}
-    password: {{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.password }}{{ else }}{{ .Values.createUserJob.defaultUser.password }}{{ end }}
+    username: {{ .Values.createUserJob.defaultUser.username }}
+    password: {{ .Values.createUserJob.defaultUser.password }}
 {{- end }}
 
 {{- if .Values.postgresql.enabled }}
@@ -171,7 +152,7 @@ You can get Fernet Key value by running the following:
 
 {{- end }}
 
-{{- if or (contains "KubernetesExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
+{{- if contains "KubernetesExecutor" .Values.executor }}
 {{- if and (not .Values.logs.persistence.enabled) (eq (lower (tpl .Values.config.logging.remote_logging .)) "false") }}
 
 WARNING:
@@ -213,14 +194,6 @@ DEPRECATION WARNING:
 {{- end }}
 
 
-{{- if .Values.webserver.extraNetworkPolicies }}
-
-DEPRECATION WARNING:
-    `webserver.extraNetworkPolicies` has been renamed to `webserver.networkPolicy.peers`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
 {{- if .Values.securityContext }}
 
  DEPRECATION WARNING:
@@ -233,14 +206,6 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `scheduler.securityContext` has been renamed to `scheduler.securityContexts`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if .Values.webserver.securityContext }}
-
- DEPRECATION WARNING:
-    `webserver.securityContext` has been renamed to `webserver.securityContexts`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
@@ -413,6 +378,38 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not .Values.workers.serviceAccount.automountServiceAccountToken }}
+
+ DEPRECATION WARNING:
+    `workers.serviceAccount.automountServiceAccountToken` has been renamed to `workers.celery.serviceAccount.automountServiceAccountToken`/`workers.kubernetes.serviceAccount.automountServiceAccountToken`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not .Values.workers.serviceAccount.create }}
+
+ DEPRECATION WARNING:
+    `workers.serviceAccount.create` has been renamed to `workers.celery.serviceAccount.create`/`workers.kubernetes.serviceAccount.create`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.serviceAccount.name) }}
+
+ DEPRECATION WARNING:
+    `workers.serviceAccount.name` has been renamed to `workers.celery.serviceAccount.name`/`workers.kubernetes.serviceAccount.name`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.serviceAccount.annotations) }}
+
+ DEPRECATION WARNING:
+    `workers.serviceAccount.annotations` has been renamed to `workers.celery.serviceAccount.annotations`/`workers.kubernetes.serviceAccount.annotations`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if .Values.workers.keda.enabled }}
 
  DEPRECATION WARNING:
@@ -469,7 +466,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (quote .Values.workers.keda.query) (quote "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ( {{- range $i, $q := splitList \",\" .Values.workers.queue -}} {{- if $i }},{{ end }}'{{ $q | trim }}' {{- end -}} ) {{- if contains \"CeleryKubernetesExecutor\" .Values.executor }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- else if contains \"KubernetesExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'KubernetesExecutor' {{- else if contains \"airflow.providers.edge3.executors.EdgeExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'EdgeExecutor' {{- end }}") }}
+{{- if ne (quote .Values.workers.keda.query) (quote "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ( {{- range $i, $q := splitList \",\" .Values.workers.queue -}} {{- if $i }},{{ end }}'{{ $q | trim }}' {{- end -}} ) {{- if contains \"KubernetesExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'KubernetesExecutor' {{- else if contains \"airflow.providers.edge3.executors.EdgeExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'EdgeExecutor' {{- end }}") }}
 
  DEPRECATION WARNING:
     `workers.keda.query` has been renamed to `workers.celery.keda.query`.
@@ -481,6 +478,46 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `workers.keda.usePgbouncer` has been renamed to `workers.celery.keda.usePgbouncer`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.hpa.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.hpa.enabled` has been renamed to `workers.celery.hpa.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.hpa.minReplicaCount) 0 }}
+
+ DEPRECATION WARNING:
+    `workers.hpa.minReplicaCount` has been renamed to `workers.celery.hpa.minReplicaCount`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.hpa.maxReplicaCount) 5 }}
+
+ DEPRECATION WARNING:
+    `workers.hpa.maxReplicaCount` has been renamed to `workers.celery.hpa.maxReplicaCount`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (toJson .Values.workers.hpa.metrics | quote) (toJson "[{\"resource\":{\"name\":\"cpu\",\"target\":{\"averageUtilization\":80,\"type\":\"Utilization\"}},\"type\":\"Resource\"}]") }}
+
+ DEPRECATION WARNING:
+    `workers.hpa.metrics` has been renamed to `workers.celery.hpa.metrics`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.hpa.behavior) }}
+
+ DEPRECATION WARNING:
+    `workers.hpa.behavior` has been renamed to `workers.celery.hpa.behavior`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
@@ -629,6 +666,38 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (empty .Values.workers.extraContainers) }}
+
+ DEPRECATION WARNING:
+    `workers.extraContainers` has been renamed to `workers.celery.extraContainers`/`workers.kubernetes.extraContainers`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.extraInitContainers) }}
+
+ DEPRECATION WARNING:
+    `workers.extraInitContainers` has been renamed to `workers.celery.extraInitContainers`/`workers.kubernetes.extraInitContainers`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.extraVolumes) }}
+
+ DEPRECATION WARNING:
+    `workers.extraVolumes` has been renamed to `workers.celery.extraVolumes`/`workers.kubernetes.extraVolumes`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.extraVolumeMounts) }}
+
+ DEPRECATION WARNING:
+    `workers.extraVolumeMounts` has been renamed to `workers.celery.extraVolumeMounts`/`workers.kubernetes.extraVolumeMounts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (empty .Values.workers.runtimeClassName) }}
 
  DEPRECATION WARNING:
@@ -641,6 +710,30 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `workers.priorityClassName` has been renamed to `workers.celery.priorityClassName`/`workers.kubernetes.priorityClassName`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.affinity) }}
+
+ DEPRECATION WARNING:
+    `workers.affinity` has been renamed to `workers.celery.affinity`/`workers.kubernetes.affinity`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.tolerations) }}
+
+ DEPRECATION WARNING:
+    `workers.tolerations` has been renamed to `workers.celery.tolerations`/`workers.kubernetes.tolerations`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.topologySpreadConstraints) }}
+
+ DEPRECATION WARNING:
+    `workers.topologySpreadConstraints` has been renamed to `workers.celery.topologySpreadConstraints`/`workers.kubernetes.topologySpreadConstraints`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
@@ -669,10 +762,170 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not (empty .Values.webserver.defaultUser) }}
+{{- if not (empty .Values.workers.annotations) }}
 
  DEPRECATION WARNING:
-    `webserver.defaultUser` has been renamed to `createUserJob.defaultUser`.
+    `workers.annotations` has been renamed to `workers.celery.annotations`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.podAnnotations) }}
+
+ DEPRECATION WARNING:
+    `workers.podAnnotations` has been renamed to `workers.celery.podAnnotations`/`workers.kubernetes.podAnnotations`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.labels) }}
+
+ DEPRECATION WARNING:
+    `workers.labels` has been renamed to `workers.celery.labels`/`workers.kubernetes.labels`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.volumeClaimTemplates) }}
+
+ DEPRECATION WARNING:
+    `workers.volumeClaimTemplates` has been renamed to `workers.celery.volumeClaimTemplates`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.schedulerName) }}
+
+ DEPRECATION WARNING:
+    `workers.schedulerName` has been renamed to `workers.celery.schedulerName`/`workers.kubernetes.schedulerName`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not .Values.workers.logGroomerSidecar.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.enabled` has been renamed to `workers.celery.logGroomerSidecar.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.logGroomerSidecar.command) }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.command` has been renamed to `workers.celery.logGroomerSidecar.command`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (.Values.workers.logGroomerSidecar.args | toJson) (list "bash" "/clean-logs" | toJson) }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.args` has been renamed to `workers.celery.logGroomerSidecar.args`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.logGroomerSidecar.retentionDays) 15 }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.retentionDays` has been renamed to `workers.celery.logGroomerSidecar.retentionDays`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.logGroomerSidecar.retentionMinutes) 0 }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.retentionMinutes` has been renamed to `workers.celery.logGroomerSidecar.retentionMinutes`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.logGroomerSidecar.frequencyMinutes) 15 }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.frequencyMinutes` has been renamed to `workers.celery.logGroomerSidecar.frequencyMinutes`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.logGroomerSidecar.maxSizeBytes) 0 }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.maxSizeBytes` has been renamed to `workers.celery.logGroomerSidecar.maxSizeBytes`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.logGroomerSidecar.maxSizePercent) 0 }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.maxSizePercent` has been renamed to `workers.celery.logGroomerSidecar.maxSizePercent`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.logGroomerSidecar.resources) }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.resources` has been renamed to `workers.celery.logGroomerSidecar.resources`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.logGroomerSidecar.securityContexts.container) }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.securityContexts.container` has been renamed to `workers.celery.logGroomerSidecar.securityContexts.container`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.logGroomerSidecar.env) }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.env` has been renamed to `workers.celery.logGroomerSidecar.env`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.logGroomerSidecar.containerLifecycleHooks) }}
+
+ DEPRECATION WARNING:
+    `workers.logGroomerSidecar.containerLifecycleHooks` has been renamed to `workers.celery.logGroomerSidecar.containerLifecycleHooks`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not .Values.workers.waitForMigrations.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.waitForMigrations.enabled` has been renamed to `workers.celery.waitForMigrations.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.waitForMigrations.env) }}
+
+ DEPRECATION WARNING:
+    `workers.waitForMigrations.env` has been renamed to `workers.celery.waitForMigrations.env`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.waitForMigrations.securityContexts.container) }}
+
+ DEPRECATION WARNING:
+    `workers.waitForMigrations.securityContexts.container` has been renamed to `workers.celery.waitForMigrations.securityContexts.container`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.env) }}
+
+ DEPRECATION WARNING:
+    `workers.env` has been renamed to `workers.celery.env`/`workers.kubernetes.env`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
@@ -685,21 +938,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName .Values.apiSecretKey .Values.apiSecretKeySecretName) }}
-{{ if (semverCompare ">=3.0.0" .Values.airflowVersion) }}
+{{- if not (or .Values.apiSecretKey .Values.apiSecretKeySecretName) }}
 #####################################################
 #  WARNING: You should set a static API secret key  #
 #####################################################
-{{ else }}
-###########################################################
-#  WARNING: You should set a static webserver secret key  #
-###########################################################
-{{ end }}
-{{- $serverKind := ternary "API" "webserver" (semverCompare ">=3.0.0" .Values.airflowVersion) }}
-You are using a dynamically generated {{ $serverKind }} secret key, which can lead to
+You are using a dynamically generated API secret key, which can lead to
 unnecessary restarts of your Airflow components.
 
-Information on how to set a static {{ $serverKind }} secret key can be found here:
+Information on how to set a static API secret key can be found here:
 https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#api-secret-key
 
 {{- end }}

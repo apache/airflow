@@ -708,7 +708,7 @@ class FileTaskHandler(logging.Handler):
         ti: TaskInstance | TaskInstanceHistory,
         log_relative_path: str,
         log_type: LogType | None = None,
-    ) -> tuple[str, str]:
+    ) -> tuple[str | None, str | None]:
         """Given TI, generate URL with which to fetch logs from service log server."""
         if log_type == LogType.TRIGGER:
             if not ti.triggerer_job:
@@ -721,6 +721,10 @@ class FileTaskHandler(logging.Handler):
             hostname = ti.hostname
             config_key = "worker_log_server_port"
             config_default = 8793
+
+        if not hostname:
+            return None, None
+
         return (
             urljoin(
                 f"http://{hostname}:{conf.get('logging', config_key, fallback=config_default)}/log/",
@@ -856,20 +860,42 @@ class FileTaskHandler(logging.Handler):
 
         return full_path
 
-    @staticmethod
     def _read_from_local(
+        self,
         worker_log_path: Path,
     ) -> StreamingLogResponse:
         sources: LogSourceInfo = []
         log_streams: list[RawLogStream] = []
+        # The glob below can match symlinks as well as regular files, so
+        # resolve each hit and only open the ones that stay inside the base
+        # log folder. Canonicalising ``self.local_base`` once up front makes
+        # the containment check compare two already-resolved paths.
+        base_log_folder = os.path.realpath(self.local_base)
         paths = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
         if not paths:
             return sources, log_streams
 
         for path in paths:
+            resolved_path = os.path.realpath(path)
+            try:
+                if os.path.commonpath([base_log_folder, resolved_path]) != base_log_folder:
+                    continue
+            except ValueError:
+                # ``os.path.commonpath`` raises ``ValueError`` when the two
+                # paths have nothing in common (e.g. different drives on
+                # Windows); treat that as "not contained" and skip the file.
+                continue
+
+            # Open the resolved path so the file we read is the same one we
+            # just validated above. Append to ``sources`` only after a
+            # successful ``open`` so ``sources`` and ``log_streams`` stay
+            # aligned.
+            try:
+                log_stream = _stream_lines_by_chunk(open(resolved_path, encoding="utf-8"))
+            except OSError:
+                continue
             sources.append(os.fspath(path))
-            # Read the log file and yield lines
-            log_streams.append(_stream_lines_by_chunk(open(path, encoding="utf-8")))
+            log_streams.append(log_stream)
         return sources, log_streams
 
     def _read_from_logs_server(
@@ -882,6 +908,13 @@ class FileTaskHandler(logging.Handler):
         try:
             log_type = LogType.TRIGGER if getattr(ti, "triggerer_job", False) else LogType.WORKER
             url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
+            if not url or not rel_path:
+                sources.append(
+                    f"Could not read served logs: Hostname not available for "
+                    f"{log_type.value}. "
+                    f"Please check your `hostname_callable` configuration."
+                )
+                return sources, log_streams
             response = _fetch_logs_from_service(url, rel_path)
             if response.status_code == 403:
                 sources.append(

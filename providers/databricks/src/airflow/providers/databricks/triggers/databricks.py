@@ -84,6 +84,14 @@ class DatabricksExecutionTrigger(BaseTrigger):
             },
         )
 
+    async def on_kill(self) -> None:
+        """Cancel the Databricks run when the trigger is cancelled by a user action."""
+        if self.run_id:
+            from asgiref.sync import sync_to_async
+
+            self.log.info("Cancelling Databricks run %s.", self.run_id)
+            await sync_to_async(self.hook.cancel_run)(self.run_id)
+
     async def run(self):
         async with self.hook:
             while True:
@@ -166,6 +174,14 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
                 "retry_args": self.retry_args,
             },
         )
+
+    async def on_kill(self) -> None:
+        """Cancel the Databricks SQL statement when the trigger is cancelled by a user action."""
+        if self.statement_id:
+            from asgiref.sync import sync_to_async
+
+            self.log.info("Cancelling Databricks SQL statement %s.", self.statement_id)
+            await sync_to_async(self.hook.cancel_sql_statement)(self.statement_id)
 
     async def run(self):
         async with self.hook:

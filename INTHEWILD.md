@@ -143,7 +143,7 @@ Currently, **officially** using Airflow:
 1. [Classmethod, Inc.](https://classmethod.jp/) [[@shoito](https://github.com/shoito)]
 1. [Cleartax](https://cleartax.in/) [[@anks](https://github.com/anks) & [@codebuff](https://github.com/codebuff)]
 1. [Clicksign](https://clicksign.com/) [[@mbbernstein](https://github.com/mbbernstein) & [@jorgeac12](https://github.com/jorgeac12) & [@franklin390](https://github.com/franklin390)]
-1. [Cloudera](https://www.cloudera.com/) [[@phraniiac](https://github.com/phraniiac) & [@VivekPemawat](https://github.com/VivekPemawat) & [@vedantlodha](https://github.com/vedantlodha) & [@shubhamraj-git](https://github.com/shubhamraj-git) & [@Samit-Maharjan](https://github.com/Samit-Maharjan) & [@anukrati1507](https://github.com/anukrati1507)]
+1. [Cloudera](https://www.cloudera.com/) [[@phraniiac](https://github.com/phraniiac) & [@VivekPemawat](https://github.com/VivekPemawat) & [@vedantlodha](https://github.com/vedantlodha) & [@Samit-Maharjan](https://github.com/Samit-Maharjan) & [@anukrati1507](https://github.com/anukrati1507)]
 1. [Clover Health](https://www.cloverhealth.com) [[@ryansiu1995](https://github.com/ryansiu1995)]
 1. [Coinbase](https://www.coinbase.com) [[@mingshi-wang](https://github.com/mingshi-wang)]
 1. [Coinone](https://www.coinonecorp.com) [[@jx2lee](https://github.com/jx2lee)]
@@ -306,6 +306,7 @@ Currently, **officially** using Airflow:
 1. [Interia](http://www.interia.pl)
 1. [Intuit](https://www.intuit.com/)
 1. [Investorise](https://investorise.com/) [[@svenvarkel](https://github.com/svenvarkel)]
+1. [Ipregistry](https://ipregistry.co) [[@ipregistry](https://github.com/ipregistry)]
 1. [iS2.co](https://www.is2.co) [[@iS2co](https://github.com/iS2co)]
 1. [Jagex](https://www.jagex.com) [[@anumsheraz](https://github.com/AnumSheraz), [@trucnguyenlam](https://github.com/trucnguyenlam), [@lumez](https://github.com/lumez)]
 1. [Jampp](https://github.com/jampp)
@@ -435,6 +436,7 @@ Currently, **officially** using Airflow:
 1. [Qliro](https://www.qliro.com) [[@kvackkvackanka](https://github.com/kvackkvackanka)]
 1. [Qoala](https://www.qoala.id) [[@gnomeria](https://github.com/gnomeria), [@qoala-engineering](https://github.com/qoala-engineering)]
 1. [Qplum](https://qplum.co) [[@manti](https://github.com/manti)]
+1. [Qualcomm](https://www.qualcomm.com/) [[@dheerajturaga](https://github.com/dheerajturaga) & [@shubhamraj-git](https://github.com/shubhamraj-git)]
 1. [Quantopian](https://www.quantopian.com/) [[@eronarn](https://github.com/eronarn)]
 1. [Quero Educação](https://querobolsa.com.br/) [[@joaopedro02](https://github.com/joaopedro02)]
 1. [Quick Algorithm Analytics](https://quickalgorithm.com) [[@QuickAlgorithm](https://github.com/QuickAlgorithm), [@jacojaki](https://github.com/jacojaki), [@Giuzzilla](https://github.com/Giuzzilla), [@breizh24](https://github.com/breizh24) & [@AndreaSoprani](https://github.com/andreasoprani)]

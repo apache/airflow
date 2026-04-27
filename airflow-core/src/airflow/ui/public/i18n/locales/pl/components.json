@@ -15,6 +15,7 @@
     "permissionDenied": "Próba nieudana: Użytkownik nie ma uprawnień do tworzenia wypełnień wstecznych.",
     "reprocessBehavior": "Zachowanie ponownego przetwarzania",
     "run": "Uruchom ponowne przetwarzanie",
+    "scheduleNotBackfillable": "Harmonogram tego Daga nie obsługuje wypełnień wstecznych",
     "selectDescription": "Uruchom ten Dag dla zakresu dat",
     "selectLabel": "Wypełnienie wsteczne",
     "title": "Uruchom uzupełnienie wsteczne",
@@ -24,7 +25,6 @@
         "title": "Ponowne przetwarzanie uruchomione"
       }
     },
-    "tooltip": "Ponowne przetworzenie wymaga harmonogramu",
     "unpause": "Wznów {{dag_display_name}} przy wykonaniu",
     "validation": {
       "datesRequired": "Należy podać zarówno datę początkową, jak i końcową interwału danych.",
@@ -47,10 +47,7 @@
     "invalidJson": "Nieprawidłowy format JSON: {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_few": "Błędy",
-    "error_many": "Błędów",
     "error_one": "Błąd",
-    "error_other": "Błedy",
     "errorAndWarning": "1 Błąd i {{warningText}}",
     "warning_few": "{{count}} Ostrzeżenia",
     "warning_many": "{{count}} Ostrzeżeń",

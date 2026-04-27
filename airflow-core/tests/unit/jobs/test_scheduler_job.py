@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pendulum
 import psutil
@@ -101,6 +101,7 @@ from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.base import DagRunInfo, DataInterval
 from airflow.utils.session import create_session, provide_session
+from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -691,7 +692,7 @@ class TestSchedulerJob:
             bundle_name="dag_maker",
             bundle_version=None,
             msg=f"Executor {executor} reported that the task instance "
-            "<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> "
+            f"<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued] ti_id={ti1.id}> "
             "finished with state failed, but the task instance's state attribute is queued. "
             "Learn more: https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#task-state-changed-externally",
             context_from_server=mock.ANY,
@@ -1903,11 +1904,13 @@ class TestSchedulerJob:
         some_pool = Pool(pool="some_pool", slots=2, description="my pool", include_deferred=False)
         session.add(some_pool)
         session.commit()
+        cannot_run_ti_id = next(t for t in dr.task_instances if t.task_id == "cannot_run").id
         with caplog.at_level(logging.WARNING):
             self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
             assert (
-                "Not executing <TaskInstance: "
-                "SchedulerJobTest.test_test_not_enough_pool_slots.cannot_run test [scheduled]>. "
+                f"Not executing <TaskInstance: "
+                f"SchedulerJobTest.test_test_not_enough_pool_slots.cannot_run test [scheduled] "
+                f"ti_id={cannot_run_ti_id}>. "
                 "Requested pool slots (4) are greater than total pool slots: '2' for pool: some_pool"
                 in caplog.text
             )
@@ -2416,6 +2419,38 @@ class TestSchedulerJob:
             )
 
         assert mock_queue_workload.called
+        session.rollback()
+
+    def test_executable_task_instances_to_queued_sets_external_executor_id(self, dag_maker, session):
+        """external_executor_id is written to the DB in the same UPDATE that sets state=QUEUED."""
+        dag_id = "SchedulerJobTest.test_executable_sets_external_executor_id"
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id, start_date=DEFAULT_DATE, session=session):
+            EmptyOperator(task_id="dummy")
+
+        class PreAssigningExecutor(MockExecutor):
+            pre_assigns_external_executor_id = True
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[PreAssigningExecutor()])
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("dummy", session)
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        session.flush()
+
+        returned_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        assert len(returned_tis) == 1
+        # In-memory object (post make_transient) should carry the UUID
+        assert returned_tis[0].external_executor_id is not None
+        UUID(returned_tis[0].external_executor_id)
+
+        # DB row should also have it (the whole point — survives a crash)
+        db_value = session.scalar(select(TaskInstance.external_executor_id).where(TaskInstance.id == ti.id))
+        assert db_value == returned_tis[0].external_executor_id
+
         session.rollback()
 
     @pytest.mark.parametrize("state", [State.FAILED, State.SUCCESS])
@@ -7896,6 +7931,67 @@ class TestSchedulerJob:
 
         # The handler should not be called, but no exceptions should be raised either.`
         mock_handle_miss.assert_not_called()
+
+    @mock.patch("airflow.models.Deadline.handle_miss")
+    def test_expired_deadline_locked_by_other_scheduler_is_skipped(
+        self, mock_handle_miss, session, dag_maker
+    ):
+        """The scheduler's deadline loop must skip rows another replica already holds."""
+        if session.get_bind().dialect.name == "sqlite":
+            pytest.skip("SQLite does not support row-level locking (SKIP LOCKED)")
+
+        past_date = timezone.utcnow() - timedelta(minutes=5)
+        dag_id = "test_deadline_locked_by_other_scheduler"
+        callback_path = "classpath.notify"
+
+        with dag_maker(dag_id=dag_id):
+            EmptyOperator(task_id="empty")
+        dagrun_id = dag_maker.create_dagrun().id
+
+        serialized_dag = session.scalar(select(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id))
+        assert serialized_dag is not None
+
+        deadline_alert = DeadlineAlert(
+            serialized_dag_id=serialized_dag.id,
+            name="Test Skip Locked",
+            reference={"type": "dag", "dag_id": dag_id},
+            interval=300.0,
+            callback_def={"classpath": callback_path, "kwargs": {}},
+        )
+        session.add(deadline_alert)
+        session.flush()
+
+        session.add(
+            Deadline(
+                deadline_time=past_date,
+                callback=AsyncCallback(callback_path),
+                dagrun_id=dagrun_id,
+                dag_id=dag_id,
+                deadline_alert_id=deadline_alert.id,
+            )
+        )
+        session.commit()
+
+        # scoped=False gives an independent session with its own connection; the
+        # default scoped_session would reuse this thread's session and locks held
+        # by "self" do not block "self".
+        with create_session(scoped=False) as competing_session:
+            locked_rows = competing_session.scalars(
+                with_row_locks(
+                    select(Deadline).where(~Deadline.missed),
+                    of=Deadline,
+                    session=competing_session,
+                    skip_locked=True,
+                    key_share=False,
+                )
+            ).all()
+            assert len(locked_rows) == 1
+
+            scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1, executors=[MockExecutor()])
+            self.job_runner._execute()
+
+            mock_handle_miss.assert_not_called()
 
     def test_emit_running_dags_metric(self, dag_maker, monkeypatch):
         """Test that the running_dags metric is emitted correctly."""

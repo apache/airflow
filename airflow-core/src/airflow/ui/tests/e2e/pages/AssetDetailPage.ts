@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { BasePage } from "./BasePage";
 
@@ -30,15 +30,21 @@ export class AssetDetailPage extends BasePage {
   }
 
   public async clickOnAsset(name: string): Promise<void> {
+    const responsePromise = this.page.waitForResponse(
+      (res) => /\/api\/v2\/assets\/\d+(\?|$)/.test(res.url()) && res.ok(),
+      { timeout: 15_000 },
+    );
+
     await this.page.getByRole("link", { exact: true, name }).click();
+    await responsePromise;
+  }
+
+  public getHeading(name: string): Locator {
+    return this.page.getByRole("heading", { name });
   }
 
   public async goto(): Promise<void> {
     await this.navigateTo(AssetDetailPage.url);
-  }
-
-  public async verifyAssetDetails(name: string): Promise<void> {
-    await expect(this.page.getByRole("heading", { name })).toBeVisible();
   }
 
   public async verifyProducingTasks(): Promise<void> {
@@ -64,6 +70,7 @@ export class AssetDetailPage extends BasePage {
     const button = statContainer.getByRole("button").first();
 
     await expect(button).toBeVisible();
+    await expect(button).toBeEnabled();
     await expect(button).toHaveText(/^[1-9]/);
 
     const text = await button.textContent();

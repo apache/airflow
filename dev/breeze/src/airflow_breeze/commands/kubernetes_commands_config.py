@@ -24,6 +24,7 @@ KUBERNETES_CLUSTER_COMMANDS: dict[str, str | list[str]] = {
         "configure-cluster",
         "build-k8s-image",
         "upload-k8s-image",
+        "deploy-cluster",
         "deploy-airflow",
         "dev",
         "delete-cluster",
@@ -113,27 +114,6 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze k8s upload-k8s-image": [
         {
             "name": "Upload image flags",
-            "options": [
-                "--python",
-                "--kubernetes-version",
-            ],
-        },
-        {
-            "name": "Parallel options",
-            "options": [
-                "--run-in-parallel",
-                "--parallelism",
-                "--python-versions",
-                "--kubernetes-versions",
-                "--skip-cleanup",
-                "--debug-resources",
-                "--include-success-outputs",
-            ],
-        },
-    ],
-    "breeze k8s configure-k8s-cluster": [
-        {
-            "name": "Configure cluster flags",
             "options": [
                 "--python",
                 "--kubernetes-version",
@@ -285,5 +265,18 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "K8S shell flags",
             "options": ["--python", "--kubernetes-version", "--executor", "--force-venv-setup"],
         }
+    ],
+    "breeze k8s deploy-cluster": [
+        {
+            "name": "K8S cluster creation flags",
+            "options": [
+                "--python",
+                "--kubernetes-version",
+                "--force-recreate-cluster",
+                "--force-venv-setup",
+            ],
+        },
+        {"name": "Build image flags", "options": ["--rebuild-base-image", "--use-uv", "--skip-image-build"]},
+        {"name": "UI flags", "options": ["--skip-compile-ui-assets"]},
     ],
 }

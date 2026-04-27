@@ -24,7 +24,6 @@ import { BasePage } from "tests/e2e/pages/BasePage";
  * Login Page Object
  */
 export class LoginPage extends BasePage {
-  // Page URLs
   public static get loginUrl(): string {
     return "/auth/login";
   }
@@ -37,11 +36,11 @@ export class LoginPage extends BasePage {
   public constructor(page: Page) {
     super(page);
 
-    this.usernameInput = page.locator('input[name="username"]');
-    this.passwordInput = page.locator('input[name="password"]');
+    this.usernameInput = page.getByRole("textbox", { name: /username/i });
+    this.passwordInput = page.getByLabel(/password/i);
     // Support both SimpleAuthManager and FabAuthManager login buttons
-    this.loginButton = page.locator('button[type="submit"], input[type="submit"]');
-    this.errorMessage = page.locator('span:has-text("Invalid credentials")');
+    this.loginButton = page.getByRole("button", { name: /sign in|log in|submit/i });
+    this.errorMessage = page.getByText("Invalid credentials");
   }
 
   public async expectLoginSuccess(): Promise<void> {
@@ -83,7 +82,10 @@ export class LoginPage extends BasePage {
   public async navigate(): Promise<void> {
     await this.maximizeBrowser();
 
-    await this.navigateTo(LoginPage.loginUrl);
+    await expect(async () => {
+      await this.navigateTo(LoginPage.loginUrl);
+      await expect(this.loginButton).toBeVisible({ timeout: 10_000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async navigateAndLogin(username: string, password: string): Promise<void> {

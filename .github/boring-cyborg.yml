@@ -21,6 +21,9 @@ labelPRBasedOnFilePath:
   provider:airbyte:
     - providers/airbyte/**
 
+  provider:akeyless:
+    - providers/akeyless/**
+
   provider:alibaba:
     - providers/alibaba/**
 
@@ -303,6 +306,9 @@ labelPRBasedOnFilePath:
   provider:vertica:
     - providers/vertica/**
 
+  provider:vespa:
+    - providers/vespa/**
+
   provider:weaviate:
     - providers/weaviate/**
 
@@ -345,17 +351,31 @@ labelPRBasedOnFilePath:
     - .readthedocs.yml
 
   # This should be copy of the "area:dev-tools" above minus contributing docs and some files that should
-  # only make sense in main - it should be updated when we switch maintenance branch
+  # only make sense in main - it should be updated when we switch maintenance branch.
+  # Scoped to PRs targeting `main` only — a PR opened directly against v3-2-test
+  # does not need a backport-to-v3-2-test label.
   backport-to-v3-2-test:
-    - scripts/**/*
-    - dev/**/*
-    - .github/**/*
-    - Dockerfile.ci
-    - yamllint-config.yml
-    - .dockerignore
-    - .hadolint.yaml
-    - .pre-commit-config.yaml
-    - .rat-excludes
+    paths:
+      - scripts/**/*
+      - dev/**/*
+      - .github/**/*
+      - Dockerfile.ci
+      - yamllint-config.yml
+      - .dockerignore
+      - .hadolint.yaml
+      - .pre-commit-config.yaml
+      - .rat-excludes
+    targetBranchFilter:
+      - ^main$
+
+  # Apply to PRs touching airflow-ctl code so the release manager notices when a
+  # fix should land on the airflow-ctl/v0-1-test maintenance branch.
+  # Scoped to PRs targeting `main` only.
+  backport-to-airflow-ctl/v0-1-test:
+    paths:
+      - airflow-ctl/**/*
+    targetBranchFilter:
+      - ^main$
 
   kind:documentation:
     - airflow-core/docs/**/*
@@ -575,7 +595,7 @@ labelerFlags:
 firstPRWelcomeComment: >
   Congratulations on your first Pull Request and welcome to the Apache Airflow community!
   If you have any issues or are unsure about any anything please check our
-  Contributors' Guide (https://github.com/apache/airflow/blob/main/contributing-docs/README.rst)
+  [Contributors' Guide](https://github.com/apache/airflow/blob/main/contributing-docs/README.rst)
 
   Here are some useful points:
 

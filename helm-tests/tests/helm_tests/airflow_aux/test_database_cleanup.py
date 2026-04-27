@@ -72,6 +72,32 @@ class TestDatabaseCleanupDeployment:
 class TestDatabaseCleanup:
     """Tests database cleanup."""
 
+    def test_ttl_seconds_after_finished_default_behavior(self):
+        values = {"databaseCleanup": {"enabled": True}}
+        docs = render_chart(
+            values=values,
+            show_only=["templates/database-cleanup/database-cleanup-cronjob.yaml"],
+        )
+
+        assert "ttlSecondsAfterFinished" not in docs[0]["spec"]["jobTemplate"]["spec"]
+
+    @pytest.mark.parametrize(
+        ("ttl_value", "expected_rendered"),
+        [
+            (300, 300),
+            (0, 0),
+        ],
+    )
+    def test_ttl_seconds_after_finished_rendering(self, ttl_value, expected_rendered):
+        values = {"databaseCleanup": {"enabled": True, "ttlSecondsAfterFinished": ttl_value}}
+        docs = render_chart(
+            values=values,
+            show_only=["templates/database-cleanup/database-cleanup-cronjob.yaml"],
+        )
+
+        actual_ttl = jmespath.search("spec.jobTemplate.spec.ttlSecondsAfterFinished", docs[0])
+        assert actual_ttl == expected_rendered
+
     def test_should_create_cronjob_for_enabled_cleanup(self):
         docs = render_chart(
             values={
@@ -392,6 +418,47 @@ class TestDatabaseCleanup:
             jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].resources", docs[0])
             == resources
         )
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            pytest.param(
+                {
+                    "databaseCleanup": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "cleanup"]}}},
+                    },
+                },
+                id="component",
+            ),
+            pytest.param(
+                {
+                    "databaseCleanup": {"enabled": True},
+                    "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "cleanup"]}}},
+                },
+                id="global-fallback",
+            ),
+            pytest.param(
+                {
+                    "databaseCleanup": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "cleanup"]}}},
+                    },
+                    "containerLifecycleHooks": {"postStart": {"exec": {"command": ["echo", "global"]}}},
+                },
+                id="component-overrides-global",
+            ),
+        ],
+    )
+    def test_should_render_container_lifecycle_hooks(self, values):
+        docs = render_chart(
+            values=values,
+            show_only=["templates/database-cleanup/database-cleanup-cronjob.yaml"],
+        )
+
+        assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].lifecycle", docs[0]) == {
+            "preStop": {"exec": {"command": ["echo", "cleanup"]}}
+        }
 
     def test_should_set_job_history_limits(self):
         docs = render_chart(

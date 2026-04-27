@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1774298523
+source-date-epoch: 1775591754
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.0.1
   - 6.0.0
   - 5.6.0
   - 5.5.1
@@ -115,6 +116,7 @@ hooks:
 
 connection-types:
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_connect.SparkConnectHook
+    hook-name: "Spark Connect"
     connection-type: spark_connect
     ui-field-behaviour:
       hidden-fields:
@@ -131,8 +133,10 @@ connection-types:
             - 'null'
           default: false
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook
+    hook-name: "Spark JDBC"
     connection-type: spark_jdbc
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook
+    hook-name: "Spark SQL"
     connection-type: spark_sql
     ui-field-behaviour:
       hidden-fields:
@@ -150,6 +154,7 @@ connection-types:
             - string
             - 'null'
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook
+    hook-name: "Spark"
     connection-type: spark
     ui-field-behaviour:
       hidden-fields:

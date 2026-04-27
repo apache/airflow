@@ -169,15 +169,22 @@ def get_provider_info():
                         "example": None,
                         "default": "False",
                     },
+                    "ssl_mutual_tls": {
+                        "description": "Whether to require mutual TLS (client certificate authentication).\nWhen True (default), SSL_KEY and SSL_CERT must be set.\nSet to False for one-way TLS (server verification only).\n",
+                        "version_added": None,
+                        "type": "boolean",
+                        "example": None,
+                        "default": "True",
+                    },
                     "ssl_key": {
-                        "description": "Path to the client key.\n",
+                        "description": "Path to the client key. Required when SSL_MUTUAL_TLS is True.\n",
                         "version_added": None,
                         "type": "string",
                         "example": None,
                         "default": "",
                     },
                     "ssl_cert": {
-                        "description": "Path to the client certificate.\n",
+                        "description": "Path to the client certificate. Required when SSL_MUTUAL_TLS is True.\n",
                         "version_added": None,
                         "type": "string",
                         "example": None,
@@ -198,7 +205,7 @@ def get_provider_info():
                         "default": "prefork",
                     },
                     "operation_timeout": {
-                        "description": "The number of seconds to wait before timing out ``send_task_to_executor`` or\n``fetch_celery_task_state`` operations.\n",
+                        "description": "The number of seconds to wait before timing out ``send_workload_to_executor`` or\n``fetch_celery_task_state`` operations.\n",
                         "version_added": None,
                         "type": "float",
                         "example": None,

@@ -128,7 +128,7 @@ export const AssetsList = () => {
 
   const { data, error, isLoading } = useAssetServiceGetAssets({
     limit: pagination.pageSize,
-    namePattern,
+    namePrefixPattern: namePattern,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
   });

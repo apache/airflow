@@ -33,13 +33,18 @@ async def has_connection_access(
     token=CurrentTIToken,
 ) -> bool:
     """Check if the task has access to the connection."""
-    # TODO: Placeholder for actual implementation
-
     log.debug(
         "Checking access for task instance with key '%s' to connection '%s'",
         token.id,
         connection_id,
     )
+
+    # The current version of Airflow does not support true
+    # multi-tenancy yet (this is well-documented at
+    # https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#future-multi-tenancy-isolation),
+    # so for now we always return 'True' here.
+    # When we introduce true multi-tenancy in the future
+    # this would be the place to do add a check.
     return True
 
 
