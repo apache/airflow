@@ -34,34 +34,44 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
 
-// Pass `taskInstance` for single-TI clear (preserves the richer title display,
-// bundle-version comparison, etc.). For clearing every mapped TI of a task at
-// once, pass `allMapped` together with `dagId`, `dagRunId` and `taskId`.
+// Discriminated union: callers pass either `allMapped: true` together with
+// `dagId`/`dagRunId`/`taskId` (clears every mapped TI of the task), or a full
+// `taskInstance` (clears that single TI and reads its display fields). The
+// two variants are mutually exclusive at the type level — no defensive
+// runtime fallback chains needed in the body.
 type Props = {
-  readonly allMapped?: boolean;
-  readonly dagId?: string;
-  readonly dagRunId?: string;
-  readonly mapIndex?: number;
   readonly onClose: () => void;
   readonly open: boolean;
-  readonly taskId?: string;
-  readonly taskInstance?: TaskInstanceResponse;
-};
+} & (
+  | {
+      readonly allMapped: true;
+      readonly dagId: string;
+      readonly dagRunId: string;
+      readonly taskId: string;
+    }
+  | {
+      readonly allMapped?: false;
+      readonly taskInstance: TaskInstanceResponse;
+    }
+);
 
-const ClearTaskInstanceDialog = ({
-  allMapped = false,
-  dagId: dagIdProp,
-  dagRunId: dagRunIdProp,
-  mapIndex: mapIndexProp,
-  onClose: onCloseDialog,
-  open: openDialog,
-  taskId: taskIdProp,
-  taskInstance,
-}: Props) => {
-  const dagId = dagIdProp ?? taskInstance?.dag_id ?? "";
-  const dagRunId = dagRunIdProp ?? taskInstance?.dag_run_id ?? "";
-  const taskId = taskIdProp ?? taskInstance?.task_id ?? "";
-  const mapIndex = allMapped ? undefined : (mapIndexProp ?? taskInstance?.map_index);
+// react/destructuring-assignment expects every prop access via signature
+// destructure, but TypeScript's discriminated-union narrowing needs the union
+// kept whole on the parameter — otherwise the `props.allMapped` discriminator
+// is severed from `props.dagId` / `props.taskInstance`. Disable the rule for
+// the parameter and the prop extraction; everything after uses local
+// variables.
+/* eslint-disable react/destructuring-assignment */
+const ClearTaskInstanceDialog = (props: Props) => {
+  const allMapped = props.allMapped === true;
+  const dagId = props.allMapped ? props.dagId : props.taskInstance.dag_id;
+  const dagRunId = props.allMapped ? props.dagRunId : props.taskInstance.dag_run_id;
+  const taskId = props.allMapped ? props.taskId : props.taskInstance.task_id;
+  const mapIndex: number | undefined = props.allMapped ? undefined : props.taskInstance.map_index;
+  const taskInstance: TaskInstanceResponse | undefined = props.allMapped ? undefined : props.taskInstance;
+  const onCloseDialog = props.onClose;
+  const openDialog = props.open;
+  /* eslint-enable react/destructuring-assignment */
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
 
@@ -85,10 +95,6 @@ const ClearTaskInstanceDialog = ({
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
     dagId,
     dagRunId,
-    // For allMapped the per-call mutate below omits map_index so the backend
-    // patches every mapped TI at once; -1 here is only used for query-key
-    // invalidation.
-    mapIndex: mapIndex ?? -1,
     taskId,
   });
 
@@ -261,8 +267,6 @@ const ClearTaskInstanceDialog = ({
               },
             });
             if (note !== (taskInstance?.note ?? null)) {
-              // Omit map_index when allMapped so the backend patches the note
-              // on every mapped TI at once.
               mutatePatchTaskInstance({
                 dagId,
                 dagRunId,

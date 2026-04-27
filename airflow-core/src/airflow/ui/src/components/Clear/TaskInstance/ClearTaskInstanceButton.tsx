@@ -76,7 +76,9 @@ const ClearTaskInstanceButton = ({
         closeDelay={100}
         content={
           allMapped
-            ? translate("dags:runAndTaskActions.clearAllMapped.buttonTooltip")
+            ? isHotkeyEnabled
+              ? translate("dags:runAndTaskActions.clearAllMapped.buttonTooltip")
+              : translate("dags:runAndTaskActions.clearAllMapped.button")
             : isHotkeyEnabled
               ? translate("dags:runAndTaskActions.clear.buttonTooltip")
               : translate("dags:runAndTaskActions.clear.button", { type: translate("taskInstance_one") })

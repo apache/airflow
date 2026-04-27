@@ -355,12 +355,7 @@ export const TaskInstances = () => {
 
   return (
     <>
-      <Flex alignItems="center" justifyContent="space-between">
-        <TaskInstancesFilter />
-        {dagId !== undefined && runId !== undefined && taskId !== undefined ? (
-          <ClearTaskInstanceButton allMapped dagId={dagId} dagRunId={runId} taskId={taskId} />
-        ) : undefined}
-      </Flex>
+      <TaskInstancesFilter />
       <DataTable
         columns={columns}
         data={data?.task_instances ?? []}

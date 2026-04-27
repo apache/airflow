@@ -36,7 +36,7 @@
     },
     "clearAllMapped": {
       "button": "Clear All Mapped Tasks",
-      "buttonTooltip": "Clear all mapped task instances",
+      "buttonTooltip": "Press shift+c to clear all mapped task instances",
       "title": "Clear All Mapped Task Instances"
     },
     "confirmationDialog": {
