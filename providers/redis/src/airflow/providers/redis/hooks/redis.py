@@ -22,15 +22,13 @@ from __future__ import annotations
 import inspect
 from typing import Any
 
+import redis
 from redis import Redis
 
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.redis import __version__ as provider_version
 
-try:
-    from redis import DriverInfo
-except ImportError:
-    DriverInfo = None
+DriverInfo = getattr(redis, "DriverInfo", None)
 
 DEFAULT_SSL_CERT_REQS = "required"
 ALLOWED_SSL_CERT_REQS = [DEFAULT_SSL_CERT_REQS, "optional", "none"]
