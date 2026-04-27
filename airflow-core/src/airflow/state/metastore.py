@@ -44,67 +44,67 @@ class MetastoreStateBackend(BaseStateBackend):
     def get(self, scope: StateScope, key: str, *, session: Session = NEW_SESSION) -> str | None:
         match scope:
             case TaskScope():
-                return self._get_task(scope, key, session=session)
+                return self._get_task_state(scope, key, session=session)
             case AssetScope():
-                return self._get_asset(scope, key, session=session)
+                return self._get_asset_state(scope, key, session=session)
 
     @provide_session
     def set(self, scope: StateScope, key: str, value: str, *, session: Session = NEW_SESSION) -> None:
         match scope:
             case TaskScope():
-                self._set_task(scope, key, value, session=session)
+                self._set_task_state(scope, key, value, session=session)
             case AssetScope():
-                self._set_asset(scope, key, value, session=session)
+                self._set_asset_state(scope, key, value, session=session)
 
     @provide_session
     def delete(self, scope: StateScope, key: str, *, session: Session = NEW_SESSION) -> None:
         match scope:
             case TaskScope():
-                self._delete_task(scope, key, session=session)
+                self._delete_task_state(scope, key, session=session)
             case AssetScope():
-                self._delete_asset(scope, key, session=session)
+                self._delete_asset_state(scope, key, session=session)
 
     @provide_session
     def clear(self, scope: StateScope, *, session: Session = NEW_SESSION) -> None:
         match scope:
             case TaskScope():
-                self._clear_task(scope, session=session)
+                self._clear_task_state(scope, session=session)
             case AssetScope():
-                self._clear_asset(scope, session=session)
+                self._clear_asset_state(scope, session=session)
 
     async def aget(self, scope: StateScope, key: str) -> str | None:
         async with create_session_async() as session:
             match scope:
                 case TaskScope():
-                    return await self._aget_task(scope, key, session=session)
+                    return await self._aget_task_state(scope, key, session=session)
                 case AssetScope():
-                    return await self._aget_asset(scope, key, session=session)
+                    return await self._aget_asset_state(scope, key, session=session)
 
     async def aset(self, scope: StateScope, key: str, value: str) -> None:
         async with create_session_async() as session:
             match scope:
                 case TaskScope():
-                    await self._aset_task(scope, key, value, session=session)
+                    await self._aset_task_state(scope, key, value, session=session)
                 case AssetScope():
-                    await self._aset_asset(scope, key, value, session=session)
+                    await self._aset_asset_state(scope, key, value, session=session)
 
     async def adelete(self, scope: StateScope, key: str) -> None:
         async with create_session_async() as session:
             match scope:
                 case TaskScope():
-                    await self._adelete_task(scope, key, session=session)
+                    await self._adelete_task_state(scope, key, session=session)
                 case AssetScope():
-                    await self._adelete_asset(scope, key, session=session)
+                    await self._adelete_asset_state(scope, key, session=session)
 
     async def aclear(self, scope: StateScope) -> None:
         async with create_session_async() as session:
             match scope:
                 case TaskScope():
-                    await self._aclear_task(scope, session=session)
+                    await self._aclear_task_state(scope, session=session)
                 case AssetScope():
-                    await self._aclear_asset(scope, session=session)
+                    await self._aclear_asset_state(scope, session=session)
 
-    def _get_task(self, scope: TaskScope, key: str, *, session: Session) -> str | None:
+    def _get_task_state(self, scope: TaskScope, key: str, *, session: Session) -> str | None:
         row = session.scalar(
             select(TaskStateModel).where(
                 TaskStateModel.dag_id == scope.dag_id,
@@ -116,7 +116,7 @@ class MetastoreStateBackend(BaseStateBackend):
         )
         return row.value if row is not None else None
 
-    def _set_task(self, scope: TaskScope, key: str, value: str, *, session: Session) -> None:
+    def _set_task_state(self, scope: TaskScope, key: str, value: str, *, session: Session) -> None:
         dag_run_id = session.scalar(
             select(DagRun.id).where(
                 DagRun.dag_id == scope.dag_id,
@@ -176,7 +176,7 @@ class MetastoreStateBackend(BaseStateBackend):
             )
         session.execute(stmt)
 
-    def _delete_task(self, scope: TaskScope, key: str, *, session: Session) -> None:
+    def _delete_task_state(self, scope: TaskScope, key: str, *, session: Session) -> None:
         session.execute(
             delete(TaskStateModel).where(
                 TaskStateModel.dag_id == scope.dag_id,
@@ -187,7 +187,7 @@ class MetastoreStateBackend(BaseStateBackend):
             )
         )
 
-    def _clear_task(self, scope: TaskScope, *, session: Session) -> None:
+    def _clear_task_state(self, scope: TaskScope, *, session: Session) -> None:
         session.execute(
             delete(TaskStateModel).where(
                 TaskStateModel.dag_id == scope.dag_id,
@@ -197,7 +197,7 @@ class MetastoreStateBackend(BaseStateBackend):
             )
         )
 
-    def _get_asset(self, scope: AssetScope, key: str, *, session: Session) -> str | None:
+    def _get_asset_state(self, scope: AssetScope, key: str, *, session: Session) -> str | None:
         row = session.scalar(
             select(AssetStateModel).where(
                 AssetStateModel.asset_id == scope.asset_id,
@@ -206,7 +206,7 @@ class MetastoreStateBackend(BaseStateBackend):
         )
         return row.value if row is not None else None
 
-    def _set_asset(self, scope: AssetScope, key: str, value: str, *, session: Session) -> None:
+    def _set_asset_state(self, scope: AssetScope, key: str, value: str, *, session: Session) -> None:
         now = timezone.utcnow()
         dialect = get_dialect_name(session)
         stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
@@ -239,7 +239,7 @@ class MetastoreStateBackend(BaseStateBackend):
             )
         session.execute(stmt)
 
-    def _delete_asset(self, scope: AssetScope, key: str, *, session: Session) -> None:
+    def _delete_asset_state(self, scope: AssetScope, key: str, *, session: Session) -> None:
         session.execute(
             delete(AssetStateModel).where(
                 AssetStateModel.asset_id == scope.asset_id,
@@ -247,14 +247,14 @@ class MetastoreStateBackend(BaseStateBackend):
             )
         )
 
-    def _clear_asset(self, scope: AssetScope, *, session: Session) -> None:
+    def _clear_asset_state(self, scope: AssetScope, *, session: Session) -> None:
         session.execute(
             delete(AssetStateModel).where(
                 AssetStateModel.asset_id == scope.asset_id,
             )
         )
 
-    async def _aget_task(self, scope: TaskScope, key: str, *, session: AsyncSession) -> str | None:
+    async def _aget_task_state(self, scope: TaskScope, key: str, *, session: AsyncSession) -> str | None:
         row = await session.scalar(
             select(TaskStateModel).where(
                 TaskStateModel.dag_id == scope.dag_id,
@@ -266,7 +266,9 @@ class MetastoreStateBackend(BaseStateBackend):
         )
         return row.value if row is not None else None
 
-    async def _aset_task(self, scope: TaskScope, key: str, value: str, *, session: AsyncSession) -> None:
+    async def _aset_task_state(
+        self, scope: TaskScope, key: str, value: str, *, session: AsyncSession
+    ) -> None:
         dag_run_id = await session.scalar(
             select(DagRun.id).where(
                 DagRun.dag_id == scope.dag_id,
@@ -327,7 +329,7 @@ class MetastoreStateBackend(BaseStateBackend):
             )
         await session.execute(stmt)
 
-    async def _adelete_task(self, scope: TaskScope, key: str, *, session: AsyncSession) -> None:
+    async def _adelete_task_state(self, scope: TaskScope, key: str, *, session: AsyncSession) -> None:
         await session.execute(
             delete(TaskStateModel).where(
                 TaskStateModel.dag_id == scope.dag_id,
@@ -338,7 +340,7 @@ class MetastoreStateBackend(BaseStateBackend):
             )
         )
 
-    async def _aclear_task(self, scope: TaskScope, *, session: AsyncSession) -> None:
+    async def _aclear_task_state(self, scope: TaskScope, *, session: AsyncSession) -> None:
         await session.execute(
             delete(TaskStateModel).where(
                 TaskStateModel.dag_id == scope.dag_id,
@@ -348,7 +350,7 @@ class MetastoreStateBackend(BaseStateBackend):
             )
         )
 
-    async def _aget_asset(self, scope: AssetScope, key: str, *, session: AsyncSession) -> str | None:
+    async def _aget_asset_state(self, scope: AssetScope, key: str, *, session: AsyncSession) -> str | None:
         row = await session.scalar(
             select(AssetStateModel).where(
                 AssetStateModel.asset_id == scope.asset_id,
@@ -357,7 +359,9 @@ class MetastoreStateBackend(BaseStateBackend):
         )
         return row.value if row is not None else None
 
-    async def _aset_asset(self, scope: AssetScope, key: str, value: str, *, session: AsyncSession) -> None:
+    async def _aset_asset_state(
+        self, scope: AssetScope, key: str, value: str, *, session: AsyncSession
+    ) -> None:
         now = timezone.utcnow()
         stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
         # get_dialect_name expects a sync Session; sync_session is the underlying Session the async wrapper delegates to
@@ -391,7 +395,7 @@ class MetastoreStateBackend(BaseStateBackend):
             )
         await session.execute(stmt)
 
-    async def _adelete_asset(self, scope: AssetScope, key: str, *, session: AsyncSession) -> None:
+    async def _adelete_asset_state(self, scope: AssetScope, key: str, *, session: AsyncSession) -> None:
         await session.execute(
             delete(AssetStateModel).where(
                 AssetStateModel.asset_id == scope.asset_id,
@@ -399,7 +403,7 @@ class MetastoreStateBackend(BaseStateBackend):
             )
         )
 
-    async def _aclear_asset(self, scope: AssetScope, *, session: AsyncSession) -> None:
+    async def _aclear_asset_state(self, scope: AssetScope, *, session: AsyncSession) -> None:
         await session.execute(
             delete(AssetStateModel).where(
                 AssetStateModel.asset_id == scope.asset_id,
