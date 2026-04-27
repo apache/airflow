@@ -247,6 +247,20 @@ Inlet asset events can be read with the ``inlet_events`` accessor in the executi
 
 Each value in the ``inlet_events`` mapping is a sequence-like object that orders past events of a given asset by ``timestamp``, earliest to latest. It supports most of Python's list interface, so you can use ``[-1]`` to access the last event, ``[-2:]`` for the last two, etc. The accessor is lazy and only hits the database when you access items inside it.
 
+The accessor also supports chaining methods to filter events before fetching them. For example, to retrieve only events matching a specific partition key pattern (using database-native regex):
+
+.. code-block:: python
+
+    @task(inlets=[regional_sales])
+    def process_us_sales(*, inlet_events):
+        us_events = inlet_events[regional_sales].partition_key_pattern(r"^us\|")
+        for event in us_events:
+            print(event.extra, event.partition_key)
+
+For an exact partition key match (no regex), use ``.partition_key(value)`` instead. The two are mutually exclusive; setting one clears the other.
+
+Other chaining methods include ``.after(timestamp)``, ``.before(timestamp)``, ``.ascending()``, and ``.limit(n)``.
+
 Dependency between ``@asset``, ``@task``, and classic operators
 ---------------------------------------------------------------
 
@@ -774,6 +788,36 @@ When a runtime run emits exactly one partition key, the producing
 ``dag_run.partition_key`` is back-filled to that key. Downstream Dags consume
 these events the same way as timetable-produced partitions, through
 ``PartitionedAssetTimetable``.
+
+You can also query asset events filtered by partition key using the REST API.
+Two parameters are available:
+
+- ``partition_key`` for **exact match** — uses the B-tree index for fast lookups:
+
+.. code-block:: bash
+
+    curl -G "http://<airflow-host>/api/v2/assets/events" \
+      --data-urlencode "partition_key=us|2026-03-10"
+
+- ``partition_key_pattern`` for **regex filtering** — uses database-native regex
+  (PostgreSQL ``~`` operator, MySQL ``REGEXP``, SQLite ``re.match``):
+
+.. code-block:: bash
+
+    curl -G "http://<airflow-host>/api/v2/assets/events" \
+      --data-urlencode "partition_key_pattern=^us"
+
+These parameters are mutually exclusive; providing both returns a 400 error.
+
+The same filters are available in the ``InletEventsAccessor``:
+
+.. code-block:: python
+
+    # Exact match
+    events = inlet_events[Asset("my_asset")].partition_key("us|2026-03-10").limit(1)
+
+    # Regex pattern
+    events = inlet_events[Asset("my_asset")].partition_key_pattern(r"^us\|2026-03-").limit(10)
 
 For complete runnable examples, see
 ``airflow-core/src/airflow/example_dags/example_asset_partition.py``.

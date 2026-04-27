@@ -860,16 +860,24 @@ class AssetEventOperations:
         before: datetime | None = None,
         ascending: bool = True,
         limit: int | None = None,
+        partition_key: str | None = None,
+        partition_key_pattern: str | None = None,
     ) -> AssetEventsResponse:
         """Get Asset event from the API server."""
+        if partition_key is not None and partition_key_pattern is not None:
+            raise ValueError("partition_key and partition_key_pattern are mutually exclusive")
         common_params: dict[str, Any] = {}
         if after:
             common_params["after"] = after.isoformat()
         if before:
             common_params["before"] = before.isoformat()
         common_params["ascending"] = ascending
-        if limit:
+        if limit is not None:
             common_params["limit"] = limit
+        if partition_key is not None:
+            common_params["partition_key"] = partition_key
+        if partition_key_pattern is not None:
+            common_params["partition_key_pattern"] = partition_key_pattern
         if name or uri:
             resp = self.client.get(
                 "asset-events/by-asset", params={"name": name, "uri": uri, **common_params}

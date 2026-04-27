@@ -1078,6 +1078,155 @@ class TestGetAssetEvents(TestAssets):
         }
 
 
+class TestGetAssetEventsPartitionKeyRegex(TestAssets):
+    """Tests for partition_key_pattern regex filter on GET /assets/events.
+
+    Patterns are written to work consistently across PostgreSQL (~),
+    MySQL (REGEXP), and SQLite (re.match), including both anchored and
+    unanchored expressions where appropriate.
+    """
+
+    @provide_session
+    def _create_partition_key_test_data(self, session=None):
+        _create_assets(session=session)
+        events = [
+            AssetEvent(
+                asset_id=1,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r1",
+                partition_key="2024-01-01",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=2,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r2",
+                partition_key="2024-01-02",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r3",
+                partition_key="us|2024-01-01",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=2,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r4",
+                partition_key="eu|2024-01-01",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r5",
+                partition_key="apac|2024-03-20",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r6",
+                partition_key=None,
+                timestamp=DEFAULT_DATE,
+            ),
+        ]
+        session.add_all(events)
+        session.commit()
+
+    @pytest.mark.parametrize(
+        ("partition_key_pattern", "expected_count"),
+        [
+            ("^2024-01-01$", 1),
+            ("^2024-01-", 2),
+            ("^us\\|", 1),
+            (".*\\|2024-01-01$", 2),
+            ("^(us|eu)\\|", 2),
+            ("^nonexistent", 0),
+        ],
+    )
+    @provide_session
+    def test_partition_key_pattern_filtering(
+        self, test_client, partition_key_pattern, expected_count, session
+    ):
+        self._create_partition_key_test_data()
+        response = test_client.get("/assets/events", params={"partition_key_pattern": partition_key_pattern})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+    @pytest.mark.parametrize(
+        ("params", "expected_count"),
+        [
+            ({"partition_key_pattern": "^us\\|", "asset_id": "1"}, 1),
+            ({"partition_key_pattern": "^us\\|", "asset_id": "2"}, 0),
+            ({"partition_key_pattern": ".*\\|2024-01-01$", "source_dag_id": "d"}, 2),
+            ({"partition_key_pattern": ".*\\|2024-01-01$", "source_dag_id": "other"}, 0),
+        ],
+    )
+    @provide_session
+    def test_partition_key_pattern_combined_filters(self, test_client, params, expected_count, session):
+        self._create_partition_key_test_data()
+        response = test_client.get("/assets/events", params=params)
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+    @provide_session
+    def test_partition_key_pattern_invalid_regex_returns_400(self, test_client, session):
+        response = test_client.get("/assets/events", params={"partition_key_pattern": "[invalid(regex"})
+        assert response.status_code == 400
+        assert "Invalid regular expression" in response.json()["detail"]
+
+    @provide_session
+    def test_partition_key_exact_match_via_regex(self, test_client, session):
+        self._create_partition_key_test_data()
+        response = test_client.get("/assets/events", params={"partition_key_pattern": "^2024-01-01$"})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+
+    @provide_session
+    def test_partition_key_exact_match(self, test_client, session):
+        self._create_partition_key_test_data()
+        response = test_client.get("/assets/events", params={"partition_key": "2024-01-01"})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+
+    @provide_session
+    def test_partition_key_exact_match_composite(self, test_client, session):
+        self._create_partition_key_test_data()
+        response = test_client.get("/assets/events", params={"partition_key": "us|2024-01-01"})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+
+    @provide_session
+    def test_partition_key_exact_match_no_match(self, test_client, session):
+        self._create_partition_key_test_data()
+        response = test_client.get("/assets/events", params={"partition_key": "nonexistent"})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 0
+
+    @provide_session
+    def test_partition_key_and_pattern_mutual_exclusion(self, test_client, session):
+        response = test_client.get(
+            "/assets/events",
+            params={"partition_key": "2024-01-01", "partition_key_pattern": "^2024-"},
+        )
+        assert response.status_code == 400
+
+
 class TestGetAssetEndpoint(TestAssets):
     @provide_session
     def test_should_respond_200(self, test_client, *, session):
