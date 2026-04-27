@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 from airflow.api_fastapi.core_api.datamodels.common import BulkActionResponse, BulkBody
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Connection
 from airflow.models.connection_test import ConnectionTestRequest, ConnectionTestState
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
@@ -1309,7 +1310,24 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
 
         response = test_client.post("/connections/test-async", json=self.TEST_REQUEST_BODY)
         assert response.status_code == 409
-        assert "async test is running" in response.json()["detail"]
+        assert response.json()["detail"]["reason"] == "Unique constraint violation"
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_post_rejects_unknown_executor_with_422(self, test_client, session):
+        """POST returns 422 when the requested executor is not configured."""
+        body = {**self.TEST_REQUEST_BODY, "executor": "no_such_executor"}
+        response = test_client.post("/connections/test-async", json=body)
+        assert response.status_code == 422
+        assert "no_such_executor" in response.text
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_post_accepts_configured_executor(self, test_client, session):
+        """POST accepts an executor name that matches a configured executor."""
+        configured = ExecutorLoader.get_executor_names(validate_teams=False)
+        executor_name = configured[0].alias or configured[0].module_path
+        body = {**self.TEST_REQUEST_BODY, "executor": executor_name}
+        response = test_client.post("/connections/test-async", json=body)
+        assert response.status_code == 202
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_get_status_returns_pending(self, test_client, session):
@@ -1350,12 +1368,11 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         assert response.status_code == 404
 
 
-class TestBlockEditDeleteDuringActiveTest(TestConnectionEndpoint):
-    """Tests that edit/delete is blocked while an async test is running."""
+class TestEditDeleteWithActiveAsyncTest(TestConnectionEndpoint):
+    """PATCH/DELETE on a connection are not blocked by an in-flight async test."""
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_patch_blocked_during_active_test(self, test_client, session):
-        """PATCH /{connection_id} returns 409 when an active test exists."""
+    def test_patch_succeeds_with_active_test(self, test_client, session):
         self.create_connection()
         test_client.post(
             "/connections/test-async",
@@ -1374,12 +1391,10 @@ class TestBlockEditDeleteDuringActiveTest(TestConnectionEndpoint):
                 "host": "updated-host.example.com",
             },
         )
-        assert response.status_code == 409
-        assert "async test is running" in response.json()["detail"]
+        assert response.status_code == 200
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_delete_blocked_during_active_test(self, test_client, session):
-        """DELETE /{connection_id} returns 409 when an active test exists."""
+    def test_delete_succeeds_with_active_test(self, test_client, session):
         self.create_connection()
         test_client.post(
             "/connections/test-async",
@@ -1391,8 +1406,7 @@ class TestBlockEditDeleteDuringActiveTest(TestConnectionEndpoint):
         )
 
         response = test_client.delete(f"/connections/{TEST_CONN_ID}")
-        assert response.status_code == 409
-        assert "async test is running" in response.json()["detail"]
+        assert response.status_code == 204
 
 
 class TestCreateDefaultConnections(TestConnectionEndpoint):

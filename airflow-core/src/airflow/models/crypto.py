@@ -21,7 +21,7 @@ import logging
 from functools import cache
 from typing import Protocol
 
-from sqlalchemy import Text
+from sqlalchemy import Boolean, Text
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, synonym
 
 from airflow.configuration import conf
@@ -97,26 +97,19 @@ class _RealFernet:
 
 
 class FernetFieldsMixin:
-    """
-    Mixin providing Fernet-encrypted ``password`` and ``extra`` fields.
-
-    Subclasses get ``_password`` / ``_extra`` mapped columns and transparent
-    encrypt-on-write / decrypt-on-read via SQLAlchemy synonyms.
-
-    Models that need additional logic (e.g. the ``Connection`` model's
-    ``is_encrypted`` flag) can override ``get_password``, ``set_password``,
-    ``get_extra``, and ``set_extra``.
-    """
+    """Mixin providing Fernet-encrypted ``password`` and ``extra`` fields."""
 
     _password: Mapped[str | None] = mapped_column("password", Text(), nullable=True)
     _extra: Mapped[str | None] = mapped_column("extra", Text(), nullable=True)
+    is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False, nullable=False)
+    is_extra_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False, nullable=False)
 
     def get_password(self) -> str | None:
         """Decrypt and return password."""
-        if self._password:
+        if self._password and self.is_encrypted:
             fernet = get_fernet()
             if not fernet.is_encrypted:
-                return self._password
+                raise ValueError("Can't decrypt encrypted password, FERNET_KEY configuration is missing")
             return fernet.decrypt(bytes(self._password, "utf-8")).decode()
         return self._password
 
@@ -125,8 +118,7 @@ class FernetFieldsMixin:
         if value:
             fernet = get_fernet()
             self._password = fernet.encrypt(bytes(value, "utf-8")).decode()
-        else:
-            self._password = value
+            self.is_encrypted = fernet.is_encrypted
 
     @declared_attr
     def password(cls):
@@ -135,10 +127,10 @@ class FernetFieldsMixin:
 
     def get_extra(self) -> str | None:
         """Decrypt and return extra data."""
-        if self._extra:
+        if self._extra and self.is_extra_encrypted:
             fernet = get_fernet()
             if not fernet.is_encrypted:
-                return self._extra
+                raise ValueError("Can't decrypt `extra` params, FERNET_KEY configuration is missing")
             return fernet.decrypt(bytes(self._extra, "utf-8")).decode()
         return self._extra
 
@@ -147,8 +139,10 @@ class FernetFieldsMixin:
         if value:
             fernet = get_fernet()
             self._extra = fernet.encrypt(bytes(value, "utf-8")).decode()
+            self.is_extra_encrypted = fernet.is_encrypted
         else:
             self._extra = value
+            self.is_extra_encrypted = False
 
     @declared_attr
     def extra(cls):
