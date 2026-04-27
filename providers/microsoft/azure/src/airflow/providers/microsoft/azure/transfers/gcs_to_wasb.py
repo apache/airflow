@@ -125,7 +125,7 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
         try:
             from airflow.providers.google import __version__ as _GOOGLE_PROVIDER_VERSION
 
-            if Version(Version(_GOOGLE_PROVIDER_VERSION).base_version) >= Version("10.3.0"):
+            if Version(_GOOGLE_PROVIDER_VERSION) >= Version("10.3.0"):
                 self.__is_match_glob_supported = True
             else:
                 self.__is_match_glob_supported = False
