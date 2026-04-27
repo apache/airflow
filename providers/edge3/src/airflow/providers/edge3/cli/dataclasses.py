@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from dataclasses import asdict, dataclass
 from multiprocessing import Process
 from pathlib import Path
@@ -72,7 +73,9 @@ class Job:
     """Holds all information for a task/job to be executed as bundle."""
 
     edge_job: EdgeJobFetched
-    process: Process
+    # Process can be either a subprocess.Popen (for the spawn path) or a
+    # multiprocessing.Process (for the fork path)
+    process: subprocess.Popen | Process
     logfile: Path
     logsize: int = 0
     """Last size of log file, point of last chunk push."""
@@ -80,9 +83,13 @@ class Job:
     @property
     def is_running(self) -> bool:
         """Check if the job is still running."""
+        if isinstance(self.process, subprocess.Popen):
+            return self.process.poll() is None
         return self.process.is_alive()
 
     @property
     def is_success(self) -> bool:
         """Check if the job was successful."""
+        if isinstance(self.process, subprocess.Popen):
+            return self.process.returncode == 0
         return self.process.exitcode == 0
