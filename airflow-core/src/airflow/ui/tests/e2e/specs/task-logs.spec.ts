@@ -16,56 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from "@playwright/test";
-import { AUTH_FILE, testConfig } from "playwright.config";
-
-import { TaskInstancePage } from "../pages/TaskInstancePage";
+import { testConfig } from "playwright.config";
+import { expect, test } from "tests/e2e/fixtures";
 
 test.describe("Verify task logs display", () => {
   test.describe.configure({ mode: "serial" });
 
-  const testDagId = testConfig.testDag.id;
   const testTaskId = testConfig.testTask.id;
 
-  let dagRunId: string;
-
-  test.beforeAll(async ({ browser }) => {
-    test.setTimeout(120_000);
-
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
-    const taskInstancePage = new TaskInstancePage(page);
-
-    await taskInstancePage.triggerDagAndWaitForSuccess(testDagId);
-
-    const url = page.url();
-    const match = /runs\/([^/]+)/.exec(url);
-
-    dagRunId = match?.[1] ?? "";
-
-    if (!dagRunId) {
-      throw new Error(`Could not extract dagRunId from URL: ${url}`);
-    }
-
-    await context.close();
+  test.beforeEach(async ({ executedDagRun, page, taskInstancePage }) => {
+    // Clear localStorage — "log settings" test persists toggles that affect subsequent tests.
+    // Swallow SecurityError on about:blank (WebKit).
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    await page.evaluate(() => localStorage.clear()).catch(() => {});
+    await taskInstancePage.navigateToTaskInstance(executedDagRun.dagId, executedDagRun.runId, testTaskId);
   });
 
-  test.beforeEach(async ({ page }) => {
-    const taskInstancePage = new TaskInstancePage(page);
-
-    await taskInstancePage.navigateToTaskInstance(testDagId, dagRunId, testTaskId);
-  });
-
-  test("Verify log content is displayed", async ({ page }) => {
+  test("Verify log content is displayed", async ({ executedDagRun: _run, page }) => {
     const virtualizedList = page.getByTestId("virtualized-list");
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
+
     const logItems = page.getByTestId(/^virtualized-item-/);
 
-    await expect(logItems.first()).toBeVisible({ timeout: 10_000 });
+    await expect(logItems.first()).toBeVisible({ timeout: 30_000 });
   });
 
-  test("Verify log levels are visible", async ({ page }) => {
+  test("Verify log levels are visible", async ({ executedDagRun: _run, page }) => {
     const virtualizedList = page.getByTestId("virtualized-list");
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
@@ -73,39 +50,43 @@ test.describe("Verify task logs display", () => {
     await expect(virtualizedList).toContainText(/INFO|WARNING|ERROR|CRITICAL/);
   });
 
-  test("Verify log timestamp formatting", async ({ page }) => {
+  test("Verify log timestamp formatting", async ({ executedDagRun: _run, page }) => {
     const virtualizedList = page.getByTestId("virtualized-list");
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
 
-    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/);
+    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/, {
+      timeout: 30_000,
+    });
   });
 
-  test("Verify log settings", async ({ page }) => {
+  test("Verify log settings", async ({ executedDagRun: _run, page }) => {
     const virtualizedList = page.getByTestId("virtualized-list");
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
 
-    // Verify timestamps are visible initially
-    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/);
+    const logItems = page.getByTestId(/^virtualized-item-/);
+
+    await expect(logItems.first()).toBeVisible({ timeout: 30_000 });
+
+    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/, {
+      timeout: 30_000,
+    });
 
     await page.getByTestId("log-settings-button").click();
     await page.getByTestId("log-settings-timestamp").click();
     await expect(virtualizedList).not.toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/);
 
-    // Test Show Source
     await page.getByTestId("log-settings-button").click();
     await page.getByTestId("log-settings-source").click();
     await expect(virtualizedList).toContainText(/source/);
 
-    // Test Unwrap
     await page.getByTestId("log-settings-button").click();
     const wrapMenuItem = page.getByTestId("log-settings-wrap");
 
     await expect(wrapMenuItem).toContainText(/Wrap|Unwrap/);
     await wrapMenuItem.click();
 
-    // Test Expand
     await page.getByTestId("log-settings-button").click();
     const expandMenuItem = page.getByTestId("log-settings-expand");
 
@@ -113,14 +94,19 @@ test.describe("Verify task logs display", () => {
     await expandMenuItem.click();
   });
 
-  test("Verify logs are getting downloaded fine", async ({ page }) => {
+  test("Verify logs are getting downloaded fine", async ({ executedDagRun: _run, page }) => {
     const virtualizedList = page.getByTestId("virtualized-list");
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
 
-    const downloadPromise = page.waitForEvent("download", { timeout: 10_000 });
+    const downloadButton = page.getByTestId("download-logs-button");
 
-    await page.getByTestId("download-logs-button").click();
+    await expect(downloadButton).toBeVisible({ timeout: 10_000 });
+    await expect(downloadButton).toBeEnabled({ timeout: 10_000 });
+
+    const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
+
+    await downloadButton.click();
     const download = await downloadPromise;
 
     expect(download.suggestedFilename()).toMatch(/^logs_.*\.txt$/);

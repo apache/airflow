@@ -67,25 +67,23 @@ Why ``ExecutionAPIRoute`` is needed:
 # Disable future annotations in this file to work around https://github.com/fastapi/fastapi/issues/13056
 # ruff: noqa: I002
 
-from typing import Any, Literal, get_args
+from typing import Any, get_args
 
 import structlog
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.security import HTTPBearer, SecurityScopes
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.tokens import JWTValidator
-from airflow.api_fastapi.common.db.common import AsyncSessionDep
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
 from airflow.api_fastapi.execution_api.deps import DepContainer
 
 log = structlog.get_logger(logger_name=__name__)
 
-TokenType = Literal["execution", "workload"]
-
-VALID_TOKEN_TYPES: frozenset[str] = frozenset(get_args(TokenType))
+VALID_TOKEN_TYPES: frozenset[str] = frozenset(get_args(TokenScope))
 
 _REQUEST_SCOPE_TOKEN_KEY = "ti_token"
 
@@ -131,7 +129,13 @@ class JWTBearer(HTTPBearer):
 
         claims.setdefault("scope", "execution")
 
-        token = TIToken(id=claims["sub"], claims=claims)
+        try:
+            claim_model = TIClaims(**claims)
+        except ValidationError as err:
+            log.warning("JWT claims did not match task identity token schema", exc_info=True)
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Invalid auth token: {err}")
+
+        token = TIToken(id=claims["sub"], claims=claim_model)
         request.scope[_REQUEST_SCOPE_TOKEN_KEY] = token
         return token
 
@@ -153,7 +157,7 @@ async def require_auth(
     Token type enforcement reads ``route.allowed_token_types`` (precomputed
     by ``ExecutionAPIRoute``) or defaults to ``{"execution"}``.
     """
-    token_scope = token.claims.get("scope", "execution")
+    token_scope = token.claims.scope
 
     if token_scope not in VALID_TOKEN_TYPES:
         log.warning("Invalid token scope in claims", token_scope=token_scope, path=request.url.path)
@@ -222,22 +226,44 @@ class ExecutionAPIRoute(APIRoute):
         self.allowed_token_types = frozenset(token_scopes) if token_scopes else frozenset({"execution"})
 
 
-async def get_team_name_dep(session: AsyncSessionDep, token=CurrentTIToken) -> str | None:
+async def get_team_name_dep(token=CurrentTIToken) -> str | None:
     """Return the team name associated to the task (if any)."""
     from airflow.configuration import conf
-    from airflow.models import DagModel, TaskInstance
-    from airflow.models.dagbundle import DagBundleModel
-    from airflow.models.team import Team
 
     if not conf.getboolean("core", "multi_team"):
         return None
 
-    stmt = (
+    from airflow.utils.session import create_session_async
+
+    async with create_session_async() as session:
+        return await session.scalar(_team_name_for_ti_stmt(token.id))
+
+
+def get_team_name_for_ti(ti_id, session) -> str | None:
+    """
+    Return the team name associated to the task (if any), using a sync session.
+
+    Sync counterpart to :func:`get_team_name_dep` for callers that already hold a
+    SQLAlchemy session (e.g., the ``ti_run`` endpoint). No-op when multi-team is disabled.
+    """
+    from airflow.configuration import conf
+
+    if not conf.getboolean("core", "multi_team"):
+        return None
+    return session.scalar(_team_name_for_ti_stmt(ti_id))
+
+
+def _team_name_for_ti_stmt(ti_id):
+    """Build the select statement resolving ``TaskInstance.id -> Team.name``."""
+    from airflow.models import DagModel, TaskInstance
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.models.team import Team
+
+    return (
         select(Team.name)
         .select_from(TaskInstance)
         .join(DagModel, DagModel.dag_id == TaskInstance.dag_id)
         .join(DagBundleModel, DagBundleModel.name == DagModel.bundle_name)
         .join(DagBundleModel.teams)
-        .where(TaskInstance.id == token.id)
+        .where(TaskInstance.id == ti_id)
     )
-    return await session.scalar(stmt)

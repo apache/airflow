@@ -57,6 +57,7 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
     from sqlalchemy import Row
     from sqlalchemy.orm import Session
+    from starlette.middleware import _MiddlewareFactory
 
     from airflow.api_fastapi.auth.managers.models.batch_apis import (
         IsAuthorizedConnectionRequest,
@@ -157,6 +158,18 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         except (ValueError, KeyError) as e:
             log.error("Couldn't deserialize user from token, JWT token is not valid: %s", e)
             raise InvalidTokenError(str(e))
+
+    def get_fastapi_middlewares(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
+        """
+        Return middlewares the auth manager wants registered on the main FastAPI app.
+
+        Each entry is a ``(middleware_class, kwargs)`` tuple and is registered via
+        ``app.add_middleware`` by the API server. Auth managers that need to intercept or
+        augment incoming requests (for example, attaching an anonymous user to
+        unauthenticated requests when public access is configured) should override this
+        method.
+        """
+        return []
 
     def generate_jwt(
         self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")

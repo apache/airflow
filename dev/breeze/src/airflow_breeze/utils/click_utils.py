@@ -16,7 +16,31 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 try:
-    from rich_click import RichGroup as BreezeGroup
+    from rich_click import RichCommand as _BaseCommand, RichGroup as _BaseGroup
 except ImportError:
-    from click import Group as BreezeGroup  # type: ignore[assignment]  # noqa: F401
+    from click import (  # type: ignore[assignment]
+        Command as _BaseCommand,
+        Group as _BaseGroup,
+    )
+
+if TYPE_CHECKING:
+    import click
+
+
+class BreezeCommand(_BaseCommand):
+    """Breeze CLI command that automatically prints reproduction instructions in CI."""
+
+    def invoke(self, ctx: click.Context) -> None:
+        try:
+            return super().invoke(ctx)
+        finally:
+            from airflow_breeze.utils.reproduce_ci import maybe_print_reproduction
+
+            maybe_print_reproduction(ctx)
+
+
+class BreezeGroup(_BaseGroup):
+    command_class = BreezeCommand

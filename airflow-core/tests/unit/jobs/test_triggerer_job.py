@@ -46,6 +46,7 @@ from airflow.executors import workloads
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
+    _USER_ACTION_CANCEL_MSG,
     ToTriggerRunner,
     ToTriggerSupervisor,
     TriggerCommsDecoder,
@@ -73,6 +74,7 @@ from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_connections,
     clear_db_dag_bundles,
@@ -228,6 +230,62 @@ def supervisor_builder(mocker, session):
     return builder
 
 
+def test_run_invokes_seams_in_order(supervisor_builder, mocker):
+    """run() enters run_context, drives run_once while not should_stop, then exits run_context."""
+    from contextlib import contextmanager
+
+    supervisor = supervisor_builder()
+    events: list[str] = []
+
+    @contextmanager
+    def fake_run_context(self):
+        events.append("enter")
+        try:
+            yield
+        finally:
+            events.append("exit")
+
+    counter = {"n": 0}
+
+    def fake_run_once(self):
+        counter["n"] += 1
+        events.append(f"tick-{counter['n']}")
+
+    mocker.patch.object(TriggerRunnerSupervisor, "run_context", fake_run_context)
+    mocker.patch.object(TriggerRunnerSupervisor, "run_once", fake_run_once)
+    mocker.patch.object(TriggerRunnerSupervisor, "should_stop", side_effect=lambda: counter["n"] >= 3)
+    mocker.patch.object(TriggerRunnerSupervisor, "is_alive", return_value=True)
+
+    supervisor.run()
+
+    assert events == ["enter", "tick-1", "tick-2", "tick-3", "exit"]
+
+
+def test_run_context_exits_when_subprocess_dies(supervisor_builder, mocker):
+    """Breaking out of the loop on a dead subprocess still unwinds run_context."""
+    from contextlib import contextmanager
+
+    supervisor = supervisor_builder()
+    events: list[str] = []
+
+    @contextmanager
+    def fake_run_context(self):
+        events.append("enter")
+        try:
+            yield
+        finally:
+            events.append("exit")
+
+    mocker.patch.object(TriggerRunnerSupervisor, "run_context", fake_run_context)
+    mocker.patch.object(TriggerRunnerSupervisor, "run_once", side_effect=lambda: events.append("tick"))
+    mocker.patch.object(TriggerRunnerSupervisor, "should_stop", return_value=False)
+    mocker.patch.object(TriggerRunnerSupervisor, "is_alive", side_effect=[True, False])
+
+    supervisor.run()
+
+    assert events == ["enter", "tick", "exit"]
+
+
 def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
     """
     Checks that the triggerer will correctly see a new Trigger in the database
@@ -350,6 +408,56 @@ def test_trigger_logger_fd_closed_when_removed(session):
 
 
 class TestTriggerRunner:
+    def test_blocked_main_thread_warning_threshold_decode(self) -> None:
+        with conf_vars({("triggerer", "blocked_main_thread_warning_threshold"): "0.5"}):
+            trigger_runner = TriggerRunner()
+
+        assert trigger_runner.blocked_main_thread_warning_threshold == 0.5
+
+    @pytest.mark.asyncio
+    async def test_block_watchdog_does_not_log_when_threshold_is_not_exceeded(self) -> None:
+        with conf_vars({("triggerer", "blocked_main_thread_warning_threshold"): "0.5"}):
+            trigger_runner = TriggerRunner()
+
+        trigger_runner.log = AsyncMock()
+
+        async def fake_sleep(_):
+            trigger_runner.stop = True
+
+        with (
+            patch("airflow.jobs.triggerer_job_runner.asyncio.sleep", side_effect=fake_sleep),
+            patch("airflow.jobs.triggerer_job_runner.time.monotonic", side_effect=[1.0, 1.4]),
+            patch("airflow.jobs.triggerer_job_runner.Stats.incr") as mock_stats_incr,
+        ):
+            await trigger_runner.block_watchdog()
+
+        trigger_runner.log.ainfo.assert_not_called()
+        mock_stats_incr.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_block_watchdog_logs_when_threshold_is_exceeded(self) -> None:
+        with conf_vars({("triggerer", "blocked_main_thread_warning_threshold"): "0.5"}):
+            trigger_runner = TriggerRunner()
+
+        trigger_runner.log = AsyncMock()
+
+        async def fake_sleep(_):
+            trigger_runner.stop = True
+
+        with (
+            patch("airflow.jobs.triggerer_job_runner.asyncio.sleep", side_effect=fake_sleep),
+            patch("airflow.jobs.triggerer_job_runner.time.monotonic", side_effect=[1.0, 1.6]),
+            patch("airflow.jobs.triggerer_job_runner.Stats.incr") as mock_stats_incr,
+        ):
+            await trigger_runner.block_watchdog()
+
+        trigger_runner.log.ainfo.assert_awaited_once()
+        log_message, elapsed, threshold = trigger_runner.log.ainfo.await_args.args
+        assert "configured warning threshold" in log_message
+        assert elapsed == pytest.approx(0.6)
+        assert threshold == 0.5
+        mock_stats_incr.assert_called_once_with("triggers.blocked_main_thread")
+
     def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
@@ -381,6 +489,87 @@ class TestTriggerRunner:
                 )
             )
         assert {"event": "Trigger cancelled due to timeout", "log_level": "error"} in cap_structlog
+
+    def test_run_trigger_calls_on_kill_for_user_action(self, session, cap_structlog) -> None:
+        """on_kill() is called when CancelledError carries the user-action sentinel."""
+        trigger_runner = TriggerRunner()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
+        mock_trigger.run.side_effect = asyncio.CancelledError(_USER_ACTION_CANCEL_MSG)
+        mock_trigger.task_instance = MagicMock()
+        mock_trigger.task_instance.map_index = -1
+        mock_trigger.on_kill = AsyncMock()
+
+        with pytest.raises(asyncio.CancelledError):
+            asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
+
+        mock_trigger.on_kill.assert_awaited_once()
+        assert {
+            "event": "Trigger cancelled by user action, invoking on_kill",
+            "log_level": "info",
+            "name": "mock_name",
+        } in cap_structlog
+
+    def test_run_trigger_skips_on_kill_without_user_action_message(self, session) -> None:
+        """on_kill() is not called when CancelledError has no user-action sentinel (shutdown/EOF)."""
+        trigger_runner = TriggerRunner()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
+        mock_trigger.run.side_effect = asyncio.CancelledError()
+        mock_trigger.task_instance = MagicMock()
+        mock_trigger.task_instance.map_index = -1
+        mock_trigger.on_kill = AsyncMock()
+
+        with pytest.raises(asyncio.CancelledError):
+            asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
+
+        mock_trigger.on_kill.assert_not_called()
+
+    def test_run_trigger_on_kill_exception_does_not_swallow_cancelled_error(self, session) -> None:
+        """CancelledError propagates even if on_kill() raises."""
+        trigger_runner = TriggerRunner()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
+        mock_trigger.run.side_effect = asyncio.CancelledError(_USER_ACTION_CANCEL_MSG)
+        mock_trigger.task_instance = MagicMock()
+        mock_trigger.task_instance.map_index = -1
+        mock_trigger.on_kill = AsyncMock(side_effect=RuntimeError("external API down"))
+        mock_trigger.cleanup = AsyncMock()
+
+        with pytest.raises(asyncio.CancelledError):
+            asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
+
+        mock_trigger.on_kill.assert_awaited_once()
+        mock_trigger.cleanup.assert_awaited_once()
+
+    def test_run_trigger_on_kill_timeout_does_not_block_cleanup(self, session) -> None:
+        """A hanging on_kill() is interrupted after the timeout and cleanup still runs."""
+        trigger_runner = TriggerRunner()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
+        mock_trigger.run.side_effect = asyncio.CancelledError(_USER_ACTION_CANCEL_MSG)
+        mock_trigger.task_instance = MagicMock()
+        mock_trigger.task_instance.map_index = -1
+
+        async def hanging_on_kill():
+            await asyncio.sleep(9999)
+
+        mock_trigger.on_kill = hanging_on_kill
+        mock_trigger.cleanup = AsyncMock()
+
+        with patch("airflow.jobs.triggerer_job_runner._ON_CANCEL_TIMEOUT", 0.01):
+            with pytest.raises(asyncio.CancelledError):
+                asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
+
+        mock_trigger.cleanup.assert_awaited_once()
 
     @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs")
     @patch(
@@ -1168,6 +1357,63 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries(session, supe
     assert trigger_orm.id not in supervisor.cancelling_triggers
     assert not any(trigger_id == trigger_orm.id for trigger_id, _ in supervisor.events)
     assert not any(trigger_id == trigger_orm.id for trigger_id, _ in supervisor.failed_triggers)
+
+
+def test_update_triggers_delegates_workload_creation(supervisor_builder, mocker):
+    supervisor = supervisor_builder()
+    supervisor.running_triggers = {1, 3}
+    workload = workloads.RunTrigger(id=2, classpath="some.trigger", encrypted_kwargs="", ti=None)
+    build_trigger_workloads = mocker.patch.object(
+        TriggerRunnerSupervisor, "build_trigger_workloads", autospec=True, return_value=[workload]
+    )
+
+    supervisor.update_triggers({2, 3})
+
+    build_trigger_workloads.assert_called_once_with(supervisor, {2})
+    assert list(supervisor.creating_triggers) == [workload]
+    assert supervisor.cancelling_triggers == {1}
+
+
+def test_update_triggers_uses_fetch_hooks(session, supervisor_builder, mocker):
+    trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
+    _, _, trigger_orm, _ = create_trigger_in_db(session, trigger)
+
+    supervisor = supervisor_builder()
+    fetch_trigger_details_calls = []
+    fetch_non_task_trigger_ids_calls = []
+    original_fetch_trigger_details = TriggerRunnerSupervisor.fetch_trigger_details
+    original_fetch_non_task_trigger_ids = TriggerRunnerSupervisor.fetch_non_task_trigger_ids
+
+    def fetch_trigger_details(self, trigger_ids, *, session):
+        fetch_trigger_details_calls.append((trigger_ids, session))
+        return original_fetch_trigger_details(self, trigger_ids, session=session)
+
+    def fetch_non_task_trigger_ids(self, *, session):
+        fetch_non_task_trigger_ids_calls.append(session)
+        return original_fetch_non_task_trigger_ids(self, session=session)
+
+    mocker.patch.object(
+        TriggerRunnerSupervisor, "fetch_trigger_details", autospec=True, side_effect=fetch_trigger_details
+    )
+    mocker.patch.object(
+        TriggerRunnerSupervisor,
+        "fetch_non_task_trigger_ids",
+        autospec=True,
+        side_effect=fetch_non_task_trigger_ids,
+    )
+
+    supervisor.update_triggers({trigger_orm.id})
+
+    assert len(fetch_trigger_details_calls) == 1
+    assert len(fetch_non_task_trigger_ids_calls) == 1
+    assert fetch_trigger_details_calls == [({trigger_orm.id}, fetch_non_task_trigger_ids_calls[0])]
+    assert len(supervisor.creating_triggers) == 1
+    assert supervisor.creating_triggers[0].id == trigger_orm.id
+
+    supervisor.update_triggers({trigger_orm.id})
+
+    assert len(supervisor.creating_triggers) == 1
+    assert supervisor.creating_triggers[0].id == trigger_orm.id
 
 
 def test_update_triggers_prevents_duplicate_creation_queue_entries_with_multiple_triggers(

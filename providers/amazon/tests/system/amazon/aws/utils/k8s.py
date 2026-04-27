@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from airflow.utils.helpers import exactly_one
+
 try:
     from airflow.providers.standard.operators.bash import BashOperator
 except ImportError:
@@ -23,8 +25,34 @@ except ImportError:
     from airflow.operators.bash import BashOperator  # type: ignore[no-redef]
 
 
-def get_describe_pod_operator(cluster_name: str, pod_name: str) -> BashOperator:
-    """Returns an operator that'll print the output of a `k describe pod` in the airflow logs."""
+def get_describe_pod_operator(
+    cluster_name: str,
+    *,
+    pod_name: str | None = None,
+    namespace: str | None = None,
+) -> BashOperator:
+    """Return an operator that prints ``kubectl describe pod(s)`` output in the Airflow logs.
+
+    Exactly one of *pod_name* or *namespace* must be provided.
+
+    :param cluster_name: Name of the EKS cluster
+    :param pod_name: Describe a single pod by name
+    :param namespace: List and describe *all* pods in the given namespace
+    """
+    if not exactly_one(pod_name, namespace):
+        raise ValueError("Exactly one of 'pod_name' or 'namespace' must be provided.")
+
+    if pod_name:
+        kubectl_commands = f"""
+                echo "***** pod description *****";
+                kubectl describe pod {pod_name};"""
+    else:
+        kubectl_commands = f"""
+                echo "***** pods in namespace {namespace} *****";
+                kubectl get pods -n {namespace} -o wide;
+                echo "***** pod descriptions *****";
+                kubectl describe pods -n {namespace};"""
+
     return BashOperator(
         task_id="describe_pod",
         bash_command=f"""
@@ -32,8 +60,6 @@ def get_describe_pod_operator(cluster_name: str, pod_name: str) -> BashOperator:
                 install_kubectl.sh;
                 # configure kubectl to hit the right cluster
                 aws eks update-kubeconfig --name {cluster_name};
-                # once all this setup is done, actually describe the pod
-                echo "vvv pod description below vvv";
-                kubectl describe pod {pod_name};
-                echo "^^^ pod description above ^^^" """,
+                {kubectl_commands}
+                """,
     )

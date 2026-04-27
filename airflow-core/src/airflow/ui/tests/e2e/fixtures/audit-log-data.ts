@@ -20,13 +20,11 @@
 /**
  * Audit log data fixture — triggers DAG runs to generate audit log entries.
  */
-
-/* eslint-disable react-hooks/rules-of-hooks -- Playwright's `use` is not a React Hook. */
 import { testConfig } from "playwright.config";
 import { test as base } from "tests/e2e/fixtures";
 import {
-  safeCleanupDagRun,
   apiTriggerDagRun,
+  safeCleanupDagRun,
   waitForDagReady,
   waitForDagRunStatus,
 } from "tests/e2e/utils/test-helpers";
@@ -57,6 +55,7 @@ export const test = base.extend<Record<never, never>, { auditLogData: AuditLogDa
           });
         }
 
+        // eslint-disable-next-line react-hooks/rules-of-hooks
         await use({ dagId });
       } finally {
         for (const runId of createdRunIds) {

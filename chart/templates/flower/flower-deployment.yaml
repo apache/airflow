@@ -17,10 +17,10 @@
  under the License.
 */}}
 
-################################
+############################
 ## Airflow Flower Deployment
-#################################
-{{- if and .Values.flower.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+############################
+{{- if and .Values.flower.enabled (contains "CeleryExecutor" .Values.executor) }}
 {{- $nodeSelector := or .Values.flower.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.flower.affinity .Values.affinity }}
 {{- $tolerations := or .Values.flower.tolerations .Values.tolerations }}

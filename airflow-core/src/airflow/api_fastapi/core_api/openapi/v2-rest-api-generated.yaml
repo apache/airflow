@@ -43,11 +43,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``name_prefix_pattern`` parameter when\
+            \ possible."
           title: Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``name_prefix_pattern`` parameter when possible."
+      - name: name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Name Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: uri_pattern
         in: query
         required: false
@@ -57,11 +88,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``uri_prefix_pattern`` parameter when\
+            \ possible."
           title: Uri Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``uri_prefix_pattern`` parameter when possible."
+      - name: uri_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Uri Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: dag_ids
         in: query
         required: false
@@ -160,11 +222,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``name_prefix_pattern`` parameter when\
+            \ possible."
           title: Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``name_prefix_pattern`` parameter when possible."
+      - name: name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Name Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: order_by
         in: query
         required: false
@@ -349,11 +442,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``name_prefix_pattern`` parameter when\
+            \ possible."
           title: Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``name_prefix_pattern`` parameter when possible."
+      - name: name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Name Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: timestamp_gte
         in: query
         required: false
@@ -1517,11 +1641,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``connection_id_prefix_pattern`` parameter\
+            \ when possible."
           title: Connection Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``connection_id_prefix_pattern`` parameter when possible."
+      - name: connection_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Connection Id Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       responses:
         '200':
           description: Successful Response
@@ -1987,7 +2142,7 @@ paths:
             application/json:
               schema:
                 anyOf:
-                - $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+                - $ref: '#/components/schemas/ClearTaskInstanceCollectionResponse'
                 - $ref: '#/components/schemas/DAGRunResponse'
                 title: Response Clear Dag Run
         '401':
@@ -2023,7 +2178,25 @@ paths:
 
 
         This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for
-        all DAGs.'
+        all DAGs.
+
+
+        Supports two pagination modes:
+
+
+        **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+
+
+        **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor`
+        from the response).
+
+        When `cursor` is provided, `offset` is ignored and `total_entries` is not
+        returned.
+
+        ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor``
+        is ``null``
+
+        on the first page.'
       operationId: get_dag_runs
       security:
       - OAuth2PasswordBearer: []
@@ -2035,6 +2208,20 @@ paths:
         schema:
           type: string
           title: Dag Id
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Cursor for keyset-based pagination. Pass an empty string for
+            the first page, then use ``next_cursor`` from the response. When ``cursor``
+            is provided, ``offset`` is ignored.
+          title: Cursor
+        description: Cursor for keyset-based pagination. Pass an empty string for
+          the first page, then use ``next_cursor`` from the response. When ``cursor``
+          is provided, ``offset`` is ignored.
       - name: limit
         in: query
         required: false
@@ -2328,11 +2515,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when\
+            \ possible."
           title: Run Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``run_id_prefix_pattern`` parameter when possible."
+      - name: run_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Run Id Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: triggering_user_name_pattern
         in: query
         required: false
@@ -2342,11 +2560,43 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``triggering_user_name_prefix_pattern``\
+            \ parameter when possible."
           title: Triggering User Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``triggering_user_name_prefix_pattern`` parameter when\
+          \ possible."
+      - name: triggering_user_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Triggering User Name Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: dag_id_pattern
         in: query
         required: false
@@ -2356,11 +2606,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when\
+            \ possible."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``dag_id_prefix_pattern`` parameter when possible."
+      - name: dag_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Dag Id Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: partition_key_pattern
         in: query
         required: false
@@ -2370,11 +2651,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``partition_key_prefix_pattern`` parameter\
+            \ when possible."
           title: Partition Key Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``partition_key_prefix_pattern`` parameter when possible."
+      - name: partition_key_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Partition Key Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: consuming_asset_pattern
         in: query
         required: false
@@ -3070,11 +3382,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when\
+            \ possible."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``dag_id_prefix_pattern`` parameter when possible."
+      - name: dag_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Dag Id Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -3084,11 +3427,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``dag_display_name_prefix_pattern`` parameter\
+            \ when possible."
           title: Dag Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``dag_display_name_prefix_pattern`` parameter when possible."
+      - name: dag_display_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Dag Display Name Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: exclude_stale
         in: query
         required: false
@@ -3304,11 +3678,13 @@ paths:
       description: 'Patch multiple DAGs.
 
 
-        If `dag_id_pattern` is not provided, no DAGs will be matched regardless
+        If neither `dag_id_pattern` nor `dag_id_prefix_pattern` is provided, no DAGs
+        will be
 
-        of other filters. To match all DAGs, pass a wildcard value such as `~`
+        matched regardless of other filters. To match all DAGs, pass a wildcard value
+        such as
 
-        or `%` for `dag_id_pattern`.'
+        `~` or `%` for `dag_id_pattern`.'
       operationId: patch_dags
       security:
       - OAuth2PasswordBearer: []
@@ -3376,11 +3752,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when\
+            \ possible."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``dag_id_prefix_pattern`` parameter when possible."
+      - name: dag_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Dag Id Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: exclude_stale
         in: query
         required: false
@@ -3955,11 +4362,18 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when\
+            \ possible."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``dag_id_prefix_pattern`` parameter when possible."
       - name: task_id_pattern
         in: query
         required: false
@@ -3969,11 +4383,18 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``task_id_prefix_pattern`` parameter when\
+            \ possible."
           title: Task Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``task_id_prefix_pattern`` parameter when possible."
       - name: run_id_pattern
         in: query
         required: false
@@ -3983,11 +4404,18 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when\
+            \ possible."
           title: Run Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``run_id_prefix_pattern`` parameter when possible."
       - name: owner_pattern
         in: query
         required: false
@@ -3997,11 +4425,18 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``owner_prefix_pattern`` parameter when\
+            \ possible."
           title: Owner Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``owner_prefix_pattern`` parameter when possible."
       - name: event_pattern
         in: query
         required: false
@@ -4011,11 +4446,138 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``event_prefix_pattern`` parameter when\
+            \ possible."
           title: Event Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``event_prefix_pattern`` parameter when possible."
+      - name: dag_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Dag Id Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
+      - name: task_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Task Id Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
+      - name: run_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Run Id Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
+      - name: owner_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Owner Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
+      - name: event_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Event Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       responses:
         '200':
           description: Successful Response
@@ -4209,11 +4771,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``filename_prefix_pattern`` parameter\
+            \ when possible."
           title: Filename Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``filename_prefix_pattern`` parameter when possible."
+      - name: filename_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Filename Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       responses:
         '200':
           description: Successful Response
@@ -4723,11 +5316,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``pool_name_prefix_pattern`` parameter\
+            \ when possible."
           title: Pool Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``pool_name_prefix_pattern`` parameter when possible."
+      - name: pool_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Pool Name Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       responses:
         '200':
           description: Successful Response
@@ -5221,11 +5845,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``xcom_key_prefix_pattern`` parameter\
+            \ when possible."
           title: Xcom Key Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``xcom_key_prefix_pattern`` parameter when possible."
+      - name: xcom_key_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Xcom Key Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -5235,11 +5890,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``dag_display_name_prefix_pattern`` parameter\
+            \ when possible."
           title: Dag Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``dag_display_name_prefix_pattern`` parameter when possible."
+      - name: dag_display_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Dag Display Name Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: run_id_pattern
         in: query
         required: false
@@ -5249,11 +5935,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when\
+            \ possible."
           title: Run Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``run_id_prefix_pattern`` parameter when possible."
+      - name: run_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Run Id Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: task_id_pattern
         in: query
         required: false
@@ -5263,11 +5980,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``task_id_prefix_pattern`` parameter when\
+            \ possible."
           title: Task Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``task_id_prefix_pattern`` parameter when possible."
+      - name: task_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Task Id Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: map_index_filter
         in: query
         required: false
@@ -5348,6 +6096,26 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lt
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `key, dag_id,
+            run_id, task_id, map_index, timestamp, run_after`'
+          default:
+          - dag_id
+          - task_id
+          - run_id
+          - map_index
+          - key
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `key, dag_id, run_id,
+          task_id, map_index, timestamp, run_after`'
       responses:
         '200':
           description: Successful Response
@@ -5942,11 +6710,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``pool_name_prefix_pattern`` parameter\
+            \ when possible."
           title: Pool Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``pool_name_prefix_pattern`` parameter when possible."
+      - name: pool_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Pool Name Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: queue
         in: query
         required: false
@@ -5964,11 +6763,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``queue_name_prefix_pattern`` parameter\
+            \ when possible."
           title: Queue Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``queue_name_prefix_pattern`` parameter when possible."
+      - name: queue_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Queue Name Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: executor
         in: query
         required: false
@@ -6010,11 +6840,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``operator_name_prefix_pattern`` parameter\
+            \ when possible."
           title: Operator Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``operator_name_prefix_pattern`` parameter when possible."
+      - name: operator_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Operator Name Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: map_index
         in: query
         required: false
@@ -6524,10 +7385,27 @@ paths:
       description: 'Get list of task instances.
 
 
-        This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve
-        Task Instances for all DAGs
+        This endpoint allows specifying `~` as the dag_id, dag_run_id
 
-        and DAG runs.'
+        to retrieve task instances for all DAGs and DAG runs.
+
+
+        Supports two pagination modes:
+
+
+        **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+
+
+        **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor`
+        from the response).
+
+        When `cursor` is provided, `offset` is ignored and `total_entries` is not
+        returned.
+
+        ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor``
+        is ``null``
+
+        on the first page.'
       operationId: get_task_instances
       security:
       - OAuth2PasswordBearer: []
@@ -6545,6 +7423,20 @@ paths:
         schema:
           type: string
           title: Dag Run Id
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Cursor for keyset-based pagination. Pass an empty string for
+            the first page, then use ``next_cursor`` from the response. When ``cursor``
+            is provided, ``offset`` is ignored.
+          title: Cursor
+        description: Cursor for keyset-based pagination. Pass an empty string for
+          the first page, then use ``next_cursor`` from the response. When ``cursor``
+          is provided, ``offset`` is ignored.
       - name: task_id
         in: query
         required: false
@@ -6774,11 +7666,40 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``task_display_name_prefix_pattern`` parameter\
+            \ when possible."
           title: Task Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``task_display_name_prefix_pattern`` parameter when possible."
+      - name: task_display_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'Prefix match on task display name: optional ``_task_display_property_value``
+            else ``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly
+            alternative to ``task_display_name_pattern``. On large databases, combine
+            with ``dag_id_prefix_pattern`` (or a specific DAG in the path) so ``(dag_id,
+            task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all.
+            Trailing non-alphanumeric characters in the term are stripped before matching
+            so the range scan stays index-compatible under locale-aware collations.'
+          title: Task Display Name Prefix Pattern
+        description: 'Prefix match on task display name: optional ``_task_display_property_value``
+          else ``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly
+          alternative to ``task_display_name_pattern``. On large databases, combine
+          with ``dag_id_prefix_pattern`` (or a specific DAG in the path) so ``(dag_id,
+          task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all.
+          Trailing non-alphanumeric characters in the term are stripped before matching
+          so the range scan stays index-compatible under locale-aware collations.'
       - name: task_group_id
         in: query
         required: false
@@ -6800,11 +7721,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when\
+            \ possible."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``dag_id_prefix_pattern`` parameter when possible."
+      - name: dag_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Dag Id Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: run_id_pattern
         in: query
         required: false
@@ -6814,11 +7766,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when\
+            \ possible."
           title: Run Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``run_id_prefix_pattern`` parameter when possible."
+      - name: run_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Run Id Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: state
         in: query
         required: false
@@ -6844,11 +7827,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``pool_name_prefix_pattern`` parameter\
+            \ when possible."
           title: Pool Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``pool_name_prefix_pattern`` parameter when possible."
+      - name: pool_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Pool Name Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: queue
         in: query
         required: false
@@ -6866,11 +7880,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``queue_name_prefix_pattern`` parameter\
+            \ when possible."
           title: Queue Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``queue_name_prefix_pattern`` parameter when possible."
+      - name: queue_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Queue Name Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: executor
         in: query
         required: false
@@ -6912,11 +7957,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``operator_name_prefix_pattern`` parameter\
+            \ when possible."
           title: Operator Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``operator_name_prefix_pattern`` parameter when possible."
+      - name: operator_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Operator Name Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: map_index
         in: query
         required: false
@@ -7829,11 +8905,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``variable_key_prefix_pattern`` parameter\
+            \ when possible."
           title: Variable Key Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``variable_key_prefix_pattern`` parameter when possible."
+      - name: variable_key_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Variable Key Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       responses:
         '200':
           description: Successful Response
@@ -8230,11 +9337,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``tag_name_prefix_pattern`` parameter\
+            \ when possible."
           title: Tag Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``tag_name_prefix_pattern`` parameter when possible."
+      - name: tag_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Tag Name Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       responses:
         '200':
           description: Successful Response
@@ -8703,11 +9841,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when\
+            \ possible."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``dag_id_prefix_pattern`` parameter when possible."
+      - name: dag_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Dag Id Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: task_id
         in: query
         required: false
@@ -8725,11 +9894,42 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``task_id_prefix_pattern`` parameter when\
+            \ possible."
           title: Task Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``task_id_prefix_pattern`` parameter when possible."
+      - name: task_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Task Id Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: map_index
         in: query
         required: false
@@ -8779,11 +9979,17 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``subject_search`` parameter when possible."
           title: Subject Search
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``subject_search`` parameter when possible."
       - name: body_search
         in: query
         required: false
@@ -8793,11 +9999,17 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``body_search`` parameter when possible."
           title: Body Search
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``body_search`` parameter when possible."
       - name: created_at_gte
         in: query
         required: false
@@ -9250,10 +10462,11 @@ components:
           title: Run Backwards
           default: false
         dag_run_conf:
-          additionalProperties: true
-          type: object
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
           title: Dag Run Conf
-          default: {}
         reprocess_behavior:
           $ref: '#/components/schemas/ReprocessBehavior'
           default: none
@@ -9851,6 +11064,25 @@ components:
       - action
       - entities
       title: BulkUpdateAction[VariableBody]
+    ClearTaskInstanceCollectionResponse:
+      properties:
+        task_instances:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/TaskInstanceResponse'
+            - $ref: '#/components/schemas/NewTaskResponse'
+          type: array
+          title: Task Instances
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - task_instances
+      - total_entries
+      title: ClearTaskInstanceCollectionResponse
+      description: Response for clear dag run dry run, which may contain new tasks
+        without full TaskInstance data.
     ClearTaskInstancesBody:
       properties:
         dry_run:
@@ -10244,6 +11476,9 @@ components:
         timetable_partitioned:
           type: boolean
           title: Timetable Partitioned
+        timetable_periodic:
+          type: boolean
+          title: Timetable Periodic
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -10387,6 +11622,11 @@ components:
           type: integer
           title: Active Runs Count
           default: 0
+        is_backfillable:
+          type: boolean
+          title: Is Backfillable
+          description: Whether this DAG's schedule supports backfilling.
+          readOnly: true
         file_token:
           type: string
           title: File Token
@@ -10424,6 +11664,7 @@ components:
       - timetable_summary
       - timetable_description
       - timetable_partitioned
+      - timetable_periodic
       - tags
       - max_active_tasks
       - max_active_runs
@@ -10449,6 +11690,7 @@ components:
       - timezone
       - last_parsed
       - default_args
+      - is_backfillable
       - file_token
       - concurrency
       - latest_dag_version
@@ -10532,6 +11774,9 @@ components:
         timetable_partitioned:
           type: boolean
           title: Timetable Partitioned
+        timetable_periodic:
+          type: boolean
+          title: Timetable Periodic
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -10590,6 +11835,11 @@ components:
             type: string
           type: array
           title: Owners
+        is_backfillable:
+          type: boolean
+          title: Is Backfillable
+          description: Whether this DAG's schedule supports backfilling.
+          readOnly: true
         file_token:
           type: string
           title: File Token
@@ -10612,6 +11862,7 @@ components:
       - timetable_summary
       - timetable_description
       - timetable_partitioned
+      - timetable_periodic
       - tags
       - max_active_tasks
       - max_active_runs
@@ -10624,6 +11875,7 @@ components:
       - next_dagrun_run_after
       - allowed_run_types
       - owners
+      - is_backfillable
       - file_token
       title: DAGResponse
       description: DAG serializer for responses.
@@ -10636,6 +11888,12 @@ components:
         only_failed:
           type: boolean
           title: Only Failed
+          default: false
+        only_new:
+          type: boolean
+          title: Only New
+          description: Only queue newly added tasks in the latest DAG version without
+            clearing existing tasks.
           default: false
         run_on_latest_version:
           type: boolean
@@ -10655,14 +11913,45 @@ components:
           type: array
           title: Dag Runs
         total_entries:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Total Entries
+          description: Total number of matching items. Populated for offset pagination,
+            ``null`` when using cursor pagination.
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+          description: Token pointing to the next page. Populated for cursor pagination,
+            ``null`` when using offset pagination or when there is no next page.
+        previous_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Previous Cursor
+          description: Token pointing to the previous page. Populated for cursor pagination,
+            ``null`` when using offset pagination or when on the first page.
       type: object
       required:
       - dag_runs
-      - total_entries
       title: DAGRunCollectionResponse
-      description: DAG Run Collection serializer for responses.
+      description: 'DAG Run collection response supporting both offset and cursor
+        pagination.
+
+
+        A single flat model is used instead of a discriminated union
+
+        (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because
+
+        the OpenAPI ``oneOf`` + ``discriminator`` construct is not handled
+
+        correctly by ``@hey-api/openapi-ts`` / ``@7nohe/openapi-react-query-codegen``:
+
+        return types degrade to ``unknown`` in JSDoc and can produce
+
+        incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).'
     DAGRunPatchBody:
       properties:
         state:
@@ -12026,6 +13315,21 @@ components:
       type: object
       title: MaterializeAssetBody
       description: Materialize asset request.
+    NewTaskResponse:
+      properties:
+        task_id:
+          type: string
+          title: Task Id
+        task_display_name:
+          type: string
+          title: Task Display Name
+      type: object
+      required:
+      - task_id
+      - task_display_name
+      title: NewTaskResponse
+      description: Lightweight response for new tasks that don't have TaskInstances
+        yet.
     PatchTaskInstanceBody:
       properties:
         new_state:
@@ -12576,14 +13880,45 @@ components:
           type: array
           title: Task Instances
         total_entries:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Total Entries
+          description: Total number of matching items. Populated for offset pagination,
+            ``null`` when using cursor pagination.
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+          description: Token pointing to the next page. Populated for cursor pagination,
+            ``null`` when using offset pagination or when there is no next page.
+        previous_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Previous Cursor
+          description: Token pointing to the previous page. Populated for cursor pagination,
+            ``null`` when using offset pagination or when on the first page.
       type: object
       required:
       - task_instances
-      - total_entries
       title: TaskInstanceCollectionResponse
-      description: Task Instance Collection serializer for responses.
+      description: 'Task instance collection response supporting both offset and cursor
+        pagination.
+
+
+        A single flat model is used instead of a discriminated union
+
+        (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because
+
+        the OpenAPI ``oneOf`` + ``discriminator`` construct is not handled
+
+        correctly by ``@hey-api/openapi-ts`` / ``@7nohe/openapi-react-query-codegen``:
+
+        return types degrade to ``unknown`` in JSDoc and can produce
+
+        incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).'
     TaskInstanceHistoryCollectionResponse:
       properties:
         task_instances:

@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+When the ``[elasticsearch] host`` config embeds credentials
+(``https://user:password@elk.example.com:9200``), the log-source label
+shown in task logs is now the host URL with the ``user:password@`` portion
+stripped. Previously the full URL (including credentials) could appear as
+a dictionary key in the task-log output when log-hits did not carry a
+``host`` field. The Elasticsearch client is still connected using the
+full URL, so authentication is unaffected.
+
+6.5.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Strip userinfo from OpenSearch host URL before using it as task-log label (#65509)``
+* ``Strip userinfo from ES host URL before using it as task-log label (#65349)``
+* ``Fix elasticsearch provider to use SDK imports for Airflow 3.2+ (#64931)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
 6.5.2
 .....
 

@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-name: Update constraints on push
+name: Update constraints on push for main (only when uv.lock changes)
 on:  # yamllint disable-line rule:truthy
   push:
     branches:
@@ -34,14 +34,11 @@ env:
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
-  UV_VERSION: "0.10.10"  # Keep this comment to allow automatic replacement of uv version
   VERBOSE: "true"
 jobs:
   build-info:
     name: "Build info"
     runs-on: ["ubuntu-22.04"]
-    env:
-      GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
@@ -65,12 +62,22 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         id: breeze
+      - name: "Save github context to file"
+        # See ci-amd-arm.yml for the full rationale: avoids ARG_MAX on big PRs by writing the
+        # github context to a file, and the single-quoted heredoc makes the zizmor
+        # template-injection finding a false positive (no bash expansion happens inside it).
+        shell: bash
+        run: |  # zizmor: ignore[template-injection]
+          cat > "${RUNNER_TEMP}/github_context.json" << '__GITHUB_CONTEXT_END__'
+          ${{ toJson(github) }}
+          __GITHUB_CONTEXT_END__
       - name: Selective checks
         id: selective-checks
         env:
           PR_LABELS: "[]"
           COMMIT_REF: "${{ github.sha }}"
           VERBOSE: "false"
+          GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
         run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
 
   build-ci-images:
@@ -150,3 +157,27 @@ jobs:
       - name: "Push changes"
         working-directory: "constraints"
         run: git push
+
+  notify-on-failure:
+    name: "Notify on failure"
+    runs-on: ["ubuntu-22.04"]
+    needs: [build-info, build-ci-images, generate-constraints, update-constraints]
+    if: failure()
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+    steps:
+      - name: "Send Slack notification"
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+        with:
+          method: chat.postMessage
+          token: ${{ env.SLACK_BOT_TOKEN }}
+          # yamllint disable rule:line-length
+          payload: |
+            channel: "internal-airflow-ci-cd"
+            text: "🚨 Update constraints workflow failed on branch *${{ github.ref_name }}*\n\n*Details:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "🚨 Update constraints workflow failed on *${{ github.ref_name }}*\n\n*Details:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+          # yamllint enable rule:line-length

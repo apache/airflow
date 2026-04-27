@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Generator, Iterable
 from typing import TYPE_CHECKING, Annotated, Any
+from uuid import UUID
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
@@ -27,11 +28,13 @@ from sqlalchemy import exists, select
 from sqlalchemy.orm import Session, joinedload, load_only
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.db.dag_runs import attach_dag_versions_to_runs
 from airflow.api_fastapi.common.parameters import (
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
+    QueryDagRunTriggeringUserPrefixSearch,
     QueryDagRunTriggeringUserSearch,
     QueryIncludeDownstream,
     QueryIncludeUpstream,
@@ -66,6 +69,11 @@ from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.utils.session import create_session
+
+if TYPE_CHECKING:
+    from airflow.models.dagbag import DBDagBag
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 log = structlog.get_logger(logger_name=__name__)
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
@@ -88,32 +96,28 @@ def _get_latest_serdag(dag_id, session):
     return serdag
 
 
-def _get_serdag(dag_id, dag_version_id, session) -> SerializedDagModel | None:
-    # this is a simplification - we account for structure based on the first task
-    version = session.scalar(
-        select(DagVersion)
-        .where(DagVersion.id == dag_version_id)
-        .options(joinedload(DagVersion.serialized_dag))
+def _get_serdag(
+    dag_bag: DBDagBag,
+    dag_id: str,
+    dag_version_id: UUID | str | None,
+    session: Session,
+) -> SerializedDAG | None:
+    """Resolve the serialized Dag for a grid TI summary via the shared (cached) ``DBDagBag``."""
+    if dag_version_id is not None:
+        serdag = dag_bag.get_dag(dag_version_id, session=session)
+        if serdag is None:
+            log.error("No serialized dag found", dag_id=dag_id, version_id=dag_version_id)
+        return serdag
+
+    # Fallback: pre-3.0 upgrade — pick the oldest DagVersion for this dag_id.
+    oldest_version_id = session.scalar(
+        select(DagVersion.id).where(DagVersion.dag_id == dag_id).order_by(DagVersion.id).limit(1)
     )
-    if not version:
-        version = session.scalar(
-            select(DagVersion)
-            .where(
-                DagVersion.dag_id == dag_id,
-            )
-            .options(joinedload(DagVersion.serialized_dag))
-            .order_by(DagVersion.id)  # ascending cus this is mostly for pre-3.0 upgrade
-            .limit(1)
-        )
-    if not version:
+    if oldest_version_id is None:
         return None
-    if not (serdag := version.serialized_dag):
-        log.error(
-            "No serialized dag found",
-            dag_id=dag_id,
-            version_id=version.id,
-            version_number=version.version_number,
-        )
+    serdag = dag_bag.get_dag(oldest_version_id, session=session)
+    if serdag is None:
+        log.error("No serialized dag found", dag_id=dag_id, version_id=oldest_version_id)
     return serdag
 
 
@@ -139,6 +143,7 @@ def get_dag_structure(
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
+    triggering_user_prefix: QueryDagRunTriggeringUserPrefixSearch,
     include_upstream: QueryIncludeUpstream = False,
     include_downstream: QueryIncludeDownstream = False,
     depth: int | None = None,
@@ -172,7 +177,7 @@ def get_dag_structure(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after, run_type, state, triggering_user],
+        filters=[run_after, run_type, state, triggering_user, triggering_user_prefix],
         limit=limit,
     )
     run_ids = list(session.scalars(dag_runs_select_filter))
@@ -276,6 +281,7 @@ def get_grid_runs(
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
+    triggering_user_prefix: QueryDagRunTriggeringUserPrefixSearch,
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
     # Retrieve, sort the previous DAG Runs
@@ -318,7 +324,7 @@ def get_grid_runs(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after, run_type, state, triggering_user],
+        filters=[run_after, run_type, state, triggering_user, triggering_user_prefix],
         limit=limit,
         return_total_entries=False,
     )
@@ -352,12 +358,12 @@ def _build_ti_summaries(
     task_instances: Iterable[Any],
     session: Session,
     *,
-    serdag: SerializedDagModel | None = None,
-    serdag_cache: dict[Any, SerializedDagModel | None] | None = None,
+    dag_bag: DBDagBag,
 ) -> dict[str, Any] | None:
     ti_details: dict[str, GridNodeAgg] = {}
     dag_version_id = None
     for ti in task_instances:
+        # this is a simplification - we account for structure based on the first task
         dag_version_id = dag_version_id or ti.dag_version_id
         summary = ti_details.get(ti.task_id)
         if summary is None:
@@ -370,28 +376,15 @@ def _build_ti_summaries(
         )
     if not ti_details:
         return None
-    if serdag is None:
-        if serdag_cache is not None:
-            if dag_version_id not in serdag_cache:
-                serdag_cache[dag_version_id] = _get_serdag(
-                    dag_id=dag_id,
-                    dag_version_id=dag_version_id,
-                    session=session,
-                )
-            serdag = serdag_cache[dag_version_id]
-        else:
-            serdag = _get_serdag(
-                dag_id=dag_id,
-                dag_version_id=dag_version_id,
-                session=session,
-            )
+
+    serdag = _get_serdag(dag_bag, dag_id, dag_version_id, session)
     if TYPE_CHECKING:
         assert serdag
 
     def get_node_summaries() -> Iterable[dict[str, Any]]:
         yielded_task_ids: set[str] = set()
         for node, _ in _find_aggregates(
-            node=serdag.dag.task_group,
+            node=serdag.task_group,
             parent_node=None,
             ti_details=ti_details,
         ):
@@ -453,7 +446,7 @@ def _build_ti_summaries(
 )
 def get_grid_ti_summaries_stream(
     dag_id: str,
-    session: SessionDep,
+    dag_bag: DagBagDep,
     run_ids: Annotated[list[str] | None, Query()] = None,
 ) -> StreamingResponse:
     """
@@ -463,35 +456,41 @@ def get_grid_ti_summaries_stream(
     run's task instances have been processed, so the client can render columns
     progressively without waiting for all runs to complete.
 
-    The serialized Dag structure is loaded once and reused for all runs that
-    share the same ``dag_version_id``, avoiding repeated deserialization.
+    The serialized Dag structure is served from the app-wide ``DBDagBag`` cache
+    (keyed by ``dag_version_id``), which avoids repeated deserialization across
+    runs of the same version *and* across requests.
     """
 
     def _generate() -> Generator[str, None, None]:
-        serdag_cache: dict[Any, SerializedDagModel | None] = {}
+        # Each iteration opens and closes its own DB session so the connection is
+        # released between yields.  This prevents a slow client from holding a
+        # database connection open for the entire stream duration.
+        # See https://github.com/apache/airflow/issues/65010.
+
         for run_id in run_ids or []:
-            tis = session.execute(
-                select(
-                    TaskInstance.task_id,
-                    TaskInstance.state,
-                    TaskInstance.dag_version_id,
-                    TaskInstance.start_date,
-                    TaskInstance.end_date,
-                    DagVersion.version_number,
+            with create_session(scoped=False) as session:
+                tis = session.execute(
+                    select(
+                        TaskInstance.task_id,
+                        TaskInstance.state,
+                        TaskInstance.dag_version_id,
+                        TaskInstance.start_date,
+                        TaskInstance.end_date,
+                        DagVersion.version_number,
+                    )
+                    .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
+                    .where(TaskInstance.dag_id == dag_id)
+                    .where(TaskInstance.run_id == run_id)
+                    .order_by(TaskInstance.task_id)
+                    .execution_options(yield_per=1000)
                 )
-                .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
-                .where(TaskInstance.dag_id == dag_id)
-                .where(TaskInstance.run_id == run_id)
-                .order_by(TaskInstance.task_id)
-                .execution_options(yield_per=1000)
-            )
-            summary = _build_ti_summaries(
-                dag_id,
-                run_id,
-                tis,
-                session,
-                serdag_cache=serdag_cache,
-            )
+                summary = _build_ti_summaries(
+                    dag_id,
+                    run_id,
+                    tis,
+                    session,
+                    dag_bag=dag_bag,
+                )
             if summary is None:
                 continue
             yield GridTISummaries.model_validate(summary).model_dump_json() + "\n"

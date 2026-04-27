@@ -47,6 +47,7 @@ from airflow.providers.celery.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_9_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
 )
 from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, conf, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -58,8 +59,6 @@ try:
 except ImportError:
     from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager  # type:ignore[no-redef]
 
-if AIRFLOW_V_3_2_PLUS:
-    from airflow.executors.workloads.callback import execute_callback_workload
 
 log = logging.getLogger(__name__)
 
@@ -206,11 +205,42 @@ def on_celery_worker_ready(*args, **kwargs):
 # and deserialization for us.
 @app.task(name="execute_workload")
 def execute_workload(input: str) -> None:
+    if not AIRFLOW_V_3_3_PLUS:
+        return _execute_workload_pre_3_3(input)
+
+    from celery.exceptions import Ignore
+    from pydantic import TypeAdapter
+
+    from airflow.executors.workloads import ExecutorWorkload
+
+    decoder = TypeAdapter[ExecutorWorkload](ExecutorWorkload)
+    workload = decoder.validate_json(input)
+
+    celery_task_id = app.current_task.request.id
+
+    log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
+
+    try:
+        BaseExecutor.run_workload(workload)
+    except Exception as e:
+        from airflow.sdk.exceptions import TaskAlreadyRunningError
+
+        if isinstance(e, TaskAlreadyRunningError):
+            log.info("[%s] Task already running elsewhere, ignoring redelivered message", celery_task_id)
+            # Raise Ignore() so Celery does not record a FAILURE result for this duplicate
+            # delivery. Without this, the broker redelivering the message (e.g. after a
+            # visibility timeout) would cause Celery to mark the task as failed, even though
+            # the original worker is still executing it successfully.
+            raise Ignore()
+        raise
+
+
+def _execute_workload_pre_3_3(input: str) -> None:
+    """Fallback for Airflow < 3.3 which lacks BaseExecutor.run_workload() and ExecutorWorkload."""
     from celery.exceptions import Ignore
     from pydantic import TypeAdapter
 
     from airflow.executors import workloads
-    from airflow.providers.common.compat.sdk import conf
     from airflow.sdk.execution_time.supervisor import supervise
 
     decoder = TypeAdapter[workloads.All](workloads.All)
@@ -237,10 +267,6 @@ def execute_workload(input: str) -> None:
                 server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
                 log_path=workload.log_path,
             )
-        elif isinstance(workload, workloads.ExecuteCallback):
-            success, error_msg = execute_callback_workload(workload.callback, log)
-            if not success:
-                raise RuntimeError(error_msg or "Callback execution failed")
         else:
             raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
     except Exception as e:
@@ -382,11 +408,20 @@ def send_workload_to_executor(
     # Create the Celery app with the correct configuration.
     celery_app = create_celery_app(_conf)
 
+    celery_task_id = None
     if AIRFLOW_V_3_0_PLUS:
         # Get the task from the app.
         celery_task = celery_app.tasks["execute_workload"]
         if TYPE_CHECKING:
             assert isinstance(args, workloads.BaseWorkload)
+        # Extract the pre-assigned Celery task ID before serializing the workload.
+        # This ID was committed to the DB at queuing time (as external_executor_id) and is
+        # excluded from model_dump_json(), so workers never see it. Passing it to apply_async()
+        # makes the Celery task ID deterministic from DB state, closing the race window where a
+        # scheduler crash between apply_async() and event processing left external_executor_id
+        # unset and the task unadoptable.
+        if executor_id := getattr(getattr(args, "ti", None), "external_executor_id", None):
+            celery_task_id = executor_id
         args = (args.model_dump_json(),)
     else:
         # Get the task from the app.
@@ -404,7 +439,7 @@ def send_workload_to_executor(
 
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
-            result = celery_task.apply_async(args=args, queue=queue)
+            result = celery_task.apply_async(args=args, queue=queue, task_id=celery_task_id)
     except (Exception, AirflowTaskTimeout) as e:
         exception_traceback = f"Celery Task ID: {key}\n{traceback.format_exc()}"
         result = ExceptionWithTraceback(e, exception_traceback)
