@@ -1101,7 +1101,12 @@ def _build_provider_distributions(
 
 @release_management_group.command(
     name="prepare-provider-distributions",
-    help="Prepare sdist/whl distributions of Airflow Providers.",
+    help=(
+        "Prepare sdist/whl distributions of Airflow Providers. "
+        "Each provider directory is wiped with `git clean -fdx` (preserving "
+        ".venv, .idea, .vscode) before build to keep in-tree generated files "
+        "out of the artifact. See dev/breeze release-management docs."
+    ),
 )
 @option_distribution_format
 @option_version_suffix

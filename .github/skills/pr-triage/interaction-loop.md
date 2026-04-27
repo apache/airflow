@@ -48,12 +48,17 @@ the groups in this fixed order:
 8. `(deterministic_flag, ping)` — batchable (unresolved threads
    from collaborators).
 9. `(stale_review, ping)` — batchable.
-10. `(passing, mark-ready)` — batchable.
-11. `(stale_draft, close)` — batchable but with extra per-PR
+10. `(deterministic_flag, mark-ready-with-ping)` — batchable
+    (unresolved threads that the heuristic believes are
+    addressed; presented just before the plain mark-ready group
+    because both end with the `ready for maintainer review`
+    label going on).
+11. `(passing, mark-ready)` — batchable.
+12. `(stale_draft, close)` — batchable but with extra per-PR
     confirm inside the batch (these are rarely wrong but when
     wrong they're very wrong).
-12. `(inactive_open, draft)` — batchable.
-13. `(stale_workflow_approval, draft)` — batchable.
+13. `(inactive_open, draft)` — batchable.
+14. `(stale_workflow_approval, draft)` — batchable.
 
 The ordering is chosen so the maintainer always faces the
 riskiest decisions first, while their attention is fresh. The
@@ -207,6 +212,7 @@ safe alternatives:
 | `rebase` | `comment`, `skip` |
 | `rerun` | `comment`, `skip` |
 | `mark-ready` | `skip` |
+| `mark-ready-with-ping` | `ping` (fall back to plain reviewer ping if the maintainer thinks the heuristic over-reached), `skip` |
 | `ping` | `comment`, `skip` |
 | `close` (deterministic_flag) | — (no overrides — use `[E]` to downgrade individually) |
 | `close` (stale_draft) | `draft`, `skip` |
@@ -336,6 +342,7 @@ PRs acted on:    22
   - rebased:           4
   - reruns triggered:  3
   - marked ready:      3
+  - marked ready w/ ping:  1
   - pings posted:      2
 PRs skipped:     15   (12 already triaged / inside grace, 2 bot, 1 collaborator)
 PRs left pending: 10   (reached [Q] before classifying)

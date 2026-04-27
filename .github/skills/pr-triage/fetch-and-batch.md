@@ -66,7 +66,17 @@ query(
           totalCount
           nodes {
             isResolved
-            comments(first: 1) {
+            # `first: 5` rather than `first: 1`: the
+            # `mark-ready-with-ping` heuristic in
+            # [`suggested-actions.md`](suggested-actions.md) needs
+            # to see whether the PR author has replied in-thread
+            # after the reviewer's first comment. 5 is the smallest
+            # window that catches the typical "reviewer comment →
+            # author reply" exchange without blowing GraphQL
+            # complexity (30 threads × 5 comments × 20 PRs = 3000
+            # nodes, well under the ceiling that `first: 10` here
+            # would push us toward).
+            comments(first: 5) {
               nodes {
                 author { login }
                 authorAssociation
