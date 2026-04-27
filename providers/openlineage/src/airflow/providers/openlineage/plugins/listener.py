@@ -74,11 +74,24 @@ def _executor_initializer():
     This function must be picklable, so it cannot be defined as an inner method or local function.
 
     Reconfigures the ORM engine to prevent issues that arise when multiple processes interact with
-    the Airflow database.
+    the Airflow database, and re-initializes ``Stats`` so that metrics emitted from worker
+    processes (e.g. ``ol.event.size.*`` from ``_emit_manual_state_change_event``) are routed to
+    the configured statsd backend instead of being silently dropped by ``NoStatsLogger`` — the
+    parent's ``Stats.initialize(...)`` call from scheduler startup does not propagate across the
+    spawn boundary.
     """
     # This initializer is used only on the scheduler
     # We can configure_orm regardless of the Airflow version, as DB access is always allowed from scheduler.
     settings.configure_orm()
+    try:
+        from airflow.observability.metrics import stats_utils
+
+        Stats.initialize(factory=stats_utils.get_stats_factory(Stats))
+    except ImportError:
+        # ``stats_utils`` lives under ``airflow.observability.metrics`` in current Airflow; if the
+        # import path changes or is unavailable, fall through silently — gauge calls will simply
+        # land on ``NoStatsLogger`` as before, which is no worse than current behavior.
+        pass
 
 
 def _emit_manual_state_change_event(adapter_method, stats_key, **kwargs):
