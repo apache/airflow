@@ -3854,7 +3854,7 @@ config:
     statsd_host: '{{ printf "%s-statsd" (include "airflow.fullname" .) }}'
     otel_on: '{{ ternary "True" "False" .Values.otelCollector.metricsEnabled }}'
     otel_host: '{{ if .Values.otelCollector.metricsEnabled }}{{ printf "%s-otel-collector" (include "airflow.fullname" .) }}{{ end }}'
-    otel_port: '4318'
+    otel_port: '{{ .Values.ports.otelCollectorOtlpHttp }}'
   traces:
     otel_on: '{{ ternary "True" "False" .Values.otelCollector.tracesEnabled }}'
   fab:
