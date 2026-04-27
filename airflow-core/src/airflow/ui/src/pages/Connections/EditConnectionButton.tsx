@@ -71,7 +71,7 @@ const EditConnectionButton = ({ connection, disabled }: Props) => {
         </IconButton>
       </Tooltip>
 
-      <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
+      <Dialog.Root lazyMount onOpenChange={handleClose} open={open} size="xl" unmountOnExit>
         <Dialog.Content backdrop>
           <Dialog.Header>
             <Heading size="xl">{translate("connections.edit")}</Heading>
