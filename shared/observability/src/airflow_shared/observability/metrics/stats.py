@@ -25,11 +25,10 @@ from typing import TYPE_CHECKING, Any
 
 from .base_stats_logger import NoStatsLogger
 from .metrics_registry import MetricsRegistry
-from .protocols import Timer
 
 if TYPE_CHECKING:
     from .base_stats_logger import StatsLogger
-    from .protocols import DeltaType
+    from .protocols import DeltaType, Timer, TimerProtocol
 
 log = logging.getLogger(__name__)
 
@@ -242,7 +241,7 @@ def timer(
     stat: str | None = None,
     tags: dict[str, Any] | None = None,
     **kwargs,
-) -> Timer:
+) -> TimerProtocol:
     """
     Context manager that times a block and emits a timer metric.
 
@@ -276,19 +275,21 @@ def timer(
     return backend.timer(stat, **regular_kw)
 
 
-class _DualTimer(Timer):
+class _DualTimer:
     """
     Timer that manages both a regular and a legacy backend timer.
 
-    Inherits Timer so that it conforms with the Timer type but there are no super calls.
-    Uses composition internally — both timers are started together on entry and stopped together on exit.
-    Supports both context-manager and stopwatch usage.
+    Uses composition internally — both timers are started together on entry
+    and stopped together on exit. Supports both context-manager and stopwatch usage.
     """
 
     def __init__(self, regular_timer: Timer, legacy_timer: Timer) -> None:
         self._regular = regular_timer
         self._legacy = legacy_timer
-        self.duration: float | None = None
+
+    @property
+    def duration(self):
+        return self._regular.duration
 
     def __enter__(self):
         return self.start()
@@ -304,7 +305,6 @@ class _DualTimer(Timer):
     def stop(self, send: bool = True) -> None:
         self._regular.stop(send=send)
         self._legacy.stop(send=send)
-        self.duration = self._regular.duration
 
 
 class Stats:

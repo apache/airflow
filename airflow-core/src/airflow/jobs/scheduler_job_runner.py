@@ -1704,7 +1704,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 next_event = timers.run(blocking=False)
                 self.log.debug("Next timed event is in %f", next_event)
 
-            self.log.debug("Ran scheduling loop in %.2f ms", timer.duration)
+            if hasattr(timer, "duration"):
+                self.log.debug("Ran scheduling loop in %.2f ms", timer.duration)
 
             idle_in_this_run = not num_queued_tis and not num_finished_events
             if not is_unit_test and idle_in_this_run:
