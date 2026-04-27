@@ -36,6 +36,7 @@ class TestAirbyteHook:
     conn_type = "airbyte"
     airbyte_conn_id = "airbyte_conn_id_test"
     airbyte_conn_id_with_proxy = "airbyte_conn_id_test_with_proxy"
+    airbyte_conn_id_with_credentials = "airbyte_conn_id_test_with_credentials"
     connection_id = "conn_test_sync"
     job_id = 1
     host = "http://test-airbyte:8000/public/v1/api/"
@@ -68,6 +69,16 @@ class TestAirbyteHook:
                 host=self.host,
                 port=self.port,
                 extra=self._mock_proxy,
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id=self.airbyte_conn_id_with_credentials,
+                conn_type=self.conn_type,
+                host=self.host,
+                port=self.port,
+                login="test-client-id",
+                password="test-client-secret",
             )
         )
         self.hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)
@@ -235,6 +246,35 @@ class TestAirbyteHook:
         assert hook.airbyte_api is not None
         assert hook.airbyte_api.sdk_configuration.client.proxies == self._mock_proxy["proxies"]
 
+    def test_create_api_session_without_credentials(self):
+        """Test that a session without OAuth credentials creates an unauthenticated client."""
+        # The default connection (self.airbyte_conn_id) has no login/password
+        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)
+        assert hook.airbyte_api is not None
+        # SDK should have been created with security=None
+        assert hook.airbyte_api.sdk_configuration.security is None
+
+    def test_create_api_session_with_credentials(self):
+        """Test that a session with OAuth credentials uses client_credentials auth."""
+        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id_with_credentials)
+        assert hook.airbyte_api is not None
+        security = hook.airbyte_api.sdk_configuration.security
+        assert security is not None
+        assert security.client_credentials is not None
+        assert security.client_credentials.client_id == "test-client-id"
+        assert security.client_credentials.client_secret == "test-client-secret"
+
+    @mock.patch("airbyte_api.jobs.Jobs.create_job")
+    def test_submit_sync_connection_without_credentials(self, create_job_mock):
+        """Test that sync submission works without OAuth credentials."""
+        mock_response = mock.Mock()
+        mock_response.job_response = self._mock_sync_conn_success_response_body
+        create_job_mock.return_value = mock_response
+
+        # Use the default hook which has no credentials
+        resp = self.hook.submit_sync_connection(connection_id=self.connection_id)
+        assert resp == self._mock_sync_conn_success_response_body
+
     def test_get_ui_field_behaviour(self):
         """
         Test the UI field behavior configuration for Airbyte connections.
@@ -243,8 +283,8 @@ class TestAirbyteHook:
             "hidden_fields": ["extra", "port"],
             "relabeling": {
                 "host": "Server URL",
-                "login": "Client ID",
-                "password": "Client Secret",
+                "login": "Client ID (optional)",
+                "password": "Client Secret (optional)",
                 "schema": "Token URL",
             },
             "placeholders": {},

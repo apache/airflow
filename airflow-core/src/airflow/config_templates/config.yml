@@ -2586,6 +2586,10 @@ scheduler:
     task_queued_timeout:
       description: |
         Amount of time a task can be in the queued state before being retried or set to failed.
+
+        This value also sets the lifetime of the workload JWT token that is sent with the task
+        to an executor queue, so a task waiting in the queue can still authenticate to the
+        Execution API until its queue-starvation deadline.
       version_added: 2.6.0
       type: float
       example: ~
@@ -2695,7 +2699,7 @@ triggerer:
         Maximum number of seconds the triggerer will wait for ``BaseTrigger.on_kill()`` to complete
         before giving up and logging a warning. Prevents a slow or hung external API call from
         blocking the triggerer indefinitely when a deferred task is killed by a user.
-      version_added: 3.2.0
+      version_added: 3.3.0
       type: integer
       example: ~
       default: "30"

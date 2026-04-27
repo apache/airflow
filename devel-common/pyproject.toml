@@ -112,7 +112,7 @@ dependencies = [
     # Mypy dependencies
     # TODO: upgrade to newer versions of MyPy continuously as they are released
     "apache-airflow-mypy",
-    "mypy==1.20.1",
+    "mypy==1.20.2",
     "types-Deprecated>=1.2.9.20240311",
     "types-Markdown>=3.6.0.20240316",
     "types-PyMySQL>=1.1.0.20240425",
@@ -186,6 +186,16 @@ src = ["src"]
 
 [tool.flit.module]
 name = "tests_common"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "sphinx_design/",
+    "src/docs/",
+    "src/sphinx_exts/",
+    "tests/",
+]
 
 [tool.ruff.lint.extend-per-file-ignores]
 "src/tests_common/*" = ["S101", "TRY002"]

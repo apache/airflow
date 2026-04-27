@@ -71,7 +71,7 @@ defaultAirflowTag: "3.2.1"
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-# Version 2.11.0 and above is supported.
+# Version 3.1.0 and above is supported.
 airflowVersion: "3.2.1"
 
 images:
@@ -339,25 +339,7 @@ airflowPodAnnotations: {}
 airflowConfigAnnotations: {}
 
 # 'airflow_local_settings' file as a string (templated)
-airflowLocalSettings: |-
-  {{- if semverCompare "<3.0.0" .Values.airflowVersion }}
-  {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
-  from airflow.www.utils import UIAlert
-
-  DASHBOARD_UIALERTS = [
-    UIAlert(
-      'Usage of a dynamic webserver secret key detected. We recommend a static webserver secret key instead.'
-      ' See the <a href='
-      '"https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key" '
-      'target="_blank" rel="noopener noreferrer">'
-      'Helm Chart Production Guide</a> for more details.',
-      category="warning",
-      roles=["Admin"],
-      html=True,
-    )
-  ]
-  {{- end }}
-  {{- end }}
+airflowLocalSettings: ~
 
 # Enable RBAC (default on most clusters these days)
 rbac:
@@ -367,14 +349,13 @@ rbac:
 
 # Airflow executor
 # One or multiple of: LocalExecutor, CeleryExecutor, KubernetesExecutor
-# For Airflow <3.0, LocalKubernetesExecutor and CeleryKubernetesExecutor are supported.
 # Specify executors in a prioritized list to leverage multiple execution environments as needed:
 # https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently
 executor: "CeleryExecutor"
 
-# If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
+# If this is true and using LocalExecutor/KubernetesExecutor, the scheduler's
 # Service Account will have access to communicate with the api-server and launch pods/jobs.
-# If this is true and using CeleryExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the workers
+# If this is true and using CeleryExecutor/KubernetesExecutor, the workers
 # will be able to launch pods/jobs.
 allowPodLaunching: true
 allowJobLaunching: false
@@ -406,7 +387,6 @@ enableBuiltInSecretEnvVars:
   AIRFLOW_CONN_AIRFLOW_DB: true
   AIRFLOW__API__SECRET_KEY: true
   AIRFLOW__API_AUTH__JWT_SECRET: true
-  AIRFLOW__WEBSERVER__SECRET_KEY: true
   AIRFLOW__CELERY__RESULT_BACKEND: true
   AIRFLOW__CELERY__BROKER_URL: true
   AIRFLOW__ELASTICSEARCH__HOST: true
@@ -414,7 +394,7 @@ enableBuiltInSecretEnvVars:
 
 # Priority Classes that will be installed by charts.
 # Ideally, there should be an entry for dagProcessor, flower,
-#   pgbouncer, scheduler, statsd, triggerer, webserver/api-server, worker.
+#   pgbouncer, scheduler, statsd, triggerer, api-server, worker.
 # The format for priorityClasses is an array with each element having:
 #   * name is the name of the priorityClass. Ensure the same name is given to the respective section as well
 #   * preemptionPolicy for the priorityClass
@@ -594,26 +574,6 @@ jwtSecretName: ~
 #  type: Opaque
 #  data:
 #    jwt-secret: <base64_encoded_jwt_secret>
-
-# Flask secret key for Airflow <3 Webserver: '[webserver] secret_key' in airflow.cfg
-# (deprecated, use `apiSecretKey` instead (Airflow 3+))
-webserverSecretKey: ~
-
-# Add custom annotations to the webserver secret
-# (deprecated, use `apiSecretAnnotations` instead (Airflow 3+))
-webserverSecretAnnotations: {}
-
-# If set, the secret must contain a key 'webserver-secret-key' with a base64-encoded key value
-# (deprecated, use `apiSecretKeySecretName` instead (Airflow 3+))
-webserverSecretKeySecretName: ~
-# Webserver secret key secret example:
-#  kind: Secret
-#  apiVersion: v1
-#  metadata:
-#    name: custom-webserver-secret
-#  type: Opaque
-#  data:
-#    webserver-secret-key: <base64_encoded_secret_key>
 
 # In order to use kerberos you need to create secret containing the keytab file.
 # The secret name should follow naming convention of the application where resources are
@@ -850,9 +810,7 @@ workers:
       {{- if $i }},{{ end }}'{{ $q | trim }}'
       {{- end -}}
       )
-      {{- if contains "CeleryKubernetesExecutor" .Values.executor }}
-      AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
-      {{- else if contains "KubernetesExecutor" .Values.executor }}
+      {{- if contains "KubernetesExecutor" .Values.executor }}
       AND executor IS DISTINCT FROM 'KubernetesExecutor'
       {{- else if contains "airflow.providers.edge3.executors.EdgeExecutor" .Values.executor }}
       AND executor IS DISTINCT FROM 'EdgeExecutor'
@@ -2049,17 +2007,17 @@ createUserJob:
     - --
     # yamllint disable rule:line-length
     - "-r"
-    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.role }}{{ else }}{{ .Values.createUserJob.defaultUser.role }}{{ end }}"
+    - "{{ .Values.createUserJob.defaultUser.role }}"
     - "-u"
-    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.username }}{{ else }}{{ .Values.createUserJob.defaultUser.username }}{{ end }}"
+    - "{{ .Values.createUserJob.defaultUser.username }}"
     - "-e"
-    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.email }}{{ else }}{{ .Values.createUserJob.defaultUser.email }}{{ end }}"
+    - "{{ .Values.createUserJob.defaultUser.email }}"
     - "-f"
-    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.firstName }}{{ else }}{{ .Values.createUserJob.defaultUser.firstName }}{{ end }}"
+    - "{{ .Values.createUserJob.defaultUser.firstName }}"
     - "-l"
-    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.lastName }}{{ else }}{{ .Values.createUserJob.defaultUser.lastName }}{{ end }}"
+    - "{{ .Values.createUserJob.defaultUser.lastName }}"
     - "-p"
-    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.password }}{{ else }}{{ .Values.createUserJob.defaultUser.password }}{{ end }}"
+    - "{{ .Values.createUserJob.defaultUser.password }}"
 
   # Annotations on the create user job pod (templated)
   annotations: {}
@@ -2459,266 +2417,6 @@ apiServer:
     periodSeconds: 10
     scheme: HTTP
 
-# Airflow webserver settings (only Airflow<3.0)
-webserver:
-  enabled: true
-
-  # Add custom annotations to the webserver ConfigMap
-  configMapAnnotations: {}
-
-  # hostAliases for the webserver pod
-  hostAliases: []
-  #  - ip: "127.0.0.1"
-  #    hostnames:
-  #      - "foo.local"
-  #  - ip: "10.1.2.3"
-  #    hostnames:
-  #      - "foo.remote"
-
-  allowPodLogReading: true
-
-  livenessProbe:
-    initialDelaySeconds: 15
-    timeoutSeconds: 5
-    failureThreshold: 5
-    periodSeconds: 10
-    scheme: HTTP
-
-  readinessProbe:
-    initialDelaySeconds: 15
-    timeoutSeconds: 5
-    failureThreshold: 5
-    periodSeconds: 10
-    scheme: HTTP
-
-  # Wait for at most 1 minute (6*10s) for the webserver container to startup.
-  # LivenessProbe kicks in after the first successful startupProbe
-  startupProbe:
-    initialDelaySeconds: 0
-    timeoutSeconds: 20
-    failureThreshold: 6
-    periodSeconds: 10
-    scheme: HTTP
-
-  # Number of webservers
-  replicas: 1
-
-  # Max number of old replicasets to retain
-  revisionHistoryLimit: ~
-
-  # Command to use when running the Airflow webserver (templated).
-  command: ~
-
-  # Args to use when running the Airflow webserver (templated).
-  args: ["bash", "-c", "exec airflow webserver"]
-
-  # Grace period for webserver to finish after SIGTERM is sent from Kubernetes
-  terminationGracePeriodSeconds: 30
-
-  # Allow HPA
-  hpa:
-    enabled: false
-
-    # Minimum number of webservers created by HPA
-    minReplicaCount: 1
-
-    # Maximum number of webservers created by HPA
-    maxReplicaCount: 5
-
-    # Specifications for which to use to calculate the desired replica count
-    metrics:
-      - type: Resource
-        resource:
-          name: cpu
-          target:
-            type: Utilization
-            averageUtilization: 80
-
-    # Scaling behavior of the target in both Up and Down directions
-    behavior: {}
-
-  # Create Service Account
-  serviceAccount:
-    # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
-    automountServiceAccountToken: true
-
-    # Specifies whether a Service Account should be created
-    create: true
-
-    # The name of the Service Account to use.
-    # If not set and `create` is 'true', a name is generated using the release name
-    name: ~
-
-    # Annotations to add to webserver Kubernetes Service Account.
-    annotations: {}
-
-  # Webserver pod disruption budget
-  podDisruptionBudget:
-    enabled: false
-
-    # PDB configuration (`minAvailable` and `maxUnavailable` are mutually exclusive)
-    config:
-      maxUnavailable: 1
-      # minAvailable: 1
-
-  # Allow overriding Update Strategy for Webserver
-  strategy: ~
-
-  # When not set, the values defined in the global `securityContext` will be used
-  # (deprecated, use `webserver.securityContexts` instead)
-  securityContext: {}
-  #  runAsUser: 50000
-  #  fsGroup: 0
-  #  runAsGroup: 0
-
-  # Detailed default security contexts for webserver Deployments for container and pod level
-  securityContexts:
-    pod: {}
-    container: {}
-
-  # Container level lifecycle hooks
-  containerLifecycleHooks: {}
-
-  # Additional network policies as needed (deprecated, use `webserver.networkPolicy.ingress.from` instead)
-  extraNetworkPolicies: []
-  networkPolicy:
-    ingress:
-      # Peers for webserver NetworkPolicy ingress
-      from: []
-
-      # Ports for webserver NetworkPolicy ingress (if `from` is set)
-      ports:
-        - port: "{{ .Values.ports.airflowUI }}"
-
-  resources: {}
-  #   limits:
-  #     cpu: 100m
-  #     memory: 128Mi
-  #   requests:
-  #     cpu: 100m
-  #     memory: 128Mi
-
-  # Create initial user. (deprecated, use `createUserJob` section instead)
-  # defaultUser:
-  #   enabled: true
-  #   role: Admin
-  #   username: admin
-  #   email: admin@example.com
-  #   firstName: admin
-  #   lastName: user
-  #   password: admin
-
-  # Launch additional containers into webserver (templated).
-  extraContainers: []
-
-  # Add additional init containers into webserver (templated).
-  extraInitContainers: []
-
-  # Mount additional volumes into webserver.
-  extraVolumes: []
-  extraVolumeMounts: []
-  # It can be templated like in the following example:
-  #  extraVolumes:
-  #    - name: my-templated-extra-volume
-  #      secret:
-  #         secretName: '{{ include "my_secret_template" . }}'
-  #         defaultMode: 0640
-  #         optional: true
-  #
-  #  extraVolumeMounts:
-  #    - name: my-templated-extra-volume
-  #      mountPath: "{{ .Values.my_custom_path }}"
-  #      readOnly: true
-
-  # This string (templated) will be mounted into the Airflow Webserver
-  # as a custom webserver_config.py. You can bake a webserver_config.py into
-  # your image instead or specify a ConfigMap containing the
-  # webserver_config.py.
-  webserverConfig: ~
-  # webserverConfig: |
-  #   from airflow import configuration as conf
-
-  #   # The SQLAlchemy connection string.
-  #   SQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')
-
-  #   # Flask-WTF flag for CSRF
-  #   CSRF_ENABLED = True
-
-  webserverConfigConfigMapName: ~
-
-  service:
-    type: ClusterIP
-
-    # Service annotations
-    annotations: {}
-
-    ports:
-      - name: airflow-ui
-        port: "{{ .Values.ports.airflowUI }}"
-    # To change the port used to access the webserver:
-    #  ports:
-    #    - name: airflow-ui
-    #      port: 80
-    #      targetPort: airflow-ui
-    # To only expose a sidecar, not the webserver directly:
-    #  ports:
-    #    - name: only_sidecar
-    #      port: 80
-    #      targetPort: 8888
-    # If you have a public IP, set NodePort to set an external port.
-    # Service type must be 'NodePort':
-    #  ports:
-    #    - name: airflow-ui
-    #      port: 8080
-    #      targetPort: 8080
-    #      nodePort: 31151
-
-    loadBalancerIP: ~
-
-    # Limit load balancer source ips to list of CIDRs
-    loadBalancerSourceRanges: []
-    # loadBalancerSourceRanges:
-    #   - "10.123.0.0/16"
-
-  # Select certain nodes for Airflow webserver pods.
-  nodeSelector: {}
-  priorityClassName: ~
-
-  affinity: {}
-  # default webserver affinity is:
-  #  podAntiAffinity:
-  #    preferredDuringSchedulingIgnoredDuringExecution:
-  #    - podAffinityTerm:
-  #        labelSelector:
-  #          matchLabels:
-  #            component: webserver
-  #        topologyKey: kubernetes.io/hostname
-  #      weight: 100
-
-  tolerations: []
-  topologySpreadConstraints: []
-
-  # Annotations for webserver Deployment
-  annotations: {}
-
-  # Pod annotations for webserver pods (templated)
-  podAnnotations: {}
-
-  # Labels specific webserver app
-  labels: {}
-
-  waitForMigrations:
-    # Whether to create init container to wait for db migrations
-    enabled: true
-
-    env: []
-
-    # Detailed default security context for waitForMigrations for container level
-    securityContexts:
-      container: {}
-
-  env: []
-
 # Airflow Triggerer Config
 triggerer:
   enabled: true
@@ -2981,7 +2679,7 @@ triggerer:
 
 # Airflow Dag Processor Config
 dagProcessor:
-  enabled: ~
+  enabled: true
 
   # Dag Bundle Configuration
   # Define Dag bundles in a structured YAML format. This will be automatically
@@ -3197,7 +2895,7 @@ dagProcessor:
 # Flower settings
 flower:
   # Enable flower.
-  # If True, and using CeleryExecutor/CeleryKubernetesExecutor, will deploy flower app.
+  # If True, and using CeleryExecutor, will deploy flower app.
   enabled: false
 
   livenessProbe:
@@ -4101,15 +3799,10 @@ config:
     statsd_host: '{{ printf "%s-statsd" (include "airflow.fullname" .) }}'
   fab:
     enable_proxy_fix: 'True'
-  webserver:
-    # For Airflow 2.X
-    enable_proxy_fix: 'True'
   celery:
     flower_url_prefix: '{{ ternary "" .Values.ingress.flower.path (eq .Values.ingress.flower.path "/") }}'
     worker_concurrency: 16
     sync_parallelism: '{{ include "cpu_count" (((.Values.scheduler).resources).limits).cpu }}'
-  scheduler:
-    standalone_dag_processor: '{{ ternary "True" "False" (or (semverCompare ">=3.0.0" .Values.airflowVersion) (.Values.dagProcessor.enabled | default false)) }}'
   dag_processor:
     # This value is generated by default from `.Values.dagProcessor.dagBundleConfigList` using the `dag_bundle_config_list` helper function.
     # It is recommended to configure this via `dagProcessor.dagBundleConfigList` rather than overriding `config.dag_processor.dag_bundle_config_list` directly.

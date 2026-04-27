@@ -131,3 +131,14 @@ openlineage = "airflow.providers.openlineage.plugins.openlineage:OpenLineageProv
 
 [tool.flit.module]
 name = "airflow.providers.openlineage"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "docs/",
+    "provider.yaml",
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "tests/",
+]

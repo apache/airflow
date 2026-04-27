@@ -56,7 +56,6 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TaskInstanceState,
     TaskStatesResponse,
-    VariableResponse,
     XComSequenceIndexResponse,
 )
 from airflow.sdk.configuration import conf
@@ -116,14 +115,17 @@ from airflow.sdk.execution_time.comms import (
     ToSupervisor,
     TriggerDagRun,
     ValidateInletsAndOutlets,
-    VariableResult,
     XComResult,
     XComSequenceIndexResult,
     XComSequenceSliceResult,
     _RequestFrame,
     _ResponseFrame,
 )
-from airflow.sdk.log import mask_secret
+from airflow.sdk.execution_time.request_handlers import (
+    handle_get_connection,
+    handle_get_variable,
+    handle_mask_secret,
+)
 
 try:
     from socket import send_fds
@@ -1000,6 +1002,33 @@ def _fetch_remote_logging_conn(conn_id: str, client: Client) -> Connection | Non
 
 
 @contextlib.contextmanager
+def _ensure_client(
+    server: str | None,
+    token: str,
+    client: Client | None = None,
+    dry_run: bool = False,
+) -> Generator[Client, None, None]:
+    """
+    Yield an API client, creating one if not provided.
+
+    If a client is created internally, it will be closed when the context exits.
+    Pre-existing clients are yielded as-is and left open for the caller to manage.
+    """
+    if client:
+        yield client
+        return
+
+    limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
+    new_client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
+    log.debug("Connecting to execution API server", server=server)
+    try:
+        yield new_client
+    finally:
+        with suppress(Exception):
+            new_client.close()
+
+
+@contextlib.contextmanager
 def _remote_logging_conn(client: Client):
     """
     Pre-fetch the needed remote logging connection with caching.
@@ -1363,7 +1392,7 @@ class ActivitySubprocess(WatchedSubprocess):
         else:
             log.debug("Received message from task runner", msg=msg)
         resp: BaseModel | None = None
-        dump_opts = {}
+        dump_opts: dict[str, bool] = {}
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
@@ -1389,27 +1418,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 rendered_map_index=self._rendered_map_index,
             )
         elif isinstance(msg, GetConnection):
-            conn = self.client.connections.get(msg.conn_id)
-            if isinstance(conn, ConnectionResponse):
-                if conn.password:
-                    mask_secret(conn.password)
-                if conn.extra:
-                    mask_secret(conn.extra)
-                conn_result = ConnectionResult.from_conn_response(conn)
-                resp = conn_result
-                dump_opts = {"exclude_unset": True, "by_alias": True}
-            else:
-                resp = conn
+            resp, dump_opts = handle_get_connection(self.client, msg)
         elif isinstance(msg, GetVariable):
-            var = self.client.variables.get(msg.key)
-            if isinstance(var, VariableResponse):
-                if var.value:
-                    mask_secret(var.value, var.key)
-                var_result = VariableResult.from_variable_response(var)
-                resp = var_result
-                dump_opts = {"exclude_unset": True}
-            else:
-                resp = var
+            resp, dump_opts = handle_get_variable(self.client, msg)
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
@@ -1595,7 +1606,7 @@ class ActivitySubprocess(WatchedSubprocess):
             resp = HITLDetailRequestResult.from_api_response(hitl_detail_request)
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, MaskSecret):
-            mask_secret(msg.value, msg.name)
+            handle_mask_secret(msg)
         elif isinstance(msg, GetDag):
             dag = self.client.dags.get(
                 dag_id=msg.dag_id,
@@ -2190,58 +2201,49 @@ def supervise_task(
     if not dag_rel_path:
         raise ValueError("dag_path is required")
 
-    close_client = False
-    if not client:
-        limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
-        client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
-        close_client = True
-        log.debug("Connecting to execution API server", server=server)
+    with _ensure_client(server, token, client=client, dry_run=dry_run) as client:
+        start = time.monotonic()
 
-    start = time.monotonic()
+        # TODO: Use logging providers to handle the chunked upload for us etc.
+        logger: FilteringBoundLogger | None = None
+        log_file_descriptor: BinaryIO | TextIO | None = None
+        if log_path:
+            logger, log_file_descriptor = _configure_logging(log_path, client)
 
-    # TODO: Use logging providers to handle the chunked upload for us etc.
-    logger: FilteringBoundLogger | None = None
-    log_file_descriptor: BinaryIO | TextIO | None = None
-    if log_path:
-        logger, log_file_descriptor = _configure_logging(log_path, client)
-
-    backends = ensure_secrets_backend_loaded()
-    log.info(
-        "Secrets backends loaded for worker",
-        count=len(backends),
-        backend_classes=[type(b).__name__ for b in backends],
-    )
-
-    reset_secrets_masker()
-
-    try:
-        process = ActivitySubprocess.start(
-            dag_rel_path=dag_rel_path,
-            what=ti,
-            client=client,
-            logger=logger,
-            bundle_info=bundle_info,
-            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
-            sentry_integration=sentry_integration,
-        )
-
-        exit_code = process.wait()
-        end = time.monotonic()
+        backends = ensure_secrets_backend_loaded()
         log.info(
-            "Workload finished",
-            workload_type="ExecuteTask",
-            workload_id=str(ti.id),
-            exit_code=exit_code,
-            duration=end - start,
-            final_state=process.final_state,
+            "Secrets backends loaded for worker",
+            count=len(backends),
+            backend_classes=[type(b).__name__ for b in backends],
         )
-        return exit_code
-    finally:
-        if log_path and log_file_descriptor:
-            log_file_descriptor.close()
-        if close_client and client:
-            with suppress(Exception):
-                client.close()
+
+        reset_secrets_masker()
+
+        try:
+            process = ActivitySubprocess.start(
+                dag_rel_path=dag_rel_path,
+                what=ti,
+                client=client,
+                logger=logger,
+                bundle_info=bundle_info,
+                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                sentry_integration=sentry_integration,
+            )
+
+            exit_code = process.wait()
+            end = time.monotonic()
+            log.info(
+                "Workload finished",
+                workload_type="ExecuteTask",
+                workload_id=str(ti.id),
+                exit_code=exit_code,
+                duration=end - start,
+                final_state=process.final_state,
+            )
+            return exit_code
+        finally:
+            if log_path and log_file_descriptor:
+                log_file_descriptor.close()
 
 
 def supervise(**kwargs) -> int:

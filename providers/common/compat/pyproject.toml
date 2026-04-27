@@ -122,3 +122,15 @@ provider_info = "airflow.providers.common.compat.get_provider_info:get_provider_
 
 [tool.flit.module]
 name = "airflow.providers.common.compat"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "docs/",
+    "provider.yaml",
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "src/airflow/providers/common/__init__.py",
+    "tests/",
+]
