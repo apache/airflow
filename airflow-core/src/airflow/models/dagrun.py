@@ -1555,10 +1555,8 @@ class DagRun(Base, LoggingMixin):
             flag_upstream_failed=True,
             ignore_in_retry_period=True,
             ignore_in_reschedule_period=True,
-            # Re-query finished TIs instead of relying on the scheduler loop's earlier snapshot. Another
-            # process may have changed task states while this loop was running, and writing terminal
-            # states such as UPSTREAM_FAILED based on stale upstream state can permanently strand tasks.
-            finished_tis=None,
+            finished_tis=finished_tis,
+            ensure_fresh_tis_before_state_change=True,
         )
         # there might be runnable tasks that are up for retry and for some reason(retry delay, etc.) are
         # not ready yet, so we set the flags to count them in
