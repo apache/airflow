@@ -59,11 +59,11 @@ describe("useAssetLineage", () => {
     mockGetAssetOnlyLineage.mockReset();
     mockGetAssetLineage.mockResolvedValue({ edges: [], nodes: [] });
     mockGetAssetOnlyLineage.mockResolvedValue({ edges: [], nodes: [] });
-    window.history.replaceState({}, "", "/");
+    globalThis.history.replaceState({}, "", "/");
   });
 
   afterEach(() => {
-    window.history.replaceState({}, "", "/");
+    globalThis.history.replaceState({}, "", "/");
   });
 
   it("calls the full lineage endpoint by default", async () => {
@@ -87,7 +87,7 @@ describe("useAssetLineage", () => {
   });
 
   it("returns mock full lineage data when mockAssets is enabled", async () => {
-    window.history.replaceState({}, "", "/assets/33?mockAssets=true");
+    globalThis.history.replaceState({}, "", "/assets/33?mockAssets=true");
 
     const { result } = renderHook(() => useAssetLineage("33"), { wrapper: TestWrapper });
 
@@ -105,7 +105,7 @@ describe("useAssetLineage", () => {
   });
 
   it("returns mock asset-only lineage data when mockAssets is enabled", async () => {
-    window.history.replaceState({}, "", "/assets/33?mockAssets=true");
+    globalThis.history.replaceState({}, "", "/assets/33?mockAssets=true");
 
     const { result } = renderHook(() => useAssetLineage("33", { mode: "asset_only" }), {
       wrapper: TestWrapper,
@@ -126,7 +126,7 @@ describe("useAssetLineage", () => {
   });
 
   it("surfaces mock errors when requested", async () => {
-    window.history.replaceState({}, "", "/assets/33?mockAssets=true&mockAssetsError=true");
+    globalThis.history.replaceState({}, "", "/assets/33?mockAssets=true&mockAssetsError=true");
 
     const { result } = renderHook(() => useAssetLineage("33", { mode: "asset_only" }), {
       wrapper: TestWrapper,

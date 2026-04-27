@@ -25,8 +25,12 @@ export class AssetDetailPage extends BasePage {
     return "/assets";
   }
 
-  public constructor(page: Page) {
-    super(page);
+  public get assetOnlyButton(): Locator {
+    return this.page.getByRole("button", { name: /^Asset Only$/ });
+  }
+
+  public get fullLineageButton(): Locator {
+    return this.page.getByRole("button", { name: /^Full$/ });
   }
 
   public get graphViewport(): Locator {
@@ -37,22 +41,16 @@ export class AssetDetailPage extends BasePage {
     return this.page.getByPlaceholder("Search lineage nodes");
   }
 
-  public get assetOnlyButton(): Locator {
-    return this.page.getByRole("button", { name: /^Asset Only$/ });
-  }
-
-  public get fullLineageButton(): Locator {
-    return this.page.getByRole("button", { name: /^Full$/ });
-  }
-
-  public graphNode(name: string): Locator {
-    return this.page.locator(".react-flow__node").filter({
-      has: this.page.getByRole("link", { exact: true, name }),
-    });
+  public constructor(page: Page) {
+    super(page);
   }
 
   public async clickOnAsset(name: string): Promise<void> {
     await this.page.getByRole("link", { exact: true, name }).click();
+  }
+
+  public async getViewportTransform(): Promise<string> {
+    return this.graphViewport.evaluate((element) => getComputedStyle(element).transform);
   }
 
   public async goto(): Promise<void> {
@@ -63,8 +61,10 @@ export class AssetDetailPage extends BasePage {
     await this.navigateTo(`/assets/${assetId}?mockAssets=true`);
   }
 
-  public async getViewportTransform(): Promise<string> {
-    return this.graphViewport.evaluate((element) => getComputedStyle(element).transform);
+  public graphNode(name: string): Locator {
+    return this.page.locator(".react-flow__node").filter({
+      has: this.page.getByRole("link", { exact: true, name }),
+    });
   }
 
   public async searchLineage(term: string): Promise<void> {

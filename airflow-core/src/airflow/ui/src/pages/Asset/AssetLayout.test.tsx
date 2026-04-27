@@ -26,24 +26,25 @@ import { BaseWrapper } from "src/utils/Wrapper";
 import { AssetLayout } from "./AssetLayout";
 
 const {
-  mockUseAssetLineage,
-  mockUseAssetDetailData,
-  mockUseAssetEventsData,
-  mockSetTableURLState,
   mockFitView,
   mockGetZoom,
+  mockSetTableURLState,
+  mockUseAssetDetailData,
+  mockUseAssetEventsData,
+  mockUseAssetLineage,
 } = vi.hoisted(() => ({
-  mockUseAssetLineage: vi.fn(),
-  mockUseAssetDetailData: vi.fn(),
-  mockUseAssetEventsData: vi.fn(),
-  mockSetTableURLState: vi.fn(),
   mockFitView: vi.fn(),
   mockGetZoom: vi.fn(() => 1),
+  mockSetTableURLState: vi.fn(),
+  mockUseAssetDetailData: vi.fn(),
+  mockUseAssetEventsData: vi.fn(),
+  mockUseAssetLineage: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     i18n: { dir: () => "ltr" },
+    // eslint-disable-next-line id-length
     t: (translationKey: string, options?: { defaultValue?: string }) =>
       options?.defaultValue ?? translationKey,
   }),
@@ -90,7 +91,7 @@ vi.mock("src/components/SearchBar", () => ({
 }));
 
 vi.mock("src/context/openGroups", () => ({
-  OpenGroupsProvider: ({ children }: PropsWithChildren) => <>{children}</>,
+  OpenGroupsProvider: ({ children }: PropsWithChildren) => <div>{children}</div>,
 }));
 
 vi.mock("./AssetGraph", () => ({

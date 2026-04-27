@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Box, Text, Code, Button, VStack } from "@chakra-ui/react";
+import { HStack, Box, Text, Code, VStack } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,7 +26,6 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
-import { SearchBar } from "src/components/SearchBar";
 import { ProgressBar } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { OpenGroupsProvider } from "src/context/openGroups";
@@ -40,6 +39,7 @@ import { AssetPanelButtons } from "./AssetPanelButtons";
 import { CreateAssetEvent } from "./CreateAssetEvent";
 import { Header } from "./Header";
 import type { LineageDirection } from "./lineageHighlightUtils";
+import { LineageToolbar } from "./LineageToolbar";
 
 type LineageMode = "asset_only" | "full";
 
@@ -120,7 +120,12 @@ export const AssetLayout = () => {
     () =>
       lineageMode !== "asset_only" || activeNodeId === undefined
         ? []
-        : lineageData.edges.filter((edge) => edge.target_id === activeNodeId && edge.column_lineage),
+        : lineageData.edges.filter(
+            (edge) =>
+              edge.target_id === activeNodeId &&
+              edge.column_lineage !== null &&
+              edge.column_lineage !== undefined,
+          ),
     [activeNodeId, lineageData.edges, lineageMode],
   );
 
@@ -130,7 +135,7 @@ export const AssetLayout = () => {
         <BreadcrumbStats links={links} />
         <CreateAssetEvent asset={asset} />
       </HStack>
-      <ProgressBar size="xs" visibility={Boolean(isLoading) ? "visible" : "hidden"} />
+      <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
       <Box flex={1} minH={0}>
         <PanelGroup
           autoSaveId={`asset-${direction}`}
@@ -142,58 +147,14 @@ export const AssetLayout = () => {
             <Box height="100%" position="relative" pr={2}>
               <AssetPanelButtons dependencyType={dependencyType} setDependencyType={setDependencyType} />
               {dependencyType === "lineage" ? (
-                <Box left={3} position="absolute" right={3} top={14} zIndex={5}>
-                  <HStack>
-                    <Box flex={1}>
-                      <SearchBar
-                        defaultValue={lineageSearch}
-                        hotkeyDisabled
-                        onChange={setLineageSearch}
-                        placeholder="Search lineage nodes"
-                      />
-                    </Box>
-                    <Button
-                      colorPalette={lineageMode === "full" ? "blue" : "gray"}
-                      onClick={() => {
-                        setLineageMode("full");
-                      }}
-                      size="sm"
-                      variant={lineageMode === "full" ? "solid" : "outline"}
-                    >
-                      {translate("assets:lineage_full", { defaultValue: "Full" })}
-                    </Button>
-                    <Button
-                      colorPalette={lineageMode === "asset_only" ? "blue" : "gray"}
-                      onClick={() => {
-                        setLineageMode("asset_only");
-                      }}
-                      size="sm"
-                      variant={lineageMode === "asset_only" ? "solid" : "outline"}
-                    >
-                      {translate("assets:lineage_asset_only", { defaultValue: "Asset Only" })}
-                    </Button>
-                    <Button
-                      colorPalette={lineageDirection === "upstream" ? "blue" : "gray"}
-                      onClick={() => {
-                        setLineageDirection("upstream");
-                      }}
-                      size="sm"
-                      variant={lineageDirection === "upstream" ? "solid" : "outline"}
-                    >
-                      {translate("assets:lineage_upstream", { defaultValue: "Upstream" })}
-                    </Button>
-                    <Button
-                      colorPalette={lineageDirection === "downstream" ? "blue" : "gray"}
-                      onClick={() => {
-                        setLineageDirection("downstream");
-                      }}
-                      size="sm"
-                      variant={lineageDirection === "downstream" ? "solid" : "outline"}
-                    >
-                      {translate("assets:lineage_downstream", { defaultValue: "Downstream" })}
-                    </Button>
-                  </HStack>
-                </Box>
+                <LineageToolbar
+                  lineageDirection={lineageDirection}
+                  lineageMode={lineageMode}
+                  lineageSearch={lineageSearch}
+                  setLineageDirection={setLineageDirection}
+                  setLineageMode={setLineageMode}
+                  setLineageSearch={setLineageSearch}
+                />
               ) : undefined}
               <OpenGroupsProvider dagId="~">
                 {dependencyType === "lineage" ? (

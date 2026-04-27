@@ -62,9 +62,9 @@ const mockLineageData = {
     { id: "upstream_dag", name: "upstream_dag", node_type: "dag" }, { id: "upstream_dag.producer_task", name: "producer_task", node_type: "task" },
     { id: "asset:1", name: "asset_1", node_type: "asset" }, { id: "downstream_dag.consumer_task", name: "consumer_task", node_type: "task" }, { id: "asset:2", name: "asset_2", node_type: "asset" },
   ],
-} as const;
+};
 
-const renderAssetLineageGraph = ({ activeNodeId = "asset:1", direction, lineageData = mockLineageData, searchTerm = "", setActiveNodeId = vi.fn() }: { readonly activeNodeId?: string; readonly direction: "downstream" | "upstream"; readonly lineageData?: { edges: Array<{ source_id: string; target_id: string; column_lineage?: null }>; nodes: Array<{ id: string; name: string; node_type: string }> }; readonly searchTerm?: string; readonly setActiveNodeId?: ReturnType<typeof vi.fn> }) =>
+const renderAssetLineageGraph = ({ activeNodeId = "asset:1", direction, lineageData = mockLineageData, searchTerm = "", setActiveNodeId = vi.fn() }: { readonly activeNodeId?: string; readonly direction: "downstream" | "upstream"; readonly lineageData?: { edges: Array<{ column_lineage?: null; source_id: string; target_id: string }>; nodes: Array<{ id: string; name: string; node_type: string }> }; readonly searchTerm?: string; readonly setActiveNodeId?: ReturnType<typeof vi.fn> }) =>
   render(
     <MemoryRouter initialEntries={["/assets/1"]}>
       <Routes><Route element={<AssetLineageGraph activeNodeId={activeNodeId} error={undefined} highlightDirection={direction} isError={false} isLoading={false} lineageData={lineageData} searchTerm={searchTerm} setActiveNodeId={setActiveNodeId} />} path="/assets/:assetId" /></Routes>
@@ -163,7 +163,7 @@ describe("AssetLineageGraph integration", () => {
     renderAssetLineageGraph({
       direction: "downstream",
       lineageData: {
-        edges: [{ source_id: "asset:1", target_id: "asset:2", column_lineage: null }],
+        edges: [{ column_lineage: null, source_id: "asset:1", target_id: "asset:2" }],
         nodes: [
           { id: "asset:1", name: "asset_1", node_type: "asset" },
           { id: "asset:2", name: "asset_2", node_type: "asset" },

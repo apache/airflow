@@ -29,6 +29,7 @@ const { mockUseAssetLineage } = vi.hoisted(() => ({
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    // eslint-disable-next-line id-length
     t: (translationKey: string, options?: { defaultValue?: string }) =>
       options?.defaultValue ?? translationKey,
   }),
@@ -99,15 +100,15 @@ describe("AssetInsightsPanel", () => {
       <AssetInsightsPanel
         asset={{
           aliases: [],
-          consuming_tasks: [{ dag_id: "publish_dag", task_id: "publish" }],
+          consuming_tasks: [{ created_at: "", dag_id: "publish_dag", task_id: "publish", updated_at: "" }],
           created_at: "",
           extra: null,
           group: "warehouse",
           id: 1,
           last_asset_event: null,
           name: "raw_orders",
-          producing_tasks: [{ dag_id: "transform_dag", task_id: "extract" }],
-          scheduled_dags: [{ dag_id: "publish_dag" }],
+          producing_tasks: [{ created_at: "", dag_id: "transform_dag", task_id: "extract", updated_at: "" }],
+          scheduled_dags: [{ created_at: "", dag_id: "publish_dag", updated_at: "" }],
           updated_at: "",
           uri: "s3://bucket/raw_orders",
           watchers: [],
