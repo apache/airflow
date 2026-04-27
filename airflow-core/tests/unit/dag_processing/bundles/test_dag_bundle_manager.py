@@ -21,7 +21,6 @@ import contextlib
 import json
 import os
 import tempfile
-import time
 from contextlib import nullcontext
 from pathlib import Path
 from unittest import mock
@@ -1877,10 +1876,12 @@ class TestDagBundleConfigPath:
                 # No changes initially
                 assert not manager.check_config_path_changes()
 
-                # Modify the file
-                time.sleep(0.01)  # Ensure mtime changes
+                # Modify the file and bump its mtime deterministically (avoid relying on
+                # filesystem timestamp granularity).
                 bundle_config["kwargs"]["refresh_interval"] = 99
                 bundle_file.write_text(json.dumps(bundle_config))
+                new_mtime_ns = bundle_file.stat().st_mtime_ns + 10_000_000_000
+                os.utime(bundle_file, ns=(new_mtime_ns, new_mtime_ns))
 
                 # Should detect the change
                 assert manager.check_config_path_changes()
