@@ -712,7 +712,7 @@ class OpenLineageListener:
             return
 
         try:
-            if self._executor is None:
+            if not self.executor:
                 self.log.debug("Executor has not started before `_on_task_instance_manual_state_change`")
                 return
 
@@ -879,7 +879,7 @@ class OpenLineageListener:
                 )
                 return
 
-            if self._executor is None:
+            if not self.executor:
                 self.log.debug("Executor have not started before `on_dag_run_running`")
                 return
 
@@ -931,7 +931,7 @@ class OpenLineageListener:
                 )
                 return
 
-            if self._executor is None:
+            if not self.executor:
                 self.log.debug("Executor have not started before `on_dag_run_success`")
                 return
 
@@ -983,7 +983,7 @@ class OpenLineageListener:
                 )
                 return
 
-            if self._executor is None:
+            if not self.executor:
                 self.log.debug("Executor have not started before `on_dag_run_failed`")
                 return
 

@@ -1502,7 +1502,7 @@ class TestOpenLineageListenerAirflow3:
         time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
-        listener._executor = MagicMock()  # satisfy `if self._executor is None` guard
+        listener._executor = MagicMock()  # satisfy `if not self.executor` guard
         mock_get_airflow_run_facet.return_value = {"airflow": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1693,7 +1693,7 @@ class TestOpenLineageListenerAirflow3:
         time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
-        listener._executor = MagicMock()  # satisfy `if self._executor is None` guard
+        listener._executor = MagicMock()  # satisfy `if not self.executor` guard
         delattr(task_instance, "task")  # Test api server path, where task is not available
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1911,7 +1911,7 @@ class TestOpenLineageListenerAirflow3:
         time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
-        listener._executor = MagicMock()  # satisfy `if self._executor is None` guard
+        listener._executor = MagicMock()  # satisfy `if not self.executor` guard
         delattr(task_instance, "task")  # Test api server path, where task is not available
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
