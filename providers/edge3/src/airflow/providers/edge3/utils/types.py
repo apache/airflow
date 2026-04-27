@@ -41,5 +41,6 @@ def is_callback_execute(workload: workloads.All) -> TypeGuard[ExecuteCallback]:
     return False
 
 
-# Do not modify it,
+# This is the key used to identify execute_callback jobs.
+# Changing this value may break compatibility with existing data in the edge_job table.
 EXECUTE_CALLBACK_TAG = "ExecuteCallback"
