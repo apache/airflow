@@ -184,17 +184,18 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
 
         gcs_files = [f for f in gcs_files if not self._should_skip_gcs_object(f)]
 
+        blob_prefix = self.blob_prefix
         if not self.keep_directory_structure and self.prefix and not self.flatten_structure:
-            self.blob_prefix = os.path.join(self.blob_prefix, self.prefix)
+            blob_prefix = os.path.join(blob_prefix, self.prefix)
 
         if not self.replace:
             existing_blobs = wasb_hook.get_blobs_list_recursive(
                 container_name=self.container_name,
-                prefix=self.blob_prefix or None,
+                prefix=blob_prefix or None,
             )
             existing_blobs = existing_blobs or []
-            if self.blob_prefix:
-                prefix_str = self.blob_prefix.rstrip("/") + "/"
+            if blob_prefix:
+                prefix_str = blob_prefix.rstrip("/") + "/"
                 existing_blobs = [b.removeprefix(prefix_str) for b in existing_blobs]
 
             existing_blobs_set = set(existing_blobs)
@@ -222,7 +223,7 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
                     object_name=file, bucket_name=str(self.gcs_bucket), user_project=self.gcp_user_project
                 ) as local_tmp_file:
                     transformed_path = self._transform_file_path(file)
-                    dest_blob = os.path.join(self.blob_prefix, transformed_path)
+                    dest_blob = os.path.join(blob_prefix, transformed_path)
                     self.log.info("Saving file from %s to %s", file, dest_blob)
                     wasb_hook.load_file(
                         file_path=local_tmp_file.name,

@@ -184,6 +184,31 @@ class TestGCSToAzureBlobStorageOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.WasbHook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.GCSHook")
+    def test_execute_is_idempotent_on_retry(self, mock_gcs_hook, mock_wasb_hook):
+        mock_gcs_hook.return_value.list.return_value = ["data/a.txt"]
+        mock_file = mock.Mock()
+        mock_file.name = "/tmp/local"
+        mock_gcs_hook.return_value.provide_file.return_value.__enter__ = mock.Mock(return_value=mock_file)
+        mock_gcs_hook.return_value.provide_file.return_value.__exit__ = mock.Mock(return_value=None)
+
+        op = GCSToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            gcs_bucket=GCS_BUCKET,
+            prefix="data/",
+            container_name=CONTAINER,
+            blob_prefix=BLOB_PREFIX,
+            replace=True,
+            keep_directory_structure=False,
+        )
+
+        first = op.execute(context=None)
+        second = op.execute(context=None)
+
+        assert _norm_paths(first) == _norm_paths(second)
+        assert op.blob_prefix == BLOB_PREFIX
+
+    @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.GCSHook")
     def test_openlineage_facets(self, mock_gcs_hook, mock_wasb_hook):
         injected: list[str] = []
         if "airflow.providers.openlineage.extractors" not in sys.modules:
