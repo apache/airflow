@@ -17,11 +17,7 @@
 from __future__ import annotations
 
 from airflow_e2e_tests.e2e_test_utils.base_remote_log_search_test import BaseRemoteLoggingSearchTest
-from airflow_e2e_tests.e2e_test_utils.clients import get_elasticsearch_session
 
 
 class TestRemoteLoggingElasticsearch(BaseRemoteLoggingSearchTest):
     search_url = "http://localhost:9200"
-
-    def _get_session(self):
-        return get_elasticsearch_session()

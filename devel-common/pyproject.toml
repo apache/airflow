@@ -35,7 +35,7 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.15.10",
+    "ruff==0.15.11",
     "semver>=3.0.2",
     "typer-slim>=0.15.1",
     "time-machine[dateutil]>=3.0.0",
@@ -111,6 +111,7 @@ dependencies = [
 "mypy" = [
     # Mypy dependencies
     # TODO: upgrade to newer versions of MyPy continuously as they are released
+    "apache-airflow-mypy",
     "mypy==1.20.1",
     "types-Deprecated>=1.2.9.20240311",
     "types-Markdown>=3.6.0.20240316",
@@ -171,6 +172,10 @@ docs = [
 docs-gen = [
     "apache-airflow-devel-common[docs-gen]",
 ]
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]
+
 
 [project.scripts]
 build-docs = "docs.build_docs:build_docs"
@@ -181,6 +186,16 @@ src = ["src"]
 
 [tool.flit.module]
 name = "tests_common"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "sphinx_design/",
+    "src/docs/",
+    "src/sphinx_exts/",
+    "tests/",
+]
 
 [tool.ruff.lint.extend-per-file-ignores]
 "src/tests_common/*" = ["S101", "TRY002"]

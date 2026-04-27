@@ -19,8 +19,8 @@
 ---
 apiVersion: v2
 name: airflow
-version: 1.21.0
-appVersion: 3.2.0
+version: 1.22.0
+appVersion: 3.2.1
 description: The official Helm chart to deploy Apache Airflow, a platform to
   programmatically author, schedule, and monitor workflows
 home: https://airflow.apache.org/
@@ -47,163 +47,128 @@ annotations:
       url: https://airflow.apache.org/docs/helm-chart/1.21.0/
   artifacthub.io/screenshots: |
     - title: Home Page
-      url: https://airflow.apache.org/docs/apache-airflow/3.2.0/_images/home_dark.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.2.1/_images/home_dark.png
     - title: DAG Overview Dashboard
-      url: https://airflow.apache.org/docs/apache-airflow/3.2.0/_images/dag_overview_dashboard.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.2.1/_images/dag_overview_dashboard.png
     - title: DAGs View
-      url: https://airflow.apache.org/docs/apache-airflow/3.2.0/_images/dags.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.2.1/_images/dags.png
     - title: Assets View
-      url: https://airflow.apache.org/docs/apache-airflow/3.2.0/_images/asset_view.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.2.1/_images/asset_view.png
     - title: Grid View
-      url: https://airflow.apache.org/docs/apache-airflow/3.2.0/_images/dag_overview_grid.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.2.1/_images/dag_overview_grid.png
     - title: Graph View
-      url: https://airflow.apache.org/docs/apache-airflow/3.2.0/_images/dag_overview_graph.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.2.1/_images/dag_overview_graph.png
     - title: Variable View
-      url: https://airflow.apache.org/docs/apache-airflow/3.2.0/_images/variable_hidden.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.2.1/_images/variable_hidden.png
     - title: Code View
-      url: https://airflow.apache.org/docs/apache-airflow/3.2.0/_images/dag_overview_code.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.2.1/_images/dag_overview_code.png
   artifacthub.io/changes: |
-    - description: Add missing deprecation warnings for workers section
-      kind: changed
-      links:
-      - name: '#63659'
-        url: https://github.com/apache/airflow/pull/63659
-    - description: Remove automatic `KUBERNETES_ENVIRONMENT_VARIABLES` and `KUBERNETES_SECRETS`
-        prefixes from chart helpers
-      kind: changed
-      links:
-      - name: '#60750'
-        url: https://github.com/apache/airflow/pull/60750
-    - description: Remove JWT secrets from triggerer, worker and dag-processor
-      kind: changed
-      links:
-      - name: '#63204'
-        url: https://github.com/apache/airflow/pull/63204
-    - description: Add workers.celery.nodeSelector & workers.kubernetes.nodeSelector
-      kind: changed
-      links:
-      - name: '#61957'
-        url: https://github.com/apache/airflow/pull/61957
     - description: >
-        Add workers.celery.terminationGracePeriodSeconds & workers.kubernetes.terminationGracePeriodSeconds
+        Workers config options have been moved under workers.celery.* and workers.kubernetes.*:
+        safeToEvict, hostAliases, priorityClassName, runtimeClassName, schedulerName,
+        serviceAccount, extraContainers, extraInitContainers, extraVolumes, affinity,
+        tolerations, topologySpreadConstraints, podAnnotations, labels, env, extraVolumeMounts
+        are moved to both; extraPorts, volumeClaimTemplates, waitForMigrations, hpa,
+        annotations, logGroomerSidecar are Celery-specific and moved under workers.celery.*
       kind: changed
       links:
-      - name: '#61892'
-        url: https://github.com/apache/airflow/pull/61892
-    - description: Add workers.celery.resources & workers.kubernetes.resources
+      - name: '#61915'
+        url: https://github.com/apache/airflow/pull/61915
+      - name: '#61919'
+        url: https://github.com/apache/airflow/pull/61919
+      - name: '#61960'
+        url: https://github.com/apache/airflow/pull/61960
+      - name: '#61961'
+        url: https://github.com/apache/airflow/pull/61961
+      - name: '#61962'
+        url: https://github.com/apache/airflow/pull/61962
+      - name: '#62030'
+        url: https://github.com/apache/airflow/pull/62030
+      - name: '#62048'
+        url: https://github.com/apache/airflow/pull/62048
+      - name: '#62054'
+        url: https://github.com/apache/airflow/pull/62054
+      - name: '#64730'
+        url: https://github.com/apache/airflow/pull/64730
+      - name: '#64734'
+        url: https://github.com/apache/airflow/pull/64734
+      - name: '#64739'
+        url: https://github.com/apache/airflow/pull/64739
+      - name: '#64741'
+        url: https://github.com/apache/airflow/pull/64741
+      - name: '#64746'
+        url: https://github.com/apache/airflow/pull/64746
+      - name: '#64860'
+        url: https://github.com/apache/airflow/pull/64860
+      - name: '#64976'
+        url: https://github.com/apache/airflow/pull/64976
+      - name: '#64980'
+        url: https://github.com/apache/airflow/pull/64980
+      - name: '#64982'
+        url: https://github.com/apache/airflow/pull/64982
+      - name: '#65027'
+        url: https://github.com/apache/airflow/pull/65027
+      - name: '#65030'
+        url: https://github.com/apache/airflow/pull/65030
+      - name: '#65033'
+        url: https://github.com/apache/airflow/pull/65033
+      - name: '#65056'
+        url: https://github.com/apache/airflow/pull/65056
+      - name: '#65059'
+        url: https://github.com/apache/airflow/pull/65059
+    - description: Default Airflow image updated to 3.2.1
       kind: changed
       links:
-      - name: '#61890'
-        url: https://github.com/apache/airflow/pull/61890
-    - description: Add workers.celery.keda section
+      - name: '#64841'
+        url: https://github.com/apache/airflow/pull/64841
+    - description: Fix wrong broker URL secret ref
+      kind: fixed
+      links:
+      - name: '#65006'
+        url: https://github.com/apache/airflow/pull/65006
+    - description: Add ttlSecondsAfterFinished to database cleanup job
+      kind: added
+      links:
+      - name: '#64164'
+        url: https://github.com/apache/airflow/pull/64164
+    - description: >
+        Support tpl rendering in ServiceAccount annotations, metadataConnection, and config ConfigMap names
+      kind: added
+      links:
+      - name: '#64763'
+        url: https://github.com/apache/airflow/pull/64763
+    - description: Generate JWT Secret of recommended length
       kind: changed
       links:
-      - name: '#61820'
-        url: https://github.com/apache/airflow/pull/61820
-    - description: Add workers.celery.podDisruptionBudget
-      kind: changed
-      links:
-      - name: '#61414'
-        url: https://github.com/apache/airflow/pull/61414
-    - description: Add workers.celery.containerLifecycleHooks & workers.kubernetes.containerLifecycleHooks
-      kind: changed
-      links:
-      - name: '#61369'
-        url: https://github.com/apache/airflow/pull/61369
-    - description: Refactor Git-Sync livenessProbe & deprecate readinessProbe & add startupProbe
-      kind: changed
-      links:
-      - name: '#62334'
-        url: https://github.com/apache/airflow/pull/62334
-    - description: Default airflow version to 3.2.0
-      kind: changed
-      links:
-      - name: '#63392'
-        url: https://github.com/apache/airflow/pull/63392
-    - description: Drop support for all Airflow versions below 2.11 in Helm Chart
-      kind: changed
-      links:
-      - name: '#61018'
-        url: https://github.com/apache/airflow/pull/61018
-    - description: Support Helm template expressions in podAnnotations
-      kind: changed
-      links:
-      - name: '#63019'
-        url: https://github.com/apache/airflow/pull/63019
-    - description: Warn on deprecated per-component securityContext values
-      kind: changed
-      links:
-      - name: '#62729'
-        url: https://github.com/apache/airflow/pull/62729
-    - description: Add *.iml to .gitignore in all distributions
+      - name: '#65082'
+        url: https://github.com/apache/airflow/pull/65082
+    - description: Fix Helm chart image volume schema validation
       kind: fixed
       links:
-      - name: '#63636'
-        url: https://github.com/apache/airflow/pull/63636
-    - description: More restrictive chart rendering logic
+      - name: '#65409'
+        url: https://github.com/apache/airflow/pull/65409
+    - description: Remove duplicate fallback branch in airflowPodSecurityContextsIds helper
       kind: fixed
       links:
-      - name: '#63464'
-        url: https://github.com/apache/airflow/pull/63464
-    - description: Omit api-server spec.replicas when HPA is enabled
+      - name: '#65558'
+        url: https://github.com/apache/airflow/pull/65558
+    - description: Render cleanup RBAC only for KubernetesExecutor
       kind: fixed
       links:
-      - name: '#63187'
-        url: https://github.com/apache/airflow/pull/63187
-    - description: Add workers.celery.kerberosSidecar & workers.kubernetes.kerberosSidecar
-        sections
+      - name: '#65539'
+        url: https://github.com/apache/airflow/pull/65539
+    - description: Fix default args/command for database cleanup
       kind: fixed
       links:
-      - name: '#61881'
-        url: https://github.com/apache/airflow/pull/61881
-    - description: Cleanup Helm Chart documentation
+      - name: '#63821'
+        url: https://github.com/apache/airflow/pull/63821
+    - description: Fix invalid deprecation warning in NOTES.txt
       kind: fixed
       links:
-      - name: '#62544'
-        url: https://github.com/apache/airflow/pull/62544
-    - description: Upgrade important CI environment
+      - name: '#64296'
+        url: https://github.com/apache/airflow/pull/64296
+    - description: Add missing fields in schema file
       kind: fixed
       links:
-      - name: '#62792'
-        url: https://github.com/apache/airflow/pull/62792
-    - description: Fix chart NOTES.txt showing deprecation warnings only without secret
-        key
-      kind: fixed
-      links:
-      - name: '#62722'
-        url: https://github.com/apache/airflow/pull/62722
-    - description: 'Fix tpl rendering for TLS hosts in ingress templates #62358'
-      kind: fixed
-      links:
-      - name: '#62548'
-        url: https://github.com/apache/airflow/pull/62548
-    - description: Upgrade important CI environment
-      kind: fixed
-      links:
-      - name: '#62610'
-        url: https://github.com/apache/airflow/pull/62610
-    - description: Fix all build-system/requires including transitive dependencies
-      kind: fixed
-      links:
-      - name: '#62570'
-        url: https://github.com/apache/airflow/pull/62570
-    - description: Add ingress deprecation warnings for apiServer, statsd, and pgbouncer
-      kind: fixed
-      links:
-      - name: '#62490'
-        url: https://github.com/apache/airflow/pull/62490
-    - description: 'Add missing support for:  securityContexts and containerLifecycleHooks'
-      kind: fixed
-      links:
-      - name: '#60677'
-        url: https://github.com/apache/airflow/pull/60677
-    - description: Fix webserver.defaultUser.enabled=false not honored
-      kind: fixed
-      links:
-      - name: '#62143'
-        url: https://github.com/apache/airflow/pull/62143
-    - description: Allow to use short SPDX licence identifier for selected files
-      kind: fixed
-      links:
-      - name: '#62073'
-        url: https://github.com/apache/airflow/pull/62073
+      - name: '#64339'
+        url: https://github.com/apache/airflow/pull/64339

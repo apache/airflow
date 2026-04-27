@@ -27,6 +27,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
     QueryPoolNamePatternSearch,
+    QueryPoolNamePrefixPatternSearch,
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -105,13 +106,14 @@ def get_pools(
         Depends(SortParam(["id", "pool"], Pool, to_replace={"name": "pool"}).dynamic_depends()),
     ],
     pool_name_pattern: QueryPoolNamePatternSearch,
+    pool_name_prefix_pattern: QueryPoolNamePrefixPatternSearch,
     readable_pools_filter: ReadablePoolsFilterDep,
     session: SessionDep,
 ) -> PoolCollectionResponse:
     """Get all pools entries."""
     pools_select, total_entries = paginated_select(
         statement=select(Pool),
-        filters=[pool_name_pattern, readable_pools_filter],
+        filters=[pool_name_pattern, pool_name_prefix_pattern, readable_pools_filter],
         order_by=order_by,
         offset=offset,
         limit=limit,

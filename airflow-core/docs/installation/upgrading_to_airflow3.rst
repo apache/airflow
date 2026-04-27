@@ -379,3 +379,15 @@ These include:
 
       airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 - **AUTH API** api routes defined in the auth manager are prefixed with the ``/auth`` route. Urls consumed outside of the application such as oauth redirect urls will have to updated accordingly. For example an oauth redirect url that was ``https://<your-airflow-url.com>/oauth-authorized/google`` in Airflow 2.x will be ``https://<your-airflow-url.com>/auth/oauth-authorized/google`` in Airflow 3.x
+- **XCom Pull Default Behavior**: Calling ``xcom_pull()`` without a ``task_ids`` argument now pulls only from the current task. In Airflow 2, omitting ``task_ids`` would search all tasks in the Dag run and return the most recently pushed value for the given key. You must now explicitly pass ``task_ids`` to pull XComs from other tasks:
+
+  .. code-block:: python
+
+      # Airflow 2 - pulls most recent value from any task
+      value = ti.xcom_pull(key="shared_state")
+
+      # Airflow 3 - same call only checks the current task
+      value = ti.xcom_pull(key="shared_state")
+
+      # Airflow 3 - specify task_ids to pull from other tasks
+      value = ti.xcom_pull(task_ids="upstream_task", key="shared_state")

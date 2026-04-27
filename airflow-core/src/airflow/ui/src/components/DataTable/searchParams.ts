@@ -22,7 +22,12 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 
 import type { TableState } from "./types";
 
-const { LIMIT: LIMIT_PARAM, OFFSET: OFFSET_PARAM, SORT: SORT_PARAM }: SearchParamsKeysType = SearchParamsKeys;
+const {
+  CURSOR: CURSOR_PARAM,
+  LIMIT: LIMIT_PARAM,
+  OFFSET: OFFSET_PARAM,
+  SORT: SORT_PARAM,
+}: SearchParamsKeysType = SearchParamsKeys;
 
 export const stateToSearchParams = (state: TableState, defaultTableState?: TableState): URLSearchParams => {
   const queryParams = new URLSearchParams(globalThis.location.search);
@@ -37,6 +42,12 @@ export const stateToSearchParams = (state: TableState, defaultTableState?: Table
     queryParams.delete(OFFSET_PARAM);
   } else if (state.pagination.pageIndex) {
     queryParams.set(OFFSET_PARAM, `${state.pagination.pageIndex}`);
+  }
+
+  if (state.cursor !== undefined && state.cursor !== "") {
+    queryParams.set(CURSOR_PARAM, state.cursor);
+  } else {
+    queryParams.delete(CURSOR_PARAM);
   }
 
   if (state.sorting.length) {
@@ -68,6 +79,13 @@ export const searchParamsToState = (searchParams: URLSearchParams, defaultState:
       },
     };
   }
+
+  const cursorValue = searchParams.get(CURSOR_PARAM);
+
+  if (cursorValue !== null) {
+    urlState = { ...urlState, cursor: cursorValue };
+  }
+
   const sorts = searchParams.getAll(SORT_PARAM);
   const sorting: SortingState = sorts.map((sort) => ({
     desc: sort.startsWith("-"),

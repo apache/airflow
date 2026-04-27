@@ -43,11 +43,6 @@ def get_s3_client():
     )
 
 
-def get_elasticsearch_session():
-    """Return a requests session configured for talking to the local Elasticsearch container."""
-    return create_request_session_with_retries(status_forcelist=[429, 500, 502, 503, 504])
-
-
 def create_request_session_with_retries(status_forcelist: list[int]):
     """Create a requests Session with retry logic for handling transient errors."""
     Retry.DEFAULT_BACKOFF_MAX = 32

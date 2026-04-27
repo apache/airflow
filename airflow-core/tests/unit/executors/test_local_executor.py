@@ -394,6 +394,8 @@ class TestLocalExecutor:
 
 class TestLocalExecutorCallbackSupport:
     CALLBACK_UUID = "12345678-1234-5678-1234-567812345678"
+    TEST_TOKEN = "test_token"
+    TEST_SERVER = "http://localhost:8080/execution/"
 
     def test_supports_callbacks_flag_is_true(self):
         executor = LocalExecutor()
@@ -451,6 +453,8 @@ class TestLocalExecutorCallbackSupport:
             callback_kwargs={"arg1": "val1"},
             log_path="test.log",
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token=TestLocalExecutorCallbackSupport.TEST_TOKEN,
+            server=TestLocalExecutorCallbackSupport.TEST_SERVER,
         )
 
     @mock.patch(
