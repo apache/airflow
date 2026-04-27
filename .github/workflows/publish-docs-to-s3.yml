@@ -77,7 +77,6 @@ jobs:
     name: "Build Info"
     runs-on: ["ubuntu-24.04"]
     env:
-      GITHUB_CONTEXT: ${{ toJson(github) }}
       VERBOSE: true
       REF: ${{ inputs.ref }}
       INCLUDE_DOCS: ${{ inputs.include-docs }}
