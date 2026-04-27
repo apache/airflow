@@ -126,12 +126,12 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
             from airflow.providers.google import __version__ as _GOOGLE_PROVIDER_VERSION
 
             if Version(_GOOGLE_PROVIDER_VERSION) >= Version("10.3.0"):
-                self.__is_match_glob_supported = True
+                self._is_match_glob_supported = True
             else:
-                self.__is_match_glob_supported = False
+                self._is_match_glob_supported = False
         except ImportError:
-            self.__is_match_glob_supported = False
-        if not self.__is_match_glob_supported and match_glob:
+            self._is_match_glob_supported = False
+        if not self._is_match_glob_supported and match_glob:
             raise ValueError("The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'.")
         self.match_glob = match_glob
 
@@ -177,7 +177,7 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
             "prefix": self.prefix,
             "user_project": self.gcp_user_project,
         }
-        if self.__is_match_glob_supported:
+        if self._is_match_glob_supported:
             list_kwargs["match_glob"] = self.match_glob
 
         gcs_files = gcs_hook.list(**list_kwargs)  # type: ignore[call-arg]
