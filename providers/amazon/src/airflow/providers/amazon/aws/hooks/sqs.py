@@ -52,7 +52,8 @@ class SqsHook(AwsBaseHook):
         :return: dict with the information about the queue.
         """
         self.log.debug("Creating SQS queue %s with attributes %s", queue_name, attributes)
-        result = self.get_conn().create_queue(QueueName=queue_name, Attributes=attributes or {})
+        safe_attributes = {k: str(v) for k, v in (attributes or {}).items()}
+        result = self.get_conn().create_queue(QueueName=queue_name, Attributes=safe_attributes or {})
         self.log.debug("Created SQS queue %s, response: %s", queue_name, result.get("QueueUrl"))
         return result
 

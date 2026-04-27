@@ -33,8 +33,10 @@ from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
     SortParam,
+    _PrefixSearchParam,
     _SearchParam,
     filter_param_factory,
+    prefix_search_param_factory,
     search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -124,12 +126,33 @@ def get_event_logs(
         FilterParam[datetime | None],
         Depends(filter_param_factory(Log.dttm, datetime | None, FilterOptionEnum.GREATER_THAN, "after")),
     ],
-    # Pattern search filters (new - for partial matching)
+    # Pattern search filters (substring match, ILIKE)
     dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.dag_id, "dag_id_pattern"))],
     task_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.task_id, "task_id_pattern"))],
     run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.run_id, "run_id_pattern"))],
     owner_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.owner, "owner_pattern"))],
     event_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.event, "event_pattern"))],
+    # Prefix pattern search filters (index-friendly, case-sensitive)
+    dag_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(Log.dag_id, "dag_id_prefix_pattern")),
+    ],
+    task_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(Log.task_id, "task_id_prefix_pattern")),
+    ],
+    run_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(Log.run_id, "run_id_prefix_pattern")),
+    ],
+    owner_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(Log.owner, "owner_prefix_pattern")),
+    ],
+    event_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(Log.event, "event_prefix_pattern")),
+    ],
     readable_event_logs_filter: ReadableEventLogsFilterDep,
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
@@ -152,10 +175,15 @@ def get_event_logs(
             after,
             # Pattern search filters
             dag_id_pattern,
+            dag_id_prefix_pattern,
             task_id_pattern,
+            task_id_prefix_pattern,
             run_id_pattern,
+            run_id_prefix_pattern,
             owner_pattern,
+            owner_prefix_pattern,
             event_pattern,
+            event_prefix_pattern,
             # Permission
             readable_event_logs_filter,
         ],

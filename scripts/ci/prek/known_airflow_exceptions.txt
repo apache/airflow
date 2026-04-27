@@ -32,7 +32,7 @@ devel-common/src/tests_common/test_utils/salesforce_system_helpers.py::2
 devel-common/src/tests_common/test_utils/sftp_system_helpers.py::1
 devel-common/src/tests_common/test_utils/watcher.py::1
 providers/airbyte/src/airflow/providers/airbyte/hooks/airbyte.py::8
-providers/airbyte/src/airflow/providers/airbyte/operators/airbyte.py::4
+providers/airbyte/src/airflow/providers/airbyte/operators/airbyte.py::3
 providers/airbyte/src/airflow/providers/airbyte/sensors/airbyte.py::6
 providers/alibaba/src/airflow/providers/alibaba/cloud/hooks/analyticdb_spark.py::6
 providers/alibaba/src/airflow/providers/alibaba/cloud/hooks/oss.py::11
@@ -203,6 +203,7 @@ providers/fab/src/airflow/providers/fab/www/extensions/init_security.py::1
 providers/facebook/src/airflow/providers/facebook/ads/hooks/ads.py::2
 providers/git/src/airflow/providers/git/bundles/git.py::5
 providers/git/src/airflow/providers/git/hooks/git.py::1
+providers/git/tests/unit/git/bundles/test_git.py::1
 providers/github/src/airflow/providers/github/operators/github.py::2
 providers/github/src/airflow/providers/github/sensors/github.py::3
 providers/github/tests/system/github/example_github.py::2

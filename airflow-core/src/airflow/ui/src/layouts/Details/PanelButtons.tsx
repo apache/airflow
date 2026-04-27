@@ -41,48 +41,30 @@ import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { DagVersionSelect } from "src/components/DagVersionSelect";
-import { DateRangeCalendar } from "src/components/FilterBar/filters/DateRangeCalendar";
-import { DateRangeInputs } from "src/components/FilterBar/filters/DateRangeInputs";
-import type { DateRangeValue } from "src/components/FilterBar/types";
 import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
-import { RunTypeIcon } from "src/components/RunTypeIcon";
-import { SearchBar } from "src/components/SearchBar";
-import { StateBadge } from "src/components/StateBadge";
 import { Tooltip } from "src/components/ui";
 import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import type { DagView } from "src/constants/dagView";
 import { dependenciesKey, directionKey } from "src/constants/localStorage";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
-import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOptions";
-import { useDateRangeFilter } from "src/hooks/useDateRangeFilter";
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
 import { RunTypeLegend } from "./Grid/RunTypeLegend";
+import { GridFilters } from "./GridFilters";
 import { TaskStreamFilter } from "./TaskStreamFilter";
 import { ToggleGroups } from "./ToggleGroups";
 import { VersionIndicatorSelect } from "./VersionIndicatorSelect";
 
 type Props = {
-  readonly dagRunStateFilter: DagRunState | undefined;
   readonly dagView: DagView;
   readonly limit: number;
   readonly panelGroupRef: React.RefObject<ImperativePanelGroupHandle | null>;
-  readonly runAfterGte: string | undefined;
-  readonly runAfterLte: string | undefined;
-  readonly runTypeFilter: DagRunType | undefined;
-  readonly setDagRunStateFilter: React.Dispatch<React.SetStateAction<DagRunState | undefined>>;
-  readonly setDagView: (view: DagView) => void;
-  readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
-  readonly setRunAfterGte: React.Dispatch<React.SetStateAction<string | undefined>>;
-  readonly setRunAfterLte: React.Dispatch<React.SetStateAction<string | undefined>>;
-  readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<DagRunType | undefined>>;
+  readonly setDagView: (value: DagView) => void;
+  readonly setLimit: (value: number) => void;
   readonly setShowVersionIndicatorMode: React.Dispatch<React.SetStateAction<VersionIndicatorOptions>>;
-  readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly showVersionIndicatorMode: VersionIndicatorOptions;
-  readonly triggeringUserFilter: string | undefined;
 };
 
 const getOptions = (translate: (key: string) => string) =>
@@ -119,23 +101,13 @@ const deps = ["all", "immediate", "tasks"];
 type Dependency = (typeof deps)[number];
 
 export const PanelButtons = ({
-  dagRunStateFilter,
   dagView,
   limit,
   panelGroupRef,
-  runAfterGte,
-  runAfterLte,
-  runTypeFilter,
-  setDagRunStateFilter,
   setDagView,
   setLimit,
-  setRunAfterGte,
-  setRunAfterLte,
-  setRunTypeFilter,
   setShowVersionIndicatorMode,
-  setTriggeringUserFilter,
   showVersionIndicatorMode,
-  triggeringUserFilter,
 }: Props) => {
   const { t: translate } = useTranslation(["common", "components", "dag"]);
   const { dagId = "", runId } = useParams();
@@ -182,56 +154,6 @@ export const PanelButtons = ({
       setDirection(event.value[0] as Direction);
     }
   };
-
-  const handleRunTypeChange = (event: SelectValueChangeDetails<string>) => {
-    const [val] = event.value;
-
-    if (val === undefined || val === "all") {
-      setRunTypeFilter(undefined);
-    } else {
-      setRunTypeFilter(val as DagRunType);
-    }
-  };
-
-  const handleDagRunStateChange = (event: SelectValueChangeDetails<string>) => {
-    const [val] = event.value;
-
-    if (val === undefined || val === "all") {
-      setDagRunStateFilter(undefined);
-    } else {
-      setDagRunStateFilter(val as DagRunState);
-    }
-  };
-
-  const handleTriggeringUserChange = (value: string) => {
-    const trimmedValue = value.trim();
-
-    setTriggeringUserFilter(trimmedValue === "" ? undefined : trimmedValue);
-  };
-
-  const runAfterRange: DateRangeValue = {
-    endDate: runAfterLte,
-    startDate: runAfterGte,
-  };
-
-  const handleRunAfterRangeChange = (next: DateRangeValue) => {
-    setRunAfterGte(next.startDate);
-    setRunAfterLte(next.endDate);
-  };
-
-  const {
-    editingState,
-    endDateValue,
-    getFieldError,
-    handleDateClick: handleRunAfterDateClick,
-    handleInputChange: handleRunAfterInputChange,
-    setEditingState,
-    startDateValue,
-  } = useDateRangeFilter({
-    onChange: handleRunAfterRangeChange,
-    translate,
-    value: runAfterRange,
-  });
 
   const handleFocus = (view: string) => {
     if (panelGroupRef.current) {
@@ -413,132 +335,6 @@ export const PanelButtons = ({
                             </Select.Content>
                           </Select.Positioner>
                         </Select.Root>
-                        <Select.Root
-                          // @ts-expect-error The expected option type is incorrect
-                          collection={dagRunTypeOptions}
-                          data-testid="run-type-filter"
-                          onValueChange={handleRunTypeChange}
-                          size="sm"
-                          value={[runTypeFilter ?? "all"]}
-                        >
-                          <Select.Label>{translate("common:dagRun.runType")}</Select.Label>
-                          <Select.Control>
-                            <Select.Trigger>
-                              <Select.ValueText>
-                                {runTypeFilter ? (
-                                  <Flex gap={1}>
-                                    <RunTypeIcon runType={runTypeFilter} />
-                                    {translate(
-                                      dagRunTypeOptions.items.find((item) => item.value === runTypeFilter)
-                                        ?.label ?? "",
-                                    )}
-                                  </Flex>
-                                ) : (
-                                  translate("dags:filters.allRunTypes")
-                                )}
-                              </Select.ValueText>
-                            </Select.Trigger>
-                            <Select.IndicatorGroup>
-                              <Select.Indicator />
-                            </Select.IndicatorGroup>
-                          </Select.Control>
-                          <Select.Positioner>
-                            <Select.Content>
-                              {dagRunTypeOptions.items.map((option) => (
-                                <Select.Item item={option} key={option.value}>
-                                  {option.value === "all" ? (
-                                    translate(option.label)
-                                  ) : (
-                                    <Flex gap={1}>
-                                      <RunTypeIcon runType={option.value as DagRunType} />
-                                      {translate(option.label)}
-                                    </Flex>
-                                  )}
-                                </Select.Item>
-                              ))}
-                            </Select.Content>
-                          </Select.Positioner>
-                        </Select.Root>
-                        <Select.Root
-                          // @ts-expect-error The expected option type is incorrect
-                          collection={dagRunStateOptions}
-                          data-testid="dag-run-state-filter"
-                          onValueChange={handleDagRunStateChange}
-                          size="sm"
-                          value={[dagRunStateFilter ?? "all"]}
-                        >
-                          <Select.Label>{translate("common:state")}</Select.Label>
-                          <Select.Control>
-                            <Select.Trigger>
-                              <Select.ValueText>
-                                {dagRunStateFilter ? (
-                                  <StateBadge state={dagRunStateFilter}>
-                                    {translate(
-                                      dagRunStateOptions.items.find(
-                                        (item) => item.value === dagRunStateFilter,
-                                      )?.label ?? "",
-                                    )}
-                                  </StateBadge>
-                                ) : (
-                                  translate("dags:filters.allStates")
-                                )}
-                              </Select.ValueText>
-                            </Select.Trigger>
-                            <Select.IndicatorGroup>
-                              <Select.Indicator />
-                            </Select.IndicatorGroup>
-                          </Select.Control>
-                          <Select.Positioner>
-                            <Select.Content>
-                              {dagRunStateOptions.items.map((option) => (
-                                <Select.Item item={option} key={option.value}>
-                                  {option.value === "all" ? (
-                                    translate(option.label)
-                                  ) : (
-                                    <StateBadge state={option.value as DagRunState}>
-                                      {translate(option.label)}
-                                    </StateBadge>
-                                  )}
-                                </Select.Item>
-                              ))}
-                            </Select.Content>
-                          </Select.Positioner>
-                        </Select.Root>
-                        <VStack alignItems="flex-start">
-                          <Text fontSize="xs" mb={1}>
-                            {translate("common:dagRun.triggeringUser")}
-                          </Text>
-                          <SearchBar
-                            defaultValue={triggeringUserFilter ?? ""}
-                            hotkeyDisabled
-                            onChange={handleTriggeringUserChange}
-                            placeholder={translate("common:dagRun.triggeringUser")}
-                          />
-                        </VStack>
-                        <VStack alignItems="flex-start">
-                          <Text fontSize="xs" mb={1}>
-                            {translate("common:dagRun.runAfter")}
-                          </Text>
-                          <DateRangeInputs
-                            editingState={editingState}
-                            endDateValue={endDateValue}
-                            getFieldError={getFieldError}
-                            handleInputChange={handleRunAfterInputChange}
-                            onChange={handleRunAfterRangeChange}
-                            setEditingState={setEditingState}
-                            startDateValue={startDateValue}
-                            translate={translate}
-                            value={runAfterRange}
-                          />
-                          <DateRangeCalendar
-                            currentMonth={editingState.currentMonth}
-                            onDateClick={handleRunAfterDateClick}
-                            onMonthChange={(month) =>
-                              setEditingState((prev) => ({ ...prev, currentMonth: month }))
-                            }
-                            value={runAfterRange}
-                          />
-                        </VStack>
                         <VStack alignItems="flex-start" px={1}>
                           <VersionIndicatorSelect
                             onChange={setShowVersionIndicatorMode}
@@ -556,19 +352,22 @@ export const PanelButtons = ({
       </Flex>
 
       {dagView !== "graph" && (
-        <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>
-          <RunTypeLegend />
-          <Tooltip
-            content={
-              <Box>
-                <Text>{translate("dag:navigation.navigation", { arrow: "↑↓←→" })}</Text>
-                <Text>{translate("dag:navigation.toggleGroup")}</Text>
-              </Box>
-            }
-            portalled
-          >
-            <LuKeyboard />
-          </Tooltip>
+        <Flex justifyContent="space-between" mt={1}>
+          <GridFilters />
+          <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>
+            <RunTypeLegend />
+            <Tooltip
+              content={
+                <Box>
+                  <Text>{translate("dag:navigation.navigation", { arrow: "↑↓←→" })}</Text>
+                  <Text>{translate("dag:navigation.toggleGroup")}</Text>
+                </Box>
+              }
+              portalled
+            >
+              <LuKeyboard />
+            </Tooltip>
+          </Flex>
         </Flex>
       )}
     </Box>

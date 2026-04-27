@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pendulum
 import psutil
@@ -692,7 +692,7 @@ class TestSchedulerJob:
             bundle_name="dag_maker",
             bundle_version=None,
             msg=f"Executor {executor} reported that the task instance "
-            "<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> "
+            f"<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued] ti_id={ti1.id}> "
             "finished with state failed, but the task instance's state attribute is queued. "
             "Learn more: https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#task-state-changed-externally",
             context_from_server=mock.ANY,
@@ -1904,11 +1904,13 @@ class TestSchedulerJob:
         some_pool = Pool(pool="some_pool", slots=2, description="my pool", include_deferred=False)
         session.add(some_pool)
         session.commit()
+        cannot_run_ti_id = next(t for t in dr.task_instances if t.task_id == "cannot_run").id
         with caplog.at_level(logging.WARNING):
             self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
             assert (
-                "Not executing <TaskInstance: "
-                "SchedulerJobTest.test_test_not_enough_pool_slots.cannot_run test [scheduled]>. "
+                f"Not executing <TaskInstance: "
+                f"SchedulerJobTest.test_test_not_enough_pool_slots.cannot_run test [scheduled] "
+                f"ti_id={cannot_run_ti_id}>. "
                 "Requested pool slots (4) are greater than total pool slots: '2' for pool: some_pool"
                 in caplog.text
             )
@@ -2417,6 +2419,38 @@ class TestSchedulerJob:
             )
 
         assert mock_queue_workload.called
+        session.rollback()
+
+    def test_executable_task_instances_to_queued_sets_external_executor_id(self, dag_maker, session):
+        """external_executor_id is written to the DB in the same UPDATE that sets state=QUEUED."""
+        dag_id = "SchedulerJobTest.test_executable_sets_external_executor_id"
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id, start_date=DEFAULT_DATE, session=session):
+            EmptyOperator(task_id="dummy")
+
+        class PreAssigningExecutor(MockExecutor):
+            pre_assigns_external_executor_id = True
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[PreAssigningExecutor()])
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("dummy", session)
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        session.flush()
+
+        returned_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        assert len(returned_tis) == 1
+        # In-memory object (post make_transient) should carry the UUID
+        assert returned_tis[0].external_executor_id is not None
+        UUID(returned_tis[0].external_executor_id)
+
+        # DB row should also have it (the whole point — survives a crash)
+        db_value = session.scalar(select(TaskInstance.external_executor_id).where(TaskInstance.id == ti.id))
+        assert db_value == returned_tis[0].external_executor_id
+
         session.rollback()
 
     @pytest.mark.parametrize("state", [State.FAILED, State.SUCCESS])

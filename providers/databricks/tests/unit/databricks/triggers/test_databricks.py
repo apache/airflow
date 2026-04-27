@@ -259,6 +259,12 @@ class TestDatabricksExecutionTrigger:
         mock_sleep.assert_called_once()
         mock_sleep.assert_called_with(POLLING_INTERVAL_SECONDS)
 
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.cancel_run")
+    async def test_on_kill_cancels_run(self, mock_cancel_run):
+        await self.trigger.on_kill()
+        mock_cancel_run.assert_called_once_with(RUN_ID)
+
 
 class TestDatabricksSQLStatementExecutionTrigger:
     @pytest.fixture(autouse=True)
@@ -361,3 +367,9 @@ class TestDatabricksSQLStatementExecutionTrigger:
             )
         mock_sleep.assert_called_once()
         mock_sleep.assert_called_with(POLLING_INTERVAL_SECONDS)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.cancel_sql_statement")
+    async def test_on_kill_cancels_statement(self, mock_cancel_sql_statement):
+        await self.trigger.on_kill()
+        mock_cancel_sql_statement.assert_called_once_with(STATEMENT_ID)

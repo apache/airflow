@@ -392,6 +392,20 @@ function check_run_tests() {
     fi
 }
 
+function reinstall_shared_distributions() {
+    # The shared distributions under shared/<name>/ are workspace members that are not
+    # transitively required by airflow-core or any provider, so the lowest-direct
+    # `uv sync` above wipes them out from the environment. Re-install them with
+    # --no-deps so that the `airflow_shared.*` namespace used by devel-common test
+    # utils resolves at test collection time without disturbing the lowest-direct
+    # resolution that was just applied.
+    echo
+    echo "${COLOR_BLUE}Re-installing shared distributions (airflow_shared.*) after uv sync${COLOR_RESET}"
+    echo
+    # shellcheck disable=SC2046
+    uv pip install --no-deps $(ls -d /opt/airflow/shared/*/)
+}
+
 function check_force_lowest_dependencies() {
     if [[ ${FORCE_LOWEST_DEPENDENCIES=} != "true" ]]; then
         return
@@ -444,6 +458,7 @@ function check_force_lowest_dependencies() {
         uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
             --no-python-downloads --no-managed-python
     fi
+    reinstall_shared_distributions
 }
 
 function check_airflow_python_client_installation() {
