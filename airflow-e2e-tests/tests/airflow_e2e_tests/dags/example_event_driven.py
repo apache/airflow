@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pendulum
 
@@ -133,7 +133,7 @@ def event_driven_consumer():
         for event in triggering_asset_events[kafka_cdc_asset]:
             # Get the message from the TriggerEvent payload
             print(f"Asset event: {event}")
-            process_one_message(event.extra["payload"])
+            process_one_message(cast("str", event.extra["payload"]))
         return True
 
     @task.short_circuit(trigger_rule="all_done")

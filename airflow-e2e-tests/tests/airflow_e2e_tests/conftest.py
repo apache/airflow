@@ -123,7 +123,7 @@ def _setup_opensearch_integration(dot_env_file, tmp_dir):
 
 
 def _copy_kafka_files(tmp_dir):
-    """Copy Kafka compose file and init script into the temp directory."""
+    """Copy Kafka compose file, init script, and provider source into the temp directory."""
     copyfile(KAFKA_DIR_PATH.parent / "kafka.yml", tmp_dir / "kafka.yml")
 
     kafka_dir = tmp_dir / "kafka"
@@ -149,12 +149,7 @@ def _setup_event_driven_integration(dot_env_file, tmp_dir):
         }
     )
 
-    dot_env_file.write_text(
-        f"AIRFLOW_UID={os.getuid()}\n"
-        f"AIRFLOW_CONN_KAFKA_DEFAULT='{kafka_conn}'\n"
-        "_PIP_ADDITIONAL_REQUIREMENTS="
-        "apache-airflow-providers-apache-kafka apache-airflow-providers-common-messaging\n"
-    )
+    dot_env_file.write_text(f"AIRFLOW_UID={os.getuid()}\nAIRFLOW_CONN_KAFKA_DEFAULT='{kafka_conn}'\n")
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 

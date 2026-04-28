@@ -49,17 +49,11 @@ class TestEventDrivenDag:
 
     airflow_client = AirflowClient()
 
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-
-    def _wait_for_kafka_consumer_group(
-        self, compose_instance, group_id: str, timeout: int = 60, check_interval: int = 3
-    ):
-        """Poll until the Kafka consumer group is registered, indicating the trigger is active."""
+    def _wait_for_kafka_consumer_group(self, compose_instance, timeout: int = 60, check_interval: int = 3):
+        """Poll until any Kafka consumer group is registered, indicating the trigger is active."""
         start = time.monotonic()
         while time.monotonic() - start < timeout:
-            stdout, _ = compose_instance.exec_in_container(
+            stdout, _, _ = compose_instance.exec_in_container(
                 command=[
                     "kafka-consumer-groups",
                     "--bootstrap-server",
@@ -69,10 +63,12 @@ class TestEventDrivenDag:
                 service_name="broker",
             )
             output = stdout.decode() if isinstance(stdout, bytes) else stdout
-            if group_id in output:
+            # Any non-empty group listing means the trigger's consumer has registered
+            groups = [line.strip() for line in output.strip().splitlines() if line.strip()]
+            if groups:
                 return
             time.sleep(check_interval)
-        raise TimeoutError(f"Kafka consumer group '{group_id}' not registered within {timeout}s")
+        raise TimeoutError(f"No Kafka consumer group registered within {timeout}s")
 
     def _wait_for_consumer_dag_runs(
         self, expected_count: int, timeout: int = 600, check_interval: int = 10
@@ -110,7 +106,7 @@ class TestEventDrivenDag:
 
     def _get_topic_offset(self, compose_instance, topic: str) -> int:
         """Return the current end-offset of *topic* via ``kafka-get-offsets`` inside the broker."""
-        stdout, _ = compose_instance.exec_in_container(
+        stdout, _, _ = compose_instance.exec_in_container(
             command=[
                 "kafka-get-offsets",
                 "--bootstrap-server",
@@ -123,9 +119,21 @@ class TestEventDrivenDag:
         output = stdout.decode() if isinstance(stdout, bytes) else stdout
         return _parse_topic_offset(output, topic)
 
-    # ------------------------------------------------------------------
-    # Test
-    # ------------------------------------------------------------------
+    def _wait_for_topic_offset(
+        self, compose_instance, topic: str, expected_offset: int, timeout: int = 30, check_interval: int = 2
+    ) -> int:
+        """Poll until *topic* reaches *expected_offset*, then return the offset."""
+        start = time.monotonic()
+        offset = self._get_topic_offset(compose_instance, topic)
+        while offset < expected_offset and time.monotonic() - start < timeout:
+            time.sleep(check_interval)
+            offset = self._get_topic_offset(compose_instance, topic)
+        return offset
+
+    def _get_task_states(self, run_id: str) -> dict[str, str]:
+        """Return a mapping of task_id -> state for a consumer DAG run."""
+        response = self.airflow_client.get_task_instances(CONSUMER_DAG_ID, run_id)
+        return {ti["task_id"]: ti["state"] for ti in response["task_instances"]}
 
     def test_producer_triggers_consumer_and_kafka_offsets(self, compose_instance):
         """Trigger the producer once and verify 9 consumer runs and Kafka offsets.
@@ -135,8 +143,11 @@ class TestEventDrivenDag:
         2. Wait for the Kafka MessageQueueTrigger to begin polling.
         3. Trigger the producer DAG and wait for it to succeed.
         4. Wait for 9 consumer DAG runs to reach a terminal state.
-        5. Verify that the ``fizz_buzz`` topic has offset 9 (all messages produced).
-        6. Verify that the ``dlq`` topic has offset 1 (the malformed message).
+        5. All 9 DAG runs succeed. Verify task-level behavior:
+           - 1 run has a failed ``process_message`` task and executes ``handle_dlq``.
+           - 8 runs succeed on ``process_message`` and skip ``handle_dlq``.
+        6. Verify that the ``fizz_buzz`` topic has offset 9 (all messages produced).
+        7. Verify that the ``dlq`` topic has offset 1 (the malformed message).
         """
         # 1. Unpause consumer so the triggerer registers the AssetWatcher
         self.airflow_client.un_pause_dag(CONSUMER_DAG_ID)
@@ -144,7 +155,7 @@ class TestEventDrivenDag:
         # 2. Wait for the triggerer to start the MessageQueueTrigger and subscribe.
         #    The trigger uses poll_interval=1 and auto.offset.reset=latest so it
         #    must be actively polling before the producer writes.
-        self._wait_for_kafka_consumer_group(compose_instance, "kafka_default_group")
+        self._wait_for_kafka_consumer_group(compose_instance)
 
         # 3. Trigger producer and wait for it to complete
         producer_state = self.airflow_client.trigger_dag_and_wait(PRODUCER_DAG_ID)
@@ -156,28 +167,63 @@ class TestEventDrivenDag:
             f"Expected {EXPECTED_CONSUMER_RUNS} consumer runs, got {len(consumer_runs)}"
         )
 
-        # 5. Verify consumer run outcomes:
-        #    - 8 runs process valid orders and succeed
-        #    - 1 run hits the malformed message, process_message fails after retries,
-        #      then handle_dlq sends it to the DLQ; the overall run is still "failed"
-        success_runs = [r for r in consumer_runs if r["state"] == "success"]
-        failed_runs = [r for r in consumer_runs if r["state"] == "failed"]
-        assert len(success_runs) == 8, (
-            f"Expected 8 successful consumer runs, got {len(success_runs)}. "
-            f"States: {[(r['dag_run_id'], r['state']) for r in consumer_runs]}"
+        # 5. All 9 DAG runs should succeed
+        for run in consumer_runs:
+            assert run["state"] == "success", (
+                f"Expected all consumer runs to succeed, but run {run['dag_run_id']} "
+                f"has state '{run['state']}'"
+            )
+
+        # 6. Verify task-level behavior per run:
+        #    - 1 run: process_message fails (malformed message), handle_dlq executes
+        #    - 8 runs: process_message succeeds, handle_dlq is skipped
+        dlq_runs = []
+        normal_runs = []
+        for run in consumer_runs:
+            ti_states = self._get_task_states(run["dag_run_id"])
+            if ti_states.get("process_message") == "failed":
+                dlq_runs.append(run["dag_run_id"])
+                assert ti_states.get("should_handle_dlq") == "success", (
+                    f"Run {run['dag_run_id']}: expected should_handle_dlq=success, "
+                    f"got '{ti_states.get('should_handle_dlq')}'"
+                )
+                assert ti_states.get("handle_dlq") == "success", (
+                    f"Run {run['dag_run_id']}: expected handle_dlq=success, "
+                    f"got '{ti_states.get('handle_dlq')}'"
+                )
+            else:
+                normal_runs.append(run["dag_run_id"])
+                assert ti_states.get("process_message") == "success", (
+                    f"Run {run['dag_run_id']}: expected process_message=success, "
+                    f"got '{ti_states.get('process_message')}'"
+                )
+                assert ti_states.get("should_handle_dlq") == "success", (
+                    f"Run {run['dag_run_id']}: expected should_handle_dlq=success, "
+                    f"got '{ti_states.get('should_handle_dlq')}'"
+                )
+                assert ti_states.get("handle_dlq") == "skipped", (
+                    f"Run {run['dag_run_id']}: expected handle_dlq=skipped, "
+                    f"got '{ti_states.get('handle_dlq')}'"
+                )
+
+        assert len(dlq_runs) == 1, (
+            f"Expected exactly 1 run with failed process_message (DLQ path), got {len(dlq_runs)}: {dlq_runs}"
         )
-        assert len(failed_runs) == 1, (
-            f"Expected 1 failed consumer run (malformed message), got {len(failed_runs)}. "
-            f"States: {[(r['dag_run_id'], r['state']) for r in consumer_runs]}"
+        assert len(normal_runs) == 8, (
+            f"Expected 8 runs with successful process_message, got {len(normal_runs)}: {normal_runs}"
         )
 
-        # 6. Verify Kafka topic offsets
-        fizz_buzz_offset = self._get_topic_offset(compose_instance, "fizz_buzz")
+        # 7. Verify Kafka topic offsets
+        #    The DLQ message is produced by the last consumer run to complete, so
+        #    kafka-get-offsets may briefly report a stale offset; poll with a short timeout.
+        fizz_buzz_offset = self._wait_for_topic_offset(
+            compose_instance, "fizz_buzz", EXPECTED_FIZZ_BUZZ_OFFSET
+        )
         assert fizz_buzz_offset == EXPECTED_FIZZ_BUZZ_OFFSET, (
             f"Expected fizz_buzz offset {EXPECTED_FIZZ_BUZZ_OFFSET}, got {fizz_buzz_offset}"
         )
 
-        dlq_offset = self._get_topic_offset(compose_instance, "dlq")
+        dlq_offset = self._wait_for_topic_offset(compose_instance, "dlq", EXPECTED_DLQ_OFFSET)
         assert dlq_offset == EXPECTED_DLQ_OFFSET, (
             f"Expected dlq offset {EXPECTED_DLQ_OFFSET}, got {dlq_offset}"
         )
