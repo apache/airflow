@@ -34,7 +34,7 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Add the initial Java provider with task coordinators and DAG file processors``
+* ``Add the initial Java coordinator interface``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
