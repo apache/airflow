@@ -192,6 +192,7 @@ body:
         - redis
         - salesforce
         - samba
+        - sdk-java
         - segment
         - sendgrid
         - sftp
