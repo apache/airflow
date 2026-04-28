@@ -582,7 +582,7 @@ class DagFileProcessorManager(LoggingMixin):
         self,
         session: Session = NEW_SESSION,
     ) -> list[CallbackRequest]:
-        """Fetch callbacks from the metadata database."""
+        """Fetch callbacks from database and add them to the internal queue for execution."""
         self.log.debug("Fetching callbacks from the database.")
 
         callback_queue: list[CallbackRequest] = []
