@@ -674,10 +674,6 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("executor_config", {})
 
     @property
-    def sdk(self) -> str | None:
-        return self.partial_kwargs.get("sdk")
-
-    @property
     def inlets(self) -> list[Any]:
         return self.partial_kwargs.get("inlets", [])
 
