@@ -69,6 +69,7 @@ from airflow.sdk.definitions.partition_mappers.chain import ChainMapper
 from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
 from airflow.sdk.definitions.partition_mappers.product import ProductMapper
 from airflow.sdk.definitions.partition_mappers.temporal import (
+    FanOutMapper,
     StartOfDayMapper,
     StartOfHourMapper,
     StartOfMonthMapper,
@@ -151,6 +152,7 @@ __all__ = [
     "EdgeModifier",
     "EventsTimetable",
     "ExceptionRetryPolicy",
+    "FanOutMapper",
     "HourWindow",
     "IdentityMapper",
     "Label",

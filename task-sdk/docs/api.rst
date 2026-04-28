@@ -245,6 +245,8 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.AllowedKeyMapper
 
+.. autoapiclass:: airflow.sdk.FanOutMapper
+
 Rollup Windows
 ~~~~~~~~~~~~~~
 

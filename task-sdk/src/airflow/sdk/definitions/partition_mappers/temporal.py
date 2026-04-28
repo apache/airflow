@@ -25,6 +25,8 @@ from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 if TYPE_CHECKING:
     from pendulum import FixedTimezone, Timezone
 
+    from airflow.sdk.definitions.partition_mappers.window import Window
+
 
 class _BaseTemporalMapper(PartitionMapper):
     """Base class for Temporal Partition Mappers."""
@@ -104,3 +106,76 @@ class StartOfYearMapper(_BaseTemporalMapper):
     """
 
     default_output_format = "%Y"
+
+
+# Keep ``FanOutMapper.default_downstream_mapper_by_window_name`` in sync with
+# the core copy in
+# ``airflow-core/src/airflow/partition_mappers/temporal.py`` —
+# the SDK and core class hierarchies are independent (the SDK cannot import
+# core), so both sides carry the same defaults and the lookup is by class
+# name. When adding a new ``Window`` subclass, extend the table on both
+# sides; a missing entry raises ``ValueError`` at ``FanOutMapper.__init__``
+# (see ``FanOutMapper._resolve_default_downstream_mapper``).
+class FanOutMapper(PartitionMapper):
+    """
+    Partition mapper that fans one upstream key out into multiple downstream keys.
+
+    Compose an ``upstream_mapper`` (which parses the coarse upstream key and
+    normalizes it to a period start) with a ``window`` that enumerates the
+    members of that period. ``downstream_mapper`` formats each member into a
+    downstream key string; if omitted, a default is chosen from the window
+    class (e.g. ``WeekWindow`` → ``StartOfDayMapper``).
+
+    ``downstream_mapper`` must be passed explicitly for any window without an
+    entry in the default table — currently ``HourWindow`` and any custom
+    ``Window`` subclass. Constructing a ``FanOutMapper`` for those windows
+    without a ``downstream_mapper`` raises ``ValueError`` at Dag-parse time.
+
+    Symmetric to :class:`~airflow.sdk.RollupMapper`: rollup is N→1 (downstream
+    waits for all members), fan-out is 1→N (one upstream event creates many
+    downstream Dag runs).
+
+    .. code-block:: python
+
+        # Weekly upstream → 7 daily downstream Dag runs
+        FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+    """
+
+    default_downstream_mapper_by_window_name: ClassVar[dict[str, type[_BaseTemporalMapper]]] = {
+        "DayWindow": StartOfHourMapper,
+        "WeekWindow": StartOfDayMapper,
+        "MonthWindow": StartOfDayMapper,
+        "QuarterWindow": StartOfMonthMapper,
+        "YearWindow": StartOfMonthMapper,
+    }
+
+    @classmethod
+    def _resolve_default_downstream_mapper(cls, window: Window) -> PartitionMapper:
+        """
+        Return the conventional downstream mapper for *window*.
+
+        Looked up by the window's class **name** rather than identity so that
+        the SDK ``Window`` classes (used in Dag-author code) and the core
+        ``Window`` classes (used after deserialization) both resolve to the
+        same default. Subclasses can extend or override the defaults by
+        setting :attr:`default_downstream_mapper_by_window_name` on the
+        subclass.
+        """
+        mapper_cls = cls.default_downstream_mapper_by_window_name.get(type(window).__name__)
+        if mapper_cls is None:
+            raise ValueError(
+                f"{cls.__name__} has no default downstream_mapper for window type "
+                f"{type(window).__name__}; pass downstream_mapper explicitly."
+            )
+        return mapper_cls()
+
+    def __init__(
+        self,
+        *,
+        upstream_mapper: PartitionMapper,
+        window: Window,
+        downstream_mapper: PartitionMapper | None = None,
+    ) -> None:
+        self.upstream_mapper = upstream_mapper
+        self.window = window
+        self.downstream_mapper = downstream_mapper or self._resolve_default_downstream_mapper(window)

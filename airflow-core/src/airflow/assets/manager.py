@@ -510,6 +510,8 @@ class AssetManager(LoggingMixin):
             )
             return
 
+        max_downstream_keys = conf.getint("scheduler", "partition_mapper_max_downstream_keys")
+
         for target_dag in partition_dags:
             if TYPE_CHECKING:
                 assert partition_key is not None
@@ -556,14 +558,35 @@ class AssetManager(LoggingMixin):
                 continue
 
             if is_container(target_key):
-                # TODO (AIP-76): This never happens now. When we implement
-                # one-to-many partition key mapping, this should also add a
-                # config to cap the iterable size so the scheduler does not
-                # blow up with an incorrectly implemented PartitionMapper.
-                target_keys: Iterable[str] = target_key
+                target_keys: list[str] = list(target_key)
             else:
                 target_keys = [target_key]
             del target_key
+
+            if len(target_keys) > max_downstream_keys:
+                log.error(
+                    "Partition mapper produced more downstream keys than allowed; skipping queue.",
+                    asset_id=asset_id,
+                    source_partition_key=partition_key,
+                    target_dag=target_dag.dag_id,
+                    produced_keys=len(target_keys),
+                    max_downstream_keys=max_downstream_keys,
+                )
+                session.add(
+                    Log(
+                        event="partition fan-out exceeded",
+                        extra=(
+                            f"Partition mapper for asset (name='{asset_model.name}', "
+                            f"uri='{asset_model.uri}') in target Dag '{target_dag.dag_id}' "
+                            f"produced {len(target_keys)} downstream keys from "
+                            f"partition_key='{partition_key}', exceeding "
+                            f"[scheduler] partition_mapper_max_downstream_keys={max_downstream_keys}. "
+                            f"No Dag runs were queued for this event."
+                        ),
+                        task_instance=task_instance,
+                    )
+                )
+                continue
 
             for target_key in target_keys:
                 apdr = cls._get_or_create_apdr(
