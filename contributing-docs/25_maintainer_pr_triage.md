@@ -205,6 +205,31 @@ appear alongside `pr-triage` in the future, but it is out of scope here. Anythin
 about line-level review comments, approve / request-changes submissions, or merge
 decisions belongs in that future skill, not in `pr-triage`.
 
+## Backlog statistics — the `pr-stats` skill
+
+The [`pr-stats`](../.github/skills/pr-stats/SKILL.md) skill is the read-only,
+no-mutations counterpart of `pr-triage`. It is the successor to the now-removed
+`breeze pr stats` command and produces two summary tables grouped by `area:*` label:
+
+- **Triaged PRs — Final State** — for PRs that were triaged and have since been
+  closed or merged: closed-vs-merged ratios per area, plus the share of authors who
+  responded before close.
+- **Triaged PRs — Still Open** — for currently-open PRs: per-area triage coverage,
+  draft / non-draft split, response rates, ready-for-review counts, plus age-bucket
+  histograms (`<1d`, `1-7d`, `1-4w`, `>4w`) on both the time-since-drafting and
+  time-since-author-response axes.
+
+Invoke it the same way as `pr-triage` — open Claude Code in your local clone and ask
+for stats. Phrasings the skill recognises include `run PR stats`, `show the area
+breakdown`, `how is the PR queue doing`, or any variation on "give me numbers about
+the open PR backlog". A typical workflow is `pr-stats` → spot the area with the worst
+triage coverage → `pr-triage label:area:<that-area>` to act on it.
+
+The skill detects triaged PRs by scanning comment bodies for the canonical
+`Pull Request quality criteria` marker that `pr-triage` posts on every triage comment.
+That same detector also catches the legacy HTML-comment markers left by the removed
+breeze command, so historical triaged PRs are still counted correctly.
+
 ## Labels and PR states
 
 The triage workflow uses the following labels and states:
