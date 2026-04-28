@@ -48,7 +48,7 @@ class TestEnableMemrayTrackDecorator:
     def teardown_method(self):
         self.memray_patcher.stop()
 
-    @conf_vars({("profiling", "memray_trace_components"): "api,dag_processor"})
+    @conf_vars({("profiling", "memray_trace_components"): "api,dag_processor,triggerer"})
     def test_memray_config(self):
         _memray_trace_components = conf.getenumlist(
             "profiling", "memray_trace_components", MemrayTraceComponents
@@ -57,6 +57,7 @@ class TestEnableMemrayTrackDecorator:
         assert _memray_trace_components == [
             MemrayTraceComponents.api,
             MemrayTraceComponents.dag_processor,
+            MemrayTraceComponents.triggerer,
         ]
 
     def test_memray_not_used_when_default_trace_component(self):
@@ -127,7 +128,7 @@ class TestEnableMemrayTrackDecorator:
         self.mock_tracker.__exit__.assert_called_once()
         assert result == "test_result"
 
-    @conf_vars({("profiling", "memray_trace_components"): "scheduler,api,dag_processor"})
+    @conf_vars({("profiling", "memray_trace_components"): "scheduler,api,dag_processor,triggerer"})
     def test_function_metadata_preserved_after_decoration(self):
         """
         Verify that decorator preserves original function metadata.
@@ -152,7 +153,7 @@ class TestEnableMemrayTrackErrorHandling:
         self.mock_function = Mock(return_value="test_result")
         self.mock_function.__name__ = "mock_function"
 
-    @conf_vars({("profiling", "memray_trace_components"): "scheduler,api,dag_processor"})
+    @conf_vars({("profiling", "memray_trace_components"): "scheduler,api,dag_processor,triggerer"})
     def test_graceful_fallback_on_memray_import_error(self):
         """
         Verify graceful degradation when memray module is unavailable.

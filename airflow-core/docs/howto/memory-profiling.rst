@@ -23,7 +23,7 @@ Memory Profiling with Memray
 Airflow integrates `Memray <https://bloomberg.github.io/memray/>`__, a memory profiler for Python,
 to help you diagnose memory usage patterns and identify potential memory leaks in Airflow components.
 This guide will walk you through how to profile memory usage in key Airflow components such as the
-scheduler, API server, and DAG processor.
+scheduler, API server, DAG processor and triggerer.
 
 .. note::
 
@@ -68,15 +68,15 @@ Add the following to your ``airflow.cfg`` file:
 
     [profiling]
     # Comma-separated list of Airflow components to profile with memray
-    # Valid components: scheduler, api, dag_processor
+    # Valid components: scheduler, api, dag_processor, triggerer
     # Invalid component names will be ignored
-    memray_trace_components = scheduler,dag_processor,api
+    memray_trace_components = scheduler,dag_processor,api, triggerer
 
 Or set it via environment variable:
 
 .. code-block:: bash
 
-    export AIRFLOW__PROFILING__MEMRAY_TRACE_COMPONENTS="scheduler,dag_processor,api"
+    export AIRFLOW__PROFILING__MEMRAY_TRACE_COMPONENTS="scheduler,dag_processor,api,triggerer"
 
 .. note::
 
@@ -146,6 +146,7 @@ The filename follows the pattern ``<component>_memory.bin``:
     $AIRFLOW_HOME/scheduler_memory.bin
     $AIRFLOW_HOME/api_memory.bin
     $AIRFLOW_HOME/dag_processor_memory.bin
+    $AIRFLOW_HOME/triggerer_memory.bin
 
 If running in a containerized environment, you may need to copy the file from the container:
 

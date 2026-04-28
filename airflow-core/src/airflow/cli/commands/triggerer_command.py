@@ -29,6 +29,7 @@ from airflow.exceptions import AirflowConfigException
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils import cli as cli_utils
+from airflow.utils.memray_utils import MemrayTraceComponents, enable_memray_trace
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
@@ -49,6 +50,7 @@ def _serve_logs(skip_serve_logs: bool = False) -> Generator[None, None, None]:
             sub_proc.terminate()
 
 
+@enable_memray_trace(component=MemrayTraceComponents.triggerer)
 def triggerer_run(
     skip_serve_logs: bool, capacity: int, triggerer_heartrate: float, queues: set[str] | None = None
 ):
