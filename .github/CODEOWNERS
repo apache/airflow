@@ -86,6 +86,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /airflow-core/src/airflow/secrets @dstandish @ashb
 
 # Providers
+/providers/akeyless/ @eladkal # + @baraka-akeyless @deanshak
 /providers/amazon/ @o-nikolas
 /providers/apache/iceberg/ @Fokko
 /providers/celery/ @hussein-awala @dheerajturaga
@@ -121,6 +122,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 # Dev tools
 /.github/workflows/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
 /dev/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496 @jedcunningham @ephraimbuddy @choo121600 @vatsrahul1001
+/dev/mypy/ @hussein-awala
 /dev/react-plugin-tools/ @pierrejeambrun @bbovenzi
 /docker-tests/ @potiuk @ashb @gopidesupavan @jason810496
 /kubernetes-tests/ @potiuk @ashb @gopidesupavan @jason810496

@@ -80,7 +80,12 @@ export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, tas
       py={0}
       transition="background-color 0.2s"
     >
-      <TaskInstanceTooltip openDelay={500} positioning={{ placement: "bottom" }} taskInstance={instance}>
+      <TaskInstanceTooltip
+        openDelay={500}
+        positioning={{ placement: "bottom" }}
+        runId={runId}
+        taskInstance={instance}
+      >
         <Box as="span" display="inline-block">
           <Link
             data-testid={`grid-${runId}-${taskId}`}

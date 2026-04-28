@@ -27,6 +27,7 @@ from sqlalchemy import select
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryConnectionIdPatternSearch,
+    QueryConnectionIdPrefixPatternSearch,
     QueryLimit,
     QueryOffset,
     SortParam,
@@ -126,11 +127,12 @@ def get_connections(
     readable_connections_filter: ReadableConnectionsFilterDep,
     session: SessionDep,
     connection_id_pattern: QueryConnectionIdPatternSearch,
+    connection_id_prefix_pattern: QueryConnectionIdPrefixPatternSearch,
 ) -> ConnectionCollectionResponse:
     """Get all connection entries."""
     connection_select, total_entries = paginated_select(
         statement=select(Connection),
-        filters=[connection_id_pattern, readable_connections_filter],
+        filters=[connection_id_pattern, connection_id_prefix_pattern, readable_connections_filter],
         order_by=order_by,
         offset=offset,
         limit=limit,

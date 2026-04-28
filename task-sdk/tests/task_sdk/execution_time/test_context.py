@@ -159,6 +159,20 @@ class TestAirflowContextHelpers:
             "AIRFLOW_CTX_DAG_EMAIL": "email1@test.com",
         }
 
+    def test_context_to_airflow_vars_team_name(self, create_runtime_ti):
+        """``team_name`` on dag_run surfaces as AIRFLOW_CTX_TEAM_NAME when set; omitted when None."""
+        task = BaseOperator(task_id="task")
+        rti = create_runtime_ti(task=task)
+        context = rti.get_template_context()
+
+        # Default (team_name is None) -> key not present
+        assert "AIRFLOW_CTX_TEAM_NAME" not in context_to_airflow_vars(context, in_env_var_format=True)
+
+        context["dag_run"].team_name = "team-a"
+        env_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        assert env_vars["AIRFLOW_CTX_TEAM_NAME"] == "team-a"
+        assert context_to_airflow_vars(context)["airflow.ctx.team_name"] == "team-a"
+
     def test_context_to_airflow_vars_from_policy(self):
         with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
             airflow_cluster = "cluster-a"

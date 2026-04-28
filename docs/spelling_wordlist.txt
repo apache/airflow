@@ -37,6 +37,8 @@ airflowctl
 AirflowException
 airflowignore
 ajax
+Akeyless
+akeyless
 aks
 AlertApi
 alertPolicies
@@ -208,6 +210,7 @@ camelCase
 Cancelled
 cancelled
 Cancelling
+cancelling
 cas
 Cassandra
 cassandra
