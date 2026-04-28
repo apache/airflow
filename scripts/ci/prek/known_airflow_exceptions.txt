@@ -170,9 +170,9 @@ providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/triggers/pod.py:
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/utils/pod_manager.py::2
 providers/common/sql/src/airflow/providers/common/sql/hooks/sql.py::1
 providers/common/sql/src/airflow/providers/common/sql/operators/generic_transfer.py::1
-providers/common/sql/src/airflow/providers/common/sql/operators/sql.py::7
+providers/common/sql/src/airflow/providers/common/sql/operators/sql.py::9
 providers/common/sql/src/airflow/providers/common/sql/sensors/sql.py::6
-providers/common/sql/src/airflow/providers/common/sql/triggers/sql.py::1
+providers/common/sql/src/airflow/providers/common/sql/triggers/sql.py::2
 providers/databricks/src/airflow/providers/databricks/hooks/databricks.py::8
 providers/databricks/src/airflow/providers/databricks/hooks/databricks_base.py::46
 providers/databricks/src/airflow/providers/databricks/hooks/databricks_sql.py::2
