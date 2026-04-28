@@ -24,11 +24,12 @@ EXECUTION_STATES = {
 }
 
 # States counted for task-level concurrency limits (max_active_tis_per_dag /
-# max_active_tis_per_dagrun).  Includes DEFERRED because a deferred task
+# max_active_tis_per_dagrun). DEFERRED is included because a deferred task
 # instance is still logically in-flight and must block additional instances
-# from being scheduled.  This is intentionally separate from EXECUTION_STATES
+# from being scheduled. This is intentionally separate from EXECUTION_STATES
 # so that DAG-level max_active_tasks and pool slot calculations are unaffected.
-TASK_CONCURRENCY_EXECUTION_STATES = EXECUTION_STATES | {
+ACTIVE_STATES = {
+    *EXECUTION_STATES,
     TaskInstanceState.DEFERRED,
 }
 

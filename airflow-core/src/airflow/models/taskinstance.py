@@ -91,6 +91,7 @@ from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.ti_deps.dependencies_states import ACTIVE_STATES
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -1923,24 +1924,21 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         )
 
     @provide_session
-    def get_num_running_task_instances(self, session: Session, same_dagrun: bool = False) -> int:
+    def get_num_active_task_instances(self, session: Session, same_dagrun: bool = False) -> int:
         """
-        Return number of active TIs for this task from the DB.
+        Count active TIs for this task from the DB.
 
         Counts task instances in running, queued, or deferred state.
         Deferred TIs are included because they are still logically in-flight
         and must count against max_active_tis_per_dag / max_active_tis_per_dagrun.
         """
-        from airflow.ti_deps.dependencies_states import TASK_CONCURRENCY_EXECUTION_STATES
-
-        # .count() is inefficient
         num_running_task_instances_query = (
             select(func.count())
             .select_from(TaskInstance)
             .where(
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.task_id == self.task_id,
-                TaskInstance.state.in_(TASK_CONCURRENCY_EXECUTION_STATES),
+                TaskInstance.state.in_(ACTIVE_STATES),
             )
         )
         if same_dagrun:
