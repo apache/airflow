@@ -1064,6 +1064,7 @@ def install_airflow_and_providers(
                 "apache-airflow-providers-common-messaging",
                 "apache-airflow-providers-git",
                 "apache-airflow-providers-edge3",
+                "apache-airflow-providers-sdk-java",
             ]
             run_command(
                 ["uv", "pip", "uninstall", *providers_to_uninstall_for_airflow_2],
