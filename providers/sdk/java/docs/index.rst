@@ -56,7 +56,7 @@ The SDK: Java provider registers Java-specific task coordinator and DAG file pro
 
 
 apache-airflow-providers-sdk-java package
------------------------------------------
+------------------------------------------------------
 
 Java SDK support for Apache Airflow runtime coordinators.
 
@@ -79,12 +79,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``3.0.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``3.3.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=3.0.0``
+``apache-airflow``  ``>=3.3.0``
 ==================  ==================
 
 Cross provider package dependencies
