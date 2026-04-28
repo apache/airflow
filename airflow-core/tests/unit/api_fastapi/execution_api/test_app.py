@@ -16,8 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+import asyncio
+import threading
+from contextlib import asynccontextmanager
 
+import pytest
+from fastapi import FastAPI
+
+from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
 from airflow.api_fastapi.execution_api.versions import bundle
 
@@ -58,6 +64,38 @@ def test_ti_self_routes_have_task_instance_id_param(client):
                 assert "task_instance_id" in route.dependant.path_param_names, (
                     f"Route {route.path} has ti:self scope but no {{task_instance_id}} path parameter"
                 )
+
+
+class TestInProcessExecutionAPI:
+    def test_transport_waits_for_lifespan_startup(self):
+        entered_lifespan = threading.Event()
+
+        @asynccontextmanager
+        async def lifespan(app):
+            await asyncio.sleep(0.05)
+            app.state.lifespan_called = True
+            entered_lifespan.set()
+            yield
+
+        api = InProcessExecutionAPI()
+        api._app = FastAPI(lifespan=lifespan)
+
+        api.transport
+
+        assert entered_lifespan.is_set()
+        assert api.app.state.lifespan_called
+
+    def test_transport_surfaces_lifespan_startup_errors(self):
+        @asynccontextmanager
+        async def lifespan(app):
+            raise RuntimeError("lifespan failed")
+            yield
+
+        api = InProcessExecutionAPI()
+        api._app = FastAPI(lifespan=lifespan)
+
+        with pytest.raises(RuntimeError, match="lifespan failed"):
+            api.transport
 
 
 class TestCorrelationIdMiddleware:

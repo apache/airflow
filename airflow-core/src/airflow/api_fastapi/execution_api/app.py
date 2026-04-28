@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import time
+from concurrent.futures import TimeoutError
 from contextlib import AsyncExitStack
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
@@ -358,7 +359,12 @@ class InProcessExecutionAPI:
 
         self._cm = AsyncExitStack()
 
-        asyncio.run_coroutine_threadsafe(start_lifespan(self._cm, self.app), middleware.loop)
+        try:
+            asyncio.run_coroutine_threadsafe(start_lifespan(self._cm, self.app), middleware.loop).result(
+                timeout=30
+            )
+        except TimeoutError as err:
+            raise RuntimeError("Timed out while starting the in-process execution API lifespan") from err
         return httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
     @cached_property
