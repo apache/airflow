@@ -89,10 +89,8 @@ The following documents provide detailed information about specific aspects of p
    * - `Provider Governance <providers/PROVIDER_GOVERNANCE.rst>`_
      - Governance framework, stewardship model, lifecycle stages (incubation, production,
        attic/deprecation), health metrics, and periodic reviews
-   * - `3rd-Party Providers <providers/THIRD_PARTY_PROVIDERS.rst>`_
-     - Relation to community providers, system test dashboards, and mixed governance model
    * - `Accepting New Providers <providers/ACCEPTING_PROVIDERS.rst>`_
-     - Prerequisites, approval process, and historical examples for proposing new community providers
+     - Prerequisites, approval process, system tests guidance, and historical examples for proposing new community providers
    * - `Provider Releases and Versioning <providers/PROVIDER_RELEASES.rst>`_
      - Release process, SEMVER versioning, provider distribution states, and minimum Airflow
        version policy
@@ -164,4 +162,7 @@ See `Suspending and Removing Providers: Removing providers <providers/SUSPENDING
 3rd-party providers
 ===================
 
-See `3rd-Party Providers <providers/THIRD_PARTY_PROVIDERS.rst>`_.
+See the `Ecosystem page <https://airflow.apache.org/ecosystem/#third-party-airflow-plugins-and-providers>`_
+for a registry of available 3rd-party providers, and the
+`Accepting New Community Providers: Alternative — 3rd-party managed providers <providers/ACCEPTING_PROVIDERS.rst#alternative-3rd-party-managed-providers>`_
+section for guidance on when a 3rd-party provider is the right choice.
