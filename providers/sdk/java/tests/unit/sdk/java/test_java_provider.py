@@ -34,15 +34,23 @@ def test_get_provider_info_exposes_java_runtime_components():
         "name": "SDK: Java",
         "description": "Java SDK support for Apache Airflow runtime coordinators.\n",
         "integrations": [
-            {
-                "integration-name": "Java",
-                "external-doc-url": "https://openjdk.org/",
-                "tags": ["software"],
+            {"integration-name": "Java", "external-doc-url": "https://openjdk.org/", "tags": ["software"]}
+        ],
+        "config": {
+            "java": {
+                "description": "Options for the Java SDK provider.",
+                "options": {
+                    "bundles_folder": {
+                        "description": "Path to the directory containing Java DAG bundle JARs.\nWhen using Python stub DAGs that delegate task execution to Java,\nthe coordinator scans this directory to find the JAR bundle matching\nthe target dag_id. Each immediate subdirectory is treated as a\nseparate bundle home, and the directory itself is also checked\n(flat layout).\n",
+                        "type": "string",
+                        "version_added": None,
+                        "example": "~/airflow/java-bundles",
+                        "default": "",
+                    }
+                },
             }
-        ],
-        "coordinators": [
-            "airflow.providers.sdk.java.coordinator.JavaCoordinator",
-        ],
+        },
+        "coordinators": ["airflow.providers.sdk.java.coordinator.JavaCoordinator"],
     }
 
 
