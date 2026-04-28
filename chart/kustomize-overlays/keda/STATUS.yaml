@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+---
 status: not-tested
 reason: >-
   First proof-of-concept overlay for KEDA. Builds successfully and passes the

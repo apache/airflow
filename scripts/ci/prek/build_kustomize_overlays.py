@@ -18,6 +18,7 @@
 # /// script
 # requires-python = ">=3.10,<3.11"
 # dependencies = [
+#   "pydantic>=2.0",
 #   "PyYAML>=6.0",
 #   "rich>=13.6.0",
 # ]
@@ -57,12 +58,62 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Annotated, Literal
 
 import yaml
-
 from common_prek_utils import AIRFLOW_ROOT_PATH, console, initialize_breeze_prek
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
 initialize_breeze_prek(__name__, __file__)
+
+
+# ---------------------------------------------------------------------------
+# STATUS.yaml contract — Pydantic discriminated union, one variant per status.
+# ---------------------------------------------------------------------------
+
+
+class _TestedStatus(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    status: Literal["tested"]
+    chart_version: str = Field(alias="chart-version")
+    last_verified: str = Field(alias="last-verified", pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
+class _NotTestedStatus(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["not-tested"]
+    reason: str | None = None
+
+
+class _DeprecatedStatus(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["deprecated"]
+    message: str
+
+
+_StatusDoc = Annotated[
+    _TestedStatus | _NotTestedStatus | _DeprecatedStatus,
+    Field(discriminator="status"),
+]
+_STATUS_ADAPTER: TypeAdapter[_StatusDoc] = TypeAdapter(_StatusDoc)
+
+
+def _validate_status(overlay_dir: Path) -> list[str]:
+    status_path = overlay_dir / "STATUS.yaml"
+    if not status_path.exists():
+        return [f"missing STATUS.yaml in {overlay_dir.name}"]
+    try:
+        data = yaml.safe_load(status_path.read_text())
+    except yaml.YAMLError as exc:
+        return [f"STATUS.yaml is not valid YAML: {exc}"]
+    try:
+        _STATUS_ADAPTER.validate_python(data)
+    except ValidationError as exc:
+        return [f"STATUS.yaml schema error: {exc}"]
+    return []
 
 
 def _structural_check(docs: list[object]) -> list[str]:
@@ -151,6 +202,16 @@ for kustomization in kustomizations:
         failures.append(str(rel))
     else:
         console.print("[green]  structural check ok")
+
+    status_errors = _validate_status(overlay_dir)
+    if status_errors:
+        console.print("[red]  STATUS.yaml check failed:")
+        for err in status_errors:
+            console.print(f"    - {err}")
+        if str(rel) not in failures:
+            failures.append(str(rel))
+    else:
+        console.print("[green]  STATUS.yaml ok")
 
 if failures:
     console.print(f"[red]\n{len(failures)} overlay(s) failed:")

@@ -22,6 +22,7 @@
 # in this directory for substitution patterns and a migration guide from
 # the equivalent chart-side configuration.
 
+---
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
