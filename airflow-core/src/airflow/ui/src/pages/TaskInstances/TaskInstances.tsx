@@ -64,6 +64,7 @@ const {
   OPERATOR_NAME_PATTERN: OPERATOR_NAME_PATTERN_PARAM,
   POOL_NAME_PATTERN: POOL_NAME_PATTERN_PARAM,
   QUEUE_NAME_PATTERN: QUEUE_NAME_PATTERN_PARAM,
+  RENDERED_MAP_INDEX: RENDERED_MAP_INDEX_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   START_DATE: START_DATE_PARAM,
   TASK_STATE: STATE_PARAM,
@@ -287,6 +288,7 @@ export const TaskInstances = () => {
   const poolNamePattern = searchParams.get(POOL_NAME_PATTERN_PARAM);
   const queueNamePattern = searchParams.get(QUEUE_NAME_PATTERN_PARAM);
   const operatorNamePattern = searchParams.get(OPERATOR_NAME_PATTERN_PARAM);
+  const renderedMapIndexFilter = searchParams.get(RENDERED_MAP_INDEX_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const filteredRunId = searchParams.get(RUN_ID_PATTERN_PARAM);
   const hasFilteredState = filteredState.length > 0;
@@ -330,6 +332,12 @@ export const TaskInstances = () => {
     storageKey: QUEUE_NAME_PATTERN_PARAM,
     value: queueNamePattern,
   });
+  const renderedMapIndexArg = useAdvancedSearchArg({
+    patternApiKey: "renderedMapIndexPattern",
+    prefixApiKey: "renderedMapIndexPrefixPattern",
+    storageKey: RENDERED_MAP_INDEX_PARAM,
+    value: renderedMapIndexFilter,
+  });
 
   const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
@@ -348,6 +356,7 @@ export const TaskInstances = () => {
       orderBy,
       ...poolNameArg,
       ...queueNameArg,
+      ...renderedMapIndexArg,
       ...runIdPatternArg,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
