@@ -51,7 +51,6 @@ The following documents describe how to use the Breeze environment:
 * `UI tasks <10_ui_tasks.rst>`_ - describes how Breeze commands are used to support Apache Airflow project UI.
 * `Registry tasks <11_registry_tasks.rst>`_ - describes how to use Breeze for provider registry data extraction.
 * `Issues tasks <12_issues_tasks.rst>`_ - describes how Breeze commands are used to manage GitHub issues.
-* `Pull request tasks <13_pr_tasks.rst>`_ - describes how Breeze commands are used to manage GitHub pull requests.
 * `Advanced Breeze topics <14_advanced_breeze_topics.rst>`_ - describes advanced Breeze topics/internals of Breeze.
 
 You can also learn more context and Architecture Decisions taken when developing Breeze in the

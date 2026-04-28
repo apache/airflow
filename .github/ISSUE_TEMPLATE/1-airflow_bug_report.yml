@@ -112,6 +112,7 @@ body:
       multiple: true
       options:
         - airbyte
+        - akeyless
         - alibaba
         - amazon
         - apache-beam
@@ -225,7 +226,8 @@ body:
       multiple: false
       options:
         - "Not Applicable"
-        - "1.20.0 (latest released)"
+        - "1.21.0 (latest released)"
+        - "1.20.0"
         - "1.19.0"
         - "1.18.0"
         - "1.17.0"

@@ -17,12 +17,12 @@
  under the License.
 */}}
 
-################################
+####################################
 ## Airflow Pod Launcher Role Binding
-#################################
+####################################
 {{- if and .Values.rbac.create .Values.allowPodLaunching }}
-{{- $schedulerLaunchExecutors := list "LocalExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
-{{- $workerLaunchExecutors := list "CeleryExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
+{{- $schedulerLaunchExecutors := list "LocalExecutor" "KubernetesExecutor" }}
+{{- $workerLaunchExecutors := list "CeleryExecutor" "KubernetesExecutor" }}
 {{- $executors := split "," .Values.executor }}
 apiVersion: rbac.authorization.k8s.io/v1
 {{- if .Values.multiNamespaceMode }}

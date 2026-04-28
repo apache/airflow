@@ -98,6 +98,7 @@ class ClientKind(enum.Enum):
 
     CLI = "cli"
     AUTH = "auth"
+    NO_AUTH = "no_auth"
 
 
 def add_correlation_id(request: httpx.Request):
@@ -253,6 +254,8 @@ class Credentials:
             with open(config_path) as f:
                 credentials = json.load(f)
                 self.api_url = credentials["api_url"]
+                if self.client_kind == ClientKind.NO_AUTH:
+                    return self
                 if self.api_token is not None:
                     return self
                 if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
@@ -294,16 +297,17 @@ class Credentials:
                             raise AirflowCtlKeyringException("Keyring backend is not available") from e
                         self.api_token = None
         except FileNotFoundError:
-            # This is expected during the auth login command
-            if self.client_kind != ClientKind.AUTH:
+            # This is expected during the auth login command.
+            # Also allow token-only usage without local config (for commands like `version --remote`).
+            if self.client_kind not in (ClientKind.AUTH, ClientKind.NO_AUTH) and self.api_token is None:
                 raise AirflowCtlCredentialNotFoundException("No credentials file found. Please login first.")
 
         return self
 
 
 class BearerAuth(httpx.Auth):
-    def __init__(self, token: str):
-        self.token: str = token
+    def __init__(self, token: str | None):
+        self.token: str | None = token
 
     def auth_flow(self, request: httpx.Request):
         if self.token:
@@ -332,11 +336,13 @@ class Client(httpx.Client):
         self,
         *,
         base_url: str,
-        token: str,
-        kind: Literal[ClientKind.CLI, ClientKind.AUTH] = ClientKind.CLI,
+        token: str | None = None,
+        kind: Literal[ClientKind.CLI, ClientKind.AUTH, ClientKind.NO_AUTH] = ClientKind.CLI,
         **kwargs: Any,
     ) -> None:
-        auth = BearerAuth(token)
+        auth: httpx.Auth | None = None
+        if kind != ClientKind.NO_AUTH:
+            auth = BearerAuth(token)
         kwargs["base_url"] = self._get_base_url(base_url=base_url, kind=kind)
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
@@ -347,14 +353,18 @@ class Client(httpx.Client):
         )
 
     def refresh_base_url(
-        self, base_url: str, kind: Literal[ClientKind.AUTH, ClientKind.CLI] = ClientKind.CLI
+        self,
+        base_url: str,
+        kind: Literal[ClientKind.AUTH, ClientKind.CLI, ClientKind.NO_AUTH] = ClientKind.CLI,
     ):
         """Refresh the base URL of the client."""
         self.base_url = URL(self._get_base_url(base_url=base_url, kind=kind))
 
     @classmethod
     def _get_base_url(
-        cls, base_url: str, kind: Literal[ClientKind.AUTH, ClientKind.CLI] = ClientKind.CLI
+        cls,
+        base_url: str,
+        kind: Literal[ClientKind.AUTH, ClientKind.CLI, ClientKind.NO_AUTH] = ClientKind.CLI,
     ) -> str:
         """Get the base URL of the client."""
         base_url = base_url.rstrip("/")
@@ -466,7 +476,10 @@ class Client(httpx.Client):
 
 # API Client Decorator for CLI Actions
 @contextlib.contextmanager
-def get_client(kind: Literal[ClientKind.CLI, ClientKind.AUTH] = ClientKind.CLI, api_token: str | None = None):
+def get_client(
+    kind: Literal[ClientKind.CLI, ClientKind.AUTH, ClientKind.NO_AUTH] = ClientKind.CLI,
+    api_token: str | None = None,
+):
     """
     Get CLI API client.
 
@@ -476,11 +489,16 @@ def get_client(kind: Literal[ClientKind.CLI, ClientKind.AUTH] = ClientKind.CLI, 
     api_token = api_token or os.getenv("AIRFLOW_CLI_TOKEN", None)
     try:
         # API URL always loaded from the config file, please save with it if you are using other than ClientKind.CLI
-        credentials = Credentials(client_kind=kind, api_token=api_token).load()
+        if kind == ClientKind.NO_AUTH:
+            credentials = Credentials(client_kind=kind).load()
+            resolved_token = None
+        else:
+            credentials = Credentials(client_kind=kind, api_token=api_token).load()
+            resolved_token = api_token or credentials.api_token
         api_client = Client(
             base_url=credentials.api_url or "http://localhost:8080",
             limits=httpx.Limits(max_keepalive_connections=1, max_connections=1),
-            token=str(api_token or credentials.api_token),
+            token=resolved_token,
             kind=kind,
         )
         yield api_client
@@ -492,7 +510,7 @@ def get_client(kind: Literal[ClientKind.CLI, ClientKind.AUTH] = ClientKind.CLI, 
 
 
 def provide_api_client(
-    kind: Literal[ClientKind.CLI, ClientKind.AUTH] = ClientKind.CLI,
+    kind: Literal[ClientKind.CLI, ClientKind.AUTH, ClientKind.NO_AUTH] = ClientKind.CLI,
 ) -> Callable[[Callable[PS, RT]], Callable[PS, RT]]:
     """
     Provide a CLI API Client to the decorated function.

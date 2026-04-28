@@ -37,9 +37,9 @@ is not applied to ``KubernetesExecutor`` workers, as there is no reason to sprea
 Custom ``pod_template_file``
 ----------------------------
 
-With ``KubernetesExecutor`` or ``CeleryKubernetesExecutor`` you can also provide a complete ``pod_template_file``
+With ``KubernetesExecutor`` you can also provide a complete ``pod_template_file``
 to fully override default Kubernetes workers configuration. This may be useful if you need different configuration between
-worker types for ``CeleryKubernetesExecutor`` or if you need to customize something not possible with :ref:`workers parameters <parameters:workers>` alone.
+worker types for ``KubernetesExecutor`` or if you need to customize something not possible with :ref:`workers parameters <parameters:workers>` alone.
 
 .. note::
 

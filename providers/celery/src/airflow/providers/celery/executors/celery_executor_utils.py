@@ -223,16 +223,15 @@ def execute_workload(input: str) -> None:
     try:
         BaseExecutor.run_workload(workload)
     except Exception as e:
-        if AIRFLOW_V_3_1_9_PLUS:
-            from airflow.sdk.exceptions import TaskAlreadyRunningError
+        from airflow.sdk.exceptions import TaskAlreadyRunningError
 
-            if isinstance(e, TaskAlreadyRunningError):
-                log.info("[%s] Task already running elsewhere, ignoring redelivered message", celery_task_id)
-                # Raise Ignore() so Celery does not record a FAILURE result for this duplicate
-                # delivery. Without this, the broker redelivering the message (e.g. after a
-                # visibility timeout) would cause Celery to mark the task as failed, even though
-                # the original worker is still executing it successfully.
-                raise Ignore()
+        if isinstance(e, TaskAlreadyRunningError):
+            log.info("[%s] Task already running elsewhere, ignoring redelivered message", celery_task_id)
+            # Raise Ignore() so Celery does not record a FAILURE result for this duplicate
+            # delivery. Without this, the broker redelivering the message (e.g. after a
+            # visibility timeout) would cause Celery to mark the task as failed, even though
+            # the original worker is still executing it successfully.
+            raise Ignore()
         raise
 
 

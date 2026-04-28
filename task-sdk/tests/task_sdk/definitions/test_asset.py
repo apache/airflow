@@ -457,3 +457,51 @@ class TestAssetSubclasses:
         assert obj.name == arg
         assert obj.uri == arg
         assert obj.group == group
+
+
+class TestAllowProducerTeamsValidationProperty:
+    @pytest.mark.parametrize(
+        "teams",
+        [
+            [""],
+            ["  "],
+            ["\t"],
+            ["\n"],
+            [123],
+            [None],
+            [True],
+            [{}],
+            ["team_a", "  ", "team_b"],
+        ],
+    )
+    def test_rejects_lists_with_invalid_entries(self, teams):
+        with pytest.raises(ValueError, match="allow_producer_teams"):
+            Asset(name="test_asset", allow_producer_teams=teams)
+
+    @pytest.mark.parametrize(
+        "teams",
+        [
+            [],
+            ["team_a"],
+            ["team_a", "team_b"],
+            ["team-with-dashes"],
+            ["team_with_underscores"],
+        ],
+    )
+    def test_accepts_valid_allow_producer_teams(self, teams):
+        asset = Asset(name="test_asset", allow_producer_teams=teams)
+        assert asset.allow_producer_teams == teams
+
+
+class TestAllowProducerTeamsField:
+    def test_sets_field_correctly(self):
+        asset = Asset(name="x", allow_producer_teams=["team_a"])
+        assert asset.allow_producer_teams == ["team_a"]
+
+    def test_defaults_to_empty_list(self):
+        asset = Asset(name="x")
+        assert asset.allow_producer_teams == []
+
+    def test_explicit_empty_list(self):
+        asset = Asset(name="x", allow_producer_teams=[])
+        assert asset.allow_producer_teams == []

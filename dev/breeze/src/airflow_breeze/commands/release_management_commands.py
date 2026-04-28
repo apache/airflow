@@ -266,9 +266,9 @@ class VersionedFile(NamedTuple):
 AIRFLOW_PIP_VERSION = "26.0.1"
 AIRFLOW_UV_VERSION = "0.11.7"
 AIRFLOW_USE_UV = False
-GITPYTHON_VERSION = "3.1.46"
+GITPYTHON_VERSION = "3.1.47"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.3.9"
+PREK_VERSION = "0.3.10"
 HATCH_VERSION = "1.16.5"
 PYYAML_VERSION = "6.0.3"
 
@@ -1101,7 +1101,12 @@ def _build_provider_distributions(
 
 @release_management_group.command(
     name="prepare-provider-distributions",
-    help="Prepare sdist/whl distributions of Airflow Providers.",
+    help=(
+        "Prepare sdist/whl distributions of Airflow Providers. "
+        "Each provider directory is wiped with `git clean -fdx` (preserving "
+        ".venv, .idea, .vscode) before build to keep in-tree generated files "
+        "out of the artifact. See dev/breeze release-management docs."
+    ),
 )
 @option_distribution_format
 @option_version_suffix
@@ -1354,7 +1359,11 @@ def tag_providers(
     release_date: str,
 ):
     found_remote = None
-    remotes = ["origin", "apache"]
+    # Standard convention is `upstream` → apache/airflow, `origin` → fork. We keep
+    # `apache` and `origin` in the fallback list so release-manager setups that
+    # predate the convention (origin cloned straight from apache/airflow, or a
+    # remote literally named `apache`) still work.
+    remotes = ["upstream", "origin", "apache"]
     for remote in remotes:
         try:
             result = run_command(
@@ -3374,6 +3383,38 @@ def generate_providers_metadata(
         console_print(metadata_dict)
         return
 
+    package_ids = list(get_provider_dependencies().keys())
+
+    # Hygiene pass: every entry in `provider.yaml`'s `versions:` list except
+    # the first is supposed to be a published PyPI release. The first entry
+    # is the in-progress next release and is allowed to predate publication;
+    # the rest must be reachable on PyPI. Any older entry that PyPI does not
+    # know about is stale (e.g. a release that was prepared but never
+    # published) — drop it from `provider.yaml` so the metadata generated
+    # below reflects only versions a user can actually install.
+    from airflow_breeze.utils.packages import get_provider_distributions_metadata
+    from airflow_breeze.utils.provider_dependencies import (
+        prune_unreleased_versions_from_provider_yaml,
+    )
+
+    console_print("\n[info]Checking provider.yaml versions[1:] against PyPI for stale entries...[/]\n")
+    with Pool() as pypi_pool:
+        pruned_per_provider = pypi_pool.map(prune_unreleased_versions_from_provider_yaml, package_ids)
+    total_pruned = 0
+    for pid, pruned in zip(package_ids, pruned_per_provider):
+        if pruned:
+            console_print(f"[warning]{pid}: removed unreleased versions from provider.yaml: {pruned}[/]")
+            total_pruned += len(pruned)
+    if total_pruned:
+        console_print(
+            f"\n[warning]Removed {total_pruned} unreleased version entr"
+            f"{'y' if total_pruned == 1 else 'ies'} from provider.yaml files. "
+            "Re-reading provider metadata.[/]\n"
+        )
+        get_provider_distributions_metadata.cache_clear()
+    else:
+        console_print("[info]All provider.yaml versions[1:] are present on PyPI.[/]\n")
+
     partial_generate_providers_metadata = partial(
         generate_providers_metadata_for_provider,
         provider_version=None,
@@ -3382,7 +3423,6 @@ def generate_providers_metadata(
         airflow_release_dates=airflow_release_dates,
         current_metadata=current_metadata,
     )
-    package_ids = get_provider_dependencies().keys()
     with Pool() as pool:
         results = pool.map(
             partial_generate_providers_metadata,
@@ -3572,9 +3612,12 @@ def push_constraints_and_tag(constraints_repo: Path, remote_name: str, airflow_v
 @click.option(
     "--remote-name",
     type=str,
-    default="apache",
+    default="upstream",
     envvar="REMOTE_NAME",
-    help="Name of the remote to push the changes to.",
+    help=(
+        "Name of the remote to push the changes to (default: 'upstream' per the standard "
+        "remote naming convention — see contributing-docs/10_working_with_git.rst)."
+    ),
 )
 @click.option(
     "--airflow-versions",
@@ -3987,11 +4030,12 @@ def prepare_python_client(
                 f"but default version is {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} - this might cause "
                 f"reproducibility problems with prepared package.[/]"
             )
+            console_print(f"[info]Please rerun breeze with Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}.[/]")
             console_print(
-                f"[info]Please reinstall breeze with uv using Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:[/]"
-            )
-            console_print(
-                f"\nuv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
+                "\n  - For the recommended uvx-based setup, set UV_PYTHON before invoking breeze:\n"
+                f"        UV_PYTHON={DEFAULT_PYTHON_MAJOR_MINOR_VERSION} breeze ...\n"
+                "  - For a legacy global install, reinstall with the right Python:\n"
+                f"        uv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
             )
             sys.exit(1)
 

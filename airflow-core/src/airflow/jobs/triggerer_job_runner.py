@@ -25,8 +25,8 @@ import signal
 import sys
 import time
 from collections import deque
-from collections.abc import Callable, Generator, Iterable
-from contextlib import suppress
+from collections.abc import Callable, Generator, Iterable, Iterator
+from contextlib import contextmanager, suppress
 from datetime import datetime
 from socket import socket
 from traceback import format_exception
@@ -580,21 +580,35 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
-        while not self.stop:
-            if not self.is_alive():
-                log.error("Trigger runner process has died! Exiting.")
-                break
-            self.load_triggers()
+        with self.run_context():
+            while not self.should_stop():
+                if not self.is_alive():
+                    log.error("Trigger runner process has died! Exiting.")
+                    break
+                self.run_once()
 
-            # Wait for up to 1 second for activity
-            self._service_subprocess(1)
+    @contextmanager
+    def run_context(self) -> Iterator[None]:
+        """Wrap the run loop. Subclasses can override to install setup/teardown."""
+        yield
 
-            self.handle_events()
-            self.handle_failed_triggers()
-            self.clean_unused()
-            self.heartbeat()
+    def should_stop(self) -> bool:
+        """Return True when the run loop should exit."""
+        return self.stop
 
-            self.emit_metrics()
+    def run_once(self) -> None:
+        """Perform a single iteration of the run loop."""
+        self.load_triggers()
+
+        # Wait for up to 1 second for activity
+        self._service_subprocess(1)
+
+        self.handle_events()
+        self.handle_failed_triggers()
+        self.clean_unused()
+        self.heartbeat()
+
+        self.emit_metrics()
 
     def heartbeat(self):
         perform_heartbeat(self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True)
@@ -602,8 +616,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def heartbeat_callback(self, session: Session | None = None) -> None:
         Stats.incr("triggerer_heartbeat", 1, 1)
 
-    def load_triggers(self):
-        """Query the database for the triggers we're supposed to be running and update the runner."""
+    def load_triggers(self) -> None:
+        """Assign triggers to this triggerer and update the runner with the IDs it should run."""
         Trigger.assign_unassigned(
             self.job.id,
             self.capacity,
@@ -619,12 +633,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             # Get the event and its trigger ID
             trigger_id, event = self.events.popleft()
             # Tell the model to wake up its tasks
-            Trigger.submit_event(trigger_id=trigger_id, event=event)
+            self.on_trigger_event(trigger_id=trigger_id, event=event)
             # Emit stat event
             Stats.incr("triggers.succeeded")
 
-    def clean_unused(self):
-        """Clean out unused or finished triggers."""
+    def on_trigger_event(self, trigger_id: int, event: TriggerEvent) -> None:
+        """Record that a trigger fired an event."""
+        Trigger.submit_event(trigger_id=trigger_id, event=event)
+
+    def clean_unused(self) -> None:
+        """Remove triggers that are no longer needed."""
         Trigger.clean_unused()
 
     def handle_failed_triggers(self):
@@ -635,10 +653,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         """
         while self.failed_triggers:
             # Tell the model to fail this trigger's deps
-            trigger_id, saved_exc = self.failed_triggers.popleft()
-            Trigger.submit_failure(trigger_id=trigger_id, exc=saved_exc)
+            trigger_id, exc = self.failed_triggers.popleft()
+            self.on_trigger_failure(trigger_id=trigger_id, exc=exc)
             # Emit stat event
             Stats.incr("triggers.failed")
+
+    def on_trigger_failure(self, trigger_id: int, exc: list[str] | None) -> None:
+        """Record that a trigger failed."""
+        Trigger.submit_failure(trigger_id=trigger_id, exc=exc)
 
     def emit_metrics(self):
         DualStatsManager.gauge(
@@ -719,34 +741,22 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             timeout_after=trigger.task_instance.trigger_timeout,
         )
 
-    def update_triggers(self, requested_trigger_ids: set[int]):
-        """
-        Request that we update what triggers we're running.
+    def fetch_trigger_details(self, trigger_ids: set[int], *, session: Session) -> dict[int, Trigger]:
+        """Fetch trigger rows by ID."""
+        return Trigger.bulk_fetch(trigger_ids, session=session)
 
-        Works out the differences - ones to add, and ones to remove - then
-        adds them to the dequeues so the subprocess can actually mutate the running
-        trigger set.
-        """
+    def fetch_non_task_trigger_ids(self, *, session: Session) -> set[int]:
+        """Fetch trigger IDs associated with non-task entities."""
+        return Trigger.fetch_trigger_ids_with_non_task_associations(session=session)
+
+    def build_trigger_workloads(self, new_trigger_ids: set[int]) -> list[workloads.RunTrigger]:
+        """Build workloads for new trigger IDs."""
         dag_bag = DBDagBag()
         render_log_fname = log_filename_template_renderer()
-        known_trigger_ids = (
-            self.running_triggers.union(x[0] for x in self.events)
-            .union(self.cancelling_triggers)
-            .union(trigger[0] for trigger in self.failed_triggers)
-            .union(trigger.id for trigger in self.creating_triggers)
-        )
-        # Work out the two difference sets
-        new_trigger_ids = requested_trigger_ids - known_trigger_ids
-        cancel_trigger_ids = self.running_triggers - requested_trigger_ids
-        # Bulk-fetch new trigger records
         with create_session() as session:
-            # Bulk-fetch new trigger records
-            new_triggers = Trigger.bulk_fetch(new_trigger_ids, session=session)
-            trigger_ids_with_non_task_associations = Trigger.fetch_trigger_ids_with_non_task_associations(
-                session=session
-            )
+            new_triggers = self.fetch_trigger_details(new_trigger_ids, session=session)
+            trigger_ids_with_non_task_associations = self.fetch_non_task_trigger_ids(session=session)
             to_create: list[workloads.RunTrigger] = []
-            # Add in new triggers
             for new_trigger_id in new_trigger_ids:
                 # Check it didn't vanish in the meantime
                 if new_trigger_id not in new_triggers:
@@ -780,7 +790,27 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 ):
                     to_create.append(workload)
 
-            self.creating_triggers.extend(to_create)
+        return to_create
+
+    def update_triggers(self, requested_trigger_ids: set[int]):
+        """
+        Request that we update what triggers we're running.
+
+        Works out the differences - ones to add, and ones to remove - then
+        adds them to the dequeues so the subprocess can actually mutate the running
+        trigger set.
+        """
+        known_trigger_ids = self.running_triggers.union(
+            (x[0] for x in self.events),
+            self.cancelling_triggers,
+            (trigger[0] for trigger in self.failed_triggers),
+            (trigger.id for trigger in self.creating_triggers),
+        )
+        # Work out the two difference sets
+        new_trigger_ids = requested_trigger_ids - known_trigger_ids
+        cancel_trigger_ids = self.running_triggers - requested_trigger_ids
+        if new_trigger_ids:
+            self.creating_triggers.extend(self.build_trigger_workloads(new_trigger_ids))
 
         if cancel_trigger_ids:
             # Enqueue orphaned triggers for cancellation
@@ -954,6 +984,9 @@ class TriggerRunner:
         self.failed_triggers = deque()
         self.job_id = None
         self._stop_event = None
+        self.blocked_main_thread_warning_threshold = conf.getfloat(
+            "triggerer", "blocked_main_thread_warning_threshold"
+        )
 
     def _handle_signal(self, signum, frame) -> None:
         """Handle termination signals gracefully."""
@@ -1273,12 +1306,14 @@ class TriggerRunner:
             # We allow a generous amount of buffer room for now, since it might
             # be a busy event loop.
             time_elapsed = time.monotonic() - last_run
-            if time_elapsed > 0.2:
+            if time_elapsed > self.blocked_main_thread_warning_threshold:
                 await self.log.ainfo(
                     "Triggerer's async thread was blocked for %.2f seconds, "
-                    "likely by a badly-written trigger. Set PYTHONASYNCIODEBUG=1 "
-                    "to get more information on overrunning coroutines.",
+                    "exceeding the configured warning threshold of %.2f seconds. "
+                    "This is likely caused by a badly-written trigger. "
+                    "Set PYTHONASYNCIODEBUG=1 to get more information on overrunning coroutines.",
                     time_elapsed,
+                    self.blocked_main_thread_warning_threshold,
                 )
                 Stats.incr("triggers.blocked_main_thread")
 

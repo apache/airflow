@@ -1427,9 +1427,11 @@ paths:
         progressively without waiting for all runs to complete.
 
 
-        The serialized Dag structure is loaded once and reused for all runs that
+        The serialized Dag structure is served from the app-wide ``DBDagBag`` cache
 
-        share the same ``dag_version_id``, avoiding repeated deserialization.'
+        (keyed by ``dag_version_id``), which avoids repeated deserialization across
+
+        runs of the same version *and* across requests.'
       operationId: get_grid_ti_summaries_stream
       security:
       - OAuth2PasswordBearer: []

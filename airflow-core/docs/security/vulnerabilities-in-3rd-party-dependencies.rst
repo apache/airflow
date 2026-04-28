@@ -139,7 +139,8 @@ used by Airflow and you would like to get rid of those. There are a few things y
   .. code-block:: bash
 
       git clone git@github.com:apache/airflow.git
-      uv tool install -e ./dev/breeze --force
+      cd airflow
+      ./scripts/tools/setup_breeze
       breeze release-management constraints-version-check --python 3.10 --package PACKAGE_NAME --explain-why
 
   Fragment of example output of such tool is shown below - indicating that ``apache-beam`` blocks upgrade of

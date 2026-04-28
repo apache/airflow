@@ -103,13 +103,36 @@ class TestSsmSecrets:
     @mock_aws
     def test_get_conn_value_with_team_name(self):
         param = {
-            "Name": "/airflow/connections/my_team/test_postgres",
+            "Name": "/airflow/connections/my_team--test_postgres",
             "Type": "String",
             "Value": "postgresql://airflow:airflow@host:5432/airflow",
         }
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
         returned_uri = ssm_backend.get_conn_value(conn_id="test_postgres", team_name="my_team")
+        assert returned_uri == "postgresql://airflow:airflow@host:5432/airflow"
+
+    @mock_aws
+    def test_global_caller_cannot_access_team_scoped_connection(self):
+        param = {
+            "Name": "/airflow/connections/my_team--test_postgres",
+            "Type": "String",
+            "Value": "postgresql://airflow:airflow@host:5432/airflow",
+        }
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+        assert ssm_backend.get_conn_value(conn_id="my_team--test_postgres") is None
+
+    @mock_aws
+    def test_team_caller_falls_back_to_global_connection(self):
+        param = {
+            "Name": "/airflow/connections/test_postgres",
+            "Type": "String",
+            "Value": "postgresql://airflow:airflow@host:5432/airflow",
+        }
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+        returned_uri = ssm_backend.get_conn_value(conn_id="test_postgres", team_name="non_existent_team")
         assert returned_uri == "postgresql://airflow:airflow@host:5432/airflow"
 
     @mock_aws
@@ -159,12 +182,21 @@ class TestSsmSecrets:
 
     @mock_aws
     def test_get_variable_with_team_name(self):
-        param = {"Name": "/airflow/variables/my_team/hello", "Type": "String", "Value": "world"}
+        param = {"Name": "/airflow/variables/my_team--hello", "Type": "String", "Value": "world"}
 
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
 
         assert ssm_backend.get_variable(key="hello", team_name="my_team") == "world"
+
+    @mock_aws
+    def test_global_caller_cannot_access_team_scoped_variable(self):
+        param = {"Name": "/airflow/variables/my_team--hello", "Type": "String", "Value": "world"}
+
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+
+        assert ssm_backend.get_variable(key="my_team--hello") is None
 
     @conf_vars(
         {
