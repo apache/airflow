@@ -54,6 +54,7 @@ def _build_variable_upsert_stmt(
     update_fields: dict[str, Any],
 ) -> MySQLInsert | PostgreSQLInsert | SQLiteInsert:
     """Return a dialect-specific INSERT ... ON CONFLICT UPDATE statement."""
+    stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
     if dialect == "postgresql":
         from sqlalchemy.dialects.postgresql import insert as pg_insert
 
