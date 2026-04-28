@@ -136,6 +136,7 @@ ENV/
 .claude/*
 !.claude/skills/
 .claude/skills/*
+!.claude/skills/pr-stats
 !.claude/skills/pr-triage
 
 # Kiro
