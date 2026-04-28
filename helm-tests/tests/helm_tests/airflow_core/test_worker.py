@@ -2682,6 +2682,21 @@ class TestWorkerNetworkPolicy:
         assert labels["test_label"] == "test_label_value"
         assert "key" not in labels
 
+    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryExecutor,KubernetesExecutor"])
+    def test_should_allow_api_server_to_read_worker_logs(self, executor):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "executor": executor,
+            },
+            show_only=["templates/workers/worker-networkpolicy.yaml"],
+        )
+
+        assert (
+            jmespath.search("spec.ingress[0].from[0].podSelector.matchLabels.component", docs[0])
+            == "api-server"
+        )
+
 
 class TestWorkerService:
     """Tests worker service."""
