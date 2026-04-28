@@ -16,9 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 from sqlalchemy import select
 
+from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.execution_api.app import lifespan
+from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.models.connection import Connection
 from airflow.models.connection_test import ConnectionTestRequest, ConnectionTestState
 
@@ -235,3 +240,106 @@ class TestGetConnectionTestConnection:
         """GET with unknown id returns 404."""
         response = client.get("/execution/connection-tests/00000000-0000-0000-0000-000000000000/connection")
         assert response.status_code == 404
+
+
+@pytest.fixture
+def _use_real_jwt_bearer(exec_app):
+    """Remove the mock require_auth override so the real JWT validation runs end-to-end."""
+    exec_app.dependency_overrides.pop(require_auth, None)
+
+
+@pytest.mark.usefixtures("_use_real_jwt_bearer")
+def test_id_matches_sub_claim(client, session):
+    """Test that scope validation (ct:self) is enforced at the router level."""
+    clear_db_connection_tests()
+    ct = ConnectionTestRequest(connection_id="x", conn_type="postgres")
+    ct.state = ConnectionTestState.RUNNING
+    session.add(ct)
+    session.commit()
+
+    validator = mock.AsyncMock(spec=JWTValidator)
+    validator.avalidated_claims.return_value = {
+        "sub": str(ct.id),
+        "scope": "execution",
+        "exp": 9999999999,
+        "iat": 1000000000,
+        "nbf": 1000000000,
+    }
+    lifespan.registry.register_value(JWTValidator, validator)
+
+    body = {"state": "success", "result_message": "ok"}
+
+    resp = client.patch("/execution/connection-tests/00000000-0000-0000-0000-000000000000", json=body)
+    assert resp.status_code == 403
+    validator.avalidated_claims.reset_mock()
+
+    resp = client.patch(f"/execution/connection-tests/{ct.id}", json=body)
+    assert resp.status_code == 204, resp.json()
+    validator.avalidated_claims.assert_awaited()
+    clear_db_connection_tests()
+
+
+@pytest.mark.usefixtures("_use_real_jwt_bearer")
+def test_workload_token_swap_on_patch(client, session):
+    """PATCH accepts workload tokens and issues a Refreshed-API-Token; execution tokens don't."""
+    clear_db_connection_tests()
+    ct = ConnectionTestRequest(connection_id="x", conn_type="postgres")
+    ct.state = ConnectionTestState.RUNNING
+    session.add(ct)
+    session.commit()
+
+    validator = mock.AsyncMock(spec=JWTValidator)
+    validator.avalidated_claims.return_value = {
+        "sub": str(ct.id),
+        "scope": "workload",
+        "exp": 9999999999,
+        "iat": 1000000000,
+        "nbf": 1000000000,
+    }
+    lifespan.registry.register_value(JWTValidator, validator)
+
+    body = {"state": "success", "result_message": "ok"}
+
+    resp = client.patch(f"/execution/connection-tests/{ct.id}", json=body)
+    assert resp.status_code == 204
+    assert resp.headers.get("Refreshed-API-Token")
+
+    # Re-arm row + validator with execution scope; no swap header expected this time.
+    ct = ConnectionTestRequest(connection_id="y", conn_type="postgres")
+    ct.state = ConnectionTestState.RUNNING
+    session.add(ct)
+    session.commit()
+    validator.avalidated_claims.return_value = {
+        **validator.avalidated_claims.return_value,
+        "sub": str(ct.id),
+        "scope": "execution",
+    }
+
+    resp = client.patch(f"/execution/connection-tests/{ct.id}", json=body)
+    assert resp.status_code == 204
+    assert "Refreshed-API-Token" not in resp.headers
+    clear_db_connection_tests()
+
+
+@pytest.mark.usefixtures("_use_real_jwt_bearer")
+def test_workload_token_rejected_on_get(client, session):
+    """GET /connection only accepts execution tokens; workload returns 403."""
+    clear_db_connection_tests()
+    ct = ConnectionTestRequest(connection_id="x", conn_type="postgres")
+    session.add(ct)
+    session.commit()
+
+    validator = mock.AsyncMock(spec=JWTValidator)
+    validator.avalidated_claims.return_value = {
+        "sub": str(ct.id),
+        "scope": "workload",
+        "exp": 9999999999,
+        "iat": 1000000000,
+        "nbf": 1000000000,
+    }
+    lifespan.registry.register_value(JWTValidator, validator)
+
+    resp = client.get(f"/execution/connection-tests/{ct.id}/connection")
+    assert resp.status_code == 403
+    assert "Token type 'workload' not allowed" in resp.json()["detail"]
+    clear_db_connection_tests()
