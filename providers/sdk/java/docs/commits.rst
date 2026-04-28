@@ -26,7 +26,7 @@
 Package apache-airflow-providers-sdk-java
 ------------------------------------------------------
 
-Java SDK support for Apache Airflow task coordinators and DAG file processors.
+Java Coordinator
 
 
 This is detailed commit list of changes for versions provider package: ``sdk.java``.

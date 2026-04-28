@@ -59,7 +59,7 @@ requires-python = ">=3.10"
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=3.0.0",
+    "apache-airflow>=3.3.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -117,3 +117,15 @@ provider_info = "airflow.providers.sdk.java.get_provider_info:get_provider_info"
 
 [tool.flit.module]
 name = "airflow.providers.sdk.java"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "docs/",
+    "provider.yaml",
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "src/airflow/providers/sdk/__init__.py",
+    "tests/",
+]

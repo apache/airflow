@@ -2542,7 +2542,7 @@ def create_runtime_ti(mocked_parse):
         if AIRFLOW_V_3_3_PLUS:
             from airflow.sdk._shared.workloads import TaskInstanceDTO
         else:
-            from airflow.executors.workloads.task import TaskInstanceDTO
+            from airflow.executors.workloads.task import TaskInstanceDTO  # type: ignore[no-redef,assignment]
 
         from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, TIRunContext
         from airflow.utils.types import DagRunType
@@ -2627,8 +2627,7 @@ def create_runtime_ti(mocked_parse):
                 dag_id=dag_id,
                 run_id=run_id,
                 try_number=try_number,
-                map_index=map_index if map_index is not None else -1,
-                dag_version_id=uuid7(),
+                map_index=map_index if map_index is not None else -1,                dag_version_id=uuid7(),
                 pool_slots=1,
                 queue="default",
                 priority_weight=1,
