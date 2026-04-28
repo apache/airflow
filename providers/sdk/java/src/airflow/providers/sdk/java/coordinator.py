@@ -29,7 +29,8 @@ from airflow.providers.sdk.java.bundle_scanner import BundleScanner, read_dag_co
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 
 if TYPE_CHECKING:
-    from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+    from airflow._shared.workloads import TaskInstanceDTO
+    from airflow.sdk.api.datamodels._generated import BundleInfo
 
 
 class JavaCoordinator(BaseCoordinator):
@@ -83,7 +84,7 @@ class JavaCoordinator(BaseCoordinator):
     def task_execution_cmd(
         cls,
         *,
-        what: TaskInstance,
+        what: TaskInstanceDTO,
         dag_file_path: str,
         bundle_path: str,
         bundle_info: BundleInfo,
