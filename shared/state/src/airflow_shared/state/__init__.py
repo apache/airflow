@@ -41,36 +41,65 @@ StateScope = TaskScope | AssetScope
 
 
 class BaseStateBackend(ABC):
-    """Abstract backend for reading and writing task and asset state."""
+    """
+    Abstract backend for reading and writing task and asset state.
+
+    Each method receives a ``StateScope`` which is either a ``TaskScope`` or an ``AssetScope``.
+    Implementations must handle both types. The standard dispatch pattern is::
+
+        match scope:
+            case TaskScope():
+                ...  # task-specific storage
+            case AssetScope():
+                ...  # asset-specific storage
+
+    Custom backends are configured via ``[state] backend`` in ``airflow.cfg``.
+    """
 
     @abstractmethod
     def get(self, scope: StateScope, key: str) -> str | None:
-        """Return the stored value, or None if the key does not exist."""
+        """
+        Return the stored value, or None if the key does not exist.
+
+        Must handle both ``TaskScope`` and ``AssetScope``.
+        """
 
     @abstractmethod
     def set(self, scope: StateScope, key: str, value: str) -> None:
-        """Write or overwrite the value for the given key."""
+        """
+        Write or overwrite the value for the given key.
+
+        Must handle both ``TaskScope`` and ``AssetScope``.
+        """
 
     @abstractmethod
     def delete(self, scope: StateScope, key: str) -> None:
-        """Delete a single key. No-op if the key does not exist."""
+        """
+        Delete a single key. No-op if the key does not exist.
+
+        Must handle both ``TaskScope`` and ``AssetScope``.
+        """
 
     @abstractmethod
     def clear(self, scope: StateScope) -> None:
-        """Delete all keys under the given scope."""
+        """
+        Delete all keys under the given scope.
+
+        Must handle both ``TaskScope`` and ``AssetScope``.
+        """
 
     @abstractmethod
     async def aget(self, scope: StateScope, key: str) -> str | None:
-        """Async variant of get."""
+        """Async variant of get. Must handle both ``TaskScope`` and ``AssetScope``."""
 
     @abstractmethod
     async def aset(self, scope: StateScope, key: str, value: str) -> None:
-        """Async variant of set."""
+        """Async variant of set. Must handle both ``TaskScope`` and ``AssetScope``."""
 
     @abstractmethod
     async def adelete(self, scope: StateScope, key: str) -> None:
-        """Async variant of delete."""
+        """Async variant of delete. Must handle both ``TaskScope`` and ``AssetScope``."""
 
     @abstractmethod
     async def aclear(self, scope: StateScope) -> None:
-        """Async variant of clear."""
+        """Async variant of clear. Must handle both ``TaskScope`` and ``AssetScope``."""
