@@ -30,7 +30,7 @@ import typing
 import uuid
 from collections.abc import AsyncIterator
 from socket import socket, socketpair
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
@@ -97,6 +97,33 @@ if TYPE_CHECKING:
     from kgb import SpyAgency
 
 pytestmark = pytest.mark.db_test
+
+
+class SerializedKwargsTrigger(BaseTrigger):
+    constructed: ClassVar[list[SerializedKwargsTrigger]] = []
+
+    def __init__(
+        self,
+        *,
+        apply_function_args: tuple[Any, ...],
+        apply_function_kwargs: dict[str, Any],
+    ) -> None:
+        super().__init__()
+        self.apply_function_args = apply_function_args
+        self.apply_function_kwargs = apply_function_kwargs
+        self.constructed.append(self)
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "tests.unit.jobs.test_triggerer_job.SerializedKwargsTrigger",
+            {
+                "apply_function_args": self.apply_function_args,
+                "apply_function_kwargs": self.apply_function_kwargs,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        yield TriggerEvent(True)
 
 
 @pytest.fixture(autouse=True)
@@ -1000,6 +1027,79 @@ class TestTriggerRunner:
 
         # The test passes if no exceptions were raised during trigger creation
         trigger_instance.cancel()
+        await runner.cleanup_finished_triggers()
+
+    @pytest.mark.asyncio
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
+        return_value=SerializedKwargsTrigger,
+    )
+    async def test_trigger_kwargs_cleanup_decodes_stringified_encoding_keys(
+        self, mock_get_trigger_by_classpath, session
+    ):
+        import json
+
+        from airflow.models.crypto import get_fernet
+        from airflow.sdk.serde import serialize
+
+        SerializedKwargsTrigger.constructed.clear()
+        trigger_orm = Trigger(
+            classpath="tests.unit.jobs.test_triggerer_job.SerializedKwargsTrigger",
+            kwargs={},
+        )
+        legacy_stringified_kwargs = {
+            "apply_function_args": {"Encoding.TYPE": "tuple", "Encoding.VAR": []},
+            "apply_function_kwargs": {
+                "Encoding.TYPE": "dict",
+                "Encoding.VAR": {
+                    "action_filter": ["create"],
+                    "data_filter": {
+                        "Encoding.TYPE": "dict",
+                        "Encoding.VAR": {"BatchId": None},
+                    },
+                },
+            },
+        }
+        trigger_orm.encrypted_kwargs = (
+            get_fernet().encrypt(json.dumps(serialize(legacy_stringified_kwargs)).encode()).decode()
+        )
+        session.add(trigger_orm)
+        session.commit()
+
+        stored_kwargs = trigger_orm.kwargs
+        assert stored_kwargs == {
+            "apply_function_args": {"Encoding.TYPE": "tuple", "Encoding.VAR": []},
+            "apply_function_kwargs": {
+                "Encoding.TYPE": "dict",
+                "Encoding.VAR": {
+                    "action_filter": ["create"],
+                    "data_filter": {
+                        "Encoding.TYPE": "dict",
+                        "Encoding.VAR": {"BatchId": None},
+                    },
+                },
+            },
+        }
+
+        runner = TriggerRunner()
+        runner.to_create.append(
+            workloads.RunTrigger.model_construct(
+                id=trigger_orm.id,
+                ti=None,
+                classpath=trigger_orm.classpath,
+                encrypted_kwargs=trigger_orm.encrypted_kwargs,
+            )
+        )
+
+        await runner.create_triggers()
+
+        trigger_instance = SerializedKwargsTrigger.constructed[-1]
+        assert trigger_instance.apply_function_args == ()
+        assert trigger_instance.apply_function_kwargs == {
+            "action_filter": ["create"],
+            "data_filter": {"BatchId": None},
+        }
+        runner.triggers[trigger_orm.id]["task"].cancel()
         await runner.cleanup_finished_triggers()
 
     @pytest.mark.asyncio
