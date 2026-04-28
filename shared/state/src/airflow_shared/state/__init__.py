@@ -22,7 +22,14 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class TaskScope:
-    """Identifies the state namespace for a single task instance (or retry thereof)."""
+    """
+    Identifies the state namespace for a single task instance (or retry thereof).
+
+    ``map_index`` defaults to ``-1``, which is the sentinel for non-mapped tasks.
+    When passed to ``clear``/``aclear``, ``map_index=-1`` means *all map indices* for
+    the task — i.e. the ``map_index`` filter is dropped entirely. Pass an explicit
+    non-negative value to clear only a specific mapped instance.
+    """
 
     dag_id: str
     run_id: str
@@ -53,7 +60,7 @@ class BaseStateBackend(ABC):
             case AssetScope():
                 ...  # asset-specific storage
 
-    Custom backends are configured via ``[state] backend`` in ``airflow.cfg``.
+    Custom backends are configured via ``[state_store] backend`` in ``airflow.cfg``.
     """
 
     @abstractmethod
@@ -86,6 +93,10 @@ class BaseStateBackend(ABC):
         Delete all keys under the given scope.
 
         Must handle both ``TaskScope`` and ``AssetScope``.
+
+        For ``TaskScope``: if ``map_index == -1`` (the default), all map indices for
+        the task are cleared. Pass an explicit non-negative ``map_index`` to clear
+        only that specific mapped instance.
         """
 
     @abstractmethod
@@ -102,4 +113,10 @@ class BaseStateBackend(ABC):
 
     @abstractmethod
     async def aclear(self, scope: StateScope) -> None:
-        """Async variant of clear. Must handle both ``TaskScope`` and ``AssetScope``."""
+        """
+        Async variant of clear. Must handle both ``TaskScope`` and ``AssetScope``.
+
+        For ``TaskScope``: if ``map_index == -1`` (the default), all map indices for
+        the task are cleared. Pass an explicit non-negative ``map_index`` to clear
+        only that specific mapped instance.
+        """

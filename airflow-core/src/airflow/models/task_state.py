@@ -24,7 +24,7 @@ from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow._shared.timezones import timezone
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
@@ -40,12 +40,12 @@ class TaskStateModel(Base):
     __tablename__ = "task_state"
 
     dag_run_id: Mapped[int] = mapped_column(Integer, nullable=False, primary_key=True)
-    task_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
+    task_id: Mapped[str] = mapped_column(StringID(), nullable=False, primary_key=True)
     map_index: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False, server_default="-1")
     key: Mapped[str] = mapped_column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 
-    dag_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    run_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
 
     value: Mapped[str] = mapped_column(Text().with_variant(MEDIUMTEXT, "mysql"), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)

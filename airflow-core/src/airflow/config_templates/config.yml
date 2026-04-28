@@ -2997,7 +2997,7 @@ dag_processor:
       example: ~
       default: "warning"
 
-state:
+state_store:
   description: |
     Configuration for task and asset state storage backend.
   options:

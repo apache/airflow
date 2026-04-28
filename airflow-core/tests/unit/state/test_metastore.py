@@ -122,6 +122,7 @@ class TestMetastoreStateBackendTaskScope:
         session.flush()
         assert backend.get(scope, "job_id", session=session) == "app_1234"
 
+    @pytest.mark.backend("postgres", "mysql", "sqlite")
     def test_set_twice_overrides_existing_value(
         self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
     ):
@@ -216,6 +217,24 @@ class TestMetastoreStateBackendTaskScope:
         assert backend.get(scope0, "job_id", session=session) is None
         assert backend.get(scope1, "job_id", session=session) == "app_1"
 
+    def test_clear_default_map_index_clears_all_map_indices(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
+    ):
+        """clear with default map_index=-1 removes state for every map index of the task."""
+        scope0 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=0)
+        scope1 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=1)
+
+        backend.set(scope0, "job_id", "app_0", session=session)
+        backend.set(scope1, "job_id", "app_1", session=session)
+        session.flush()
+
+        all_indices = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.clear(all_indices, session=session)
+        session.flush()
+
+        assert backend.get(scope0, "job_id", session=session) is None
+        assert backend.get(scope1, "job_id", session=session) is None
+
 
 class TestMetastoreStateBackendAssetScope:
     def test_get_returns_none_for_missing_key(
@@ -230,6 +249,7 @@ class TestMetastoreStateBackendAssetScope:
         session.flush()
         assert backend.get(scope, "watermark", session=session) == "2026-04-24T00:00:00Z"
 
+    @pytest.mark.backend("postgres", "mysql", "sqlite")
     def test_set_twice_overwrites_existing_value(
         self, session: Session, backend: MetastoreStateBackend, asset: AssetModel
     ):
@@ -314,6 +334,22 @@ class TestMetastoreStateBackendAsync:
         assert await backend.aget(scope, "job_id") is None
         assert await backend.aget(scope, "checkpoint") is None
 
+    async def test_aclear_default_map_index_clears_all_map_indices(
+        self, backend: MetastoreStateBackend, dag_run_committed: DagRun
+    ):
+        """aclear with default map_index=-1 removes state for every map index of the task."""
+        scope0 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=0)
+        scope1 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=1)
+
+        await backend.aset(scope0, "job_id", "app_0")
+        await backend.aset(scope1, "job_id", "app_1")
+
+        all_indices = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        await backend.aclear(all_indices)
+
+        assert await backend.aget(scope0, "job_id") is None
+        assert await backend.aget(scope1, "job_id") is None
+
     async def test_aset_and_aget_asset_roundtrip(
         self, backend: MetastoreStateBackend, asset_committed: AssetModel
     ):
@@ -347,17 +383,19 @@ class TestMetastoreStateBackendAsync:
 
 
 class TestResolveStateBackend:
-    def test_default_resolves_to_metastore_backend(self):
-        """resolve_state_backend() returns MetastoreStateBackend when no config is set."""
+    @conf_vars({("state_store", "backend"): "airflow.state.metastore.MetastoreStateBackend"})
+    def test_resolve_returns_configured_backend(self):
+        """resolve_state_backend() imports and returns the explicitly configured backend class."""
         assert resolve_state_backend() is MetastoreStateBackend
 
-    def test_custom_backend_is_returned_when_configured(self):
-        """resolve_state_backend() imports and returns a user-configured backend class."""
-        with conf_vars({("state", "backend"): "airflow.state.metastore.MetastoreStateBackend"}):
-            assert resolve_state_backend() is MetastoreStateBackend
+    @conf_vars({("state_store", "backend"): ""})
+    def test_empty_backend_raises_value_error(self):
+        """resolve_state_backend() raises ValueError when backend is explicitly set to empty string."""
+        with pytest.raises(ValueError, match="state_store.backend is not configured"):
+            resolve_state_backend()
 
+    @conf_vars({("state_store", "backend"): "airflow.models.dagrun.DagRun"})
     def test_invalid_backend_raises_type_error(self):
         """resolve_state_backend() raises TypeError when the configured class is not a BaseStateBackend subclass."""
-        with conf_vars({("state", "backend"): "airflow.models.dagrun.DagRun"}):
-            with pytest.raises(TypeError, match="not a subclass of `BaseStateBackend`"):
-                resolve_state_backend()
+        with pytest.raises(TypeError, match="not a subclass of `BaseStateBackend`"):
+            resolve_state_backend()

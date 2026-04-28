@@ -28,9 +28,9 @@ from airflow._shared.state import (
 def resolve_state_backend() -> type[BaseStateBackend]:
     from airflow.configuration import conf
 
-    clazz = conf.getimport("state", "backend")
+    clazz = conf.getimport("state_store", "backend")
     if clazz is None:
-        raise ValueError("state.backend is not configured or resolved to None.")
+        raise ValueError("state_store.backend is not configured or resolved to None.")
     if not issubclass(clazz, BaseStateBackend):
         raise TypeError(
             f"Your custom state backend `{clazz.__name__}` is not a subclass of `BaseStateBackend`."

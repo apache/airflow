@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, assert_never
 
 from sqlalchemy import delete, select
 
@@ -74,6 +74,8 @@ class MetastoreStateBackend(BaseStateBackend):
                 return self._get_task_state(scope, key, session=session)
             case AssetScope():
                 return self._get_asset_state(scope, key, session=session)
+            case _:
+                assert_never(scope)
 
     @provide_session
     def set(self, scope: StateScope, key: str, value: str, *, session: Session = NEW_SESSION) -> None:
@@ -82,6 +84,8 @@ class MetastoreStateBackend(BaseStateBackend):
                 self._set_task_state(scope, key, value, session=session)
             case AssetScope():
                 self._set_asset_state(scope, key, value, session=session)
+            case _:
+                assert_never(scope)
 
     @provide_session
     def delete(self, scope: StateScope, key: str, *, session: Session = NEW_SESSION) -> None:
@@ -90,6 +94,8 @@ class MetastoreStateBackend(BaseStateBackend):
                 self._delete_task_state(scope, key, session=session)
             case AssetScope():
                 self._delete_asset_state(scope, key, session=session)
+            case _:
+                assert_never(scope)
 
     @provide_session
     def clear(self, scope: StateScope, *, session: Session = NEW_SESSION) -> None:
@@ -98,6 +104,8 @@ class MetastoreStateBackend(BaseStateBackend):
                 self._clear_task_state(scope, session=session)
             case AssetScope():
                 self._clear_asset_state(scope, session=session)
+            case _:
+                assert_never(scope)
 
     async def aget(self, scope: StateScope, key: str) -> str | None:
         async with create_session_async() as session:
@@ -106,6 +114,8 @@ class MetastoreStateBackend(BaseStateBackend):
                     return await self._aget_task_state(scope, key, session=session)
                 case AssetScope():
                     return await self._aget_asset_state(scope, key, session=session)
+                case _:
+                    assert_never(scope)
 
     async def aset(self, scope: StateScope, key: str, value: str) -> None:
         async with create_session_async() as session:
@@ -114,6 +124,8 @@ class MetastoreStateBackend(BaseStateBackend):
                     await self._aset_task_state(scope, key, value, session=session)
                 case AssetScope():
                     await self._aset_asset_state(scope, key, value, session=session)
+                case _:
+                    assert_never(scope)
 
     async def adelete(self, scope: StateScope, key: str) -> None:
         async with create_session_async() as session:
@@ -122,6 +134,8 @@ class MetastoreStateBackend(BaseStateBackend):
                     await self._adelete_task_state(scope, key, session=session)
                 case AssetScope():
                     await self._adelete_asset_state(scope, key, session=session)
+                case _:
+                    assert_never(scope)
 
     async def aclear(self, scope: StateScope) -> None:
         async with create_session_async() as session:
@@ -130,6 +144,8 @@ class MetastoreStateBackend(BaseStateBackend):
                     await self._aclear_task_state(scope, session=session)
                 case AssetScope():
                     await self._aclear_asset_state(scope, session=session)
+                case _:
+                    assert_never(scope)
 
     def _get_task_state(self, scope: TaskScope, key: str, *, session: Session) -> str | None:
         row = session.scalar(
@@ -184,14 +200,14 @@ class MetastoreStateBackend(BaseStateBackend):
         )
 
     def _clear_task_state(self, scope: TaskScope, *, session: Session) -> None:
-        session.execute(
-            delete(TaskStateModel).where(
-                TaskStateModel.dag_id == scope.dag_id,
-                TaskStateModel.run_id == scope.run_id,
-                TaskStateModel.task_id == scope.task_id,
-                TaskStateModel.map_index == scope.map_index,
-            )
-        )
+        conditions = [
+            TaskStateModel.dag_id == scope.dag_id,
+            TaskStateModel.run_id == scope.run_id,
+            TaskStateModel.task_id == scope.task_id,
+        ]
+        if scope.map_index != -1:
+            conditions.append(TaskStateModel.map_index == scope.map_index)
+        session.execute(delete(TaskStateModel).where(*conditions))
 
     def _get_asset_state(self, scope: AssetScope, key: str, *, session: Session) -> str | None:
         row = session.scalar(
@@ -285,14 +301,14 @@ class MetastoreStateBackend(BaseStateBackend):
         )
 
     async def _aclear_task_state(self, scope: TaskScope, *, session: AsyncSession) -> None:
-        await session.execute(
-            delete(TaskStateModel).where(
-                TaskStateModel.dag_id == scope.dag_id,
-                TaskStateModel.run_id == scope.run_id,
-                TaskStateModel.task_id == scope.task_id,
-                TaskStateModel.map_index == scope.map_index,
-            )
-        )
+        conditions = [
+            TaskStateModel.dag_id == scope.dag_id,
+            TaskStateModel.run_id == scope.run_id,
+            TaskStateModel.task_id == scope.task_id,
+        ]
+        if scope.map_index != -1:
+            conditions.append(TaskStateModel.map_index == scope.map_index)
+        await session.execute(delete(TaskStateModel).where(*conditions))
 
     async def _aget_asset_state(self, scope: AssetScope, key: str, *, session: AsyncSession) -> str | None:
         row = await session.scalar(

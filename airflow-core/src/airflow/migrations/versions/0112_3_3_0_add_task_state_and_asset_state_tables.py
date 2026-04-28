@@ -31,6 +31,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import mysql
 
+from airflow.migrations.db_types import StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
@@ -57,11 +58,11 @@ def upgrade():
     op.create_table(
         "task_state",
         sa.Column("dag_run_id", sa.Integer(), nullable=False),
-        sa.Column("task_id", sa.String(length=250), nullable=False),
+        sa.Column("task_id", StringID(), nullable=False),
         sa.Column("map_index", sa.Integer(), server_default="-1", nullable=False),
         sa.Column("key", sa.String(length=512), nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
-        sa.Column("run_id", sa.String(length=250), nullable=False),
+        sa.Column("dag_id", StringID(), nullable=False),
+        sa.Column("run_id", StringID(), nullable=False),
         sa.Column("value", sa.Text().with_variant(mysql.MEDIUMTEXT(), "mysql"), nullable=False),
         sa.Column("updated_at", UtcDateTime(), nullable=False),
         sa.ForeignKeyConstraint(

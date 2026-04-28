@@ -16,11 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
-from airflow_shared.state import BaseStateBackend, StateScope, TaskScope
+from airflow_shared.state import BaseStateBackend, StateScope
 
 
 class TestBaseStateBackend:
@@ -58,27 +56,17 @@ class TestBaseStateBackend:
 
         return ConcreteBackend()
 
-    def test_aget_is_callable(self, backend):
-        """aget can be awaited and returns a value."""
-        scope = TaskScope("d", "r", "t")
-        result = asyncio.run(backend.aget(scope, "k"))
-        assert result == "value"
-        assert "aget" in backend.calls
+    def test_incomplete_subclass_raises_type_error(self):
+        """A subclass that omits any abstract method cannot be instantiated."""
 
-    def test_aset_is_callable(self, backend):
-        """aset can be awaited."""
-        scope = TaskScope("d", "r", "t")
-        asyncio.run(backend.aset(scope, "k", "v"))
-        assert "aset" in backend.calls
+        class IncompleteBackend(BaseStateBackend):
+            def get(self, scope: StateScope, key: str) -> str | None:
+                return None
 
-    def test_adelete_is_callable(self, backend):
-        """adelete can be awaited."""
-        scope = TaskScope("d", "r", "t")
-        asyncio.run(backend.adelete(scope, "k"))
-        assert "adelete" in backend.calls
+        with pytest.raises(TypeError, match="Can't instantiate abstract class"):
+            IncompleteBackend()
 
-    def test_aclear_is_callable(self, backend):
-        """aclear can be awaited."""
-        scope = TaskScope("d", "r", "t")
-        asyncio.run(backend.aclear(scope))
-        assert "aclear" in backend.calls
+    def test_abstract_methods_cover_full_interface(self):
+        """BaseStateBackend enforces all 8 sync+async methods as abstract."""
+        expected = {"get", "set", "delete", "clear", "aget", "aset", "adelete", "aclear"}
+        assert BaseStateBackend.__abstractmethods__ == expected
