@@ -67,13 +67,31 @@ Detail files in this directory break the logic out topic-by-topic:
 
 ## Golden rules
 
-**Golden rule 1 — sequential, never batched.** Each PR gets a
-full pass before the next one is loaded. Unlike triage, there is
-no group-confirm. Code review demands attention; batching
+**Golden rule 1 — sequential confirmation, parallel analysis.**
+Each PR gets a full **maintainer-facing review pass** in
+order — one PR's headline, findings, draft body, and
+confirmation gate complete before the next PR is shown. There
+is no group-confirm; findings and dispositions are never
+folded across PRs. Code review demands attention; batching
 multiple PRs' findings into one decision invites blind-stamp
-mistakes. The only "batch" allowed is parallel **prefetch** of
-the next PR's metadata while the maintainer is reading the
-current one (see [`review-flow.md#prefetch`](review-flow.md)).
+mistakes.
+
+What the skill *does* run in parallel is **background analysis
+subagents** on upcoming PRs in the queue while the maintainer
+is reading or confirming the current one. The subagents fetch
+diffs, apply the criteria, and produce a draft package the
+parent skill folds in when the maintainer reaches that PR —
+so the next headline + findings + draft appear instantly. The
+maintainer never interacts with the subagents directly;
+they're purely a wall-clock optimisation. Subagents are
+read-only — they may not call `gh pr review`, `gh pr merge`,
+`gh pr edit`, `gh pr comment`, or any other write mutation;
+posting remains the parent skill's foreground action gated by
+maintainer confirmation. See
+[`review-flow.md#background-analysis-subagents`](review-flow.md#background-analysis-subagents)
+for the mechanics, including the lookahead depth and how
+stale subagent output is handled when the contributor pushes
+new commits.
 
 **Golden rule 2 — maintainer decides, skill drafts.** Every
 review submission (`APPROVE`, `REQUEST_CHANGES`, `COMMENT`) is a
@@ -182,6 +200,8 @@ query:
 | `max:<N>` | stop after `<N>` PRs have been reviewed this session |
 | `dry-run` | examine and draft but refuse to actually post any review |
 | `no-adversarial` | skip the optional adversarial-reviewer step for this session |
+| `lookahead:<N>` | size of the background-analysis lookahead window (default `3`); see [`review-flow.md#background-analysis-subagents`](review-flow.md#background-analysis-subagents) |
+| `no-prefetch` | disable background analysis subagents for this session — useful for tiny queues (`max:1`–`max:2`) where the wall-clock benefit is nil |
 
 Selectors compose: `area:scheduler collab:false max:5` means
 "first five non-collaborator PRs in `area:scheduler` that I'm
@@ -362,6 +382,8 @@ writes a session log to disk.
 | `max:<N>` | stop after `<N>` PRs reviewed |
 | `dry-run` | draft but never post |
 | `no-adversarial` | skip the optional second-reviewer step |
+| `lookahead:<N>` | size of the background-analysis lookahead window (default `3`) |
+| `no-prefetch` | disable background analysis subagents for this session |
 
 When in doubt about the selector, ask the maintainer *before*
 fetching — a one-line clarification is cheaper than a 30-PR

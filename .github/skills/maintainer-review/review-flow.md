@@ -309,20 +309,192 @@ post via `gh pr review` per [`posting.md`](posting.md).
 Move on to the next PR in the working list. Repeat from
 Step 1.
 
-After every PR, optionally **prefetch** the next PR's diff and
-metadata in parallel with the maintainer's reading of the
-current Step-1 headline. This keeps wall-clock time low when
-the queue is long.
+To keep wall-clock time low when the queue is long, fire
+**background analysis subagents** on the next PRs in the
+queue while the maintainer is in Steps 1–8 of the current
+one. The subagent does the full Step 2–7 work (fetch, classify
+findings, draft body); the parent skill renders the prefetched
+package as a single ready-made headline-plus-findings-plus-draft
+when the maintainer reaches the PR. See
+[Background analysis subagents](#background-analysis-subagents)
+below for the mechanics.
 
-```bash
-# fired in parallel with the current PR's Step 1 prompt
-gh pr view <next_N> --repo <repo> --json body,changedFiles,files,statusCheckRollup,commits,reviews,reviewRequests,reviewDecision,comments,authorAssociation,labels,headRefOid,baseRefName,additions,deletions,isDraft,mergeable &
-gh pr diff <next_N> --repo <repo> > /tmp/pr-<next_N>.diff &
+---
+
+## Background analysis subagents
+
+### Why
+
+Step 2 (`gh pr view` + `gh pr diff` + per-tree `AGENTS.md`
+discovery) and Step 4 (line-by-line classification against the
+criteria source files) together dominate the per-PR
+wall-clock cost. While the maintainer is reading the current
+PR's draft, those steps can run for the *next* PRs in
+parallel — when the maintainer reaches them, the package is
+already drafted and only Step 6 (disposition pick) and Step 7
+(confirmation) are left to run interactively.
+
+The maintainer never sees the subagents directly. They run
+silently in the background; their output is what powers the
+"instant headline" experience.
+
+### When to fire
+
+After the working list is resolved (Step 1 of `SKILL.md`), and
+again after each PR is posted or skipped (Step 9 above), the
+parent skill keeps a **lookahead window** of size `K` filled
+with in-flight subagents.
+
+```text
+queue: [N0_current, N1, N2, N3, N4, N5, ...]
+        ^foreground   ^^^^^^^^^^^   ^prefetched (K=3)
+                       lookahead
 ```
 
-If the maintainer `[S]kip`s the prefetched PR, the prefetch was
-wasted — that's an acceptable cost; sequential review is the
-priority.
+Default `K` is **3**. Tune via `lookahead:<N>` at session start
+or disable entirely with `no-prefetch`.
+
+Subagents are launched with `run_in_background=true` so the
+parent does not block; the parent picks up their results when
+the maintainer reaches the corresponding PR (or earlier, if
+several finish before the maintainer is done with the current
+one — that's fine, the results just sit in memory).
+
+### Subagent contract
+
+Each subagent is a `general-purpose` Agent invocation. The
+prompt is **self-contained** (no shared conversation context)
+and includes:
+
+- **Inputs** — the PR number, the target repo, the maintainer's
+  GitHub login (for the self-review guard), the working
+  directory path so the subagent can read the criteria source
+  files locally, AND the **pre-fetched PR payload inline in
+  the prompt**: the JSON metadata blob, the unified diff, and
+  the unresolved-review-threads JSON. The parent runs `gh pr
+  view`, `gh pr diff`, and the review-threads GraphQL query
+  itself before invoking the subagent and embeds the raw
+  output in the prompt.
+
+  Why pre-fetch in the parent: in many harness configurations
+  subagents do **not** inherit the parent session's Bash
+  permission grants for `gh` — they start a fresh permission
+  context and are denied. Embedding the data inline lets the
+  subagent run with Read-only tool access (the criteria files
+  are already on disk) and removes the permission failure
+  mode entirely. The parent's `gh` calls are cheap (3 per PR)
+  and run in parallel with the maintainer's confirmation of
+  the *previous* PR — no wall-clock cost.
+
+- **Task** — walk every category of findings against
+  [`criteria.md`](criteria.md), produce the structured
+  package below. The subagent does NOT need to (and should
+  not try to) hit GitHub itself.
+- **Output schema** (exact, parseable by the parent):
+
+  ```text
+  HEAD_SHA: <head_oid>
+
+  ## Headline
+  PR #<N> — <title>
+    Author: <login> (<assoc>)
+    Base: <base> • Head: <head_short>
+    CI: <state> • Threads: <unresolved> unresolved • Reviews: <summary>
+    Files: <N> changed +<add> -<del>
+    Labels: <comma-list>
+
+  ## What it does
+  <one-paragraph plain-English summary>
+
+  ## Findings
+  <YAML list per the schema in review-flow.md Step 4, or "none">
+
+  ## Suggested disposition
+  APPROVE | REQUEST_CHANGES | COMMENT — <one-line reason>
+
+  ## Draft review body
+  <full markdown body, including the disposition's
+  AI-attribution footer from posting.md and the per-maintainer
+  Drafted-by footer>
+  ```
+
+- **Forbidden** — the subagent may NOT:
+  - call `gh pr review`, `gh pr merge`, `gh pr edit`,
+    `gh pr comment`, `gh issue comment`, or any GitHub
+    write-mutation command;
+  - call any `mcp__github__*` `create_*` / `update_*` /
+    `add_*` / `merge_*` mutation;
+  - modify any file in the working tree (no `Write`,
+    `Edit`, no `git` write commands);
+  - invoke other Agents (no nested subagents);
+  - **paraphrase the AI-attribution footer.** Subagents
+    routinely "summarise" the long quoted footer to one
+    line — that breaks Golden rule 5. The subagent prompt
+    must inline the exact footer text from
+    [`posting.md`](posting.md) for the chosen disposition
+    and tell the subagent to emit it **byte-for-byte**.
+    The parent re-checks the footer is the verbatim string
+    before posting; if it isn't, the parent rewrites the
+    body before showing it to the maintainer (and notes
+    the drift in this session's lessons).
+
+  Posting is reserved to the parent skill, gated by maintainer
+  confirmation. Subagents are pure read-and-think workers.
+
+- **Skip-reason short-circuits** — if the subagent's first
+  fetch shows the PR is closed, merged, drafted, or authored
+  by `<viewer>`, it returns `SKIP: <reason>` instead of a
+  package. The parent skill skips the PR with that reason
+  attached to the session summary.
+
+### Folding subagent output into Step 1
+
+When the maintainer reaches a prefetched PR, the parent skill:
+
+1. **Compares head SHA** between the subagent's snapshot and
+   the live PR. If different, the analysis is stale — by
+   default re-fire a fresh subagent before showing anything.
+   The maintainer can opt to see the stale draft anyway via
+   `[P]ost-anyway` after the parent surfaces the SHA delta.
+2. **Renders the package** as the single Step-1-through-7
+   block — headline, findings, suggested disposition, draft
+   body — without re-running fetch or classify.
+3. **Holds at Step 7's confirmation gate** identically to the
+   no-prefetch path. The only thing different is the source
+   of the draft; the maintainer's interaction is unchanged.
+
+### Wasted prefetch — accept it
+
+If the maintainer `[S]kip`s a prefetched PR, the subagent run
+was wasted. That's acceptable — the cost of an unused
+subagent is small compared to the wall-clock savings on the
+cases where the maintainer engages. Don't try to be clever
+about "will the maintainer skip this one?" — just keep the
+window full.
+
+### Concurrency cap
+
+Don't run more than `K` subagents at once (default `K=3`).
+Each subagent issues 2–3 `gh` calls and reads ~5 source
+files; `K=3` keeps GitHub-API and file-IO load well under
+the maintainer's hourly quota while giving instant headlines
+on the next 3 PRs.
+
+If the maintainer's queue is very small (`max:1`–`max:2`),
+the wall-clock benefit is nil and the cost of lookahead is
+pure waste — pass `no-prefetch` to disable. The skill auto-
+disables prefetch when only one PR remains.
+
+### Disagreeing with the subagent
+
+The subagent's draft is **advisory**. The parent skill — and
+the maintainer — are free to reject or rewrite it before
+posting. If the parent agent reading the package thinks the
+subagent missed something material, raise it explicitly to
+the maintainer at Step 6 ("subagent suggested APPROVE; I'd
+downgrade to COMMENT because…") rather than silently
+overriding. Disagreements between the two layers are signal
+the maintainer should see, not noise to be smoothed over.
 
 ---
 
@@ -392,3 +564,31 @@ rejects it. The skill detects this in Step 8 and warns:
 
 > *PR #N is authored by `<viewer>`. GitHub doesn't allow
 > self-review. Skipping.*
+
+### `<viewer>` already approved in a prior session
+
+If the PR's `reviews[]` already contains an entry with
+`author.login == <viewer>` and `state == APPROVED`, the
+maintainer reviewed this PR before. Re-approving adds noise
+to the PR's review history and tells the contributor nothing
+new. The skill auto-skips:
+
+> *PR #N already has an APPROVED review from `<viewer>`
+> (submitted `<timestamp>`). Skipping — re-approval is
+> redundant.*
+
+…and surfaces it as a `prior-approval` skip in the session
+summary.
+
+Edge case: if the maintainer's earlier APPROVED was followed
+by a `state == COMMENTED` from another maintainer raising
+*new* concerns (i.e. the SHA the maintainer approved is no
+longer the head SHA), the skill notes the divergence:
+
+> *PR #N has an earlier APPROVED from `<viewer>` against SHA
+> `<old>`, but new commits have landed since (`<new>`). Want
+> to re-review the delta? `[Y]es`, `[S]kip`, `[Q]uit`.*
+
+Default is `[S]kip` unless the maintainer explicitly opts in
+— the prior approval still counts toward GitHub's
+`reviewDecision`.
