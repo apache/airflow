@@ -1,0 +1,63 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import { IconButton, Stack, Text } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
+import { LuRegex } from "react-icons/lu";
+
+import { Tooltip } from "src/components/ui";
+
+export type AdvancedSearchToggleProps = {
+  readonly enabled: boolean;
+  readonly onToggle: (enabled: boolean) => void;
+  readonly size?: "2xs" | "sm" | "xs";
+};
+
+export const AdvancedSearchToggle = ({ enabled, onToggle, size = "sm" }: AdvancedSearchToggleProps) => {
+  const { t: translate } = useTranslation("dags");
+
+  return (
+    <Tooltip
+      content={
+        <Stack gap={1} maxW="320px">
+          <Text fontWeight="semibold">{translate("search.advanced.title")}</Text>
+          <Text>{translate("search.advanced.description")}</Text>
+        </Stack>
+      }
+      openDelay={200}
+      portalled
+      showArrow
+    >
+      <IconButton
+        aria-label={translate("search.advanced.toggleAriaLabel")}
+        aria-pressed={enabled}
+        colorPalette={enabled ? "warning" : "brand"}
+        data-testid="advanced-search-toggle"
+        flexShrink={0}
+        onClick={() => onToggle(!enabled)}
+        // Keep focus on whatever element triggered the click (e.g. the
+        // FilterPill input) so opening the pill and toggling does not collapse it.
+        onMouseDown={(event) => event.preventDefault()}
+        size={size}
+        variant={enabled ? "solid" : "outline"}
+      >
+        <LuRegex />
+      </IconButton>
+    </Tooltip>
+  );
+};
