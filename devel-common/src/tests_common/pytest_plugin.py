@@ -36,6 +36,8 @@ import pytest
 import time_machine
 from _pytest.config.findpaths import ConfigValue
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+
 if TYPE_CHECKING:
     from uuid import UUID
 
@@ -2537,7 +2539,11 @@ def create_runtime_ti(mocked_parse):
         should_retry: bool | None = None,
         max_tries: int | None = None,
     ) -> RuntimeTaskInstance:
-        from airflow.sdk._shared.workloads import TaskInstanceDTO
+        if AIRFLOW_V_3_3_PLUS:
+            from airflow.sdk._shared.workloads import TaskInstanceDTO
+        else:
+            from airflow.executors.workloads.task import TaskInstanceDTO
+
         from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, TIRunContext
         from airflow.utils.types import DagRunType
 
