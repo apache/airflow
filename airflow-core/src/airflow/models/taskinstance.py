@@ -602,12 +602,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             postgresql_where=text("state IN ('success', 'failed')"),
             sqlite_where=text("state IN ('success', 'failed')"),
         ),
-        Index(
-            "ti_span_status",
-            span_status,
-            postgresql_where=text("span_status = 'should_end'"),
-            sqlite_where=text("span_status = 'should_end'"),
-        ),
         PrimaryKeyConstraint("id", name="task_instance_pkey"),
         UniqueConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_composite_key"),
         ForeignKeyConstraint(

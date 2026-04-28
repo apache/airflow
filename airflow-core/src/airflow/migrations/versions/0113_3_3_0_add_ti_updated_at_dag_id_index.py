@@ -30,7 +30,7 @@ then use dag_id as a secondary filter within that range. A partial index
 filter and must cover task instances in all states.
 
 Revision ID: d1e2f3a4b5c6
-Revises: b0c1d2e3f4a5
+Revises: c4f5e6d7a8b9
 Create Date: 2026-04-20 00:00:00.000000
 
 """
@@ -41,7 +41,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "d1e2f3a4b5c6"
-down_revision = "b0c1d2e3f4a5"
+down_revision = "c4f5e6d7a8b9"
 branch_labels = None
 depends_on = None
 airflow_version = "3.3.0"
