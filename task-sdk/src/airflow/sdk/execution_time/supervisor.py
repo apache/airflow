@@ -1501,6 +1501,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 before=msg.before,
                 ascending=msg.ascending,
                 limit=msg.limit,
+                partition_key=msg.partition_key,
+                partition_key_pattern=msg.partition_key_pattern,
             )
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
             resp = asset_event_result
@@ -1512,6 +1514,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 before=msg.before,
                 ascending=msg.ascending,
                 limit=msg.limit,
+                partition_key=msg.partition_key,
+                partition_key_pattern=msg.partition_key_pattern,
             )
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
             resp = asset_event_result
