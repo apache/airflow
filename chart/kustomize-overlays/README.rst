@@ -18,9 +18,16 @@
 Airflow Helm Chart - Kustomize Overlays
 =======================================
 
+.. note::
+
+   **Not distributed with chart releases.**
+   This directory lives in the source repository as a reference for users but
+   is **not** packaged or published as part of the official Airflow Helm chart
+   release artifacts. Consume it directly from the repository at the tag that
+   matches your chart version.
+
 This directory contains Kustomize overlays that complement the Airflow Helm
-chart for components that are not Airflow-native. They are shipped alongside
-the chart as a guide for users, **not** as part of the released chart artifact.
+chart for components that are not Airflow-native.
 
 The motivation, criteria, and lifecycle for these overlays are defined in
 ``CONTRIBUTING.rst`` in this directory.
@@ -49,9 +56,6 @@ modify resources rendered by the chart. A typical workflow is:
    namespace, secret references).
 3. Apply the rendered manifests with ``kubectl apply -k`` against the same
    namespace as the chart release.
-
-Overlays are versioned with the chart. When pinning, use a tag matching the
-chart version (for example ``helm-chart/1.21.0``) rather than ``main``.
 
 Status conventions
 ------------------
