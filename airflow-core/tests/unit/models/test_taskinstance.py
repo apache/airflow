@@ -37,6 +37,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
 from airflow import settings
+from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
 from airflow.exceptions import (
@@ -2313,7 +2314,7 @@ class TestTaskInstance:
         When a task instance heartbeat timeout is detected for a DAG with a parse error,
         we need to be able to run handle_failure _without_ ti.task being set
         """
-        mock_backend = mock.MagicMock()
+        mock_backend = mock.MagicMock(spec=StatsLogger)
         mock_get_backend.return_value = mock_backend
 
         session = settings.Session()

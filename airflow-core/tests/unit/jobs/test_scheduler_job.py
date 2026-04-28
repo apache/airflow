@@ -41,6 +41,7 @@ from sqlalchemy.orm import joinedload
 
 from airflow import settings
 from airflow._shared.module_loading import qualname
+from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.assets.manager import AssetManager
@@ -438,7 +439,7 @@ class TestSchedulerJob:
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_process_executor_events(self, mock_get_backend, mock_task_callback, dag_maker):
-        mock_stats = mock.MagicMock()
+        mock_stats = mock.MagicMock(spec=StatsLogger)
         mock_get_backend.return_value = mock_stats
         dag_id = "test_process_executor_events"
         task_id_1 = "dummy_task"
@@ -555,7 +556,7 @@ class TestSchedulerJob:
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_process_executor_events_with_no_callback(self, mock_get_backend, mock_task_callback, dag_maker):
-        mock_stats = mock.MagicMock()
+        mock_stats = mock.MagicMock(spec=StatsLogger)
         mock_get_backend.return_value = mock_stats
         dag_id = "test_process_executor_events_with_no_callback"
         task_id = "test_task"
@@ -662,7 +663,7 @@ class TestSchedulerJob:
     def test_process_executor_events_with_callback(
         self, mock_get_backend, mock_task_callback, dag_maker, session
     ):
-        mock_stats = mock.MagicMock()
+        mock_stats = mock.MagicMock(spec=StatsLogger)
         mock_get_backend.return_value = mock_stats
         dag_id = "test_process_executor_events_with_callback"
         task_id_1 = "dummy_task"
@@ -716,7 +717,7 @@ class TestSchedulerJob:
     def test_process_executor_event_missing_dag(
         self, mock_get_backend, mock_task_callback, dag_maker, caplog
     ):
-        mock_stats = mock.MagicMock()
+        mock_stats = mock.MagicMock(spec=StatsLogger)
         mock_get_backend.return_value = mock_stats
         dag_id = "test_process_executor_events_with_callback"
         task_id_1 = "dummy_task"
@@ -751,7 +752,7 @@ class TestSchedulerJob:
     def test_process_executor_events_ti_requeued(
         self, mock_get_backend, mock_task_callback, dag_maker, caplog
     ):
-        mock_stats = mock.MagicMock()
+        mock_stats = mock.MagicMock(spec=StatsLogger)
         mock_get_backend.return_value = mock_stats
         dag_id = "test_process_executor_events_ti_requeued"
         task_id_1 = "dummy_task"
@@ -828,7 +829,7 @@ class TestSchedulerJob:
             task = EmptyOperator(task_id=task_id)
         ti = dag_maker.create_dagrun().get_task_instance(task.task_id)
 
-        mock_stats = mock.MagicMock()
+        mock_stats = mock.MagicMock(spec=StatsLogger)
         mock_get_backend.return_value = mock_stats
         executor = MockExecutor(do_update=False)
         scheduler_job = Job()
@@ -2363,7 +2364,7 @@ class TestSchedulerJob:
 
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_emit_pool_starving_tasks_metrics(self, mock_get_backend, dag_maker):
-        mock_stats = mock.MagicMock()
+        mock_stats = mock.MagicMock(spec=StatsLogger)
         mock_get_backend.return_value = mock_stats
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
@@ -5062,7 +5063,7 @@ class TestSchedulerJob:
 
         dag_model = dag_maker.dag_model
 
-        mock_stats = mock.MagicMock()
+        mock_stats = mock.MagicMock(spec=StatsLogger)
         mock_get_backend.return_value = mock_stats
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])

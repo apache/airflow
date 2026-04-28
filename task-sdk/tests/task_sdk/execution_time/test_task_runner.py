@@ -54,6 +54,7 @@ from airflow.sdk import (
     task as task_decorator,
     timezone,
 )
+from airflow.sdk._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,
@@ -4764,7 +4765,7 @@ class TestTaskInstanceMetrics:
         ti = create_runtime_ti(task=task)
 
         with mock.patch("airflow.sdk._shared.observability.metrics.stats._get_backend") as mock_get_backend:
-            backend = mock.MagicMock()
+            backend = mock.MagicMock(spec=StatsLogger)
             mock_get_backend.return_value = backend
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
@@ -4793,7 +4794,7 @@ class TestTaskInstanceMetrics:
         ti = create_runtime_ti(task=task)
 
         with mock.patch("airflow.sdk._shared.observability.metrics.stats._get_backend") as mock_get_backend:
-            backend = mock.MagicMock()
+            backend = mock.MagicMock(spec=StatsLogger)
             mock_get_backend.return_value = backend
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
@@ -4811,7 +4812,7 @@ class TestTaskInstanceMetrics:
         ti = create_runtime_ti(task=task)
 
         with mock.patch("airflow.sdk._shared.observability.metrics.stats._get_backend") as mock_get_backend:
-            backend = mock.MagicMock()
+            backend = mock.MagicMock(spec=StatsLogger)
             mock_get_backend.return_value = backend
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
@@ -4832,7 +4833,7 @@ class TestTaskInstanceMetrics:
         ti = create_runtime_ti(task=task)
 
         with mock.patch("airflow.sdk._shared.observability.metrics.stats._get_backend") as mock_get_backend:
-            backend = mock.MagicMock()
+            backend = mock.MagicMock(spec=StatsLogger)
             mock_get_backend.return_value = backend
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 

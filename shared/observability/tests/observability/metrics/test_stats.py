@@ -32,6 +32,7 @@ import airflow_shared.observability.metrics.stats
 import airflow_shared.observability.metrics.validators
 from airflow_shared.observability.exceptions import InvalidStatsNameException
 from airflow_shared.observability.metrics import datadog_logger, statsd_logger
+from airflow_shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow_shared.observability.metrics.datadog_logger import SafeDogStatsdLogger
 from airflow_shared.observability.metrics.statsd_logger import SafeStatsdLogger
 from airflow_shared.observability.metrics.validators import (
@@ -617,7 +618,7 @@ class TestLegacyExport:
     @pytest.fixture
     def mock_backend(self):
         with mock.patch("airflow_shared.observability.metrics.stats._get_backend") as m:
-            backend = mock.MagicMock()
+            backend = mock.MagicMock(spec=StatsLogger)
             m.return_value = backend
             yield backend
 

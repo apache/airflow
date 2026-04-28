@@ -41,6 +41,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
+from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
@@ -75,13 +76,12 @@ from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
 
-pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
-
-
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.serialization.definitions.dag import SerializedDAG
+
+pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
@@ -1372,7 +1372,7 @@ def test_verify_integrity_task_start_and_end_date(
     mock_get_backend, dag_maker, session, run_type, expected_tis
 ):
     """Test that tasks with specific dates are only created for backfill runs"""
-    mock_stats = mock.MagicMock()
+    mock_stats = mock.MagicMock(spec=StatsLogger)
     mock_get_backend.return_value = mock_stats
 
     with dag_maker("test", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE) as dag:
