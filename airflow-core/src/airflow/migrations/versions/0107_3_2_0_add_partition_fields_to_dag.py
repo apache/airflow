@@ -70,7 +70,7 @@ def downgrade():
     # the 3.1.x scheduler will try to create runs with run_ids that already exist in
     # dag_run, causing DB insert violation. Nulling these fields forces the 3.1.x
     # scheduler to recalculate them from the last completed run using 3.1.x semantics.
-    op.execute(
+    op.execute(  # noqa: MIG003 -- downgrade resets scheduler state to avoid run_id conflicts
         "UPDATE dag SET next_dagrun = NULL, next_dagrun_create_after = NULL, "
         "next_dagrun_data_interval_start = NULL, next_dagrun_data_interval_end = NULL"
     )

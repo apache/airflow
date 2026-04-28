@@ -22,7 +22,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
 from ci.prek.check_migration_patterns import (
+    MigrationFile,
     _get_noqa_codes,
     _line_has_noqa,
     check_mig001,
@@ -30,10 +32,6 @@ from ci.prek.check_migration_patterns import (
     check_mig003,
     main,
 )
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def write_migration(tmp_path: Path, source: str) -> Path:
@@ -43,9 +41,9 @@ def write_migration(tmp_path: Path, source: str) -> Path:
     return p
 
 
-# ---------------------------------------------------------------------------
-# _get_noqa_codes
-# ---------------------------------------------------------------------------
+def parse_migration(tmp_path: Path, source: str) -> MigrationFile:
+    """Write *source* to a temp file and return a parsed ``MigrationFile``."""
+    return MigrationFile.from_path(write_migration(tmp_path, source))
 
 
 class TestGetNoqaCodes:
@@ -69,11 +67,6 @@ class TestGetNoqaCodes:
         assert _get_noqa_codes("") == set()
 
 
-# ---------------------------------------------------------------------------
-# _line_has_noqa
-# ---------------------------------------------------------------------------
-
-
 class TestLineHasNoqa:
     def test_line_has_matching_code(self):
         lines = ["op.execute('UPDATE ...')  # noqa: MIG001"]
@@ -83,16 +76,9 @@ class TestLineHasNoqa:
         lines = ["op.execute('UPDATE ...')  # noqa: MIG002"]
         assert _line_has_noqa(lines, 1, "MIG001") is False
 
-    def test_out_of_bounds_zero(self):
-        assert _line_has_noqa(["some line"], 0, "MIG001") is False
-
-    def test_out_of_bounds_beyond_end(self):
-        assert _line_has_noqa(["some line"], 2, "MIG001") is False
-
-
-# ---------------------------------------------------------------------------
-# check_mig001
-# ---------------------------------------------------------------------------
+    @pytest.mark.parametrize("lineno", [0, 2], ids=["zero", "beyond_end"])
+    def test_out_of_bounds(self, lineno):
+        assert _line_has_noqa(["some line"], lineno, "MIG001") is False
 
 
 class TestCheckMig001:
@@ -102,7 +88,7 @@ class TestCheckMig001:
 def upgrade():
     op.execute("UPDATE dag SET x=1")
 """
-        assert check_mig001(write_migration(tmp_path, src)) == []
+        assert check_mig001(parse_migration(tmp_path, src)) == []
 
     def test_no_violation_dml_inside_guard(self, tmp_path):
         """DML inside the guard block is fine."""
@@ -111,7 +97,7 @@ def upgrade():
     with disable_sqlite_fkeys(op):
         op.execute("UPDATE dag SET x=1")
 """
-        assert check_mig001(write_migration(tmp_path, src)) == []
+        assert check_mig001(parse_migration(tmp_path, src)) == []
 
     def test_violation_dml_before_guard(self, tmp_path):
         """DML before disable_sqlite_fkeys fires MIG001."""
@@ -121,28 +107,26 @@ def upgrade():
     with disable_sqlite_fkeys(op):
         pass
 """
-        errors = check_mig001(write_migration(tmp_path, src))
+        errors = check_mig001(parse_migration(tmp_path, src))
         assert len(errors) == 1
         assert "MIG001" in errors[0]
 
-    def test_violation_insert_keyword(self, tmp_path):
-        src = """
+    @pytest.mark.parametrize(
+        "dml",
+        [
+            "INSERT INTO dag VALUES (1)",
+            "DELETE FROM dag WHERE id=1",
+        ],
+        ids=["insert", "delete"],
+    )
+    def test_violation_dml_keyword(self, tmp_path, dml):
+        src = f"""
 def upgrade():
-    op.execute("INSERT INTO dag VALUES (1)")
+    op.execute("{dml}")
     with disable_sqlite_fkeys(op):
         pass
 """
-        errors = check_mig001(write_migration(tmp_path, src))
-        assert any("MIG001" in e for e in errors)
-
-    def test_violation_delete_keyword(self, tmp_path):
-        src = """
-def upgrade():
-    op.execute("DELETE FROM dag WHERE id=1")
-    with disable_sqlite_fkeys(op):
-        pass
-"""
-        errors = check_mig001(write_migration(tmp_path, src))
+        errors = check_mig001(parse_migration(tmp_path, src))
         assert any("MIG001" in e for e in errors)
 
     def test_violation_text_wrapped(self, tmp_path):
@@ -153,7 +137,7 @@ def upgrade():
     with disable_sqlite_fkeys(op):
         pass
 """
-        errors = check_mig001(write_migration(tmp_path, src))
+        errors = check_mig001(parse_migration(tmp_path, src))
         assert any("MIG001" in e for e in errors)
 
     def test_noqa_suppresses_mig001(self, tmp_path):
@@ -163,7 +147,7 @@ def upgrade():
     with disable_sqlite_fkeys(op):
         pass
 """
-        assert check_mig001(write_migration(tmp_path, src)) == []
+        assert check_mig001(parse_migration(tmp_path, src)) == []
 
     def test_noqa_wrong_code_does_not_suppress(self, tmp_path):
         src = """
@@ -172,7 +156,7 @@ def upgrade():
     with disable_sqlite_fkeys(op):
         pass
 """
-        errors = check_mig001(write_migration(tmp_path, src))
+        errors = check_mig001(parse_migration(tmp_path, src))
         assert any("MIG001" in e for e in errors)
 
     def test_violation_in_downgrade(self, tmp_path):
@@ -182,13 +166,8 @@ def downgrade():
     with disable_sqlite_fkeys(op):
         pass
 """
-        errors = check_mig001(write_migration(tmp_path, src))
+        errors = check_mig001(parse_migration(tmp_path, src))
         assert any("MIG001" in e for e in errors)
-
-
-# ---------------------------------------------------------------------------
-# check_mig002
-# ---------------------------------------------------------------------------
 
 
 class TestCheckMig002:
@@ -198,7 +177,7 @@ def upgrade():
     with disable_sqlite_fkeys(op):
         op.add_column("dag", sa.Column("x", sa.Integer()))
 """
-        assert check_mig002(write_migration(tmp_path, src)) == []
+        assert check_mig002(parse_migration(tmp_path, src)) == []
 
     def test_violation_ddl_before_guard(self, tmp_path):
         src = """
@@ -207,7 +186,7 @@ def upgrade():
     with disable_sqlite_fkeys(op):
         pass
 """
-        errors = check_mig002(write_migration(tmp_path, src))
+        errors = check_mig002(parse_migration(tmp_path, src))
         assert any("MIG002" in e for e in errors)
 
     def test_dml_before_guard_does_not_trigger_mig002(self, tmp_path):
@@ -218,7 +197,7 @@ def upgrade():
     with disable_sqlite_fkeys(op):
         pass
 """
-        errors = check_mig002(write_migration(tmp_path, src))
+        errors = check_mig002(parse_migration(tmp_path, src))
         assert errors == []
 
     def test_noqa_suppresses_mig002(self, tmp_path):
@@ -228,7 +207,7 @@ def upgrade():
     with disable_sqlite_fkeys(op):
         pass
 """
-        assert check_mig002(write_migration(tmp_path, src)) == []
+        assert check_mig002(parse_migration(tmp_path, src)) == []
 
     def test_violation_batch_alter_table(self, tmp_path):
         src = """
@@ -237,13 +216,8 @@ def upgrade():
     with disable_sqlite_fkeys(op):
         pass
 """
-        errors = check_mig002(write_migration(tmp_path, src))
+        errors = check_mig002(parse_migration(tmp_path, src))
         assert any("MIG002" in e for e in errors)
-
-
-# ---------------------------------------------------------------------------
-# check_mig003
-# ---------------------------------------------------------------------------
 
 
 class TestCheckMig003:
@@ -252,7 +226,7 @@ class TestCheckMig003:
 def upgrade():
     op.add_column("dag", sa.Column("x", sa.Integer()))
 """
-        assert check_mig003(write_migration(tmp_path, src)) == []
+        assert check_mig003(parse_migration(tmp_path, src)) == []
 
     def test_no_violation_offline_guard_present(self, tmp_path):
         src = """
@@ -260,14 +234,14 @@ def upgrade():
     if not context.is_offline_mode():
         op.execute("UPDATE dag SET x=1")
 """
-        assert check_mig003(write_migration(tmp_path, src)) == []
+        assert check_mig003(parse_migration(tmp_path, src)) == []
 
     def test_violation_dml_without_guard(self, tmp_path):
         src = """
 def upgrade():
     op.execute("UPDATE dag SET x=1")
 """
-        errors = check_mig003(write_migration(tmp_path, src))
+        errors = check_mig003(parse_migration(tmp_path, src))
         assert any("MIG003" in e for e in errors)
 
     def test_noqa_suppresses_mig003(self, tmp_path):
@@ -275,20 +249,15 @@ def upgrade():
 def upgrade():
     op.execute("UPDATE dag SET x=1")  # noqa: MIG003
 """
-        assert check_mig003(write_migration(tmp_path, src)) == []
+        assert check_mig003(parse_migration(tmp_path, src)) == []
 
     def test_violation_in_downgrade(self, tmp_path):
         src = """
 def downgrade():
     op.execute("DELETE FROM dag WHERE id=1")
 """
-        errors = check_mig003(write_migration(tmp_path, src))
+        errors = check_mig003(parse_migration(tmp_path, src))
         assert any("MIG003" in e for e in errors)
-
-
-# ---------------------------------------------------------------------------
-# main()
-# ---------------------------------------------------------------------------
 
 
 class TestMain:

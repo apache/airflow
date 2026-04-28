@@ -20,19 +20,20 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 import pytest
 
-# ---------------------------------------------------------------------------
-# Import check functions from the prek hook script (single source of truth).
-# ---------------------------------------------------------------------------
 _PREK_SCRIPT = Path(__file__).resolve().parents[4] / "scripts" / "ci" / "prek" / "check_migration_patterns.py"
 _spec = importlib.util.spec_from_file_location("check_migration_patterns", _PREK_SCRIPT)
 if _spec is None or _spec.loader is None:
     raise ImportError(f"Could not load prek script: {_PREK_SCRIPT}")
 _mod = importlib.util.module_from_spec(_spec)
+# Register in sys.modules before exec so dataclasses can resolve the module via cls.__module__
+sys.modules["check_migration_patterns"] = _mod
 _spec.loader.exec_module(_mod)  # type: ignore[union-attr]  # typeshed: Loader lacks exec_module
+MigrationFile = _mod.MigrationFile
 check_mig001 = _mod.check_mig001
 check_mig002 = _mod.check_mig002
 check_mig003 = _mod.check_mig003
@@ -40,32 +41,27 @@ check_mig003 = _mod.check_mig003
 MIGRATIONS_DIR = Path(__file__).resolve().parents[3] / "src" / "airflow" / "migrations" / "versions"
 
 
-def _migration_files() -> list[Path]:
-    """Discover all migration Python files."""
+def migration_files() -> list[Path]:
+    """Discover all migration Python files (called at collection time by parametrize)."""
     return sorted(MIGRATIONS_DIR.glob("*.py"))
 
 
-# ---------------------------------------------------------------------------
-# Parametrized tests
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("migration_file", _migration_files(), ids=lambda p: p.name)
+@pytest.mark.parametrize("migration_file", migration_files(), ids=lambda p: p.name)
 def test_mig001_no_dml_before_sqlite_fkeys_guard(migration_file: Path):
     """MIG001: No DML via op.execute() should appear before disable_sqlite_fkeys."""
-    errors = check_mig001(migration_file)
+    errors = check_mig001(MigrationFile.from_path(migration_file))
     assert not errors, "\n".join(errors)
 
 
-@pytest.mark.parametrize("migration_file", _migration_files(), ids=lambda p: p.name)
+@pytest.mark.parametrize("migration_file", migration_files(), ids=lambda p: p.name)
 def test_mig002_no_ddl_before_sqlite_fkeys_guard(migration_file: Path):
     """MIG002: No DDL via op.*() should appear before disable_sqlite_fkeys."""
-    errors = check_mig002(migration_file)
+    errors = check_mig002(MigrationFile.from_path(migration_file))
     assert not errors, "\n".join(errors)
 
 
-@pytest.mark.parametrize("migration_file", _migration_files(), ids=lambda p: p.name)
+@pytest.mark.parametrize("migration_file", migration_files(), ids=lambda p: p.name)
 def test_mig003_dml_requires_offline_mode_guard(migration_file: Path):
     """MIG003: DML via op.execute() requires context.is_offline_mode() guard."""
-    errors = check_mig003(migration_file)
+    errors = check_mig003(MigrationFile.from_path(migration_file))
     assert not errors, "\n".join(errors)

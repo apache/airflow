@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.10"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -161,6 +161,7 @@ Include a brief reason after ``--``::
 from __future__ import annotations
 
 import ast
+import dataclasses
 import re
 import sys
 from pathlib import Path
@@ -170,6 +171,24 @@ from rich.console import Console
 console = Console(color_system="standard", width=200)
 
 DML_KEYWORDS = ("UPDATE", "INSERT", "DELETE")
+
+
+@dataclasses.dataclass(frozen=True)
+class MigrationFile:
+    path: Path
+    source: str
+    lines: list[str]
+    tree: ast.Module
+
+    @classmethod
+    def from_path(cls, filepath: Path) -> MigrationFile:
+        source = filepath.read_text()
+        return cls(
+            path=filepath,
+            source=source,
+            lines=source.splitlines(),
+            tree=ast.parse(source, filename=str(filepath)),
+        )
 
 
 def _get_noqa_codes(line: str) -> set[str]:
@@ -276,14 +295,11 @@ def _line_has_noqa(lines: list[str], lineno: int, code: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def check_mig001(filepath: Path) -> list[str]:
+def check_mig001(mf: MigrationFile) -> list[str]:
     """MIG001: DML before ``disable_sqlite_fkeys``."""
-    source = filepath.read_text()
-    lines = source.splitlines()
-    tree = ast.parse(source, filename=str(filepath))
     errors: list[str] = []
 
-    for func in _get_upgrade_downgrade_functions(tree):
+    for func in _get_upgrade_downgrade_functions(mf.tree):
         guard_line = _find_disable_sqlite_fkeys_line(func)
         if guard_line is None:
             continue  # MIG001 only fires when disable_sqlite_fkeys IS present
@@ -293,7 +309,7 @@ def check_mig001(filepath: Path) -> list[str]:
                 continue
             if node.lineno >= guard_line:
                 continue
-            if _is_op_execute_with_dml(node) and not _line_has_noqa(lines, node.lineno, "MIG001"):
+            if _is_op_execute_with_dml(node) and not _line_has_noqa(mf.lines, node.lineno, "MIG001"):
                 errors.append(
                     f"MIG001 {func.name}(): op.execute() with DML at line {node.lineno} "
                     f"before disable_sqlite_fkeys at line {guard_line}"
@@ -302,14 +318,11 @@ def check_mig001(filepath: Path) -> list[str]:
     return errors
 
 
-def check_mig002(filepath: Path) -> list[str]:
+def check_mig002(mf: MigrationFile) -> list[str]:
     """MIG002: DDL before ``disable_sqlite_fkeys``."""
-    source = filepath.read_text()
-    lines = source.splitlines()
-    tree = ast.parse(source, filename=str(filepath))
     errors: list[str] = []
 
-    for func in _get_upgrade_downgrade_functions(tree):
+    for func in _get_upgrade_downgrade_functions(mf.tree):
         guard_line = _find_disable_sqlite_fkeys_line(func)
         if guard_line is None:
             continue  # MIG002 only fires when disable_sqlite_fkeys IS present
@@ -322,7 +335,7 @@ def check_mig002(filepath: Path) -> list[str]:
             # Skip DML calls — covered by MIG001
             if _is_op_execute_with_dml(node):
                 continue
-            if _is_op_call(node) and not _line_has_noqa(lines, node.lineno, "MIG002"):
+            if _is_op_call(node) and not _line_has_noqa(mf.lines, node.lineno, "MIG002"):
                 attr = node.func.attr if isinstance(node.func, ast.Attribute) else "?"
                 errors.append(
                     f"MIG002 {func.name}(): op.{attr}() at line {node.lineno} "
@@ -332,21 +345,18 @@ def check_mig002(filepath: Path) -> list[str]:
     return errors
 
 
-def check_mig003(filepath: Path) -> list[str]:
+def check_mig003(mf: MigrationFile) -> list[str]:
     """MIG003: DML without offline-mode guard."""
-    source = filepath.read_text()
-    lines = source.splitlines()
-    tree = ast.parse(source, filename=str(filepath))
     errors: list[str] = []
 
-    for func in _get_upgrade_downgrade_functions(tree):
+    for func in _get_upgrade_downgrade_functions(mf.tree):
         if _has_offline_mode_check(func):
             continue  # function has the guard
 
         for node in ast.walk(func):
             if not isinstance(node, ast.Call):
                 continue
-            if _is_op_execute_with_dml(node) and not _line_has_noqa(lines, node.lineno, "MIG003"):
+            if _is_op_execute_with_dml(node) and not _line_has_noqa(mf.lines, node.lineno, "MIG003"):
                 errors.append(
                     f"MIG003 {func.name}(): op.execute() with DML at line {node.lineno} "
                     f"without context.is_offline_mode() guard"
@@ -362,14 +372,15 @@ def check_mig003(filepath: Path) -> list[str]:
 
 def main() -> int:
     """Check migration files for anti-patterns. Exit 0 if clean, 1 if violations found."""
-    checks = [check_mig001, check_mig002, check_mig003]
+    check_fns = [check_mig001, check_mig002, check_mig003]
     has_errors = False
 
     for filepath_str in sys.argv[1:]:
         filepath = Path(filepath_str)
         try:
-            for check in checks:
-                for error in check(filepath):
+            mf = MigrationFile.from_path(filepath)
+            for check_fn in check_fns:
+                for error in check_fn(mf):
                     console.print(f"{filepath}: {error}")
                     has_errors = True
         except (OSError, SyntaxError, UnicodeDecodeError) as exc:
