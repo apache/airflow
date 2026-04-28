@@ -17,7 +17,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-23T17:27:51.729719469Z"
+exclude-newer = "2026-04-24T03:41:10.634705822Z"
 exclude-newer-span = "P4D"
 
 [options.exclude-newer-package]
@@ -7911,6 +7911,7 @@ source = { editable = "dev/registry" }
 dependencies = [
     { name = "pydantic" },
     { name = "pyyaml" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
 
 [package.dev-dependencies]
@@ -7922,6 +7923,7 @@ dev = [
 requires-dist = [
     { name = "pydantic", specifier = ">=2.12.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
 ]
 
 [package.metadata.requires-dev]

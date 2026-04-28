@@ -19,9 +19,9 @@
 import { loader, type Monaco } from "@monaco-editor/react";
 import "monaco-editor/esm/vs/basic-languages/python/python.contribution";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
-import "monaco-editor/esm/vs/language/json/monaco.contribution";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import JsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
+import "monaco-editor/esm/vs/language/json/monaco.contribution";
 
 type WorkerConstructor = new () => Worker;
 type MonacoGlobal = {
