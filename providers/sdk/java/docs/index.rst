@@ -56,7 +56,7 @@ The SDK: Java provider registers Java-specific task coordinator and DAG file pro
 
 
 apache-airflow-providers-sdk-java package
-------------------------------------------------------
+-----------------------------------------
 
 Java SDK support for Apache Airflow runtime coordinators.
 
