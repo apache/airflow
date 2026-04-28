@@ -89,7 +89,7 @@ def _executor_initializer():
 
         Stats.initialize(
             factory=stats_utils.get_stats_factory(),
-            export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+            export_legacy_names=conf.getboolean("metrics", "legacy_names_on", fallback=True),
         )
     except ImportError:
         # ``stats_utils`` lives under ``airflow.observability.metrics`` in current Airflow; if the
@@ -230,8 +230,7 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            ctx = Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name})
-            with ctx:
+            with Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name}):
                 task_metadata = self.extractor_manager.extract_metadata(
                     dagrun=dagrun,
                     task=task,
@@ -363,8 +362,7 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            ctx = Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name})
-            with ctx:
+            with Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name}):
                 task_metadata = self.extractor_manager.extract_metadata(
                     dagrun=dagrun,
                     task=task,
@@ -510,8 +508,7 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            ctx = Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name})
-            with ctx:
+            with Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name}):
                 task_metadata = self.extractor_manager.extract_metadata(
                     dagrun=dagrun,
                     task=task,
@@ -634,8 +631,7 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            ctx = Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name})
-            with ctx:
+            with Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name}):
                 task_metadata = self.extractor_manager.extract_metadata(
                     dagrun=dagrun,
                     task=task,
