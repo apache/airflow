@@ -20,14 +20,16 @@ from __future__ import annotations
 import collections
 from collections.abc import Generator, Sequence
 from typing import TYPE_CHECKING, Annotated, Any
+from uuid import UUID
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import exists, select
-from sqlalchemy.orm import joinedload, load_only, selectinload
+from sqlalchemy.orm import Session, joinedload, load_only, selectinload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryDagRunRunTypesFilter,
@@ -70,6 +72,10 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.session import create_session
 
+if TYPE_CHECKING:
+    from airflow.models.dagbag import DBDagBag
+    from airflow.serialization.definitions.dag import SerializedDAG
+
 log = structlog.get_logger(logger_name=__name__)
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
 
@@ -91,32 +97,28 @@ def _get_latest_serdag(dag_id, session):
     return serdag
 
 
-def _get_serdag(dag_id, dag_version_id, session) -> SerializedDagModel | None:
-    # this is a simplification - we account for structure based on the first task
-    version = session.scalar(
-        select(DagVersion)
-        .where(DagVersion.id == dag_version_id)
-        .options(joinedload(DagVersion.serialized_dag))
+def _get_serdag(
+    dag_bag: DBDagBag,
+    dag_id: str,
+    dag_version_id: UUID | None,
+    session: Session,
+) -> SerializedDAG | None:
+    """Resolve the serialized Dag for a grid TI summary via the shared (cached) ``DBDagBag``."""
+    if dag_version_id is not None:
+        serdag = dag_bag._get_dag(dag_version_id, session=session)
+        if serdag is None:
+            log.error("No serialized dag found", dag_id=dag_id, version_id=dag_version_id)
+        return serdag
+
+    # Fallback: pre-3.0 upgrade — pick the oldest DagVersion for this dag_id.
+    oldest_version_id = session.scalar(
+        select(DagVersion.id).where(DagVersion.dag_id == dag_id).order_by(DagVersion.id).limit(1)
     )
-    if not version:
-        version = session.scalar(
-            select(DagVersion)
-            .where(
-                DagVersion.dag_id == dag_id,
-            )
-            .options(joinedload(DagVersion.serialized_dag))
-            .order_by(DagVersion.id)  # ascending cus this is mostly for pre-3.0 upgrade
-            .limit(1)
-        )
-    if not version:
+    if oldest_version_id is None:
         return None
-    if not (serdag := version.serialized_dag):
-        log.error(
-            "No serialized dag found",
-            dag_id=dag_id,
-            version_id=version.id,
-            version_number=version.version_number,
-        )
+    serdag = dag_bag._get_dag(oldest_version_id, session=session)
+    if serdag is None:
+        log.error("No serialized dag found", dag_id=dag_id, version_id=oldest_version_id)
     return serdag
 
 
@@ -344,7 +346,12 @@ def get_grid_runs(
 
 
 def _build_ti_summaries(
-    dag_id: str, run_id: str, task_instances: Sequence, session, serdag: SerializedDagModel | None = None
+    dag_id: str,
+    run_id: str,
+    task_instances: Sequence,
+    session: Session,
+    *,
+    dag_bag: DBDagBag,
 ) -> dict:
     ti_details: dict = collections.defaultdict(list)
     for ti in task_instances:
@@ -356,19 +363,19 @@ def _build_ti_summaries(
                 "dag_version_number": getattr(ti, "version_number", None),
             }
         )
-    if serdag is None:
-        serdag = _get_serdag(
-            dag_id=dag_id,
-            dag_version_id=task_instances[0].dag_version_id,
-            session=session,
-        )
+    serdag = _get_serdag(
+        dag_bag,
+        dag_id,
+        task_instances[0].dag_version_id,
+        session,
+    )
     if TYPE_CHECKING:
         assert serdag
 
     def get_node_summaries():
         yielded_task_ids: set[str] = set()
         for node in _find_aggregates(
-            node=serdag.dag.task_group,
+            node=serdag.task_group,
             parent_node=None,
             ti_details=ti_details,
         ):
@@ -430,6 +437,7 @@ def _build_ti_summaries(
 )
 def get_grid_ti_summaries_stream(
     dag_id: str,
+    dag_bag: DagBagDep,
     run_ids: Annotated[list[str] | None, Query()] = None,
 ) -> StreamingResponse:
     """
@@ -439,8 +447,9 @@ def get_grid_ti_summaries_stream(
     run's task instances have been processed, so the client can render columns
     progressively without waiting for all runs to complete.
 
-    The serialized Dag structure is loaded once and reused for all runs that
-    share the same ``dag_version_id``, avoiding repeated deserialization.
+    The serialized Dag structure is served from the app-wide ``DBDagBag`` cache
+    (keyed by ``dag_version_id``), which avoids repeated deserialization across
+    runs of the same version *and* across requests.
     """
 
     def _generate() -> Generator[str, None, None]:
@@ -449,7 +458,6 @@ def get_grid_ti_summaries_stream(
         # released between yields.  This prevents a slow client from holding a
         # database connection open for the entire stream duration.
         # See https://github.com/apache/airflow/issues/65010.
-        serdag_cache: dict = {}
         for run_id in run_ids or []:
             with create_session(scoped=False) as session:
                 tis = session.execute(
@@ -468,10 +476,7 @@ def get_grid_ti_summaries_stream(
                 ).all()
                 if not tis:
                     continue
-                version_id = tis[0].dag_version_id
-                if version_id not in serdag_cache:
-                    serdag_cache[version_id] = _get_serdag(dag_id, version_id, session)
-                summary = _build_ti_summaries(dag_id, run_id, tis, session, serdag=serdag_cache[version_id])
+                summary = _build_ti_summaries(dag_id, run_id, tis, session, dag_bag=dag_bag)
             yield GridTISummaries.model_validate(summary).model_dump_json() + "\n"
 
     return StreamingResponse(content=_generate(), media_type="application/x-ndjson")
