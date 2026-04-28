@@ -8838,6 +8838,38 @@
                             "x-docsSection": "Kubernetes"
                         }
                     }
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if the ServiceAccount's API credentials should be auto-mounted onto OTel Collector pods. Defaults to false because the chart's default collector config does not talk to the Kubernetes API.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to the OTel Collector Kubernetes ServiceAccount.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
                 }
             }
         },

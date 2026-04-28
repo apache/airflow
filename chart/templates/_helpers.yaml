@@ -702,6 +702,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- include "_serviceAccountName" (merge (dict "key" "statsd") .) -}}
 {{- end }}
 
+{{/* Create the name of the OTel Collector service account to use */}}
+{{- define "otelCollector.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "otelCollector" "nameSuffix" "otel-collector") .) -}}
+{{- end }}
+
 {{/* Create the name of the create user job service account to use */}}
 {{- define "createUserJob.serviceAccountName" -}}
   {{- include "_serviceAccountName" (merge (dict "key" "createUserJob" "nameSuffix" "create-user-job") .) -}}

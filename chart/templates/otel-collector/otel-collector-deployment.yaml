@@ -72,6 +72,7 @@ spec:
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       terminationGracePeriodSeconds: {{ .Values.otelCollector.terminationGracePeriodSeconds }}
+      serviceAccountName: {{ include "otelCollector.serviceAccountName" . }}
       {{- if .Values.otelCollector.priorityClassName }}
       priorityClassName: {{ .Values.otelCollector.priorityClassName }}
       {{- end }}

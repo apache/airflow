@@ -3270,6 +3270,23 @@ otelCollector:
     pod: {}
     container: {}
 
+  serviceAccount:
+    # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+    # The default OTel Collector config does not talk to the Kubernetes API, so credentials
+    # are not auto-mounted. Flip to true if you override `otelCollector.config` to use
+    # processors that need API access (e.g. `k8sattributes`).
+    automountServiceAccountToken: false
+
+    # Specifies whether a Service Account should be created
+    create: true
+
+    # The name of the Service Account to use.
+    # If not set and `create` is 'true', a name is generated using the release name
+    name: ~
+
+    # Annotations to add to the OTel Collector Kubernetes ServiceAccount.
+    annotations: {}
+
 # PgBouncer settings
 pgbouncer:
   # Enable PgBouncer
