@@ -184,7 +184,7 @@ Multi-Language extras
 These are extras that add dependencies needed for integration with other languages runtimes. Currently we have only Java SDK related extra, but in the future we might add more extras related to other languages runtimes.
 
 +----------+------------------------------------------+------------------------------------------------------------------+
-| extra    | install command                          | enables                                                          | 
+| extra    | install command                          | enables                                                          |
 +==========+==========================================+==================================================================+
 | sdk.java | ``pip install apache-airflow[sdk.java]`` | JavaCoordinator for both dag processing and workload execution.  |
 +----------+------------------------------------------+------------------------------------------------------------------+
