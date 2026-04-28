@@ -33,9 +33,6 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
 
-from slack_sdk import WebClient
-from slack_sdk.errors import SlackApiError
-from slack_sdk.web.async_client import AsyncWebClient
 from typing_extensions import NotRequired
 
 from airflow.providers.common.compat.connection import get_async_connection
@@ -44,8 +41,9 @@ from airflow.providers.slack.utils import ConnectionExtraConfig
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
+    from slack_sdk import WebClient
     from slack_sdk.http_retry import RetryHandler
-    from slack_sdk.web.async_client import AsyncSlackResponse
+    from slack_sdk.web.async_client import AsyncSlackResponse, AsyncWebClient
     from slack_sdk.web.slack_response import SlackResponse
 
     from airflow.providers.common.compat.sdk import Connection
@@ -152,11 +150,15 @@ class SlackHook(BaseHook):
     @cached_property
     def client(self) -> WebClient:
         """Get the underlying slack_sdk.WebClient (cached)."""
+        from slack_sdk import WebClient
+
         conn = self.get_connection(self.slack_conn_id)
         return WebClient(**self._get_conn_params(conn=conn))
 
     async def get_async_client(self) -> AsyncWebClient:
         """Get the underlying `slack_sdk.web.async_client.AsyncWebClient`."""
+        from slack_sdk.web.async_client import AsyncWebClient
+
         conn = await get_async_connection(self.slack_conn_id)
         return AsyncWebClient(**self._get_conn_params(conn))
 
@@ -372,6 +374,8 @@ class SlackHook(BaseHook):
         :raises SlackApiError: Propagated when errors other than 429 occur.
         :return: Slack SDK response for the page requested.
         """
+        from slack_sdk.errors import SlackApiError
+
         max_retries = 5
         for attempt in range(max_retries):
             try:
@@ -397,6 +401,8 @@ class SlackHook(BaseHook):
         .. seealso::
             https://api.slack.com/methods/auth.test
         """
+        from slack_sdk.errors import SlackApiError
+
         try:
             response = self.call("auth.test")
             response.validate()

@@ -357,7 +357,7 @@ class TestSlackWebhookHook:
             ),
         ],
     )
-    @mock.patch("airflow.providers.slack.hooks.slack_webhook.WebhookClient")
+    @mock.patch("slack_sdk.WebhookClient")
     def test_client_configuration(
         self, mock_webhook_client_cls, hook_config, conn_extra, expected: dict[str, Any]
     ):
@@ -393,7 +393,7 @@ class TestSlackWebhookHook:
             {"text": "Fallback Text", "blocks": ["Dummy Block"], "unfurl_media": True, "unfurl_links": True},
         ],
     )
-    @mock.patch("airflow.providers.slack.hooks.slack_webhook.WebhookClient")
+    @mock.patch("slack_sdk.WebhookClient")
     def test_hook_send_dict(self, mock_webhook_client_cls, send_body, headers):
         """Test `SlackWebhookHook.send_dict` method."""
         mock_webhook_client = mock_webhook_client_cls.return_value
@@ -411,7 +411,7 @@ class TestSlackWebhookHook:
         mock_webhook_client_send_dict.assert_called_once_with(send_body, headers=headers)
 
     @pytest.mark.parametrize("send_body", [("text", "Test Text"), 42, "null", "42"])
-    @mock.patch("airflow.providers.slack.hooks.slack_webhook.WebhookClient")
+    @mock.patch("slack_sdk.WebhookClient")
     def test_hook_send_dict_invalid_type(self, mock_webhook_client_cls, send_body):
         """Test invalid body type for `SlackWebhookHook.send_dict` method."""
         mock_webhook_client = mock_webhook_client_cls.return_value
@@ -424,7 +424,7 @@ class TestSlackWebhookHook:
         assert mock_webhook_client_send_dict.assert_not_called
 
     @pytest.mark.parametrize("json_string", ["{'text': 'Single quotes'}", '{"text": "Missing }"'])
-    @mock.patch("airflow.providers.slack.hooks.slack_webhook.WebhookClient")
+    @mock.patch("slack_sdk.WebhookClient")
     def test_hook_send_dict_invalid_json_string(self, mock_webhook_client_cls, json_string):
         """Test invalid JSON-string passed to `SlackWebhookHook.send_dict` method."""
         mock_webhook_client = mock_webhook_client_cls.return_value
@@ -446,7 +446,7 @@ class TestSlackWebhookHook:
             "icon_url",
         ],
     )
-    @mock.patch("airflow.providers.slack.hooks.slack_webhook.WebhookClient")
+    @mock.patch("slack_sdk.WebhookClient")
     def test_hook_send_dict_legacy_slack_integration(self, mock_webhook_client_cls, legacy_attr):
         """Test `SlackWebhookHook.send_dict` warn users about Legacy Slack Integrations."""
         mock_webhook_client = mock_webhook_client_cls.return_value
@@ -571,7 +571,7 @@ class TestSlackWebhookHookAsync:
             {"text": "Fallback Text", "blocks": ["Dummy Block"], "unfurl_media": True, "unfurl_links": True},
         ],
     )
-    @mock.patch("airflow.providers.slack.hooks.slack_webhook.AsyncWebhookClient")
+    @mock.patch("slack_sdk.webhook.async_client.AsyncWebhookClient")
     @mock.patch("airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook._async_get_conn_params")
     async def test_async_send_dict(
         self, mock_async_get_conn_params, mock_async_webhook_client_cls, send_body, headers
@@ -597,7 +597,7 @@ class TestSlackWebhookHookAsync:
             {"text": "Fallback Text", "blocks": ["Dummy Block"], "unfurl_media": True, "unfurl_links": True},
         ],
     )
-    @mock.patch("airflow.providers.slack.hooks.slack_webhook.AsyncWebhookClient")
+    @mock.patch("slack_sdk.webhook.async_client.AsyncWebhookClient")
     @mock.patch("airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook._async_get_conn_params")
     async def test_async_send_dict_json_string(
         self, mock_async_get_conn_params, mock_async_webhook_client_cls, send_body, headers

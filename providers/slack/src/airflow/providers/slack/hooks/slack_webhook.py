@@ -23,15 +23,14 @@ from collections.abc import Callable
 from functools import cached_property, wraps
 from typing import TYPE_CHECKING, Any
 
-from slack_sdk import WebhookClient
-from slack_sdk.webhook.async_client import AsyncWebhookClient
-
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 from airflow.providers.slack.utils import ConnectionExtraConfig
 
 if TYPE_CHECKING:
+    from slack_sdk import WebhookClient
     from slack_sdk.http_retry import RetryHandler
+    from slack_sdk.webhook.async_client import AsyncWebhookClient
 
 LEGACY_INTEGRATION_PARAMS = ("channel", "username", "icon_emoji", "icon_url")
 
@@ -150,10 +149,14 @@ class SlackWebhookHook(BaseHook):
     @cached_property
     def client(self) -> WebhookClient:
         """Get the underlying slack_sdk.webhook.WebhookClient (cached)."""
+        from slack_sdk import WebhookClient
+
         return WebhookClient(**self._get_conn_params())
 
     async def get_async_client(self) -> AsyncWebhookClient:
         """Get the underlying `slack_sdk.webhook.async_client.AsyncWebhookClient`."""
+        from slack_sdk.webhook.async_client import AsyncWebhookClient
+
         return AsyncWebhookClient(**await self._async_get_conn_params())
 
     def get_conn(self) -> WebhookClient:

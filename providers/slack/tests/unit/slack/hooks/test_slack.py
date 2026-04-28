@@ -214,7 +214,7 @@ class TestSlackHook:
             ),
         ],
     )
-    @mock.patch("airflow.providers.slack.hooks.slack.WebClient")
+    @mock.patch("slack_sdk.WebClient")
     def test_client_configuration(
         self, mock_webclient_cls, hook_config, conn_extra, expected: dict[str, Any]
     ):
@@ -407,7 +407,7 @@ class TestSlackHook:
     def test_call_conversations_list_retries_then_succeeds(self, monkeypatch):
         ok_resp = self.fake_slack_response(data={"channels": []})
         monkeypatch.setattr(
-            "airflow.providers.slack.hooks.slack.WebClient",
+            "slack_sdk.WebClient",
             lambda **_: mock.MagicMock(
                 conversations_list=mock.Mock(side_effect=[self.make_429(), self.make_429(), ok_resp])
             ),
@@ -420,7 +420,7 @@ class TestSlackHook:
 
     def test_call_conversations_list_exceeds_max(self, monkeypatch):
         monkeypatch.setattr(
-            "airflow.providers.slack.hooks.slack.WebClient",
+            "slack_sdk.WebClient",
             lambda **_: mock.MagicMock(conversations_list=mock.Mock(side_effect=[self.make_429()] * 5)),
         )
         with pytest.raises(AirflowException, match="Max retries"):
@@ -592,7 +592,7 @@ class TestSlackHookAsync:
             yield m
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.slack.hooks.slack.AsyncWebClient")
+    @mock.patch("slack_sdk.web.async_client.AsyncWebClient")
     async def test_get_async_client(self, mock_client, mock_get_conn):
         """Test get_async_client creates AsyncWebClient with correct params."""
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
@@ -601,7 +601,7 @@ class TestSlackHookAsync:
         mock_client.assert_called_once_with(token=MOCK_SLACK_API_TOKEN, logger=mock.ANY)
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.slack.hooks.slack.AsyncWebClient.api_call", new_callable=mock.AsyncMock)
+    @mock.patch("slack_sdk.web.async_client.AsyncWebClient.api_call", new_callable=mock.AsyncMock)
     async def test_async_call(self, mock_api_call, mock_get_conn):
         """Test async_call is called correctly."""
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
