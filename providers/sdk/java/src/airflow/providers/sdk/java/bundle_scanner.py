@@ -33,7 +33,7 @@ from typing import NamedTuple
 
 import yaml
 
-_MANIFEST_PATH = "META-INF/MANIFEST.MF"
+MANIFEST_PATH = "META-INF/MANIFEST.MF"
 METADATA_MANIFEST_KEY = "Airflow-Java-SDK-Metadata"
 SDK_VERSION_MANIFEST_KEY = "Airflow-Java-SDK-Version"
 DAG_CODE_MANIFEST_KEY = "Airflow-Java-SDK-Dag-Code"
@@ -155,7 +155,7 @@ def _read_bundle_jar(jar_path: Path) -> tuple[str, set[str]] | None:
     try:
         with zipfile.ZipFile(jar_path) as zf:
             try:
-                with zf.open(_MANIFEST_PATH) as f:
+                with zf.open(MANIFEST_PATH) as f:
                     manifest = email.message_from_binary_file(f)
             except KeyError:
                 return None
@@ -194,7 +194,7 @@ def read_dag_code(jar_path: Path) -> str | None:
     try:
         with zipfile.ZipFile(jar_path) as zf:
             try:
-                with zf.open(_MANIFEST_PATH) as f:
+                with zf.open(MANIFEST_PATH) as f:
                     manifest = email.message_from_binary_file(f)
             except KeyError:
                 return None
