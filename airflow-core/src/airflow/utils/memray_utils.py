@@ -56,6 +56,7 @@ def enable_memray_trace(component: MemrayTraceComponents) -> Callable[[Callable[
             _memray_trace_components = conf.getenumlist(
                 "profiling", "memray_trace_components", MemrayTraceComponents
             )
+            is_detailed_tracing = conf.getboolean("profiling", "memray_detailed_tracing")
             if component not in _memray_trace_components:
                 return func(*args, **kwargs)
 
@@ -64,7 +65,9 @@ def enable_memray_trace(component: MemrayTraceComponents) -> Callable[[Callable[
 
                 profile_path = f"{AIRFLOW_HOME}/{component.value}_memory.bin"
                 with memray.Tracker(
-                    profile_path,
+                    file_name=profile_path,
+                    native_traces=is_detailed_tracing,
+                    trace_python_allocators=is_detailed_tracing,
                 ):
                     log.info("Memray tracing enabled for %s. Output: %s", component.value, profile_path)
                     return func(*args, **kwargs)

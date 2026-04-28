@@ -84,6 +84,32 @@ Or set it via environment variable:
     ``memray_trace_components`` to an empty string (or unset the environment variable)
     and restart the affected components.
 
+Capturing More Detailed Traces
+""""""""""""""""""""""""""""""
+
+If the default trace does not give you enough information to identify the source of
+a memory issue, enabling ``memray_detailed_tracing`` provides deeper insight.
+
+By default, Memray only records allocations that reach the system allocator. To also
+capture C/C++ stack frames and small ``pymalloc`` allocations, set
+``memray_detailed_tracing`` to ``True``:
+
+.. code-block:: ini
+
+    [profiling]
+    memray_trace_components = scheduler
+    memray_detailed_tracing = True
+
+This enables Memray's ``native_traces`` (C/C++ frames from compiled extensions such as
+numpy or pandas; most accurate on Linux, less precise on macOS) and
+``trace_python_allocators`` (small short-lived Python objects served from existing
+``pymalloc`` arenas).
+
+.. warning::
+
+    Detailed tracing substantially increases overhead and can produce profile files
+    several gigabytes in size. Enable it for short, focused sessions only.
+
 Step-by-Step Profiling Guide
 -----------------------------
 
