@@ -1290,6 +1290,8 @@ def run(
                 # Send update only if value changed (e.g., user set context variables during execution)
                 if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
                     SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
+            finally:
+                log.info("::group::Post Execute")
 
         _push_xcom_if_needed(result, ti, log)
 
@@ -1679,6 +1681,8 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
+    log.info("::endgroup::")
+
     if task.execution_timeout:
         from airflow.sdk.execution_time.timeout import timeout
 
@@ -1846,6 +1850,8 @@ def finalize(
     except Exception:
         log.exception("error calling listener")
 
+    log.info("::endgroup::")
+
 
 @contextmanager
 def flush_spans():
@@ -1874,6 +1880,7 @@ def main():
     with stack:
         try:
             try:
+                log.info("::group::Pre Execute")
                 startup_details = get_startup_details()
                 span = _make_task_span(msg=startup_details)
                 stack.enter_context(span)
