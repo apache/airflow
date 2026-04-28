@@ -1,0 +1,1 @@
+Fix OTEL warning ``Invalid type UUID for attribute 'airflow.task_instance.id'`` by stringifying the task instance UUID when setting the span attribute in the execution API's ``_emit_task_span``.
