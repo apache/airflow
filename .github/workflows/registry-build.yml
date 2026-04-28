@@ -115,6 +115,11 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
+          # Tags drive the phantom-version filter in extract_metadata.py
+          # (only versions with a real `providers-<id>/<ver>` tag are
+          # treated as released). Without this, the filter silently
+          # falls back to `versions[0]` and ships phantom versions.
+          fetch-tags: true
 
       - name: "Prepare breeze & CI image"
         uses: ./.github/actions/prepare_breeze_and_image
@@ -176,11 +181,20 @@ jobs:
       - name: "Extract registry data (breeze)"
         env:
           PROVIDER: ${{ inputs.provider }}
+          DESTINATION: ${{ inputs.destination }}
         run: |
+          # Staging dispatches preview unreleased providers (maintainers want to
+          # verify newly-bumped versions look right before tagging). Live builds
+          # filter them so the production registry never ships pointers to
+          # non-existent PyPI releases / GitHub tags / docs pages.
+          ALLOW_UNRELEASED=""
+          if [[ "${DESTINATION}" == "staging" ]]; then
+            ALLOW_UNRELEASED="--allow-unreleased"
+          fi
           if [[ -n "${PROVIDER}" ]]; then
-            breeze registry extract-data --python 3.12 --provider "${PROVIDER}"
+            breeze registry extract-data --python 3.12 --provider "${PROVIDER}" ${ALLOW_UNRELEASED}
           else
-            breeze registry extract-data --python 3.12
+            breeze registry extract-data --python 3.12 ${ALLOW_UNRELEASED}
           fi
 
       # --- Incremental: merge new data with existing ---

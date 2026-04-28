@@ -189,6 +189,7 @@ repos:
           ^scripts/ci/license-templates/|
           ^\.github/instructions/|
           ^\.github/skills/airflow-translations/SKILL\.md$|
+          ^\.github/skills/pr-stats/SKILL\.md$|
           ^\.github/skills/pr-triage/SKILL\.md$
       - id: insert-license
         name: Add license for all other files

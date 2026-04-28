@@ -3383,6 +3383,38 @@ def generate_providers_metadata(
         console_print(metadata_dict)
         return
 
+    package_ids = list(get_provider_dependencies().keys())
+
+    # Hygiene pass: every entry in `provider.yaml`'s `versions:` list except
+    # the first is supposed to be a published PyPI release. The first entry
+    # is the in-progress next release and is allowed to predate publication;
+    # the rest must be reachable on PyPI. Any older entry that PyPI does not
+    # know about is stale (e.g. a release that was prepared but never
+    # published) — drop it from `provider.yaml` so the metadata generated
+    # below reflects only versions a user can actually install.
+    from airflow_breeze.utils.packages import get_provider_distributions_metadata
+    from airflow_breeze.utils.provider_dependencies import (
+        prune_unreleased_versions_from_provider_yaml,
+    )
+
+    console_print("\n[info]Checking provider.yaml versions[1:] against PyPI for stale entries...[/]\n")
+    with Pool() as pypi_pool:
+        pruned_per_provider = pypi_pool.map(prune_unreleased_versions_from_provider_yaml, package_ids)
+    total_pruned = 0
+    for pid, pruned in zip(package_ids, pruned_per_provider):
+        if pruned:
+            console_print(f"[warning]{pid}: removed unreleased versions from provider.yaml: {pruned}[/]")
+            total_pruned += len(pruned)
+    if total_pruned:
+        console_print(
+            f"\n[warning]Removed {total_pruned} unreleased version entr"
+            f"{'y' if total_pruned == 1 else 'ies'} from provider.yaml files. "
+            "Re-reading provider metadata.[/]\n"
+        )
+        get_provider_distributions_metadata.cache_clear()
+    else:
+        console_print("[info]All provider.yaml versions[1:] are present on PyPI.[/]\n")
+
     partial_generate_providers_metadata = partial(
         generate_providers_metadata_for_provider,
         provider_version=None,
@@ -3391,7 +3423,6 @@ def generate_providers_metadata(
         airflow_release_dates=airflow_release_dates,
         current_metadata=current_metadata,
     )
-    package_ids = get_provider_dependencies().keys()
     with Pool() as pool:
         results = pool.map(
             partial_generate_providers_metadata,

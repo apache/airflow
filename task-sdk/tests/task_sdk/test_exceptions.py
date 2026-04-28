@@ -16,21 +16,28 @@
 # under the License.
 from __future__ import annotations
 
-PR_COMMANDS: dict[str, str | list[str]] = {
-    "name": "PR commands",
-    "commands": ["stats"],
-}
+import pytest
 
-PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
-    "breeze pr stats": [
-        {
-            "name": "Options",
-            "options": [
-                "--batch-size",
-                "--clear-cache",
-                "--github-token",
-                "--github-repository",
-            ],
-        },
-    ],
-}
+from airflow.sdk.exceptions import NodeNotFound, TaskNotFound
+
+
+def test_node_not_found_is_subclass_of_task_not_found():
+    assert issubclass(NodeNotFound, TaskNotFound)
+
+
+def test_node_not_found_is_subclass_of_key_error():
+    assert issubclass(NodeNotFound, KeyError)
+
+
+def test_node_not_found_caught_as_key_error():
+    with pytest.raises(KeyError):
+        raise NodeNotFound("missing_task")
+
+
+def test_node_not_found_caught_as_task_not_found():
+    with pytest.raises(TaskNotFound):
+        raise NodeNotFound("missing_task")
+
+
+def test_node_not_found_str_suppresses_key_error_repr():
+    assert str(NodeNotFound("missing")) == "missing"

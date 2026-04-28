@@ -330,6 +330,7 @@ integrations:
     logo: /docs/integration-logos/AWS-Glue_light-bg@4x.png
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/glue.rst
+      - /docs/apache-airflow-providers-amazon/operators/glue_catalog.rst
     tags: [aws]
   - integration-name: AWS Lambda
     external-doc-url: https://aws.amazon.com/lambda/
@@ -444,6 +445,7 @@ operators:
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.operators.glue
+      - airflow.providers.amazon.aws.operators.glue_catalog
       - airflow.providers.amazon.aws.operators.glue_crawler
   - integration-name: AWS Lambda
     python-modules:
