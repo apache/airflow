@@ -71,18 +71,18 @@ export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginPro
       hasValue={hasValue}
       onRemove={onRemove}
       renderInput={(props) => (
-        <HStack gap={1}>
-          <InputWithAddon
-            {...props}
-            label={filter.config.label}
-            onChange={handleInputChange}
-            placeholder={filter.config.placeholder}
-            value={typeof filter.value === "string" ? filter.value : ""}
-          />
-          {showAdvancedToggle ? (
-            <AdvancedSearchToggle enabled={advanced.enabled} onToggle={advanced.onToggle} size="xs" />
-          ) : undefined}
-        </HStack>
+        <InputWithAddon
+          {...props}
+          endAddon={
+            showAdvancedToggle ? (
+              <AdvancedSearchToggle enabled={advanced.enabled} onToggle={advanced.onToggle} size="2xs" />
+            ) : undefined
+          }
+          label={filter.config.label}
+          onChange={handleInputChange}
+          placeholder={filter.config.placeholder}
+          value={typeof filter.value === "string" ? filter.value : ""}
+        />
       )}
     />
   );

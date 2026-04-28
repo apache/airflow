@@ -29,7 +29,7 @@ export type AdvancedSearchToggleProps = {
 };
 
 export const AdvancedSearchToggle = ({ enabled, onToggle, size = "sm" }: AdvancedSearchToggleProps) => {
-  const { t: translate } = useTranslation("dags");
+  const { t: translate } = useTranslation("common");
 
   return (
     <Tooltip
@@ -44,9 +44,9 @@ export const AdvancedSearchToggle = ({ enabled, onToggle, size = "sm" }: Advance
       showArrow
     >
       <IconButton
-        aria-label={translate("search.advanced.toggleAriaLabel")}
+        aria-label="Toggle match-anywhere search"
         aria-pressed={enabled}
-        colorPalette={enabled ? "warning" : "brand"}
+        colorPalette="brand"
         data-testid="advanced-search-toggle"
         flexShrink={0}
         onClick={() => onToggle(!enabled)}

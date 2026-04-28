@@ -72,11 +72,7 @@
     }
   },
   "search": {
-    "advanced": {
-      "description": "Match anywhere in the value (substring search). Slower on large deployments because it can't use the default B-tree index. See the docs section on custom metadata indexes for details.",
-      "title": "Match anywhere",
-      "toggleAriaLabel": "Toggle match-anywhere search"
-    },
+    "advanced": "Advanced Search",
     "clear": "Clear search",
     "dags": "Search Dags",
     "hotkey": "+K",
