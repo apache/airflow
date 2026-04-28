@@ -17,8 +17,15 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.providers.sdk.java.coordinator import JavaCoordinator
 from airflow.providers.sdk.java.get_provider_info import get_provider_info
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+
+if not AIRFLOW_V_3_3_PLUS:
+    pytest.skip("Coordinator is only compatible with Airflow >= 3.3.0", allow_module_level=True)
 
 
 def test_get_provider_info_exposes_java_runtime_components():
