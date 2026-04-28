@@ -29,7 +29,7 @@ from airflow.providers.sdk.java.bundle_scanner import BundleScanner, read_dag_co
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 
 if TYPE_CHECKING:
-    from airflow._shared.workloads import TaskInstanceDTO
+    from airflow.sdk._shared.workloads import TaskInstanceDTO
     from airflow.sdk.api.datamodels._generated import BundleInfo
 
 
