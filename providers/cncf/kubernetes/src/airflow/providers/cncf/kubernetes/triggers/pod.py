@@ -455,6 +455,10 @@ class KubernetesPodTrigger(BaseTrigger):
         deleting pods on triggerer restart. On older Airflow versions, ``cleanup()`` still uses
         ``safe_to_cancel()`` because ``on_kill()`` is not wired for user kills.
         """
+        # TODO: Remove this Airflow < 3.3 cleanup branch (early return, ``safe_to_cancel``, and
+        # related tests) once the minimum Airflow version supported by this provider is >= 3.3.
+        # In Airflow 3.3+, ``BaseTrigger.on_kill()`` handles user-initiated kills; keeping the
+        # legacy path for backward compatibility with older Airflow versions.
         if AIRFLOW_V_3_3_PLUS:
             return
 
