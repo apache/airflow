@@ -578,7 +578,7 @@ class TestTriggerRunner:
         with (
             patch("airflow.jobs.triggerer_job_runner.asyncio.sleep", side_effect=fake_sleep),
             patch("airflow.jobs.triggerer_job_runner.time.monotonic", side_effect=[1.0, 1.4]),
-            patch("airflow.jobs.triggerer_job_runner.Stats.incr") as mock_stats_incr,
+            patch("airflow.jobs.triggerer_job_runner.stats.incr") as mock_stats_incr,
         ):
             await trigger_runner.block_watchdog()
 
@@ -598,7 +598,7 @@ class TestTriggerRunner:
         with (
             patch("airflow.jobs.triggerer_job_runner.asyncio.sleep", side_effect=fake_sleep),
             patch("airflow.jobs.triggerer_job_runner.time.monotonic", side_effect=[1.0, 1.6]),
-            patch("airflow.jobs.triggerer_job_runner.Stats.incr") as mock_stats_incr,
+            patch("airflow.jobs.triggerer_job_runner.stats.incr") as mock_stats_incr,
         ):
             await trigger_runner.block_watchdog()
 
