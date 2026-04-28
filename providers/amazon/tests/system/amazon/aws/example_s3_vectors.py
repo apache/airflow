@@ -18,16 +18,18 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.providers.amazon.aws.operators.s3_vectors import S3VectorsCreateVectorBucketOperator
+from airflow.providers.amazon.aws.operators.s3_vectors import (
+    S3VectorsCreateVectorBucketOperator,
+    S3VectorsDeleteVectorBucketOperator,
+)
 from airflow.providers.common.compat.sdk import DAG, chain
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import TriggerRule, task
+    from airflow.sdk import TriggerRule
 else:
-    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 DAG_ID = "example_s3vectors"
@@ -51,17 +53,18 @@ with DAG(
     )
     # [END howto_operator_s3vectors_create_vector_bucket]
 
-    @task(trigger_rule=TriggerRule.ALL_DONE)
-    def delete_vector_bucket(name: str):
-        """Delete the vector bucket."""
-        import boto3
-
-        boto3.client("s3vectors").delete_vector_bucket(vectorBucketName=name)
+    # [START howto_operator_s3vectors_delete_vector_bucket]
+    delete_vector_bucket = S3VectorsDeleteVectorBucketOperator(
+        task_id="delete_vector_bucket",
+        vector_bucket_name=bucket_name,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_s3vectors_delete_vector_bucket]
 
     chain(
         test_context,
         create_vector_bucket,
-        delete_vector_bucket(name=bucket_name),
+        delete_vector_bucket,
     )
 
     from tests_common.test_utils.watcher import watcher
