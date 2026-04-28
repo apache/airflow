@@ -427,7 +427,12 @@ class Trigger(Base):
             .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
             .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), cls.created_date),
             # Asset triggers
-            select(cls.id).where(cls.assets.any()).order_by(cls.created_date),
+            select(cls.id)
+            .where(
+                cls.assets.any(),
+                or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)),
+            )
+            .order_by(cls.created_date),
         ]
 
         # Process each query while avoiding unnecessary queries when capacity is reached
