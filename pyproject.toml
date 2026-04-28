@@ -539,7 +539,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.10.12",
+    "uv>=0.11.8",
 ]
 
 [project.urls]
@@ -1338,7 +1338,7 @@ leveldb = [
 ]
 
 [tool.uv]
-required-version = ">=0.6.3"
+required-version = ">=0.11.8"
 no-build-isolation-package = ["sphinx-redoc"]
 constraint-dependencies = ["lxml==6.0.2"]  # Remove after https://github.com/aws/amazon-redshift-python-driver/pull/272
 
