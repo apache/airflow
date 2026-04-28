@@ -42,7 +42,9 @@ class JavaCoordinator(BaseCoordinator):
     @classmethod
     def can_handle_dag_file(cls, bundle_name: str, path: str | os.PathLike[str]) -> bool:
         """Return ``True`` when *path* is a JAR with valid Airflow Java SDK manifest attributes."""
-        with contextlib.suppress(FileNotFoundError, zipfile.BadZipFile, KeyError):
+        if not os.fspath(path).endswith(cls.file_extension):
+            return False
+        with contextlib.suppress(FileNotFoundError, NotADirectoryError, zipfile.BadZipFile, KeyError):
             return BundleScanner.resolve_jar(Path(path)) is not None
         return False
 
