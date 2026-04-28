@@ -284,6 +284,21 @@ jobs:
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
 
+      - name: "Download providers.json from S3"
+        env:
+          S3_BUCKET: ${{ needs.prepare.outputs.bucket }}
+        run: |
+          # `breeze registry publish-versions` calls publish_registry_versions.py,
+          # which reads providers.json (lines 119-127) to know which provider
+          # IDs to iterate. The job runs in a fresh checkout where providers.json
+          # is gitignored, so without this step the publish raises FileNotFoundError.
+          # Download to dev/registry/ -- the function's inline path fallback
+          # resolves the file from there.
+          mkdir -p dev/registry
+          aws s3 cp \
+            "${S3_BUCKET}api/providers.json" \
+            dev/registry/providers.json
+
       - name: "Publish version metadata"
         env:
           S3_BUCKET: ${{ needs.prepare.outputs.bucket }}
