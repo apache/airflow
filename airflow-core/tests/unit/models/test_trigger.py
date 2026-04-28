@@ -182,8 +182,7 @@ def test_clean_unused_clears_trigger_ids_in_batches(session, dag_maker, monkeypa
     monkeypatch.setattr(trigger_module, "_TRIGGER_ID_CLEANUP_BATCH_SIZE", 2)
 
     triggers = [
-        Trigger(classpath=f"airflow.triggers.testing.SuccessTrigger{index}", kwargs={})
-        for index in range(5)
+        Trigger(classpath=f"airflow.triggers.testing.SuccessTrigger{index}", kwargs={}) for index in range(5)
     ]
     session.add_all(triggers)
     session.flush()
