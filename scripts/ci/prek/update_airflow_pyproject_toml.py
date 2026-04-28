@@ -166,7 +166,10 @@ def _fallback_provider_version(
             f"[yellow]Provider id {provider_id} min version fallback:[/] "
             f"local provider pyproject.toml -> {local_version}"
         )
-        return local_version, " # Set from local provider pyproject.toml"
+        # No trailing comment: a local-fallback version flips to a real PyPI release
+        # without any other change to the pin, and a stale comment would then trigger
+        # the update-pyproject-toml prek hook on unrelated PRs / on main.
+        return local_version, ""
     return None, ""
 
 

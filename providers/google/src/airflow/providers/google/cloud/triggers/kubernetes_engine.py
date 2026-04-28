@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 import warnings
 from collections.abc import AsyncIterator, Sequence
 from functools import cached_property
@@ -333,9 +334,36 @@ class GKEJobTrigger(BaseTrigger):
                     f"package {kubernetes_provider_name}=={kubernetes_provider_version} which doesn't "
                     f"support this feature. Please upgrade it to version higher than or equal to {min_version}."
                 )
+            # Re-discover pods for this job to handle retry scenarios
+            # where the original pod failed and a new pod was created
+            label_selector = f"job-name={self.job_name}"
+            deadline = time.monotonic() + self.poll_interval * 10
+            succeeded_pods = []
+            current_pods = []
+            while time.monotonic() < deadline:
+                current_pods = await self.hook.list_pods(
+                    namespace=self.pod_namespace,
+                    label_selector=label_selector,
+                )
+                succeeded_pods = [p for p in current_pods if p.status and p.status.phase == "Succeeded"]
+                if succeeded_pods:
+                    break
+                self.log.info(
+                    "No succeeded pods found yet for job %s, retrying in %s seconds...",
+                    self.job_name,
+                    self.poll_interval,
+                )
+                await asyncio.sleep(self.poll_interval)
+            if not succeeded_pods:
+                self.log.warning(
+                    "No succeeded pods found for job %s after timeout, falling back to original pod list",
+                    self.job_name,
+                )
+                succeeded_pods = [p for p in current_pods if p.metadata.name in self.pod_names]
+
             xcom_results = []
-            for pod_name in self.pod_names:
-                pod = await self.hook.get_pod(name=pod_name, namespace=self.pod_namespace)
+            for pod in succeeded_pods:
+                pod_name = pod.metadata.name
                 await self.hook.wait_until_container_complete(
                     name=pod_name,
                     namespace=self.pod_namespace,

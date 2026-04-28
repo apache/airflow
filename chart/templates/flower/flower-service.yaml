@@ -17,10 +17,10 @@
  under the License.
 */}}
 
-################################
+###################################
 ## Airflow Flower Service Component
-#################################
-{{- if and .Values.flower.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+###################################
+{{- if and .Values.flower.enabled (contains "CeleryExecutor" .Values.executor) }}
 apiVersion: v1
 kind: Service
 metadata:

@@ -46,7 +46,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import tomllib
+try:
+    import tomllib  # Python 3.11+ stdlib
+except ModuleNotFoundError:  # pragma: no cover -- Python 3.10 fallback
+    import tomli as tomllib
 from registry_contract_models import validate_provider_version_metadata
 
 try:
@@ -58,10 +61,20 @@ except ImportError:
 from extract_metadata import fetch_provider_inventory, read_connection_urls, resolve_connection_docs_url
 from registry_tools.types import MODULE_LEVEL_SECTIONS, TYPE_SUFFIXES
 
+SCRIPT_DIR = Path(__file__).parent
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 PROVIDERS_DIR = AIRFLOW_ROOT / "providers"
 REGISTRY_DIR = AIRFLOW_ROOT / "registry"
 OUTPUT_DIR = REGISTRY_DIR / "src" / "_data" / "versions"
+
+# Same candidate order as extract_parameters.py and extract_metadata.py: the
+# `Download existing providers.json` workflow step writes to dev/registry/
+# (= SCRIPT_DIR), so prefer that. Fall back to the eleventy data dir when
+# running locally after a full extract pass has populated it.
+PROVIDERS_JSON_CANDIDATES = [
+    SCRIPT_DIR / "providers.json",
+    REGISTRY_DIR / "src" / "_data" / "providers.json",
+]
 
 
 def build_provider_id_to_path_map() -> dict[str, str]:
@@ -434,10 +447,16 @@ def main():
     parser.add_argument("--all-versions", action="store_true", help="Extract all versions")
     args = parser.parse_args()
 
-    # Load providers.json
-    providers_path = REGISTRY_DIR / "src" / "_data" / "providers.json"
-    if not providers_path.exists():
-        print(f"ERROR: {providers_path} not found. Run extract_metadata.py first.")
+    # Load providers.json from the first candidate path that exists.
+    providers_path = next((p for p in PROVIDERS_JSON_CANDIDATES if p.exists()), None)
+    if providers_path is None:
+        candidates = "\n  ".join(str(p) for p in PROVIDERS_JSON_CANDIDATES)
+        print(
+            "ERROR: providers.json not found in any of:\n  "
+            f"{candidates}\n"
+            "Run extract_metadata.py first, or download from the registry S3 bucket "
+            "to dev/registry/providers.json."
+        )
         sys.exit(1)
 
     with open(providers_path) as f:
@@ -479,8 +498,21 @@ def main():
             elif args.version == latest_version:
                 print(f"  {args.version} is the latest version (already in providers.json), skipping")
                 continue
+            elif git_tag_exists(f"providers-{pid}/{args.version}"):
+                # The cached providers.json predates this version (typical
+                # backfill scenario: the version was released after the last
+                # full registry build, so it's missing from `versions:` in
+                # the cached snapshot). Trust the git tag and proceed.
+                print(
+                    f"  {args.version} not in cached providers.json {all_versions} "
+                    f"but providers-{pid}/{args.version} tag exists; extracting."
+                )
+                versions_to_extract = [args.version]
             else:
-                print(f"  {args.version} not found in {pid} versions: {all_versions}")
+                print(
+                    f"  {args.version} not found in {pid} versions: {all_versions} "
+                    f"and providers-{pid}/{args.version} tag does not exist"
+                )
                 total_skipped += 1
                 continue
         elif args.all_versions:
@@ -497,6 +529,12 @@ def main():
 
     if not extraction_tasks:
         print(f"\nDone: {total_extracted} versions extracted, {total_skipped} skipped")
+        # Explicit `--version` with nothing extracted is a hard failure -- the
+        # caller asked for a specific version that we couldn't produce. Failing
+        # loud here surfaces the issue at extract time rather than later when
+        # `aws s3 sync` errors on a missing source path.
+        if args.version and total_skipped > 0:
+            sys.exit(1)
         return
 
     max_workers = min(8, len(extraction_tasks))
