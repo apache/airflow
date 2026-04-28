@@ -1,6 +1,0 @@
-status: not-tested
-reason: >-
-  First proof-of-concept overlay for KEDA. Builds successfully and passes the
-  generic structural check in scripts/ci/prek/build_kustomize_overlays.py, but
-  has no CRD-schema or functional integration test yet. Use as a starting
-  point only. Tracked under https://github.com/apache/airflow/issues/64037.

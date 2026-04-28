@@ -64,14 +64,14 @@ Each overlay directory must contain:
 
 * ``kustomization.yaml`` - the Kustomize entry point.
 * The Kubernetes resources the overlay produces.
-* ``STATUS`` - a small YAML document declaring the verification state.
+* ``STATUS.yaml`` - a small YAML document declaring the verification state.
 * ``README.rst`` - usage instructions and a migration guide from the
   equivalent chart-side configuration.
 
 STATUS file format
 ------------------
 
-The ``STATUS`` file is a small YAML document with the following fields.
+The ``STATUS.yaml`` file is a small YAML document with the following fields.
 
 For a verified overlay:
 
