@@ -63,7 +63,7 @@ export const InputWithAddon = React.forwardRef<HTMLInputElement, InputWithAddonP
         size="sm"
         {...inputProps}
       />
-      {endAddon === undefined ? undefined : <Box pr={1}>{endAddon}</Box>}
+      {endAddon}
     </Box>
   );
 });

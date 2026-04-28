@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton, Stack, Text } from "@chakra-ui/react";
+import { Box, IconButton, Stack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuRegex } from "react-icons/lu";
 
@@ -26,10 +26,56 @@ export type AdvancedSearchToggleProps = {
   readonly enabled: boolean;
   readonly onToggle: (enabled: boolean) => void;
   readonly size?: "2xs" | "sm" | "xs";
+  // "standalone" → free-floating IconButton next to a SearchBar.
+  // "addon"      → flush right addon inside a rounded pill input, mirroring the label on the left.
+  readonly variant?: "addon" | "standalone";
 };
 
-export const AdvancedSearchToggle = ({ enabled, onToggle, size = "sm" }: AdvancedSearchToggleProps) => {
+export const AdvancedSearchToggle = ({
+  enabled,
+  onToggle,
+  size = "sm",
+  variant = "standalone",
+}: AdvancedSearchToggleProps) => {
   const { t: translate } = useTranslation("common");
+
+  const button =
+    variant === "addon" ? (
+      <Box
+        alignItems="center"
+        alignSelf="stretch"
+        aria-label="Toggle match-anywhere search"
+        aria-pressed={enabled}
+        as="button"
+        bg={enabled ? "colorPalette.solid" : "gray.muted"}
+        borderRightRadius="full"
+        color={enabled ? "colorPalette.contrast" : "colorPalette.fg"}
+        colorPalette={enabled ? "brand" : "gray"}
+        cursor="pointer"
+        data-testid="advanced-search-toggle"
+        display="flex"
+        onClick={() => onToggle(!enabled)}
+        // Keep focus on the FilterPill input so toggling does not collapse the pill.
+        onMouseDown={(event) => event.preventDefault()}
+        px={3}
+      >
+        <LuRegex />
+      </Box>
+    ) : (
+      <IconButton
+        aria-label="Toggle match-anywhere search"
+        aria-pressed={enabled}
+        colorPalette="brand"
+        data-testid="advanced-search-toggle"
+        flexShrink={0}
+        onClick={() => onToggle(!enabled)}
+        onMouseDown={(event) => event.preventDefault()}
+        size={size}
+        variant={enabled ? "solid" : "outline"}
+      >
+        <LuRegex />
+      </IconButton>
+    );
 
   return (
     <Tooltip
@@ -43,21 +89,7 @@ export const AdvancedSearchToggle = ({ enabled, onToggle, size = "sm" }: Advance
       portalled
       showArrow
     >
-      <IconButton
-        aria-label="Toggle match-anywhere search"
-        aria-pressed={enabled}
-        colorPalette="brand"
-        data-testid="advanced-search-toggle"
-        flexShrink={0}
-        onClick={() => onToggle(!enabled)}
-        // Keep focus on whatever element triggered the click (e.g. the
-        // FilterPill input) so opening the pill and toggling does not collapse it.
-        onMouseDown={(event) => event.preventDefault()}
-        size={size}
-        variant={enabled ? "solid" : "outline"}
-      >
-        <LuRegex />
-      </IconButton>
+      {button}
     </Tooltip>
   );
 };

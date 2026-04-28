@@ -75,7 +75,7 @@ export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginPro
           {...props}
           endAddon={
             showAdvancedToggle ? (
-              <AdvancedSearchToggle enabled={advanced.enabled} onToggle={advanced.onToggle} size="2xs" />
+              <AdvancedSearchToggle enabled={advanced.enabled} onToggle={advanced.onToggle} variant="addon" />
             ) : undefined
           }
           label={filter.config.label}
