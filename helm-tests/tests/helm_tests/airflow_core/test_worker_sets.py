@@ -130,7 +130,9 @@ class TestWorkerSets:
 
         default_init_images = jmespath.search("spec.template.spec.initContainers[*].image", docs[0]) or []
         default_container_images = jmespath.search("spec.template.spec.containers[*].image", docs[0]) or []
-        default_images = [image for image in default_init_images + default_container_images if "git-sync" not in image]
+        default_images = [
+            image for image in default_init_images + default_container_images if "git-sync" not in image
+        ]
         for image in default_images:
             assert image == "celery-base/airflow:base-v1"
 
@@ -354,14 +356,22 @@ class TestWorkerSets:
 
         assert len(docs) == 2
 
-        default_init_policies = jmespath.search("spec.template.spec.initContainers[*].imagePullPolicy", docs[0]) or []
-        default_container_policies = jmespath.search("spec.template.spec.containers[*].imagePullPolicy", docs[0]) or []
+        default_init_policies = (
+            jmespath.search("spec.template.spec.initContainers[*].imagePullPolicy", docs[0]) or []
+        )
+        default_container_policies = (
+            jmespath.search("spec.template.spec.containers[*].imagePullPolicy", docs[0]) or []
+        )
         default_policies = default_init_policies + default_container_policies
         for policy in default_policies:
             assert policy == "Always"
 
-        special_init_policies = jmespath.search("spec.template.spec.initContainers[*].imagePullPolicy", docs[1]) or []
-        special_container_policies = jmespath.search("spec.template.spec.containers[*].imagePullPolicy", docs[1]) or []
+        special_init_policies = (
+            jmespath.search("spec.template.spec.initContainers[*].imagePullPolicy", docs[1]) or []
+        )
+        special_container_policies = (
+            jmespath.search("spec.template.spec.containers[*].imagePullPolicy", docs[1]) or []
+        )
         special_policies = special_init_policies + special_container_policies
         for policy in special_policies:
             assert policy == "Never"

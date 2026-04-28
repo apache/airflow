@@ -289,7 +289,9 @@ class TestWorker:
         )
 
         init_policies = jmespath.search("spec.template.spec.initContainers[*].imagePullPolicy", docs[0]) or []
-        container_policies = jmespath.search("spec.template.spec.containers[*].imagePullPolicy", docs[0]) or []
+        container_policies = (
+            jmespath.search("spec.template.spec.containers[*].imagePullPolicy", docs[0]) or []
+        )
         policies = init_policies + container_policies
         for policy in policies:
             assert policy == "Always"
@@ -301,7 +303,9 @@ class TestWorker:
         )
 
         init_policies = jmespath.search("spec.template.spec.initContainers[*].imagePullPolicy", docs[0]) or []
-        container_policies = jmespath.search("spec.template.spec.containers[*].imagePullPolicy", docs[0]) or []
+        container_policies = (
+            jmespath.search("spec.template.spec.containers[*].imagePullPolicy", docs[0]) or []
+        )
         policies = init_policies + container_policies
         for policy in policies:
             assert policy == "IfNotPresent"
@@ -332,15 +336,10 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        all_containers = (
-            (jmespath.search("spec.template.spec.initContainers", docs[0]) or [])
-            + (jmespath.search("spec.template.spec.containers", docs[0]) or [])
+        all_containers = (jmespath.search("spec.template.spec.initContainers", docs[0]) or []) + (
+            jmespath.search("spec.template.spec.containers", docs[0]) or []
         )
-        kerberos_containers = [
-            c
-            for c in all_containers
-            if c["name"] in ("kerberos-init", "worker-kerberos")
-        ]
+        kerberos_containers = [c for c in all_containers if c["name"] in ("kerberos-init", "worker-kerberos")]
 
         assert kerberos_containers, "No kerberos containers found"
         for container in kerberos_containers:
