@@ -2335,15 +2335,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         dag_run.run_id,
                         dag_run.dag_id,
                     )
-                    if (
-                        dag_run.run_type
-                        in (
-                            DagRunType.SCHEDULED,
-                            DagRunType.MANUAL,
-                            DagRunType.ASSET_TRIGGERED,
-                        )
-                        and dag_run.dag_model is not None
-                    ):
+                    if dag_run.dag_model is not None:
                         self._set_exceeds_max_active_runs(dag_model=dag_run.dag_model, session=session)
                     dag_run.notify_dagrun_state_changed(msg="timed_out")
                     continue
