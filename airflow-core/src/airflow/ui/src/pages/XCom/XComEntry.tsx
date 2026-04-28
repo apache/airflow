@@ -87,7 +87,7 @@ export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKe
       width={200} // TODO: Make Skeleton take style from column definition
     />
   ) : (
-    <HStack>
+    <HStack data-testid="xcom-value">
       {isObjectOrArray ? (
         <RenderedJsonField collapsed={!open} content={xcomValue as object} enableClipboard={false} />
       ) : (

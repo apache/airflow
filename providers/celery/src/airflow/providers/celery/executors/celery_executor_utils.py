@@ -47,6 +47,7 @@ from airflow.providers.celery.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_9_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
 )
 from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, conf, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -204,8 +205,8 @@ def on_celery_worker_ready(*args, **kwargs):
 # and deserialization for us.
 @app.task(name="execute_workload")
 def execute_workload(input: str) -> None:
-    if not AIRFLOW_V_3_2_PLUS:
-        return _execute_workload_pre_3_2(input)
+    if not AIRFLOW_V_3_3_PLUS:
+        return _execute_workload_pre_3_3(input)
 
     from celery.exceptions import Ignore
     from pydantic import TypeAdapter
@@ -222,21 +223,20 @@ def execute_workload(input: str) -> None:
     try:
         BaseExecutor.run_workload(workload)
     except Exception as e:
-        if AIRFLOW_V_3_1_9_PLUS:
-            from airflow.sdk.exceptions import TaskAlreadyRunningError
+        from airflow.sdk.exceptions import TaskAlreadyRunningError
 
-            if isinstance(e, TaskAlreadyRunningError):
-                log.info("[%s] Task already running elsewhere, ignoring redelivered message", celery_task_id)
-                # Raise Ignore() so Celery does not record a FAILURE result for this duplicate
-                # delivery. Without this, the broker redelivering the message (e.g. after a
-                # visibility timeout) would cause Celery to mark the task as failed, even though
-                # the original worker is still executing it successfully.
-                raise Ignore()
+        if isinstance(e, TaskAlreadyRunningError):
+            log.info("[%s] Task already running elsewhere, ignoring redelivered message", celery_task_id)
+            # Raise Ignore() so Celery does not record a FAILURE result for this duplicate
+            # delivery. Without this, the broker redelivering the message (e.g. after a
+            # visibility timeout) would cause Celery to mark the task as failed, even though
+            # the original worker is still executing it successfully.
+            raise Ignore()
         raise
 
 
-def _execute_workload_pre_3_2(input: str) -> None:
-    """Fallback for Airflow < 3.2 which lacks BaseExecutor.run_workload()."""
+def _execute_workload_pre_3_3(input: str) -> None:
+    """Fallback for Airflow < 3.3 which lacks BaseExecutor.run_workload() and ExecutorWorkload."""
     from celery.exceptions import Ignore
     from pydantic import TypeAdapter
 

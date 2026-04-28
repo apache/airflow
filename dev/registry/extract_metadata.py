@@ -35,13 +35,18 @@ import datetime
 import json
 import re
 import shutil
+import subprocess
 import urllib.request
 import zlib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-import tomllib
+try:
+    import tomllib  # Python 3.11+ stdlib
+except ModuleNotFoundError:  # pragma: no cover -- Python 3.10 fallback
+    import tomli as tomllib
+
 import yaml
 from registry_contract_models import validate_providers_catalog
 
@@ -359,6 +364,48 @@ def find_related_providers(provider_id: str, all_provider_yamls: dict[str, dict]
     return related[:5]  # Limit to 5 related providers
 
 
+def load_release_tags() -> set[str]:
+    """Return all ``providers-<id>/<version>`` git tags as a set for fast lookup.
+
+    Used to filter ``provider.yaml`` ``versions:`` lists to only entries that
+    correspond to a real release (excludes phantom version bumps where the
+    next-version entry was prepended to ``versions:`` before the tag landed,
+    or pre-release-only versions like ``providers-celery/3.19.0rc1`` where the
+    ``rc1`` exists but the final does not).
+
+    Returns an empty set if the ``git`` command fails (e.g., outside a checkout);
+    callers can decide whether to fall back to the unfiltered top entry.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "tag", "--list", "providers-*"],
+            capture_output=True,
+            text=True,
+            cwd=AIRFLOW_ROOT,
+            check=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return set()
+    return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+
+
+def find_latest_released_version(
+    provider_id: str,
+    versions_list: list[str],
+    release_tags: set[str],
+) -> str | None:
+    """Walk ``versions_list`` newest-first, return the first version with a real release tag.
+
+    Returns ``None`` when no entry in ``versions_list`` has a corresponding
+    ``providers-<id>/<version>`` tag, indicating the provider is unreleased
+    (brand-new in-tree, no tags yet) or in an inconsistent state.
+    """
+    for version in versions_list:
+        if f"providers-{provider_id}/{version}" in release_tags:
+            return version
+    return None
+
+
 def main():
     """Main extraction function."""
     import argparse
@@ -369,6 +416,17 @@ def main():
         default=None,
         help="Extract only this provider ID (e.g. 'amazon'). Omit for full build.",
     )
+    parser.add_argument(
+        "--allow-unreleased",
+        action="store_true",
+        help=(
+            "Include providers and versions that don't have a matching "
+            "providers-<id>/<ver> git tag. Use for staging builds and local dev "
+            "where maintainers want to preview unreleased provider pages before "
+            "the tag lands. Default is to filter unreleased entries so live "
+            "builds don't ship phantom pointers."
+        ),
+    )
     args = parser.parse_args()
 
     print("Airflow Registry Metadata Extractor")
@@ -378,6 +436,8 @@ def main():
         print(f"Incremental mode: extracting provider(s) {requested_providers}")
     else:
         requested_providers = None
+    if args.allow_unreleased:
+        print("Unreleased providers: INCLUDED (--allow-unreleased)")
 
     # Ensure output directory exists
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -415,6 +475,27 @@ def main():
     else:
         extraction_ids = set(all_provider_yamls.keys())
 
+    # Load all release tags once. Used below to filter `provider.yaml`'s
+    # `versions:` to only entries that have a real `providers-<id>/<ver>`
+    # git tag, avoiding phantom-version leaks (next-release bumps prepended
+    # to `versions:` before the tag lands, RC-only releases, brand-new
+    # providers with no tags yet).
+    #
+    # Skipped entirely when --allow-unreleased is set: staging builds and
+    # local dev want to preview unreleased provider pages so maintainers
+    # can verify them before tagging.
+    if args.allow_unreleased:
+        release_tags: set[str] = set()
+    else:
+        release_tags = load_release_tags()
+        if not release_tags:
+            print(
+                "  Warning: no providers-* git tags found; "
+                "phantom version filter is disabled (falling back to versions[0]). "
+                "If this is a CI run, ensure the checkout step uses fetch-tags: true."
+            )
+    skipped_unreleased: list[str] = []
+
     # Second pass: Extract full metadata (only for providers in extraction_ids)
     for provider_id in extraction_ids:
         provider_yaml = all_provider_yamls[provider_id]
@@ -447,9 +528,29 @@ def main():
         if len(description) > 200:
             description = description[:197] + "..."
 
-        # Get versions
-        versions = provider_yaml.get("versions", [])
-        version = versions[0] if versions else "0.0.0"
+        # Get versions, filtering to entries that have a real release tag.
+        # Provider release prep prepends the next version to `versions:` BEFORE
+        # the tag lands, and pre-release-only versions match `versions:` but
+        # have no final tag. Without filtering, `version` (the latest pointer)
+        # AND the `versions` list both leak phantoms downstream -- the latter
+        # is consumed by extract_versions.py's backfill, which would try to
+        # `git show` from a non-existent tag.
+        raw_versions = provider_yaml.get("versions", [])
+        if release_tags:
+            versions = [v for v in raw_versions if f"providers-{provider_id}/{v}" in release_tags]
+            version = find_latest_released_version(provider_id, raw_versions, release_tags)
+            if version is None:
+                skipped_unreleased.append(provider_id)
+                print(
+                    f"  Skipping {provider_id}: no released version found in "
+                    f"versions list {raw_versions} "
+                    f"(no matching providers-{provider_id}/<ver> tag)"
+                )
+                continue
+        else:
+            # No tag information available -- fall back to old behaviour.
+            versions = list(raw_versions)
+            version = versions[0] if versions else "0.0.0"
 
         # Extract categories from integrations
         categories = extract_integrations_as_categories(provider_yaml)
@@ -602,6 +703,12 @@ def main():
 
         all_providers.append(provider)
         print(f"  {provider_id}: {len(categories)} categories")
+
+    if skipped_unreleased:
+        print(
+            f"\nSkipped {len(skipped_unreleased)} unreleased provider(s) "
+            f"(no matching git tag): {sorted(skipped_unreleased)}"
+        )
 
     # Find related providers
     for provider in all_providers:

@@ -77,7 +77,6 @@ jobs:
     name: "Build Info"
     runs-on: ["ubuntu-24.04"]
     env:
-      GITHUB_CONTEXT: ${{ toJson(github) }}
       VERBOSE: true
       REF: ${{ inputs.ref }}
       INCLUDE_DOCS: ${{ inputs.include-docs }}
@@ -313,7 +312,7 @@ jobs:
             exit 1
           fi
       - name: "Upload build docs"
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: airflow-docs
           path: /mnt/_build

@@ -134,6 +134,21 @@ class TestGenAIGenerativeModelHookWithDefaultProjectId:
             self.hook = GenAIGenerativeModelHook(gcp_conn_id=TEST_GCP_CONN_ID)
             self.hook.get_credentials = self.dummy_get_credentials
 
+    @mock.patch("google.genai.Client")
+    def test_get_genai_client_passes_connection_credentials(self, mock_client) -> None:
+        """get_genai_client must pass Airflow connection credentials to genai.Client, not fall back to ADC."""
+        mock_credentials = mock.Mock()
+        self.hook.get_credentials = mock.Mock(return_value=mock_credentials)
+
+        self.hook.get_genai_client(project_id=GCP_PROJECT, location=GCP_LOCATION)
+
+        mock_client.assert_called_once_with(
+            vertexai=True,
+            project=GCP_PROJECT,
+            location=GCP_LOCATION,
+            credentials=mock_credentials,
+        )
+
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGenerativeModelHook.get_genai_client"))
     def test_text_embedding_model_get_embeddings(self, mock_get_client) -> None:
         client_mock = mock_get_client.return_value
