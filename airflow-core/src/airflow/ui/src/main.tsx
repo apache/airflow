@@ -34,6 +34,7 @@ import { ChakraCustomProvider } from "src/context/ChakraCustomProvider";
 import { ColorModeProvider } from "src/context/colorMode";
 import { TimezoneProvider } from "src/context/timezone";
 import { router } from "src/router";
+import { configureMonaco } from "src/utils/configureMonaco";
 import { getRedirectPath } from "src/utils/links.ts";
 
 import i18n from "./i18n/config";
@@ -47,6 +48,8 @@ Reflect.set(globalThis, "ReactJSXRuntime", ReactJSXRuntime);
 Reflect.set(globalThis, "ReactRouterDOM", ReactRouterDOM);
 Reflect.set(globalThis, "ChakraUI", ChakraUI);
 Reflect.set(globalThis, "EmotionReact", EmotionReact);
+
+configureMonaco();
 
 // URLs that returned 403 Forbidden. Permissions won't change mid-session,
 // so we block further requests to avoid spamming the server with polling.

@@ -24,3 +24,7 @@
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+declare module "monaco-editor/esm/vs/editor/editor.api.js" {
+  export * from "monaco-editor/esm/vs/editor/editor.api";
+}
