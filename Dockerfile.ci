@@ -1222,30 +1222,6 @@ function environment_initialization() {
         export AIRFLOW__SCHEDULER__GO_WORKER=True
     fi
 
-    if [[ ${JAVA_SDK=} == "true" ]]; then
-        echo
-        echo "${COLOR_BLUE}Setting up Java SDK${COLOR_RESET}"
-        echo
-
-        # Install Java and the Java SDK provider
-        bash /opt/airflow/scripts/in_container/java_sdk_setup.sh
-
-        # Set JAVA_HOME and PATH before Gradle build so gradlew can find java
-        export JAVA_HOME=/files/openjdk
-        export PATH=/files/openjdk/bin:${PATH}
-
-        # Build both Java SDK bundles (stub + pure Java)
-        export JAVA_SDK_SRC_DIR=/opt/airflow/java-sdk
-        export BUNDLES_OUTPUT_DIR=/files/java-sdk-bundles
-        bash /opt/airflow/scripts/in_container/java_sdk_build.sh
-
-        # Source the generated environment configuration
-        # shellcheck disable=SC1091
-        source /files/java-sdk-bundles/java_sdk_env.sh
-
-        echo "${COLOR_BLUE}Java SDK setup complete.${COLOR_RESET}"
-    fi
-
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
 

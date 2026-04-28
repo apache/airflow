@@ -339,7 +339,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-samba>=4.9.0"
 ]
 "sdk.java" = [
-    "apache-airflow-providers-sdk-java>=0.1.0" # Set from local provider pyproject.toml
+    "apache-airflow-providers-sdk-java>=0.1.0"
 ]
 "segment" = [
     "apache-airflow-providers-segment>=3.7.0"
@@ -484,7 +484,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-redis>=4.0.0",
     "apache-airflow-providers-salesforce>=5.9.0",
     "apache-airflow-providers-samba>=4.9.0",
-    "apache-airflow-providers-sdk-java>=0.1.0", # Set from local provider pyproject.toml
+    "apache-airflow-providers-sdk-java>=0.1.0",
     "apache-airflow-providers-segment>=3.7.0",
     "apache-airflow-providers-sendgrid>=4.0.0",
     "apache-airflow-providers-sftp>=5.0.0",
