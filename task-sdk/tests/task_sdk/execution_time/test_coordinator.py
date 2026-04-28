@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import os
 import socket
 import subprocess
@@ -245,10 +246,8 @@ class TestBridge:
             # If we got here without hanging, the bridge correctly processed all channels
         finally:
             for s in (sup_send, rt_send, log_send, stderr_send, sup_recv, rt_recv, log_recv, stderr_recv):
-                try:
+                with contextlib.suppress(OSError):
                     s.close()
-                except OSError:
-                    pass
 
     def test_bridge_drains_after_process_exit(self):
         """Verify _bridge drains remaining data after the subprocess exits."""
@@ -282,10 +281,8 @@ class TestBridge:
                 stderr_local,
                 stderr_remote,
             ):
-                try:
+                with contextlib.suppress(OSError):
                     s.close()
-                except OSError:
-                    pass
 
     def test_bridge_closes_all_sockets(self):
         """Verify _bridge closes all four sockets when done."""

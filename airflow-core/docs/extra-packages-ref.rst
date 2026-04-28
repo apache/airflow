@@ -178,6 +178,17 @@ all the ``airflow`` packages together - similarly to what happened in Airflow 2.
 ``airflow-task-sdk`` separately, if you want to install providers, you need to install them separately as
 ``apache-airflow-providers-*`` distribution packages.
 
+Multi-Language extras
+=====================
+
+These are extras that add dependencies needed for integration with other languages runtimes. Currently we have only Java SDK related extra, but in the future we might add more extras related to other languages runtimes.
+
++----------+------------------------------------------+------------------------------------------------------------------+
+| extra    | install command                          | enables                                                          | 
++==========+==========================================+==================================================================+
+| sdk.java | ``pip install apache-airflow[sdk.java]`` | JavaCoordinator for both dag processing and workload execution.  |
++----------+------------------------------------------+------------------------------------------------------------------+
+
 Apache Software extras
 ======================
 

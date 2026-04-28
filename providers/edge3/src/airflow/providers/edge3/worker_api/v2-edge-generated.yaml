@@ -1257,8 +1257,12 @@ components:
       - queue
       - priority_weight
       title: TaskInstanceDTO
-      description: Schema for TaskInstance with minimal required fields needed for
-        Executors and Task SDK.
+      description: 'TaskInstanceDTO with executor-specific ``key`` property.
+
+
+        Extends the shared :class:`~airflow._shared.workloads.TaskInstanceDTO`
+
+        to add the :attr:`key` property used by executors for workload tracking.'
     TaskInstanceState:
       type: string
       enum:
