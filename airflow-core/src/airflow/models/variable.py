@@ -46,15 +46,14 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def _build_upsert_stmt(
+def _build_variable_upsert_stmt(
     dialect: str | None,
-    model: type,
+    model: type[Variable],
     conflict_cols: list[str],
-    values: dict,
-    update_fields: dict,
-):
+    values: dict[str, Any],
+    update_fields: dict[str, Any],
+) -> MySQLInsert | PostgreSQLInsert | SQLiteInsert:
     """Return a dialect-specific INSERT ... ON CONFLICT UPDATE statement."""
-    stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
     if dialect == "postgresql":
         from sqlalchemy.dialects.postgresql import insert as pg_insert
 
@@ -297,7 +296,7 @@ class Variable(Base, LoggingMixin):
                 is_encrypted=is_encrypted,
                 team_name=team_name,
             )
-            stmt = _build_upsert_stmt(
+            stmt = _build_variable_upsert_stmt(
                 get_dialect_name(session), Variable, ["key"], upsert_values, update_fields
             )
             session.execute(stmt)
