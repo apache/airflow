@@ -35,7 +35,6 @@ from datetime import datetime
 from google.api_core.retry import Retry
 from google.cloud.dataproc_v1 import JobStatus
 
-from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
 from airflow.providers.google.cloud.operators.dataproc import (
@@ -44,9 +43,12 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocSubmitJobOperator,
 )
 
-try:
-    from airflow.sdk import TriggerRule
-except ImportError:
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import TriggerRule, task
+else:
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
