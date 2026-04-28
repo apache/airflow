@@ -26,9 +26,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
-import {
-  useDagRunServiceGetDagRuns
-} from "openapi/queries";
+import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
@@ -304,9 +302,7 @@ export const DagRuns = () => {
       dagId: targetDagId ?? "~",
       dagIdPattern: multiDagPattern,
       dagVersion:
-        filteredDagVersion !== null && filteredDagVersion !== ""
-          ? [Number(filteredDagVersion)]
-          : undefined,
+        filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
       endDateGte: endDateGte ?? undefined,
@@ -331,9 +327,7 @@ export const DagRuns = () => {
       enabled: true,
       placeholderData: (prev) => prev,
       refetchInterval: (query) =>
-        query.state.data?.dag_runs.some((run) => isStatePending(run.state))
-          ? refetchInterval
-          : false,
+        query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
     },
   );
 
