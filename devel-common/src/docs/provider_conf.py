@@ -151,7 +151,7 @@ extensions.extend(
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-empty_subpackages = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft"]
+empty_subpackages = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft", "sdk"]
 exclude_patterns = [
     "operators/_partials",
     "_api/airflow/index.rst",
