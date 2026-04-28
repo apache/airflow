@@ -59,6 +59,7 @@ dependencies {
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.11")
 
     testImplementation(kotlin("test"))
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
 
 openApiGenerate {
