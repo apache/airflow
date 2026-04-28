@@ -97,16 +97,17 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  =====================================
+==========================================  =============================================
 PIP package                                 Version required
-==========================================  =====================================
+==========================================  =============================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``mysqlclient``                             ``>=2.2.5; sys_platform != "darwin"``
-``mysql-connector-python``                  ``>=9.1.0``
+``mysql-connector-python``                  ``>=9.1.0; python_version < "3.12"``
+``mysql-connector-python``                  ``>=9.1.0,!=9.7.0; python_version >= "3.12"``
 ``aiomysql``                                ``>=0.2.0``
-==========================================  =====================================
+==========================================  =============================================
 
 Cross provider package dependencies
 -----------------------------------
