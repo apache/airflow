@@ -144,7 +144,6 @@ export const GraphTaskFilters = () => {
   useHotkeys("mod+shift+f", () => setIsOpen(true), { preventDefault: true });
 
   const panelTitle = translate("dag:panel.graphFilters.title");
-  const buttonTooltip = translate("dag:panel.graphFilters.buttonTooltip");
 
   return (
     <Menu.Root
@@ -154,10 +153,10 @@ export const GraphTaskFilters = () => {
     >
       <Menu.Trigger asChild>
         <IconButton
-          aria-label={buttonTooltip}
+          aria-label={panelTitle}
           colorPalette="brand"
           size="md"
-          title={buttonTooltip}
+          title={panelTitle}
           variant={hasActiveFilters ? "solid" : "ghost"}
         >
           <FiSearch />

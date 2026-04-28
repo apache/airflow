@@ -82,6 +82,7 @@
   },
   "navigation": {
     "navigation": "Navigation: Shift+{{arrow}}",
+    "openGraphFilters": "Task Filters: Ctrl+Shift+F",
     "toggleGroup": "Toggle group: Space"
   },
   "notFound": {
@@ -133,7 +134,6 @@
       "label": "Graph Direction"
     },
     "graphFilters": {
-      "buttonTooltip": "Task Filters (Ctrl+Shift+F)",
       "clearFilters": "Clear Filters",
       "durationGte": "Min duration (s)",
       "durationGteHint": "For mapped tasks, measures total span across all instances",

@@ -353,7 +353,15 @@ export const PanelButtons = ({
         </Flex>
       </Flex>
 
-      {dagView !== "graph" && (
+      {dagView === "graph" ? (
+        <Flex justifyContent="flex-end" mt={1}>
+          <Flex color="fg.muted" gap={2}>
+            <Tooltip content={<Text>{translate("dag:navigation.openGraphFilters")}</Text>} portalled>
+              <LuKeyboard />
+            </Tooltip>
+          </Flex>
+        </Flex>
+      ) : (
         <Flex justifyContent="space-between" mt={1}>
           <GridFilters />
           <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>

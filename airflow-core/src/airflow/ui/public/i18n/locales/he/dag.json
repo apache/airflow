@@ -71,6 +71,7 @@
   },
   "navigation": {
     "navigation": "ניווט: {{arrow}}",
+    "openGraphFilters": "פילטרים משימות: Ctrl+Shift+F",
     "toggleGroup": "החלפת קבוצה: רווח"
   },
   "overview": {
@@ -120,7 +121,6 @@
       "label": "כיוון התרשים"
     },
     "graphFilters": {
-      "buttonTooltip": "פילטרים משימות (Ctrl+Shift+F)",
       "clearFilters": "נקה פילטרים",
       "durationGte": "משך מינימלי (בשניות)",
       "durationGteHint": "למשימות ממופות, מודד את סך כל הזמן לאורך כל המופעים",
