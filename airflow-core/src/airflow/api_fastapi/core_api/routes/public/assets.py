@@ -72,6 +72,7 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.assets.manager import asset_manager
+from airflow.configuration import conf
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -364,6 +365,7 @@ def get_asset_events(
 def create_asset_event(
     body: CreateAssetEventsBody,
     session: SessionDep,
+    user: GetUserDep,
 ) -> AssetEventResponse:
     """Create asset events."""
     asset_model = session.scalar(select(AssetModel).where(AssetModel.id == body.asset_id).limit(1))
@@ -371,11 +373,17 @@ def create_asset_event(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with ID: `{body.asset_id}` was not found")
     timestamp = timezone.utcnow()
 
+    api_user_teams: set[str] = set()
+    if conf.getboolean("core", "multi_team"):
+        api_user_teams = get_auth_manager().get_authorized_teams(user=user)
+
     assets_event = asset_manager.register_asset_change(
         asset=asset_model,
         timestamp=timestamp,
         extra=body.extra,
         partition_key=body.partition_key,
+        source_is_api=True,
+        api_user_teams=api_user_teams,
         session=session,
     )
 
