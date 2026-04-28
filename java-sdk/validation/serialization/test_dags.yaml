@@ -26,7 +26,7 @@
 #   dagrun_timeout_seconds — number of seconds, parsed to timedelta / Duration
 #   tags                   — list of strings, converted to set on both sides
 #   access_control         — nested map; innermost lists become sets
-
+---
 test_cases:
   # ---- schedule variants ------------------------------------------------
   - name: "minimal_dag"
