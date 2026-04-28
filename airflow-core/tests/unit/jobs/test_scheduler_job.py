@@ -2245,9 +2245,7 @@ class TestSchedulerJob:
         assert len(res) == 1
         session.rollback()
 
-    def test_find_executable_task_instances_deferred_does_not_block_different_task(
-        self, dag_maker, session
-    ):
+    def test_find_executable_task_instances_deferred_does_not_block_different_task(self, dag_maker, session):
         """
         A DEFERRED TI of task A should NOT block task B from scheduling.
 
@@ -2337,9 +2335,9 @@ class TestSchedulerJob:
         """
         dag_id = "SchedulerJobTest.test_max_active_tis_per_dagrun_deferred"
         with dag_maker(dag_id=dag_id, max_active_tasks=16, session=session):
-            task_a = EmptyOperator.partial(
-                task_id="task_a", max_active_tis_per_dagrun=1
-            ).expand_kwargs([{"inputs": 1}, {"inputs": 2}])
+            task_a = EmptyOperator.partial(task_id="task_a", max_active_tis_per_dagrun=1).expand_kwargs(
+                [{"inputs": 1}, {"inputs": 2}]
+            )
             EmptyOperator(task_id="task_b")
 
         scheduler_job = Job()
