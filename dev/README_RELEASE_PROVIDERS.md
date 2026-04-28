@@ -196,17 +196,34 @@ First thing that release manager has to do is to convert commits for each provid
 and update version of the provider to a target version - depending on type of changes implemented in the
 providers.
 
-The recommended way to do this is via the **`prepare-providers-documentation` Claude Code skill**, which
-replaces the manual commit-by-commit classification step of `breeze release-management
+The recommended way to do this is via the **`prepare-providers-documentation` skill** loaded by an
+agentic coding framework (e.g. Claude Code or OpenAI Codex CLI), which replaces the manual
+commit-by-commit classification step of `breeze release-management
 prepare-provider-documentation` with AI-driven classification. The skill inspects every PR (using
 sub-agents per PR for thorough analysis), pays special attention to potentially breaking changes by
 reading the actual diff (not just the commit message or PR labels), scopes multi-provider PRs to the
 slice that touched the current provider, and asks the release manager only when genuinely uncertain.
 
+**Prerequisites:** running this skill requires an agentic coding environment with the
+[GitHub MCP server](https://github.com/github/github-mcp-server) configured — the skill reads PR
+diffs, lists commits, and (with maintainer confirmation) edits files via these tools. Two well-known
+options:
+
+* [Claude Code](https://docs.claude.com/en/docs/claude-code) — install via npm
+  (`npm install -g @anthropic-ai/claude-code`) or follow the
+  [setup guide](https://docs.claude.com/en/docs/claude-code/setup) for authentication and IDE
+  integration. Configure GitHub MCP per the [MCP docs](https://docs.claude.com/en/docs/claude-code/mcp).
+* [OpenAI Codex CLI](https://github.com/openai/codex) — install via npm
+  (`npm install -g @openai/codex`), authenticate with your OpenAI key, and add the GitHub MCP server
+  to its config (see the OpenAI Codex CLI README for MCP wiring).
+
+Other MCP-compatible agentic clients should work as long as the GitHub MCP server is wired up and
+the framework loads `SKILL.md` files from the `.claude/skills/` discovery path.
+
 The skill source of truth lives in [`.github/skills/prepare-providers-documentation/SKILL.md`](../.github/skills/prepare-providers-documentation/SKILL.md).
-It is preinstalled for project-level discovery via a symlink at
-`.claude/skills/prepare-providers-documentation`. If your local checkout doesn't have that symlink (the
-`.claude/` directory is gitignored), set it up once:
+Both Claude Code and OpenAI Codex CLI discover project-local skills via a symlink at
+`.claude/skills/prepare-providers-documentation`. If your local checkout doesn't have that symlink
+(the `.claude/` directory is gitignored), set it up once:
 
 ```shell script
 mkdir -p .claude/skills
@@ -232,7 +249,7 @@ Note that versions of the provider will be updated in two places (the skill does
 * **changelog.rst** - where changelogs are sorted according to provider version and group changes in
   the right sections
 
-In a Claude Code session, invoke the skill:
+In your agent session (Claude Code, OpenAI Codex CLI, etc.), invoke the skill:
 
 ```text
 /prepare-providers-documentation
@@ -257,7 +274,7 @@ The skill (and the underlying breeze tooling) determines the new version of prov
 
 ### Falling back to interactive breeze
 
-If the skill is unavailable (e.g. you're not running Claude Code), or if the per-provider commit
+If the skill is unavailable (e.g. you're not running an agentic coding framework), or if the per-provider commit
 count is very large and the AI confidence is low across the board, you can still run the original
 interactive breeze command and classify each change by hand:
 

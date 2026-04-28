@@ -244,7 +244,14 @@ Tasks:
 Breaking-change checklist (any of these → BREAKING_RISK >= maybe; usually
 breaking unless clearly behind a deprecation shim):
   * Public class/function/method removed or renamed
-    (in providers/<provider-path>/src/**, NOT in tests/)
+    in the **public interface** of the provider — i.e. files under
+    `providers/<path>/src/**/{hooks,operators,sensors,triggers,
+    notifications,decorators,executors}/**`, the provider's
+    top-level package `__init__.py`, plus anything imported by
+    `provider.yaml` (`hook-class-names`, `extra-links`, etc.).
+    Internal helpers (e.g. `utils/`, `_internal/`, `pod_manager.py`,
+    or any module not re-exported from the package or referenced
+    in `provider.yaml`) are NOT breaking on their own. NOT in tests/.
   * Required parameter added to a public constructor or operator __init__
   * Default value of a public parameter changed
   * Return type or signature of a public method changed
@@ -255,7 +262,10 @@ breaking unless clearly behind a deprecation shim):
     min_airflow_bump unless the bump excludes a previously supported version
     of a provider's hard dependency, in which case it's also breaking)
   * Removed deprecation: a previously-deprecated symbol is now deleted
-  * Schema change in stored data (xcom, connection, asset metadata)
+  * Schema change in stored data (xcom, connection, asset metadata,
+    or the serialized state/context of a `BaseTrigger` subclass —
+    deferred tasks survive provider upgrades only if the trigger's
+    `serialize()` payload stays compatible)
 
 Do NOT trust the PR title alone — read the diff. A PR titled "Refactor X"
 that removes a public method is breaking. A PR titled "BREAKING: rename
