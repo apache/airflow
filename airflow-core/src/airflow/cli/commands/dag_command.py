@@ -47,7 +47,12 @@ from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.timetables.base import TimeRestriction
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import get_bagged_dag, suppress_logs_and_warning, validate_dag_bundle_arg
+from airflow.utils.cli import (
+    get_bagged_dag,
+    get_db_dag,
+    suppress_logs_and_warning,
+    validate_dag_bundle_arg,
+)
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.platform import getuser
@@ -115,6 +120,59 @@ def dag_delete(args) -> None:
             raise AirflowException(err)
     else:
         print("Cancelled")
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+@provide_session
+def dag_clear(args, session: Session = NEW_SESSION) -> None:
+    """Clear Dag runs whose partition_date falls in [partition_start, partition_end]."""
+    if args.partition_start is None and args.partition_end is None:
+        raise SystemExit("At least one of --partition-start or --partition-end must be provided.")
+    if (
+        args.partition_start is not None
+        and args.partition_end is not None
+        and args.partition_start > args.partition_end
+    ):
+        raise SystemExit("--partition-start must be on or before --partition-end.")
+
+    dag = get_db_dag(bundle_names=None, dag_id=args.dag_id)
+
+    query = select(DagRun).where(
+        DagRun.dag_id == args.dag_id,
+        DagRun.partition_date.is_not(None),
+    )
+    if args.partition_start is not None:
+        query = query.where(DagRun.partition_date >= args.partition_start)
+    if args.partition_end is not None:
+        query = query.where(DagRun.partition_date <= args.partition_end)
+    query = query.order_by(DagRun.partition_date)
+
+    runs = list(session.scalars(query).all())
+    if not runs:
+        print("No matching Dag runs found in the given partition window.")
+        return
+
+    run_ids = [run.run_id for run in runs]
+    if not args.yes:
+        listing = "\n".join(f"  {run.run_id}  partition_date={run.partition_date}" for run in runs)
+        question = (
+            f"You are about to clear {len(runs)} Dag run(s) of {args.dag_id!r}:\n"
+            f"{listing}\n\nAre you sure? [y/n]"
+        )
+        if not ask_yesno(question):
+            print("Cancelled, nothing was cleared.")
+            return
+
+    cleared = 0
+    for run_id in run_ids:
+        cleared += dag.clear(
+            run_id=run_id,
+            only_failed=args.only_failed,
+            only_running=args.only_running,
+            session=session,
+        )
+    print(f"Cleared {cleared} task instance(s) across {len(run_ids)} Dag run(s).")
 
 
 @cli_utils.action_cli
