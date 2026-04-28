@@ -331,6 +331,46 @@ tracking issue, add a PR comment referencing the issue URL, and push a
 follow-up commit that adds the tracking-issue URL as a comment at the
 workaround site in the code.
 
+### GitHub messages drafted by agents
+
+Anything an agent drafts that ends up posted to GitHub on the user's
+account — PR / issue comments, PR-level reviews, line-level review
+comments, discussion replies — must end with an attribution footer.
+The footer is required whether or not a human reviewed the draft
+first; what changes between the two cases is the wording.
+
+Place the footer on its own paragraph at the end of the message,
+separated from the body by a blank line and a horizontal rule. Use
+the same agent name string used in `Generated-by:` on PR bodies (for
+example, `Claude Code (Opus 4.7)`).
+
+- **Agent draft, posted without prior human review** (autonomous /
+  routine work, scheduled triage, etc.):
+
+  ```
+  ---
+  Drafted-by: <Agent Name and Version> (no human review before posting)
+  ```
+
+- **Agent draft, reviewed and approved by a human maintainer before
+  posting:**
+
+  ```
+  ---
+  Drafted-by: <Agent Name and Version>; reviewed by @<github-handle> before posting
+  ```
+
+  The `@<github-handle>` is the human who actually read the draft
+  and said "post it as-is" (or similar). It is not the user the agent
+  is "running on behalf of" if no review took place — that case is the
+  first form, not this one.
+
+This footer is in addition to, not a replacement for, any per-tool
+disclosure rules (the PR body still keeps its own `Generated-by:`
+block under the AI-disclosure checkbox; commit messages still follow
+the no-self-as-co-author rule above). Do not skip the footer to
+shorten a message — attribution applies regardless of message length.
+
 ## Boundaries
 
 - **Ask first**
