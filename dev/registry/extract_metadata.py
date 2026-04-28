@@ -42,7 +42,11 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-import tomllib
+try:
+    import tomllib  # Python 3.11+ stdlib
+except ModuleNotFoundError:  # pragma: no cover -- Python 3.10 fallback
+    import tomli as tomllib
+
 import yaml
 from registry_contract_models import validate_providers_catalog
 
