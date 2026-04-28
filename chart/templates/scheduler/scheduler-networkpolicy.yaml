@@ -48,7 +48,7 @@ spec:
     - podSelector:
         matchLabels:
           tier: airflow
-          component: webserver
+          component: api-server
           release: {{ .Release.Name }}
     ports:
     - protocol: TCP
