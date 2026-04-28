@@ -42,6 +42,7 @@ A component **belongs in the chart** when all of the following are true:
   triggerer, workers).
 * Removing it requires changes to Airflow's own configuration.
 * It has no external owner.
+* It is assumed that the larger majority (>80%) will need and use this function for productive use
 
 A component **belongs in Kustomize** when any of the following are true:
 
@@ -51,6 +52,7 @@ A component **belongs in Kustomize** when any of the following are true:
   autoscaling controllers).
 * It has an external owner (KEDA, Elasticsearch, any PostgreSQL distribution).
 * It requires CRDs that the chart does not install.
+* It is used by only a few users such that additional complexity and maintenance burden does not pay out
 
 If a component qualifies for Kustomize but no overlay exists yet, it stays in
 the chart until the overlay is in place and verified.
