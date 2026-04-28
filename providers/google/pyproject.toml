@@ -176,6 +176,9 @@ dependencies = [
 "microsoft.mssql" = [
     "apache-airflow-providers-microsoft-mssql"
 ]
+"mongo" = [
+    "apache-airflow-providers-mongo"
+]
 "mysql" = [
     "apache-airflow-providers-mysql"
 ]
@@ -225,6 +228,7 @@ dev = [
     "apache-airflow-providers-http",
     "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-microsoft-mssql",
+    "apache-airflow-providers-mongo",
     "apache-airflow-providers-mysql",
     "apache-airflow-providers-openlineage",
     "apache-airflow-providers-oracle",
