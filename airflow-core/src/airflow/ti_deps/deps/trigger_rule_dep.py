@@ -261,7 +261,7 @@ class TriggerRuleDep(BaseTIDep):
 
             def _relevant_states(
                 finished_tis: list[TaskInstance],
-            ) -> dict[tuple[str, int], TaskInstanceState]:
+            ) -> dict[tuple[str, int], str]:
                 return {
                     (upstream.task_id, upstream.map_index): upstream.state
                     for upstream in finished_tis
