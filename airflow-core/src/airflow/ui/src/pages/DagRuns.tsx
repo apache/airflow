@@ -204,11 +204,11 @@ export const DagRuns = () => {
       partition_key: false,
     },
   });
-  const { pagination, sorting } = tableURLState;
+  const { cursor, pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-run_after"];
 
-  const { pageIndex, pageSize } = pagination;
+  const { pageSize } = pagination;
   const filteredState = searchParams.get(STATE_PARAM);
   const filteredType = searchParams.get(RUN_TYPE_PARAM);
   const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
@@ -237,8 +237,9 @@ export const DagRuns = () => {
       bundleVersion: bundleVersion ?? undefined,
       confContains: confContains !== null && confContains !== "" ? confContains : undefined,
       consumingAssetPattern: filteredConsumingAsset ?? undefined,
+      cursor: cursor ?? "",
       dagId: dagId ?? "~",
-      dagIdPattern: filteredDagIdPattern ?? undefined,
+      dagIdPrefixPattern: filteredDagIdPattern ?? undefined,
       dagVersion:
         filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
@@ -248,17 +249,16 @@ export const DagRuns = () => {
       limit: pageSize,
       logicalDateGte: logicalDateGte ?? undefined,
       logicalDateLte: logicalDateLte ?? undefined,
-      offset: pageIndex * pageSize,
       orderBy,
-      partitionKeyPattern: partitionKeyPattern ?? undefined,
+      partitionKeyPrefixPattern: partitionKeyPattern ?? undefined,
       runAfterGte: runAfterGte ?? undefined,
       runAfterLte: runAfterLte ?? undefined,
-      runIdPattern: filteredRunIdPattern ?? undefined,
+      runIdPrefixPattern: filteredRunIdPattern ?? undefined,
       runType: filteredType === null ? undefined : [filteredType],
       startDateGte: startDateGte ?? undefined,
       startDateLte: startDateLte ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
-      triggeringUserNamePattern: filteredTriggeringUserNamePattern ?? undefined,
+      triggeringUserNamePrefixPattern: filteredTriggeringUserNamePattern ?? undefined,
     },
     undefined,
     {
@@ -270,6 +270,9 @@ export const DagRuns = () => {
 
   const columns = runColumns(translate, dagId);
 
+  const nextCursor = data?.next_cursor ?? undefined;
+  const previousCursor = data?.previous_cursor ?? undefined;
+
   return (
     <>
       <DagRunsFilters dagId={dagId} />
@@ -280,8 +283,9 @@ export const DagRuns = () => {
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="common:dagRun"
+        nextCursor={nextCursor}
         onStateChange={setTableURLState}
-        total={data?.total_entries}
+        previousCursor={previousCursor}
       />
     </>
   );

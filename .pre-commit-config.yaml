@@ -188,7 +188,10 @@ repos:
           (?x)
           ^scripts/ci/license-templates/|
           ^\.github/instructions/|
-          ^\.github/skills/airflow-translations/SKILL\.md$
+          ^\.github/skills/airflow-translations/SKILL\.md$|
+          ^\.github/skills/pr-stats/SKILL\.md$|
+          ^\.github/skills/pr-triage/SKILL\.md$|
+          ^\.github/skills/maintainer-review/SKILL\.md$
       - id: insert-license
         name: Add license for all other files
         args:
@@ -245,6 +248,7 @@ repos:
         files: >
           (?x)
           ^pyproject\.toml$|
+          ^dev/breeze/src/airflow_breeze/utils/check_release_files\.py$|
           ^dev/breeze/tests/test_environment_check\.py$
         require_serial: true
       - id: check-distribution-gitignore
@@ -410,7 +414,13 @@ repos:
         entry: ./scripts/ci/prek/check_shared_distributions_structure.py
         language: python
         pass_filenames: false
-        files: ^shared/.*$
+        files: >
+          (?x)
+          ^shared/.*$|
+          ^.*/pyproject\.toml$|
+          ^.*/_shared/.*$|
+          ^airflow-core/.*\.py$|
+          ^task-sdk/.*\.py$
       - id: check-shared-distributions-usage
         name: Check shared distributions usage
         entry: ./scripts/ci/prek/check_shared_distributions_usage.py

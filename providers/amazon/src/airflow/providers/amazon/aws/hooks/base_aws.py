@@ -605,12 +605,25 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         return airflow_version
 
+    @staticmethod
+    def _is_multi_team() -> bool:
+        """Return True if the current task is running under multi-team Airflow."""
+        return bool(os.environ.get("AIRFLOW_CTX_TEAM_NAME"))
+
+    @staticmethod
+    @return_on_error("00000000-0000-0000-0000-000000000000")
+    def _generate_team_name_key() -> str:
+        """Generate a hashed key from the team name, using the same approach as :meth:`_generate_dag_key`."""
+        return generate_uuid(os.environ.get("AIRFLOW_CTX_TEAM_NAME"))
+
     def _generate_user_agent_extra_field(self, existing_user_agent_extra: str) -> str:
         user_agent_extra_values = [
             f"Airflow/{self._get_airflow_version()}",
             f"AmPP/{self._get_provider_version()}",
             f"Caller/{self._get_caller()}",
             f"DagRunKey/{self._generate_dag_key()}",
+            f"MultiTeam/{self._is_multi_team()}",
+            f"TeamNameKey/{self._generate_team_name_key()}",
             existing_user_agent_extra or "",
         ]
         return " ".join(user_agent_extra_values).strip()

@@ -26,6 +26,29 @@
 Changelog
 ---------
 
+9.27.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'S3ReadObjectOperator' (#65789)``
+* ``Add multi-team dimensions to boto3 user agent string (#65821)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent unauthorized access to team-scoped secrets in SM and SSM (#65703)``
+
+Misc
+~~~~
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
 9.26.0
 ......
 

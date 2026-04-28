@@ -30,9 +30,10 @@ import attrs
 import structlog
 from sqlalchemy import func, or_, select, tuple_
 
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, TaskNotFound
+from airflow.exceptions import AirflowException, NodeNotFound, TaskNotFound
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -40,7 +41,6 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
-from airflow.sdk._shared.observability.metrics.stats import Stats
 from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
@@ -245,6 +245,14 @@ class SerializedDAG:
         if task_id in self.task_dict:
             return self.task_dict[task_id]
         raise TaskNotFound(f"Task {task_id} not found")
+
+    def __getitem__(self, node_id: str) -> SerializedOperator | SerializedTaskGroup:
+        """Return a task or task group by its fully-qualified ID."""
+        if (node := self.task_dict.get(node_id)) is not None:
+            return node
+        if (tg := self.task_group_dict.get(node_id)) is not None:
+            return tg
+        raise NodeNotFound(f"Task or group {node_id!r} not found")
 
     @property
     def task_group_dict(self):

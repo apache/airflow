@@ -671,6 +671,8 @@ class BaseExecutor(LoggingMixin):
                 callback_kwargs=workload.callback.data.get("kwargs", {}),
                 log_path=workload.log_path,
                 bundle_info=workload.bundle_info,
+                token=workload.token,
+                server=server,
             )
         raise ValueError(f"Unknown workload type: {type(workload).__name__}")
 

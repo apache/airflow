@@ -148,7 +148,6 @@ class TestGitSyncTriggerer:
 
         docs = render_chart(
             values={
-                "airflowVersion": "2.11.0",
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -175,7 +174,6 @@ class TestGitSyncTriggerer:
     def test_liveness_probe_configuration_recommended(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.11.0",
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -214,7 +212,6 @@ class TestGitSyncTriggerer:
     def test_startup_probe_configuration(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.11.0",
                 "dags": {
                     "gitSync": {
                         "enabled": True,

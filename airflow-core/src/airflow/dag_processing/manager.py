@@ -471,7 +471,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._collect_results()
 
-            for callback in self._fetch_callbacks():
+            for callback in self.fetch_callbacks():
                 self._add_callback_to_queue(callback)
             self._scan_stale_dags()
             self._cleanup_stale_bundle_versions()
@@ -568,9 +568,17 @@ class DagFileProcessorManager(LoggingMixin):
             session.delete(request)
         return files
 
+    def fetch_callbacks(self) -> list[CallbackRequest]:
+        """
+        Fetch and claim callbacks for this manager's bundles.
+
+        Default implementation reads from the metadata DB; override to source callbacks from an API.
+        """
+        return self._fetch_callbacks_from_db()
+
     @provide_session
     @retry_db_transaction
-    def _fetch_callbacks(
+    def _fetch_callbacks_from_db(
         self,
         session: Session = NEW_SESSION,
     ) -> list[CallbackRequest]:
@@ -602,12 +610,17 @@ class DagFileProcessorManager(LoggingMixin):
             guard.commit()
         return callback_queue
 
-    def _add_callback_to_queue(self, request: CallbackRequest):
-        self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
+    def prepare_callback_bundle(self, request: CallbackRequest) -> BaseDagBundle | None:
+        """
+        Return the bundle to run the callback against, or ``None`` to skip the callback.
+
+        Default implementation looks the bundle up via :class:`DagBundlesManager` and, for
+        versioned requests on bundles that support versioning, calls ``bundle.initialize()``.
+        Override to source the bundle from an API.
+        """
         try:
             bundle = DagBundlesManager().get_bundle(name=request.bundle_name, version=request.bundle_version)
         except ValueError:
-            # Bundle no longer configured
             self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
             return None
         if bundle.supports_versioning and request.bundle_version:
@@ -620,6 +633,13 @@ class DagFileProcessorManager(LoggingMixin):
                     request.bundle_version,
                 )
                 return None
+        return bundle
+
+    def _add_callback_to_queue(self, request: CallbackRequest) -> None:
+        self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
+        bundle = self.prepare_callback_bundle(request)
+        if bundle is None:
+            return
 
         file_info = DagFileInfo(
             rel_path=Path(request.filepath),

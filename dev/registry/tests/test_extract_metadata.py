@@ -31,7 +31,9 @@ from extract_metadata import (
     fetch_provider_inventory,
     fetch_pypi_dates,
     fetch_pypi_downloads,
+    find_latest_released_version,
     find_related_providers,
+    load_release_tags,
     module_path_to_file_path,
     parse_pyproject_toml,
     read_connection_urls,
@@ -568,3 +570,145 @@ class TestResolveConnectionDocsUrl:
         conn_map = {"tableau": "connections/tableau.html"}
         url = resolve_connection_docs_url("tableau", conn_map, self.BASE)
         assert url == f"{self.BASE}/connections/tableau.html"
+
+
+# ---------------------------------------------------------------------------
+# load_release_tags
+# ---------------------------------------------------------------------------
+class TestLoadReleaseTags:
+    def test_parses_subprocess_output(self):
+        from unittest.mock import MagicMock, patch
+
+        mock_result = MagicMock()
+        mock_result.stdout = (
+            "providers-amazon/9.25.0\n"
+            "providers-amazon/9.26.0\n"
+            "providers-celery/3.18.0\n"
+            "providers-celery/3.19.0rc1\n"
+            "\n"  # blank line
+            "  providers-google/21.2.0  \n"  # whitespace tolerated
+        )
+        with patch("extract_metadata.subprocess.run", return_value=mock_result) as mock_run:
+            tags = load_release_tags()
+
+        assert tags == {
+            "providers-amazon/9.25.0",
+            "providers-amazon/9.26.0",
+            "providers-celery/3.18.0",
+            "providers-celery/3.19.0rc1",
+            "providers-google/21.2.0",
+        }
+        # The git command runs against the providers-* glob
+        cmd = mock_run.call_args[0][0]
+        assert cmd[:3] == ["git", "tag", "--list"]
+        assert cmd[3] == "providers-*"
+
+    def test_returns_empty_set_on_subprocess_failure(self):
+        from subprocess import CalledProcessError
+        from unittest.mock import patch
+
+        with patch(
+            "extract_metadata.subprocess.run",
+            side_effect=CalledProcessError(1, ["git", "tag", "--list"]),
+        ):
+            tags = load_release_tags()
+        assert tags == set()
+
+    def test_returns_empty_set_when_git_not_installed(self):
+        from unittest.mock import patch
+
+        with patch("extract_metadata.subprocess.run", side_effect=FileNotFoundError):
+            tags = load_release_tags()
+        assert tags == set()
+
+
+# ---------------------------------------------------------------------------
+# find_latest_released_version
+# ---------------------------------------------------------------------------
+class TestFindLatestReleasedVersion:
+    def test_returns_top_when_top_has_tag(self):
+        tags = {"providers-amazon/9.26.0", "providers-amazon/9.25.0"}
+        assert find_latest_released_version("amazon", ["9.26.0", "9.25.0"], tags) == "9.26.0"
+
+    def test_walks_past_phantom_top(self):
+        # celery 3.19.0 is in versions: but no final tag -- only rc1.
+        tags = {
+            "providers-celery/3.19.0rc1",
+            "providers-celery/3.18.0",
+            "providers-celery/3.17.2",
+        }
+        result = find_latest_released_version("celery", ["3.19.0", "3.18.0", "3.17.2"], tags)
+        assert result == "3.18.0"
+
+    def test_returns_none_when_no_versions_have_tags(self):
+        # akeyless: brand-new provider, listed in versions: but never tagged.
+        tags = {"providers-amazon/9.26.0"}  # different provider
+        result = find_latest_released_version("akeyless", ["1.0.0"], tags)
+        assert result is None
+
+    def test_returns_none_for_empty_versions_list(self):
+        result = find_latest_released_version("amazon", [], {"providers-amazon/9.26.0"})
+        assert result is None
+
+    def test_rc_only_treated_as_phantom(self):
+        # Final 3.19.0 is missing; rc1/rc2 exist. Final must match exactly.
+        tags = {"providers-celery/3.19.0rc1", "providers-celery/3.19.0rc2", "providers-celery/3.18.0"}
+        # versions: list contains only the would-be final
+        result = find_latest_released_version("celery", ["3.19.0"], tags)
+        assert result is None
+        # When fallback also exists in versions, returns the fallback
+        result = find_latest_released_version("celery", ["3.19.0", "3.18.0"], tags)
+        assert result == "3.18.0"
+
+    def test_does_not_match_other_providers_tags(self):
+        # provider id is part of the tag prefix; pure version coincidence shouldn't match
+        tags = {"providers-google/9.26.0"}
+        result = find_latest_released_version("amazon", ["9.26.0"], tags)
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Filter behaviour applied to the `versions` list (not just the latest pointer)
+# ---------------------------------------------------------------------------
+class TestVersionsListFiltering:
+    """Regression test for the bug where Provider.version (singular) was
+    filtered to a real release but Provider.versions (list) still contained
+    phantom entries. Downstream consumers like extract_versions.py read the
+    list and would chase non-existent backfill tags.
+    """
+
+    def test_filter_drops_phantom_top_from_list(self):
+        # This mirrors the in-loop logic. We don't have to test main()
+        # end-to-end -- the filter is a single comprehension that we can
+        # exercise directly to lock in the contract.
+        provider_id = "celery"
+        raw_versions = ["3.19.0", "3.18.0", "3.17.2"]
+        release_tags = {
+            "providers-celery/3.19.0rc1",  # not the final
+            "providers-celery/3.18.0",
+            "providers-celery/3.17.2",
+        }
+        filtered = [v for v in raw_versions if f"providers-{provider_id}/{v}" in release_tags]
+        assert filtered == ["3.18.0", "3.17.2"]
+        # And the latest pointer agrees
+        assert find_latest_released_version(provider_id, raw_versions, release_tags) == "3.18.0"
+
+    def test_filter_drops_unreleased_provider(self):
+        provider_id = "akeyless"
+        raw_versions = ["1.0.0"]
+        release_tags = {"providers-amazon/9.26.0"}  # different provider
+        filtered = [v for v in raw_versions if f"providers-{provider_id}/{v}" in release_tags]
+        assert filtered == []
+        assert find_latest_released_version(provider_id, raw_versions, release_tags) is None
+
+    def test_filter_preserves_order(self):
+        provider_id = "amazon"
+        raw_versions = ["9.27.0", "9.26.0", "9.25.0", "9.24.0"]  # 9.27.0 phantom
+        release_tags = {
+            "providers-amazon/9.26.0",
+            "providers-amazon/9.25.0",
+            "providers-amazon/9.24.0",
+        }
+        filtered = [v for v in raw_versions if f"providers-{provider_id}/{v}" in release_tags]
+        # Order from raw_versions is preserved; only the phantom is dropped
+        assert filtered == ["9.26.0", "9.25.0", "9.24.0"]
