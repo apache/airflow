@@ -27,7 +27,7 @@ state: ready
 lifecycle: incubation
 source-date-epoch: 1712361600
 versions:
-  - 1.0.0
+  - 0.1.0
 
 integrations:
   - integration-name: Akeyless

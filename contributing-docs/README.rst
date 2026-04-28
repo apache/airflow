@@ -133,6 +133,6 @@ Maintainer Tools
 .................
 
 * `Maintainer PR Triage and Review <25_maintainer_pr_triage.md>`__ describes the agentic
-  ``pr-triage`` skill that maintainers invoke from Claude Code to sweep the open Pull Request
-  queue, run deterministic quality checks, and propose actions (draft / comment / close /
-  rerun / mark-ready / ping) under explicit per-batch confirmation.
+  ``pr-triage`` and ``pr-stats`` skills that maintainers invoke from Claude Code to sweep the
+  open Pull Request queue (run deterministic quality checks, propose actions under explicit
+  per-batch confirmation) and to surface backlog statistics by ``area:*`` label.

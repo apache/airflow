@@ -91,7 +91,11 @@ action must refuse — even if `statusCheckRollup.state` reports
 bot checks (`Mergeable`, `WIP`, `DCO`, `boring-cyborg`) while
 `Tests`, `CodeQL`, and newsfragment-check sit in
 `action_required`; trusting the rollup there fills the
-maintainer-review queue with PRs whose real CI never ran.
+maintainer-review queue with PRs whose real CI never ran. The
+guard applies identically to the
+[`mark-ready-with-ping`](actions.md#mark-ready-with-ping)
+action — any code path that adds the `ready for maintainer
+review` label runs the REST check first.
 Implementation recipe: [`actions.md#mark-ready`](actions.md).
 
 **Golden rule 2 — propose in groups, fall back to per-PR.** The
@@ -326,6 +330,7 @@ string using [`suggested-actions.md`](suggested-actions.md):
 | `deterministic_flag` — ≤2 CI failures, no conflicts, no threads, branch up-to-date | `rerun` |
 | `deterministic_flag` — failures all match recent main-branch failures | `rerun` |
 | `deterministic_flag` — static-check-only failures | `comment` |
+| `deterministic_flag` — unresolved threads only, CI green, threads look addressed (heuristic) | `mark-ready-with-ping` (label + ping reviewers to confirm) |
 | `deterministic_flag` — unresolved review threads only, CI green | `ping` |
 | `deterministic_flag` — author has >3 flagged PRs | `close` |
 | `deterministic_flag` — other | `draft` |
@@ -351,10 +356,13 @@ the order:
 2. `deterministic_flag` with action `close` — destructive,
    review individually
 3. `deterministic_flag` with actions `draft` / `comment` /
-   `rebase` / `rerun` — in that order
+   `rebase` / `rerun` / `ping` — in that order
 4. `stale_review` → `ping`
-5. `passing` → `mark-ready`
-6. Stale sweeps (`stale_draft` → `close`, `inactive_open` →
+5. `deterministic_flag` → `mark-ready-with-ping` (label-bearing
+   group, presented just before plain `mark-ready` so the
+   maintainer reviews all label-add proposals back-to-back)
+6. `passing` → `mark-ready`
+7. Stale sweeps (`stale_draft` → `close`, `inactive_open` →
    `draft`, `stale_workflow_approval` → `draft`)
 
 For each group, present one screen worth of headline info

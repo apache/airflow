@@ -155,6 +155,21 @@ provider_info = "airflow.providers.{{ PROVIDER_ID }}.get_provider_info:get_provi
 {% if BUILD_SYSTEM == "flit_core" -%}
 [tool.flit.module]
 name = "airflow.providers.{{ PROVIDER_ID }}"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+{% set _provider_parts = PROVIDER_ID.split('.') %}
+[tool.flit.sdist]
+include = [
+    "docs/",
+    "provider.yaml",
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+{% for _i in range(_provider_parts | length - 1) %}
+    "src/airflow/providers/{{ _provider_parts[0:_i+1] | join('/') }}/__init__.py",
+{% endfor %}
+    "tests/",
+]
 {% else -%}
 [tool.hatch.version]
 path = "src/airflow/providers/{{ PROVIDER_PATH }}/__init__.py"

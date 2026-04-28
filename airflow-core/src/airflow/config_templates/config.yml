@@ -2685,6 +2685,15 @@ triggerer:
       type: float
       example: ~
       default: "30"
+    blocked_main_thread_warning_threshold:
+      description: |
+        Threshold in seconds for logging a warning when the Triggerer's async thread appears blocked.
+        Increase this value if your deployment can tolerate longer delays in the Triggerer's async
+        loop before logging a warning.
+      version_added: 3.2.0
+      type: float
+      example: ~
+      default: "0.2"
     max_trigger_to_select_per_loop:
       description: |
         Maximum number of triggers to select per loop. Set this notably lower than ``[triggerer] capacity``

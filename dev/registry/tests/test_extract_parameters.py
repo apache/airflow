@@ -26,6 +26,7 @@ import pytest
 from extract_parameters import (
     Module,
     _get_source_line,
+    _parse_requested_providers,
     _should_skip_class,
     compare_with_ast,
     discover_classes_from_provider,
@@ -808,3 +809,35 @@ class TestCompareWithAst:
         stats = compare_with_ast([], modules_json)
         assert stats["ast_phantoms"] == 1
         assert stats["ast_misses"] == 0
+
+
+# ---------------------------------------------------------------------------
+# _parse_requested_providers
+# ---------------------------------------------------------------------------
+class TestParseRequestedProviders:
+    def test_none_argument_returns_none(self):
+        assert _parse_requested_providers(None) is None
+
+    def test_empty_string_returns_none(self):
+        assert _parse_requested_providers("") is None
+
+    def test_whitespace_only_returns_empty_set(self):
+        # Empty set is falsy, so downstream `if requested_providers` skips
+        # the filter just like None does.
+        assert _parse_requested_providers("   ") == set()
+
+    def test_single_provider(self):
+        assert _parse_requested_providers("amazon") == {"amazon"}
+
+    def test_multiple_providers_space_separated(self):
+        assert _parse_requested_providers("amazon google snowflake") == {
+            "amazon",
+            "google",
+            "snowflake",
+        }
+
+    def test_extra_whitespace_is_tolerated(self):
+        assert _parse_requested_providers("  amazon   google  ") == {"amazon", "google"}
+
+    def test_duplicate_providers_collapsed(self):
+        assert _parse_requested_providers("amazon amazon google") == {"amazon", "google"}
