@@ -59,8 +59,8 @@ export const useDags = ({
 
   const { data, error, isFetching, isLoading } = useDagServiceGetDagsUi(
     {
-      dagDisplayNamePattern,
-      dagIdPattern,
+      dagDisplayNamePrefixPattern: dagDisplayNamePattern,
+      dagIdPrefixPattern: dagIdPattern,
       dagRunsLimit,
       excludeStale,
       hasPendingActions: pendingHitl,

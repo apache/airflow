@@ -85,7 +85,7 @@ export const AssetEvents = () => {
   const { data: assetEventsData, isLoading } = useAssetServiceGetAssetEvents(
     {
       limit: pagination.pageSize,
-      namePattern: assetNameSearch || undefined,
+      namePrefixPattern: assetNameSearch || undefined,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
       sourceDagId: dagId,
