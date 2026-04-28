@@ -91,7 +91,7 @@ model does not grant them.
   argument: review what the underlying library does with it, and document
   it in the provider's connection docs.
 - If a DAG author genuinely needs to pass a non-allowlisted option, that
-  option should be a **DAG-author-supplied argument** on the operator or
+  option should be a **Dag-author-supplied argument** on the operator or
   hook (with its own review), not something a Connection editor can set.
 
 ### When reviewing provider PRs
