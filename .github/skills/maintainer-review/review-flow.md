@@ -24,35 +24,65 @@ The flow uses three roles for things the skill does:
 For each PR, **read** the per-PR data (already cached from the
 working-list fetch — re-fetch only if the head SHA changed since
 the working list was built; otherwise reuse) and **propose** a
-two-block headline:
+multi-line headline. Per Golden rule 10 in `SKILL.md`, the PR
+number is always printed alongside its full URL so the
+maintainer can click straight through:
 
 ```
 PR #65934 — Fix scheduler N+1 on serialized DAG load
+  https://github.com/apache/airflow/pull/65934
   Author: alice (CONTRIBUTOR, [external])
   Base:   main  •  Head: 4f8a09b1
   CI:     ✅ SUCCESS  •  Threads: 0 unresolved  •  Reviews: 0
   Files:  3 changed  +47 −12
   Labels: area:scheduler
-  Match:  [both] — review-requested 2 days ago; touches
-                   airflow-core/src/airflow/jobs/scheduler_job_runner.py
+  Match:  [review-requested 2 days ago] [touches: airflow-core/src/airflow/jobs/scheduler_job_runner.py]
 ```
 
-The `Match:` line carries the chip computed in Step 1 of
-`SKILL.md`. It is one of:
+The `Match:` line carries any of the five **match-reason
+chips** computed at session start (see
+[`selectors.md` § Default](selectors.md#default--my-reviews)).
+A PR may carry one or several:
 
 - `[review-requested] — N days ago`
 - `[touches: <path>]` (or `[touches: <path> +N more]` if the
   PR matches multiple active-set files)
-- `[both] — review-requested N days ago; touches <path>`
+- `[codeowner: <path>]` (or `[codeowner: <path> +N more]`)
+- `[mentioned-in: body|comment|review|commit]`
+- `[reviewed-before: <relative-time>]`
+
+When several chips fire on the same PR, the line shows them
+all (space-separated) so the maintainer sees the full reason
+the PR landed on the queue. There is no special "[both]"
+collapsing — explicit chips are easier to scan.
 
 The headline is your at-a-glance frame. Below it, ask:
 
 > *Open this PR for review? `[Y]es` (default), `[S]kip` (move
 > on), `[Q]uit`.*
 
-If the maintainer hits `[Y]`, continue to Step 2. The headline
-plus the `[Y]` confirmation is a cheap gate that prevents
-silently spending tokens on a PR the maintainer wanted to skip.
+If the maintainer hits `[Y]`:
+
+1. **Auto-open in browser.** Per Golden rule 11 in `SKILL.md`,
+   immediately run
+
+   ```bash
+   gh pr view <N> --repo <repo> --web
+   ```
+
+   in the background (no `--wait`; do not block on it). This
+   pops the GitHub PR page in the maintainer's default browser
+   so they can keep visual context — CI breadcrumbs, the
+   conversation timeline, the file-tree sidebar — alongside
+   the terminal-side review. Suppressed for the session if the
+   maintainer passed `no-browser`.
+
+2. **Continue to Step 2** in parallel — the diff fetch happens
+   concurrently with the browser launch.
+
+The headline plus the `[Y]` confirmation is a cheap gate that
+prevents silently spending tokens on a PR the maintainer
+wanted to skip.
 
 ---
 
@@ -251,14 +281,60 @@ this session; the skill notes it in the session summary.
 
 ---
 
-## Step 7 — Compose review body
+## Step 7a — Inline-comments picker
+
+Using the findings list from Steps 4–5, draft an inline review
+comment for **every** anchored finding (anything with a
+`file:line`). This is the default — see
+[`posting.md` § Inline / line-level comments](posting.md#inline--line-level-comments--default-on-maintainer-picks).
+Show the picker to the maintainer:
+
+> *Proposed inline comments for this review (all enabled by
+> default):*
+>
+> ```text
+>   [x] 1. providers/foo/hook.py:142 — major
+>         > Imports inside function bodies should move to the
+>         >  top.
+>   [x] 2. providers/foo/hook.py:189 — minor
+>         > `ti.operator` could be None here; either guard
+>         >  explicitly or skip the metric.
+>   [x] 3. providers/foo/tests/test_hook.py:33 — nit
+>         > AGENTS.md asks for `spec=`/`autospec=` when mocking.
+> ```
+>
+> *Pick which to post: `[A]ll` (default), `[N]one`,
+> `[<list>]` (e.g. `1,3` to keep), `[<-list>]` (e.g. `-2` to
+> drop), `[E <i>]` to edit comment `<i>`, `[Q]uit`.*
+
+The maintainer's pick mutates the inline-comments set for
+this PR. Comments that are dropped here are **not** lost —
+their substance folds into the body's `Smaller observations`
+section in Step 7b, so the review still says everything it
+would have said, just in fewer places.
+
+Skip the picker entirely when:
+
+- the disposition is `APPROVE` and there are zero anchored
+  findings (nothing to pick from),
+- the maintainer passed `inline:off` (alias `body-only`) at
+  session start (the picker is suppressed for the whole
+  session; see [`SKILL.md`](SKILL.md) inputs).
+
+---
+
+## Step 7b — Compose review body
 
 Using the templates in [`posting.md`](posting.md), compose the
-review body. Findings are listed under category headers in
-severity order (`blocking` first). Each finding cites its
-rule source verbatim and quotes the offending code. Minor /
-nit findings are folded into a single "Smaller observations"
-block at the bottom rather than getting one section each.
+review body. Findings selected as inline comments in Step 7a
+appear in the body only as a one-line *"see inline comments
+on file.py:142, file.py:189, …"* pointer (anchored findings
+the maintainer kept inline don't need to be repeated in the
+body). Findings the maintainer dropped from the inline picker
+fold into the body's "Smaller observations" block. Blocking
+and major findings always render fully in the body **and** as
+inline comments unless the maintainer explicitly opted out of
+each one.
 
 The composed body is shown to the maintainer in full:
 
@@ -268,7 +344,9 @@ The composed body is shown to the maintainer in full:
 > [full body here]
 > ```
 >
-> *Post as-is? `[Y]es`, `[E]dit`, `[S]kip-for-now`, `[Q]uit`.*
+> *Inline comments to be posted: `<count>`. Post as-is?
+> `[Y]es`, `[E]dit` (re-opens the inline picker or the body),
+> `[S]kip-for-now`, `[Q]uit`.*
 
 Hold for explicit confirmation. Substantive edits trigger a
 re-show of the new body before posting (the maintainer's

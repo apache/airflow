@@ -10,26 +10,55 @@ backs it.
 
 ---
 
-## Default — `review-requested-for-me` ∪ `touching-mine`
+## Default — "my reviews"
 
 When the maintainer invokes the skill with no selector, the
-default working list is the **union** of two signals:
+default working list — referred to throughout the docs as
+**"my reviews"** — is the **union** of five signals on
+`<viewer>` (the authenticated maintainer):
 
 1. **Review-requested** — open PRs where review is requested
    from `<viewer>`, individually (not via team). Maps to
    GitHub's `review-requested:<viewer>` search qualifier.
-2. **Touching files I've been working on** — open PRs that
-   change at least one file in the maintainer's "active set"
-   (see [`touching-mine`](#touching-mine--prs-that-touch-files-ive-been-working-on)
-   below).
+2. **Touching files I've recently modified** — open PRs that
+   change at least one file in the maintainer's "active set":
+   files from `<viewer>`'s open PRs and files `<viewer>` has
+   authored commits to on the base branch in the past
+   `<since>` (default `30d`). See
+   [`touching-mine`](#touching-mine--prs-that-touch-files-ive-been-working-on)
+   below for the active-set computation.
+3. **CODEOWNER of modified files** — open PRs that change at
+   least one file the repo's
+   [`CODEOWNERS`](https://github.com/apache/airflow/blob/main/.github/CODEOWNERS)
+   assigns to `<viewer>` (directly, or via a team `<viewer>`
+   belongs to). See
+   [`codeowner`](#codeowner--prs-that-touch-files-i-own) below.
+4. **Mentioned by author or another maintainer** — open PRs
+   where `<viewer>`'s `@login` appears in the PR body, a
+   PR-conversation comment, an inline review comment, or a
+   commit message. See
+   [`mentioned`](#mentioned--prs-that--name-me) below.
+5. **Previously reviewed by me (real reviews only)** — open
+   PRs that already have a `gh pr review`-submitted review
+   from `<viewer>` (state `APPROVED`, `CHANGES_REQUESTED`, or
+   `COMMENTED`). **Triage comments do not count** — the
+   `pr-triage` skill's PR-conversation comments live in
+   `comments[]`, never in `reviews[]`, so they are excluded
+   automatically. See
+   [`reviewed-before`](#reviewed-before--prs-i-already-reviewed)
+   below.
 
-The union is computed post-fetch — both signals run, results
-are deduplicated by PR number, and the union is sorted by
-most-recently-updated. Each PR in the working list carries a
-**match-reason chip** so the maintainer sees why it landed
-there: `[review-requested]`, `[touches: scheduler/job_runner.py]`,
-or `[both]`. The chip is rendered in the per-PR headline at
-Step 1 of [`review-flow.md`](review-flow.md).
+The union is computed post-fetch — all five signals run,
+results are deduplicated by PR number, and the union is sorted
+by most-recently-updated. Each PR in the working list carries
+**match-reason chip(s)** so the maintainer sees *why* it
+landed there: any of `[review-requested]`,
+`[touches: <path>]`, `[codeowner: <path>]`,
+`[mentioned-in: <where>]`, `[reviewed-before: <when>]`, or
+several chips on the same line when multiple signals fire on
+one PR — there is no special collapsing. Chips are rendered
+in the per-PR headline at Step 1 of
+[`review-flow.md`](review-flow.md).
 
 The review-requested half:
 
@@ -45,14 +74,19 @@ gh search prs \
   --json number,title,author,labels,statusCheckRollup,reviewDecision,updatedAt,isDraft,baseRefName
 ```
 
-The touching-mine half is documented below.
+Each of the other four halves is documented in its own section
+below.
 
 Output is filtered post-fetch to drop drafts (drafts shouldn't
-collect reviews; if the maintainer wants to review a draft they
-pass `pr:<N>` explicitly).
+collect reviews; if the maintainer wants to review a draft
+they pass `pr:<N>` explicitly).
 
-If the maintainer wants only one of the two halves, pass
-`requested-only` or `mine-only` (see below).
+If the maintainer wants only some of the halves, pass any of
+`requested-only`, `mine-only`, `codeowner-only`,
+`mentioned-only`, `reviewed-before-only` (each of these drops
+the four others). Or compose negatives:
+`no-touching-mine no-mentioned` keeps the rest of the union but
+suppresses those two signals.
 
 ---
 
@@ -153,9 +187,9 @@ For >1 match, the chip says `[touches: <first-path> +N more]`.
 | Selector | Effect |
 |---|---|
 | `since:<window>` | Set the recency window for the main-branch source. Examples: `since:7d`, `since:2w`, `since:90d`. Default `30d`. |
-| `mine-only` | Drop the review-requested half; use the touching-mine signal alone. |
-| `requested-only` | Drop the touching-mine half; use only the review-requested signal (the pre-default behaviour). |
-| `no-touching-mine` | Same as `requested-only`, but kept as a clearer name when the maintainer is composing with other selectors that imply review-requested isn't the base (e.g. `ready no-touching-mine`). |
+| `mine-only` | Use the touching-mine signal alone (drops every other half of the default union). |
+| `requested-only` | Use only the review-requested signal (drops every other half). |
+| `no-touching-mine` | Drop just the touching-mine half; keep the rest of the union. |
 
 ### Compose with `area:`, `collab:`, `max:`
 
@@ -169,6 +203,189 @@ maintainer wants area to *exclude* their touching-mine signal
 (e.g. they want only review-requested PRs in the scheduler
 area, not every PR touching their files), they pass
 `area:scheduler requested-only`.
+
+---
+
+## `codeowner` — PRs that touch files I own
+
+Independent of whether the maintainer has been *editing* a
+file recently, GitHub's `CODEOWNERS` declares which
+maintainer (or maintainer-team) is responsible for which
+paths. Even a maintainer who hasn't touched a file in months
+should see PRs that mutate code they own — that is what the
+ownership signal is for.
+
+### Computing ownership
+
+The repo's `.github/CODEOWNERS` (or `CODEOWNERS` at the repo
+root) maps glob patterns to one or more `@user` /
+`@org/team` entries. The skill parses it once at session
+start and resolves `<viewer>`'s ownership set:
+
+1. **Direct ownership** — patterns whose owners list contains
+   `@<viewer>`.
+2. **Team ownership** — patterns whose owners list contains
+   `@<org>/<team>` for any team `<viewer>` is a member of.
+   Team membership is fetched via `gh api
+   orgs/<org>/members/<viewer>` per team listed in the file
+   (cheap and cached for the session).
+
+The output is a **patterns-owned-by-viewer** list. For each
+candidate PR, the skill matches the PR's `files[].path`
+against those patterns; on any match the PR joins the working
+list with the chip `[codeowner: <first-matched-path>]`.
+
+`CODEOWNERS` later entries override earlier ones for the
+same path, matching GitHub's own resolution rule. The skill's
+matcher mirrors that — the *last* matching pattern wins, so a
+later `*` line that doesn't name `<viewer>` correctly removes
+ownership.
+
+### When `CODEOWNERS` is missing
+
+If the repo has no `CODEOWNERS` file, the skill announces
+once:
+
+> *No `CODEOWNERS` in `<repo>`. The codeowner signal is
+> contributing nothing this session.*
+
+…and proceeds with the rest of the union.
+
+### Tuning
+
+| Selector | Effect |
+|---|---|
+| `codeowner-only` | Use only this signal (drops every other half). |
+| `no-codeowner` | Drop just the codeowner half; keep the rest. |
+
+---
+
+## `mentioned` — PRs that @-name me
+
+Some PRs land on a maintainer's plate because they're
+explicitly called out in the PR conversation rather than via
+review-request or ownership: an author writing *"@viewer can
+you sanity-check the migration logic?"* in the PR body, or
+another maintainer asking *"@viewer this is your code path —
+agree?"* in a thread.
+
+### What "mentioned" means here
+
+`<viewer>` is considered **mentioned on a PR** if any of these
+text bodies on the live PR contain the literal `@<viewer>`
+(case-insensitive, word-bounded):
+
+- the PR body,
+- any **PR-conversation** comment (the `comments` connection),
+- any **review** body or **inline review comment** body (the
+  `reviews` connection),
+- any **commit message** in the PR's commit list.
+
+The match is on the literal `@<viewer>` token, not arbitrary
+substring — so `@viewer-bot` or `email@viewer.com` does not
+trigger.
+
+### Query
+
+```graphql
+query MentionedOnPR(
+  $repo_owner: String!, $repo_name: String!
+) {
+  repository(owner: $repo_owner, name: $repo_name) {
+    pullRequests(states: OPEN, first: 50,
+                 orderBy: {field: UPDATED_AT, direction: DESC}) {
+      nodes {
+        number title author { login } isDraft updatedAt
+        bodyText
+        comments(first: 50) { nodes { bodyText } }
+        reviews(first: 50)  { nodes { bodyText } }
+        commits(first: 50)  { nodes { commit { message } } }
+      }
+    }
+  }
+}
+```
+
+The skill scans `bodyText / comments[].bodyText /
+reviews[].bodyText / commits[].commit.message` for the
+`@<viewer>` token; any hit adds the PR with chip
+`[mentioned-in: body|comment|review|commit]` (the first
+matching location wins for the chip text).
+
+### Tuning
+
+| Selector | Effect |
+|---|---|
+| `mentioned-only` | Use only this signal (drops every other half). |
+| `no-mentioned` | Drop just the mentioned half; keep the rest. |
+
+---
+
+## `reviewed-before` — PRs I already reviewed
+
+If `<viewer>` already submitted a review on a PR (via
+`gh pr review`, regardless of `APPROVE` /
+`CHANGES_REQUESTED` / `COMMENT` outcome), the contributor has
+likely pushed updates and the maintainer is the natural
+person to take a follow-up look. This signal surfaces those
+PRs so the maintainer doesn't lose track of their own
+in-flight reviews.
+
+### What counts as "reviewed" — and what does not
+
+A PR is **reviewed-before by `<viewer>`** if its `reviews[]`
+array contains any entry with `author.login == <viewer>`,
+regardless of `state`.
+
+**Triage comments do NOT count.** The `pr-triage` skill posts
+its notes via `gh pr comment`, which lands in the PR's
+`comments` array (the GitHub *issue-comment* endpoint). Those
+never appear in `reviews`. So the reviewed-before filter
+cleanly distinguishes *"I actually reviewed the code on this
+PR"* from *"I tagged it during morning triage"* — only the
+former counts.
+
+### Query
+
+```graphql
+query ReviewedBefore(
+  $repo_owner: String!, $repo_name: String!, $viewer: String!
+) {
+  repository(owner: $repo_owner, name: $repo_name) {
+    pullRequests(states: OPEN, first: 50,
+                 orderBy: {field: UPDATED_AT, direction: DESC}) {
+      nodes {
+        number isDraft updatedAt headRefOid
+        reviews(first: 50, author: $viewer) {
+          nodes { state submittedAt commit { oid } }
+        }
+      }
+    }
+  }
+}
+```
+
+For PRs with a non-empty `reviews[]` from `<viewer>`, the
+chip is `[reviewed-before: <relative-time>]` (e.g.
+`[reviewed-before: 4 days ago]`), pulled from the latest
+`submittedAt`.
+
+### Auto-skip already-handled re-reviews
+
+If `<viewer>`'s most recent `state == APPROVED` was submitted
+against the PR's current head SHA (no new commits since), the
+re-review is redundant — there is nothing new to read. The
+skill auto-skips with reason `prior-approval-current-sha`
+(see
+[`review-flow.md` § Edge cases](review-flow.md#viewer-already-approved-in-a-prior-session)
+for the SHA-comparison logic).
+
+### Tuning
+
+| Selector | Effect |
+|---|---|
+| `reviewed-before-only` | Use only this signal (drops every other half). |
+| `no-reviewed-before` | Drop just this half; keep the rest. |
 
 ---
 

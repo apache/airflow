@@ -91,23 +91,32 @@ command but never fires it.
 ## 3. Resolve the selector and compute working set (DEGRADES)
 
 Translate the selector from [`selectors.md`](selectors.md) into a
-GraphQL query and fetch the working list. The default selector
-is the union of two signals:
+GraphQL query and fetch the working list. The default
+selector is the **"my reviews"** union of five signals:
 
 1. **Review-requested** — open PRs where review is requested
    from `<viewer>`.
-2. **Touching files I've been working on** — open PRs that
+2. **Touching files I've recently modified** — open PRs that
    change any file in the maintainer's "active set" (files
    from the maintainer's open PRs on `<repo>` and files the
    maintainer has authored commits to on the base branch in
-   the past 30 days). See
-   [`selectors.md#touching-mine`](selectors.md) for the exact
-   queries and how to tune the window with `since:<window>`.
+   the past 30 days).
+3. **Codeowner** — open PRs that touch any file
+   `CODEOWNERS` assigns to `<viewer>` directly or via team.
+4. **Mentioned** — open PRs whose body / comments / reviews /
+   commit messages contain `@<viewer>`.
+5. **Reviewed-before** — open PRs that already have a real
+   `gh pr review` from `<viewer>` (any state). Triage comments
+   are excluded — they live in `comments[]`, not `reviews[]`.
 
-The active-set computation runs once at the start of the
-session and is cached for the rest of the run. It uses local
-`git log` against `<base>` plus a small batch of `gh` calls,
-so it stays well under the maintainer's GraphQL budget.
+See [`selectors.md`](selectors.md) for each signal's exact
+query and the available `*-only` / `no-*` selectors that
+narrow the union.
+
+The active-set, codeowner, and team-membership computations
+run once at the start of the session and are cached for the
+rest of the run. The whole resolution stays well under the
+maintainer's GraphQL budget.
 
 If the selector produces zero PRs, say so and exit:
 
@@ -137,6 +146,33 @@ a separate call. The state is one of:
   and recommend `/pr-triage pr:<N>` for the workflow-approval
   flow first; do not attempt to review the PR until CI has
   actually run.
+
+---
+
+## Browser-open availability (DEGRADES)
+
+By default the skill opens each `[Y]es`-confirmed PR in the
+maintainer's default browser via `gh pr view <N> --web` (see
+Golden rule 11 in [`SKILL.md`](SKILL.md)). At session start
+the skill checks that `gh pr view --web` is callable in this
+shell:
+
+```bash
+gh pr view --help 2>/dev/null | grep -q -- '--web' || echo "missing"
+```
+
+If `--web` is missing (older `gh`) or the command can't reach
+a browser (headless session, missing `xdg-open` /
+`open` / `start`), announce once and degrade to URL-only:
+
+> *`gh pr view --web` not available — falling back to printing
+> the PR URL only. Click the URL in your terminal to open the
+> PR.*
+
+The PR URL is still always rendered per Golden rule 10, so
+the maintainer can click it manually in any URL-aware
+terminal. If the maintainer passed `no-browser`, skip this
+check entirely and stay quiet.
 
 ---
 

@@ -74,27 +74,57 @@ against `gh api user --jq .login` before posting. On match:
 
 …and moves to the next PR.
 
-### Inline / line-level comments
+### Inline / line-level comments — default on, maintainer picks
 
-`gh pr review` does not accept line-level comments via flags.
-For findings the maintainer wants posted as **line-anchored**
-comments (rather than only in the review body), the skill uses
-the GraphQL `addPullRequestReview` mutation with a `comments`
-array. The mutation is heavier than `gh pr review`, so the
-skill only invokes it when the maintainer explicitly opts in
-during Step 7 (Compose review body):
+For every finding with a `file:line` anchor, the skill **always
+proposes an inline review comment** by default. Inline
+comments sit next to the offending line in the PR's "Files
+changed" view, where the contributor encounters them in
+context; a body-only `file.py:142` reference goes stale the
+moment the line moves and forces the contributor to scroll back
+and forth. The skill draws the inline comments from the same
+findings list that backs the body, so nothing has to be
+authored twice.
 
-> *Post the file:line findings as inline comments anchored to
-> the diff? `[I]nline`, `[B]ody-only` (default), `[E]dit`,
-> `[Q]uit`.*
+After the disposition pick (Step 6 of [`review-flow.md`](review-flow.md))
+and before the final body is composed, the skill renders a
+**picker** listing every drafted inline comment with an index
+and a checkbox-style enabled flag:
 
-`[B]ody-only` is the default because line-anchored comments
-require the diff position to still be valid; if the
-contributor pushes a fixup right before posting, the line
-positions can drift and GitHub rejects the mutation.
-Body-only references (`file.py:142`) survive.
+```text
+Proposed inline comments (all enabled by default):
 
-When `[I]nline` is chosen, the mutation:
+  [x] 1. providers/foo/hook.py:142 — major
+        > Imports inside function bodies should move to the top.
+  [x] 2. providers/foo/hook.py:189 — minor
+        > `ti.operator` could be None here; either guard
+        >  explicitly or skip the metric.
+  [x] 3. providers/foo/tests/test_hook.py:33 — nit
+        > AGENTS.md asks for `spec=`/`autospec=` when mocking.
+
+Pick which to post:
+  [A]ll              (default — keep all inline)
+  [N]one             (post body-only; findings fold into "Smaller observations")
+  [<list>]           comma-separated indices to keep, e.g. `1,3`
+  [<-list>]          comma-separated indices to drop, e.g. `-2,-3`
+  [E <i>]            edit comment <i>'s body before posting
+  [Q]uit
+```
+
+Default is `[A]ll`. Picking is one prompt — the maintainer is
+not asked to confirm every comment individually, only the
+subset they want. Comments the maintainer drops do not vanish:
+their substance folds into the body's *Smaller observations*
+block so the review still says everything it would have said,
+just in fewer places.
+
+The picker is skipped automatically when the findings list is
+empty (an `APPROVE` with zero anchored findings); for
+pure-body reviews the legacy `gh pr review` path runs.
+
+Behind the scenes the skill submits a single
+`addPullRequestReview` mutation carrying the picked-in
+comments:
 
 ```graphql
 mutation AddPullRequestReview(
@@ -114,18 +144,34 @@ mutation AddPullRequestReview(
 }
 ```
 
-…with `comments` populated from the findings list, each entry
-carrying `path`, `position` (the diff position, not the file
-line), and `body`. The skill computes diff position from the
-cached unified diff captured at Step 2.
+Each `comments[]` entry carries `path`, `position` (the diff
+position, not the file line), and `body`. The skill computes
+diff position from the cached unified diff captured at Step 2.
 
-If the SHA-recheck at Step 8 fires (the contributor pushed
-during review), the diff positions are stale; the skill warns
-and falls back to `[B]ody-only` automatically:
+#### Stale positions
 
-> *PR pushed since I drafted. Inline positions stale; falling
-> back to body-only references. Re-fetch and retry inline?
-> `[R]efresh`, `[B]ody-only-now`, `[Q]uit`.*
+Inline-comment positions are valid only against the SHA that
+was diffed. If the SHA-recheck at Step 8 fires (the contributor
+pushed during review), inline positions are stale and the
+mutation will be rejected by GitHub. The skill surfaces the
+drift:
+
+> *PR pushed since I drafted. Inline positions stale.
+> `[R]efresh` (re-run Steps 2–7 against the new SHA — usually a
+> few seconds), `[B]ody-only-now` (post the existing draft as
+> body-only), `[Q]uit`.*
+
+Default is `[R]efresh`. `[B]ody-only-now` is a one-PR override;
+it does not flip the default off for the rest of the session.
+
+#### Disabling inline globally for a session
+
+A maintainer who knows they want body-only reviews this
+session can pass `inline:off` (alias `body-only`) at invocation
+time. The picker is then skipped on every PR and reviews go
+through `gh pr review` directly. This is rarely the right
+default; the skill announces the choice once at session start
+so it isn't forgotten halfway through a queue.
 
 ---
 

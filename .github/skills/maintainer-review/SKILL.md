@@ -1,28 +1,37 @@
 ---
 name: maintainer-review
 description: |
-  Walk a maintainer through **sequential** code review of open
-  pull requests on `apache/airflow` (or another target repo).
-  By default, picks PRs where the maintainer is requested as a
-  reviewer; filters allow narrowing by area label and by author
-  collaborator status. For each PR the skill reads the diff,
-  applies the project's review criteria
+  Walk a maintainer through deep code review of open pull
+  requests on `apache/airflow` (or another target repo). The
+  default working list — referred to throughout the docs as
+  **"my reviews"** — is the union of five signals on the
+  authenticated maintainer: PRs where review is requested
+  from them, PRs that touch files they recently modified, PRs
+  whose changed files they own per `CODEOWNERS`, PRs that
+  `@`-mention them, and PRs they already submitted a real
+  review on (triage comments do not count). Filters can narrow
+  by area label, collaborator status, or to a single PR. For
+  each PR the skill reads the diff, applies the project's
+  review criteria
   ([.github/instructions/code-review.instructions.md](../../../.github/instructions/code-review.instructions.md)
-  and [AGENTS.md](../../../AGENTS.md)), runs any locally-configured
-  adversarial reviewer (e.g. the OpenAI Codex plugin), surfaces
-  findings, drafts an `approve` / `request-changes` / `comment`
-  review, and — on the maintainer's confirmation — posts it via
-  `gh pr review`. This is the **deep review** counterpart to the
-  triage skill.
+  and [AGENTS.md](../../../AGENTS.md)), runs any
+  locally-configured adversarial reviewer (e.g. the OpenAI
+  Codex plugin), surfaces findings, drafts an
+  `approve` / `request-changes` / `comment` review with
+  inline comments proposed by default, and — on the
+  maintainer's confirmation — posts it via the
+  `addPullRequestReview` mutation. This is the deep-review
+  counterpart to the triage skill.
 when_to_use: |
-  Invoke when a maintainer says "review my PR queue", "go through
-  the PRs assigned to me", "review the area:scheduler PRs",
-  "review PR NNN", "do my review pass", or any variation on
-  "look over the code on PRs I'm a reviewer on, one at a time."
-  Distinct from `pr-triage`, which decides *whether* to engage
-  with a PR. This skill is invoked **after** triage has produced
-  PRs marked `ready for maintainer review` (or any other curated
-  selector) and a human reviewer is doing the actual code review.
+  Invoke when a maintainer says "review my PRs", "go through
+  the PRs assigned to me", "review my queue", "review the
+  area:scheduler PRs", "review PR NNN", "do my review pass",
+  or any variation on "look over the code on PRs I'm
+  responsible for, one at a time." Distinct from `pr-triage`,
+  which decides *whether* to engage with a PR. This skill is
+  invoked **after** triage has produced PRs marked `ready for
+  maintainer review` (or any other curated selector) and a
+  human reviewer is doing the actual code review.
 license: Apache-2.0
 ---
 <!-- SPDX-License-Identifier: Apache-2.0
@@ -176,37 +185,103 @@ should really be drafted because of merge conflicts that
 appeared), the skill says so explicitly and points them at
 `/pr-triage pr:<N>`. It does not silently invoke triage actions.
 
+**Golden rule 10 — every PR number is rendered as its full
+URL.** A bare `#65981` is unclickable in most terminals; the
+maintainer cannot open it without retyping. Whenever this
+skill prints a PR identifier — in the headline, in a prompt,
+in the session summary, in error messages — the **full
+`https://github.com/<repo>/pull/<N>` URL is printed alongside
+the number** so that any URL-aware terminal (iTerm2, Kitty,
+GNOME Terminal, Windows Terminal, etc.) makes it clickable.
+The recommended format is one of:
+
+```text
+PR #65981 — https://github.com/apache/airflow/pull/65981 — <title>
+```
+
+…or, in a multi-line headline, the URL on its own line so the
+title stays scannable:
+
+```text
+PR #65981 — <title>
+  https://github.com/apache/airflow/pull/65981
+```
+
+Either is fine; the rule is that **the URL is always present**.
+Do not abbreviate to `apache/airflow#65981` (that's
+GitHub-web-only auto-linking and is not clickable in a
+terminal). Do not compress to `gh pr view 65981` (that's a
+shell command, not a link). Always emit the full HTTPS URL.
+
+**Golden rule 11 — auto-open each PR in the browser, by
+default.** When the maintainer says `[Y]es` at a PR's
+headline (Step 1 of [`review-flow.md`](review-flow.md)), the
+skill runs `gh pr view <N> --repo <repo> --web` to open the
+PR's GitHub page in the maintainer's default browser. This
+runs **in parallel** with the Step 2 fetch — by the time the
+diff and metadata land in the conversation, the maintainer
+already has the PR's web view in another window for visual
+context (CI breadcrumbs, conversation thread, file tree
+sidebar) that the terminal can't show. Disable per-session
+with the `no-browser` selector. The skill never opens drafts,
+already-merged PRs, or self-authored PRs in the browser
+(those are skipped before they reach the headline-confirm
+gate anyway).
+
 ---
 
 ## Inputs
 
 Before running, resolve the maintainer's selector into a concrete
-query:
+query.
+
+The **default selector** — what `/maintainer-review` with no
+arguments resolves to — is the working list called
+**"my reviews"**: every open PR on `<repo>` that matches at
+least one of the five signals below, all rooted on
+`<viewer>` (the authenticated maintainer):
+
+| Signal | What it captures |
+|---|---|
+| review-requested | review explicitly requested from `<viewer>` |
+| touching-mine | PR touches a file `<viewer>` recently authored a commit to (open PRs by `<viewer>` + commits on `<base>` in the past `<since>`, default `30d`) |
+| codeowner | PR touches a file `CODEOWNERS` assigns to `<viewer>` (directly or via team) |
+| mentioned | PR body / comment / review / commit message contains `@<viewer>` |
+| reviewed-before | `<viewer>` already submitted a real `gh pr review` on this PR (any state); **triage comments are excluded** |
+
+The five signals are unioned, deduplicated by PR number,
+sorted by `updatedAt`, and rendered with one or more
+**match-reason chips** in each headline (e.g.
+`[review-requested]`, `[codeowner: scheduler/job_runner.py]`,
+`[mentioned-in: review]`, `[reviewed-before: 4 days ago]`).
+See [`selectors.md`](selectors.md) for each signal's exact
+query and chip semantics.
 
 | Selector | Resolves to |
 |---|---|
-| (no selector — default) | union of (a) open PRs where review is requested from `<viewer>` and (b) open PRs that touch files `<viewer>` has been actively working on (open PRs by `<viewer>` + recent commits on `<base>` by `<viewer>`); de-duplicated, most recently updated first |
+| (no selector — default) | the **"my reviews"** union above |
 | `pr:<N>` | the single PR number `<N>` — useful for a one-off review or re-review after a push |
 | `area:<LBL>` | additionally require the PR carry label `area:<LBL>` (or matches the wildcard, e.g. `area:provider*`, `area:scheduler`, `provider:amazon`) |
 | `collab:true` | restrict to PRs whose author is a collaborator on `<repo>` (`COLLABORATOR`/`MEMBER`/`OWNER` author association) |
 | `collab:false` | restrict to PRs whose author is **not** a collaborator (`CONTRIBUTOR`/`FIRST_TIME_CONTRIBUTOR`/`NONE`) |
 | `team:<NAME>` | open PRs where review is requested from team `<NAME>` that `<viewer>` belongs to |
 | `ready` | open PRs carrying the `ready for maintainer review` label (review-requested OR not, regardless of whether `<viewer>` is on the request list) — useful when the maintainer wants to pick from the curated triage queue rather than only their own assignments |
-| `mine-only` | drop the review-requested half of the default; use only the touching-mine signal |
-| `requested-only` | drop the touching-mine half of the default; use only the review-requested signal |
+| `requested-only` / `mine-only` / `codeowner-only` / `mentioned-only` / `reviewed-before-only` | use **only** the named half of the default union (drops the other four) |
+| `no-touching-mine` / `no-codeowner` / `no-mentioned` / `no-reviewed-before` | drop just the named half; keep the rest of the union (composable) |
 | `since:<window>` | tune the recency window for the touching-mine main-branch source (default `30d`; accepts `7d`, `2w`, `90d`, …) |
 | `with-reviewer:<command>` | name the slash command the skill should propose at Step 5 for second-read coverage |
 | `repo:<owner>/<name>` | override the target repository |
 | `max:<N>` | stop after `<N>` PRs have been reviewed this session |
 | `dry-run` | examine and draft but refuse to actually post any review |
 | `no-adversarial` | skip the optional adversarial-reviewer step for this session |
+| `inline:off` (alias `body-only`) | suppress the inline-comments picker for this session and post body-only reviews |
+| `no-browser` | suppress the auto-open-in-browser action when entering a PR (default is to open) |
 | `lookahead:<N>` | size of the background-analysis lookahead window (default `3`); see [`review-flow.md#background-analysis-subagents`](review-flow.md#background-analysis-subagents) |
 | `no-prefetch` | disable background analysis subagents for this session — useful for tiny queues (`max:1`–`max:2`) where the wall-clock benefit is nil |
 
 Selectors compose: `area:scheduler collab:false max:5` means
-"first five non-collaborator PRs in `area:scheduler` that I'm
-either a requested reviewer on or that touch files I've been
-working on."
+"first five non-collaborator PRs in `area:scheduler` that match
+at least one of my-reviews signals."
 
 If the resolved query produces zero PRs, the skill says so
 explicitly and exits — it does not silently widen the search.
@@ -216,6 +291,39 @@ The target repository defaults to `apache/airflow`. Pass
 fully-exercised target; other repos may lack the expected
 labels (the skill warns and degrades gracefully — see
 [`prerequisites.md`](prerequisites.md)).
+
+---
+
+## How to invoke — examples
+
+The slash command is `/maintainer-review`. A few worked
+examples a maintainer can paste:
+
+| Goal | Invocation |
+|---|---|
+| Walk through everything in **"my reviews"**, newest first | `/maintainer-review` |
+| Review a single PR (the most common ad-hoc trigger) | `/maintainer-review pr:65981` |
+| Just the PRs where I'm a CODEOWNER, ignore the rest | `/maintainer-review codeowner-only` |
+| PRs that explicitly `@`-mention me, skip the noise | `/maintainer-review mentioned-only` |
+| Re-look at the PRs I already reviewed (follow-ups after author push) | `/maintainer-review reviewed-before-only` |
+| My-reviews **but** drop touching-mine (too noisy this morning) | `/maintainer-review no-touching-mine` |
+| My-reviews limited to scheduler-area, max 5 | `/maintainer-review area:scheduler max:5` |
+| My-reviews scoped to non-collaborator authors (extra-careful pass) | `/maintainer-review collab:false` |
+| The team queue (PRs where `apache/airflow-providers-amazon` is requested) | `/maintainer-review team:airflow-providers-amazon` |
+| The wider curated queue triage already promoted | `/maintainer-review ready` |
+| Stay body-only this session (no inline picker) | `/maintainer-review inline:off` |
+| Don't auto-open the PR in the browser when I `[Y]es` it | `/maintainer-review no-browser` |
+| Dry-run the queue — draft everything, post nothing | `/maintainer-review dry-run` |
+| Same, against a different repo | `/maintainer-review dry-run repo:apache/airflow-site` |
+| Pair with an adversarial reviewer for a second read on each PR | `/maintainer-review with-reviewer:/codex-plugin:adversarial-review` |
+| Skip background analysis subagents (tiny queue, prefetch is wasted) | `/maintainer-review max:1 no-prefetch` |
+
+Selectors compose freely. Most flags carry through cleanly:
+`area:scheduler reviewed-before-only since:7d` is "PRs in
+the scheduler area that I reviewed in the last 7 days."
+
+When in doubt, run with no flags first — the default surfaces
+everything you'd reasonably be expected to look at.
 
 ---
 
@@ -247,15 +355,27 @@ gracefully.
 ## Step 1 — Resolve the selector and fetch the working list
 
 Translate the selector into the GraphQL queries from
-[`selectors.md`](selectors.md). The default runs **both** halves
-of the union (review-requested + touching-mine), de-duplicates,
-and assigns each PR a **match-reason chip**:
+[`selectors.md`](selectors.md). The default runs **all five
+halves** of the my-reviews union (review-requested,
+touching-mine, codeowner, mentioned, reviewed-before),
+de-duplicates by PR number, and assigns each PR one or more
+**match-reason chips** — every signal that fired contributes
+its own chip:
 
 - `[review-requested]` — review explicitly requested from
   `<viewer>`
-- `[touches: <path>]` — review not explicitly requested, but
-  the PR touches a file in the active set (path = first match)
-- `[both]` — both signals fire on the same PR
+- `[touches: <path>]` — PR touches a file `<viewer>` recently
+  modified (path = first active-set match)
+- `[codeowner: <path>]` — `CODEOWNERS` assigns a touched file
+  to `<viewer>` directly or via team
+- `[mentioned-in: body|comment|review|commit]` — PR body /
+  comment / review / commit message contains `@<viewer>`
+- `[reviewed-before: <relative-time>]` — `<viewer>` already
+  submitted a real `gh pr review` (any state); triage
+  comments are excluded
+
+A PR matched by multiple signals carries multiple chips on
+the same line — there is no special "[both]" collapsing.
 
 For each PR on the list, capture only the headline data needed
 to **decide whether to start the review**:
@@ -304,14 +424,21 @@ For each PR in the list, run the per-PR review loop in
    [`posting.md#disposition`](posting.md), apply Golden rules 7
    and 8, and produce a draft body using the templates in
    [`posting.md`](posting.md).
-6. **Show the draft to the maintainer** — full body, every
-   line-level finding (with file:line and quoted code), and the
-   chosen disposition.
-7. **On confirmation** — post via `gh pr review` (see
-   [`posting.md`](posting.md)). On rejection — capture the
+6. **Show the inline-comments picker** — for every anchored
+   finding the skill drafts an inline review comment and
+   presents them in a numbered list with all entries enabled
+   by default. The maintainer picks `[A]ll` / `[N]one` /
+   `[<indices>]` / drops a few. Suppressed for the whole
+   session if `inline:off` was passed.
+7. **Show the draft to the maintainer** — full body, count of
+   inline comments to be posted, and the chosen disposition.
+8. **On confirmation** — post via the GraphQL
+   `addPullRequestReview` mutation (or `gh pr review` if no
+   inline comments survived the picker). See
+   [`posting.md`](posting.md). On rejection — capture the
    maintainer's edits and re-draft.
-8. **On `[S]kip`** — leave the PR alone and move on.
-9. **On `[Q]uit`** — exit the session.
+9. **On `[S]kip`** — leave the PR alone and move on.
+10. **On `[Q]uit`** — exit the session.
 
 ---
 
@@ -374,14 +501,16 @@ writes a session log to disk.
 | `collab:true|false` | restrict to PRs whose author is / isn't a collaborator |
 | `team:<NAME>` | restrict to PRs requesting review from a team `<viewer>` is on |
 | `ready` | source from the `ready for maintainer review` label instead of the default union |
-| `mine-only` | drop the review-requested half of the default; touching-mine signal only |
-| `requested-only` | drop the touching-mine half of the default; review-requested only |
+| `requested-only` / `mine-only` / `codeowner-only` / `mentioned-only` / `reviewed-before-only` | use only one half of the my-reviews union |
+| `no-touching-mine` / `no-codeowner` / `no-mentioned` / `no-reviewed-before` | drop just one half; keep the rest |
 | `since:<window>` | tune the touching-mine main-branch recency window (default `30d`) |
 | `with-reviewer:<command>` | name the slash command to propose for second-read coverage |
 | `repo:<owner>/<name>` | override the target repository |
 | `max:<N>` | stop after `<N>` PRs reviewed |
 | `dry-run` | draft but never post |
 | `no-adversarial` | skip the optional second-reviewer step |
+| `inline:off` (alias `body-only`) | suppress the inline-comments picker; post body-only reviews this session |
+| `no-browser` | don't auto-open each PR in the browser at `[Y]es` |
 | `lookahead:<N>` | size of the background-analysis lookahead window (default `3`) |
 | `no-prefetch` | disable background analysis subagents for this session |
 
