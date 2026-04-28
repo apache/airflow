@@ -46,7 +46,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import tomllib
+try:
+    import tomllib  # Python 3.11+ stdlib
+except ModuleNotFoundError:  # pragma: no cover -- Python 3.10 fallback
+    import tomli as tomllib
 from registry_contract_models import validate_provider_version_metadata
 
 try:
