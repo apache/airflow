@@ -151,8 +151,8 @@ importers:
         specifier: ^8.0.9
         version: 8.0.9(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(yaml@2.8.3)
       vite-plugin-css-injected-by-js:
-        specifier: ^4.0.1
-        version: 4.0.1(vite@8.0.9(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(yaml@2.8.3))
+        specifier: ^5.0.1
+        version: 5.0.1(vite@8.0.9(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(yaml@2.8.3))
       vitest:
         specifier: ^4.1.4
         version: 4.1.4(@types/node@25.6.0)(@vitest/coverage-v8@4.1.4)(happy-dom@20.9.0)(vite@8.0.9(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(yaml@2.8.3))
@@ -2829,10 +2829,10 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
-  vite-plugin-css-injected-by-js@4.0.1:
-    resolution: {integrity: sha512-WfyRojojQyAO/KzWf+efcXpTPv6zJPXaRmr9EYq5a4v5I3PWCR7kR01hiri2lW6+rHm3a57kpwsf+iahIJi1Qw==}
+  vite-plugin-css-injected-by-js@5.0.1:
+    resolution: {integrity: sha512-JSB0jjN4VCKqG7XTUdrwiIl5gA+z2yi/tAl9WHo0X4sdyJ1yrmbLOEjf95TDoDIIuKr4GJIc7lMJG0CT88eEUQ==}
     peerDependencies:
-      vite: '>=7.3.2'
+      vite: '>8.0.0-0'
 
   vite@8.0.9:
     resolution: {integrity: sha512-t7g7GVRpMXjNpa67HaVWI/8BWtdVIQPCL2WoozXXA7LBGEFK4AkkKkHx2hAQf5x1GZSlcmEDPkVLSGahxnEEZw==}
@@ -6269,7 +6269,7 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  vite-plugin-css-injected-by-js@4.0.1(vite@8.0.9(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(yaml@2.8.3)):
+  vite-plugin-css-injected-by-js@5.0.1(vite@8.0.9(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(yaml@2.8.3)):
     dependencies:
       vite: 8.0.9(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(yaml@2.8.3)
 

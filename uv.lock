@@ -17,7 +17,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-23T09:25:21.93087Z"
+exclude-newer = "2026-04-24T09:31:30.744603Z"
 exclude-newer-span = "P4D"
 
 [options.exclude-newer-package]
@@ -2746,7 +2746,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-akeyless"
-version = "1.0.0"
+version = "0.1.0"
 source = { editable = "providers/akeyless" }
 dependencies = [
     { name = "akeyless" },
@@ -2834,7 +2834,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-amazon"
-version = "9.26.0"
+version = "9.27.0"
 source = { editable = "providers/amazon" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7915,6 +7915,7 @@ source = { editable = "dev/registry" }
 dependencies = [
     { name = "pydantic" },
     { name = "pyyaml" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
 
 [package.dev-dependencies]
@@ -7926,6 +7927,7 @@ dev = [
 requires-dist = [
     { name = "pydantic", specifier = ">=2.12.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
 ]
 
 [package.metadata.requires-dev]

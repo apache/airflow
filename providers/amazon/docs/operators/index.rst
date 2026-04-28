@@ -29,4 +29,5 @@ Amazon AWS Operators
     emr/index
     redshift/index
     s3/index
+    s3tables/s3tables
     *

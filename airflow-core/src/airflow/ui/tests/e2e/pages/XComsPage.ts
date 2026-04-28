@@ -161,12 +161,6 @@ export class XComsPage extends BasePage {
     const firstRow = this.tableRows.first();
 
     await expect(firstRow).toBeVisible({ timeout: 10_000 });
-
-    const valueCell = firstRow.locator("td").last();
-
-    await expect(valueCell).toBeVisible();
-    await expect(
-      valueCell.getByRole("button").or(valueCell.locator("pre")).or(valueCell.locator("code")),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(firstRow.getByTestId("xcom-value")).toBeVisible({ timeout: 10_000 });
   }
 }
