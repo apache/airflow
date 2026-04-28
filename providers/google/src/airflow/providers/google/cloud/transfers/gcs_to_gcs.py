@@ -416,11 +416,20 @@ class GCSToGCSOperator(BaseOperator):
         # and copy directly
         if len(objects) == 0 and prefix:
             if hook.exists(self.source_bucket, prefix):
-                uri = self._copy_single_object(
-                    hook=hook, source_object=prefix, destination_object=self.destination_object
-                )
-                if uri:
-                    result_uris.append(uri)
+                # `objects` may have been emptied by _ignore_existing_files; respect replace=False here too.
+                destination_object = self.destination_object or prefix
+                if not self.replace and hook.exists(self.destination_bucket, destination_object):
+                    self.log.info(
+                        "Skipped object %s; already exists in destination bucket %s.",
+                        destination_object,
+                        self.destination_bucket,
+                    )
+                else:
+                    uri = self._copy_single_object(
+                        hook=hook, source_object=prefix, destination_object=self.destination_object
+                    )
+                    if uri:
+                        result_uris.append(uri)
             elif self.source_object_required:
                 msg = f"{prefix} does not exist in bucket {self.source_bucket}"
                 self.log.warning(msg)
