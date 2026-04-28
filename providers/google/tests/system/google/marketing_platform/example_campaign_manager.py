@@ -79,22 +79,12 @@ SECRET_FLOODLIGHT_ACTIVITY_ID = "cm360_floodlight_activity_id"
 SECRET_FLOODLIGHT_CONFIGURATION_ID = "cm360_floodlight_configuration_id"
 SECRET_USER_PROFILE_ID = "cm360_user_profile_id"
 
-# verbose form: "{{ task_instance.xcom_pull('get_account_id') }}"
-ACCOUNT_ID = "{{ get_account_id.output }}"
-# verbose form: "{{ task_instance.xcom_pull('get_dclid') }}"
-DCLID = "{{ get_dclid.output }}"
-ENCRYPTION_ENTITY_ID = (
-    # verbose form: "{{ task_instance.xcom_pull('get_encryption_entity_id') }}"
-    "{{ get_encryption_entity_id.output }}"
-)
-FLOODLIGHT_ACTIVITY_ID = (
-    # verbose form: "{{ task_instance.xcom_pull('get_floodlight_activity_id') }}"
-    "{{ get_floodlight_activity_id.output }}"
-)
-# verbose form: "{{ task_instance.xcom_pull('get_floodlight_configuration_id') }}"
-FLOODLIGHT_CONFIGURATION_ID = "{{ get_floodlight_configuration_id.output }}"
-# verbose form: "{{ task_instance.xcom_pull('get_user_profile_id') }}"
-USER_PROFILE_ID = "{{ get_user_profile_id.output }}"
+ACCOUNT_ID = "{{ task_instance.xcom_pull('get_account_id') }}"
+DCLID = "{{ task_instance.xcom_pull('get_dclid') }}"
+ENCRYPTION_ENTITY_ID = "{{ task_instance.xcom_pull('get_encryption_entity_id') }}"
+FLOODLIGHT_ACTIVITY_ID = "{{ task_instance.xcom_pull('get_floodlight_activity_id') }}"
+FLOODLIGHT_CONFIGURATION_ID = "{{ task_instance.xcom_pull('get_floodlight_configuration_id') }}"
+USER_PROFILE_ID = "{{ task_instance.xcom_pull('get_user_profile_id') }}"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 REPORT_NAME = f"report_{DAG_ID}_{ENV_ID}"

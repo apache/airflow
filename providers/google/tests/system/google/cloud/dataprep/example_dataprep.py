@@ -76,13 +76,10 @@ GCS_BUCKET_PATH = f"gs://{GCS_BUCKET_NAME}/task_results/"
 DATASET_URI = "gs://airflow-system-tests-resources/dataprep/dataset-00000.parquet"
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}".replace("-", "_")
 DATASET_WRANGLED_NAME = f"wrangled_{DATASET_NAME}"
-DATASET_WRANGLED_ID = "{{ create_wrangled_dataset.output['id'] }}"
-# verbose form: "{{ task_instance.xcom_pull('create_wrangled_dataset')['id'] }}"
+DATASET_WRANGLED_ID = "{{ task_instance.xcom_pull('create_wrangled_dataset')['id'] }}"
 
-# verbose form: "{{ task_instance.xcom_pull('create_flow')['id'] }}"
-FLOW_ID = "{{ create_flow.output['id'] }}"
-# verbose form: "{{ task_instance.xcom_pull('copy_flow')['id'] }}"
-FLOW_COPY_ID = "{{ copy_flow.output['id'] }}"
+FLOW_ID = "{{ task_instance.xcom_pull('create_flow')['id'] }}"
+FLOW_COPY_ID = "{{ task_instance.xcom_pull('copy_flow')['id'] }}"
 RECIPE_NAME = DATASET_WRANGLED_NAME
 WRITE_SETTINGS = {
     "writesettings": [
@@ -230,8 +227,7 @@ with models.DAG(
         task_id="get_job_group",
         dataprep_conn_id=CONNECTION_ID,
         project_id=GCP_PROJECT_ID,
-        # verbose form: "{{ task_instance.xcom_pull('run_flow')['data'][0]['id'] }}"
-        job_group_id="{{ run_flow.output['data'][0]['id'] }}",
+        job_group_id="{{ task_instance.xcom_pull('run_flow')['data'][0]['id'] }}",
         embed="",
         include_deleted=False,
     )
@@ -241,8 +237,7 @@ with models.DAG(
     get_jobs_for_job_group_task = DataprepGetJobsForJobGroupOperator(
         task_id="get_jobs_for_job_group",
         dataprep_conn_id=CONNECTION_ID,
-        # verbose form: "{{ task_instance.xcom_pull('run_flow')['data'][0]['id'] }}"
-        job_group_id="{{ run_flow.output['data'][0]['id'] }}",
+        job_group_id="{{ task_instance.xcom_pull('run_flow')['data'][0]['id'] }}",
     )
     # [END how_to_dataprep_get_jobs_for_job_group_operator]
 
@@ -250,8 +245,7 @@ with models.DAG(
     check_flow_status_sensor = DataprepJobGroupIsFinishedSensor(
         task_id="check_flow_status",
         dataprep_conn_id=CONNECTION_ID,
-        # verbose form: "{{ task_instance.xcom_pull('run_flow')['data'][0]['id'] }}"
-        job_group_id="{{ run_flow.output['data'][0]['id'] }}",
+        job_group_id="{{ task_instance.xcom_pull('run_flow')['data'][0]['id'] }}",
     )
     # [END how_to_dataprep_job_group_finished_sensor]
 
@@ -259,8 +253,7 @@ with models.DAG(
     check_job_group_status_sensor = DataprepJobGroupIsFinishedSensor(
         task_id="check_job_group_status",
         dataprep_conn_id=CONNECTION_ID,
-        # verbose form: "{{ task_instance.xcom_pull('run_job_group')['id'] }}"
-        job_group_id="{{ run_job_group.output['id'] }}",
+        job_group_id="{{ task_instance.xcom_pull('run_job_group')['id'] }}",
     )
     # [END how_to_dataprep_job_group_finished_sensor]
 
@@ -268,8 +261,7 @@ with models.DAG(
     delete_flow_task = DataprepDeleteFlowOperator(
         task_id="delete_flow",
         dataprep_conn_id=CONNECTION_ID,
-        # verbose form: "{{ task_instance.xcom_pull('copy_flow')['id'] }}"
-        flow_id="{{ copy_flow.output['id'] }}",
+        flow_id="{{ task_instance.xcom_pull('copy_flow')['id'] }}",
     )
     # [END how_to_dataprep_delete_flow_operator]
     delete_flow_task.trigger_rule = TriggerRule.ALL_DONE
@@ -277,8 +269,7 @@ with models.DAG(
     delete_flow_task_original = DataprepDeleteFlowOperator(
         task_id="delete_flow_original",
         dataprep_conn_id=CONNECTION_ID,
-        # verbose form: "{{ task_instance.xcom_pull('create_flow')['id'] }}"
-        flow_id="{{ create_flow.output['id'] }}",
+        flow_id="{{ task_instance.xcom_pull('create_flow')['id'] }}",
         trigger_rule=TriggerRule.ALL_DONE,
     )
 

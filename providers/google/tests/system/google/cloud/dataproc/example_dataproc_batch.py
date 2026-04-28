@@ -141,7 +141,7 @@ with DAG(
         project_id=PROJECT_ID,
         region=REGION,
         # verbose form: "{{ task_instance.xcom_pull('create_batch_4')['operation'] }}"
-        operation_name="{{ create_batch_4.output['operation'] }}",
+        operation_name=create_batch_4.output["operation"],
     )
     # [END how_to_cloud_dataproc_cancel_operation_operator]
 

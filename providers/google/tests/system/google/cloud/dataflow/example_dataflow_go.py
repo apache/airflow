@@ -100,7 +100,7 @@ with DAG(
     wait_for_go_job_async_done = DataflowJobStatusSensor(
         task_id="wait_for_go_job_async_done",
         # verbose form: "{{ task_instance.xcom_pull('start_go_pipeline_dataflow_runner')['dataflow_job_id'] }}"
-        job_id="{{ start_go_pipeline_dataflow_runner.output['dataflow_job_id'] }}",
+        job_id=start_go_pipeline_dataflow_runner.output["dataflow_job_id"],
         expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
         location=LOCATION,
     )
@@ -114,7 +114,8 @@ with DAG(
 
     wait_for_go_job_async_message = DataflowJobMessagesSensor(
         task_id="wait_for_go_job_async_message",
-        job_id="{{ start_go_pipeline_dataflow_runner.output['dataflow_job_id'] }}",
+        # verbose form: "{{ task_instance.xcom_pull('start_go_pipeline_dataflow_runner')['dataflow_job_id'] }}"
+        job_id=start_go_pipeline_dataflow_runner.output["dataflow_job_id"],
         location=LOCATION,
         callback=check_message,
         fail_on_terminal_state=False,
@@ -129,7 +130,8 @@ with DAG(
 
     wait_for_go_job_async_autoscaling_event = DataflowJobAutoScalingEventsSensor(
         task_id="wait_for_go_job_async_autoscaling_event",
-        job_id="{{ start_go_pipeline_dataflow_runner.output['dataflow_job_id'] }}",
+        # verbose form: "{{ task_instance.xcom_pull('start_go_pipeline_dataflow_runner')['dataflow_job_id'] }}"
+        job_id=start_go_pipeline_dataflow_runner.output["dataflow_job_id"],
         location=LOCATION,
         callback=check_autoscaling_event,
         fail_on_terminal_state=False,

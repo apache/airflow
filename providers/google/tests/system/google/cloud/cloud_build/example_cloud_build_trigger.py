@@ -68,8 +68,7 @@ DAG_ID = "gcp_cloud_build_trigger"
 GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repository"
 
 TRIGGER_NAME = f"cloud-build-trigger-{ENV_ID}".replace("_", "-")
-# verbose form: "{{ task_instance.xcom_pull('get_project_number') }}"
-PROJECT_NUMBER = "{{ get_project_number.output }}"
+PROJECT_NUMBER = "{{ task_instance.xcom_pull('get_project_number') }}"
 
 # [START howto_operator_gcp_create_build_trigger_body]
 create_build_trigger_body = {

@@ -92,8 +92,7 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "gen_ai_generative_model_tuning_dag"
 REGION = "us-central1"
 GEMINI_API_KEY = "api_key"
-# verbose form: "{{ task_instance.xcom_pull('get_actual_model') }}"
-SOURCE_MODEL = "{{ get_actual_model.output }}"
+SOURCE_MODEL = "{{ task_instance.xcom_pull('get_actual_model') }}"
 TRAIN_DATASET = TuningDataset(
     gcs_uri="gs://cloud-samples-data/ai-platform/generative_ai/gemini-1_5/text/sft_train_data.jsonl",
 )

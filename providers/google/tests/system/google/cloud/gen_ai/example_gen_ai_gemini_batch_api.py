@@ -72,8 +72,7 @@ INLINED_REQUESTS_FOR_EMBEDDINGS_BATCH_JOB = {
 }
 
 
-# verbose form: "{{ task_instance.xcom_pull('get_gemini_api_key') }}"
-GEMINI_XCOM_API_KEY = "{{ get_gemini_api_key.output }}"
+GEMINI_XCOM_API_KEY = "{{ task_instance.xcom_pull('get_gemini_api_key') }}"
 
 LOCAL_FILE_NAME = "gemini_batch_requests.jsonl"
 LOCAL_EMBEDDINGS_FILE_NAME = "gemini_batch_embeddings_requests.jsonl"
