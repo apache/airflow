@@ -286,6 +286,136 @@ def test_run_context_exits_when_subprocess_dies(supervisor_builder, mocker):
     assert events == ["enter", "tick", "exit"]
 
 
+@pytest.fixture
+def jobless_supervisor(mocker):
+    """Build a TriggerRunnerSupervisor with ``job=None`` for testing the optional-job path."""
+    import psutil
+
+    process = mocker.Mock(spec=psutil.Process, pid=42)
+    mock_stdin = mocker.Mock(spec=socket)
+    mock_stdin.write = mocker.Mock()
+    mock_stdin.sendall = mocker.Mock()
+
+    supervisor = TriggerRunnerSupervisor(
+        process_log=mocker.Mock(spec=FilteringBoundLogger),
+        id=uuid.uuid4(),
+        job=None,
+        pid=process.pid,
+        stdin=mock_stdin,
+        process=process,
+        capacity=10,
+    )
+    mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
+    mock_selector.select.return_value = []
+    supervisor.selector = mock_selector
+    return supervisor
+
+
+def test_start_without_job_generates_uuid_id(mocker):
+    """start() called without a Job should generate a UUID for the supervisor id."""
+    from airflow.sdk.execution_time.supervisor import WatchedSubprocess
+
+    fake_proc = mocker.Mock()
+    captured: dict = {}
+
+    @classmethod
+    def fake_super_start(cls, **kwargs):
+        captured.update(kwargs)
+        return fake_proc
+
+    mocker.patch.object(WatchedSubprocess, "start", fake_super_start)
+
+    TriggerRunnerSupervisor.start(capacity=10)
+
+    assert isinstance(captured["id"], uuid.UUID)
+    assert captured["job"] is None
+    fake_proc.send_msg.assert_called_once()
+
+
+def test_heartbeat_is_noop_without_job(jobless_supervisor, mocker):
+    """heartbeat() must not call perform_heartbeat when job is None."""
+    perform_heartbeat = mocker.patch("airflow.jobs.triggerer_job_runner.perform_heartbeat")
+
+    jobless_supervisor.heartbeat()
+
+    perform_heartbeat.assert_not_called()
+
+
+def test_metric_tags_default_uses_job_hostname(supervisor_builder):
+    """metric_tags() defaults to {"hostname": job.hostname} when a job is present."""
+    supervisor = supervisor_builder()
+
+    assert supervisor.metric_tags() == {"hostname": supervisor.job.hostname}
+
+
+def test_metric_tags_default_empty_without_job(jobless_supervisor):
+    """metric_tags() returns {} when there is no job."""
+    assert jobless_supervisor.metric_tags() == {}
+
+
+def test_emit_metrics_uses_metric_tags_override(jobless_supervisor, mocker):
+    """Subclasses can supply tags by overriding metric_tags() instead of threading args."""
+    gauge = mocker.patch("airflow.jobs.triggerer_job_runner.DualStatsManager.gauge")
+    mocker.patch.object(
+        TriggerRunnerSupervisor,
+        "metric_tags",
+        return_value={"hostname": "astro-host", "deployment": "demo"},
+    )
+
+    jobless_supervisor.emit_metrics()
+
+    assert gauge.call_count == 2
+    for call in gauge.call_args_list:
+        assert call.kwargs["extra_tags"] == {"hostname": "astro-host", "deployment": "demo"}
+
+
+def test_load_triggers_is_noop_without_job(jobless_supervisor, mocker):
+    """load_triggers() must not touch DB-backed Trigger calls when job is None."""
+    assign_unassigned = mocker.patch("airflow.jobs.triggerer_job_runner.Trigger.assign_unassigned")
+    ids_for_triggerer = mocker.patch("airflow.jobs.triggerer_job_runner.Trigger.ids_for_triggerer")
+    update_triggers = mocker.patch.object(TriggerRunnerSupervisor, "update_triggers")
+
+    jobless_supervisor.load_triggers()
+
+    assign_unassigned.assert_not_called()
+    ids_for_triggerer.assert_not_called()
+    update_triggers.assert_not_called()
+
+
+def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mocker):
+    """_create_workload() should fall back to self.id for the log filename when job is None."""
+    trigger = mocker.Mock()
+    trigger.id = 7
+    trigger.classpath = "some.path.Trigger"
+    trigger.encrypted_kwargs = ""
+    trigger.task_instance.dag_version_id = uuid.uuid4()
+    trigger.task_instance.task_id = "t"
+    trigger.task_instance.trigger_timeout = None
+
+    mocker.patch(
+        "airflow.jobs.triggerer_job_runner.TaskInstanceDTO.model_validate",
+        return_value=mocker.Mock(spec=TaskInstanceDTO),
+    )
+
+    dag_bag = mocker.Mock()
+    serialized_dag_model = mocker.Mock()
+    task = mocker.Mock(start_from_trigger=False)
+    serialized_dag_model.dag.get_task.return_value = task
+    dag_bag.get_serialized_dag_model.return_value = serialized_dag_model
+
+    render_log_fname = mocker.Mock(return_value="/logs/ti")
+
+    jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=dag_bag,
+        render_log_fname=render_log_fname,
+        session=mocker.Mock(),
+    )
+
+    factory = jobless_supervisor.logger_cache[trigger.id]
+    assert factory.log_path == f"/logs/ti.trigger.{jobless_supervisor.id}.log"
+
+
 def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
     """
     Checks that the triggerer will correctly see a new Trigger in the database

@@ -31,6 +31,7 @@ from datetime import datetime
 from socket import socket
 from traceback import format_exception
 from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, TextIO, TypedDict
+from uuid import uuid4
 
 import anyio
 import attrs
@@ -397,7 +398,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     workload messages to the subprocess, and collecting results and updating them in the DB.
     """
 
-    job: Job
+    job: Job | None = None
     capacity: int
     queues: set[str] | None = None
 
@@ -435,11 +436,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def start(  # type: ignore[override]
         cls,
         *,
-        job: Job,
+        job: Job | None = None,
         logger=None,
         **kwargs,
     ):
-        proc = super().start(id=job.id, job=job, target=cls.run_in_process, logger=logger, **kwargs)
+        id = job.id if job is not None else uuid4()
+        proc = super().start(id=id, job=job, target=cls.run_in_process, logger=logger, **kwargs)
 
         msg = messages.StartTriggerer()
         proc.send_msg(msg, request_id=0)
@@ -611,6 +613,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         self.emit_metrics()
 
     def heartbeat(self):
+        if self.job is None:
+            return
         perform_heartbeat(self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True)
 
     def heartbeat_callback(self, session: Session | None = None) -> None:
@@ -618,6 +622,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def load_triggers(self) -> None:
         """Assign triggers to this triggerer and update the runner with the IDs it should run."""
+        if self.job is None:
+            return
         Trigger.assign_unassigned(
             self.job.id,
             self.capacity,
@@ -662,12 +668,24 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         """Record that a trigger failed."""
         Trigger.submit_failure(trigger_id=trigger_id, exc=exc)
 
+    def metric_tags(self) -> dict[str, str]:
+        """
+        Return extra tags applied to gauges emitted by :meth:`emit_metrics`.
+
+        Override in subclasses that don't have a metadata-DB ``Job`` (e.g. AIP-92
+        Execution-API-backed triggerers) to provide hostname or other identity tags
+        from another source.
+        """
+        hostname = self.job.hostname if self.job is not None else None
+        return {"hostname": hostname} if hostname is not None else {}
+
     def emit_metrics(self):
+        extra_tags = self.metric_tags()
         DualStatsManager.gauge(
             "triggers.running",
             len(self.running_triggers),
             tags={},
-            extra_tags={"hostname": self.job.hostname},
+            extra_tags=extra_tags,
         )
 
         capacity_left = self.capacity - len(self.running_triggers)
@@ -675,7 +693,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             "triggerer.capacity_left",
             capacity_left,
             tags={},
-            extra_tags={"hostname": self.job.hostname},
+            extra_tags=extra_tags,
         )
 
     def _create_workload(
@@ -703,9 +721,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         log_path = render_log_fname(ti=trigger.task_instance)
         ser_ti = TaskInstanceDTO.model_validate(trigger.task_instance, from_attributes=True)
 
-        # When producing logs from TIs, include the job id producing the logs to disambiguate it.
+        # When producing logs from TIs, include the supervisor id producing the logs to disambiguate it.
+        log_id = self.job.id if self.job is not None else self.id
         self.logger_cache[trigger.id] = TriggerLoggingFactory(
-            log_path=f"{log_path}.trigger.{self.job.id}.log",
+            log_path=f"{log_path}.trigger.{log_id}.log",
             ti=ser_ti,  # type: ignore
         )
 
