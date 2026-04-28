@@ -235,11 +235,11 @@ spec:
           args: {{- tpl (toYaml .Values.triggerer.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
           env:
-          {{- if not (eq .Values.triggerer.logGroomerSidecar.retentionDays nil "") }}
+          {{- if ne .Values.triggerer.logGroomerSidecar.retentionDays nil }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.triggerer.logGroomerSidecar.retentionDays }}"
           {{- end }}
-          {{- if not (eq .Values.triggerer.logGroomerSidecar.retentionMinutes nil "") }}
+          {{- if ne .Values.triggerer.logGroomerSidecar.retentionMinutes nil }}
             - name: AIRFLOW__LOG_RETENTION_MINUTES
               value: "{{ .Values.triggerer.logGroomerSidecar.retentionMinutes }}"
           {{- end }}

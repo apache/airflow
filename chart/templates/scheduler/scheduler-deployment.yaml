@@ -272,11 +272,11 @@ spec:
           env:
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
-          {{- if not (eq .Values.scheduler.logGroomerSidecar.retentionDays nil "") }}
+          {{- if ne .Values.scheduler.logGroomerSidecar.retentionDays nil }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
           {{- end }}
-          {{- if not (eq .Values.scheduler.logGroomerSidecar.retentionMinutes nil "") }}
+          {{- if ne .Values.scheduler.logGroomerSidecar.retentionMinutes nil }}
             - name: AIRFLOW__LOG_RETENTION_MINUTES
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionMinutes }}"
           {{- end }}

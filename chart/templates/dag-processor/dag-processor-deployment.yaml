@@ -206,11 +206,11 @@ spec:
           args: {{- tpl (toYaml .Values.dagProcessor.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
           env:
-          {{- if not (eq .Values.dagProcessor.logGroomerSidecar.retentionDays nil "") }}
+          {{- if ne .Values.dagProcessor.logGroomerSidecar.retentionDays nil }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.dagProcessor.logGroomerSidecar.retentionDays }}"
           {{- end }}
-          {{- if not (eq .Values.dagProcessor.logGroomerSidecar.retentionMinutes nil "") }}
+          {{- if ne .Values.dagProcessor.logGroomerSidecar.retentionMinutes nil }}
             - name: AIRFLOW__LOG_RETENTION_MINUTES
               value: "{{ .Values.dagProcessor.logGroomerSidecar.retentionMinutes }}"
           {{- end }}
