@@ -102,6 +102,7 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     _patch_task_instance_state,
     _patch_ti_group_validate_request,
     _patch_ti_validate_request,
+    _reload_tis_with_rendered_fields,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
@@ -1012,20 +1013,7 @@ def patch_task_group_instances(
             if not all_tis:
                 all_tis = tis
 
-    # Eagerly load rendered_task_instance_fields for serialization (lazy='raise' prevents lazy access).
-    # set_task_group_state() returns TIs without this relationship loaded; re-query with joinedload.
-    # populate_existing=True ensures the joinedload updates TIs already in the identity map.
-    if all_tis:
-        all_tis = list(
-            session.scalars(
-                select(TI)
-                .options(joinedload(TI.rendered_task_instance_fields))
-                .where(TI.id.in_([ti.id for ti in all_tis]))
-                .execution_options(populate_existing=True)
-            )
-            .unique()
-            .all()
-        )
+    all_tis = _reload_tis_with_rendered_fields(all_tis, session)
 
     return TaskInstanceCollectionResponse(
         task_instances=[TaskInstanceResponse.model_validate(ti) for ti in all_tis],
@@ -1069,20 +1057,7 @@ def patch_task_group_instances_dry_run(
             or []
         )
 
-    # Eagerly load rendered_task_instance_fields for serialization (lazy='raise' prevents lazy access).
-    # set_task_group_state() returns TIs without this relationship loaded; re-query with joinedload.
-    # populate_existing=True ensures the joinedload updates TIs already in the identity map.
-    if tis:
-        tis = list(
-            session.scalars(
-                select(TI)
-                .options(joinedload(TI.rendered_task_instance_fields))
-                .where(TI.id.in_([ti.id for ti in tis]))
-                .execution_options(populate_existing=True)
-            )
-            .unique()
-            .all()
-        )
+    tis = _reload_tis_with_rendered_fields(tis, session)
 
     return TaskInstanceCollectionResponse(
         task_instances=[TaskInstanceResponse.model_validate(ti) for ti in tis],

@@ -6964,6 +6964,37 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
         assert call_kwargs["future"] is True
         assert call_kwargs["past"] is True
 
+    def test_patch_task_group_note_only(self, test_client, session):
+        """Test that patching only the note updates notes for all TIs in the group without changing state."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        group_task_ids = ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+        note_value = "group note"
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            params={"update_mask": "note"},
+            json={"note": note_value},
+        )
+        assert response.status_code == 200, response.text
+        response_data = response.json()
+        assert response_data["total_entries"] == 3
+        response_task_ids = sorted(ti["task_id"] for ti in response_data["task_instances"])
+        assert response_task_ids == group_task_ids
+        for ti in response_data["task_instances"]:
+            assert ti["note"] == note_value
+
+        tis_after = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+        ).all()
+        for ti in tis_after:
+            assert ti.state == State.RUNNING
+            _check_task_instance_note(session, ti.id, {"content": note_value, "user_id": "test"})
+
 
 class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
     DAG_ID = "example_task_group"

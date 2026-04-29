@@ -73,6 +73,46 @@ def _validate_patch_task_instance_body(
     return body.model_dump(include=fields_to_update, by_alias=True)
 
 
+def _emit_state_listener_hooks(updated_tis: list[TI], new_state: str | TaskInstanceState) -> None:
+    """Fire listener hooks for the given TIs based on their new state. Listener errors are logged."""
+    for ti in updated_tis:
+        try:
+            if new_state == TaskInstanceState.SUCCESS:
+                get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
+            elif new_state == TaskInstanceState.FAILED:
+                get_listener_manager().hook.on_task_instance_failed(
+                    previous_state=None,
+                    task_instance=ti,
+                    error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
+                )
+            elif new_state == TaskInstanceState.SKIPPED:
+                get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
+        except Exception:
+            log.exception("error calling listener")
+
+
+def _reload_tis_with_rendered_fields(tis: list[TI], session: Session) -> list[TI]:
+    """
+    Re-load TIs with ``rendered_task_instance_fields`` eagerly loaded.
+
+    ``set_task_instance_state`` / ``set_task_group_state`` return TIs without this relationship
+    loaded; we re-query so they can be serialized without lazy loads.
+    ``populate_existing=True`` ensures the joinedload updates TIs already in the identity map.
+    """
+    if not tis:
+        return tis
+    return list(
+        session.scalars(
+            select(TI)
+            .options(joinedload(TI.rendered_task_instance_fields))
+            .where(TI.id.in_([ti.id for ti in tis]))
+            .execution_options(populate_existing=True)
+        )
+        .unique()
+        .all()
+    )
+
+
 def _patch_ti_validate_request(
     dag_id: str,
     dag_run_id: str,
@@ -136,6 +176,11 @@ def _get_task_group_task_instances(
     )
 
     group_tis = list(session.scalars(query).all())
+    if not group_tis:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"No task instances found for task group '{task_group_id}' in dag run '{dag_run_id}'",
+        )
 
     return group_tis
 
@@ -186,20 +231,7 @@ def _patch_task_instance_state(
             f"Task id {task_id} is already in {data['new_state']} state",
         )
 
-    for ti in updated_tis:
-        try:
-            if data["new_state"] == TaskInstanceState.SUCCESS:
-                get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
-            elif data["new_state"] == TaskInstanceState.FAILED:
-                get_listener_manager().hook.on_task_instance_failed(
-                    previous_state=None,
-                    task_instance=ti,
-                    error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
-                )
-            elif data["new_state"] == TaskInstanceState.SKIPPED:
-                get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
-        except Exception:
-            log.exception("error calling listener")
+    _emit_state_listener_hooks(updated_tis, data["new_state"])
 
     return updated_tis
 
@@ -231,20 +263,7 @@ def _patch_task_group_state(
             f"All task instances in the group are already in {data['new_state']} state",
         )
 
-    for ti in updated_tis:
-        try:
-            if data["new_state"] == TaskInstanceState.SUCCESS:
-                get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
-            elif data["new_state"] == TaskInstanceState.FAILED:
-                get_listener_manager().hook.on_task_instance_failed(
-                    previous_state=None,
-                    task_instance=ti,
-                    error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
-                )
-            elif data["new_state"] == TaskInstanceState.SKIPPED:
-                get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
-        except Exception:
-            log.exception("error calling listener")
+    _emit_state_listener_hooks(updated_tis, data["new_state"])
 
     return updated_tis
 
