@@ -213,7 +213,7 @@ export const Logs = () => {
   };
 
   return (
-    <Box display="flex" flexDirection="column" h="100%" p={2}>
+    <Box display="flex" flexDirection="column" h="100%" minH={0} p={4}>
       <TaskLogHeader {...logHeaderProps} />
       {showExternalLogRedirect && externalLogName && taskInstance ? (
         tryNumber === undefined ? (

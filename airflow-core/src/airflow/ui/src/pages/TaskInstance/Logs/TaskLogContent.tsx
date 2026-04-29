@@ -152,13 +152,13 @@ export const TaskLogContent = ({
   useHotkeys("mod+ArrowUp", () => handleScrollTo("top"), { enabled: !isLoading });
 
   return (
-    <Box display="flex" flexDirection="column" flexGrow={1} h="100%" minHeight={0} position="relative">
+    <Box display="flex" flex="1" flexDirection="column" minH={0} position="relative">
       <ErrorAlert error={error ?? logError} />
       <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
       <Box
         data-testid="virtual-scroll-container"
-        flexGrow={1}
-        minHeight={0}
+        flex="1"
+        minH={0}
         overflow="auto"
         position="relative"
         py={3}
