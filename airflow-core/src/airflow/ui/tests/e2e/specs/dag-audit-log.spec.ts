@@ -19,7 +19,7 @@
 import { expect } from "tests/e2e/fixtures";
 import { test } from "tests/e2e/fixtures/audit-log-data";
 
-test.describe("DAG Audit Log", () => {
+test.describe("Dag Audit Log", () => {
   test.setTimeout(60_000);
 
   test("verify audit log table displays", async ({ auditLogData, eventsPage }) => {

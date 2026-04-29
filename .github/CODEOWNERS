@@ -3,10 +3,10 @@
 /airflow-core/src/airflow/jobs/ @ashb @XD-DENG
 /airflow-core/src/airflow/models/ @XD-DENG @ashb
 
-# DAG Serialization
+# Dag Serialization
 /airflow-core/src/airflow/serialization/ @ashb @bolkedebruin
 
-# DAG Parsing
+# Dag Parsing
 /airflow-core/src/airflow/dag_processing @jedcunningham @ephraimbuddy
 
 # Helm Chart

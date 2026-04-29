@@ -55,7 +55,7 @@ export class DagsPage extends BasePage {
     this.confirmButton = page.getByRole("dialog").getByRole("button", { name: "Trigger" });
 
     this.searchBox = page.getByRole("textbox", { name: /search/i });
-    this.searchInput = page.getByPlaceholder("Search DAGs");
+    this.searchInput = page.getByPlaceholder("Search Dags");
     this.operatorFilter = page.getByTestId("operator-filter");
     this.triggerRuleFilter = page.getByTestId("trigger-rule-filter");
     this.retriesFilter = page.getByTestId("retries-filter");
@@ -108,7 +108,7 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Filter DAGs by status
+   * Filter Dags by status
    */
   public async filterByStatus(
     status: "failed" | "needs_review" | "queued" | "running" | "success",
@@ -196,7 +196,7 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Get count of DAGs on current page
+   * Get count of Dags on current page
    */
   public async getDagsCount(): Promise<number> {
     await this.waitForDagList();
@@ -379,7 +379,7 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Wait for DAG list to be rendered (card view, table view, or empty state).
+   * Wait for Dag list to be rendered (card view, table view, or empty state).
    */
   public async waitForDagList(): Promise<void> {
     // Wait for actual rendered content — not skeletons, not bare table rows.

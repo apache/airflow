@@ -31,6 +31,7 @@ import RenderedJsonField from "src/components/RenderedJsonField";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
 
 import { DependencyPopover } from "./DependencyPopover";
@@ -118,6 +119,7 @@ export const AssetsList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const namePattern = searchParams.get(NAME_PATTERN) ?? "";
+  const advancedSearch = useAdvancedSearch("assets");
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -128,7 +130,7 @@ export const AssetsList = () => {
 
   const { data, error, isLoading } = useAssetServiceGetAssets({
     limit: pagination.pageSize,
-    namePrefixPattern: namePattern,
+    ...(advancedSearch.enabled ? { namePattern } : { namePrefixPattern: namePattern }),
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
   });
@@ -153,6 +155,7 @@ export const AssetsList = () => {
     <>
       <VStack alignItems="none">
         <SearchBar
+          advancedSearch={advancedSearch}
           defaultValue={namePattern}
           onChange={handleSearchChange}
           placeholder={translate("searchPlaceholder")}
