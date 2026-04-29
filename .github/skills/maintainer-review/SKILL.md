@@ -213,20 +213,29 @@ GitHub-web-only auto-linking and is not clickable in a
 terminal). Do not compress to `gh pr view 65981` (that's a
 shell command, not a link). Always emit the full HTTPS URL.
 
-**Golden rule 11 — auto-open each PR in the browser, by
-default.** When the maintainer says `[Y]es` at a PR's
+**Golden rule 11 — ask before opening the browser, and open
+the files tab.** When the maintainer says `[Y]es` at a PR's
 headline (Step 1 of [`review-flow.md`](review-flow.md)), the
-skill runs `gh pr view <N> --repo <repo> --web` to open the
-PR's GitHub page in the maintainer's default browser. This
-runs **in parallel** with the Step 2 fetch — by the time the
-diff and metadata land in the conversation, the maintainer
-already has the PR's web view in another window for visual
-context (CI breadcrumbs, conversation thread, file tree
-sidebar) that the terminal can't show. Disable per-session
-with the `no-browser` selector. The skill never opens drafts,
-already-merged PRs, or self-authored PRs in the browser
-(those are skipped before they reach the headline-confirm
-gate anyway).
+skill **prompts** before launching anything:
+
+> *Open files view in browser? `[y]es / [N]o` (default no).*
+
+The headline already carries the file-count and
+additions / deletions (`Files: N changed +X −Y`), so the
+maintainer has the size of the change in hand when deciding
+— don't re-render it. On `[y]`, the skill opens the PR's
+**files tab** (`https://github.com/<owner>/<repo>/pull/<N>/files`)
+via `xdg-open` / `open` / `start`, in the background. On any
+other reply, no browser action — the diff fetch (Step 2)
+proceeds either way.
+
+`gh pr view --web` is not used here: it always opens the
+conversation tab, but the files tab is the one that pairs
+naturally with the terminal-side line-comment workflow.
+
+The skill never opens drafts, already-merged PRs, or
+self-authored PRs (those are skipped before they reach the
+headline-confirm gate anyway).
 
 ---
 
@@ -275,7 +284,6 @@ query and chip semantics.
 | `dry-run` | examine and draft but refuse to actually post any review |
 | `no-adversarial` | skip the optional adversarial-reviewer step for this session |
 | `inline:off` (alias `body-only`) | suppress the inline-comments picker for this session and post body-only reviews |
-| `no-browser` | suppress the auto-open-in-browser action when entering a PR (default is to open) |
 | `lookahead:<N>` | size of the background-analysis lookahead window (default `3`); see [`review-flow.md#background-analysis-subagents`](review-flow.md#background-analysis-subagents) |
 | `no-prefetch` | disable background analysis subagents for this session — useful for tiny queues (`max:1`–`max:2`) where the wall-clock benefit is nil |
 
@@ -312,7 +320,6 @@ examples a maintainer can paste:
 | The team queue (PRs where `apache/airflow-providers-amazon` is requested) | `/maintainer-review team:airflow-providers-amazon` |
 | The wider curated queue triage already promoted | `/maintainer-review ready` |
 | Stay body-only this session (no inline picker) | `/maintainer-review inline:off` |
-| Don't auto-open the PR in the browser when I `[Y]es` it | `/maintainer-review no-browser` |
 | Dry-run the queue — draft everything, post nothing | `/maintainer-review dry-run` |
 | Same, against a different repo | `/maintainer-review dry-run repo:apache/airflow-site` |
 | Pair with an adversarial reviewer for a second read on each PR | `/maintainer-review with-reviewer:/codex-plugin:adversarial-review` |
@@ -510,7 +517,6 @@ writes a session log to disk.
 | `dry-run` | draft but never post |
 | `no-adversarial` | skip the optional second-reviewer step |
 | `inline:off` (alias `body-only`) | suppress the inline-comments picker; post body-only reviews this session |
-| `no-browser` | don't auto-open each PR in the browser at `[Y]es` |
 | `lookahead:<N>` | size of the background-analysis lookahead window (default `3`) |
 | `no-prefetch` | disable background analysis subagents for this session |
 

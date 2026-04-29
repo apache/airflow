@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from time import sleep
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from botocore.exceptions import ClientError
 
@@ -1025,3 +1025,106 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
             )
 
         return job_arn
+
+
+class BedrockCreateGuardrailOperator(AwsBaseOperator[BedrockHook]):
+    """
+    Create an Amazon Bedrock guardrail to implement safeguards for generative AI applications.
+
+    A guardrail can filter harmful content, block denied topics, filter words,
+    and mask sensitive information. The guardrail is created with a DRAFT version
+    that is immediately usable.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockCreateGuardrailOperator`
+
+    :param guardrail_name: The name of the guardrail (1-50 chars).
+    :param blocked_input_messaging: Message returned when the guardrail blocks an input prompt.
+    :param blocked_outputs_messaging: Message returned when the guardrail blocks a model response.
+    :param description: A description of the guardrail.
+    :param topic_policy_config: Topic policy configuration dict.
+    :param content_policy_config: Content filter policy configuration dict.
+    :param word_policy_config: Word filter policy configuration dict.
+    :param sensitive_information_policy_config: Sensitive information policy configuration dict.
+    :param contextual_grounding_policy_config: Contextual grounding policy configuration dict.
+    :param kms_key_id: ARN of the KMS key to encrypt the guardrail.
+    :param tags: Tags to attach to the guardrail.
+    :param if_exists: Behavior when a guardrail with the same name already exists.
+        ``"fail"`` raises an error, ``"skip"`` returns the existing guardrail ID.
+    """
+
+    aws_hook_class = BedrockHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "guardrail_name",
+        "blocked_input_messaging",
+        "blocked_outputs_messaging",
+        "description",
+    )
+    template_fields_renderers = {
+        "topic_policy_config": "json",
+        "content_policy_config": "json",
+        "word_policy_config": "json",
+        "sensitive_information_policy_config": "json",
+    }
+
+    def __init__(
+        self,
+        *,
+        guardrail_name: str,
+        blocked_input_messaging: str,
+        blocked_outputs_messaging: str,
+        description: str | None = None,
+        topic_policy_config: dict[str, Any] | None = None,
+        content_policy_config: dict[str, Any] | None = None,
+        word_policy_config: dict[str, Any] | None = None,
+        sensitive_information_policy_config: dict[str, Any] | None = None,
+        contextual_grounding_policy_config: dict[str, Any] | None = None,
+        kms_key_id: str | None = None,
+        tags: list[dict[str, str]] | None = None,
+        if_exists: Literal["fail", "skip"] = "skip",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.guardrail_name = guardrail_name
+        self.blocked_input_messaging = blocked_input_messaging
+        self.blocked_outputs_messaging = blocked_outputs_messaging
+        self.description = description
+        self.topic_policy_config = topic_policy_config
+        self.content_policy_config = content_policy_config
+        self.word_policy_config = word_policy_config
+        self.sensitive_information_policy_config = sensitive_information_policy_config
+        self.contextual_grounding_policy_config = contextual_grounding_policy_config
+        self.kms_key_id = kms_key_id
+        self.tags = tags
+        self.if_exists = if_exists
+
+    def execute(self, context: Context) -> str:
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "name": self.guardrail_name,
+                "blockedInputMessaging": self.blocked_input_messaging,
+                "blockedOutputsMessaging": self.blocked_outputs_messaging,
+                "description": self.description,
+                "topicPolicyConfig": self.topic_policy_config,
+                "contentPolicyConfig": self.content_policy_config,
+                "wordPolicyConfig": self.word_policy_config,
+                "sensitiveInformationPolicyConfig": self.sensitive_information_policy_config,
+                "contextualGroundingPolicyConfig": self.contextual_grounding_policy_config,
+                "kmsKeyId": self.kms_key_id,
+                "tags": self.tags,
+            }
+        )
+        try:
+            response = self.hook.conn.create_guardrail(**kwargs)
+            guardrail_id = response["guardrailId"]
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "ConflictException" and self.if_exists == "skip":
+                self.log.info("Guardrail %s already exists, skipping.", self.guardrail_name)
+                guardrail_id = self.hook.get_guardrail_id_by_name(self.guardrail_name)
+                if guardrail_id is None:
+                    raise
+            else:
+                raise
+        self.log.info("Guardrail %s: %s", self.guardrail_name, guardrail_id)
+        return guardrail_id

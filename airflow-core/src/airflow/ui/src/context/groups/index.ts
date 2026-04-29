@@ -17,6 +17,6 @@
  * under the License.
  */
 
-export * from "./OpenGroupsProvider";
-export * from "./useOpenGroups";
+export * from "./GroupsProvider";
+export * from "./useGroups";
 export * from "./Context";

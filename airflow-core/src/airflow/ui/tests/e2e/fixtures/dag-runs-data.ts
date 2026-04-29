@@ -18,7 +18,7 @@
  */
 
 /**
- * DAG Runs page data fixture — creates runs across two DAGs for filtering tests.
+ * Dag  Runs page data fixture — creates runs across two Dags for filtering tests.
  */
 import { testConfig } from "playwright.config";
 import { test as base } from "tests/e2e/fixtures";

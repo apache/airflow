@@ -91,3 +91,38 @@ class S3VectorsCreateVectorBucketOperator(AwsBaseOperator[AwsBaseHook]):
                 raise
         self.log.info("Vector bucket %s: %s", self.vector_bucket_name, vector_bucket_arn)
         return vector_bucket_arn
+
+
+class S3VectorsDeleteVectorBucketOperator(AwsBaseOperator[AwsBaseHook]):
+    """
+    Delete an Amazon S3 Vectors vector bucket.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3VectorsDeleteVectorBucketOperator`
+
+    :param vector_bucket_name: The name of the vector bucket to delete.
+    """
+
+    aws_hook_class = AwsBaseHook
+    template_fields: tuple[str, ...] = (
+        *AwsBaseOperator.template_fields,
+        "vector_bucket_name",
+    )
+
+    def __init__(
+        self,
+        *,
+        vector_bucket_name: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.vector_bucket_name = vector_bucket_name
+
+    @property
+    def _hook_parameters(self) -> dict[str, Any]:
+        return {**super()._hook_parameters, "client_type": "s3vectors"}
+
+    def execute(self, context: Context) -> None:
+        self.hook.conn.delete_vector_bucket(vectorBucketName=self.vector_bucket_name)
+        self.log.info("Deleted vector bucket %s", self.vector_bucket_name)

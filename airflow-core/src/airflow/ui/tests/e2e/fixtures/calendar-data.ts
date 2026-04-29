@@ -18,7 +18,7 @@
  */
 
 /**
- * Calendar data fixture — creates success + failed DAG runs for calendar tests.
+ * Calendar data fixture — creates success + failed Dag runs for calendar tests.
  */
 import dayjs from "dayjs";
 import { testConfig } from "playwright.config";

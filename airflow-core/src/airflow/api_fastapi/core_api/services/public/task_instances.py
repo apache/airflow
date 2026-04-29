@@ -21,7 +21,7 @@ from collections.abc import Sequence
 from typing import Literal
 
 import structlog
-from fastapi import HTTPException, Query, status
+from fastapi import HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select, tuple_
@@ -56,6 +56,63 @@ from airflow.utils.state import TaskInstanceState
 log = structlog.get_logger(__name__)
 
 
+def _validate_patch_task_instance_body(
+    body: PatchTaskInstanceBody,
+    update_mask: list[str] | None,
+) -> dict:
+    """Validate the patch body and return the fields to update as a dict."""
+    fields_to_update = body.model_fields_set
+    if update_mask:
+        fields_to_update = fields_to_update.intersection(update_mask)
+    else:
+        try:
+            PatchTaskInstanceBody.model_validate(body)
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+
+    return body.model_dump(include=fields_to_update, by_alias=True)
+
+
+def _emit_state_listener_hooks(updated_tis: list[TI], new_state: str | TaskInstanceState) -> None:
+    """Fire listener hooks for the given TIs based on their new state. Listener errors are logged."""
+    for ti in updated_tis:
+        try:
+            if new_state == TaskInstanceState.SUCCESS:
+                get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
+            elif new_state == TaskInstanceState.FAILED:
+                get_listener_manager().hook.on_task_instance_failed(
+                    previous_state=None,
+                    task_instance=ti,
+                    error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
+                )
+            elif new_state == TaskInstanceState.SKIPPED:
+                get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
+        except Exception:
+            log.exception("error calling listener")
+
+
+def _reload_tis_with_rendered_fields(tis: list[TI], session: Session) -> list[TI]:
+    """
+    Re-load TIs with ``rendered_task_instance_fields`` eagerly loaded.
+
+    ``set_task_instance_state`` / ``set_task_group_state`` return TIs without this relationship
+    loaded; we re-query so they can be serialized without lazy loads.
+    ``populate_existing=True`` ensures the joinedload updates TIs already in the identity map.
+    """
+    if not tis:
+        return tis
+    return list(
+        session.scalars(
+            select(TI)
+            .options(joinedload(TI.rendered_task_instance_fields))
+            .where(TI.id.in_([ti.id for ti in tis]))
+            .execution_options(populate_existing=True)
+        )
+        .unique()
+        .all()
+    )
+
+
 def _patch_ti_validate_request(
     dag_id: str,
     dag_run_id: str,
@@ -64,7 +121,7 @@ def _patch_ti_validate_request(
     body: PatchTaskInstanceBody,
     session: SessionDep,
     map_index: int | None = -1,
-    update_mask: list[str] | None = Query(None),
+    update_mask: list[str] | None = None,
 ) -> tuple[SerializedDAG, list[TI], dict]:
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     if not dag.has_task(task_id):
@@ -73,7 +130,6 @@ def _patch_ti_validate_request(
     query = (
         select(TI)
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
-        .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
     )
     if map_index is not None:
@@ -89,16 +145,61 @@ def _patch_ti_validate_request(
     if len(tis) == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
 
-    fields_to_update = body.model_fields_set
-    if update_mask:
-        fields_to_update = fields_to_update.intersection(update_mask)
-    else:
-        try:
-            PatchTaskInstanceBody.model_validate(body)
-        except ValidationError as e:
-            raise RequestValidationError(errors=e.errors())
+    data = _validate_patch_task_instance_body(body, update_mask)
+    return dag, list(tis), data
 
-    return dag, list(tis), body.model_dump(include=fields_to_update, by_alias=True)
+
+def _get_task_group_task_instances(
+    dag_id: str,
+    dag_run_id: str,
+    task_group_id: str,
+    dag: SerializedDAG,
+    session: Session,
+) -> list[TI]:
+    """Get all task instances in a task group for a specific DAG run."""
+    task_group = dag.task_group_dict.get(task_group_id)
+    if not task_group:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"Task group '{task_group_id}' not found in DAG '{dag_id}'"
+        )
+
+    task_ids = [task.task_id for task in task_group.iter_tasks()]
+
+    query = (
+        select(TI)
+        .where(
+            TI.dag_id == dag_id,
+            TI.run_id == dag_run_id,
+            TI.task_id.in_(task_ids),
+        )
+        .order_by(TI.task_id, TI.map_index)
+    )
+
+    group_tis = list(session.scalars(query).all())
+    if not group_tis:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"No task instances found for task group '{task_group_id}' in dag run '{dag_run_id}'",
+        )
+
+    return group_tis
+
+
+def _patch_ti_group_validate_request(
+    dag_id: str,
+    dag_run_id: str,
+    task_group_id: str,
+    dag_bag: DagBagDep,
+    body: PatchTaskInstanceBody,
+    session: SessionDep,
+    update_mask: list[str] | None = None,
+) -> tuple[SerializedDAG, list[TI], dict]:
+    """Validate and prepare data for task group patch request."""
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+    tis = _get_task_group_task_instances(dag_id, dag_run_id, task_group_id, dag, session)
+
+    data = _validate_patch_task_instance_body(body, update_mask)
+    return dag, tis, data
 
 
 def _patch_task_instance_state(
@@ -108,7 +209,7 @@ def _patch_task_instance_state(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
     data: dict,
     session: Session,
-) -> None:
+) -> list[TI]:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
 
@@ -130,27 +231,48 @@ def _patch_task_instance_state(
             f"Task id {task_id} is already in {data['new_state']} state",
         )
 
-    for ti in updated_tis:
-        try:
-            if data["new_state"] == TaskInstanceState.SUCCESS:
-                get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
-            elif data["new_state"] == TaskInstanceState.FAILED:
-                get_listener_manager().hook.on_task_instance_failed(
-                    previous_state=None,
-                    task_instance=ti,
-                    error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
-                )
-            elif data["new_state"] == TaskInstanceState.SKIPPED:
-                get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
-        except Exception:
-            log.exception("error calling listener")
+    _emit_state_listener_hooks(updated_tis, data["new_state"])
+
+    return updated_tis
+
+
+def _patch_task_group_state(
+    group_id: str,
+    dag_run_id: str,
+    dag: SerializedDAG,
+    body: PatchTaskInstanceBody,
+    data: dict,
+    *,
+    session: Session,
+) -> list[TI]:
+    """Update the state of all task instances in a task group."""
+    updated_tis = dag.set_task_group_state(
+        group_id=group_id,
+        run_id=dag_run_id,
+        state=data["new_state"],
+        upstream=body.include_upstream,
+        downstream=body.include_downstream,
+        future=body.include_future,
+        past=body.include_past,
+        commit=True,
+        session=session,
+    )
+    if not updated_tis:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"All task instances in the group are already in {data['new_state']} state",
+        )
+
+    _emit_state_listener_hooks(updated_tis, data["new_state"])
+
+    return updated_tis
 
 
 def _patch_task_instance_note(
     task_instance_body: BulkTaskInstanceBody | ClearTaskInstancesBody | PatchTaskInstanceBody,
     tis: list[TI],
     user: GetUserDep,
-    update_mask: list[str] | None = Query(None),
+    update_mask: list[str] | None = None,
 ) -> None:
     for ti in tis:
         if update_mask or task_instance_body.note is not None:
@@ -294,7 +416,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         task_id: str,
         map_index: int,
         results: BulkActionResponse,
-        update_mask: list[str] | None = Query(None),
+        update_mask: list[str] | None = None,
     ) -> None:
         dag, tis, data = _patch_ti_validate_request(
             dag_id=dag_id,

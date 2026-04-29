@@ -52,7 +52,7 @@ export const MetricSection = ({
 
   const stateParam = kind === "task_instances" ? SearchParamsKeys.TASK_STATE : SearchParamsKeys.STATE;
   const searchParams = new URLSearchParams(
-    `?${stateParam}=${state}&${SearchParamsKeys.START_DATE}=${startDate}`,
+    `?${stateParam}=${state}&${SearchParamsKeys.START_DATE_GTE}=${startDate}`,
   );
   const { t: translate } = useTranslation();
 

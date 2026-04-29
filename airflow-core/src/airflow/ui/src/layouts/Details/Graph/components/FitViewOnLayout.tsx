@@ -16,16 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useContext } from "react";
+import { useReactFlow } from "@xyflow/react";
+import { useEffect } from "react";
 
-import { OpenGroupsContext, type OpenGroupsContextType } from "./Context";
+// Fits the viewport whenever a new layout is committed. Must live inside
+// <ReactFlow> to call useReactFlow(). Using layoutData as the dep means it
+// only fires when ELK produces a new layout, not on task-instance updates or
+// selection changes (unlike the `fitView` prop, which runs on every re-mount).
+export const FitViewOnLayout = ({ layoutData }: { readonly layoutData: object | undefined }) => {
+  const { fitView } = useReactFlow();
 
-export const useOpenGroups = (): OpenGroupsContextType => {
-  const context = useContext(OpenGroupsContext);
+  useEffect(() => {
+    if (layoutData !== undefined) {
+      void fitView({ padding: 0.1 });
+    }
+  }, [fitView, layoutData]);
 
-  if (context === undefined) {
-    throw new Error("useOpenGroup must be used within a OpenGroupsProvider");
-  }
-
-  return context;
+  return null;
 };

@@ -251,7 +251,7 @@ def get_provider_info():
                 "integration-name": "Amazon S3 Tables",
                 "external-doc-url": "https://aws.amazon.com/s3/features/tables/",
                 "logo": "/docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png",
-                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/s3tables/s3tables.rst"],
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/s3_tables.rst"],
                 "tags": ["aws"],
             },
             {
@@ -460,7 +460,7 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon S3 Tables",
-                "python-modules": ["airflow.providers.amazon.aws.operators.s3tables"],
+                "python-modules": ["airflow.providers.amazon.aws.operators.s3_tables"],
             },
             {
                 "integration-name": "Amazon SageMaker",
