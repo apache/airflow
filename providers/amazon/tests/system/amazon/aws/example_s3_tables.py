@@ -34,7 +34,7 @@ else:
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-DAG_ID = "example_s3tables"
+DAG_ID = "example_s3_tables"
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
