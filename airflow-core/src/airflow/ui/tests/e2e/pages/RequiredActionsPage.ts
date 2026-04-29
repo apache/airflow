@@ -233,7 +233,7 @@ export class RequiredActionsPage extends BasePage {
     const dagRunId = await dagsPage.triggerDag(dagId);
 
     if (dagRunId === null) {
-      throw new Error("Failed to trigger DAG - dagRunId is null");
+      throw new Error("Failed to trigger Dag - dagRunId is null");
     }
 
     await this.waitForDagRunState(dagId, dagRunId, "Running");
@@ -328,7 +328,7 @@ export class RequiredActionsPage extends BasePage {
         },
         {
           intervals: [5000],
-          message: `DAG run ${runId} did not reach state "${expectedState}"`,
+          message: `Dag run ${runId} did not reach state "${expectedState}"`,
           timeout: 120_000,
         },
       )
