@@ -24,7 +24,7 @@ from airflow.sdk.exceptions import AirflowTimetableInvalid
 SAMPLE_TZ = "UTC"
 
 
-@pytest.mark.parametrize("preset,expected", CRON_PRESETS.items())
+@pytest.mark.parametrize(("preset", "expected"), CRON_PRESETS.items())
 def test_cron_preset_resolved(preset, expected):
     cm = CronMixin(expression=preset, timezone=SAMPLE_TZ)
     assert cm.expression == expected
