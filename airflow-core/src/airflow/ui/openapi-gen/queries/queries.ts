@@ -2284,6 +2284,19 @@ export const useDagParsingServiceReparseDagFile = <TData = Common.DagParsingServ
   fileToken: string;
 }, TContext>({ mutationFn: ({ fileToken }) => DagParsingService.reparseDagFile({ fileToken }) as unknown as Promise<TData>, ...options });
 /**
+* Reparse Dag
+* Request re-parsing of the file that contains the given DAG.
+* @param data The data for the request.
+* @param data.dagId
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useDagParsingServiceReparseDag = <TData = Common.DagParsingServiceReparseDagMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+}, TContext>({ mutationFn: ({ dagId }) => DagParsingService.reparseDag({ dagId }) as unknown as Promise<TData>, ...options });
+/**
 * Patch Connection
 * Update a connection entry.
 * @param data The data for the request.
