@@ -219,7 +219,7 @@ tmp_path_retention_count = "2"
 tmp_path_retention_policy = "failed"
 
 [tool.uv]
-required-version = ">=0.6.3"
+required-version = ">=0.11.8"
 
 [tool.uv.sources]
 apache-airflow-devel-common = { workspace = true }

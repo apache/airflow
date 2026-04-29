@@ -176,18 +176,6 @@ jobs:
             "${S3_BUCKET}api/providers.json" \
             dev/registry/providers.json || true
 
-      - name: "Extract version metadata from git tags"
-        env:
-          VERSIONS: ${{ matrix.versions }}
-          PROVIDER: ${{ matrix.provider }}
-        run: |
-          VERSION_ARGS=""
-          for VERSION in ${VERSIONS}; do
-            VERSION_ARGS="${VERSION_ARGS} --version ${VERSION}"
-          done
-          uv run --project dev/registry python dev/registry/extract_versions.py \
-            --provider "${PROVIDER}" ${VERSION_ARGS} || true
-
       - name: "Run breeze registry backfill"
         env:
           VERSIONS: ${{ matrix.versions }}
@@ -210,6 +198,23 @@ jobs:
           aws s3 cp \
             "${S3_BUCKET}api/modules.json" \
             registry/src/_data/modules.json
+
+      - name: "Patch providers.json with backfill version(s)"
+        env:
+          VERSIONS: ${{ matrix.versions }}
+          PROVIDER: ${{ matrix.provider }}
+        run: |
+          # The S3-cached providers.json predates the backfilled version, so
+          # provider.versions[] doesn't list it. providerVersions.js then
+          # filters the on-disk metadata.json out and Eleventy emits no page.
+          # Patch the version into the array so the build picks it up.
+          VERSION_ARGS=""
+          for VERSION in ${VERSIONS}; do
+            VERSION_ARGS="${VERSION_ARGS} --version ${VERSION}"
+          done
+          uv run --project dev/registry python dev/registry/patch_providers_json.py \
+            --providers-json registry/src/_data/providers.json \
+            --provider "${PROVIDER}" ${VERSION_ARGS}
 
       - name: "Setup pnpm"
         uses: pnpm/action-setup@903f9c1a6ebcba6cf41d87230be49611ac97822e  # v6.0.3
@@ -240,14 +245,35 @@ jobs:
           VERSIONS: ${{ matrix.versions }}
           PROVIDER: ${{ matrix.provider }}
         run: |
+          # Guard against silent no-op syncs. `aws s3 sync` exits 0 when the
+          # source dir is missing, so without this guard a build that didn't
+          # emit pages (e.g. providers.json filter dropped the version) would
+          # report green while uploading nothing.
           for VERSION in ${VERSIONS}; do
+            LOCAL_PAGE="registry/_site/providers/${PROVIDER}/${VERSION}/index.html"
+            LOCAL_API_DIR="registry/_site/api/providers/${PROVIDER}/${VERSION}/"
+            LOCAL_PARAMS="${LOCAL_API_DIR}parameters.json"
+
+            if [ ! -f "${LOCAL_PAGE}" ]; then
+              echo "::error::Build did not emit ${LOCAL_PAGE} -- aborting sync."
+              exit 1
+            fi
+            if [ ! -d "${LOCAL_API_DIR}" ]; then
+              echo "::error::Missing API directory ${LOCAL_API_DIR} -- aborting sync."
+              exit 1
+            fi
+            if [ ! -s "${LOCAL_PARAMS}" ]; then
+              echo "::error::${LOCAL_PARAMS} is empty or missing -- aborting sync."
+              exit 1
+            fi
+
             echo "Syncing ${PROVIDER}/${VERSION}..."
             aws s3 sync \
               "registry/_site/providers/${PROVIDER}/${VERSION}/" \
               "${S3_BUCKET}providers/${PROVIDER}/${VERSION}/" \
               --cache-control "${CACHE_CONTROL}"
             aws s3 sync \
-              "registry/_site/api/providers/${PROVIDER}/${VERSION}/" \
+              "${LOCAL_API_DIR}" \
               "${S3_BUCKET}api/providers/${PROVIDER}/${VERSION}/" \
               --cache-control "${CACHE_CONTROL}"
           done
@@ -283,6 +309,21 @@ jobs:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
+
+      - name: "Download providers.json from S3"
+        env:
+          S3_BUCKET: ${{ needs.prepare.outputs.bucket }}
+        run: |
+          # `breeze registry publish-versions` calls publish_registry_versions.py,
+          # which reads providers.json (lines 119-127) to know which provider
+          # IDs to iterate. The job runs in a fresh checkout where providers.json
+          # is gitignored, so without this step the publish raises FileNotFoundError.
+          # Download to dev/registry/ -- the function's inline path fallback
+          # resolves the file from there.
+          mkdir -p dev/registry
+          aws s3 cp \
+            "${S3_BUCKET}api/providers.json" \
+            dev/registry/providers.json
 
       - name: "Publish version metadata"
         env:

@@ -308,6 +308,222 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle2.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
 
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_second_initialize_skips_clone_when_local_repo_has_version(self, mock_githook, git_repo):
+        """When the local repo already has the correct version checked out (with .git intact), skip re-cloning."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        version = repo.head.commit.hexsha
+        bundle_name = "test_version_reuse"
+
+        # Clone with prune_dotgit_folder=False so .git is preserved
+        bundle1 = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version=version,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+        )
+        bundle1.initialize()
+        assert (bundle1.repo_path / ".git").exists()
+        assert bundle1.get_current_version() == version
+
+        # Should detect local repo has correct version and skip clone
+        with (
+            patch.object(GitDagBundle, "_clone_bare_repo_if_required") as mock_bare_clone,
+            patch.object(GitDagBundle, "_clone_repo_if_required") as mock_clone,
+        ):
+            bundle2 = GitDagBundle(
+                name=bundle_name,
+                git_conn_id=CONN_HTTPS,
+                version=version,
+                tracking_ref=GIT_DEFAULT_BRANCH,
+                prune_dotgit_folder=False,
+            )
+            bundle2.initialize()
+            mock_bare_clone.assert_not_called()
+            mock_clone.assert_not_called()
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_initialize_with_different_versions_creates_separate_repos(self, mock_githook, git_repo):
+        """Initializing the same bundle with different versions creates separate repos, each at the requested version."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        first_commit = repo.head.commit.hexsha
+
+        # Add a second commit
+        file_path = repo_path / "new_file.py"
+        with open(file_path, "w") as f:
+            f.write("new content")
+        repo.index.add([file_path])
+        repo.index.commit("Second commit")
+        second_commit = repo.head.commit.hexsha
+
+        bundle_name = "test_version_mismatch"
+
+        # First init: clone at second_commit
+        bundle1 = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version=second_commit,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+        )
+        bundle1.initialize()
+        assert bundle1.get_current_version() == second_commit
+
+        # Second init with first_commit: different version means different repo_path
+        bundle2 = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version=first_commit,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+        )
+        bundle2.initialize()
+        assert bundle2.get_current_version() == first_commit
+        assert bundle1.repo_path != bundle2.repo_path
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_local_repo_has_version_returns_false_when_head_mismatches(self, mock_githook, git_repo):
+        """When the local repo exists at the version path but HEAD doesn't match, _local_repo_has_version returns False."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        first_commit = repo.head.commit.hexsha
+
+        # Add a second commit
+        file_path = repo_path / "new_file.py"
+        with open(file_path, "w") as f:
+            f.write("new content")
+        repo.index.add([file_path])
+        repo.index.commit("Second commit")
+        second_commit = repo.head.commit.hexsha
+
+        bundle_name = "test_wrong_head"
+
+        # Clone at second_commit with .git preserved
+        bundle = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version=second_commit,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+        )
+        bundle.initialize()
+        assert bundle.get_current_version() == second_commit
+        assert bundle._local_repo_has_version() is True
+
+        # Mutate the cloned repo's HEAD to point at first_commit so HEAD != version
+        cloned_repo = Repo(bundle.repo_path)
+        cloned_repo.head.reset(first_commit, index=True, working_tree=True)
+        cloned_repo.close()
+
+        # Same bundle config but now HEAD doesn't match version — should return False
+        assert bundle._local_repo_has_version() is False
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_skip_path_resolves_hexsha_when_version_is_tag(self, mock_githook, git_repo):
+        """When the skip path is taken and version is a tag, get_current_version() returns the resolved hexsha."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        hexsha = repo.head.commit.hexsha
+        repo.create_tag("v1.0")
+
+        bundle_name = "test_tag_resolution"
+
+        bundle1 = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version="v1.0",
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+        )
+        bundle1.initialize()
+        assert bundle1.get_current_version() == hexsha
+
+        # Re-initialize: should take the skip path but still resolve to hexsha
+        bundle2 = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version="v1.0",
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+        )
+        with (
+            patch.object(GitDagBundle, "_clone_bare_repo_if_required") as mock_bare_clone,
+            patch.object(GitDagBundle, "_clone_repo_if_required") as mock_clone,
+        ):
+            bundle2.initialize()
+            mock_bare_clone.assert_not_called()
+            mock_clone.assert_not_called()
+        assert bundle2.get_current_version() == hexsha
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_skip_path_cleans_dirty_working_tree(self, mock_githook, git_repo):
+        """The fast-path discards working-tree mutations left by previous task runs."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        version = repo.head.commit.hexsha
+        bundle_name = "test_dirty_tree"
+
+        bundle1 = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version=version,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+        )
+        bundle1.initialize()
+
+        # Simulate a dirty tree: modify a tracked file and add an untracked file.
+        tracked = bundle1.repo_path / "test_dag.py"
+        tracked.write_text("mutated by a previous task")
+        untracked = bundle1.repo_path / "leftover.txt"
+        untracked.write_text("leftover")
+
+        bundle2 = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version=version,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+        )
+        bundle2.initialize()
+
+        # Tracked file is restored, untracked file is removed.
+        assert tracked.read_text() != "mutated by a previous task"
+        assert not untracked.exists()
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_skip_path_prunes_dotgit_when_config_flipped(self, mock_githook, git_repo):
+        """If prune_dotgit_folder is True but a prior run left .git intact, the fast-path prunes it."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        version = repo.head.commit.hexsha
+        bundle_name = "test_prune_flip"
+
+        # First init keeps .git
+        bundle1 = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version=version,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+        )
+        bundle1.initialize()
+        assert (bundle1.repo_path / ".git").exists()
+
+        # Second init flips config to prune; fast-path should honor it
+        bundle2 = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version=version,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=True,
+        )
+        bundle2.initialize()
+        assert not (bundle2.repo_path / ".git").exists()
+
     @pytest.mark.parametrize(
         "amend",
         [

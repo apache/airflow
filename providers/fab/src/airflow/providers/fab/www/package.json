@@ -54,7 +54,7 @@
     "moment-locales-webpack-plugin": "^1.2.0",
     "prettier": "^3.8.3",
     "stylelint": "^17.9.0",
-    "terser-webpack-plugin": "^5.4.0",
+    "terser-webpack-plugin": "^5.5.0",
     "url-loader": "4.1.1",
     "webpack": "^5.106.2",
     "webpack-cli": "^7.0.2",
@@ -77,7 +77,8 @@
       "brace-expansion@>=4.0.0 <5.0.5": ">=5.0.5",
       "serialize-javascript@<7.0.5": ">=7.0.5",
       "lodash@>=4.0.0 <=4.17.23": ">=4.18.0",
-      "lodash@<=4.17.23": ">=4.18.0"
+      "lodash@<=4.17.23": ">=4.18.0",
+      "postcss@<8.5.10": ">=8.5.10"
     }
   },
   "resolutions": {

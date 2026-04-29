@@ -826,7 +826,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (int .Values.workers.logGroomerSidecar.retentionDays) 15 }}
+{{- if ne .Values.workers.logGroomerSidecar.retentionDays nil }}
 
  DEPRECATION WARNING:
     `workers.logGroomerSidecar.retentionDays` has been renamed to `workers.celery.logGroomerSidecar.retentionDays`.
@@ -834,7 +834,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (int .Values.workers.logGroomerSidecar.retentionMinutes) 0 }}
+{{- if ne .Values.workers.logGroomerSidecar.retentionMinutes nil }}
 
  DEPRECATION WARNING:
     `workers.logGroomerSidecar.retentionMinutes` has been renamed to `workers.celery.logGroomerSidecar.retentionMinutes`.
@@ -842,7 +842,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (int .Values.workers.logGroomerSidecar.frequencyMinutes) 15 }}
+{{- if ne .Values.workers.logGroomerSidecar.frequencyMinutes nil }}
 
  DEPRECATION WARNING:
     `workers.logGroomerSidecar.frequencyMinutes` has been renamed to `workers.celery.logGroomerSidecar.frequencyMinutes`.
@@ -850,7 +850,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (int .Values.workers.logGroomerSidecar.maxSizeBytes) 0 }}
+{{- if ne .Values.workers.logGroomerSidecar.maxSizeBytes nil }}
 
  DEPRECATION WARNING:
     `workers.logGroomerSidecar.maxSizeBytes` has been renamed to `workers.celery.logGroomerSidecar.maxSizeBytes`.
@@ -858,7 +858,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (int .Values.workers.logGroomerSidecar.maxSizePercent) 0 }}
+{{- if ne .Values.workers.logGroomerSidecar.maxSizePercent nil }}
 
  DEPRECATION WARNING:
     `workers.logGroomerSidecar.maxSizePercent` has been renamed to `workers.celery.logGroomerSidecar.maxSizePercent`.
