@@ -871,7 +871,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if exc := event.pop("exception", None):
                 # TODO: convert the dict back to a pretty stack trace
                 event["error_detail"] = exc
-            if lvl_name := NAME_TO_LEVEL.get(event.pop("level")):
+            if lvl_name := NAME_TO_LEVEL.get(event.pop("level", "warning")):
                 log.log(lvl_name, event.pop("event", None), **event)
 
     @classmethod
