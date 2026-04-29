@@ -85,7 +85,7 @@ def test_emits_start_and_complete_pair(patched_emit):
     assert start_event.eventType == RunState.START
     assert end_event.eventType == RunState.COMPLETE
     assert start_event.run.runId == end_event.run.runId
-    assert start_event.job.name == "dag_id.task_id.query.1"
+    assert start_event.job.name == "dag_id.task_id.manual_query.1"
     assert start_event.run.facets["externalQuery"].externalQueryId == "qid-1"
     assert start_event.run.facets["externalQuery"].source == "snowflake://ACCT"
     # Parent is the task run; without explicit root info, root resolves to the DAG run.
@@ -150,8 +150,8 @@ def test_increments_job_name_across_calls(patched_emit):
     emit_query_lineage(query_id="a", query_source_namespace="snowflake://ACCT", task_instance=ti)
     emit_query_lineage(query_id="b", query_source_namespace="snowflake://ACCT", task_instance=ti)
     names = [call.args[0].job.name for call in patched_emit.call_args_list]
-    assert "dag_id.task_id.query.1" in names
-    assert "dag_id.task_id.query.2" in names
+    assert "dag_id.task_id.manual_query.1" in names
+    assert "dag_id.task_id.manual_query.2" in names
 
 
 def test_counters_are_per_task(patched_emit):
@@ -160,8 +160,8 @@ def test_counters_are_per_task(patched_emit):
     emit_query_lineage(query_id="x", query_source_namespace="snowflake://ACCT", task_instance=ti1)
     emit_query_lineage(query_id="y", query_source_namespace="snowflake://ACCT", task_instance=ti2)
     names = {call.args[0].job.name for call in patched_emit.call_args_list}
-    assert "dag_id.task_a.query.1" in names
-    assert "dag_id.task_b.query.1" in names
+    assert "dag_id.task_a.manual_query.1" in names
+    assert "dag_id.task_b.manual_query.1" in names
 
 
 def test_emits_fail_event_with_error_message(patched_emit):
@@ -226,3 +226,74 @@ def test_resolves_task_instance_from_context(patched_emit):
         emit_query_lineage(query_id="qid", query_source_namespace="snowflake://ACCT")
         get_ti.assert_called_once()
     assert patched_emit.call_count == 2
+
+
+def test_swallows_errors_by_default(patched_emit, caplog):
+    """By default, exceptions raised while building the events are logged at WARNING and swallowed."""
+    import logging
+
+    ti = _make_task_instance()
+    with (
+        mock.patch(f"{_MODULE}._create_ol_event_pair", side_effect=RuntimeError("boom")),
+        caplog.at_level(logging.WARNING),
+    ):
+        emit_query_lineage(
+            query_id="qid",
+            query_source_namespace="snowflake://ACCT",
+            task_instance=ti,
+        )
+
+    patched_emit.assert_not_called()
+    assert "emit_query_lineage raised an error" in caplog.text
+
+
+def test_swallows_errors_from_context_resolution_by_default(patched_emit, caplog):
+    """When task_instance can't be resolved, the failure is swallowed by default."""
+    import logging
+
+    with (
+        mock.patch(
+            f"{_MODULE}.get_task_instance_from_context",
+            side_effect=RuntimeError("no context available"),
+        ),
+        caplog.at_level(logging.WARNING),
+    ):
+        emit_query_lineage(query_id="qid", query_source_namespace="snowflake://ACCT")
+
+    patched_emit.assert_not_called()
+    assert "emit_query_lineage raised an error" in caplog.text
+
+
+def test_raises_on_error_when_flag_set(patched_emit):
+    """With raise_on_error=True, exceptions raised during event construction propagate."""
+    ti = _make_task_instance()
+    with (
+        mock.patch(f"{_MODULE}._create_ol_event_pair", side_effect=RuntimeError("boom")),
+        pytest.raises(RuntimeError, match="boom"),
+    ):
+        emit_query_lineage(
+            query_id="qid",
+            query_source_namespace="snowflake://ACCT",
+            task_instance=ti,
+            raise_on_error=True,
+        )
+
+    patched_emit.assert_not_called()
+
+
+def test_raises_on_context_resolution_failure_when_flag_set(patched_emit):
+    """With raise_on_error=True, context-resolution failures propagate."""
+    with (
+        mock.patch(
+            f"{_MODULE}.get_task_instance_from_context",
+            side_effect=RuntimeError("no context available"),
+        ),
+        pytest.raises(RuntimeError, match="no context available"),
+    ):
+        emit_query_lineage(
+            query_id="qid",
+            query_source_namespace="snowflake://ACCT",
+            raise_on_error=True,
+        )
+
+    patched_emit.assert_not_called()

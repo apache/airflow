@@ -47,6 +47,7 @@ log = logging.getLogger(__name__)
 __all__ = ["emit_query_lineage"]
 
 # Per-task counters so repeated emit_query_lineage calls within one task get unique job names.
+# The dict is process-global, but each task buckets under its own unique deterministic Ol run id
 _QUERY_COUNTERS: dict[str, int] = defaultdict(int)
 
 
@@ -63,9 +64,11 @@ def emit_query_lineage(
     error_message: str | None = None,
     default_database: str | None = None,
     default_schema: str | None = None,
+    job_name: str | None = None,
     task_instance: TaskInstance | RuntimeTaskInstance | None = None,
     additional_run_facets: dict[str, RunFacet] | None = None,
     additional_job_facets: dict[str, JobFacet] | None = None,
+    raise_on_error: bool = False,
 ) -> None:
     """
     Emit a START + COMPLETE/FAIL OpenLineage event pair describing a single SQL query execution.
@@ -91,13 +94,17 @@ def emit_query_lineage(
     :param error_message: Optional error message attached as an ``errorMessage`` run facet.
     :param default_database: Default database for resolving unqualified tables in ``query_text``.
     :param default_schema: Default schema for resolving unqualified tables in ``query_text``.
+    :param job_name: Job name to use in both events. Defaults to <ti_job_name>.manual_query.<counter>.
     :param task_instance: The Airflow task instance to attribute the query to. Defaults to the
         currently executing task instance obtained from the execution context.
     :param additional_run_facets: Extra run facets to merge into the emitted events.
     :param additional_job_facets: Extra job facets to merge into the emitted events.
+    :param raise_on_error: When ``False`` (default), any exception raised while building or emitting
+        the events is logged at WARNING level and the function returns silently — so a broken lineage
+        helper never breaks a user's task. Set to ``True`` to opt into normal exception propagation.
 
-    :raises RuntimeError: If ``task_instance`` is not provided and cannot be resolved from the current
-        execution context.
+    :raises RuntimeError: When ``raise_on_error=True``, if ``task_instance`` is not provided and
+        cannot be resolved from the current execution context.
 
     Example:
 
@@ -118,55 +125,61 @@ def emit_query_lineage(
         log.info("OpenLineage is not active - emit_query_lineage will have no effect.")
         return
 
-    if task_instance is None:
-        log.debug("TaskInstance not provided, retrieving it from context.")
-        task_instance = get_task_instance_from_context()
+    try:
+        if task_instance is None:
+            log.debug("TaskInstance not provided, retrieving it from context.")
+            task_instance = get_task_instance_from_context()
 
-    all_inputs = inputs or []
-    all_outputs = outputs or []
-    # Parse SQL into datasets and enrich inputs/outputs.
-    if query_text and query_source_namespace:
-        query_inputs, query_outputs = _parse_query_into_datasets(
-            query_text=query_text,
-            query_source_namespace=query_source_namespace,
-            default_database=default_database,
-            default_schema=default_schema,
+        # Copy caller-supplied lists so we never mutate user inputs.
+        all_inputs = list(inputs) if inputs else []
+        all_outputs = list(outputs) if outputs else []
+        # Parse SQL into datasets and enrich inputs/outputs.
+        if query_text and query_source_namespace:
+            query_inputs, query_outputs = _parse_query_into_datasets(
+                query_text=query_text,
+                query_source_namespace=query_source_namespace,
+                default_database=default_database,
+                default_schema=default_schema,
+            )
+            all_inputs.extend(query_inputs)
+            all_outputs.extend(query_outputs)
+
+        # Run facets: user-provided first, internal facets overlaid so internals always win.
+        run_facets: dict[str, RunFacet] = {**(additional_run_facets or {})}
+        if query_id and query_source_namespace:
+            run_facets["externalQuery"] = external_query_run.ExternalQueryRunFacet(
+                externalQueryId=query_id, source=query_source_namespace, producer=_PRODUCER
+            )
+        if error_message:
+            run_facets["errorMessage"] = error_message_run.ErrorMessageRunFacet(
+                message=error_message, programmingLanguage="SQL", producer=_PRODUCER
+            )
+
+        # Job facets: user-provided first, internal facets overlaid so internals always win.
+        job_facets: dict[str, JobFacet] = {**(additional_job_facets or {})}
+        if query_text:
+            job_facets["sql"] = sql_job.SQLJobFacet(query=query_text, producer=_PRODUCER)
+
+        ti_key = lineage_run_id(task_instance)
+        _QUERY_COUNTERS[ti_key] += 1
+
+        start_event, end_event = _create_ol_event_pair(
+            task_instance=task_instance,
+            job_name=job_name or f"{lineage_job_name(task_instance)}.manual_query.{_QUERY_COUNTERS[ti_key]}",
+            is_successful=is_successful,
+            inputs=all_inputs,
+            outputs=all_outputs,
+            run_facets=run_facets,
+            job_facets=job_facets,
+            start_event_time=start_time,
+            end_event_time=end_time,
         )
-        all_inputs.extend(query_inputs)
-        all_outputs.extend(query_outputs)
 
-    # Run facets: user-provided first, internal facets overlaid so internals always win.
-    run_facets: dict[str, RunFacet] = {**(additional_run_facets or {})}
-    if query_id and query_source_namespace:
-        run_facets["externalQuery"] = external_query_run.ExternalQueryRunFacet(
-            externalQueryId=query_id, source=query_source_namespace, producer=_PRODUCER
-        )
-    if error_message:
-        run_facets["errorMessage"] = error_message_run.ErrorMessageRunFacet(
-            message=error_message, programmingLanguage="SQL", producer=_PRODUCER
-        )
-
-    # Job facets: user-provided first, internal facets overlaid so internals always win.
-    job_facets: dict[str, JobFacet] = {**(additional_job_facets or {})}
-    if query_text:
-        job_facets["sql"] = sql_job.SQLJobFacet(query=query_text, producer=_PRODUCER)
-
-    ti_key = lineage_run_id(task_instance)
-    _QUERY_COUNTERS[ti_key] += 1
-    job_name = f"{lineage_job_name(task_instance)}.query.{_QUERY_COUNTERS[ti_key]}"
-
-    start_event, end_event = _create_ol_event_pair(
-        task_instance=task_instance,
-        job_name=job_name,
-        is_successful=is_successful,
-        inputs=all_inputs,
-        outputs=all_outputs,
-        run_facets=run_facets,
-        job_facets=job_facets,
-        start_event_time=start_time,
-        end_event_time=end_time,
-    )
-
-    log.info("emit_query_lineage will emit 2 OpenLineage events for job `%s`.", start_event.job.name)
-    emit(start_event)
-    emit(end_event)
+        log.info("emit_query_lineage will emit 2 OpenLineage events for job `%s`.", start_event.job.name)
+        emit(start_event)
+        emit(end_event)
+    except Exception as err:
+        if raise_on_error:
+            raise
+        log.warning("emit_query_lineage raised an error `%s`", err)
+        log.debug("Exception details:", exc_info=True)

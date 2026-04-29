@@ -204,7 +204,7 @@ def test_noop_when_listener_missing():
 
 def test_raises_when_inputs_and_outputs_empty(patched_emit):
     with pytest.raises(ValueError, match="inputs"):
-        emit_dataset_lineage(task_instance=_make_task_instance())
+        emit_dataset_lineage(task_instance=_make_task_instance(), raise_on_error=True)
     patched_emit.assert_not_called()
 
 
@@ -213,8 +213,19 @@ def test_raises_when_item_is_not_dataset(patched_emit):
         emit_dataset_lineage(
             inputs=["not-a-dataset"],  # type: ignore[list-item]
             task_instance=_make_task_instance(),
+            raise_on_error=True,
         )
     patched_emit.assert_not_called()
+
+
+def test_swallows_errors_by_default(patched_emit, caplog):
+    """By default, validation errors are logged at WARNING and swallowed (no emission)."""
+    import logging
+
+    with caplog.at_level(logging.WARNING):
+        emit_dataset_lineage(task_instance=_make_task_instance())
+    patched_emit.assert_not_called()
+    assert "emit_dataset_lineage raised an error" in caplog.text
 
 
 def test_resolves_task_instance_from_context(patched_emit):

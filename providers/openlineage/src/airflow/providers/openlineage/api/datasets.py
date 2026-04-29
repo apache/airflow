@@ -61,6 +61,7 @@ def emit_dataset_lineage(
     task_instance: RuntimeTaskInstance | TaskInstance | None = None,
     additional_run_facets: dict[str, RunFacet] | None = None,
     additional_job_facets: dict[str, JobFacet] | None = None,
+    raise_on_error: bool = False,
 ) -> None:
     """
     Emit an OpenLineage RUNNING event attributing datasets to the current task run.
@@ -83,11 +84,16 @@ def emit_dataset_lineage(
         executing task instance obtained from the execution context.
     :param additional_run_facets: Extra run facets to attach.
     :param additional_job_facets: Extra job facets to attach.
+    :param raise_on_error: When ``False`` (default), any exception raised while building or emitting
+        the event is logged at WARNING level and the function returns silently — so a broken lineage
+        helper never breaks a user's task. Set to ``True`` to opt into normal exception propagation.
 
-    :raises ValueError: If both ``inputs`` and ``outputs`` are empty or ``None``.
-    :raises TypeError: If any item in ``inputs`` or ``outputs`` is not an OpenLineage ``Dataset``.
-    :raises RuntimeError: If ``task_instance`` is not provided and cannot be resolved from the current
-        execution context.
+    :raises ValueError: When ``raise_on_error=True``, if both ``inputs`` and ``outputs`` are empty or
+        ``None``.
+    :raises TypeError: When ``raise_on_error=True``, if any item in ``inputs`` or ``outputs`` is not
+        an OpenLineage ``Dataset``.
+    :raises RuntimeError: When ``raise_on_error=True``, if ``task_instance`` is not provided and
+        cannot be resolved from the current execution context.
 
     Example:
 
@@ -108,48 +114,60 @@ def emit_dataset_lineage(
         log.info("OpenLineage is not active - emit_dataset_lineage will have no effect.")
         return
 
-    if not inputs and not outputs:
-        raise ValueError("At least one of `inputs` or `outputs` must be provided.")
+    try:
+        if not inputs and not outputs:
+            raise ValueError("At least one of `inputs` or `outputs` must be provided.")
 
-    inputs = inputs or []
-    outputs = outputs or []
-    if not all(isinstance(d, Dataset) for d in (*inputs, *outputs)):
-        raise TypeError("`inputs` and `outputs` must contain only OpenLineage Dataset objects.")
+        inputs = inputs or []
+        outputs = outputs or []
+        if not all(isinstance(d, Dataset) for d in (*inputs, *outputs)):
+            raise TypeError("`inputs` and `outputs` must contain only OpenLineage Dataset objects.")
 
-    if task_instance is None:
-        log.debug("TaskInstance not provided, retrieving it from context.")
-        task_instance = get_task_instance_from_context()
+        if task_instance is None:
+            log.debug("TaskInstance not provided, retrieving it from context.")
+            task_instance = get_task_instance_from_context()
 
-    dag_run, dag, task = get_dag_run_dag_and_task_from_ti(task_instance)
-    task_uuid = lineage_run_id(task_instance)
+        dag_run, dag, task = get_dag_run_dag_and_task_from_ti(task_instance)
+        task_uuid = lineage_run_id(task_instance)
 
-    run_facets = build_task_event_run_facets(
-        task_instance=task_instance,
-        dag_run=dag_run,
-        dag=dag,
-        task=task,
-        task_uuid=task_uuid,
-        ti_state=TaskInstanceState.RUNNING,
-        parent_run_id=OpenLineageAdapter.build_dag_run_id(
-            dag_id=dag.dag_id,
-            logical_date=_get_logical_date(task_instance),
-            clear_number=_get_dag_run_clear_number(task_instance),
-        ),
-        parent_job_name=dag.dag_id,
-        dr_conf=_get_dag_run_conf(task_instance),
-        additional_run_facets=additional_run_facets,
-    )
-    job_facets = build_task_event_job_facets(task=task, dag=dag, additional_job_facets=additional_job_facets)
+        run_facets = build_task_event_run_facets(
+            task_instance=task_instance,
+            dag_run=dag_run,
+            dag=dag,
+            task=task,
+            task_uuid=task_uuid,
+            ti_state=TaskInstanceState.RUNNING,
+            parent_run_id=OpenLineageAdapter.build_dag_run_id(
+                dag_id=dag.dag_id,
+                logical_date=_get_logical_date(task_instance),
+                clear_number=_get_dag_run_clear_number(task_instance),
+            ),
+            parent_job_name=dag.dag_id,
+            dr_conf=_get_dag_run_conf(task_instance),
+            additional_run_facets=additional_run_facets,
+        )
+        job_facets = build_task_event_job_facets(
+            task=task, dag=dag, additional_job_facets=additional_job_facets
+        )
 
-    event = RunEvent(
-        eventType=RunState.RUNNING,
-        eventTime=datetime.now(tz=timezone.utc).isoformat(),
-        run=Run(runId=task_uuid, facets=run_facets),
-        job=Job(namespace=lineage_job_namespace(), name=lineage_job_name(task_instance), facets=job_facets),
-        inputs=inputs,
-        outputs=outputs,
-        producer=_PRODUCER,
-    )
+        event = RunEvent(
+            eventType=RunState.RUNNING,
+            eventTime=datetime.now(tz=timezone.utc).isoformat(),
+            run=Run(runId=task_uuid, facets=run_facets),
+            job=Job(
+                namespace=lineage_job_namespace(),
+                name=lineage_job_name(task_instance),
+                facets=job_facets,
+            ),
+            inputs=inputs,
+            outputs=outputs,
+            producer=_PRODUCER,
+        )
 
-    log.info("emit_dataset_lineage will emit a RUNNING OpenLineage event.")
-    emit(event)
+        log.info("emit_dataset_lineage will emit a RUNNING OpenLineage event.")
+        emit(event)
+    except Exception as err:
+        if raise_on_error:
+            raise
+        log.warning("emit_dataset_lineage raised an error `%s`", err)
+        log.debug("Exception details:", exc_info=True)
