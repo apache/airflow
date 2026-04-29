@@ -43,6 +43,7 @@
   "extraLinks": "추가 링크",
   "grid": {
     "buttons": {
+      "olderRuns": "이전 실행",
       "resetToLatest": "최신 버전으로 재설정",
       "toggleGroup": "그룹 토글"
     },
