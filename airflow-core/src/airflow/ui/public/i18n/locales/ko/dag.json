@@ -52,6 +52,9 @@
     "buttons": {
       "advanced": "고급",
       "dagDocs": "Dag 문서"
+    },
+    "status": {
+      "deactivated": "비활성화됨"
     }
   },
   "logs": {
