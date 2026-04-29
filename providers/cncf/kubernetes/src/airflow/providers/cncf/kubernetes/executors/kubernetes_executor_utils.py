@@ -27,6 +27,7 @@ from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
@@ -231,7 +232,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # Most likely this happens due to Kubernetes setup (virtual kubelet, virtual nodes, etc.)
             key = annotations_to_key(annotations=annotations)
             task_key_str = (
-                f"{key.dag_id}.{key.task_id}.{key.try_number}" if not isinstance(key, str) else "unknown"
+                f"{key.dag_id}.{key.task_id}.{key.try_number}"
+                if isinstance(key, TaskInstanceKey)
+                else str(key)
             )
             self.log.warning(
                 "Event: %s failed to start with reason ProviderFailed, task: %s, annotations: %s",
@@ -314,7 +317,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
 
             key = annotations_to_key(annotations=annotations)
             task_key_str = (
-                f"{key.dag_id}.{key.task_id}.{key.try_number}" if not isinstance(key, str) else "unknown"
+                f"{key.dag_id}.{key.task_id}.{key.try_number}"
+                if isinstance(key, TaskInstanceKey)
+                else str(key)
             )
             self.log.warning(
                 "Event: %s Failed, task: %s, annotations: %s", pod_name, task_key_str, annotations_string
@@ -644,7 +649,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 f"could not find a valid worker template yaml at {self.kube_config.pod_template_file}"
             )
 
-        pod_id = create_unique_id("callback", callback_id[:8])
+        pod_id = create_unique_id("callback", callback_id)
 
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
@@ -653,7 +658,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 annotations={"callback_id": callback_id},
                 labels=PodGenerator.build_labels_for_k8s_executor_pod(
                     dag_id="__callback__",
-                    task_id=callback_id[:8],
+                    task_id=callback_id,
                     try_number=1,
                     airflow_worker=self.scheduler_job_id,
                 ),

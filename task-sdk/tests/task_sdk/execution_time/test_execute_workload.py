@@ -54,11 +54,50 @@ class TestExecuteWorkload:
     @mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload")
     @mock.patch("airflow.settings.dispose_orm")
     def test_execute_workload_handles_task(self, mock_dispose_orm, mock_run_workload):
+        import uuid
+
+        from airflow.executors import workloads
+        from airflow.executors.workloads.base import BundleInfo
+        from airflow.executors.workloads.task import TaskInstanceDTO
         from airflow.sdk.execution_time.execute_workload import execute_workload
 
-        # ExecuteTask is also dispatched via run_workload
-        # We verify the same path is taken regardless of workload type
-        workload = self._make_callback_workload()
+        ti = TaskInstanceDTO(
+            id=uuid.uuid4(),
+            dag_version_id=uuid.uuid4(),
+            task_id="my_task",
+            dag_id="my_dag",
+            run_id="run_1",
+            try_number=1,
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+        )
+        workload = workloads.ExecuteTask(
+            ti=ti,
+            dag_rel_path="my_dag.py",
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="logs/my_dag/run_1/my_task/1.log",
+        )
         execute_workload(workload)
 
         mock_run_workload.assert_called_once_with(workload, subprocess_logs_to_stdout=True)
+
+    @mock.patch("airflow.sdk.execution_time.execute_workload.execute_workload")
+    def test_main_deserializes_callback_json(self, mock_execute_workload):
+        """main() correctly deserializes ExecuteCallback JSON through the Pydantic discriminated union."""
+        import sys
+
+        from pydantic import TypeAdapter
+
+        from airflow.executors.workloads import ExecutorWorkload
+        from airflow.sdk.execution_time.execute_workload import main
+
+        workload = self._make_callback_workload()
+        adapter = TypeAdapter(ExecutorWorkload)
+        json_str = adapter.dump_json(workload).decode()
+
+        with mock.patch.object(sys, "argv", ["execute_workload", "--json-string", json_str]):
+            main()
+
+        mock_execute_workload.assert_called_once_with(workload)

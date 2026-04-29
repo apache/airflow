@@ -41,6 +41,7 @@ from sqlalchemy import select
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
@@ -68,7 +69,6 @@ if TYPE_CHECKING:
     from airflow.executors import workloads
     from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
         AirflowKubernetesScheduler,
     )
@@ -327,16 +327,13 @@ class KubernetesExecutor(BaseExecutor):
                 try:
                     key = task.key
                     self.kube_scheduler.run_next(task)
-                    if not isinstance(key, str):
-                        self.task_publish_retries.pop(key, None)
+                    self.task_publish_retries.pop(key, None)
                 except PodReconciliationError as e:
                     self.log.exception(
                         "Pod reconciliation failed, likely due to kubernetes library upgrade. "
                         "Try clearing the task to re-run.",
                     )
-                    task_key = task.key
-                    if not isinstance(task_key, str):
-                        self.fail(task_key, e)
+                    self.fail(task.key, e)
                 except ApiException as e:
                     try:
                         if e.body:
@@ -397,8 +394,7 @@ class KubernetesExecutor(BaseExecutor):
                         key,
                         e.__cause__,
                     )
-                    if not isinstance(key, str):
-                        self.fail(key, e)
+                    self.fail(key, e)
                 finally:
                     self.task_queue.task_done()
 
@@ -411,8 +407,6 @@ class KubernetesExecutor(BaseExecutor):
         """Change state of the workload based on KubernetesResults."""
         if TYPE_CHECKING:
             assert self.kube_scheduler
-
-        from airflow.models.taskinstancekey import TaskInstanceKey
 
         key = results.key
 
@@ -543,10 +537,11 @@ class KubernetesExecutor(BaseExecutor):
         else:
             self.kube_scheduler.patch_pod_executor_done(pod_name=pod_name, namespace=namespace)
 
-        if key not in self.running:
+        try:
+            self.running.remove(key)
+        except KeyError:
             self.log.debug("Callback key not in running: %s", key)
             return
-        self.running.discard(key)
 
         # Map pod state to CallbackState
         if state == TaskInstanceState.FAILED:
@@ -716,28 +711,42 @@ class KubernetesExecutor(BaseExecutor):
 
         self.log.info("attempting to adopt pod %s", pod.metadata.name)
         ti_key = annotations_to_key(pod.metadata.annotations)
-        if not isinstance(ti_key, tuple):
-            self.log.debug("Skipping non-task pod in adopt_launched_task: %s", pod.metadata.name)
+
+        if not isinstance(ti_key, TaskInstanceKey):
+            # Callback pod — re-adopt by patching the worker label so the new
+            # watcher can track it; no tis_to_flush_by_key entry exists for callbacks.
+            if self._patch_pod_worker_label(kube_client, pod):
+                self.running.add(ti_key)
             return
+
         if ti_key not in tis_to_flush_by_key:
             self.log.error("attempting to adopt taskinstance which was not specified by database: %s", ti_key)
             return
 
-        new_worker_id_label = self._make_safe_label_value(self.scheduler_job_id)
+        if not self._patch_pod_worker_label(kube_client, pod):
+            return
+
+        del tis_to_flush_by_key[ti_key]
+        self.running.add(ti_key)
+
+    def _patch_pod_worker_label(self, kube_client: client.CoreV1Api, pod: k8s.V1Pod) -> bool:
+        """Patch the airflow-worker label on a pod to claim it for the current scheduler."""
+        if TYPE_CHECKING:
+            assert self.scheduler_job_id
+
         from kubernetes.client.rest import ApiException
 
+        new_worker_id_label = self._make_safe_label_value(self.scheduler_job_id)
         try:
             kube_client.patch_namespaced_pod(
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
                 body={"metadata": {"labels": {"airflow-worker": new_worker_id_label}}},
             )
+            return True
         except ApiException as e:
             self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
-            return
-
-        del tis_to_flush_by_key[ti_key]
-        self.running.add(ti_key)
+            return False
 
     def _alive_other_scheduler_job_ids(self) -> set[int]:
         """
@@ -851,16 +860,7 @@ class KubernetesExecutor(BaseExecutor):
         pod_list = self._list_pods(query_kwargs)
         for pod in pod_list:
             self.log.info("Attempting to adopt pod %s", pod.metadata.name)
-            from kubernetes.client.rest import ApiException
-
-            try:
-                kube_client.patch_namespaced_pod(
-                    name=pod.metadata.name,
-                    namespace=pod.metadata.namespace,
-                    body={"metadata": {"labels": {"airflow-worker": self_label}}},
-                )
-            except ApiException as e:
-                self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
+            if not self._patch_pod_worker_label(kube_client, pod):
                 continue
 
             ti_id = annotations_to_key(pod.metadata.annotations)
