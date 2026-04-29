@@ -32,6 +32,7 @@ import os
 import time
 from datetime import datetime
 
+import pytest
 from google.api_core.retry import Retry
 from google.cloud.dataproc_v1 import JobStatus
 
@@ -50,6 +51,12 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+
+if not os.environ.get("RUN_MANUAL_DATAPROC_CANCEL_ON_KILL_TEST"):
+    pytest.skip(
+        "Manual-only system test: set RUN_MANUAL_DATAPROC_CANCEL_ON_KILL_TEST=1 to run.",
+        allow_module_level=True,
+    )
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
