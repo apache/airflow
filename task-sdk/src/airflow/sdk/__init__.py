@@ -61,7 +61,6 @@ __all__ = [
     "ParamsDict",
     "PartitionAtRuntime",
     "PartitionedAssetTimetable",
-    "PartitionKey",
     "PartitionMapper",
     "PokeReturnValue",
     "ProductMapper",
@@ -126,7 +125,6 @@ if TYPE_CHECKING:
         AssetAll,
         AssetAny,
         AssetWatcher,
-        PartitionKey,
     )
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
@@ -227,7 +225,6 @@ __lazy_imports: dict[str, str] = {
     "ParamsDict": ".definitions.param",
     "PartitionAtRuntime": ".definitions.timetables.assets",
     "PartitionedAssetTimetable": ".definitions.timetables.assets",
-    "PartitionKey": ".definitions.asset",
     "PartitionMapper": ".definitions.partition_mappers.base",
     "PokeReturnValue": ".bases.sensor",
     "ProductMapper": ".definitions.partition_mappers.product",

@@ -64,7 +64,6 @@ from airflow.sdk.definitions.asset import (
     AssetNameRef,
     AssetUniqueKey,
     AssetUriRef,
-    PartitionKey,
 )
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
@@ -1163,9 +1162,7 @@ def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[d
             yield {
                 "dest_asset_key": attrs.asdict(key),
                 "extra": accessor.extra,
-                "partition_keys": [
-                    pk.key if isinstance(pk, PartitionKey) else pk for pk in accessor.partition_keys
-                ],
+                "partition_keys": list(accessor.partition_keys),
             }
         for alias_event in accessor.asset_alias_events:
             yield attrs.asdict(alias_event)

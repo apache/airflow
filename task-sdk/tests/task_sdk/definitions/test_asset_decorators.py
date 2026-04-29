@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.sdk.definitions.asset import Asset, PartitionKey
+from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.asset.decorators import _AssetMainOperator, _AssetSelfProxy, asset
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.execution_time.comms import AssetResult, GetAssetByName
@@ -494,17 +494,10 @@ class TestAssetSelfProxy:
         proxy = _AssetSelfProxy(asset, outlet_events)
         assert proxy.partition_keys == ["us"]
 
-    @pytest.mark.parametrize(
-        "value",
-        [
-            pytest.param(["us", "eu"], id="plain-strings"),
-            pytest.param([PartitionKey(key="us")], id="partition-key-objects"),
-        ],
-    )
-    def test_partition_keys_write_forwards_to_accessor(self, asset, outlet_events, value):
+    def test_partition_keys_write_forwards_to_accessor(self, asset, outlet_events):
         proxy = _AssetSelfProxy(asset, outlet_events)
-        proxy.partition_keys = value
-        assert outlet_events[asset].partition_keys == value
+        proxy.partition_keys = ["us", "eu"]
+        assert outlet_events[asset].partition_keys == ["us", "eu"]
 
     @pytest.mark.parametrize("name", ["name", "uri", "extra", "group"])
     def test_setting_other_attributes_raises(self, asset, outlet_events, name):

@@ -34,7 +34,6 @@ from airflow.sdk.definitions.asset import (
     AssetNameRef,
     AssetUniqueKey,
     AssetUriRef,
-    PartitionKey,
 )
 from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.definitions.variable import Variable
@@ -466,41 +465,19 @@ class TestOutletEventAccessorPartitionKeys:
     def test_default_is_empty(self, accessor):
         assert accessor.partition_keys == []
 
-    @pytest.mark.parametrize(
-        "value",
-        [
-            pytest.param(["us", "eu"], id="plain-strings"),
-            pytest.param([PartitionKey(key="k1")], id="partition-key-objects"),
-        ],
-    )
-    def test_direct_assignment(self, accessor, value):
-        accessor.partition_keys = value
-        assert accessor.partition_keys == value
+    def test_direct_assignment(self, accessor):
+        accessor.partition_keys = ["us", "eu"]
+        assert accessor.partition_keys == ["us", "eu"]
 
-    @pytest.mark.parametrize(
-        ("key", "expected"),
-        [
-            pytest.param(
-                "us",
-                PartitionKey(key="us"),
-                id="string",
-            ),
-            pytest.param(
-                PartitionKey(key="eu"),
-                PartitionKey(key="eu"),
-                id="partition-key",
-            ),
-        ],
-    )
-    def test_add_partition(self, accessor, key, expected):
-        accessor.add_partition(key)
-        assert accessor.partition_keys == [expected]
+    def test_add_partition(self, accessor):
+        accessor.add_partition("us")
+        assert accessor.partition_keys == ["us"]
 
     def test_add_partition_appends(self, accessor):
         accessor.add_partition("us")
         accessor.add_partition("eu")
         accessor.add_partition("apac")
-        assert [pk.key for pk in accessor.partition_keys] == ["us", "eu", "apac"]
+        assert accessor.partition_keys == ["us", "eu", "apac"]
 
 
 class TestTriggeringAssetEventsAccessor:

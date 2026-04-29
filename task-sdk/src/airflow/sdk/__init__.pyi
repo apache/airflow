@@ -48,7 +48,6 @@ from airflow.sdk.definitions.asset import (
     AssetAll as AssetAll,
     AssetAny as AssetAny,
     AssetWatcher as AssetWatcher,
-    PartitionKey as PartitionKey,
 )
 from airflow.sdk.definitions.asset.decorators import asset as asset
 from airflow.sdk.definitions.asset.metadata import Metadata as Metadata
@@ -149,7 +148,6 @@ __all__ = [
     "PokeReturnValue",
     "PartitionAtRuntime",
     "PartitionedAssetTimetable",
-    "PartitionKey",
     "PartitionMapper",
     "ProductMapper",
     "RetryAction",

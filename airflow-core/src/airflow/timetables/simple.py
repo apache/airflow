@@ -191,6 +191,7 @@ class PartitionAtRuntime(NullTimetable):
     """
 
     description: str = "Never, partition key(s) set at runtime"
+    partitioned_at_runtime = True
 
     @property
     def summary(self) -> str:

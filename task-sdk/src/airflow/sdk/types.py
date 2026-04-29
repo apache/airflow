@@ -48,7 +48,6 @@ if TYPE_CHECKING:
         AssetAliasEvent,
         AssetRef,
         BaseAssetUniqueKey,
-        PartitionKey,
     )
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -222,7 +221,7 @@ class OutletEventAccessorProtocol(Protocol):
     key: BaseAssetUniqueKey
     extra: dict[str, JsonValue]
     asset_alias_events: list[AssetAliasEvent]
-    partition_keys: list[str | PartitionKey]
+    partition_keys: list[str]
 
     def __init__(
         self,
@@ -230,10 +229,10 @@ class OutletEventAccessorProtocol(Protocol):
         key: BaseAssetUniqueKey,
         extra: dict[str, JsonValue],
         asset_alias_events: list[AssetAliasEvent],
-        partition_keys: list[str | PartitionKey] = ...,
+        partition_keys: list[str] = ...,
     ) -> None: ...
     def add(self, asset: Asset, extra: dict[str, JsonValue] | None = None) -> None: ...
-    def add_partition(self, key: str | PartitionKey) -> None: ...
+    def add_partition(self, key: str) -> None: ...
 
 
 class OutletEventAccessorsProtocol(Protocol):

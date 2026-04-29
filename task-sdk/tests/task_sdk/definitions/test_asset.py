@@ -33,7 +33,6 @@ from airflow.sdk.definitions.asset import (
     BaseAsset,
     Dataset,
     Model,
-    PartitionKey,
     _get_normalized_scheme,
     _sanitize_uri,
 )
@@ -506,18 +505,3 @@ class TestAllowProducerTeamsField:
     def test_explicit_empty_list(self):
         asset = Asset(name="x", allow_producer_teams=[])
         assert asset.allow_producer_teams == []
-
-
-class TestPartitionKey:
-    def test_key(self):
-        pk = PartitionKey(key="region_a")
-        assert pk.key == "region_a"
-
-    def test_equality(self):
-        assert PartitionKey(key="a") == PartitionKey(key="a")
-        assert PartitionKey(key="a") != PartitionKey(key="b")
-
-    def test_is_frozen(self):
-        pk = PartitionKey(key="a")
-        with pytest.raises(AttributeError):
-            pk.key = "b"  # type: ignore[misc]

@@ -41,7 +41,6 @@ from airflow.sdk.definitions.asset import (
     AssetUniqueKey,
     AssetUriRef,
     BaseAssetUniqueKey,
-    PartitionKey,
 )
 from airflow.sdk.exceptions import AirflowNotFoundException, AirflowRuntimeError, ErrorType
 from airflow.sdk.log import mask_secret
@@ -740,14 +739,11 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
     key: BaseAssetUniqueKey
     extra: dict[str, JsonValue] = attrs.Factory(dict)
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
-    partition_keys: list[str | PartitionKey] = attrs.field(factory=list)
+    partition_keys: list[str] = attrs.field(factory=list)
 
-    def add_partition(self, key: str | PartitionKey) -> None:
+    def add_partition(self, key: str) -> None:
         """Append a partition key to :attr:`partition_keys`."""
-        if isinstance(key, str):
-            self.partition_keys.append(PartitionKey(key=key))
-        else:
-            self.partition_keys.append(key)
+        self.partition_keys.append(key)
 
     def add(self, asset: Asset | AssetRef, extra: dict[str, JsonValue] | None = None) -> None:
         """Add an AssetEvent to an existing Asset."""
