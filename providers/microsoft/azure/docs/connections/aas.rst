@@ -29,7 +29,7 @@ Authenticating to Azure Analysis Services
 
 There are two ways to connect to Azure Analysis Services using Airflow.
 
-1. Use `client secret credentials <https://learn.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal>`_
+1. Use `client secret credentials <https://learn.microsoft.com/en-us/azure/analysis-services/analysis-services-addservprinc-admins>`_
    i.e. add specific credentials (Client ID, Client Secret, Tenant ID) to the Airflow connection.
 2. Use managed identity by setting ``managed_identity_client_id``, ``workload_identity_tenant_id`` (under the hook, it uses DefaultAzureCredential_ with these arguments)
    or fall back on DefaultAzureCredential_.
