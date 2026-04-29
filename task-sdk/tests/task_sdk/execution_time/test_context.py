@@ -1032,3 +1032,16 @@ class TestSecretsBackend:
 
             with pytest.raises(AirflowNotFoundException, match="isn't defined"):
                 _get_connection("nonexistent_conn")
+
+    def test_get_connection_not_found_includes_team_scoped_hint(self, mock_supervisor_comms):
+        """Error message for missing connection includes hint about team-scoped connections."""
+
+        class EmptyBackend:
+            def get_connection(self, conn_id):
+                return None
+
+        with patch("airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded") as mock_load:
+            mock_load.return_value = [EmptyBackend()]
+
+            with pytest.raises(AirflowNotFoundException, match="team-scoped"):
+                _get_connection("nonexistent_conn")

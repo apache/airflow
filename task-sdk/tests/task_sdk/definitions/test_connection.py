@@ -129,6 +129,13 @@ class TestConnections:
         with pytest.raises(AirflowNotFoundException, match="The conn_id `mysql_conn` isn't defined"):
             _ = Connection.get(conn_id="mysql_conn")
 
+    def test_conn_get_not_found_includes_team_scoped_hint(self, mock_supervisor_comms):
+        error_response = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+        mock_supervisor_comms.send.return_value = error_response
+
+        with pytest.raises(AirflowNotFoundException, match="team-scoped"):
+            _ = Connection.get(conn_id="mysql_conn")
+
     def test_to_dict(self):
         """Test that to_dict returns correct dictionary representation."""
         connection = Connection(

@@ -177,8 +177,11 @@ def _get_connection(conn_id: str) -> Connection:
             )
 
     # If no backend found the connection, raise an error
-
-    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+    raise AirflowNotFoundException(
+        f"The conn_id `{conn_id}` isn't defined. "
+        "If this is a team-scoped connection, it is only accessible during task execution, "
+        "not during DAG parsing."
+    )
 
 
 async def _async_get_connection(conn_id: str) -> Connection:
@@ -225,8 +228,11 @@ async def _async_get_connection(conn_id: str) -> Connection:
             )
 
     # If no backend found the connection, raise an error
-
-    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+    raise AirflowNotFoundException(
+        f"The conn_id `{conn_id}` isn't defined. "
+        "If this is a team-scoped connection, it is only accessible during task execution, "
+        "not during DAG parsing."
+    )
 
 
 def _get_variable(key: str, deserialize_json: bool) -> Any:
