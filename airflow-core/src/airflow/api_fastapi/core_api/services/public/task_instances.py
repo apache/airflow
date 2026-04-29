@@ -21,7 +21,7 @@ from collections.abc import Sequence
 from typing import Literal
 
 import structlog
-from fastapi import HTTPException, Query, status
+from fastapi import HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select, tuple_
@@ -147,7 +147,7 @@ def _patch_ti_group_validate_request(
     dag_bag: DagBagDep,
     body: PatchTaskInstanceBody,
     session: SessionDep,
-    update_mask: list[str] | None = Query(None),
+    update_mask: list[str] | None = None,
 ) -> tuple[SerializedDAG, list[TI], dict]:
     """Validate and prepare data for task group patch request."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
@@ -253,7 +253,7 @@ def _patch_task_instance_note(
     task_instance_body: BulkTaskInstanceBody | ClearTaskInstancesBody | PatchTaskInstanceBody,
     tis: list[TI],
     user: GetUserDep,
-    update_mask: list[str] | None = Query(None),
+    update_mask: list[str] | None = None,
 ) -> None:
     for ti in tis:
         if update_mask or task_instance_body.note is not None:
@@ -397,7 +397,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         task_id: str,
         map_index: int,
         results: BulkActionResponse,
-        update_mask: list[str] | None = Query(None),
+        update_mask: list[str] | None = None,
     ) -> None:
         dag, tis, data = _patch_ti_validate_request(
             dag_id=dag_id,
