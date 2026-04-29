@@ -42,10 +42,18 @@ AIRFLOW_V_3_3_PLUS: bool = get_base_airflow_version_tuple() >= (3, 3, 0)
 # This is needed for DecoratedOperator compatibility
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseOperator
-    from airflow.sdk.definitions._internal.types import ArgNotSet
+    from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 else:
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-    from airflow.utils.types import ArgNotSet  # type: ignore[attr-defined,no-redef]
+    from airflow.utils.types import NOTSET, ArgNotSet  # type: ignore[attr-defined,no-redef]
+
+try:
+    from airflow.sdk.definitions._internal.types import is_arg_set
+except ImportError:
+
+    def is_arg_set(value):  # type: ignore[misc,no-redef]
+        return value is not NOTSET
+
 
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",
@@ -54,4 +62,5 @@ __all__ = [
     "AIRFLOW_V_3_3_PLUS",
     "ArgNotSet",
     "BaseOperator",
+    "is_arg_set",
 ]

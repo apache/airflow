@@ -371,6 +371,7 @@ class TriggerDAGRunPayload(BaseModel):
         extra="forbid",
     )
     logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
+    run_after: Annotated[AwareDatetime | None, Field(title="Run After")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None

@@ -72,28 +72,28 @@ export class HomePage extends BasePage {
   }
 
   /**
-   * Get Active DAGs count
+   * Get Active Dags count
    */
   public async getActiveDagsCount(): Promise<number> {
     return this.getStatsCardCount(this.activeDagsCard);
   }
 
   /**
-   * Get Failed DAGs count
+   * Get Failed Dags count
    */
   public async getFailedDagsCount(): Promise<number> {
     return this.getStatsCardCount(this.failedDagsCard);
   }
 
   /**
-   * Get Running DAGs count
+   * Get Running Dags count
    */
   public async getRunningDagsCount(): Promise<number> {
     return this.getStatsCardCount(this.runningDagsCard);
   }
 
   /**
-   * Check if DAG Import Errors are displayed (only visible when errors exist)
+   * Check if Dag Import Errors are displayed (only visible when errors exist)
    */
   public async isDagImportErrorsVisible(): Promise<boolean> {
     try {
