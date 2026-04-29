@@ -44,6 +44,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocSubmitJobOperator,
 )
 
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -52,13 +53,10 @@ else:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
-if not os.environ.get("RUN_MANUAL_DATAPROC_CANCEL_ON_KILL_TEST"):
-    pytest.skip(
-        "Manual-only system test: set RUN_MANUAL_DATAPROC_CANCEL_ON_KILL_TEST=1 to run.",
-        allow_module_level=True,
-    )
-
-from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("RUN_MANUAL_DATAPROC_CANCEL_ON_KILL_TEST"),
+    reason="Manual-only system test: set RUN_MANUAL_DATAPROC_CANCEL_ON_KILL_TEST=1 to run.",
+)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataproc_cancel_on_kill"
