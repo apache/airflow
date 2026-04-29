@@ -35,6 +35,17 @@ a dictionary key in the task-log output when log-hits did not carry a
 ``host`` field. The Elasticsearch client is still connected using the
 full URL, so authentication is unaffected.
 
+A new ``[elasticsearch] es_compat_with`` config option lets operators pin
+the ``compatible-with`` HTTP content-negotiation level used by the
+Elasticsearch client. Since 6.5.1 the provider depends on
+``elasticsearch>=8.10,<10``, and an installed ``elasticsearch>=9`` client
+unconditionally negotiates ``compatible-with=9``, which Elasticsearch 8.x
+servers reject with HTTP 400 ``media_type_header_exception`` (regression
+introduced by #64070). Setting ``es_compat_with = "8"`` forces the client
+to negotiate ``compatible-with=8`` on every request so a single Airflow
+image stays compatible with both ``elasticsearch<9`` and
+``elasticsearch>=9`` servers. When unset, behavior is unchanged.
+
 6.5.3
 .....
 

@@ -221,6 +221,20 @@ config:
         type: string
         example: ~
         default: "1000"
+      es_compat_with:
+        description: |
+          Pin the ``compatible-with`` HTTP content-negotiation level used by the
+          Elasticsearch client. Accepts a server major version string (e.g. ``"7"``,
+          ``"8"``, ``"9"``). When unset, the client negotiates its own major version,
+          which fails with HTTP 400 ``media_type_header_exception`` whenever the
+          client major does not match the server major (for example, an
+          ``elasticsearch>=9`` client talking to an Elasticsearch 8.x server).
+          Set this to the server major to keep a single Airflow image compatible
+          with both ``elasticsearch<9`` and ``elasticsearch>=9`` servers.
+        version_added: 6.5.2
+        type: string
+        example: "8"
+        default: ""
   elasticsearch_configs:
     description: ~
     options:

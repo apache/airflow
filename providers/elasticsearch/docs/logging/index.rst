@@ -93,6 +93,27 @@ Additionally, in the ``elasticsearch_configs`` section, you can pass any paramet
     api_key = "SOMEAPIKEY"
     verify_certs = True
 
+Pinning the ``compatible-with`` content-negotiation level
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Since provider 6.5.1, the Elasticsearch dependency is ``elasticsearch>=8.10,<10``,
+which means an installed ``elasticsearch>=9`` Python client (the default in fresh
+installs) negotiates ``compatible-with=9`` on every request. Elasticsearch 8.x
+servers reject this with HTTP 400 ``media_type_header_exception``.
+
+If you need to keep a single Airflow image compatible with an
+``elasticsearch<9`` server, set ``[elasticsearch] es_compat_with`` to the server
+major version. The provider then forces every request to use
+``Accept`` / ``Content-Type: application/vnd.elasticsearch+json; compatible-with=<major>``:
+
+.. code-block:: ini
+
+    [elasticsearch]
+    es_compat_with = 8
+
+When the option is unset the client behaves as before (negotiating its own
+major version).
+
 .. _elasticsearch-document-schema:
 
 Expected Elasticsearch document schema

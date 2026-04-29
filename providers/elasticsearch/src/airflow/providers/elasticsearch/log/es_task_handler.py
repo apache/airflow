@@ -151,6 +151,27 @@ def get_es_kwargs_from_config() -> dict[str, Any]:
     return kwargs_dict
 
 
+def _apply_compat_with(client: elasticsearch.Elasticsearch) -> elasticsearch.Elasticsearch:
+    """Pin the ``compatible-with`` content negotiation header on ``client``.
+
+    When the installed ``elasticsearch`` Python client major does not match the
+    Elasticsearch server major, the server rejects every request with HTTP 400
+    ``media_type_header_exception`` (e.g. an ``elasticsearch>=9`` client talking
+    to an Elasticsearch 8.x server). The ``[elasticsearch] es_compat_with``
+    config accepts a major version string (``"7"``, ``"8"``, ``"9"``) and forces
+    the client to negotiate that compatibility level on every request, so a
+    single Airflow image can target either server major.
+
+    When the option is unset the client is returned unchanged and behaves as
+    today (negotiating the client's own major version).
+    """
+    compat = conf.get("elasticsearch", "es_compat_with", fallback=None)
+    if not compat:
+        return client
+    media = f"application/vnd.elasticsearch+json; compatible-with={compat}"
+    return client.options(headers={"accept": media, "content-type": media})
+
+
 def getattr_nested(obj, item, default):
     """
     Get item from obj but return default if not found.
@@ -269,7 +290,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         )
         self.closed = False
 
-        self.client = elasticsearch.Elasticsearch(self.host, **es_kwargs)
+        self.client = _apply_compat_with(elasticsearch.Elasticsearch(self.host, **es_kwargs))
         # in airflow.cfg, host of elasticsearch has to be http://dockerhostXxxx:9200
 
         self.frontend = frontend
@@ -653,7 +674,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def __attrs_post_init__(self):
         es_kwargs = get_es_kwargs_from_config()
-        self.client = elasticsearch.Elasticsearch(self.host, **es_kwargs)
+        self.client = _apply_compat_with(elasticsearch.Elasticsearch(self.host, **es_kwargs))
         self.index_patterns_callable = conf.get("elasticsearch", "index_patterns_callable", fallback="")
         self.PAGE = 0
         self.MAX_LINE_PER_PAGE = conf.getint("elasticsearch", "max_lines_per_page", fallback=1000)

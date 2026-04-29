@@ -248,6 +248,39 @@ class TestElasticsearchTaskHandler:
         assert isinstance(self.es_task_handler.client, elasticsearch.Elasticsearch)
         assert self.es_task_handler.index_patterns == "_all"
 
+    def test_client_compat_with_unset_returns_client_unchanged(self):
+        """When ``[elasticsearch] es_compat_with`` is not set, no compat headers are pinned."""
+        with conf_vars({("elasticsearch", "es_compat_with"): ""}):
+            handler = ElasticsearchTaskHandler(
+                base_log_folder=self.local_log_location,
+                end_of_log_mark=self.end_of_log_mark,
+                write_stdout=self.write_stdout,
+                json_format=self.json_format,
+                json_fields=self.json_fields,
+                host_field=self.host_field,
+                offset_field=self.offset_field,
+            )
+        # Without the override, the client lets elasticsearch-py negotiate per-API compat
+        # automatically (no caller-pinned ``accept``/``content-type`` headers).
+        assert "accept" not in handler.client._headers
+        assert "content-type" not in handler.client._headers
+
+    def test_client_compat_with_pins_headers(self):
+        """When ``es_compat_with`` is set, the client negotiates that compat level."""
+        with conf_vars({("elasticsearch", "es_compat_with"): "8"}):
+            handler = ElasticsearchTaskHandler(
+                base_log_folder=self.local_log_location,
+                end_of_log_mark=self.end_of_log_mark,
+                write_stdout=self.write_stdout,
+                json_format=self.json_format,
+                json_fields=self.json_fields,
+                host_field=self.host_field,
+                offset_field=self.offset_field,
+            )
+        expected = "application/vnd.elasticsearch+json; compatible-with=8"
+        assert handler.client._headers.get("accept") == expected
+        assert handler.client._headers.get("content-type") == expected
+
     def test_client_with_config(self):
         es_conf = dict(conf.getsection("elasticsearch_configs"))
         expected_dict = {
