@@ -24,7 +24,11 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
-import { renderStructuredLog } from "src/components/renderStructuredLog";
+import {
+  extractTIContext,
+  renderStructuredLog,
+  renderTIContextPreamble,
+} from "src/components/renderStructuredLog";
 import { Dialog } from "src/components/ui";
 import { LOG_SHOW_SOURCE_KEY, LOG_SHOW_TIMESTAMP_KEY, LOG_WRAP_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
@@ -100,8 +104,9 @@ export const Logs = () => {
 
   const getParsedLogs = () => {
     const lines = parseStreamingLogContent(fetchedData);
+    const tiContext = extractTIContext(lines);
 
-    return lines.map((line) =>
+    const rendered = lines.map((line) =>
       renderStructuredLog({
         index: 0,
         logLevelFilters,
@@ -114,6 +119,22 @@ export const Logs = () => {
         translate,
       }),
     );
+
+    if (tiContext !== undefined) {
+      const firstEndGroup = lines.findIndex((line) => {
+        const text = typeof line === "string" ? line : line.event;
+
+        return text.includes("::endgroup::");
+      });
+
+      rendered.splice(
+        firstEndGroup === -1 ? 0 : firstEndGroup + 1,
+        0,
+        renderTIContextPreamble(tiContext, "text", "Task Identity") as string,
+      );
+    }
+
+    return rendered;
   };
 
   const getLogString = () =>

@@ -155,3 +155,53 @@ describe("Task log grouping", () => {
     });
   }, 10_000);
 });
+
+describe("Task Identity preamble", () => {
+  it("renders Task Identity preamble after the Log message source details group", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
+    );
+
+    await waitForLogs();
+
+    const sourceGroup = screen.getByTestId(
+      'summary-Log message source details sources=["/home/airflow/logs/dag_id=log_grouping/run_id=manual__2025-02-18T12:19/task_id=ti_context/attempt=1.log"]',
+    );
+
+    expect(sourceGroup).toBeInTheDocument();
+
+    // Task Identity preamble should be visible
+    expect(screen.getByText("Task Identity")).toBeInTheDocument();
+    expect(screen.getByText("ti_id")).toBeInTheDocument();
+    // Value is a text node adjacent to =; match via partial text
+    expect(screen.getByText(/01951900-16f6-7c1c-ae66-91bdfe9e0cfd/u)).toBeInTheDocument();
+
+    // Preamble should come after the source details group in DOM order.
+    const preamble = screen.getByText("Task Identity");
+
+    expect(preamble).toBeInTheDocument();
+    expect(sourceGroup).toBeInTheDocument();
+
+    // DOCUMENT_POSITION_FOLLOWING (4) is set when preamble comes after the source group summary
+    // eslint-disable-next-line no-bitwise
+    expect(sourceGroup.compareDocumentPosition(preamble) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("does not render TI context fields on individual log lines", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
+    );
+
+    await waitForLogs();
+
+    const taskStarted = screen.getByText("Task started").closest('[data-testid^="virtualized-item-"]');
+
+    expect(taskStarted).toBeInTheDocument();
+
+    if (taskStarted !== null) {
+      expect(taskStarted.querySelector('[data-key="ti_id"]')).toBeNull();
+      expect(taskStarted.querySelector('[data-key="dag_id"]')).toBeNull();
+      expect(taskStarted.querySelector('[data-key="run_id"]')).toBeNull();
+    }
+  });
+});
