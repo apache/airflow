@@ -2542,7 +2542,9 @@ def create_runtime_ti(mocked_parse):
         if AIRFLOW_V_3_3_PLUS:
             from airflow.sdk._shared.workloads import TaskInstanceDTO
         else:
-            from airflow.executors.workloads.task import TaskInstanceDTO  # type: ignore[no-redef,assignment]
+            from airflow.sdk.api.datamodels._generated import (  # type: ignore[no-redef,assignment]
+                TaskInstance as TaskInstanceDTO,
+            )
 
         from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, TIRunContext
         from airflow.utils.types import DagRunType

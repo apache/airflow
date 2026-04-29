@@ -32,6 +32,13 @@ The SDK: Java provider registers Java-specific task coordinator and DAG file pro
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    Configuration <configurations-ref>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/sdk/java/index>
