@@ -2629,7 +2629,7 @@ def create_runtime_ti(mocked_parse):
                 dag_id=dag_id,
                 run_id=run_id,
                 try_number=try_number,
-                map_index=map_index if map_index is not None else -1,
+                map_index=map_index,  # type: ignore[arg-type]
                 dag_version_id=uuid7(),
                 pool_slots=1,
                 queue="default",
