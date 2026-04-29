@@ -383,37 +383,28 @@ class TestServiceAccountAnnotations:
         assert annotations["another-annotation"] == "release-name-other"
         assert annotations["plain-annotation"] == "no-template"
 
-    def test_tpl_rendered_annotations_pgbouncer(self):
-        """Test pgbouncer SA annotations support tpl rendering."""
-        k8s_objects = render_chart(
-            values={
-                "pgbouncer": {
-                    "enabled": True,
-                    "serviceAccount": {
-                        "annotations": {
-                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-sa@project.iam",
-                        },
-                    },
-                },
-            },
-            show_only=["templates/pgbouncer/pgbouncer-serviceaccount.yaml"],
-        )
-        assert len(k8s_objects) == 1
-        annotations = k8s_objects[0]["metadata"]["annotations"]
-        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-sa@project.iam"
-
     @pytest.mark.parametrize(
         ("values_key", "show_only"),
         [
             ("dagProcessor", "templates/dag-processor/dag-processor-serviceaccount.yaml"),
             ("apiServer", "templates/api-server/api-server-serviceaccount.yaml"),
+            ("pgbouncer", "templates/pgbouncer/pgbouncer-serviceaccount.yaml"),
+            ("migrateDatabaseJob", "templates/jobs/migrate-database-job-serviceaccount.yaml"),
+            ("createUserJob", "templates/jobs/create-user-job-serviceaccount.yaml"),
+            ("flower", "templates/flower/flower-serviceaccount.yaml"),
+            ("cleanup", "templates/cleanup/cleanup-serviceaccount.yaml"),
+            ("databaseCleanup", "templates/database-cleanup/database-cleanup-serviceaccount.yaml"),
+            ("redis", "templates/redis/redis-serviceaccount.yaml"),
+            ("statsd", "templates/statsd/statsd-serviceaccount.yaml"),
         ],
     )
     def test_tpl_rendered_annotations_airflow_3(self, values_key, show_only):
         """Test SA annotations support tpl rendering for Airflow 3.x components."""
         k8s_objects = render_chart(
             values={
+                **({"executor": "KubernetesExecutor"} if values_key == "cleanup" else {}),
                 values_key: {
+                    "enabled": True,
                     "serviceAccount": {
                         "annotations": {
                             "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-sa@project.iam",
@@ -461,6 +452,28 @@ class TestServiceAccountAnnotations:
                 },
             },
             show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["metadata"]["annotations"]
+        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-worker@project.iam"
+
+    def test_tpl_rendered_annotations_kubernetes_worker_separate(self):
+        """Test worker-kubernetes-serviceaccount.yaml support tpl rendering."""
+        k8s_objects = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": {
+                    "kubernetes": {
+                        "serviceAccount": {
+                            "create": True,
+                            "annotations": {
+                                "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-worker@project.iam",
+                            },
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
         )
         assert len(k8s_objects) == 1
         annotations = k8s_objects[0]["metadata"]["annotations"]
