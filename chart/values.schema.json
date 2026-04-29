@@ -8752,8 +8752,8 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
-                        "extraAnnotations": {
-                            "description": "Extra annotations for the OTel Collector Service.",
+                        "annotations": {
+                            "description": "Annotations for the OTel Collector Service.",
                             "type": "object",
                             "default": {},
                             "additionalProperties": {
@@ -8838,6 +8838,15 @@
                             "x-docsSection": "Kubernetes"
                         }
                     }
+                },
+                "extraNetworkPolicies": {
+                    "description": "Additional NetworkPolicies as needed for the OTel Collector. Only used when `networkPolicies.enabled` is true.",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.networking.v1.NetworkPolicyPeer"
+                    },
+                    "default": []
                 },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
