@@ -332,11 +332,12 @@ def test_start_without_job_generates_uuid_id(mocker):
     fake_proc.send_msg.assert_called_once()
 
 
-def test_heartbeat_is_noop_without_job(jobless_supervisor, mocker):
-    """heartbeat() must not call perform_heartbeat when job is None."""
+def test_heartbeat_raises_without_job(jobless_supervisor, mocker):
+    """heartbeat() must fail loudly when job is None so missing subclass overrides surface."""
     perform_heartbeat = mocker.patch("airflow.jobs.triggerer_job_runner.perform_heartbeat")
 
-    jobless_supervisor.heartbeat()
+    with pytest.raises(RuntimeError, match="must override this method"):
+        jobless_supervisor.heartbeat()
 
     perform_heartbeat.assert_not_called()
 
@@ -348,9 +349,10 @@ def test_metric_tags_default_uses_job_hostname(supervisor_builder):
     assert supervisor.metric_tags() == {"hostname": supervisor.job.hostname}
 
 
-def test_metric_tags_default_empty_without_job(jobless_supervisor):
-    """metric_tags() returns {} when there is no job."""
-    assert jobless_supervisor.metric_tags() == {}
+def test_metric_tags_raises_without_job(jobless_supervisor):
+    """metric_tags() must fail loudly when job is None — empty tags would crash emit_metrics()."""
+    with pytest.raises(RuntimeError, match="must override this method"):
+        jobless_supervisor.metric_tags()
 
 
 def test_emit_metrics_uses_metric_tags_override(jobless_supervisor, mocker):
@@ -369,13 +371,14 @@ def test_emit_metrics_uses_metric_tags_override(jobless_supervisor, mocker):
         assert call.kwargs["extra_tags"] == {"hostname": "astro-host", "deployment": "demo"}
 
 
-def test_load_triggers_is_noop_without_job(jobless_supervisor, mocker):
-    """load_triggers() must not touch DB-backed Trigger calls when job is None."""
+def test_load_triggers_raises_without_job(jobless_supervisor, mocker):
+    """load_triggers() must fail loudly when job is None so missing subclass overrides surface."""
     assign_unassigned = mocker.patch("airflow.jobs.triggerer_job_runner.Trigger.assign_unassigned")
     ids_for_triggerer = mocker.patch("airflow.jobs.triggerer_job_runner.Trigger.ids_for_triggerer")
     update_triggers = mocker.patch.object(TriggerRunnerSupervisor, "update_triggers")
 
-    jobless_supervisor.load_triggers()
+    with pytest.raises(RuntimeError, match="must override this method"):
+        jobless_supervisor.load_triggers()
 
     assign_unassigned.assert_not_called()
     ids_for_triggerer.assert_not_called()
