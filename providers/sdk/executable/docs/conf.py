@@ -1,3 +1,5 @@
+# Disable Flake8 because of all the sphinx imports
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,4 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-__path__ = __import__("pkgutil").extend_path(__path__, __name__)
+"""Configuration of Providers docs building."""
+
+from __future__ import annotations
+
+import os
+
+os.environ["AIRFLOW_PACKAGE_NAME"] = "apache-airflow-providers-sdk-executable"
+
+from docs.provider_conf import *  # noqa: F403

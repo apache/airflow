@@ -107,6 +107,7 @@ services:
       - ../../../empty:/opt/airflow/providers/redis/src
       - ../../../empty:/opt/airflow/providers/salesforce/src
       - ../../../empty:/opt/airflow/providers/samba/src
+      - ../../../empty:/opt/airflow/providers/sdk/executable/src
       - ../../../empty:/opt/airflow/providers/sdk/java/src
       - ../../../empty:/opt/airflow/providers/segment/src
       - ../../../empty:/opt/airflow/providers/sendgrid/src

@@ -120,6 +120,7 @@ services:
       - ../../../providers/redis/tests:/opt/airflow/providers/redis/tests
       - ../../../providers/salesforce/tests:/opt/airflow/providers/salesforce/tests
       - ../../../providers/samba/tests:/opt/airflow/providers/samba/tests
+      - ../../../providers/sdk/executable/tests:/opt/airflow/providers/sdk/executable/tests
       - ../../../providers/sdk/java/tests:/opt/airflow/providers/sdk/java/tests
       - ../../../providers/segment/tests:/opt/airflow/providers/segment/tests
       - ../../../providers/sendgrid/tests:/opt/airflow/providers/sendgrid/tests
