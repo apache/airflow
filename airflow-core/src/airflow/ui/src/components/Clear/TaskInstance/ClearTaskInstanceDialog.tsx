@@ -39,10 +39,7 @@ import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmation
 // `taskInstance` (clears that single TI and reads its display fields). The
 // two variants are mutually exclusive at the type level — no defensive
 // runtime fallback chains needed in the body.
-type Props = {
-  readonly onClose: () => void;
-  readonly open: boolean;
-} & (
+type Props = (
   | {
       readonly allMapped: true;
       readonly dagId: string;
@@ -53,7 +50,10 @@ type Props = {
       readonly allMapped?: false;
       readonly taskInstance: TaskInstanceResponse;
     }
-);
+) & {
+  readonly onClose: () => void;
+  readonly open: boolean;
+};
 
 // react/destructuring-assignment expects every prop access via signature
 // destructure, but TypeScript's discriminated-union narrowing needs the union
