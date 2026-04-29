@@ -27,12 +27,21 @@ if TYPE_CHECKING:
     from opensearchpy import Connection as OpenSearchConnectionClass
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
+from airflow.utils.strings import to_boolean
 
 
 class OpenSearchClientArguments(TypedDict, total=False):
     """Typed arguments to the open search client."""
 
     hosts: str | list[dict] | None
+    use_ssl: bool
+    verify_certs: bool
+    url_prefix: str
+    timeout: int
+    headers: dict[str, str] | None
+    http_compress: bool | None
+    opaque_id: str | None
+    scheme: str
     connection_class: type[OpenSearchConnectionClass] | None
     http_auth: tuple[str, str]
 
@@ -61,6 +70,18 @@ class OpenSearchHook(BaseHook):
         self.conn_id = open_search_conn_id
         self.log_query = log_query
 
+        extra = self.conn.extra_dejson
+        self.use_ssl = to_boolean(str(extra.get("use_ssl", False)))
+        self.verify_certs = to_boolean(str(extra.get("verify_certs", False)))
+        self.url_prefix = extra.get("url_prefix")
+        self.timeout = int(extra["timeout"]) if extra.get("timeout") is not None else None
+        self.headers = extra.get("headers")
+        self.http_compress = (
+            to_boolean(str(extra["http_compress"])) if extra.get("http_compress") is not None else None
+        )
+        self.opaque_id = extra.get("opaque_id")
+        self.scheme = extra.get("scheme")
+
         self.connection_class = open_search_conn_class
         self.__SERVICE = "es"
 
@@ -73,13 +94,24 @@ class OpenSearchHook(BaseHook):
         """This function is intended for Operators that forward high level client objects."""
         client_args: OpenSearchClientArguments = dict(
             hosts=[{"host": self.conn.host, "port": self.conn.port}],
+            use_ssl=self.use_ssl,
+            verify_certs=self.verify_certs,
             connection_class=self.connection_class,
         )
+        if self.scheme:
+            client_args["scheme"] = self.scheme
+        if self.url_prefix:
+            client_args["url_prefix"] = self.url_prefix
+        if self.timeout is not None:
+            client_args["timeout"] = self.timeout
+        if self.headers is not None:
+            client_args["headers"] = self.headers
+        if self.http_compress is not None:
+            client_args["http_compress"] = self.http_compress
+        if self.opaque_id is not None:
+            client_args["opaque_id"] = self.opaque_id
         if self.conn.login and self.conn.password:
             client_args["http_auth"] = (self.conn.login, self.conn.password)
-
-        client_args.update(self.conn.extra_dejson)
-
         client = OpenSearch(**client_args)
         return client
 

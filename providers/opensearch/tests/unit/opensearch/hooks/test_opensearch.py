@@ -71,9 +71,12 @@ class TestOpenSearchHook:
             extra={
                 "use_ssl": True,
                 "verify_certs": False,
+                "scheme": "https",
                 "timeout": 30,
                 "http_compress": True,
                 "url_prefix": "os",
+                "headers": {"x-trace-id": "abc123"},
+                "opaque_id": "request-1",
             },
         )
         mock_get_connection.return_value = mock_conn
@@ -84,9 +87,12 @@ class TestOpenSearchHook:
             hosts=[{"host": "opensearch.local", "port": 9200}],
             use_ssl=True,
             verify_certs=False,
+            scheme="https",
             timeout=30,
             http_compress=True,
             url_prefix="os",
+            headers={"x-trace-id": "abc123"},
+            opaque_id="request-1",
             connection_class=DEFAULT_CONN,
         )
 
