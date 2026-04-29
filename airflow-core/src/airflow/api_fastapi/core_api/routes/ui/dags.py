@@ -126,7 +126,7 @@ def get_dags(
     dag_runs_limit: int = 10,
 ) -> DAGWithLatestDagRunsCollectionResponse:
     """Get DAGs with recent DagRun."""
-    # Fetch DAGs with their latest DagRun and apply filters
+    # Fetch Dags with their latest DagRun and apply filters
     query = generate_dag_with_latest_run_query(
         max_run_filters=[
             last_dag_run_state,
@@ -165,14 +165,14 @@ def get_dags(
 
     dags = [dag for dag in session.scalars(dags_select)]
 
-    # Fetch favorite status for each DAG for the current user
+    # Fetch favorite status for each Dag for the current user
     user_id = str(user.get_id())
     favorites_select = select(DagFavorite.dag_id).where(
         DagFavorite.user_id == user_id, DagFavorite.dag_id.in_([dag.dag_id for dag in dags])
     )
     favorite_dag_ids = set(session.scalars(favorites_select))
 
-    # Populate the last 'dag_runs_limit' DagRuns for each DAG
+    # Populate the last 'dag_runs_limit' DagRuns for each Dag
     recent_runs_subquery = (
         select(
             DagRun.dag_id,

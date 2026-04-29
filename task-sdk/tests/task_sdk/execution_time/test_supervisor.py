@@ -2156,15 +2156,24 @@ REQUEST_TEST_CASES = [
             run_id="test_run",
             conf={"key": "value"},
             logical_date=timezone.datetime(2025, 1, 1),
+            run_after=timezone.datetime(2025, 1, 1, 12, 0, 0),
             reset_dag_run=True,
         ),
         expected_body={"ok": True, "type": "OKResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True, None),
+            args=(
+                "test_dag",
+                "test_run",
+                {"key": "value"},
+                timezone.datetime(2025, 1, 1),
+                timezone.datetime(2025, 1, 1, 12, 0, 0),
+                True,
+                None,
+            ),
             response=OKResponse(ok=True),
         ),
-        test_id="dag_run_trigger",
+        test_id="dag_run_trigger_with_run_after",
     ),
     RequestTestCase(
         message=TriggerDagRun(
@@ -2178,7 +2187,31 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True, "Test Note"),
+            args=(
+                "test_dag",
+                "test_run",
+                {"key": "value"},
+                timezone.datetime(2025, 1, 1),
+                None,
+                True,
+                "Test Note",
+            ),
+            response=OKResponse(ok=True),
+        ),
+        test_id="dag_run_trigger",
+    ),
+    RequestTestCase(
+        message=TriggerDagRun(
+            dag_id="test_dag",
+            run_id="test_run",
+            conf={"key": "value"},
+            logical_date=timezone.datetime(2025, 1, 1),
+            reset_dag_run=True,
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+        client_mock=ClientMock(
+            method_path="dag_runs.trigger",
+            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), None, True, None),
             response=OKResponse(ok=True),
         ),
         test_id="dag_run_trigger",
@@ -2188,7 +2221,7 @@ REQUEST_TEST_CASES = [
         expected_body={"error": "DAGRUN_ALREADY_EXISTS", "detail": None, "type": "ErrorResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", None, None, False, None),
+            args=("test_dag", "test_run", None, None, None, False, None),
             response=ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS),
         ),
         test_id="dag_run_trigger_already_exists",

@@ -3240,7 +3240,7 @@ paths:
       tags:
       - DagWarning
       summary: List Dag Warnings
-      description: Get a list of DAG warnings.
+      description: Get a list of Dag warnings.
       operationId: list_dag_warnings
       security:
       - OAuth2PasswordBearer: []
@@ -7688,7 +7688,7 @@ paths:
           description: 'Prefix match on task display name: optional ``_task_display_property_value``
             else ``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly
             alternative to ``task_display_name_pattern``. On large databases, combine
-            with ``dag_id_prefix_pattern`` (or a specific DAG in the path) so ``(dag_id,
+            with ``dag_id_prefix_pattern`` (or a specific Dag in the path) so ``(dag_id,
             task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all.
             Trailing non-alphanumeric characters in the term are stripped before matching
             so the range scan stays index-compatible under locale-aware collations.'
@@ -7696,7 +7696,7 @@ paths:
         description: 'Prefix match on task display name: optional ``_task_display_property_value``
           else ``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly
           alternative to ``task_display_name_pattern``. On large databases, combine
-          with ``dag_id_prefix_pattern`` (or a specific DAG in the path) so ``(dag_id,
+          with ``dag_id_prefix_pattern`` (or a specific Dag in the path) so ``(dag_id,
           task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all.
           Trailing non-alphanumeric characters in the term are stripped before matching
           so the range scan stays index-compatible under locale-aware collations.'
@@ -9457,11 +9457,11 @@ paths:
       tags:
       - DagVersion
       summary: Get Dag Versions
-      description: 'Get all DAG Versions.
+      description: 'Get all Dag Versions.
 
 
-        This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions
-        for all DAGs.'
+        This endpoint allows specifying `~` as the dag_id to retrieve Dag Versions
+        for all Dags.'
       operationId: get_dag_versions
       security:
       - OAuth2PasswordBearer: []

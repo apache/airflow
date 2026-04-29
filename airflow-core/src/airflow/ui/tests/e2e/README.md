@@ -96,7 +96,7 @@ export class DagPage extends BasePage {
 }
 
 // specs/dag.spec.ts
-test('pause DAG', async ({ page }) => {
+test('pause Dag', async ({ page }) => {
   const dagPage = new DagPage(page);
   await dagPage.goto();
   await dagPage.pause();

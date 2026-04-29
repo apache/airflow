@@ -20,7 +20,10 @@ from __future__ import annotations
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.operators.s3tables import S3TablesCreateTableOperator
+from airflow.providers.amazon.aws.operators.s3_tables import (
+    S3TablesCreateTableOperator,
+    S3TablesDeleteTableOperator,
+)
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -75,6 +78,51 @@ class TestS3TablesCreateTableOperator:
             name=TABLE_NAME,
             format="ICEBERG",
             metadata=metadata,
+        )
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestS3TablesDeleteTableOperator:
+    def setup_method(self):
+        self.operator = S3TablesDeleteTableOperator(
+            task_id="test-delete-table",
+            table_bucket_arn=TABLE_BUCKET_ARN,
+            namespace=NAMESPACE,
+            table_name=TABLE_NAME,
+        )
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+
+        self.operator.execute({})
+        mock_client.delete_table.assert_called_once_with(
+            tableBucketARN=TABLE_BUCKET_ARN,
+            namespace=NAMESPACE,
+            name=TABLE_NAME,
+        )
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_version_token(self, mock_conn):
+        op = S3TablesDeleteTableOperator(
+            task_id="test-delete-with-token",
+            table_bucket_arn=TABLE_BUCKET_ARN,
+            namespace=NAMESPACE,
+            table_name=TABLE_NAME,
+            version_token="v1",
+        )
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+
+        op.execute({})
+        mock_client.delete_table.assert_called_once_with(
+            tableBucketARN=TABLE_BUCKET_ARN,
+            namespace=NAMESPACE,
+            name=TABLE_NAME,
+            versionToken="v1",
         )
 
     def test_template_fields(self):
