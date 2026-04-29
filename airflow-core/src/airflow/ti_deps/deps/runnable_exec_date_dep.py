@@ -20,6 +20,7 @@ from __future__ import annotations
 from airflow._shared.timezones import timezone
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
+from airflow.utils.types import DagRunType
 
 
 class RunnableExecDateDep(BaseTIDep):
@@ -30,13 +31,17 @@ class RunnableExecDateDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
-        logical_date = ti.get_dagrun(session).logical_date
+        dagrun = ti.get_dagrun(session)
+        logical_date = dagrun.logical_date
         if logical_date is None:
             return
 
         cur_date = timezone.utcnow()
 
-        if logical_date > cur_date:
+        if logical_date > cur_date and dagrun.run_type not in (
+            DagRunType.MANUAL,
+            DagRunType.OPERATOR_TRIGGERED,
+        ):
             yield self._failing_status(
                 reason=(
                     f"Logical date {logical_date.isoformat()} is in the future "

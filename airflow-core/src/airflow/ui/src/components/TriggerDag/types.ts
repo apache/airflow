@@ -28,6 +28,7 @@ export type DagRunTriggerParams = {
   logicalDate: string;
   note: string;
   partitionKey: string | undefined;
+  runImmediately: boolean;
 };
 
 export const dataIntervalModeOptions = [

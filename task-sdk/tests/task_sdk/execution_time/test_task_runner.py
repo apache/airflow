@@ -4511,7 +4511,7 @@ class TestTriggerDagRunOperator:
 
         expected_calls = [
             mock.call.send(
-                msg=TriggerDagRun(
+                TriggerDagRun(
                     dag_id="test_dag",
                     run_id="test_run_id",
                     reset_dag_run=False,
@@ -4519,7 +4519,7 @@ class TestTriggerDagRunOperator:
                 ),
             ),
             mock.call.send(
-                msg=SetXCom(
+                SetXCom(
                     key="trigger_run_id",
                     value="test_run_id",
                     dag_id="test_handle_trigger_dag_run",
@@ -4562,7 +4562,7 @@ class TestTriggerDagRunOperator:
 
         expected_calls = [
             mock.call.send(
-                msg=TriggerDagRun(
+                TriggerDagRun(
                     dag_id="test_dag",
                     logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
                     run_id="test_run_id",
@@ -4635,14 +4635,14 @@ class TestTriggerDagRunOperator:
 
         expected_calls = [
             mock.call.send(
-                msg=TriggerDagRun(
+                TriggerDagRun(
                     dag_id="test_dag",
                     run_id="test_run_id",
                     logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
                 ),
             ),
             mock.call.send(
-                msg=SetXCom(
+                SetXCom(
                     key="trigger_run_id",
                     value="test_run_id",
                     dag_id="test_handle_trigger_dag_run_wait_for_completion",
@@ -4652,13 +4652,13 @@ class TestTriggerDagRunOperator:
                 ),
             ),
             mock.call.send(
-                msg=GetDagRunState(
+                GetDagRunState(
                     dag_id="test_dag",
                     run_id="test_run_id",
                 ),
             ),
             mock.call.send(
-                msg=GetDagRunState(
+                GetDagRunState(
                     dag_id="test_dag",
                     run_id="test_run_id",
                 ),
@@ -4755,6 +4755,117 @@ class TestTriggerDagRunOperator:
 
         # Also verify it was sent to supervisor
         mock_supervisor_comms.send.assert_any_call(msg)
+
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_trigger_dag_run_default_does_not_set_run_after(self, create_runtime_ti, mock_supervisor_comms):
+        """When neither logical_date nor run_after is set, run_after should be None in the message."""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+        )
+        ti = create_runtime_ti(dag_id="test_trigger_default_no_run_after", run_id="test_run", task=task)
+
+        log = mock.MagicMock()
+        run(ti, ti.get_template_context(), log)
+
+        mock_supervisor_comms.send.assert_any_call(
+            TriggerDagRun(
+                dag_id="test_dag",
+                run_id="test_run_id",
+                reset_dag_run=False,
+                logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+            ),
+        )
+
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_trigger_dag_run_with_future_logical_date_defaults_run_after_to_logical_date(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """When logical_date is explicitly set but run_after is not, run_after defaults to logical_date."""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        future = datetime(2025, 6, 1, 0, 0, 0, tzinfo=dt_timezone.utc)
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            logical_date=future,
+        )
+        ti = create_runtime_ti(dag_id="test_trigger_future_logical_date", run_id="test_run", task=task)
+
+        log = mock.MagicMock()
+        run(ti, ti.get_template_context(), log)
+
+        mock_supervisor_comms.send.assert_any_call(
+            TriggerDagRun(
+                dag_id="test_dag",
+                run_id="test_run_id",
+                reset_dag_run=False,
+                logical_date=future,
+                run_after=future,
+            ),
+        )
+
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_trigger_dag_run_with_explicit_run_after(self, create_runtime_ti, mock_supervisor_comms):
+        """When run_after is explicitly set, it should be used as-is."""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        future_logical = datetime(2025, 6, 1, 0, 0, 0, tzinfo=dt_timezone.utc)
+        explicit_run_after = datetime(2025, 3, 1, 0, 0, 0, tzinfo=dt_timezone.utc)
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            logical_date=future_logical,
+            run_after=explicit_run_after,
+        )
+        ti = create_runtime_ti(dag_id="test_trigger_explicit_run_after", run_id="test_run", task=task)
+
+        log = mock.MagicMock()
+        run(ti, ti.get_template_context(), log)
+
+        mock_supervisor_comms.send.assert_any_call(
+            TriggerDagRun(
+                dag_id="test_dag",
+                run_id="test_run_id",
+                reset_dag_run=False,
+                logical_date=future_logical,
+                run_after=explicit_run_after,
+            ),
+        )
+
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_trigger_dag_run_with_run_after_none_forces_immediate(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """When run_after is explicitly None with a future logical_date, run_after should be None."""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        future = datetime(2025, 6, 1, 0, 0, 0, tzinfo=dt_timezone.utc)
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            logical_date=future,
+            run_after=None,
+        )
+        ti = create_runtime_ti(dag_id="test_trigger_run_after_none", run_id="test_run", task=task)
+
+        log = mock.MagicMock()
+        run(ti, ti.get_template_context(), log)
+
+        mock_supervisor_comms.send.assert_any_call(
+            TriggerDagRun(
+                dag_id="test_dag",
+                run_id="test_run_id",
+                reset_dag_run=False,
+                logical_date=future,
+            ),
+        )
 
 
 class TestTaskInstanceMetrics:

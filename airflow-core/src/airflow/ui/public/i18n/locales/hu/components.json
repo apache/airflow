@@ -133,6 +133,7 @@
     "loadingFailed": "A Dag információk betöltése sikertelen. Kérem, próbálja újra.",
     "manualRunDenied": "Kézi futtatás nem engedélyezett ennél a Dag-nél",
     "runIdHelp": "Opcionális – ha nincs megadva, automatikusan generálódik",
+    "runImmediately": "Azonnali futtatás (a logikai dátum a jövőben van)",
     "selectDescription": "Indítsd el ennek a Dag-nek egyetlen futását",
     "selectLabel": "Egyszeri futás",
     "title": "Dag indítása",

@@ -149,6 +149,7 @@
     "loadingFailed": "Nie udało się załadować informacji o Dagach. Spróbuj ponownie.",
     "manualRunDenied": "Ręczne uruchamianie nie jest dozwolone dla tego Daga",
     "runIdHelp": "Opcjonalne - zostanie wygenerowane, jeśli nie podano",
+    "runImmediately": "Uruchom natychmiast (data logiczna jest w przyszłości)",
     "selectDescription": "Wyzwól pojedyncze wykonanie",
     "selectLabel": "Pojedyncze wykonanie",
     "title": "Uruchom Daga",

@@ -88,6 +88,7 @@ const TriggerDAGForm = ({
       logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
       note: "",
       partitionKey: undefined,
+      runImmediately: false,
     },
   });
 
@@ -106,6 +107,7 @@ const TriggerDAGForm = ({
         logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
         note: "",
         partitionKey: undefined,
+        runImmediately: false,
       });
       // Also update the param store to keep it in sync.
       // Wait until we have the initial params so section ordering stays consistent.
@@ -138,6 +140,9 @@ const TriggerDAGForm = ({
   }, [conf, hasAppliedPrefill, prefillConfig, open, reset]);
 
   const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
+
+  const logicalDate = watch("logicalDate");
+  const isFutureDate = Boolean(logicalDate) && dayjs(logicalDate).isAfter(dayjs());
 
   const dataIntervalMode = watch("dataIntervalMode");
   const dataIntervalStart = watch("dataIntervalStart");
@@ -175,6 +180,22 @@ const TriggerDAGForm = ({
                 </Field.Root>
               )}
             />
+            {isFutureDate ? (
+              <Controller
+                control={control}
+                name="runImmediately"
+                render={({ field }) => (
+                  <Checkbox
+                    checked={field.value}
+                    colorPalette="brand"
+                    onChange={(e) => field.onChange((e.target as HTMLInputElement).checked)}
+                    wordBreak="break-all"
+                  >
+                    {translate("components:triggerDag.runImmediately")}
+                  </Checkbox>
+                )}
+              />
+            ) : undefined}
             <Spacer />
             {hasSchedule ? (
               <Box>

@@ -71,6 +71,12 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     // eslint-disable-next-line unicorn/no-null
     const formattedLogicalDate = logicalDate?.toISOString() ?? null;
 
+    // When the logical date is in the future and the user does NOT want to run immediately,
+    // set run_after to the logical date so the scheduler waits until that time.
+    const isFutureLogicalDate = logicalDate ? logicalDate > new Date() : false;
+    const runAfter =
+      isFutureLogicalDate && !dagRunRequestBody.runImmediately ? formattedLogicalDate : undefined;
+
     const dataIntervalStart = dagRunRequestBody.dataIntervalStart
       ? new Date(dagRunRequestBody.dataIntervalStart)
       : undefined;
@@ -96,6 +102,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
         logical_date: formattedLogicalDate,
         note: checkNote,
         partition_key: dagRunRequestBody.partitionKey ?? null,
+        run_after: runAfter,
       },
     });
   };

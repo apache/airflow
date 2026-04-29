@@ -1523,7 +1523,13 @@ class ActivitySubprocess(WatchedSubprocess):
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, TriggerDagRun):
             resp = self.client.dag_runs.trigger(
-                msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.reset_dag_run, msg.note
+                msg.dag_id,
+                msg.run_id,
+                msg.conf,
+                msg.logical_date,
+                msg.reset_dag_run,
+                msg.note,
+                msg.run_after,
             )
         elif isinstance(msg, GetDagRun):
             dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)

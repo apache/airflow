@@ -120,6 +120,7 @@
     "loading": "Chargement des informations du Dag...",
     "loadingFailed": "Échec du chargement des informations du Dag. Veuillez réessayer.",
     "runIdHelp": "Optionnel – sera généré s'il n'est pas fourni",
+    "runImmediately": "Exécuter immédiatement (la date logique est dans le futur)",
     "selectDescription": "Déclencher une exécution unique de ce Dag",
     "selectLabel": "Exécution unique",
     "title": "Déclencher un Dag",

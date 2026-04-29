@@ -129,6 +129,7 @@
     "loading": "Caricamento informazioni del Dag...",
     "loadingFailed": "Impossibile caricare le informazioni del Dag. Per favore, riprova.",
     "runIdHelp": "Opzionale - verrà generato se non fornito",
+    "runImmediately": "Esegui immediatamente (la data logica è nel futuro)",
     "selectDescription": "Triggera un singolo run di questo Dag",
     "selectLabel": "Singolo Run",
     "title": "Trigger del Dag",

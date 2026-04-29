@@ -132,6 +132,7 @@
     "loadingFailed": "Mislukt om Dag informatie te laden. Probeer het opnieuw.",
     "manualRunDenied": "Handmatige runs zijn niet toegestaan voor deze Dag",
     "runIdHelp": "Optioneel - wordt gegenereerd indien niet opgegeven",
+    "runImmediately": "Direct uitvoeren (logische datum ligt in de toekomst)",
     "selectDescription": "Trigger een enkele run van deze Dag",
     "selectLabel": "Enkele Run",
     "title": "Trigger Dag",
