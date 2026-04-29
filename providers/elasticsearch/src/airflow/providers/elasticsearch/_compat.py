@@ -25,16 +25,30 @@ docstring for the regression context.
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
+from airflow.exceptions import AirflowConfigException
 from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
     import elasticsearch
 
 
-_JSON_MIME = "application/vnd.elasticsearch+json"
-_NDJSON_MIME = "application/vnd.elasticsearch+x-ndjson"
+# Matches the JSON / NDJSON / mapbox vector-tile mimetypes the ``elasticsearch``
+# client negotiates, in either form: the raw ``application/json`` (what the
+# generated client code writes into ``__headers``) and the already-rewritten
+# ``application/vnd.elasticsearch+json; compatible-with=<N>`` (what
+# ``mimetype_header_to_compat`` in ``elasticsearch/_sync/client/_base.py``
+# emits before handing the request to the transport). Both forms must be
+# rewritten to ``compatible-with=<configured>``; anything else (notably
+# ``text/plain`` used by the cat APIs) is left intact, mirroring upstream's
+# selective substitution behaviour.
+_COMPAT_MIMETYPE_RE = re.compile(
+    r"application/(?:vnd\.elasticsearch\+)?(json|x-ndjson|vnd\.mapbox-vector-tile)"
+    r"(?:\s*;\s*compatible-with=\d+)?"
+)
+_COMPAT_MAJOR_RE = re.compile(r"^\d+$")
 
 
 def apply_compat_with(client: elasticsearch.Elasticsearch) -> elasticsearch.Elasticsearch:
@@ -49,17 +63,24 @@ def apply_compat_with(client: elasticsearch.Elasticsearch) -> elasticsearch.Elas
 
     When ``[elasticsearch] es_compat_with`` is set to a major version string
     (e.g. ``"7"``, ``"8"``, ``"9"``) this helper wraps the client's transport
-    so every outbound request carries
-    ``Accept: application/vnd.elasticsearch+json; compatible-with=<major>``
-    and the matching ``Content-Type`` (using the ``+x-ndjson`` form for bulk
-    requests so multi-line bodies still parse on the server).
+    so every outbound request rewrites the ``compatible-with=<N>`` parameter on
+    the JSON / NDJSON / mapbox vector-tile parts of the ``Accept`` and
+    ``Content-Type`` headers. Non-JSON parts (notably ``text/plain`` used by
+    the cat APIs) are preserved verbatim, mirroring how elasticsearch-py's own
+    ``mimetype_header_to_compat`` handles content negotiation.
 
     When the option is unset the client is returned unchanged and behaves
     exactly as before.
     """
-    compat = conf.get("elasticsearch", "es_compat_with", fallback=None)
+    raw = conf.get("elasticsearch", "es_compat_with", fallback=None)
+    compat = (raw or "").strip()
     if not compat:
         return client
+    if not _COMPAT_MAJOR_RE.match(compat):
+        raise AirflowConfigException(
+            "[elasticsearch] es_compat_with must be a positive integer major version "
+            f"(e.g. '7', '8', '9'); got {raw!r}."
+        )
 
     transport = client.transport
     if "perform_request" in transport.__dict__:
@@ -67,23 +88,18 @@ def apply_compat_with(client: elasticsearch.Elasticsearch) -> elasticsearch.Elas
         # to ``apply_compat_with`` (e.g. across hook reuse) stay idempotent.
         return client
 
-    json_media = f"{_JSON_MIME}; compatible-with={compat}"
-    ndjson_media = f"{_NDJSON_MIME}; compatible-with={compat}"
-
+    sub = rf"application/vnd.elasticsearch+\g<1>; compatible-with={compat}"
     original_perform_request = transport.perform_request
 
     def perform_request(method, target, *, body=None, headers=None, **kwargs):  # type: ignore[no-untyped-def]
-        merged = dict(headers) if headers else {}
-        if merged.get("accept"):
-            merged["accept"] = json_media
-        content_type = merged.get("content-type") or ""
-        # ``+x-ndjson`` is the only streaming form elasticsearch-py uses today
-        # (bulk requests). ``"ndjson" in ct`` already matches both ``ndjson``
-        # and ``x-ndjson``, so a single check is enough.
-        if "ndjson" in content_type:
-            merged["content-type"] = ndjson_media
-        elif content_type:
-            merged["content-type"] = json_media
+        if not headers:
+            return original_perform_request(method, target, body=body, headers=headers, **kwargs)
+        # Walk every key case-insensitively so a future elastic_transport that
+        # forwards PascalCase headers does not silently bypass the rewrite.
+        merged = dict(headers)
+        for key in list(merged):
+            if key.lower() in ("accept", "content-type") and merged[key]:
+                merged[key] = _COMPAT_MIMETYPE_RE.sub(sub, merged[key])
         return original_perform_request(method, target, body=body, headers=merged, **kwargs)
 
     transport.perform_request = perform_request

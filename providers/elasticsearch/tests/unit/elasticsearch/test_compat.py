@@ -34,6 +34,7 @@ import pytest
 from elastic_transport import Transport
 from elasticsearch import Elasticsearch
 
+from airflow.exceptions import AirflowConfigException
 from airflow.providers.elasticsearch._compat import apply_compat_with
 
 from tests_common.test_utils.config import conf_vars
@@ -87,12 +88,28 @@ def test_apply_compat_with_unset_does_not_wrap_transport(unset_value):
     ``transport.perform_request`` would not work even in the no-op case
     because attribute access on a bound method produces a fresh wrapper each
     time.
+
+    Note: ``conf_vars`` removes the override when the value is ``None``, so
+    both parametrized cases ultimately resolve to the provider yaml default
+    (``""``). The parametrize is kept to document that callers passing either
+    sentinel get the no-op path; the actual ``None`` branch in the helper is
+    covered by ``test_apply_compat_with_unset_via_missing_conf`` below.
     """
     client = Elasticsearch("http://localhost:9200")
     assert "perform_request" not in client.transport.__dict__
     with conf_vars({("elasticsearch", "es_compat_with"): unset_value}):
         same = apply_compat_with(client)
     assert same is client
+    assert "perform_request" not in client.transport.__dict__
+
+
+def test_apply_compat_with_unset_via_missing_conf(monkeypatch):
+    """Cover the ``conf.get`` returning ``None`` branch directly."""
+    from airflow.providers.elasticsearch import _compat
+
+    monkeypatch.setattr(_compat.conf, "get", lambda *args, **kwargs: None)
+    client = Elasticsearch("http://localhost:9200")
+    assert apply_compat_with(client) is client
     assert "perform_request" not in client.transport.__dict__
 
 
@@ -129,6 +146,92 @@ def test_apply_compat_with_pins_compatible_with_7(wire_capture):
         c["headers"]["accept"] == "application/vnd.elasticsearch+json; compatible-with=7"
         for c in wire_capture
     )
+
+
+def test_apply_compat_with_preserves_text_plain_for_cat_apis(wire_capture):
+    """Cat APIs send ``Accept: text/plain[,application/json]``; the wrapper must
+    preserve the ``text/plain`` part. Earlier revisions of the helper unconditionally
+    rewrote ``accept`` to ``application/vnd.elasticsearch+json; compatible-with=N``,
+    which silently turned every ``cat.*`` response into JSON instead of plain text.
+
+    We mirror elasticsearch-py's own ``mimetype_header_to_compat`` (only
+    ``application/(json|x-ndjson|vnd.mapbox-vector-tile)`` parts get the
+    ``compatible-with`` suffix), so this test fails fast if anyone reverts to the
+    blanket overwrite.
+    """
+    with conf_vars({("elasticsearch", "es_compat_with"): "8"}):
+        client = apply_compat_with(Elasticsearch("http://localhost:9200"))
+
+    for action in (lambda: client.cat.help(), lambda: client.cat.indices()):
+        with contextlib.suppress(RuntimeError):
+            action()
+
+    accepts = [c["headers"].get("accept") for c in wire_capture]
+    # ``cat.help`` ships ``text/plain`` only; it must come through verbatim.
+    assert "text/plain" in accepts, accepts
+    # ``cat.indices`` ships ``text/plain,application/json``; the JSON half gets
+    # the ``compatible-with=8`` suffix, the text/plain half stays put.
+    assert any(
+        a and a.startswith("text/plain,application/vnd.elasticsearch+json; compatible-with=8")
+        for a in accepts
+    ), accepts
+
+
+def test_apply_compat_with_handles_pascal_case_headers(monkeypatch):
+    """Defensive: if ``elastic_transport`` ever forwards PascalCase header keys,
+    the rewrite must still apply (a lowercase-only ``dict.get`` would silently
+    no-op and let ``compatible-with=<client_major>`` ship to the server).
+    """
+    seen: dict = {}
+
+    def spy(self, method, target, *, body=None, headers=None, **kwargs):
+        seen["headers"] = dict(headers or {})
+        raise RuntimeError("captured")
+
+    monkeypatch.setattr(Transport, "perform_request", spy)
+
+    with conf_vars({("elasticsearch", "es_compat_with"): "8"}):
+        client = apply_compat_with(Elasticsearch("http://localhost:9200"))
+
+    # Drive the wrapper with PascalCase keys directly — bypassing the
+    # ``_BaseClient.perform_request`` normalization.
+    with contextlib.suppress(RuntimeError):
+        client.transport.perform_request(
+            "GET",
+            "/",
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
+        )
+
+    assert seen["headers"]["Accept"] == "application/vnd.elasticsearch+json; compatible-with=8"
+    assert seen["headers"]["Content-Type"] == "application/vnd.elasticsearch+json; compatible-with=8"
+
+
+def test_apply_compat_with_strips_whitespace_in_config(wire_capture):
+    """Operators occasionally write ``es_compat_with = " 8"``; the helper must
+    strip whitespace before interpolating into the wire header, otherwise the
+    server returns 400 and the helper fails open in a confusing way.
+    """
+    with conf_vars({("elasticsearch", "es_compat_with"): " 8 "}):
+        client = apply_compat_with(Elasticsearch("http://localhost:9200"))
+
+    with contextlib.suppress(RuntimeError):
+        client.search(index="airflow-logs", query={"match_all": {}})
+
+    assert wire_capture[-1]["headers"]["accept"] == (
+        "application/vnd.elasticsearch+json; compatible-with=8"
+    )
+
+
+@pytest.mark.parametrize("bad_value", ["v8", "8.0", "abc", "8;9"])
+def test_apply_compat_with_rejects_non_numeric_major(bad_value):
+    """A non-numeric ``es_compat_with`` would otherwise produce malformed wire
+    headers (``compatible-with=v8``) and a per-request 400 storm. Fail fast at
+    construction time with a config exception so the misconfiguration is
+    obvious in the worker startup log.
+    """
+    with conf_vars({("elasticsearch", "es_compat_with"): bad_value}):
+        with pytest.raises(AirflowConfigException, match="es_compat_with"):
+            apply_compat_with(Elasticsearch("http://localhost:9200"))
 
 
 def test_apply_compat_with_is_idempotent():
