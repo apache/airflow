@@ -880,6 +880,23 @@ class TestDagFileProcessorManager:
             manager._kill_timed_out_processors()
         mock_kill.assert_not_called()
 
+    def test_handle_parsing_result_provides_its_own_session_when_caller_omits(self):
+        """``handle_parsing_result`` is wrapped in ``@provide_session`` so subclasses overriding it can run without a caller-supplied session."""
+        manager = DagFileProcessorManager(max_runs=1)
+        file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
+        manager._file_stats[file] = DagFileStat()
+        manager._bundle_versions["testing"] = "v1"
+
+        processor, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        processor.had_callbacks = False
+        processor.parsing_result = DagFileParsingResult(fileloc="abc.txt", serialized_dags=[])
+
+        with mock.patch.object(manager, "persist_parsing_result") as mock_persist:
+            manager.handle_parsing_result(file, processor)
+
+        mock_persist.assert_called_once()
+        assert mock_persist.call_args.kwargs["session"] is not None
+
     def test_handle_parsing_result_throttles_retry_when_first_persist_fails(self, session):
         """Persist errors should throttle retries without claiming persistence succeeded."""
         manager = DagFileProcessorManager(max_runs=1)
@@ -971,7 +988,7 @@ class TestDagFileProcessorManager:
             "persist_parsing_result",
             side_effect=[RuntimeError("boom"), None],
         ):
-            manager._collect_results(session=session)
+            manager._collect_results()
 
         assert manager._file_stats[file_a] is not stat_a_before
         assert manager._file_stats[file_a].num_dags == stat_a_before.num_dags
