@@ -337,7 +337,10 @@ class AssetModel(Base):
 
     @classmethod
     def from_serialized(cls, obj: SerializedAsset) -> AssetModel:
-        return cls(name=obj.name, uri=obj.uri, group=obj.group, extra=obj.extra)
+        extra = dict(obj.extra)
+        if obj.allow_producer_teams:
+            extra["allow_producer_teams"] = obj.allow_producer_teams
+        return cls(name=obj.name, uri=obj.uri, group=obj.group, extra=extra)
 
     def __init__(self, name: str = "", uri: str = "", **kwargs):
         if not name and not uri:
@@ -376,7 +379,15 @@ class AssetModel(Base):
     def to_serialized(self) -> SerializedAsset:
         from airflow.serialization.definitions.assets import SerializedAsset
 
-        return SerializedAsset(name=self.name, uri=self.uri, group=self.group, extra=self.extra, watchers=[])
+        extra = {k: v for k, v in self.extra.items() if k != "allow_producer_teams"}
+        return SerializedAsset(
+            name=self.name,
+            uri=self.uri,
+            group=self.group,
+            extra=extra,
+            watchers=[],
+            allow_producer_teams=self.extra.get("allow_producer_teams", []),
+        )
 
     def add_trigger(self, trigger: Trigger, watcher_name: str):
         self.watchers.append(AssetWatcherModel(name=watcher_name, trigger_id=trigger.id))

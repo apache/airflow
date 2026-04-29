@@ -18,12 +18,13 @@
  */
 import { createContext } from "react";
 
-export type OpenGroupsContextType = {
+export type GroupsContextType = {
   allGroupIds: Array<string>;
+  allOperators: Array<string>;
   openGroupIds: Array<string>;
   setAllGroupIds: (groupIds: Array<string>) => void;
   setOpenGroupIds: (groupIds: Array<string>) => void;
   toggleGroupId: (groupId: string) => void;
 };
 
-export const OpenGroupsContext = createContext<OpenGroupsContextType | undefined>(undefined);
+export const GroupsContext = createContext<GroupsContextType | undefined>(undefined);

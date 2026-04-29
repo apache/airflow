@@ -51,8 +51,8 @@ import type { DagView } from "src/constants/dagView";
 import { DEFAULT_DAG_VIEW_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
+import { GroupsProvider } from "src/context/groups";
 import { HoverProvider, useHover } from "src/context/hover";
-import { OpenGroupsProvider } from "src/context/openGroups";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
@@ -217,7 +217,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
 
   return (
     <HoverProvider>
-      <OpenGroupsProvider dagId={dagId}>
+      <GroupsProvider dagId={dagId}>
         <HStack justifyContent="space-between" mb={2}>
           <DagBreadcrumb />
           <Flex gap={1}>
@@ -422,7 +422,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
             )}
           </PanelGroup>
         </Box>
-      </OpenGroupsProvider>
+      </GroupsProvider>
     </HoverProvider>
   );
 };

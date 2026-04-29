@@ -39,6 +39,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
@@ -295,11 +296,48 @@ export const TaskInstances = () => {
 
   const refetchInterval = useAutoRefresh({});
 
+  const dagIdPatternArg = useAdvancedSearchArg({
+    patternApiKey: "dagIdPattern",
+    prefixApiKey: "dagIdPrefixPattern",
+    storageKey: DAG_ID_PATTERN_PARAM,
+    value: filteredDagIdPattern,
+  });
+  const runIdPatternArg = useAdvancedSearchArg({
+    patternApiKey: "runIdPattern",
+    prefixApiKey: "runIdPrefixPattern",
+    storageKey: RUN_ID_PATTERN_PARAM,
+    value: filteredRunId,
+  });
+  const taskDisplayNameArg = useAdvancedSearchArg({
+    patternApiKey: "taskDisplayNamePattern",
+    prefixApiKey: "taskDisplayNamePrefixPattern",
+    storageKey: NAME_PATTERN_PARAM,
+    value: taskDisplayNamePattern,
+  });
+  const operatorNameArg = useAdvancedSearchArg({
+    patternApiKey: "operatorNamePattern",
+    prefixApiKey: "operatorNamePrefixPattern",
+    storageKey: OPERATOR_NAME_PATTERN_PARAM,
+    value: operatorNamePattern,
+  });
+  const poolNameArg = useAdvancedSearchArg({
+    patternApiKey: "poolNamePattern",
+    prefixApiKey: "poolNamePrefixPattern",
+    storageKey: POOL_NAME_PATTERN_PARAM,
+    value: poolNamePattern,
+  });
+  const queueNameArg = useAdvancedSearchArg({
+    patternApiKey: "queueNamePattern",
+    prefixApiKey: "queueNamePrefixPattern",
+    storageKey: QUEUE_NAME_PATTERN_PARAM,
+    value: queueNamePattern,
+  });
+
   const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
       cursor: cursor ?? "",
       dagId: dagId ?? "~",
-      dagIdPrefixPattern: filteredDagIdPattern ?? undefined,
+      ...dagIdPatternArg,
       dagRunId: runId ?? "~",
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
@@ -308,14 +346,14 @@ export const TaskInstances = () => {
       logicalDateGte: logicalDateGte ?? undefined,
       logicalDateLte: logicalDateLte ?? undefined,
       mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
-      operatorNamePrefixPattern: operatorNamePattern ?? undefined,
+      ...operatorNameArg,
       orderBy,
-      poolNamePrefixPattern: poolNamePattern ?? undefined,
-      queueNamePrefixPattern: queueNamePattern ?? undefined,
-      runIdPrefixPattern: filteredRunId ?? undefined,
+      ...poolNameArg,
+      ...queueNameArg,
+      ...runIdPatternArg,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
-      taskDisplayNamePrefixPattern: taskDisplayNamePattern ?? undefined,
+      ...taskDisplayNameArg,
       taskGroupId: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
       tryNumber: tryNumberFilter !== null && tryNumberFilter !== "" ? [Number(tryNumberFilter)] : undefined,

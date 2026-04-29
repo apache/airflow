@@ -36,7 +36,10 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodLaunchTimeoutException,
     PodPhase,
 )
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.cncf.kubernetes.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.state import TaskInstanceState
@@ -411,17 +414,54 @@ class KubernetesPodTrigger(BaseTrigger):
 
     async def safe_to_cancel(self) -> bool:
         """
-        Whether it is safe to cancel the external job which is being executed by this trigger.
+        Whether it is safe to delete the pod during trigger cleanup.
 
-        Cancel is NOT safe when the task is still in DEFERRED state, because it means the
-        triggerer is redistributing triggers and the trigger will be recreated on another triggerer.
-        Cancel IS safe when the task state has changed (e.g. user marked it as success/failed).
+        Used only on Airflow < 3.3.0 where the triggerer does not invoke ``on_kill()`` for user kills.
+        Deletion is NOT safe when the task is still in DEFERRED state (triggerer restart).
         """
         task_state = await self.get_task_state()
         return task_state != TaskInstanceState.DEFERRED
 
+    async def on_kill(self) -> None:
+        """
+        Delete the pod when the trigger is cancelled by a user action.
+
+        The triggerer invokes this for user-initiated kills on Airflow 3.3.0+ only; on older versions
+        use ``cleanup()`` and ``safe_to_cancel()`` instead.
+        """
+        if self._fired_event:
+            self.log.debug("Skipping on_kill since an event has already been fired.")
+            return
+
+        if self.on_kill_action == OnKillAction.KEEP_POD:
+            self.log.debug("Skipping on_kill since on_kill_action is set to %r.", self.on_kill_action.value)
+            return
+
+        self.log.info("Deleting pod %s in namespace %s.", self.pod_name, self.pod_namespace)
+        try:
+            await self.hook.delete_pod(
+                name=self.pod_name,
+                namespace=self.pod_namespace,
+                grace_period_seconds=self.termination_grace_period,
+            )
+        except Exception:
+            self.log.exception("Unexpected error while deleting pod %s", self.pod_name)
+
     async def cleanup(self) -> None:
-        """Clean up the pod when the trigger is cancelled."""
+        """
+        Clean up the pod when the trigger exits.
+
+        On Airflow 3.3.0+ pod deletion on user kill is handled in ``on_kill()`` only; this avoids
+        deleting pods on triggerer restart. On older Airflow versions, ``cleanup()`` still uses
+        ``safe_to_cancel()`` because ``on_kill()`` is not wired for user kills.
+        """
+        # TODO: Remove this Airflow < 3.3 cleanup branch (early return, ``safe_to_cancel``, and
+        # related tests) once the minimum Airflow version supported by this provider is >= 3.3.
+        # In Airflow 3.3+, ``BaseTrigger.on_kill()`` handles user-initiated kills; keeping the
+        # legacy path for backward compatibility with older Airflow versions.
+        if AIRFLOW_V_3_3_PLUS:
+            return
+
         if self._fired_event:
             self.log.debug("Skipping cleanup since an event has already been fired.")
             return

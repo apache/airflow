@@ -54,7 +54,7 @@ export class HomePage extends BasePage {
     this.failedDagsCard = page.getByRole("link", { name: /failed/i });
     this.runningDagsCard = page.getByRole("link", { name: /running/i });
     this.activeDagsCard = page.getByRole("link", { name: /active/i });
-    this.dagImportErrorsCard = page.getByRole("button", { name: "DAG Import Errors" });
+    this.dagImportErrorsCard = page.getByRole("button", { name: "Dag Import Errors" });
 
     // Navigate to parent via ".." since there are no ARIA landmark/region roles on these sections.
     this.statsSection = page.getByRole("heading", { name: "Stats" }).locator("..");
@@ -62,7 +62,7 @@ export class HomePage extends BasePage {
     this.metaDatabaseHealth = page.getByText("Metadatabase").first();
     this.schedulerHealth = page.getByText("Scheduler").first();
     this.triggererHealth = page.getByText("Triggerer").first();
-    this.dagProcessorHealth = page.getByText("DAG Processor").first();
+    this.dagProcessorHealth = page.getByText("Dag Processor").first();
 
     this.poolSummarySection = page.getByRole("heading", { name: "Pool Summary" }).locator("..");
 
@@ -72,28 +72,28 @@ export class HomePage extends BasePage {
   }
 
   /**
-   * Get Active DAGs count
+   * Get Active Dags count
    */
   public async getActiveDagsCount(): Promise<number> {
     return this.getStatsCardCount(this.activeDagsCard);
   }
 
   /**
-   * Get Failed DAGs count
+   * Get Failed Dags count
    */
   public async getFailedDagsCount(): Promise<number> {
     return this.getStatsCardCount(this.failedDagsCard);
   }
 
   /**
-   * Get Running DAGs count
+   * Get Running Dags count
    */
   public async getRunningDagsCount(): Promise<number> {
     return this.getStatsCardCount(this.runningDagsCard);
   }
 
   /**
-   * Check if DAG Import Errors are displayed (only visible when errors exist)
+   * Check if Dag Import Errors are displayed (only visible when errors exist)
    */
   public async isDagImportErrorsVisible(): Promise<boolean> {
     try {
