@@ -86,7 +86,6 @@ export const SearchDags = ({
         menuIsOpen
         onChange={onSelect}
         placeholder={translate("search.dags")}
-        // eslint-disable-next-line unicorn/no-null
         value={null} // null is required https://github.com/JedWatson/react-select/issues/3066
       />
     </Field.Root>
