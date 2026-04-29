@@ -28,8 +28,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowConfigException
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import AirflowConfigException, conf
 
 if TYPE_CHECKING:
     import elasticsearch

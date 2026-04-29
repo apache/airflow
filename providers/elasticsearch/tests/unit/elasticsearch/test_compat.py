@@ -34,7 +34,7 @@ import pytest
 from elastic_transport import Transport
 from elasticsearch import Elasticsearch
 
-from airflow.exceptions import AirflowConfigException
+from airflow.providers.common.compat.sdk import AirflowConfigException
 from airflow.providers.elasticsearch._compat import apply_compat_with
 
 from tests_common.test_utils.config import conf_vars
