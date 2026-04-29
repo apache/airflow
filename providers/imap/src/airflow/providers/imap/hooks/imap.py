@@ -24,6 +24,7 @@ It uses the imaplib library that is already integrated in python 3.
 from __future__ import annotations
 
 import email
+import email.header
 import imaplib
 import os
 import re
@@ -412,4 +413,42 @@ class MailPart:
 
         :returns: the part's name and payload.
         """
-        return self.part.get_filename(), self.part.get_payload(decode=True)
+        filename = self.part.get_filename()
+        if filename:
+            # Decode MIME encoded filenames (e.g. RFC 2047 encoded words)
+            decoded_filename = self._decode_mime_filename(filename)
+        else:
+            decoded_filename = filename
+        
+        return decoded_filename, self.part.get_payload(decode=True)
+    
+    def _decode_mime_filename(self, filename: str) -> str:
+        """
+        Decode MIME encoded filenames (e.g. RFC 2047 encoded words like =?UTF-8?B?...?=).
+        
+        :param filename: The potentially MIME-encoded filename
+        :returns: Decoded Unicode filename
+        """
+        if filename is None:
+            return filename
+            
+        # Handle RFC 2047 encoded words
+        if filename.startswith('=?') and '?=' in filename:
+            try:
+                # Decode the header
+                decoded_parts = email.header.decode_header(filename)
+                decoded_filename = ''
+                
+                for part, encoding in decoded_parts:
+                    if isinstance(part, bytes):
+                        decoded_filename += part.decode(encoding or 'utf-8', errors='replace')
+                    else:
+                        decoded_filename += part
+                
+                return decoded_filename
+            except Exception as e:
+                # If decoding fails, return the original filename
+                return filename
+        else:
+            # If not encoded, return as-is
+            return filename
