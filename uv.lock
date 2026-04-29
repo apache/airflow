@@ -7911,6 +7911,7 @@ name = "apache-airflow-registry-tools"
 version = "0.0.1"
 source = { editable = "dev/registry" }
 dependencies = [
+    { name = "packaging" },
     { name = "pydantic" },
     { name = "pyyaml" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
@@ -7923,6 +7924,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "packaging", specifier = ">=24.0" },
     { name = "pydantic", specifier = ">=2.12.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
