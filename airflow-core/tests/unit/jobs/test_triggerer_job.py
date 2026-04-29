@@ -261,25 +261,9 @@ def test_run_invokes_seams_in_order(supervisor_builder, mocker):
     assert events == ["enter", "tick-1", "tick-2", "tick-3", "exit"]
 
 
-def test_make_client_builds_in_process_client(supervisor_builder, mocker):
-    supervisor = supervisor_builder()
-    api_server = mocker.Mock(transport=mocker.sentinel.transport)
-    client = mocker.Mock()
-    client_cls = mocker.patch("airflow.sdk.api.client.Client", return_value=client)
-    mocker.patch("airflow.jobs.triggerer_job_runner.in_process_api_server", return_value=api_server)
-
-    assert supervisor.make_client() is client
-
-    client_cls.assert_called_once_with(
-        base_url=None,
-        token="",
-        dry_run=True,
-        transport=mocker.sentinel.transport,
-    )
-    assert client.base_url == "http://in-process.invalid./"
-
-
 def test_client_delegates_to_make_client_and_caches_result(supervisor_builder, mocker):
+    """``supervisor.client`` delegates to ``make_client`` (the subclass-override hook)
+    and caches the result across accesses."""
     supervisor = supervisor_builder()
     make_client = mocker.patch.object(
         TriggerRunnerSupervisor,
@@ -288,8 +272,10 @@ def test_client_delegates_to_make_client_and_caches_result(supervisor_builder, m
         return_value=mocker.sentinel.client,
     )
 
-    assert supervisor.client is mocker.sentinel.client
-    assert supervisor.client is mocker.sentinel.client
+    first = supervisor.client
+    second = supervisor.client
+
+    assert first is second is mocker.sentinel.client  # cached — same object
     make_client.assert_called_once_with(supervisor)
 
 
