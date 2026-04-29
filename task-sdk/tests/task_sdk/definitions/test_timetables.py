@@ -16,39 +16,31 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import pytest
 
-import attrs
-from croniter import CroniterBadCronError, CroniterBadDateError, croniter
-
+from airflow.sdk.definitions.timetables._cron import CRON_PRESETS, CronMixin
 from airflow.sdk.exceptions import AirflowTimetableInvalid
 
-if TYPE_CHECKING:
-    from pendulum.tz.timezone import FixedTimezone, Timezone
+SAMPLE_TZ = "UTC"
 
 
-CRON_PRESETS: dict[str, str] = {
-    "@hourly": "0 * * * *",
-    "@daily": "0 0 * * *",
-    "@weekly": "0 0 * * 0",
-    "@monthly": "0 0 1 * *",
-    "@quarterly": "0 0 1 */3 *",
-    "@yearly": "0 0 1 1 *",
-}
+@pytest.mark.parametrize("preset,expected", CRON_PRESETS.items())
+def test_cron_preset_resolved(preset, expected):
+    cm = CronMixin(expression=preset, timezone=SAMPLE_TZ)
+    assert cm.expression == expected
 
 
-@attrs.define
-class CronMixin:
-    """Mixin to provide interface to work with croniter."""
+def test_cron_preset_validate_does_not_raise():
+    cm = CronMixin(expression="@quarterly", timezone=SAMPLE_TZ)
+    cm.validate()  # should not raise
 
-    expression: str
-    timezone: str | Timezone | FixedTimezone
 
-    def __attrs_post_init__(self) -> None:
-        self.expression = CRON_PRESETS.get(self.expression, self.expression)
+def test_invalid_cron_expression_raises():
+    cm = CronMixin(expression="invalid", timezone=SAMPLE_TZ)
+    with pytest.raises(AirflowTimetableInvalid):
+        cm.validate()
 
-    def validate(self) -> None:
-        try:
-            croniter(self.expression)
-        except (CroniterBadCronError, CroniterBadDateError) as e:
-            raise AirflowTimetableInvalid(str(e))
+
+def test_valid_cron_expression_does_not_raise():
+    cm = CronMixin(expression="0 0 * * *", timezone=SAMPLE_TZ)
+    cm.validate()
