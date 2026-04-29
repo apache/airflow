@@ -27,7 +27,7 @@ from airflow_breeze.utils.environment_check import check_uv_version
 # `# sync-uv-min-version` marker is auto-rewritten when required-version is bumped
 # manually. Tests that exercise the success path set both the mocked floor AND the
 # mocked "actual uv" to this value so the ok-case keeps passing after a bump.
-_MIN_UV = "0.11.7"  # sync-uv-min-version
+_MIN_UV = "0.11.8"  # sync-uv-min-version
 
 
 @mock.patch("airflow_breeze.utils.environment_check._read_required_uv_version")

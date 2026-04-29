@@ -17,42 +17,15 @@
 from __future__ import annotations
 
 import jmespath
-import pytest
 from chart_utils.helm_template_generator import render_chart
 
 
 class TestAPIServerDeployment:
     """Tests API Server deployment."""
 
-    def _get_values_with_version(self, values, version):
-        if version != "default":
-            values["airflowVersion"] = version
-        return values
-
-    def test_airflow_2(self):
-        """
-        API Server only supports Airflow 3.0.0 and later.
-        """
-        docs = render_chart(
-            values={"airflowVersion": "2.11.0"},
-            show_only=["templates/api-server/api-server-deployment.yaml"],
-        )
-        assert len(docs) == 0
-
-    def test_should_not_create_api_server_configmap_when_lower_than_3(self):
-        """
-        API Server configmap is only created for Airflow 3.0.0 and later.
-        """
-        docs = render_chart(
-            values={"airflowVersion": "2.11.0"},
-            show_only=["templates/configmaps/api-server-configmap.yaml"],
-        )
-        assert len(docs) == 0
-
     def test_should_add_annotations_to_api_server_configmap(self):
         docs = render_chart(
             values={
-                "airflowVersion": "3.0.0",
                 "apiServer": {
                     "apiServerConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
                     "configMapAnnotations": {"test_annotation": "test_annotation_value"},
@@ -66,7 +39,7 @@ class TestAPIServerDeployment:
 
     def test_should_add_volume_and_volume_mount_when_exist_api_server_config(self):
         docs = render_chart(
-            values={"apiServer": {"apiServerConfig": "CSRF_ENABLED = True"}, "airflowVersion": "3.0.0"},
+            values={"apiServer": {"apiServerConfig": "CSRF_ENABLED = True"}},
             show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
@@ -82,24 +55,16 @@ class TestAPIServerDeployment:
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
-    @pytest.mark.parametrize("version", ["3.0.0", "default"])
-    def test_should_remove_replicas_field(self, version):
+    def test_should_remove_replicas_field(self):
         docs = render_chart(
-            values=self._get_values_with_version(
-                values={"apiServer": {"hpa": {"enabled": True}}},
-                version=version,
-            ),
+            values={"apiServer": {"hpa": {"enabled": True}}},
             show_only=["templates/api-server/api-server-deployment.yaml"],
         )
         assert "replicas" not in jmespath.search("spec", docs[0])
 
-    @pytest.mark.parametrize("version", ["3.0.0", "default"])
-    def test_should_not_remove_replicas_field(self, version):
+    def test_should_not_remove_replicas_field(self):
         docs = render_chart(
-            values=self._get_values_with_version(
-                values={"apiServer": {"hpa": {"enabled": False}}},
-                version=version,
-            ),
+            values={"apiServer": {"hpa": {"enabled": False}}},
             show_only=["templates/api-server/api-server-deployment.yaml"],
         )
         assert "replicas" in jmespath.search("spec", docs[0])
@@ -126,7 +91,6 @@ class TestApiSecretKeySecret:
     def test_should_add_annotations_to_api_secret_key_secret(self):
         docs = render_chart(
             values={
-                "airflowVersion": "3.0.0",
                 "apiSecretAnnotations": {"test_annotation": "test_annotation_value"},
             },
             show_only=["templates/secrets/api-secret-key-secret.yaml"],

@@ -11,7 +11,6 @@
         "PgBouncer",
         "API Server",
         "Scheduler",
-        "Webserver",
         "Workers",
         "Triggerer",
         "DagProcessor",
@@ -91,7 +90,7 @@
             "x-docsSection": "Common"
         },
         "airflowVersion": {
-            "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed). Version 2.11.0 and above is supported.",
+            "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed). Version 3.1.0 and above is supported.",
             "type": "string",
             "default": "3.2.1",
             "x-docsSection": "Common"
@@ -1204,11 +1203,6 @@
                     "type": "boolean",
                     "default": true
                 },
-                "AIRFLOW__WEBSERVER__SECRET_KEY": {
-                    "description": "Enable ``AIRFLOW__WEBSERVER__SECRET_KEY`` variable to be read from the Webserver Secret Key Secret",
-                    "type": "boolean",
-                    "default": true
-                },
                 "AIRFLOW__CELERY__RESULT_BACKEND": {
                     "description": "Enable ``AIRFLOW__CELERY__RESULT_BACKEND`` variable to be read from the Celery Result Backend Secret",
                     "type": "boolean",
@@ -1643,33 +1637,6 @@
                 "type": "string"
             }
         },
-        "webserverSecretKey": {
-            "description": "The Flask secret key for Airflow Webserver to encrypt browser session.",
-            "type": [
-                "string",
-                "null"
-            ],
-            "x-docsSection": "Common",
-            "default": null
-        },
-        "webserverSecretAnnotations": {
-            "description": "Annotations to add to the webserver secret.",
-            "type": "object",
-            "x-docsSection": "Common",
-            "default": {},
-            "additionalProperties": {
-                "type": "string"
-            }
-        },
-        "webserverSecretKeySecretName": {
-            "description": "The Secret name containing Flask secret_key for the Webserver.",
-            "type": [
-                "string",
-                "null"
-            ],
-            "x-docsSection": "Airflow",
-            "default": null
-        },
         "kerberos": {
             "description": "Kerberos configurations for airflow",
             "type": "object",
@@ -1941,7 +1908,7 @@
                         "query": {
                             "description": "Query to use for KEDA autoscaling (deprecated, use `workers.celery.keda.query` instead). Must return a single integer.",
                             "type": "string",
-                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ( {{- range $i, $q := splitList \",\" .Values.workers.queue -}} {{- if $i }},{{ end }}'{{ $q | trim }}' {{- end -}} ) {{- if contains \"CeleryKubernetesExecutor\" .Values.executor }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- else if contains \"KubernetesExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'KubernetesExecutor' {{- else if contains \"airflow.providers.edge3.executors.EdgeExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'EdgeExecutor' {{- end }}"
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ( {{- range $i, $q := splitList \",\" .Values.workers.queue -}} {{- if $i }},{{ end }}'{{ $q | trim }}' {{- end -}} ) {{- if contains \"KubernetesExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'KubernetesExecutor' {{- else if contains \"airflow.providers.edge3.executors.EdgeExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'EdgeExecutor' {{- end }}"
                         },
                         "usePgbouncer": {
                             "description": "Weather to use PGBouncer to connect to the database or not when it is enabled (deprecated, use `workers.celery.keda.usePgbouncer` instead). This configuration will be ignored if PGBouncer is not enabled.",
@@ -2473,12 +2440,14 @@
                         "retentionDays": {
                             "description": "Number of days to retain the logs when running the Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.retentionDays`` instead). Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                             "type": "integer",
-                            "default": 15
+                            "default": 15,
+                            "minimum": 0
                         },
                         "retentionMinutes": {
                             "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.retentionMinutes`` instead). Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                             "type": "integer",
-                            "default": 0
+                            "default": 0,
+                            "minimum": 0
                         },
                         "frequencyMinutes": {
                             "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.frequencyMinutes`` instead).",
@@ -3697,7 +3666,8 @@
                                         "integer",
                                         "null"
                                     ],
-                                    "default": null
+                                    "default": null,
+                                    "minimum": 0
                                 },
                                 "retentionMinutes": {
                                     "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
@@ -3705,7 +3675,8 @@
                                         "integer",
                                         "null"
                                     ],
-                                    "default": null
+                                    "default": null,
+                                    "minimum": 0
                                 },
                                 "frequencyMinutes": {
                                     "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar.",
@@ -4678,7 +4649,7 @@
                             "default": true
                         },
                         "serviceAccountTokenVolume": {
-                            "description": "Configuration for manual service account token volume. Only used when automountServiceAccountToken is false and for pod-launching executors. (CeleryExecutor, CeleryKubernetesExecutor, KubernetesExecutor, LocalKubernetesExecutor)",
+                            "description": "Configuration for manual service account token volume. Only used when automountServiceAccountToken is false and for pod-launching executors. (CeleryExecutor, KubernetesExecutor)",
                             "type": "object",
                             "additionalProperties": false,
                             "properties": {
@@ -5739,11 +5710,8 @@
             "properties": {
                 "enabled": {
                     "description": "Enable standalone dag processor.",
-                    "type": [
-                        "boolean",
-                        "null"
-                    ],
-                    "default": null
+                    "type": "boolean",
+                    "default": true
                 },
                 "dagBundleConfigList": {
                     "description": "Define Dag bundles in a structured YAML format. This will be automatically converted to JSON string format for config.dag_processor.dag_bundle_config_list.",
@@ -6353,17 +6321,17 @@
                         "exec \\\nairflow users create \"$@\"",
                         "--",
                         "-r",
-                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.role }}{{ else }}{{ .Values.createUserJob.defaultUser.role }}{{ end }}",
+                        "{{ .Values.createUserJob.defaultUser.role }}",
                         "-u",
-                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.username }}{{ else }}{{ .Values.createUserJob.defaultUser.username }}{{ end }}",
+                        "{{ .Values.createUserJob.defaultUser.username }}",
                         "-e",
-                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.email }}{{ else }}{{ .Values.createUserJob.defaultUser.email }}{{ end }}",
+                        "{{ .Values.createUserJob.defaultUser.email }}",
                         "-f",
-                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.firstName }}{{ else }}{{ .Values.createUserJob.defaultUser.firstName }}{{ end }}",
+                        "{{ .Values.createUserJob.defaultUser.firstName }}",
                         "-l",
-                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.lastName }}{{ else }}{{ .Values.createUserJob.defaultUser.lastName }}{{ end }}",
+                        "{{ .Values.createUserJob.defaultUser.lastName }}",
                         "-p",
-                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.password }}{{ else }}{{ .Values.createUserJob.defaultUser.password }}{{ end }}"
+                        "{{ .Values.createUserJob.defaultUser.password }}"
                     ]
                 },
                 "annotations": {
@@ -7700,825 +7668,6 @@
                             }
                         ]
                     ],
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "value": {
-                                "type": "string"
-                            },
-                            "valueFrom": {
-                                "type": "object",
-                                "properties": {
-                                    "configMapKeyRef": {
-                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
-                                        "description": "Selects a key of a ConfigMap."
-                                    },
-                                    "secretKeyRef": {
-                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
-                                        "description": "Selects a key of a secret in the pod's namespace"
-                                    }
-                                },
-                                "anyOf": [
-                                    {
-                                        "required": [
-                                            "configMapKeyRef"
-                                        ]
-                                    },
-                                    {
-                                        "required": [
-                                            "secretKeyRef"
-                                        ]
-                                    }
-                                ]
-                            }
-                        },
-                        "required": [
-                            "name"
-                        ],
-                        "anyOf": [
-                            {
-                                "required": [
-                                    "value"
-                                ]
-                            },
-                            {
-                                "required": [
-                                    "valueFrom"
-                                ]
-                            }
-                        ],
-                        "additionalProperties": false
-                    }
-                }
-            }
-        },
-        "webserver": {
-            "description": "Airflow webserver settings. Airflow 2 only.",
-            "type": "object",
-            "x-docsSection": "Webserver",
-            "additionalProperties": false,
-            "properties": {
-                "enabled": {
-                    "description": "Enable webserver",
-                    "type": "boolean",
-                    "default": true
-                },
-                "configMapAnnotations": {
-                    "description": "Extra annotations to apply to the webserver configmap.",
-                    "type": "object",
-                    "default": {},
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "hostAliases": {
-                    "description": "HostAliases for the webserver pod.",
-                    "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
-                    },
-                    "type": "array",
-                    "default": [],
-                    "examples": [
-                        {
-                            "ip": "127.0.0.1",
-                            "hostnames": [
-                                "foo.local"
-                            ]
-                        },
-                        {
-                            "ip": "10.1.2.3",
-                            "hostnames": [
-                                "foo.remote"
-                            ]
-                        }
-                    ]
-                },
-                "allowPodLogReading": {
-                    "description": "Allow webserver to read k8s pod logs. Useful when you don't have an external log store.",
-                    "type": "boolean",
-                    "default": true
-                },
-                "livenessProbe": {
-                    "description": "Liveness probe configuration.",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "initialDelaySeconds": {
-                            "description": "Webserver Liveness probe initial delay.",
-                            "type": "integer",
-                            "default": 15
-                        },
-                        "timeoutSeconds": {
-                            "description": "Webserver Liveness probe timeout seconds.",
-                            "type": "integer",
-                            "default": 5
-                        },
-                        "failureThreshold": {
-                            "description": "Webserver Liveness probe failure threshold.",
-                            "type": "integer",
-                            "default": 5
-                        },
-                        "periodSeconds": {
-                            "description": "Webserver Liveness probe period seconds.",
-                            "type": "integer",
-                            "default": 10
-                        },
-                        "scheme": {
-                            "description": "Webserver Liveness probe scheme.",
-                            "type": "string",
-                            "default": "HTTP"
-                        }
-                    }
-                },
-                "readinessProbe": {
-                    "description": "Readiness probe configuration.",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "initialDelaySeconds": {
-                            "description": "Webserver Readiness probe initial delay.",
-                            "type": "integer",
-                            "default": 15
-                        },
-                        "timeoutSeconds": {
-                            "description": "Webserver Readiness probe timeout seconds.",
-                            "type": "integer",
-                            "default": 5
-                        },
-                        "failureThreshold": {
-                            "description": "Webserver Readiness probe failure threshold.",
-                            "type": "integer",
-                            "default": 5
-                        },
-                        "periodSeconds": {
-                            "description": "Webserver Readiness probe period seconds.",
-                            "type": "integer",
-                            "default": 10
-                        },
-                        "scheme": {
-                            "description": "Webserver Readiness probe scheme.",
-                            "type": "string",
-                            "default": "HTTP"
-                        }
-                    }
-                },
-                "startupProbe": {
-                    "description": "Startup probe configuration.",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "initialDelaySeconds": {
-                            "description": "Webserver Startup probe initial delay seconds.",
-                            "type": "integer",
-                            "default": 0
-                        },
-                        "timeoutSeconds": {
-                            "description": "Webserver Startup probe timeout seconds.",
-                            "type": "integer",
-                            "default": 20
-                        },
-                        "failureThreshold": {
-                            "description": "Webserver Startup probe failure threshold.",
-                            "type": "integer",
-                            "default": 6
-                        },
-                        "periodSeconds": {
-                            "description": "Webserver Startup probe period seconds.",
-                            "type": "integer",
-                            "default": 10
-                        },
-                        "scheme": {
-                            "description": "Webserver Startup probe scheme.",
-                            "type": "string",
-                            "default": "HTTP"
-                        }
-                    }
-                },
-                "replicas": {
-                    "description": "How many Airflow webserver replicas should run.",
-                    "type": "integer",
-                    "default": 1
-                },
-                "revisionHistoryLimit": {
-                    "description": "Number of old ReplicaSets to retain.",
-                    "type": [
-                        "integer",
-                        "null"
-                    ],
-                    "default": null,
-                    "x-docsSection": "Kubernetes"
-                },
-                "command": {
-                    "description": "Command to use when running the Airflow webserver (templated).",
-                    "type": [
-                        "array",
-                        "null"
-                    ],
-                    "items": {
-                        "type": "string"
-                    },
-                    "default": null
-                },
-                "args": {
-                    "description": "Args to use when running the Airflow webserver (templated).",
-                    "type": [
-                        "array",
-                        "null"
-                    ],
-                    "items": {
-                        "type": "string"
-                    },
-                    "default": [
-                        "bash",
-                        "-c",
-                        "exec airflow webserver"
-                    ]
-                },
-                "strategy": {
-                    "description": "Specifies the strategy used to replace old Pods by new ones.",
-                    "type": [
-                        "null",
-                        "object"
-                    ],
-                    "default": null
-                },
-                "terminationGracePeriodSeconds": {
-                    "description": "Grace period for webserver to finish after SIGTERM is sent from Kubernetes.",
-                    "type": "integer",
-                    "default": 30
-                },
-                "hpa": {
-                    "description": "HPA configuration.",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "enabled": {
-                            "description": "Allow HPA autoscaling",
-                            "type": "boolean",
-                            "default": false
-                        },
-                        "minReplicaCount": {
-                            "description": "Minimum number of webservers created by HPA.",
-                            "type": "integer",
-                            "default": 1
-                        },
-                        "maxReplicaCount": {
-                            "description": "Maximum number of webservers created by HPA.",
-                            "type": "integer",
-                            "default": 5
-                        },
-                        "metrics": {
-                            "description": "Specifications for which to use to calculate the desired replica count.",
-                            "type": "array",
-                            "default": [
-                                {
-                                    "type": "Resource",
-                                    "resource": {
-                                        "name": "cpu",
-                                        "target": {
-                                            "type": "Utilization",
-                                            "averageUtilization": 80
-                                        }
-                                    }
-                                }
-                            ],
-                            "items": {
-                                "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricSpec"
-                            }
-                        },
-                        "behavior": {
-                            "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
-                            "type": "object",
-                            "default": {},
-                            "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
-                        }
-                    }
-                },
-                "serviceAccount": {
-                    "description": "Create ServiceAccount.",
-                    "type": "object",
-                    "properties": {
-                        "automountServiceAccountToken": {
-                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
-                            "type": "boolean",
-                            "default": true
-                        },
-                        "create": {
-                            "description": "Specifies whether a ServiceAccount should be created.",
-                            "type": "boolean",
-                            "default": true
-                        },
-                        "name": {
-                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                            "type": [
-                                "string",
-                                "null"
-                            ],
-                            "default": null
-                        },
-                        "annotations": {
-                            "description": "Annotations to add to the webserver Kubernetes ServiceAccount.",
-                            "type": "object",
-                            "default": {},
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "podDisruptionBudget": {
-                    "description": "Webserver pod disruption budget.",
-                    "type": "object",
-                    "additionalProperties": true,
-                    "properties": {
-                        "enabled": {
-                            "description": "Enable pod disruption budget.",
-                            "type": "boolean",
-                            "default": false
-                        },
-                        "config": {
-                            "description": "Disruption budget configuration.",
-                            "type": "object",
-                            "additionalProperties": true,
-                            "properties": {
-                                "maxUnavailable": {
-                                    "description": "Max unavailable pods for webserver.",
-                                    "type": [
-                                        "integer",
-                                        "string"
-                                    ],
-                                    "default": 1
-                                },
-                                "minAvailable": {
-                                    "description": "Min available pods for webserver.",
-                                    "type": [
-                                        "integer",
-                                        "string"
-                                    ],
-                                    "default": 1
-                                }
-                            }
-                        }
-                    }
-                },
-                "extraNetworkPolicies": {
-                    "description": "Additional NetworkPolicies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`).",
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "$ref": "#/definitions/io.k8s.api.networking.v1.NetworkPolicyPeer"
-                    },
-                    "default": []
-                },
-                "networkPolicy": {
-                    "description": "Webserver NetworkPolicy configuration",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "ingress": {
-                            "description": "Webserver NetworkPolicyingress configuration",
-                            "type": "object",
-                            "additionalProperties": false,
-                            "properties": {
-                                "from": {
-                                    "description": "Peers for webserver NetworkPolicyingress.",
-                                    "type": "array",
-                                    "default": [],
-                                    "items": {
-                                        "$ref": "#/definitions/io.k8s.api.networking.v1.NetworkPolicyPeer"
-                                    }
-                                },
-                                "ports": {
-                                    "description": "Ports for webserver NetworkPolicyingress (if `from` is set).",
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/io.k8s.api.networking.v1.NetworkPolicyPort"
-                                    },
-                                    "default": [
-                                        {
-                                            "port": "{{ .Values.ports.airflowUI }}"
-                                        }
-                                    ],
-                                    "examples": [
-                                        {
-                                            "port": 8070
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    }
-                },
-                "securityContext": {
-                    "description": "Security context for the webserver job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
-                },
-                "containerLifecycleHooks": {
-                    "description": "Container Lifecycle Hooks definition for the webserver. If not set, the values from global `containerLifecycleHooks` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "default": {},
-                    "x-docsSection": "Kubernetes",
-                    "examples": [
-                        {
-                            "postStart": {
-                                "exec": {
-                                    "command": [
-                                        "/bin/sh",
-                                        "-c",
-                                        "echo postStart handler > /usr/share/message"
-                                    ]
-                                }
-                            },
-                            "preStop": {
-                                "exec": {
-                                    "command": [
-                                        "/bin/sh",
-                                        "-c",
-                                        "echo preStop handler > /usr/share/message"
-                                    ]
-                                }
-                            }
-                        }
-                    ]
-                },
-                "securityContexts": {
-                    "description": "Security context definition for the webserver. If not set, the values from global `securityContexts` will be used.",
-                    "type": "object",
-                    "x-docsSection": "Kubernetes",
-                    "properties": {
-                        "pod": {
-                            "description": "Pod security context definition for the webserver.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                            "default": {},
-                            "x-docsSection": "Kubernetes",
-                            "examples": [
-                                {
-                                    "runAsUser": 50000,
-                                    "runAsGroup": 0,
-                                    "fsGroup": 0
-                                }
-                            ]
-                        },
-                        "container": {
-                            "description": "Container security context definition for the webserver.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
-                            "default": {},
-                            "x-docsSection": "Kubernetes",
-                            "examples": [
-                                {
-                                    "allowPrivilegeEscalation": false,
-                                    "capabilities": {
-                                        "drop": [
-                                            "ALL"
-                                        ]
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                },
-                "resources": {
-                    "description": "Resources for webserver pods.",
-                    "type": "object",
-                    "default": {},
-                    "examples": [
-                        {
-                            "limits": {
-                                "cpu": "100m",
-                                "memory": "128Mi"
-                            },
-                            "requests": {
-                                "cpu": "100m",
-                                "memory": "128Mi"
-                            }
-                        }
-                    ],
-                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
-                },
-                "defaultUser": {
-                    "description": "Optional default Airflow user information (deprecated, use createUserJob section instead)",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "enabled": {
-                            "description": "Enable default user creation.",
-                            "type": "boolean",
-                            "x-docsSection": "Common"
-                        },
-                        "role": {
-                            "description": "Default user role.",
-                            "type": "string"
-                        },
-                        "username": {
-                            "description": "Default user username.",
-                            "type": "string"
-                        },
-                        "email": {
-                            "description": "Default user email address.",
-                            "type": "string"
-                        },
-                        "firstName": {
-                            "description": "Default user firstname.",
-                            "type": "string"
-                        },
-                        "lastName": {
-                            "description": "Default user lastname.",
-                            "type": "string"
-                        },
-                        "password": {
-                            "description": "Default user password.",
-                            "type": "string"
-                        }
-                    }
-                },
-                "extraContainers": {
-                    "description": "Launch additional containers into webserver (templated).",
-                    "type": "array",
-                    "default": [],
-                    "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
-                    }
-                },
-                "extraInitContainers": {
-                    "description": "Add additional init containers into webserver (templated).",
-                    "type": "array",
-                    "default": [],
-                    "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
-                    }
-                },
-                "extraVolumes": {
-                    "description": "Mount additional volumes into webserver.",
-                    "type": "array",
-                    "default": [],
-                    "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
-                    }
-                },
-                "extraVolumeMounts": {
-                    "description": "Mount additional volumes into webserver.",
-                    "type": "array",
-                    "default": [],
-                    "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
-                    }
-                },
-                "webserverConfig": {
-                    "description": "This string (templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
-                    "type": [
-                        "string",
-                        "null"
-                    ],
-                    "x-docsSection": "Common",
-                    "default": null,
-                    "examples": [
-                        "from airflow import configuration as conf\n\n# The SQLAlchemy connection string.\nSQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')\n\n# Flask-WTF flag for CSRF\nCSRF_ENABLED = True"
-                    ]
-                },
-                "webserverConfigConfigMapName": {
-                    "description": "The configmap name containing the webserver_config.py.",
-                    "type": [
-                        "string",
-                        "null"
-                    ],
-                    "x-docsSection": "Common",
-                    "default": null,
-                    "examples": [
-                        "my-webserver-configmap"
-                    ]
-                },
-                "service": {
-                    "description": "Webserver Service configuration.",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "type": {
-                            "description": "Webserver Service type.",
-                            "type": "string",
-                            "default": "ClusterIP"
-                        },
-                        "annotations": {
-                            "description": "Annotations for the webserver Service.",
-                            "type": "object",
-                            "default": {},
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        },
-                        "ports": {
-                            "description": "Ports for the webserver Service.",
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "additionalProperties": false,
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    },
-                                    "port": {
-                                        "type": [
-                                            "string",
-                                            "integer"
-                                        ]
-                                    },
-                                    "targetPort": {
-                                        "type": [
-                                            "string",
-                                            "integer"
-                                        ]
-                                    },
-                                    "nodePort": {
-                                        "type": [
-                                            "string",
-                                            "integer"
-                                        ]
-                                    },
-                                    "protocol": {
-                                        "type": "string"
-                                    }
-                                }
-                            },
-                            "default": [
-                                {
-                                    "name": "airflow-ui",
-                                    "port": "{{ .Values.ports.airflowUI }}"
-                                }
-                            ],
-                            "examples": [
-                                {
-                                    "name": "airflow-ui",
-                                    "port": 80,
-                                    "targetPort": "airflow-ui"
-                                },
-                                {
-                                    "name": "only_sidecar",
-                                    "port": 80,
-                                    "targetPort": 8888
-                                }
-                            ]
-                        },
-                        "loadBalancerIP": {
-                            "description": "Webserver Service loadBalancerIP.",
-                            "type": [
-                                "string",
-                                "null"
-                            ],
-                            "default": null
-                        },
-                        "loadBalancerSourceRanges": {
-                            "description": "Webserver Service ``loadBalancerSourceRanges``.",
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            },
-                            "default": [],
-                            "examples": [
-                                "10.123.0.0/16"
-                            ]
-                        }
-                    }
-                },
-                "nodeSelector": {
-                    "description": "Select certain nodes for webserver pods.",
-                    "type": "object",
-                    "default": {},
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "priorityClassName": {
-                    "description": "Specify priority for webserver pods.",
-                    "type": [
-                        "string",
-                        "null"
-                    ],
-                    "default": null
-                },
-                "affinity": {
-                    "description": "Specify scheduling constraints for webserver pods.",
-                    "type": "object",
-                    "default": "See values.yaml",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
-                },
-                "tolerations": {
-                    "description": "Specify Tolerations for webserver pods.",
-                    "type": "array",
-                    "default": [],
-                    "items": {
-                        "type": "object",
-                        "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
-                    }
-                },
-                "topologySpreadConstraints": {
-                    "description": "Specify topology spread constraints for webserver pods.",
-                    "type": "array",
-                    "default": [],
-                    "x-docsSection": "Kubernetes",
-                    "items": {
-                        "type": "object",
-                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
-                    }
-                },
-                "annotations": {
-                    "description": "Annotations to add to the webserver deployment",
-                    "type": "object",
-                    "default": {},
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "podAnnotations": {
-                    "description": "Annotations to add to the webserver pods (templated).",
-                    "type": "object",
-                    "default": {},
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "labels": {
-                    "description": "Labels to add to the webserver objects and pods.",
-                    "type": "object",
-                    "default": {},
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "waitForMigrations": {
-                    "description": "wait-for-airflow-migrations init container.",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "enabled": {
-                            "description": "Enable wait-for-airflow-migrations init container.",
-                            "type": "boolean",
-                            "default": true
-                        },
-                        "env": {
-                            "description": "Add additional env vars to wait-for-airflow-migrations init container.",
-                            "type": "array",
-                            "default": [],
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    },
-                                    "value": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "name",
-                                    "value"
-                                ],
-                                "additionalProperties": false
-                            }
-                        },
-                        "securityContexts": {
-                            "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
-                            "type": "object",
-                            "x-docsSection": "Kubernetes",
-                            "properties": {
-                                "container": {
-                                    "description": "Container security context definition for the wait for migrations.",
-                                    "type": "object",
-                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
-                                    "default": {},
-                                    "x-docsSection": "Kubernetes",
-                                    "examples": [
-                                        {
-                                            "allowPrivilegeEscalation": false,
-                                            "capabilities": {
-                                                "drop": [
-                                                    "ALL"
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    }
-                },
-                "env": {
-                    "description": "Add additional env vars to webserver.",
-                    "type": "array",
-                    "default": [],
                     "items": {
                         "type": "object",
                         "properties": {
@@ -15255,12 +14404,14 @@
                 "retentionDays": {
                     "description": "Number of days to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                     "type": "integer",
-                    "default": 15
+                    "default": 15,
+                    "minimum": 0
                 },
                 "retentionMinutes": {
                     "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                     "type": "integer",
-                    "default": 0
+                    "default": 0,
+                    "minimum": 0
                 },
                 "frequencyMinutes": {
                     "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar.",

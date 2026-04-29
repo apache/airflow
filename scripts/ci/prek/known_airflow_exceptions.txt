@@ -203,6 +203,7 @@ providers/fab/src/airflow/providers/fab/www/extensions/init_security.py::1
 providers/facebook/src/airflow/providers/facebook/ads/hooks/ads.py::2
 providers/git/src/airflow/providers/git/bundles/git.py::5
 providers/git/src/airflow/providers/git/hooks/git.py::1
+providers/git/tests/unit/git/bundles/test_git.py::1
 providers/github/src/airflow/providers/github/operators/github.py::2
 providers/github/src/airflow/providers/github/sensors/github.py::3
 providers/github/tests/system/github/example_github.py::2
@@ -357,7 +358,7 @@ providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/contai
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/data_factory.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/msgraph.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/powerbi.py::4
-providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/synapse.py::2
+providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/synapse.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/sensors/data_factory.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/sensors/msgraph.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/sensors/wasb.py::4

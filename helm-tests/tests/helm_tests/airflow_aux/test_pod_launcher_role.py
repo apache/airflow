@@ -27,7 +27,6 @@ class TestPodLauncher:
     @pytest.mark.parametrize(
         ("executor", "rbac", "allow", "expected_accounts"),
         [
-            ("CeleryKubernetesExecutor", True, True, ["scheduler", "worker"]),
             ("KubernetesExecutor", True, True, ["scheduler", "worker"]),
             ("CeleryExecutor", True, True, ["worker"]),
             ("LocalExecutor", True, True, ["scheduler"]),
@@ -73,7 +72,7 @@ class TestPodLauncher:
     ):
         docs = render_chart(
             namespace=namespace,
-            values={"webserver": {"allowPodLogReading": True}, "multiNamespaceMode": multiNamespaceMode},
+            values={"multiNamespaceMode": multiNamespaceMode},
             show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
         )
 
@@ -103,7 +102,7 @@ class TestPodLauncher:
     def test_pod_launcher_role_multi_namespace(self, multiNamespaceMode, namespace, expectedRole):
         docs = render_chart(
             namespace=namespace,
-            values={"webserver": {"allowPodLogReading": True}, "multiNamespaceMode": multiNamespaceMode},
+            values={"multiNamespaceMode": multiNamespaceMode},
             show_only=["templates/rbac/pod-launcher-role.yaml"],
         )
 

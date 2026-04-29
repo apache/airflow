@@ -187,7 +187,7 @@ class LogGroomerTestBase:
         assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) == ["release-name"]
         assert jmespath.search("spec.template.spec.containers[1].args", docs[0]) == ["Helm"]
 
-    @pytest.mark.parametrize(("retention_days", "retention_result"), [(None, None), (30, "30")])
+    @pytest.mark.parametrize(("retention_days", "retention_result"), [(None, None), (30, "30"), (0, "0")])
     def test_log_groomer_retention_days_overrides(self, retention_days, retention_result):
         if self.obj_name == "dag-processor":
             values = {
@@ -218,7 +218,43 @@ class LogGroomerTestBase:
                 == "15"
             )
         else:
-            assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 2
+            assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 3
+
+    @pytest.mark.parametrize(("retention_minutes", "retention_result"), [(None, None), (0, "0"), (60, "60")])
+    def test_log_groomer_retention_minutes_overrides(self, retention_minutes, retention_result):
+        if self.obj_name == "dag-processor":
+            values = {
+                "dagProcessor": {
+                    "enabled": True,
+                    "logGroomerSidecar": {"retentionMinutes": retention_minutes},
+                }
+            }
+        elif self.obj_name == "workers-celery":
+            values = {"workers": {"celery": {"logGroomerSidecar": {"retentionMinutes": retention_minutes}}}}
+        else:
+            values = {f"{self.folder}": {"logGroomerSidecar": {"retentionMinutes": retention_minutes}}}
+
+        docs = render_chart(values=values, show_only=self.get_show_only())
+
+        if retention_result:
+            assert (
+                jmespath.search(
+                    "spec.template.spec.containers[1].env[?name=='AIRFLOW__LOG_RETENTION_MINUTES'].value | [0]",
+                    docs[0],
+                )
+                == retention_result
+            )
+        elif self.obj_name == "workers-celery" and retention_result is None:
+            # Testing backward compatibility of move from workers to workers.celery
+            assert (
+                jmespath.search(
+                    "spec.template.spec.containers[1].env[?name=='AIRFLOW__LOG_RETENTION_MINUTES'].value | [0]",
+                    docs[0],
+                )
+                == "0"
+            )
+        else:
+            assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 3
 
     @pytest.mark.parametrize(("frequency_minutes", "frequency_result"), [(None, None), (20, "20")])
     def test_log_groomer_frequency_minutes_overrides(self, frequency_minutes, frequency_result):
@@ -254,7 +290,7 @@ class LogGroomerTestBase:
                 == "15"
             )
         else:
-            assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 2
+            assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 3
 
     @pytest.mark.parametrize(
         ("max_size_bytes", "max_size_result"), [(None, None), (1234567890, "1234567890")]

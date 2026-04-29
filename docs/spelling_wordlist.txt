@@ -37,6 +37,8 @@ airflowctl
 AirflowException
 airflowignore
 ajax
+Akeyless
+akeyless
 aks
 AlertApi
 alertPolicies

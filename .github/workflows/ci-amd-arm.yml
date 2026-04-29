@@ -51,8 +51,6 @@ jobs:
     name: "Build info"
     # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
     runs-on: ["ubuntu-22.04"]
-    env:
-      GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       all-python-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
@@ -157,23 +155,48 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         id: breeze
+      - name: "Save github context to file"
+        # The github context can be very large for PRs that touch many files (e.g. Dependabot
+        # bumps with dozens of packages). Passing it as an env var would exceed ARG_MAX and
+        # prevent subsequent steps from starting bash, so we write it to a file once here and
+        # let downstream breeze invocations read it via GITHUB_CONTEXT_INPUT.
+        #
+        # Zizmor flags this as template-injection because attacker-controllable fields in the
+        # github context (PR title, body, branch names) are pasted into a `run:` script. It is
+        # a false positive in this specific shape:
+        #   * the substituted JSON sits inside a SINGLE-QUOTED heredoc (`<< '__GITHUB_CONTEXT_END__'`),
+        #     which disables ALL bash expansion -- $(...), `...`, ${...}, and even `\` are literal,
+        #     so no shell metacharacter in the JSON can be evaluated;
+        #   * the only remaining escape is the delimiter `__GITHUB_CONTEXT_END__` appearing on a
+        #     line by itself in the JSON. `toJson` escapes newlines inside string values as `\n`
+        #     (so they are NOT real newlines in the script source), and the delimiter is unique
+        #     enough that github will never produce it as a structural line of the JSON output;
+        #   * `cat` writes the bytes verbatim to a file -- it is not eval'd.
+        # Whatever junk a malicious PR puts in title/body therefore lands inside a JSON file
+        # consumed by breeze, never executed as shell.
+        shell: bash
+        run: |  # zizmor: ignore[template-injection]
+          cat > "${RUNNER_TEMP}/github_context.json" << '__GITHUB_CONTEXT_END__'
+          ${{ toJson(github) }}
+          __GITHUB_CONTEXT_END__
       - name: "Get information about the Workflow"
         id: source-run-info
         run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
         env:
           SKIP_BREEZE_SELF_UPGRADE_CHECK: "true"
+          GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
       - name: Selective checks
         id: selective-checks
         env:
           PR_LABELS: "${{ steps.source-run-info.outputs.pr-labels }}"
           COMMIT_REF: "${{ github.sha }}"
           VERBOSE: "false"
+          GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
         run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
         env:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
-          GITHUB_CONTEXT: ${{ toJson(github) }}
 
   print-platform-arm:
     name: "Platform: ARM"
@@ -999,7 +1022,7 @@ jobs:
           CURRENT_FAILURES: "${{ steps.get-failures.outputs.failed-jobs }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Upload notification state"
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: "slack-state-tests-${{ github.ref_name }}"
           path: ./slack-state/
@@ -1100,7 +1123,7 @@ jobs:
             --pattern "**/warnings-*.txt" \
             --output ./files
       - name: "Upload artifact for summarized warnings"
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: "test-summarized-warnings"
           path: ./files/warn-summary-*.txt
