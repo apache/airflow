@@ -1821,7 +1821,32 @@ class TestRuntimeTaskInstance:
             "ts": "2024-12-01T01:00:00+00:00",
             "ts_nodash": "20241201T010000",
             "ts_nodash_with_tz": "20241201T010000+0000",
+            "partition_key": dr.partition_key,
         }
+
+    def test_partition_key_in_context(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that partition_key from dag_run is exposed in the template context."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        dr = runtime_ti._ti_context_from_server.dag_run
+
+        mock_supervisor_comms.send.return_value = PrevSuccessfulDagRunResult(
+            data_interval_end=dr.logical_date - timedelta(hours=1),
+            data_interval_start=dr.logical_date - timedelta(hours=2),
+            start_date=dr.start_date - timedelta(hours=1),
+            end_date=dr.start_date,
+        )
+
+        context = runtime_ti.get_template_context()
+
+        # Default: partition_key is None
+        assert context["partition_key"] is None
+
+        # Set partition_key on dag_run and verify it surfaces in context
+        dr.partition_key = "some-partition"
+        context = runtime_ti.get_template_context()
+        assert context["partition_key"] == "some-partition"
 
     def test_lazy_loading_not_triggered_until_accessed(self, create_runtime_ti, mock_supervisor_comms):
         """Ensure lazy-loaded attributes are not resolved until accessed."""
