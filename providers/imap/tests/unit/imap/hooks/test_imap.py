@@ -318,6 +318,38 @@ class TestImapHook:
 
     @patch(open_string, new_callable=mock_open)
     @patch(imaplib_string)
+    def test_download_mail_attachments_preserves_duplicate_names(self, mock_imaplib, mock_open_method):
+        _create_fake_imap(mock_imaplib)
+
+        with patch("airflow.providers.imap.hooks.imap.os.path.exists", return_value=False):
+            with ImapHook() as imap_hook:
+                imap_hook._create_files(
+                    [("report.csv", b"first"), ("report.csv", b"second")],
+                    "test_directory",
+                    overwrite_file=False,
+                )
+
+        assert mock_open_method.call_args_list[0].args == ("test_directory/report.csv", "wb")
+        assert mock_open_method.call_args_list[1].args == ("test_directory/report_1.csv", "wb")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_preserves_existing_files(self, mock_imaplib, mock_open_method):
+        _create_fake_imap(mock_imaplib)
+
+        def exists(path):
+            return path in {"test_directory/report.csv", "test_directory/report_1.csv"}
+
+        with patch("airflow.providers.imap.hooks.imap.os.path.exists", side_effect=exists):
+            with ImapHook() as imap_hook:
+                imap_hook._create_files(
+                    [("report.csv", b"content")], "test_directory", overwrite_file=False
+                )
+
+        mock_open_method.assert_called_once_with("test_directory/report_2.csv", "wb")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
     def test_download_mail_attachments_not_found(self, mock_imaplib, mock_open_method):
         _create_fake_imap(mock_imaplib, with_mail=True)
 
