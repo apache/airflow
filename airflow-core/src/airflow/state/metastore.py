@@ -99,10 +99,16 @@ class MetastoreStateBackend(BaseStateBackend):
                 assert_never(scope)
 
     @provide_session
-    def clear(self, scope: StateScope, *, session: Session = NEW_SESSION) -> None:
+    def clear(
+        self,
+        scope: StateScope,
+        *,
+        all_map_indices: bool = False,
+        session: Session = NEW_SESSION,
+    ) -> None:
         match scope:
             case TaskScope():
-                self._clear_task_state(scope, session=session)
+                self._clear_task_state(scope, all_map_indices=all_map_indices, session=session)
             case AssetScope():
                 self._clear_asset_state(scope, session=session)
             case _:
@@ -138,11 +144,11 @@ class MetastoreStateBackend(BaseStateBackend):
                 case _:
                     assert_never(scope)
 
-    async def aclear(self, scope: StateScope) -> None:
+    async def aclear(self, scope: StateScope, *, all_map_indices: bool = False) -> None:
         async with create_session_async() as session:
             match scope:
                 case TaskScope():
-                    await self._aclear_task_state(scope, session=session)
+                    await self._aclear_task_state(scope, all_map_indices=all_map_indices, session=session)
                 case AssetScope():
                     await self._aclear_asset_state(scope, session=session)
                 case _:
@@ -200,13 +206,13 @@ class MetastoreStateBackend(BaseStateBackend):
             )
         )
 
-    def _clear_task_state(self, scope: TaskScope, *, session: Session) -> None:
+    def _clear_task_state(self, scope: TaskScope, *, all_map_indices: bool = False, session: Session) -> None:
         conditions = [
             TaskStateModel.dag_id == scope.dag_id,
             TaskStateModel.run_id == scope.run_id,
             TaskStateModel.task_id == scope.task_id,
         ]
-        if scope.map_index != -1:
+        if not all_map_indices:
             conditions.append(TaskStateModel.map_index == scope.map_index)
         session.execute(delete(TaskStateModel).where(*conditions))
 
@@ -301,13 +307,15 @@ class MetastoreStateBackend(BaseStateBackend):
             )
         )
 
-    async def _aclear_task_state(self, scope: TaskScope, *, session: AsyncSession) -> None:
+    async def _aclear_task_state(
+        self, scope: TaskScope, *, all_map_indices: bool = False, session: AsyncSession
+    ) -> None:
         conditions = [
             TaskStateModel.dag_id == scope.dag_id,
             TaskStateModel.run_id == scope.run_id,
             TaskStateModel.task_id == scope.task_id,
         ]
-        if scope.map_index != -1:
+        if not all_map_indices:
             conditions.append(TaskStateModel.map_index == scope.map_index)
         await session.execute(delete(TaskStateModel).where(*conditions))
 

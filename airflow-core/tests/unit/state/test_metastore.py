@@ -217,10 +217,10 @@ class TestMetastoreStateBackendTaskScope:
         assert backend.get(scope0, "job_id", session=session) is None
         assert backend.get(scope1, "job_id", session=session) == "app_1"
 
-    def test_clear_default_map_index_clears_all_map_indices(
+    def test_clear_with_all_map_indices_flag_wipes_wide(
         self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
     ):
-        """clear with default map_index=-1 removes state for every map index of the task."""
+        """clear(scope, all_map_indices=True) removes state for every map index of the task."""
         scope0 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=0)
         scope1 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=1)
 
@@ -228,8 +228,7 @@ class TestMetastoreStateBackendTaskScope:
         backend.set(scope1, "job_id", "app_1", session=session)
         session.flush()
 
-        all_indices = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
-        backend.clear(all_indices, session=session)
+        backend.clear(scope0, all_map_indices=True, session=session)
         session.flush()
 
         assert backend.get(scope0, "job_id", session=session) is None
@@ -334,18 +333,17 @@ class TestMetastoreStateBackendAsync:
         assert await backend.aget(scope, "job_id") is None
         assert await backend.aget(scope, "checkpoint") is None
 
-    async def test_aclear_default_map_index_clears_all_map_indices(
+    async def test_aclear_with_all_map_indices_flag_wipes_fleet(
         self, backend: MetastoreStateBackend, dag_run_committed: DagRun
     ):
-        """aclear with default map_index=-1 removes state for every map index of the task."""
+        """aclear(scope, all_map_indices=True) removes state for every map index of the task."""
         scope0 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=0)
         scope1 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=1)
 
         await backend.aset(scope0, "job_id", "app_0")
         await backend.aset(scope1, "job_id", "app_1")
 
-        all_indices = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
-        await backend.aclear(all_indices)
+        await backend.aclear(scope0, all_map_indices=True)
 
         assert await backend.aget(scope0, "job_id") is None
         assert await backend.aget(scope1, "job_id") is None

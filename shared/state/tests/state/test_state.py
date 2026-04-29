@@ -38,7 +38,7 @@ class TestBaseStateBackend:
             def delete(self, scope: StateScope, key: str) -> None:
                 self.calls.append("delete")
 
-            def clear(self, scope: StateScope) -> None:
+            def clear(self, scope: StateScope, *, all_map_indices: bool = False) -> None:
                 self.calls.append("clear")
 
             async def aget(self, scope: StateScope, key: str) -> str | None:
@@ -51,7 +51,7 @@ class TestBaseStateBackend:
             async def adelete(self, scope: StateScope, key: str) -> None:
                 self.calls.append("adelete")
 
-            async def aclear(self, scope: StateScope) -> None:
+            async def aclear(self, scope: StateScope, *, all_map_indices: bool = False) -> None:
                 self.calls.append("aclear")
 
         return ConcreteBackend()

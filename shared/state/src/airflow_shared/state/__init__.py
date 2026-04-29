@@ -25,10 +25,11 @@ class TaskScope:
     """
     Identifies the state namespace for a single task instance (or retry thereof).
 
-    ``map_index`` defaults to ``-1``, which is the sentinel for non-mapped tasks.
-    When passed to ``clear``/``aclear``, ``map_index=-1`` means *all map indices* for
-    the task — i.e. the ``map_index`` filter is dropped entirely. Pass an explicit
-    non-negative value to clear only a specific mapped instance.
+    ``map_index`` defaults to ``-1`` for non-mapped tasks. For mapped tasks,
+    set it to the actual mapped index. ``get``/``set``/``delete`` always match
+    on ``(dag_id, run_id, task_id, map_index)`` exactly. To wipe state across
+    every map index of the task, call ``clear``/``aclear`` with
+    ``all_map_indices=True``.
     """
 
     dag_id: str
@@ -88,15 +89,16 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    def clear(self, scope: StateScope) -> None:
+    def clear(self, scope: StateScope, *, all_map_indices: bool = False) -> None:
         """
         Delete all keys under the given scope.
 
         Must handle both ``TaskScope`` and ``AssetScope``.
 
-        For ``TaskScope``: if ``map_index == -1`` (the default), all map indices for
-        the task are cleared. Pass an explicit non-negative ``map_index`` to clear
-        only that specific mapped instance.
+        For ``TaskScope``: by default, only keys for the exact ``map_index`` on the
+        scope are cleared. Pass ``all_map_indices=True`` to drop the ``map_index``
+        filter entirely and wipe state across every mapped instance of the task.
+        For ``AssetScope`` the flag has no effect.
         """
 
     @abstractmethod
@@ -112,11 +114,11 @@ class BaseStateBackend(ABC):
         """Async variant of delete. Must handle both ``TaskScope`` and ``AssetScope``."""
 
     @abstractmethod
-    async def aclear(self, scope: StateScope) -> None:
+    async def aclear(self, scope: StateScope, *, all_map_indices: bool = False) -> None:
         """
         Async variant of clear. Must handle both ``TaskScope`` and ``AssetScope``.
 
-        For ``TaskScope``: if ``map_index == -1`` (the default), all map indices for
-        the task are cleared. Pass an explicit non-negative ``map_index`` to clear
-        only that specific mapped instance.
+        For ``TaskScope``: by default, only keys for the exact ``map_index`` on the
+        scope are cleared. Pass ``all_map_indices=True`` to wipe state across every
+        mapped instance of the task. For ``AssetScope`` the flag has no effect.
         """
