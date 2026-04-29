@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, assert_never
+from typing import TYPE_CHECKING
 
 from sqlalchemy import delete, select
 
@@ -26,6 +26,7 @@ from airflow._shared.timezones import timezone
 from airflow.models.asset_state import AssetStateModel
 from airflow.models.dagrun import DagRun
 from airflow.models.task_state import TaskStateModel
+from airflow.typing_compat import assert_never
 from airflow.utils.session import NEW_SESSION, create_session_async, provide_session
 from airflow.utils.sqlalchemy import get_dialect_name
 
