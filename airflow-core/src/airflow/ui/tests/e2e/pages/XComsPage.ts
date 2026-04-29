@@ -74,7 +74,7 @@ export class XComsPage extends BasePage {
 
   public async verifyDagDisplayNameFiltering(dagDisplayNamePattern: string): Promise<void> {
     await this.navigate();
-    await this.applyFilter("DAG ID", dagDisplayNamePattern);
+    await this.applyFilter("Dag ID", dagDisplayNamePattern);
 
     await expect(async () => {
       const firstLink = this.tableRows.first().locator("a[href*='/dags/']").first();
