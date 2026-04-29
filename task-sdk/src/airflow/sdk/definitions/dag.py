@@ -1283,7 +1283,8 @@ class DAG:
 
             log.debug("Getting dagrun for dag %s", self.dag_id)
             logical_date = timezone.coerce_datetime(logical_date)
-            run_after = timezone.coerce_datetime(run_after) or timezone.coerce_datetime(timezone.utcnow())
+            run_start_date = timezone.coerce_datetime(timezone.utcnow())
+            run_after = timezone.coerce_datetime(run_after) or run_start_date
             if logical_date is None:
                 data_interval: DataInterval | None = None
             else:
@@ -1331,7 +1332,7 @@ class DAG:
 
             dr: DagRun = get_or_create_dagrun(
                 dag=scheduler_dag,
-                start_date=logical_date or run_after,
+                start_date=run_start_date,
                 logical_date=logical_date,
                 data_interval=data_interval,
                 run_after=run_after,
