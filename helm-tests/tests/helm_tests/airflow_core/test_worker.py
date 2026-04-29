@@ -2332,6 +2332,60 @@ class TestWorkerCeleryLogGroomer(LogGroomerTestBase):
     obj_name = "workers-celery"
     folder = "workers"
 
+    @pytest.mark.parametrize(
+        ("persistence_enabled", "log_groomer_enabled", "expect_log_groomer"),
+        [
+            # persistence default (true) + logGroomer default (true) -> renders
+            (None, None, True),
+            # persistence default (true) + logGroomer false -> no render
+            (None, False, False),
+            # persistence true + logGroomer default (true) -> renders
+            (True, None, True),
+            # persistence true + logGroomer true -> renders
+            (True, True, True),
+            # persistence true + logGroomer false -> no render
+            (True, False, False),
+            # persistence false + logGroomer default (true) -> renders
+            (False, None, True),
+            # persistence false + logGroomer true -> renders
+            (False, True, True),
+            # persistence false + logGroomer false -> no render
+            (False, False, False),
+        ],
+    )
+    def test_log_groomer_with_persistence_combinations(
+        self, persistence_enabled, log_groomer_enabled, expect_log_groomer
+    ):
+        """Test log groomer sidecar rendering with various persistence and enabled combinations."""
+        celery_values = {}
+        if persistence_enabled is not None:
+            celery_values["persistence"] = {"enabled": persistence_enabled}
+        if log_groomer_enabled is not None:
+            celery_values["logGroomerSidecar"] = {"enabled": log_groomer_enabled}
+
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {"celery": celery_values} if celery_values else {},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        # Verify resource kind based on persistence
+        expected_kind = "StatefulSet" if persistence_enabled is not False else "Deployment"
+        assert jmespath.search("kind", docs[0]) == expected_kind
+
+        # Verify log groomer presence
+        containers = jmespath.search("spec.template.spec.containers", docs[0])
+        container_names = [c["name"] for c in containers]
+
+        if expect_log_groomer:
+            assert "worker-log-groomer" in container_names
+            assert len(containers) == 2
+        else:
+            assert "worker-log-groomer" not in container_names
+            assert len(containers) == 1
+
 
 class TestWorkerKedaAutoScaler:
     """Tests worker keda auto scaler."""
@@ -2681,6 +2735,21 @@ class TestWorkerNetworkPolicy:
         labels = jmespath.search("metadata.labels", docs[0])
         assert labels["test_label"] == "test_label_value"
         assert "key" not in labels
+
+    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryExecutor,KubernetesExecutor"])
+    def test_should_allow_api_server_to_read_worker_logs(self, executor):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "executor": executor,
+            },
+            show_only=["templates/workers/worker-networkpolicy.yaml"],
+        )
+
+        assert (
+            jmespath.search("spec.ingress[0].from[0].podSelector.matchLabels.component", docs[0])
+            == "api-server"
+        )
 
 
 class TestWorkerService:

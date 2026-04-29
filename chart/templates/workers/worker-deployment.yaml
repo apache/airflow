@@ -338,7 +338,7 @@ spec:
         {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | nindent 8 }}
         {{- end }}
-        {{- if and $persistence .Values.workers.logGroomerSidecar.enabled }}
+        {{- if .Values.workers.logGroomerSidecar.enabled }}
         - name: worker-log-groomer
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
@@ -353,11 +353,11 @@ spec:
           args: {{ tpl (toYaml .Values.workers.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
           env:
-          {{- if .Values.workers.logGroomerSidecar.retentionDays }}
+          {{- if ne .Values.workers.logGroomerSidecar.retentionDays nil }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.workers.logGroomerSidecar.retentionDays }}"
           {{- end }}
-          {{- if .Values.workers.logGroomerSidecar.retentionMinutes }}
+          {{- if ne .Values.workers.logGroomerSidecar.retentionMinutes nil }}
             - name: AIRFLOW__LOG_RETENTION_MINUTES
               value: "{{ .Values.workers.logGroomerSidecar.retentionMinutes }}"
           {{- end }}

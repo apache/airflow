@@ -48,7 +48,7 @@ spec:
     - podSelector:
         matchLabels:
           tier: airflow
-          component: scheduler
+          component: api-server
           release: {{ .Release.Name }}
     ports:
     - protocol: TCP
