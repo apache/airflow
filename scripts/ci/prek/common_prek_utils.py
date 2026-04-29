@@ -41,7 +41,7 @@ AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
 AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
 
 # Here we should add the second level paths that we want to have sub-packages in
-KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft"]
+KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft", "sdk"]
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 

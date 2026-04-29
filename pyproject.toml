@@ -338,6 +338,9 @@ apache-airflow = "airflow.__main__:main"
 "samba" = [
     "apache-airflow-providers-samba>=4.9.0"
 ]
+"sdk.executable" = [
+    "apache-airflow-providers-sdk-executable>=0.1.0"
+]
 "sdk.java" = [
     "apache-airflow-providers-sdk-java>=0.1.0"
 ]
@@ -484,6 +487,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-redis>=4.0.0",
     "apache-airflow-providers-salesforce>=5.9.0",
     "apache-airflow-providers-samba>=4.9.0",
+    "apache-airflow-providers-sdk-executable>=0.1.0",
     "apache-airflow-providers-sdk-java>=0.1.0",
     "apache-airflow-providers-segment>=3.7.0",
     "apache-airflow-providers-sendgrid>=4.0.0",
@@ -752,6 +756,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "providers/cncf/*/src/airflow/providers/cncf/__init__.py" = ["I002"]
 "providers/dbt/*/src/airflow/providers/dbt/__init__.py" = ["I002"]
 "providers/microsoft/*/src/airflow/providers/microsoft/__init__.py" = ["I002"]
+"providers/sdk/*/src/airflow/providers/sdk/__init__.py" = ["I002"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
@@ -1222,6 +1227,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/salesforce/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/samba/src",
     "$MYPY_CONFIG_FILE_DIR/providers/samba/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/sdk/executable/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/sdk/executable/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/sdk/java/src",
     "$MYPY_CONFIG_FILE_DIR/providers/sdk/java/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/segment/src",
@@ -1468,6 +1475,7 @@ apache-airflow-providers-qdrant = false
 apache-airflow-providers-redis = false
 apache-airflow-providers-salesforce = false
 apache-airflow-providers-samba = false
+apache-airflow-providers-sdk-executable = false
 apache-airflow-providers-sdk-java = false
 apache-airflow-providers-segment = false
 apache-airflow-providers-sendgrid = false
@@ -1621,6 +1629,7 @@ apache-airflow-providers-qdrant = false
 apache-airflow-providers-redis = false
 apache-airflow-providers-salesforce = false
 apache-airflow-providers-samba = false
+apache-airflow-providers-sdk-executable = false
 apache-airflow-providers-sdk-java = false
 apache-airflow-providers-segment = false
 apache-airflow-providers-sendgrid = false
@@ -1785,6 +1794,7 @@ apache-airflow-providers-qdrant = { workspace = true }
 apache-airflow-providers-redis = { workspace = true }
 apache-airflow-providers-salesforce = { workspace = true }
 apache-airflow-providers-samba = { workspace = true }
+apache-airflow-providers-sdk-executable = { workspace = true }
 apache-airflow-providers-sdk-java = { workspace = true }
 apache-airflow-providers-segment = { workspace = true }
 apache-airflow-providers-sendgrid = { workspace = true }
@@ -1924,6 +1934,7 @@ members = [
     "providers/redis",
     "providers/salesforce",
     "providers/samba",
+    "providers/sdk/executable",
     "providers/sdk/java",
     "providers/segment",
     "providers/sendgrid",
