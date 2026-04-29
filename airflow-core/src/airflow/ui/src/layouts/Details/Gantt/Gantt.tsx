@@ -23,8 +23,8 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useGanttServiceGetGanttData } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
+import { useGroups } from "src/context/groups";
 import { useHover } from "src/context/hover";
-import { useOpenGroups } from "src/context/openGroups";
 import { useTimezone } from "src/context/timezone";
 import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import {
@@ -46,6 +46,7 @@ const GANTT_STANDALONE_VIRTUALIZER_PADDING_START_PX = GANTT_TOP_PADDING_PX + GAN
 type Props = {
   readonly dagRunState?: DagRunState | undefined;
   readonly limit: number;
+  readonly offset?: number;
   readonly runAfterGte?: string | undefined;
   readonly runAfterLte?: string | undefined;
   readonly runType?: DagRunType | undefined;
@@ -56,6 +57,7 @@ type Props = {
 export const Gantt = ({
   dagRunState,
   limit,
+  offset,
   runAfterGte,
   runAfterLte,
   runType,
@@ -69,7 +71,7 @@ export const Gantt = ({
 
   const { dagId = "", runId = "" } = useParams();
   const [searchParams] = useSearchParams();
-  const { openGroupIds, toggleGroupId } = useOpenGroups();
+  const { openGroupIds, toggleGroupId } = useGroups();
   const { selectedTimezone } = useTimezone();
   const { setHoveredTaskId } = useHover();
 
@@ -82,6 +84,7 @@ export const Gantt = ({
   const { data: gridRuns, isLoading: runsLoading } = useGridRuns({
     dagRunState,
     limit,
+    offset,
     runAfterGte,
     runAfterLte,
     runType,

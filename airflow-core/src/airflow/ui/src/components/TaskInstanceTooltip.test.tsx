@@ -196,4 +196,25 @@ describe("TaskInstanceTooltip", () => {
     expect(screen.getAllByText(/state/iu).length).toBeGreaterThan(0);
     expect(screen.getByText(/startDate/iu)).toBeInTheDocument();
   });
+
+  it("shows run ID when provided explicitly for grid summaries", () => {
+    const taskInstance: LightGridTaskInstanceSummary = {
+      child_states: null,
+      max_end_date: "2025-01-01T02:00:00Z",
+      min_start_date: "2025-01-01T00:00:00Z",
+      state: "success",
+      task_display_name: "My Task",
+      task_id: "my_task",
+    };
+
+    render(
+      <TaskInstanceTooltip open runId="manual__2025-01-01T00:00:00+00:00" taskInstance={taskInstance}>
+        <span>trigger</span>
+      </TaskInstanceTooltip>,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByText(/runId/iu)).toBeInTheDocument();
+    expect(screen.getByText(/manual__2025-01-01T00:00:00\+00:00/iu)).toBeInTheDocument();
+  });
 });

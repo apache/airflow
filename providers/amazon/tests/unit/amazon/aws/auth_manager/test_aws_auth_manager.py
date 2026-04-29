@@ -24,7 +24,7 @@ import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 if not AIRFLOW_V_3_0_PLUS:
     pytest.skip("AWS auth manager is only compatible with Airflow >= 3.0.0", allow_module_level=True)
@@ -40,6 +40,11 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.api_fastapi.auth.managers.models.resource_details import TeamDetails
+else:
+    TeamDetails = None  # type: ignore[assignment,misc]
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
@@ -158,6 +163,7 @@ class TestAwsAuthManager:
             entity_type=AvpEntities.CONNECTION,
             user=expected_user,
             entity_id=expected_entity_id,
+            team_name=None,
         )
         assert result
 
@@ -206,6 +212,7 @@ class TestAwsAuthManager:
             user=expected_user,
             entity_id=expected_entity_id,
             context=expected_context,
+            team_name=None,
         )
         assert result
 
@@ -328,7 +335,11 @@ class TestAwsAuthManager:
         result = auth_manager.is_authorized_pool(method=method, details=details, user=user)
 
         is_authorized.assert_called_once_with(
-            method=method, entity_type=AvpEntities.POOL, user=expected_user, entity_id=expected_entity_id
+            method=method,
+            entity_type=AvpEntities.POOL,
+            user=expected_user,
+            entity_id=expected_entity_id,
+            team_name=None,
         )
         assert result
 
@@ -356,7 +367,122 @@ class TestAwsAuthManager:
         result = auth_manager.is_authorized_variable(method=method, details=details, user=user)
 
         is_authorized.assert_called_once_with(
-            method=method, entity_type=AvpEntities.VARIABLE, user=expected_user, entity_id=expected_entity_id
+            method=method,
+            entity_type=AvpEntities.VARIABLE,
+            user=expected_user,
+            entity_id=expected_entity_id,
+            team_name=None,
+        )
+        assert result
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="TeamDetails not available before Airflow 3.2.0")
+    @pytest.mark.parametrize(
+        (
+            "function",
+            "details_cls",
+            "details_kwargs",
+            "entity_type",
+            "expected_entity_id",
+            "expected_team_name",
+        ),
+        [
+            (
+                "is_authorized_connection",
+                ConnectionDetails,
+                {"conn_id": "conn_id", "team_name": "team_a"},
+                AvpEntities.CONNECTION,
+                "conn_id",
+                "team_a",
+            ),
+            (
+                "is_authorized_pool",
+                PoolDetails,
+                {"name": "pool1", "team_name": "team_a"},
+                AvpEntities.POOL,
+                "pool1",
+                "team_a",
+            ),
+            (
+                "is_authorized_variable",
+                VariableDetails,
+                {"key": "var1", "team_name": "team_a"},
+                AvpEntities.VARIABLE,
+                "var1",
+                "team_a",
+            ),
+        ],
+    )
+    @patch.object(AwsAuthManager, "avp_facade")
+    def test_is_authorized_with_team_name(
+        self,
+        mock_avp_facade,
+        function,
+        details_cls,
+        details_kwargs,
+        entity_type,
+        expected_entity_id,
+        expected_team_name,
+        auth_manager,
+    ):
+        is_authorized = Mock(return_value=True)
+        mock_avp_facade.is_authorized = is_authorized
+        details = details_cls(**details_kwargs)
+
+        method: ResourceMethod = "GET"
+        result = getattr(auth_manager, function)(method=method, details=details, user=mock)
+
+        is_authorized.assert_called_once_with(
+            method=method,
+            entity_type=entity_type,
+            user=mock,
+            entity_id=expected_entity_id,
+            team_name=expected_team_name,
+        )
+        assert result
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="TeamDetails not available before Airflow 3.2.0")
+    @patch.object(AwsAuthManager, "avp_facade")
+    def test_is_authorized_dag_with_team_name(self, mock_avp_facade, auth_manager):
+        is_authorized = Mock(return_value=True)
+        mock_avp_facade.is_authorized = is_authorized
+
+        result = auth_manager.is_authorized_dag(
+            method="GET", details=DagDetails(id="dag_1", team_name="team_a"), user=mock
+        )
+
+        is_authorized.assert_called_once_with(
+            method="GET",
+            entity_type=AvpEntities.DAG,
+            user=mock,
+            entity_id="dag_1",
+            context=None,
+            team_name="team_a",
+        )
+        assert result
+
+    @patch.object(AwsAuthManager, "avp_facade")
+    def test_is_authorized_team(self, mock_avp_facade, auth_manager):
+        is_authorized = Mock(return_value=True)
+        mock_avp_facade.is_authorized = is_authorized
+
+        result = auth_manager.is_authorized_team(method="GET", details=None, user=mock)
+
+        is_authorized.assert_called_once_with(
+            method="GET", entity_type=AvpEntities.TEAM, user=mock, entity_id=None
+        )
+        assert result
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="TeamDetails not available before Airflow 3.2.0")
+    @patch.object(AwsAuthManager, "avp_facade")
+    def test_is_authorized_team_with_details(self, mock_avp_facade, auth_manager):
+        is_authorized = Mock(return_value=True)
+        mock_avp_facade.is_authorized = is_authorized
+        details = TeamDetails(name="team_a")
+
+        result = auth_manager.is_authorized_team(method="GET", details=details, user=mock)
+
+        is_authorized.assert_called_once_with(
+            method="GET", entity_type=AvpEntities.TEAM, user=mock, entity_id="team_a"
         )
         assert result
 

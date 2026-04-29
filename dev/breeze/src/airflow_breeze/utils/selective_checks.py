@@ -88,7 +88,6 @@ LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
-ALLOW_TRANSACTION_CHANGE_LABEL = "allow translation change"
 ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
@@ -96,9 +95,6 @@ ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
     "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]"
 )
-
-# Set to True to enter a translation freeze period. Set to False to exit a translation freeze period.
-FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED = False
 
 
 class FileGroupForCi(Enum):
@@ -146,7 +142,6 @@ class FileGroupForCi(Enum):
     ASSET_FILES = auto()
     UNIT_TEST_FILES = auto()
     DEVEL_TOML_FILES = auto()
-    UI_ENGLISH_TRANSLATION_FILES = auto()
     SCRIPTS_FILES = auto()
     UV_LOCK_FILE = auto()
 
@@ -176,6 +171,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^Dockerfile",
             r"^scripts/ci/docker-compose",
             r"^scripts/ci/kubernetes",
+            r"^scripts/ci/prek",
             r"^scripts/docker",
             r"^scripts/in_container",
             r"^generated/provider_dependencies.json$",
@@ -384,9 +380,6 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.DEVEL_TOML_FILES: [
             r"^devel-common/pyproject\.toml$",
-        ],
-        FileGroupForCi.UI_ENGLISH_TRANSLATION_FILES: [
-            r"^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$",
         ],
         FileGroupForCi.SCRIPTS_FILES: [
             r"^scripts/ci/.*\.py$",
@@ -1808,36 +1801,13 @@ class SelectiveChecks:
         return json.dumps([file.name for file in (AIRFLOW_ROOT_PATH / "shared").iterdir() if file.is_dir()])
 
     @cached_property
-    def ui_english_translation_changed(self) -> bool:
-        _translation_changed = bool(
-            self._matching_files(
-                FileGroupForCi.UI_ENGLISH_TRANSLATION_FILES,
-                CI_FILE_GROUP_MATCHES,
-            )
-        )
-        if FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED and _translation_changed and not self._is_canary_run():
-            if ALLOW_TRANSACTION_CHANGE_LABEL in self._pr_labels:
-                console_print(
-                    "[warning]The 'allow translation change' label is set and English "
-                    "translation files changed. Bypassing the freeze period."
-                )
-                return True
-            console_print(
-                "[error]English translation changed but we are in a period of translation"
-                "freeze and label to allow it ('allow translation change') is not set"
-            )
-            console_print()
-            console_print(
-                "[warning]To allow translation change, please set the label "
-                "'allow translation change' on the PR, but this has to be communicated "
-                "and agreed to at the #i18n channel in slack"
-            )
-            sys.exit(1)
-        return _translation_changed
-
-    @cached_property
     def provider_dependency_bump(self) -> bool:
         """Check for apache-airflow-providers dependency bumps in pyproject.toml files."""
+        # Only enforce on PRs targeting main. On release branches (e.g. v3-X-test)
+        # cherry-picks routinely bump provider dependency lower bounds, and the
+        # override label is meant for that flow on main.
+        if self._default_branch != "main":
+            return False
         pyproject_files = self._matching_files(
             FileGroupForCi.ALL_PYPROJECT_TOML_FILES,
             CI_FILE_GROUP_MATCHES,
@@ -2064,6 +2034,11 @@ class SelectiveChecks:
         comment for their common-compat dependency.
         """
         if self._github_event != GithubEvents.PULL_REQUEST:
+            return False
+        # Only enforce on PRs targeting main. On release branches (e.g. v3-X-test)
+        # cherry-picked common.compat changes don't follow the '# use next version'
+        # convention, and the override label is meant for that flow on main.
+        if self._default_branch != "main":
             return False
 
         if not self._has_common_compat_changed():

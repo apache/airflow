@@ -307,6 +307,7 @@ class DagRun(StrictBaseModel):
     partition_key: str | None
     note: str | None = None
     bundle_version: str | None = None
+    team_name: str | None = None
 
     @model_validator(mode="before")
     @classmethod

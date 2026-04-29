@@ -43,6 +43,7 @@
   "extraLinks": "추가 링크",
   "grid": {
     "buttons": {
+      "olderRuns": "이전 실행",
       "resetToLatest": "최신 버전으로 재설정",
       "toggleGroup": "그룹 토글"
     },
@@ -52,6 +53,9 @@
     "buttons": {
       "advanced": "고급",
       "dagDocs": "Dag 문서"
+    },
+    "status": {
+      "deactivated": "비활성화됨"
     }
   },
   "logs": {
@@ -66,6 +70,10 @@
     },
     "info": "정보",
     "noTryNumber": "시도 횟수 없음",
+    "search": {
+      "noMatches": "일치하는 결과 없음",
+      "placeholder": "로그 검색"
+    },
     "settings": "로그 설정",
     "viewInExternal": "{{name}}에서 로그 보기 (시도 {{attempt}})",
     "warning": "경고"

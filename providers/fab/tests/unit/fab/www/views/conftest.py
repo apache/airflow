@@ -34,7 +34,10 @@ from unit.fab.utils import client_with_login
 
 @pytest.fixture(autouse=True, scope="module")
 def session():
-    settings.configure_orm()
+    # reconfigure_orm() disposes any pre-existing engine before creating a new
+    # one. Plain configure_orm() leaks the previous engine's connection pool,
+    # which exhausts Postgres max_connections in long parallel CI runs.
+    settings.reconfigure_orm()
     return settings.Session
 
 
@@ -102,6 +105,12 @@ def app(examples_dag_bag):
 
     for user_dict in test_users:
         delete_user(app, user_dict["username"])
+    # flask_sqlalchemy creates a per-app engine in init_app(); without disposal
+    # its pooled connections survive the fixture and accumulate across modules
+    # in long CI runs.
+    with app.app_context():
+        for fab_engine in app.extensions["sqlalchemy"].engines.values():
+            fab_engine.dispose()
 
 
 @pytest.fixture

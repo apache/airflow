@@ -131,8 +131,14 @@ ENV/
 .idea/
 *.iml
 
-# Claude Code
-.claude/
+# Claude Code — ignore local config/caches/worktrees, but keep the
+# tracked symlinks in .claude/skills/ that point at .github/skills/.
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/pr-stats
+!.claude/skills/pr-triage
+!.claude/skills/maintainer-review
 
 # Kiro
 .kiro/

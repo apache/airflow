@@ -31,10 +31,15 @@ from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
     QueryXComDagDisplayNamePatternSearch,
+    QueryXComDagDisplayNamePrefixPatternSearch,
     QueryXComKeyPatternSearch,
+    QueryXComKeyPrefixPatternSearch,
     QueryXComRunIdPatternSearch,
+    QueryXComRunIdPrefixPatternSearch,
     QueryXComTaskIdPatternSearch,
+    QueryXComTaskIdPrefixPatternSearch,
     RangeFilter,
+    SortParam,
     datetime_range_filter_factory,
     filter_param_factory,
 )
@@ -152,15 +157,29 @@ def get_xcom_entries(
     readable_xcom_filter: ReadableXComFilterDep,
     session: SessionDep,
     xcom_key_pattern: QueryXComKeyPatternSearch,
+    xcom_key_prefix_pattern: QueryXComKeyPrefixPatternSearch,
     dag_display_name_pattern: QueryXComDagDisplayNamePatternSearch,
+    dag_display_name_prefix_pattern: QueryXComDagDisplayNamePrefixPatternSearch,
     run_id_pattern: QueryXComRunIdPatternSearch,
+    run_id_prefix_pattern: QueryXComRunIdPrefixPatternSearch,
     task_id_pattern: QueryXComTaskIdPatternSearch,
+    task_id_prefix_pattern: QueryXComTaskIdPrefixPatternSearch,
     map_index_filter: Annotated[
         FilterParam[int | None],
         Depends(filter_param_factory(XComModel.map_index, int | None, filter_name="map_index_filter")),
     ],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DR))],
     run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DR))],
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["key", "dag_id", "run_id", "task_id", "map_index", "timestamp"],
+                XComModel,
+                to_replace={"run_after": DR.run_after},
+            ).dynamic_depends(default=("dag_id", "task_id", "run_id", "map_index", "key"))
+        ),
+    ],
     xcom_key: Annotated[str | None, Query()] = None,
     map_index: Annotated[int | None, Query(ge=-1)] = None,
 ) -> XComCollectionResponse:
@@ -192,19 +211,21 @@ def get_xcom_entries(
         filters=[
             readable_xcom_filter,
             xcom_key_pattern,
+            xcom_key_prefix_pattern,
             dag_display_name_pattern,
+            dag_display_name_prefix_pattern,
             run_id_pattern,
+            run_id_prefix_pattern,
             task_id_pattern,
+            task_id_prefix_pattern,
             map_index_filter,
             logical_date_range,
             run_after_range,
         ],
+        order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
-    )
-    query = query.order_by(
-        XComModel.dag_id, XComModel.task_id, XComModel.run_id, XComModel.map_index, XComModel.key
     )
     return XComCollectionResponse(xcom_entries=session.scalars(query), total_entries=total_entries)
 

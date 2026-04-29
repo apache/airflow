@@ -74,7 +74,7 @@ test.describe("Events with Generated Data", () => {
     }).toPass({ timeout: 20_000 });
   });
 
-  test("verify filter by DAG ID", async ({ eventsPage, executedDagRun }) => {
+  test("verify filter by Dag ID", async ({ eventsPage, executedDagRun }) => {
     await eventsPage.navigate();
     await eventsPage.addFilter("DAG ID");
     await eventsPage.setFilterValue("DAG ID", executedDagRun.dagId);

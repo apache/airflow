@@ -53,21 +53,27 @@ from airflow.api_fastapi.common.parameters import (
     QueryTIMapIndexFilter,
     QueryTIOperatorFilter,
     QueryTIOperatorNamePatternSearch,
+    QueryTIOperatorNamePrefixPatternSearch,
     QueryTIPoolFilter,
     QueryTIPoolNamePatternSearch,
+    QueryTIPoolNamePrefixPatternSearch,
     QueryTIQueueFilter,
     QueryTIQueueNamePatternSearch,
+    QueryTIQueueNamePrefixPatternSearch,
     QueryTIStateFilter,
     QueryTITaskDisplayNamePatternSearch,
+    QueryTITaskDisplayNamePrefixPatternSearch,
     QueryTITaskGroupFilter,
     QueryTITryNumberFilter,
     Range,
     RangeFilter,
     SortParam,
+    _PrefixSearchParam,
     _SearchParam,
     datetime_range_filter_factory,
     filter_param_factory,
     float_range_filter_factory,
+    prefix_search_param_factory,
     search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -90,9 +96,13 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
+    _get_task_group_task_instances,
+    _patch_task_group_state,
     _patch_task_instance_note,
     _patch_task_instance_state,
+    _patch_ti_group_validate_request,
     _patch_ti_validate_request,
+    _reload_tis_with_rendered_fields,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
@@ -163,13 +173,16 @@ def get_mapped_task_instances(
     state: QueryTIStateFilter,
     pool: QueryTIPoolFilter,
     pool_name_pattern: QueryTIPoolNamePatternSearch,
+    pool_name_prefix_pattern: QueryTIPoolNamePrefixPatternSearch,
     queue: QueryTIQueueFilter,
     queue_name_pattern: QueryTIQueueNamePatternSearch,
+    queue_name_prefix_pattern: QueryTIQueueNamePrefixPatternSearch,
     executor: QueryTIExecutorFilter,
     version_number: QueryTIDagVersionFilter,
     try_number: QueryTITryNumberFilter,
     operator: QueryTIOperatorFilter,
     operator_name_pattern: QueryTIOperatorNamePatternSearch,
+    operator_name_prefix_pattern: QueryTIOperatorNamePrefixPatternSearch,
     map_index: QueryTIMapIndexFilter,
     limit: QueryLimit,
     offset: QueryOffset,
@@ -236,13 +249,16 @@ def get_mapped_task_instances(
             state,
             pool,
             pool_name_pattern,
+            pool_name_prefix_pattern,
             queue,
             queue_name_pattern,
+            queue_name_prefix_pattern,
             executor,
             version_number,
             try_number,
             operator,
             operator_name_pattern,
+            operator_name_prefix_pattern,
             map_index,
         ],
         order_by=order_by,
@@ -430,19 +446,31 @@ def get_task_instances(
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
     task_display_name_pattern: QueryTITaskDisplayNamePatternSearch,
+    task_display_name_prefix_pattern: QueryTITaskDisplayNamePrefixPatternSearch,
     task_group_id: QueryTITaskGroupFilter,
     dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(TI.dag_id, "dag_id_pattern"))],
+    dag_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(TI.dag_id, "dag_id_prefix_pattern")),
+    ],
     run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(TI.run_id, "run_id_pattern"))],
+    run_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(TI.run_id, "run_id_prefix_pattern")),
+    ],
     state: QueryTIStateFilter,
     pool: QueryTIPoolFilter,
     pool_name_pattern: QueryTIPoolNamePatternSearch,
+    pool_name_prefix_pattern: QueryTIPoolNamePrefixPatternSearch,
     queue: QueryTIQueueFilter,
     queue_name_pattern: QueryTIQueueNamePatternSearch,
+    queue_name_prefix_pattern: QueryTIQueueNamePrefixPatternSearch,
     executor: QueryTIExecutorFilter,
     version_number: QueryTIDagVersionFilter,
     try_number: QueryTITryNumberFilter,
     operator: QueryTIOperatorFilter,
     operator_name_pattern: QueryTIOperatorNamePatternSearch,
+    operator_name_prefix_pattern: QueryTIOperatorNamePrefixPatternSearch,
     map_index: QueryTIMapIndexFilter,
     limit: QueryLimit,
     offset: QueryOffset,
@@ -531,19 +559,25 @@ def get_task_instances(
         state,
         pool,
         pool_name_pattern,
+        pool_name_prefix_pattern,
         queue,
         queue_name_pattern,
+        queue_name_prefix_pattern,
         executor,
         task_id,
         task_display_name_pattern,
+        task_display_name_prefix_pattern,
         task_group_id,
         dag_id_pattern,
+        dag_id_prefix_pattern,
         run_id_pattern,
+        run_id_prefix_pattern,
         version_number,
         readable_ti_filter,
         try_number,
         operator,
         operator_name_pattern,
+        operator_name_prefix_pattern,
         map_index,
     ]
 
@@ -551,7 +585,7 @@ def get_task_instances(
         # Fetch one extra row so we can detect whether a next page exists.
         page_limit = cast(
             "int", limit.value
-        )  # LimitFilter value is guaranteed to be set of the default value of QueryLimit
+        )  # LimitFilter value is guaranteed to be set to the default value of QueryLimit
         cursor_limit = LimitFilter().set_value(page_limit + 1)
         task_instance_select = apply_filters_to_select(
             statement=query, filters=[*filters, order_by, cursor_limit]
@@ -932,6 +966,102 @@ def post_clear_task_instances(
 
 
 @task_instances_router.patch(
+    "/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
+    ),
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
+    operation_id="patch_task_group_instances",
+)
+def patch_task_group_instances(
+    dag_id: str,
+    dag_run_id: str,
+    group_id: str,
+    dag_bag: DagBagDep,
+    body: PatchTaskInstanceBody,
+    session: SessionDep,
+    user: GetUserDep,
+    update_mask: list[str] | None = Query(None),
+) -> TaskInstanceCollectionResponse:
+    """Update the state of all task instances in a task group."""
+    dag, tis, data = _patch_ti_group_validate_request(
+        dag_id, dag_run_id, group_id, dag_bag, body, session, update_mask
+    )
+
+    response_tis = tis
+    if "new_state" in data:
+        response_tis = _patch_task_group_state(
+            group_id=group_id,
+            dag_run_id=dag_run_id,
+            dag=dag,
+            body=body,
+            data=data,
+            session=session,
+        )
+    if "note" in data:
+        _patch_task_instance_note(
+            task_instance_body=body,
+            tis=response_tis,
+            user=user,
+            update_mask=update_mask,
+        )
+
+    response_tis = _reload_tis_with_rendered_fields(response_tis, session)
+
+    return TaskInstanceCollectionResponse(
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in response_tis],
+        total_entries=len(response_tis),
+    )
+
+
+@task_instances_router.patch(
+    "/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}/dry_run",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
+    ),
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="patch_task_group_instances_dry_run",
+)
+def patch_task_group_instances_dry_run(
+    dag_id: str,
+    dag_run_id: str,
+    group_id: str,
+    dag_bag: DagBagDep,
+    body: PatchTaskInstanceBody,
+    session: SessionDep,
+) -> TaskInstanceCollectionResponse:
+    """Dry-run of updating the state of all task instances in a task group."""
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+    tis = _get_task_group_task_instances(dag_id, dag_run_id, group_id, dag, session)
+
+    if body.new_state:
+        tis = (
+            dag.set_task_group_state(
+                group_id=group_id,
+                run_id=dag_run_id,
+                state=body.new_state,
+                upstream=body.include_upstream,
+                downstream=body.include_downstream,
+                future=body.include_future,
+                past=body.include_past,
+                commit=False,
+                session=session,
+            )
+            or []
+        )
+
+    tis = _reload_tis_with_rendered_fields(tis, session)
+
+    return TaskInstanceCollectionResponse(
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in tis],
+        total_entries=len(tis),
+    )
+
+
+@task_instances_router.patch(
     task_instances_prefix + "/{task_id}/dry_run",
     responses=create_openapi_http_exception_doc(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
@@ -981,7 +1111,7 @@ def patch_task_instance_dry_run(
         )
 
     # Eagerly load rendered_task_instance_fields for serialization (lazy='raise' prevents lazy access).
-    # dag.set_task_instance_state() may return TIs without this relationship loaded.
+    # set_task_instance_state() returns TIs without this relationship loaded; re-query with joinedload.
     # populate_existing=True ensures the joinedload updates TIs already in the identity map.
     if tis:
         tis = (

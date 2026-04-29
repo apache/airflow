@@ -68,9 +68,20 @@ def registry_group():
     default=None,
     help="Extract only this provider ID (e.g. 'amazon'). Omit for full build.",
 )
+@click.option(
+    "--allow-unreleased",
+    is_flag=True,
+    default=False,
+    help=(
+        "Include providers and versions that don't have a matching "
+        "providers-<id>/<ver> git tag. Use for staging builds and local dev "
+        "where maintainers want to preview unreleased provider pages before "
+        "the tag lands. Forwarded to extract_metadata.py."
+    ),
+)
 @option_verbose
 @option_dry_run
-def extract_data(python: str, provider: str | None):
+def extract_data(python: str, provider: str | None, allow_unreleased: bool):
     unique_project_name = f"breeze-registry-{uuid.uuid4().hex[:8]}"
 
     shell_params = ShellParams(
@@ -89,9 +100,13 @@ def extract_data(python: str, provider: str | None):
     install_cmd = f"pip install --quiet {' '.join(suspended_packages)} && " if suspended_packages else ""
 
     provider_flag = f" --provider '{provider}'" if provider else ""
+    # --allow-unreleased only applies to extract_metadata.py (which owns the
+    # version filter). The other two scripts read from providers.json and
+    # don't need it.
+    metadata_extra = " --allow-unreleased" if allow_unreleased else ""
     command = (
         f"{install_cmd}"
-        f"python dev/registry/extract_metadata.py{provider_flag} && "
+        f"python dev/registry/extract_metadata.py{provider_flag}{metadata_extra} && "
         f"python dev/registry/extract_parameters.py{provider_flag} && "
         f"python dev/registry/extract_connections.py{provider_flag}"
     )
@@ -241,6 +256,34 @@ def _run_extract_script(
         ]
         result = run_command(fallback_cmd, check=False, cwd=str(AIRFLOW_ROOT_PATH))
     return result.returncode
+
+
+def _run_extract_versions(provider_id: str, version: str) -> int:
+    """Run extract_versions.py on the host for a single provider/version.
+
+    Resolves dependencies via ``--project dev/registry`` so uv reads
+    ``dev/registry/pyproject.toml`` (pyyaml + pydantic) instead of syncing
+    the airflow workspace. Without this flag uv pulls in providers like
+    samba -> smbprotocol -> pyspnego[kerberos] -> gssapi, which fails on
+    runners without libkrb5-dev. Returns the script exit code.
+
+    No extras fallback (unlike :func:`_run_extract_script`): this script's
+    deps live in ``dev/registry/pyproject.toml`` and aren't provider-version
+    dependent, so a single invocation either works or doesn't.
+    """
+    cmd = [
+        "uv",
+        "run",
+        "--project",
+        str(DEV_REGISTRY_DIR),
+        "python",
+        str(DEV_REGISTRY_DIR / "extract_versions.py"),
+        "--provider",
+        provider_id,
+        "--version",
+        version,
+    ]
+    return run_command(cmd, check=False, cwd=str(AIRFLOW_ROOT_PATH)).returncode
 
 
 def _backfill_docker(
@@ -402,19 +445,9 @@ def backfill(python: str, provider: str, versions: tuple[str, ...], use_docker: 
     # Step 1: extract_versions.py (host, reads git tags) -> metadata.json
     click.echo("Step 1: Extracting version metadata from git tags...")
     for version in versions:
-        versions_cmd = [
-            "uv",
-            "run",
-            "python",
-            str(DEV_REGISTRY_DIR / "extract_versions.py"),
-            "--provider",
-            provider,
-            "--version",
-            version,
-        ]
-        result = run_command(versions_cmd, check=False, cwd=str(AIRFLOW_ROOT_PATH))
-        if result.returncode != 0:
-            click.echo(f"WARNING: extract_versions.py failed for {version} (exit {result.returncode})")
+        rc = _run_extract_versions(provider, version)
+        if rc != 0:
+            click.echo(f"WARNING: extract_versions.py failed for {version} (exit {rc})")
             failed.append(f"{version}/extract_versions.py")
 
     # Step 2: extract_parameters.py + extract_connections.py

@@ -25,6 +25,10 @@ import { Wrapper } from "src/utils/Wrapper";
 
 import { Graph } from "./Graph";
 
+// testsSetup.ts globally mocks Graph to null so full-page tests don't need to
+// stub ELK layout data. Unmock it here so we test the real component.
+vi.unmock("src/layouts/Details/Graph/Graph");
+
 let mockParams: Record<string, string> = { dagId: "test_dag" };
 
 vi.mock("react-router-dom", async () => {
@@ -58,8 +62,8 @@ vi.mock("src/hooks/useSelectedVersion", () => ({
   default: vi.fn(() => 1),
 }));
 
-vi.mock("src/context/openGroups", () => ({
-  useOpenGroups: vi.fn(() => ({ allGroupIds: [], openGroupIds: [], setAllGroupIds: vi.fn() })),
+vi.mock("src/context/groups", () => ({
+  useGroups: vi.fn(() => ({ allGroupIds: [], openGroupIds: [], setAllGroupIds: vi.fn() })),
 }));
 
 vi.mock("@xyflow/react", async () => {
