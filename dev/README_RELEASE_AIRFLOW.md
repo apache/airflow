@@ -235,9 +235,9 @@ You are likely want to cherry-pick some of the latest doc changes in order to br
 explanations added to the documentation. Usually you can see the list of such changes via:
 
 ```shell
-git fetch apache
-git log --oneline apache/v3-2-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
-git log --oneline --decorate apache/v2-2-stable..apache/main -- docs/apache-airflow docs/docker-stack/ | grep -vf /tmp/merged
+git fetch upstream
+git log --oneline upstream/v3-2-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
+git log --oneline --decorate upstream/v2-2-stable..upstream/main -- docs/apache-airflow docs/docker-stack/ | grep -vf /tmp/merged
 ```
 
 Those changes that are "doc-only" changes should be marked with `type:doc-only` label so that they
@@ -245,8 +245,22 @@ land in documentation part of the changelog. The tool to review and assign the l
 
 ## Making the cherry picking
 
-It is recommended to clone Airflow upstream (not your fork) and run the commands on
-the relevant test branch in this clone. That way origin points to the upstream repo.
+It is recommended to clone Airflow from `apache/airflow` directly (not your fork) into a
+dedicated release-manager checkout and run the commands on the relevant test branch there.
+This repo follows the standard convention that `upstream` → `apache/airflow` and `origin`
+→ your fork (see
+[`contributing-docs/10_working_with_git.rst`](../contributing-docs/10_working_with_git.rst#git-remote-naming-conventions)),
+so in this release-manager clone add `apache/airflow` as `upstream`:
+
+```shell
+git remote add upstream https://github.com/apache/airflow.git
+git fetch upstream
+```
+
+All the commands in this document assume `upstream` is the remote that tracks
+`apache/airflow`. If you previously set this up under a different name (e.g. `apache`),
+either rename it with `git remote rename apache upstream` or pass the alternative name
+via the `--remote-name` option where the commands accept it.
 
 To see cherry picking candidates (unmerged PR with the appropriate milestone), from the test
 branch you can run:
@@ -282,7 +296,7 @@ We have the tool that allows to review cherry-picked PRs and assign the labels
 It allows to manually review and assign milestones and labels to cherry-picked PRs:
 
 ```shell
-./dev/assign_cherry_picked_prs_with_milestone.py assign-prs --previous-release v2-2-stable --current-release apache/v2-2-test --milestone-number 48
+./dev/assign_cherry_picked_prs_with_milestone.py assign-prs --previous-release v2-2-stable --current-release upstream/v2-2-test --milestone-number 48
 ```
 
 It summarises the state of each cherry-picked PR including information whether it is going to be
@@ -298,7 +312,7 @@ assumes the `--skip-assigned` flag, so that the summary can be produced without 
 
 ```shell
 ./dev/assign_cherry_picked_prs_with_milestone.py assign-prs --previous-release v2-2-stable \
-  --current-release apache/v2-2-test --milestone-number 48 --skip-assigned --assume-yes --print-summary \
+  --current-release upstream/v2-2-test --milestone-number 48 --skip-assigned --assume-yes --print-summary \
   --output-folder /tmp
 ```
 
@@ -324,13 +338,13 @@ git show --format=tformat:"" --stat --name-only $(cat /tmp/doc-only-changes.txt)
 Then if you see suspicious file (example airflow/sensors/base.py) you can find details on where they came from:
 
 ```shell
-git log apache/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | xargs git show
+git log upstream/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | xargs git show
 ```
 
 And the URL to the PR it comes from:
 
 ```shell
-git log apache/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | \
+git log upstream/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | \
     xargs -n 1 git log --oneline --max-count=1 | \
     sed s'/.*(#\([0-9]*\))$/https:\/\/github.com\/apache\/airflow\/pull\/\1/'
 ```
@@ -373,11 +387,16 @@ cd airflow
 export AIRFLOW_REPO_ROOT=$(pwd)
 ```
 
-- Install `breeze` command:
+- Install `breeze` command (recommended — installs a shim at `~/.local/bin/breeze` that runs
+  breeze via `uvx` from the current git worktree's `dev/breeze`; see
+  [ADR 0017](breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md)):
 
 ```shell script
-uv tool install -e ./dev/breeze
+./scripts/tools/setup_breeze
 ```
+
+The legacy global install (`uv tool install -e ./dev/breeze` or `pipx install -e ./dev/breeze`)
+still works but is no longer recommended.
 
 - Verify your GPG signing key is ready.
 
@@ -422,7 +441,7 @@ uv tool install -e ./dev/breeze
 
     ```shell script
     git checkout v${VERSION_BRANCH}-test
-    git reset --hard origin/v${VERSION_BRANCH}-test
+    git reset --hard upstream/v${VERSION_BRANCH}-test
     ```
 
 - Create a new branch from v${VERSION_BRANCH}-test
@@ -573,13 +592,14 @@ uv tool install -e ./dev/breeze
    Before running the actual release command, you can safely test it using:
 
    ```shell script
-   # Test with dry-run (shows what would be executed without doing it)
+   # Test with dry-run (shows what would be executed without doing it).
+   # --remote-name defaults to "upstream" per the project convention, so only
+   # pass it explicitly if you set apache/airflow up under a different name.
    breeze release-management start-rc-process \
        --version ${VERSION_RC} \
        --previous-version ${PREVIOUS_VERSION} \
        --task-sdk-version ${TASK_SDK_VERSION_RC} \
        --sync-branch ${SYNC_BRANCH} \
-       --remote-name upstream \
        --dry-run
    ```
 
@@ -837,7 +857,7 @@ VERSION_SUFFIX=rc1
 VERSION_RC=${VERSION}${VERSION_SUFFIX}
 TASK_SDK_VERSION=X.Y.Z
 TASK_SDK_VERSION_RC=${TASK_SDK_VERSION}${VERSION_SUFFIX}
-git fetch apache --tags
+git fetch upstream --tags
 git checkout ${VERSION_RC}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*

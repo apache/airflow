@@ -19,7 +19,7 @@
 requires = [
     "hatchling==1.29.0",
     "packaging==26.1",
-    "pathspec==1.0.4",
+    "pathspec==1.1.0",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
     "trove-classifiers==2026.1.14.14",
@@ -100,6 +100,9 @@ apache-airflow = "airflow.__main__:main"
 ]
 "airbyte" = [
     "apache-airflow-providers-airbyte>=5.0.0"
+]
+"akeyless" = [
+    "apache-airflow-providers-akeyless>=0.1.0"
 ]
 "alibaba" = [
     "apache-airflow-providers-alibaba>=3.0.0"
@@ -381,7 +384,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-vertica>=3.9.1"
 ]
 "vespa" = [
-    "apache-airflow-providers-vespa>=0.1.0" # Set from local provider pyproject.toml
+    "apache-airflow-providers-vespa>=0.1.0"
 ]
 "weaviate" = [
     "apache-airflow-providers-weaviate>=3.0.0"
@@ -399,6 +402,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,gunicorn,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
+    "apache-airflow-providers-akeyless>=0.1.0",
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
@@ -492,7 +496,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-teradata>=2.6.1",
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
-    "apache-airflow-providers-vespa>=0.1.0", # Set from local provider pyproject.toml
+    "apache-airflow-providers-vespa>=0.1.0",
     "apache-airflow-providers-weaviate>=3.0.0",
     "apache-airflow-providers-yandex>=4.0.0",
     "apache-airflow-providers-ydb>=1.4.0",
@@ -547,7 +551,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.7",
+    "uv>=0.11.8",
 ]
 
 [project.urls]
@@ -1056,6 +1060,8 @@ mypy_path = [
     # Automatically generated mypy paths (update_airflow_pyproject_toml.py)
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/akeyless/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/akeyless/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/alibaba/src",
     "$MYPY_CONFIG_FILE_DIR/providers/alibaba/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/amazon/src",
@@ -1354,7 +1360,7 @@ leveldb = [
 # with AIRFLOW_UV_VERSION would force everyone to upgrade uv on every release. The
 # breeze/prek uv version checks read this value dynamically and tolerate a stale
 # floor; `scripts/ci/prek/upgrade_important_versions.py` deliberately skips it.
-required-version = ">=0.11.7"
+required-version = ">=0.11.8"
 no-build-isolation-package = ["sphinx-redoc"]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
@@ -1375,6 +1381,7 @@ apache-airflow-kubernetes-tests = false
 apache-airflow-mypy = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
+apache-airflow-providers-akeyless = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-apache-cassandra = false
@@ -1492,6 +1499,18 @@ apache-airflow-task-sdk-integration-tests = false
 apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package entries
 
+# Manual overrides (kept outside the auto-generated block above so the
+# update_airflow_pyproject_toml.py script doesn't clobber them).
+# uv 0.11.8 lifted the timestamp from `uv.lock` for relative `exclude-newer`
+# (https://github.com/astral-sh/uv/issues/18708, fixed in
+# https://github.com/astral-sh/uv/pull/19022) — we want that fix, but the
+# global 4-day cooldown above would otherwise block a freshly-published uv
+# from being adopted as the floor. Drop uv's cooldown to 12 hours so the
+# pinned `required-version` floor isn't gated by the project-wide window.
+# REMOVE BY 2026-05-01 — once 0.11.8 is older than the global 4-day cooldown
+# this override is redundant and should be deleted along with the line below.
+uv = "12 hours"
+
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
@@ -1512,6 +1531,7 @@ apache-airflow-kubernetes-tests = false
 apache-airflow-mypy = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
+apache-airflow-providers-akeyless = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-apache-cassandra = false
@@ -1629,6 +1649,11 @@ apache-airflow-task-sdk-integration-tests = false
 apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package-pip entries
 
+# Manual overrides — see the matching block under
+# `[tool.uv.exclude-newer-package]` above for rationale.
+# REMOVE BY 2026-05-01 along with the matching entry above.
+uv = "12 hours"
+
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
@@ -1665,6 +1690,7 @@ apache-airflow-shared-template-rendering = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
+apache-airflow-providers-akeyless = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
 apache-airflow-providers-apache-cassandra = { workspace = true }
@@ -1800,6 +1826,7 @@ members = [
     "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
+    "providers/akeyless",
     "providers/alibaba",
     "providers/amazon",
     "providers/apache/cassandra",

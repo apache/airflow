@@ -256,6 +256,7 @@ class RuntimeTaskInstance(TaskInstance):
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
+                "partition_key": dag_run.partition_key,
                 "triggering_asset_events": TriggeringAssetEventsAccessor.build(
                     AssetEventDagRunReferenceResult.from_asset_event_dag_run_reference(event)
                     for event in dag_run.consumed_asset_events
@@ -1300,6 +1301,8 @@ def run(
                 # Send update only if value changed (e.g., user set context variables during execution)
                 if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
                     SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
+            finally:
+                log.info("::group::Post Execute")
 
         _push_xcom_if_needed(result, ti, log)
 
@@ -1376,7 +1379,17 @@ def run(
         Stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
 
         if msg:
-            SUPERVISOR_COMMS.send(msg=msg)
+            # If the supervisor rejects the terminal-state report
+            # (e.g. the server already moved the TI to a terminal state and
+            # returns 409 - for example due to issue fixed by #65594),
+            # we still want to run finalize() so listeners observe the task state.
+            try:
+                SUPERVISOR_COMMS.send(msg=msg)
+            except Exception:
+                log.exception(
+                    "Failed to report terminal task state to supervisor",
+                    state=state.value,
+                )
 
     # Return the message to make unit tests easier too
     ti.state = state
@@ -1445,6 +1458,7 @@ def _handle_trigger_dag_run(
             dag_id=drte.trigger_dag_id,
             run_id=drte.dag_run_id,
             logical_date=drte.logical_date,
+            run_after=drte.run_after,
             conf=drte.conf,
             reset_dag_run=drte.reset_dag_run,
             note=drte.note,
@@ -1679,6 +1693,8 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
+    log.info("::endgroup::")
+
     if task.execution_timeout:
         from airflow.sdk.execution_time.timeout import timeout
 
@@ -1842,6 +1858,8 @@ def finalize(
     except Exception:
         log.exception("error calling listener")
 
+    log.info("::endgroup::")
+
 
 @contextmanager
 def flush_spans():
@@ -1870,6 +1888,7 @@ def main():
     with stack:
         try:
             try:
+                log.info("::group::Pre Execute")
                 startup_details = get_startup_details()
 
                 # On macOS fork+exec path, the structured log channel wasn't

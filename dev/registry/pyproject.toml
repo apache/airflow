@@ -19,7 +19,7 @@
 requires = [
     "hatchling==1.29.0",
     "packaging==26.1",
-    "pathspec==1.0.4",
+    "pathspec==1.1.0",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
     "trove-classifiers==2026.1.14.14",
@@ -33,8 +33,15 @@ version = "0.0.1"
 requires-python = ">=3.10"
 classifiers = ["Private :: Do Not Upload"]
 dependencies = [
+    # `patch_providers_json.py` uses `packaging.version` for newest-first
+    # sorting. It also flows transitively via pydantic, but declare it
+    # explicitly so the script doesn't break if upstream drops the chain.
+    "packaging>=24.0",
     "pydantic>=2.12.0",
     "pyyaml>=6.0.3",
+    # extract_versions.py and extract_metadata.py read pyproject.toml via
+    # tomllib (3.11+ stdlib). Fall back to the `tomli` backport on 3.10.
+    "tomli>=2.0.0; python_version < '3.11'",
 ]
 
 [dependency-groups]

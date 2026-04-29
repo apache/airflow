@@ -34,7 +34,7 @@ from sqlalchemy.orm.exc import DetachedInstanceError
 
 from airflow import __version__ as AIRFLOW_VERSION
 from airflow.models import DagRun, TaskInstance, TaskReschedule
-from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.assets import Asset, AssetAlias
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import (
     DAG,
@@ -614,6 +614,7 @@ class InfoJsonEncodable(dict):
         self._cast_fields()
         self._rename_fields()
         self._include_fields()
+        self._extend_fields()
         dict.__init__(
             self,
             **{field: InfoJsonEncodable._cast_basic_types(getattr(self, field)) for field in self._fields},
@@ -629,6 +630,21 @@ class InfoJsonEncodable(dict):
         if isinstance(value, (set, list, tuple)):
             return str(list(value))
         return value
+
+    def _extend_fields(self) -> None:
+        """
+        Subclass hook to register extra fields not sourced from ``self.obj``.
+
+        Use this primarily for values passed into ``__init__`` (e.g. caller-supplied
+        context) or values computed on the subclass itself. For anything derived from
+        ``self.obj``, prefer the declarative ``casts`` / ``renames`` / ``includes``
+        machinery — this hook is for fields that don't fit that model.
+
+        Runs after ``_cast_fields`` / ``_rename_fields`` / ``_include_fields`` and
+        before ``dict.__init__`` freezes ``self`` into its serialized form, so
+        implementations should both set the attribute on ``self`` and append its
+        name to ``self._fields``.
+        """
 
     def _rename_fields(self):
         for field, renamed in self.renames.items():
@@ -862,9 +878,80 @@ class TaskInstanceInfo(InfoJsonEncodable):
 
 
 class AssetInfo(InfoJsonEncodable):
-    """Defines encoding Airflow Asset object to JSON."""
+    """
+    Defines encoding Airflow Asset object to JSON.
+
+    Output shape: ``{"uri", "extra", "type"[, "source_alias"]}``.
+    ``type`` distinguishes how the asset showed up on the task:
+
+    * ``"asset"`` - statically declared on ``task.outlets`` / ``task.inlets``.
+    * ``"asset_event"`` — emitted dynamically via ``outlet_events[asset].extra``.
+    * ``"asset_event_from_alias"`` — resolved at runtime from an ``AssetAlias``
+      via ``outlet_events[alias].add(asset, ...)``; ``source_alias`` then carries the alias name.
+
+    ``AssetAlias`` are intentionally NOT included - they are just helpers with no URI of their own.
+    """
 
     includes = ["uri", "extra"]
+
+    def __init__(self, obj, asset_type: str = "asset", source_alias: str | None = None):
+        self.type = asset_type
+        self.source_alias = source_alias
+        super().__init__(obj)
+
+    def _extend_fields(self) -> None:
+        if self.type:
+            self._fields.append("type")
+        if self.source_alias:
+            self._fields.append("source_alias")
+
+
+def get_runtime_outlet_assets(task_instance) -> list[tuple[Asset, AssetAlias | None]]:
+    """
+    Return ``(asset, alias)`` pairs for every runtime-attached outlet.
+
+    * ``outlet_events[AssetAlias].add(asset, ...)`` → ``(asset, alias)``.
+    * ``outlet_events[Asset].extra = {...}`` → ``(asset, None)``.
+
+    Empty list on AF2 or when ``task_instance`` is not an AF3 ``RuntimeTaskInstance``
+    (scheduler / API-server path has no usable worker template context).
+    """
+    if not AIRFLOW_V_3_0_PLUS:
+        return []
+    try:
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+    except ImportError:
+        return []
+    if not isinstance(task_instance, RuntimeTaskInstance):
+        return []
+    if not hasattr(task_instance, "get_template_context"):
+        return []
+    outlet_events = task_instance.get_template_context().get("outlet_events")
+    if outlet_events is None:
+        return []
+    results: list[tuple[Asset, AssetAlias | None]] = []
+    for key in outlet_events:
+        accessor = outlet_events[key]
+        if isinstance(key, AssetAlias):
+            for event in getattr(accessor, "asset_alias_events", []) or []:
+                # ``dest_asset_extra`` was introduced in Airflow 3.1.4 ; on
+                # earlier versions the alias event carries only ``extra``.
+                dest_asset_extra = getattr(event, "dest_asset_extra", None) or {}
+                results.append(
+                    (
+                        Asset(
+                            name=event.dest_asset_key.name,
+                            uri=event.dest_asset_key.uri,
+                            # Per-event extra wins over asset-level extra.
+                            extra={**dest_asset_extra, **(event.extra or {})},
+                        ),
+                        key,
+                    )
+                )
+        elif isinstance(key, Asset):
+            if extra := (getattr(accessor, "extra", None) or {}):
+                results.append((Asset(name=key.name, uri=key.uri, extra=dict(extra)), None))
+    return results
 
 
 class TaskInfo(InfoJsonEncodable):
@@ -942,6 +1029,25 @@ class TaskInfo(InfoJsonEncodable):
         "outlets": lambda task: [AssetInfo(o) for o in task.outlets if isinstance(o, Asset)],
         "operator_provider_version": lambda task: get_operator_provider_version(task),
     }
+
+    def __init__(self, obj, runtime_assets: list[tuple[Asset, AssetAlias | None]] | None = None):
+        self._runtime_assets = runtime_assets  # Will not be included in final dict, not in self._fields.
+        super().__init__(obj)
+
+    def _extend_fields(self) -> None:
+        if not self._runtime_assets:
+            return
+        if not hasattr(self, "outlets"):  # Should never happen, just in case
+            self.outlets = []
+            self._fields.append("outlets")
+        for asset, alias in self._runtime_assets:
+            # Append runtime-resolved outlets (alias resolutions + dynamic asset events).
+            # Inlets are not touched - Airflow has no dynamic inlets.
+            self.outlets.append(
+                AssetInfo(asset, asset_type="asset_event")
+                if alias is None
+                else AssetInfo(asset, asset_type="asset_event_from_alias", source_alias=alias.name)
+            )
 
 
 class TaskInfoComplete(TaskInfo):
@@ -1031,12 +1137,17 @@ def get_airflow_run_facet(
     task: BaseOperator,
     task_uuid: str,
 ) -> dict[str, AirflowRunFacet]:
+    runtime_assets = get_runtime_outlet_assets(task_instance)
     return {
         "airflow": AirflowRunFacet(
             dag=DagInfo(dag),
             dagRun=DagRunInfo(dag_run),
             taskInstance=TaskInstanceInfo(task_instance),
-            task=TaskInfoComplete(task) if conf.include_full_task_info() else TaskInfo(task),
+            task=(
+                TaskInfoComplete(task, runtime_assets=runtime_assets)
+                if conf.include_full_task_info()
+                else TaskInfo(task, runtime_assets=runtime_assets)
+            ),
             taskUuid=task_uuid,
         )
     }
@@ -1733,6 +1844,33 @@ def should_use_external_connection(hook) -> bool:
     return True
 
 
+def _get_providers_manager_instance():
+    """
+    Return the ProvidersManager instance to use for OpenLineage converter lookup.
+
+    Picks the task-runtime-safe entry point on Airflow 3.2+ and falls back to the legacy
+    ``airflow.providers_manager.ProvidersManager`` on 3.0 / 3.1 and 2.x. Returns ``None``
+    if neither import is available (very old Airflow).
+
+    Kept as a module-level function so tests can patch this single seam with a plain
+    ``mock.patch(..., return_value=fake_pm)`` instead of juggling ``sys.modules`` or
+    dotted paths that may not exist on the target Airflow version.
+    """
+    try:
+        # Task-runtime-safe entry point — only available in Airflow 3.2+.
+        from airflow.sdk.plugins_manager import ProvidersManagerTaskRuntime
+
+        return ProvidersManagerTaskRuntime()
+    except ImportError:
+        pass
+    try:
+        from airflow.providers_manager import ProvidersManager
+
+        return ProvidersManager()
+    except ImportError:
+        return None
+
+
 def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset | None:
     """
     Convert an Asset with an AIP-60 compliant URI to an OpenLineageDataset.
@@ -1746,26 +1884,35 @@ def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset
         try:
             from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef]
         except ImportError:
+            log.debug("Could not import objects required for asset translation.")
             return None
 
-    try:
-        from airflow.providers_manager import ProvidersManager
-
-        ol_converters = getattr(ProvidersManager(), "asset_to_openlineage_converters", None)
-        if not ol_converters:
-            ol_converters = ProvidersManager().dataset_to_openlineage_converters  # type: ignore[attr-defined]
-
-        normalized_uri = asset.normalized_uri
-    except (ImportError, AttributeError):
+    providers_manager = _get_providers_manager_instance()
+    if providers_manager is None:
+        log.debug("Could not resolve a ProvidersManager instance for asset translation.")
         return None
 
-    if normalized_uri is None:
+    ol_converters = getattr(providers_manager, "asset_to_openlineage_converters", None)
+    if not ol_converters:
+        ol_converters = getattr(providers_manager, "dataset_to_openlineage_converters", None)
+    if not ol_converters:
+        log.debug("Could not retrieve openlineage converters.")
+        return None
+
+    if not (normalized_uri := getattr(asset, "normalized_uri", None)):
+        log.debug("Normalized uri is not accessible or empty.")
         return None
 
     if not (normalized_scheme := _get_normalized_scheme(normalized_uri)):
+        log.debug("Normalized scheme is empty for URI `%s`.", normalized_uri)
         return None
 
     if (airflow_to_ol_converter := ol_converters.get(normalized_scheme)) is None:
+        log.debug("No converter found for scheme `%s`.", normalized_scheme)
         return None
 
-    return airflow_to_ol_converter(Asset(uri=normalized_uri, extra=asset.extra), lineage_context)
+    try:
+        return airflow_to_ol_converter(Asset(uri=normalized_uri, extra=asset.extra), lineage_context)
+    except Exception as err:
+        log.debug("Airflow asset `%s` conversion to OL Dataset failed with err `%s`", normalized_uri, err)
+        return None

@@ -752,7 +752,16 @@ def prepare_tarball(
 @click.option(
     "--github-token", help="GitHub token to use in generating issue for testing of release candidate"
 )
-@click.option("--remote-name", default="origin", help="Git remote name to push to (default: origin)")
+@click.option(
+    "--remote-name",
+    default="upstream",
+    help=(
+        "Git remote name that tracks apache/airflow and receives release tags / branch pushes "
+        "(default: 'upstream' per the standard remote naming convention — "
+        "see contributing-docs/10_working_with_git.rst). Override if your release clone uses a "
+        "different name (for example 'origin' when you clone apache/airflow directly)."
+    ),
+)
 @option_answer
 @option_dry_run
 @option_verbose

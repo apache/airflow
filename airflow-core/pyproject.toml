@@ -18,10 +18,10 @@
 [build-system]
 requires = [
     "gitdb==4.0.12",
-    "GitPython==3.1.46",
+    "GitPython==3.1.47",
     "hatchling==1.29.0",
     "packaging==26.1",
-    "pathspec==1.0.4",
+    "pathspec==1.1.0",
     "pluggy==1.6.0",
     "smmap==5.0.3",
     "tomli==2.4.1; python_version < '3.11'",
@@ -317,7 +317,7 @@ mypy = [
 
 
 [tool.uv]
-required-version = ">=0.6.3"
+required-version = ">=0.11.8"
 
 [tool.uv.sources]
 apache-airflow-core = {workspace = true}

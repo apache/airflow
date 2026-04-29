@@ -159,6 +159,24 @@ For example, if you want to only lookup connections starting by "m" in AWS Secre
       "profile_name": "default"
     }
 
+Multi-Team Support
+^^^^^^^^^^^^^^^^^^
+
+In multi-team mode, team-scoped secrets use ``--`` as a separator between the team name
+and the secret id. For example, a connection ``smtp_default`` owned by team ``marketing``
+should be stored at ``airflow/connections/marketing--smtp_default``, and a variable ``hello``
+owned by the same team should be stored at ``airflow/variables/marketing--hello``.
+
+Task authors request connections and variables by their normal ids. If a team-scoped
+secret is not found, the backend falls back to the global path (e.g.
+``airflow/connections/smtp_default``).
+
+.. note::
+
+    Connection ids and variable keys matching ``<team>--<name>`` are reserved for
+    team-scoped lookups. A request without team context for a key matching this pattern
+    will return ``None`` to prevent cross-team access.
+
 Example of storing Google Secrets in AWS Secrets Manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 For connecting to a google cloud connection, all the fields must be in the extra field. For example:

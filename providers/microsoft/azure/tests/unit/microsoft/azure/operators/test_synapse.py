@@ -16,13 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+import functools
+import time
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
+import pendulum
 import pytest
 
-from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.models import DAG, Connection
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapsePipelineHook,
     AzureSynapsePipelineRunException,
@@ -33,8 +38,11 @@ from airflow.providers.microsoft.azure.operators.synapse import (
     AzureSynapseRunPipelineOperator,
     AzureSynapseRunSparkBatchOperator,
 )
+from airflow.providers.microsoft.azure.triggers.synapse import AzureSynapsePipelineTrigger
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.taskinstance import create_task_instance as _create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -337,3 +345,223 @@ class TestAzureSynapseRunPipelineOperator:
         workspace_url = "https://web.azuresynapse.net?workspace=%2Fsubscriptions%2Fspam-egg"
         with pytest.raises(ValueError, match="Workspace expected at least 5 segments"):
             AzureSynapsePipelineRunLink().get_fields_from_url(workspace_url=workspace_url)
+
+
+@pytest.fixture
+def create_task_instance(create_task_instance_of_operator, session):
+    def _create_task_instance(operator_class, **kwargs):
+        return functools.partial(
+            create_task_instance_of_operator,
+            session=session,
+            operator_class=operator_class,
+            dag_id="adhoc_airflow",
+        )(**kwargs)
+
+    return _create_task_instance
+
+
+class TestAzureSynapseRunPipelineOperatorWithDeferrable:
+    @pytest.fixture(autouse=True)
+    def setup_operator(self, dag_maker, create_task_instance):
+        """Fixture to set up the operator using create_task_instance."""
+        self.ti = create_task_instance(
+            operator_class=AzureSynapseRunPipelineOperator,
+            task_id="run_pipeline",
+            pipeline_name=PIPELINE_NAME,
+            azure_synapse_workspace_dev_endpoint=AZURE_SYNAPSE_WORKSPACE_DEV_ENDPOINT,
+            azure_synapse_conn_id=AZURE_SYNAPSE_CONN_ID,
+            deferrable=True,
+        )
+        self.task = dag_maker.dag.get_task(self.ti.task_id)
+
+    def create_context(self, task, dag=None):
+        if dag is None:
+            dag = DAG(dag_id="dag", schedule=None)
+
+        tzinfo = pendulum.timezone("UTC")
+        logical_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
+
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                logical_date=logical_date,
+                run_id=DagRun.generate_run_id(
+                    run_type=DagRunType.MANUAL,
+                    logical_date=logical_date,
+                    run_after=logical_date,
+                ),
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                execution_date=logical_date,
+                run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
+            )
+
+        if AIRFLOW_V_3_0_PLUS:
+            task_instance = _create_task_instance(task=task, dag_version_id=mock.MagicMock())
+        else:
+            task_instance = TaskInstance(task=task)
+
+        task_instance.dag_run = dag_run
+        task_instance.xcom_push = mock.Mock()
+
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
+
+        return {
+            "dag": dag,
+            "ts": logical_date.isoformat(),
+            "task": task,
+            "ti": task_instance,
+            "task_instance": task_instance,
+            "run_id": dag_run.run_id,
+            "dag_run": dag_run,
+            "data_interval_end": logical_date,
+            date_key: logical_date,
+        }
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.microsoft.azure.operators.synapse.AzureSynapseRunPipelineOperator.defer")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.synapse.AzureSynapsePipelineHook.get_pipeline_run_status",
+        return_value=AzureSynapsePipelineRunStatus.SUCCEEDED,
+    )
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapsePipelineHook.run_pipeline")
+    def test_synapse_run_pipeline_operator_async_succeeded_before_deferred(
+        self, mock_run_pipeline, mock_get_status, mock_defer
+    ):
+        class CreateRunResponse:
+            pass
+
+        CreateRunResponse.run_id = PIPELINE_RUN_RESPONSE["run_id"]
+        mock_run_pipeline.return_value = CreateRunResponse
+
+        self.task.execute(context=self.create_context(self.task))
+        assert not mock_defer.called
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "status",
+        sorted(AzureSynapsePipelineRunStatus.FAILURE_STATES),
+    )
+    @mock.patch("airflow.providers.microsoft.azure.operators.synapse.AzureSynapseRunPipelineOperator.defer")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.synapse.AzureSynapsePipelineHook.get_pipeline_run_status"
+    )
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapsePipelineHook.run_pipeline")
+    def test_synapse_run_pipeline_operator_async_error_before_deferred(
+        self, mock_run_pipeline, mock_get_status, mock_defer, status
+    ):
+        mock_get_status.return_value = status
+
+        class CreateRunResponse:
+            pass
+
+        CreateRunResponse.run_id = PIPELINE_RUN_RESPONSE["run_id"]
+        mock_run_pipeline.return_value = CreateRunResponse
+
+        with pytest.raises(AzureSynapsePipelineRunException):
+            self.task.execute(context=self.create_context(self.task))
+
+        assert not mock_defer.called
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "status",
+        sorted(AzureSynapsePipelineRunStatus.INTERMEDIATE_STATES),
+    )
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.synapse.AzureSynapsePipelineHook.get_pipeline_run_status"
+    )
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapsePipelineHook.run_pipeline")
+    def test_synapse_run_pipeline_operator_async(self, mock_run_pipeline, mock_get_status, status):
+        """Assert that AzureSynapseRunPipelineOperator(..., deferrable=True) deferred."""
+
+        mock_get_status.return_value = status
+
+        class CreateRunResponse:
+            pass
+
+        CreateRunResponse.run_id = PIPELINE_RUN_RESPONSE["run_id"]
+        mock_run_pipeline.return_value = CreateRunResponse
+
+        with pytest.raises(TaskDeferred) as exc:
+            self.task.execute(context=self.create_context(self.task))
+
+        trigger = exc.value.trigger
+
+        assert isinstance(trigger, AzureSynapsePipelineTrigger)
+
+        assert trigger.run_id == PIPELINE_RUN_RESPONSE["run_id"]
+        assert trigger.check_interval == self.task.check_interval
+
+    @pytest.mark.db_test
+    def test_synapse_run_pipeline_operator_async_execute_complete_success(self):
+        """Assert that execute_complete logs success message."""
+        with mock.patch.object(self.task.log, "info") as mock_log_info:
+            self.task.execute_complete(
+                context={},
+                event={
+                    "status": "success",
+                    "message": "success",
+                    "run_id": PIPELINE_RUN_RESPONSE["run_id"],
+                },
+            )
+
+        mock_log_info.assert_called_with("success")
+
+    @pytest.mark.db_test
+    def test_synapse_run_pipeline_operator_async_execute_complete_fail(self):
+        """Assert that execute_complete raises exception on error."""
+        with pytest.raises(AzureSynapsePipelineRunException):
+            self.task.execute_complete(
+                context={},
+                event={
+                    "status": "error",
+                    "message": "error",
+                    "run_id": PIPELINE_RUN_RESPONSE["run_id"],
+                },
+            )
+
+    @pytest.mark.db_test
+    def test_execute_complete_no_event(self):
+        with pytest.raises(AzureSynapsePipelineRunException, match="no event"):
+            self.task.execute_complete(context={}, event=None)
+
+    @pytest.mark.db_test
+    def test_execute_complete_unexpected_event(self):
+        with pytest.raises(AzureSynapsePipelineRunException, match="Unexpected"):
+            self.task.execute_complete(
+                context={},
+                event={"status": "unknown", "message": "??"},
+            )
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "pipeline_state",
+        [
+            AzureSynapsePipelineRunStatus.FAILED,
+            AzureSynapsePipelineRunStatus.CANCELLED,
+        ],
+    )
+    def test_failure_states_roundtrip(self, pipeline_state):
+        trigger = AzureSynapsePipelineTrigger(
+            run_id=PIPELINE_RUN_RESPONSE["run_id"],
+            azure_synapse_conn_id=AZURE_SYNAPSE_CONN_ID,
+            azure_synapse_workspace_dev_endpoint=AZURE_SYNAPSE_WORKSPACE_DEV_ENDPOINT,
+            end_time=time.time() + 100,
+            check_interval=1,
+        )
+
+        event = trigger._build_trigger_event(pipeline_state)
+
+        assert event is not None
+
+        payload = event.payload
+
+        assert payload["status"] == "error"
+
+        with pytest.raises(AzureSynapsePipelineRunException) as exc:
+            self.task.execute_complete(context={}, event=payload)
+
+        assert f"state {pipeline_state}" in str(exc.value)

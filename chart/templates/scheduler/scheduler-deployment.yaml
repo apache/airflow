@@ -17,9 +17,9 @@
  under the License.
 */}}
 
-################################
+###########################################
 ## Airflow Scheduler Deployment/StatefulSet
-#################################
+###########################################
 {{- if .Values.scheduler.enabled }}
 {{- $local := contains "Local" .Values.executor }}
 # Is persistence enabled on the _workers_?
@@ -27,11 +27,7 @@
 {{- $persistence := or .Values.workers.celery.persistence.enabled (and (not (has .Values.workers.celery.persistence.enabled (list true false))) .Values.workers.persistence.enabled) }}
 {{- $stateful := and $local $persistence }}
 # We can skip DAGs mounts on scheduler if dagProcessor is enabled, except with $local mode
-{{- $dagProcessorEnabled := .Values.dagProcessor.enabled }}
-{{- if eq $dagProcessorEnabled nil}}
-  {{ $dagProcessorEnabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
-{{- end }}
-{{- $localOrDagProcessorDisabled := or (not $dagProcessorEnabled) $local }}
+{{- $localOrDagProcessorDisabled := or (not .Values.dagProcessor.enabled) $local }}
 {{- $remoteLogging := or .Values.elasticsearch.enabled .Values.opensearch.enabled }}
 {{- $nodeSelector := or .Values.scheduler.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.scheduler.affinity .Values.affinity }}
@@ -99,7 +95,7 @@ spec:
         checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
-        {{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.apiServer.enabled (not .Values.jwtSecretName) }}
+        {{- if and .Values.apiServer.enabled (not .Values.jwtSecretName) }}
         checksum/jwt-secret: {{ include (print $.Template.BasePath "/secrets/jwt-secret.yaml") . | sha256sum }}
         {{- end }}
         {{- if .Values.scheduler.safeToEvict }}
@@ -164,9 +160,6 @@ spec:
             {{- end }}
             {{- if .Values.scheduler.extraVolumeMounts }}
               {{- tpl (toYaml .Values.scheduler.extraVolumeMounts) . | nindent 12 }}
-            {{- end }}
-            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
@@ -244,9 +237,6 @@ spec:
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
-            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
-            {{- end }}
             {{- if and $localOrDagProcessorDisabled (or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled) }}
               {{- include "airflow_dags_mount" . | nindent 12 }}
             {{- end }}
@@ -282,11 +272,11 @@ spec:
           env:
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
-          {{- if .Values.scheduler.logGroomerSidecar.retentionDays }}
+          {{- if ne .Values.scheduler.logGroomerSidecar.retentionDays nil }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
           {{- end }}
-          {{- if .Values.scheduler.logGroomerSidecar.retentionMinutes }}
+          {{- if ne .Values.scheduler.logGroomerSidecar.retentionMinutes nil }}
             - name: AIRFLOW__LOG_RETENTION_MINUTES
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionMinutes }}"
           {{- end }}
@@ -317,9 +307,6 @@ spec:
             {{- if .Values.scheduler.extraVolumeMounts }}
               {{- tpl (toYaml .Values.scheduler.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
-            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
-            {{- end }}
           {{- end }}
         {{- if .Values.scheduler.extraContainers }}
           {{- tpl (toYaml .Values.scheduler.extraContainers) . | nindent 8 }}
@@ -328,11 +315,6 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-        - name: webserver-config
-          configMap:
-            name: {{ template "airflow_webserver_config_configmap_name" . }}
-        {{- end }}
         {{- if $localOrDagProcessorDisabled }}
         {{- if .Values.dags.persistence.enabled }}
         - name: dags

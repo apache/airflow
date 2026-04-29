@@ -43,7 +43,7 @@ set -euo pipefail
 
 UPSTREAM="${UPSTREAM_REMOTE:-upstream}"
 ORIGIN="${ORIGIN_REMOTE:-origin}"
-DEFAULT_BRANCHES=(main v3-2-test)
+DEFAULT_BRANCHES=(main v3-2-test airflow-ctl/v0-1-test)
 
 if [[ $# -gt 0 ]]; then
     BRANCHES=("$@")

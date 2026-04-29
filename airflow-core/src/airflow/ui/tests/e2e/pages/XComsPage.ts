@@ -74,7 +74,7 @@ export class XComsPage extends BasePage {
 
   public async verifyDagDisplayNameFiltering(dagDisplayNamePattern: string): Promise<void> {
     await this.navigate();
-    await this.applyFilter("DAG ID", dagDisplayNamePattern);
+    await this.applyFilter("Dag ID", dagDisplayNamePattern);
 
     await expect(async () => {
       const firstLink = this.tableRows.first().locator("a[href*='/dags/']").first();
@@ -125,32 +125,6 @@ export class XComsPage extends BasePage {
     }
   }
 
-  public async verifySortByColumn(columnName: string): Promise<void> {
-    await this.navigate();
-
-    const columnHeader = this.xcomsTable.getByRole("columnheader", { name: columnName });
-
-    await expect(columnHeader).toBeVisible({ timeout: 10_000 });
-
-    const firstSortResponse = this.page.waitForResponse(
-      (response) => response.url().includes("xcomEntries") && response.ok(),
-      { timeout: 10_000 },
-    );
-
-    await columnHeader.click();
-    await firstSortResponse;
-    await expect(this.page).toHaveURL(/sorting/);
-
-    const secondSortResponse = this.page.waitForResponse(
-      (response) => response.url().includes("xcomEntries") && response.ok(),
-      { timeout: 10_000 },
-    );
-
-    await columnHeader.click();
-    await secondSortResponse;
-    await expect(this.page).toHaveURL(/sorting/);
-  }
-
   public async verifyXComDetailsDisplay(): Promise<void> {
     const firstRow = this.tableRows.first();
 
@@ -187,12 +161,6 @@ export class XComsPage extends BasePage {
     const firstRow = this.tableRows.first();
 
     await expect(firstRow).toBeVisible({ timeout: 10_000 });
-
-    const valueCell = firstRow.locator("td").last();
-
-    await expect(valueCell).toBeVisible();
-    await expect(
-      valueCell.getByRole("button").or(valueCell.locator("pre")).or(valueCell.locator("code")),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(firstRow.getByTestId("xcom-value")).toBeVisible({ timeout: 10_000 });
   }
 }

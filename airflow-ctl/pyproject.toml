@@ -77,7 +77,7 @@ apache-airflow-ctl = "airflowctl.__main__:main"
 requires = [
     "hatchling==1.29.0",
     "packaging==26.1",
-    "pathspec==1.0.4",
+    "pathspec==1.1.0",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
     "trove-classifiers==2026.1.14.14",
@@ -219,7 +219,7 @@ tmp_path_retention_count = "2"
 tmp_path_retention_policy = "failed"
 
 [tool.uv]
-required-version = ">=0.6.3"
+required-version = ">=0.11.8"
 
 [tool.uv.sources]
 apache-airflow-devel-common = { workspace = true }
