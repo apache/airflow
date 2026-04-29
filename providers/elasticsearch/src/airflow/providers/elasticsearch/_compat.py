@@ -61,10 +61,15 @@ def apply_compat_with(client: elasticsearch.Elasticsearch) -> elasticsearch.Elas
     if not compat:
         return client
 
+    transport = client.transport
+    if "perform_request" in transport.__dict__:
+        # Already wrapped on this transport instance — no-op so repeated calls
+        # to ``apply_compat_with`` (e.g. across hook reuse) stay idempotent.
+        return client
+
     json_media = f"{_JSON_MIME}; compatible-with={compat}"
     ndjson_media = f"{_NDJSON_MIME}; compatible-with={compat}"
 
-    transport = client.transport
     original_perform_request = transport.perform_request
 
     def perform_request(method, target, *, body=None, headers=None, **kwargs):  # type: ignore[no-untyped-def]
@@ -72,7 +77,10 @@ def apply_compat_with(client: elasticsearch.Elasticsearch) -> elasticsearch.Elas
         if merged.get("accept"):
             merged["accept"] = json_media
         content_type = merged.get("content-type") or ""
-        if "ndjson" in content_type or "x-ndjson" in content_type:
+        # ``+x-ndjson`` is the only streaming form elasticsearch-py uses today
+        # (bulk requests). ``"ndjson" in ct`` already matches both ``ndjson``
+        # and ``x-ndjson``, so a single check is enough.
+        if "ndjson" in content_type:
             merged["content-type"] = ndjson_media
         elif content_type:
             merged["content-type"] = json_media

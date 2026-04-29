@@ -78,13 +78,22 @@ def wire_capture(monkeypatch):
 
 @pytest.mark.parametrize("unset_value", ["", None])
 def test_apply_compat_with_unset_does_not_wrap_transport(unset_value):
-    """When the option is unset the helper returns the client untouched."""
+    """When the option is unset the helper returns the client untouched.
+
+    The wrap installs ``perform_request`` as an instance attribute on the
+    transport, so the most precise way to assert the helper is a no-op is to
+    check that no such instance attribute was set (i.e. lookup still resolves
+    to the class method). Identity (``is``) comparison on
+    ``transport.perform_request`` would not work even in the no-op case
+    because attribute access on a bound method produces a fresh wrapper each
+    time.
+    """
     client = Elasticsearch("http://localhost:9200")
-    original = client.transport.perform_request
+    assert "perform_request" not in client.transport.__dict__
     with conf_vars({("elasticsearch", "es_compat_with"): unset_value}):
         same = apply_compat_with(client)
     assert same is client
-    assert client.transport.perform_request is original
+    assert "perform_request" not in client.transport.__dict__
 
 
 def test_apply_compat_with_pins_compatible_with_8(wire_capture):
@@ -120,3 +129,13 @@ def test_apply_compat_with_pins_compatible_with_7(wire_capture):
         c["headers"]["accept"] == "application/vnd.elasticsearch+json; compatible-with=7"
         for c in wire_capture
     )
+
+
+def test_apply_compat_with_is_idempotent():
+    """Calling ``apply_compat_with`` twice on the same client only wraps once."""
+    with conf_vars({("elasticsearch", "es_compat_with"): "8"}):
+        client = apply_compat_with(Elasticsearch("http://localhost:9200"))
+        first_wrapper = client.transport.__dict__["perform_request"]
+        apply_compat_with(client)
+        second_wrapper = client.transport.__dict__["perform_request"]
+    assert first_wrapper is second_wrapper
