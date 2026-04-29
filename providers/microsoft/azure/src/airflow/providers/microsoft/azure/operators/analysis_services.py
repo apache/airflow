@@ -25,6 +25,7 @@ from airflow.providers.microsoft.azure.hooks.analysis_services import (
     AzureAnalysisServicesHook,
     AzureAnalysisServicesRefreshException,
     AzureAnalysisServicesRefreshStatus,
+    RefreshType,
 )
 from airflow.providers.microsoft.azure.triggers.analysis_services import (
     AzureAnalysisServicesRefreshTrigger,
@@ -63,7 +64,7 @@ class AzureAnalysisServicesRefreshOperator(BaseOperator):
         server_name: str,
         database: str,
         azure_analysis_services_conn_id: str = AzureAnalysisServicesHook.default_conn_name,
-        refresh_type: str = "full",
+        refresh_type: RefreshType = "full",
         wait_for_termination: bool = True,
         check_interval: int = 60,
         timeout: int = 60 * 60 * 24 * 7,
