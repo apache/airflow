@@ -63,22 +63,37 @@ The headline is your at-a-glance frame. Below it, ask:
 
 If the maintainer hits `[Y]`:
 
-1. **Auto-open in browser.** Per Golden rule 11 in `SKILL.md`,
-   immediately run
+1. **Ask before opening the browser.** Per Golden rule 11 in
+   `SKILL.md`, do **not** auto-open anything. Prompt:
+
+   > *Open files view in browser? `[y]es / [N]o` (default no).*
+
+   The headline above already shows file count and additions /
+   deletions (`Files: N changed +X −Y`), so the maintainer has
+   the size of the change in front of them when answering — no
+   need to re-render it.
+
+   On `[y]`, build the **files-tab** URL — not the conversation
+   tab — and hand it to the OS opener:
 
    ```bash
-   gh pr view <N> --repo <repo> --web
+   url="https://github.com/<owner>/<repo>/pull/<N>/files"
+   if   command -v xdg-open >/dev/null 2>&1; then xdg-open "$url"
+   elif command -v open     >/dev/null 2>&1; then open "$url"
+   elif command -v start    >/dev/null 2>&1; then start "$url"
+   else echo "$url"   # print and let the maintainer click
+   fi
    ```
 
-   in the background (no `--wait`; do not block on it). This
-   pops the GitHub PR page in the maintainer's default browser
-   so they can keep visual context — CI breadcrumbs, the
-   conversation timeline, the file-tree sidebar — alongside
-   the terminal-side review. Suppressed for the session if the
-   maintainer passed `no-browser`.
+   Run it in the background (no blocking). On `[N]` (or any
+   non-`y` reply, including bare Enter), do nothing.
 
-2. **Continue to Step 2** in parallel — the diff fetch happens
-   concurrently with the browser launch.
+   `gh pr view --web` is **not** used here — it always opens
+   the conversation tab; the files tab needs the explicit URL
+   above.
+
+2. **Continue to Step 2** — the diff fetch starts immediately
+   regardless of the browser answer.
 
 The headline plus the `[Y]` confirmation is a cheap gate that
 prevents silently spending tokens on a PR the maintainer
