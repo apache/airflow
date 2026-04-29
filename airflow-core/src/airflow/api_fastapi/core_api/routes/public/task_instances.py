@@ -990,34 +990,30 @@ def patch_task_group_instances(
     dag, tis, data = _patch_ti_group_validate_request(
         dag_id, dag_run_id, group_id, dag_bag, body, session, update_mask
     )
-    all_tis: list[TI] = []
 
-    for key, _ in data.items():
-        if key == "new_state":
-            all_tis = _patch_task_group_state(
-                group_id=group_id,
-                dag_run_id=dag_run_id,
-                dag=dag,
-                body=body,
-                data=data,
-                session=session,
-            )
+    response_tis = tis
+    if "new_state" in data:
+        response_tis = _patch_task_group_state(
+            group_id=group_id,
+            dag_run_id=dag_run_id,
+            dag=dag,
+            body=body,
+            data=data,
+            session=session,
+        )
+    if "note" in data:
+        _patch_task_instance_note(
+            task_instance_body=body,
+            tis=response_tis,
+            user=user,
+            update_mask=update_mask,
+        )
 
-        elif key == "note":
-            _patch_task_instance_note(
-                task_instance_body=body,
-                tis=tis,
-                user=user,
-                update_mask=update_mask,
-            )
-            if not all_tis:
-                all_tis = tis
-
-    all_tis = _reload_tis_with_rendered_fields(all_tis, session)
+    response_tis = _reload_tis_with_rendered_fields(response_tis, session)
 
     return TaskInstanceCollectionResponse(
-        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in all_tis],
-        total_entries=len(all_tis),
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in response_tis],
+        total_entries=len(response_tis),
     )
 
 
