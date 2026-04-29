@@ -70,7 +70,7 @@
     "info": "정보",
     "noTryNumber": "시도 횟수 없음",
     "search": {
-      "noMatches": "일치하는 결과 없음"
+      "noMatches": "일치하는 결과 없음",
       "placeholder": "로그 검색"
     },
     "settings": "로그 설정",
