@@ -1981,7 +1981,7 @@ sdk:
       version_added: 3.1.7
       type: string
       example: '{"foo": "java", "bar": "java", "go-queue": "go"}'
-      default: "{{}}"
+      default: ~
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
   options:
