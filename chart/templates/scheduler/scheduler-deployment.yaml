@@ -26,7 +26,7 @@
 # This is important because in $local mode, the scheduler assumes the role of the worker
 {{- $persistence := or .Values.workers.celery.persistence.enabled (and (not (has .Values.workers.celery.persistence.enabled (list true false))) .Values.workers.persistence.enabled) }}
 {{- $stateful := and $local $persistence }}
-# We can skip DAGs mounts on scheduler if dagProcessor is enabled, except with $local mode
+# We can skip Dags mounts on scheduler if dagProcessor is enabled, except with $local mode
 {{- $dagProcessorEnabled := .Values.dagProcessor.enabled }}
 {{- if eq $dagProcessorEnabled nil}}
   {{ $dagProcessorEnabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
