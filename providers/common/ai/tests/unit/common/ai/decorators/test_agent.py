@@ -37,6 +37,28 @@ def _make_mock_run_result(output):
     return mock_result
 
 
+class _DummyToolset:
+    id = "dummy-toolset"
+
+
+def _configure_mock_hook(mock_hook_cls, *, agent, conn_type: str = "pydanticai", model_id: str | None = None):
+    mock_hook = mock_hook_cls.get_hook.return_value
+    mock_hook.create_agent.return_value = agent
+    mock_hook.conn_type = conn_type
+    mock_hook.model_id = model_id
+    return mock_hook
+
+
+def _make_mock_context():
+    ti = MagicMock(spec=["xcom_push", "dag_id", "run_id", "task_id", "map_index"])
+    ti.dag_id = "example_dag"
+    ti.run_id = "run_1"
+    ti.task_id = "test"
+    ti.map_index = -1
+    ti.xcom_push = MagicMock()
+    return {"task_instance": ti}
+
+
 class TestAgentDecoratedOperator:
     def test_custom_operator_name(self):
         assert _AgentDecoratedOperator.custom_operator_name == "@task.agent"
@@ -46,13 +68,13 @@ class TestAgentDecoratedOperator:
         """The callable's return value becomes the agent prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("The top customer is Acme Corp.")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        _configure_mock_hook(mock_hook_cls, agent=mock_agent)
 
         def my_prompt():
             return "Who is our top customer?"
 
         op = _AgentDecoratedOperator(task_id="test", python_callable=my_prompt, llm_conn_id="my_llm")
-        result = op.execute(context={})
+        result = op.execute(context=_make_mock_context())
 
         assert result == "The top customer is Acme Corp."
         assert op.prompt == "Who is our top customer?"
@@ -78,7 +100,7 @@ class TestAgentDecoratedOperator:
         """op_kwargs are resolved by the callable to build the prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("done")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        _configure_mock_hook(mock_hook_cls, agent=mock_agent)
 
         def my_prompt(topic):
             return f"Analyze {topic}"
@@ -89,7 +111,7 @@ class TestAgentDecoratedOperator:
             llm_conn_id="my_llm",
             op_kwargs={"topic": "revenue trends"},
         )
-        op.execute(context={"task_instance": MagicMock()})
+        op.execute(context=_make_mock_context())
 
         assert op.prompt == "Analyze revenue trends"
         mock_agent.run_sync.assert_called_once_with("Analyze revenue trends")
@@ -99,9 +121,9 @@ class TestAgentDecoratedOperator:
         """Toolsets passed to the decorator are forwarded to the agent."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("result")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        _configure_mock_hook(mock_hook_cls, agent=mock_agent)
 
-        mock_toolset = MagicMock()
+        mock_toolset = _DummyToolset()
 
         op = _AgentDecoratedOperator(
             task_id="test",
@@ -109,7 +131,7 @@ class TestAgentDecoratedOperator:
             llm_conn_id="my_llm",
             toolsets=[mock_toolset],
         )
-        op.execute(context={})
+        op.execute(context=_make_mock_context())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         passed_toolsets = create_call[1]["toolsets"]
@@ -126,7 +148,7 @@ class TestAgentDecoratedOperator:
 
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result(Summary(text="Great results"))
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        _configure_mock_hook(mock_hook_cls, agent=mock_agent)
 
         op = _AgentDecoratedOperator(
             task_id="test",
@@ -134,7 +156,7 @@ class TestAgentDecoratedOperator:
             llm_conn_id="my_llm",
             output_type=Summary,
         )
-        result = op.execute(context={})
+        result = op.execute(context=_make_mock_context())
 
         assert result == {"text": "Great results"}
 

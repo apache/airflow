@@ -47,6 +47,8 @@ building a wrapper here.
 3. Keep constructors focused — only accept params that apply to the backend. Don't add params that
    are silently ignored in certain modes.
 4. Mark tools `sequential=True` when the backend uses synchronous I/O.
+5. When a toolset can be used with `AgentOperator`, implement `describe_policy_exposure()` so
+   policy reports can describe its configured access surface without executing the backend.
 
 ## Security
 

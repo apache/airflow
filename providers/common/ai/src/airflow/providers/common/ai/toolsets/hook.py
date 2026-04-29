@@ -28,6 +28,8 @@ from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
 
+from airflow.providers.common.ai.utils.policy_exposure import ResourceExposure, ToolsetExposure
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -92,6 +94,36 @@ class HookToolset(AbstractToolset[Any]):
     @property
     def id(self) -> str:
         return self._id
+
+    def describe_policy_exposure(self) -> ToolsetExposure:
+        resources = [
+            ResourceExposure(
+                category="hook_method",
+                name=method_name,
+                access_mode="unknown",
+            )
+            for method_name in self._allowed_methods
+        ]
+        if self._tool_name_prefix:
+            resources.append(
+                ResourceExposure(
+                    category="tool_prefix",
+                    name=self._tool_name_prefix,
+                    access_mode="unknown",
+                )
+            )
+
+        risk_flags = ["hook methods may access broader runtime resources than this report can infer"]
+        if any(_looks_mutating(method_name) for method_name in self._allowed_methods):
+            risk_flags.append("potentially mutating hook methods exposed")
+
+        return ToolsetExposure(
+            toolset_type=type(self).__name__,
+            toolset_id=self.id,
+            summary=f"Selected methods from {type(self._hook).__name__} are exposed as tools.",
+            resources=resources,
+            risk_flags=risk_flags,
+        )
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
         tools: dict[str, ToolsetTool[Any]] = {}
@@ -265,3 +297,11 @@ def _serialize_for_llm(value: Any) -> str:
         return json.dumps(value, default=str)
     except (TypeError, ValueError):
         return str(value)
+
+
+def _looks_mutating(method_name: str) -> bool:
+    """Return True when a hook method name suggests write-like side effects."""
+    return any(
+        token in method_name.lower()
+        for token in ("create", "delete", "drop", "update", "insert", "write", "post", "put", "patch")
+    )

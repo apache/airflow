@@ -75,6 +75,26 @@ class TestHookToolsetInit:
         ts = HookToolset(hook, allowed_methods=["list_keys"])
         assert "FakeHook" in ts.id
 
+    def test_describe_policy_exposure_summarizes_hook_methods(self):
+        hook = _FakeHook()
+        ts = HookToolset(hook, allowed_methods=["list_keys"], tool_name_prefix="s3_")
+
+        exposure = ts.describe_policy_exposure()
+
+        assert exposure.toolset_type == "HookToolset"
+        assert exposure.resources[0].category == "hook_method"
+        assert exposure.resources[1].category == "tool_prefix"
+        assert "broader runtime resources" in exposure.risk_flags[0]
+
+    def test_describe_policy_exposure_flags_mutating_methods(self):
+        hook = _FakeHook()
+        hook.create_job = lambda name: name
+        ts = HookToolset(hook, allowed_methods=["create_job"])
+
+        exposure = ts.describe_policy_exposure()
+
+        assert "potentially mutating hook methods exposed" in exposure.risk_flags
+
 
 class TestHookToolsetGetTools:
     def test_returns_tools_for_allowed_methods(self):

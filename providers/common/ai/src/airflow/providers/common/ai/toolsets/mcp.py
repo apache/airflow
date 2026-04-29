@@ -23,6 +23,8 @@ from typing import TYPE_CHECKING, Any
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from typing_extensions import Self
 
+from airflow.providers.common.ai.utils.policy_exposure import ResourceExposure, ToolsetExposure
+
 if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
 
@@ -64,6 +66,31 @@ class MCPToolset(AbstractToolset[Any]):
     @property
     def id(self) -> str:
         return f"mcp-{self._mcp_conn_id}"
+
+    def describe_policy_exposure(self) -> ToolsetExposure:
+        resources = [
+            ResourceExposure(
+                category="mcp_server",
+                name=self._mcp_conn_id,
+                access_mode="unknown",
+            )
+        ]
+        if self._tool_prefix:
+            resources.append(
+                ResourceExposure(
+                    category="tool_prefix",
+                    name=self._tool_prefix,
+                    access_mode="unknown",
+                )
+            )
+
+        return ToolsetExposure(
+            toolset_type=type(self).__name__,
+            toolset_id=self.id,
+            summary="Remote MCP server tools are exposed through an Airflow connection.",
+            resources=resources,
+            risk_flags=["remote MCP capabilities may change independently of DAG code"],
+        )
 
     def _get_server(self) -> Any:
         if self._server is None:
