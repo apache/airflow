@@ -78,6 +78,7 @@ class TestAzureAnalysisServicesRefreshTrigger:
         [
             AzureAnalysisServicesRefreshStatus.FAILED,
             AzureAnalysisServicesRefreshStatus.CANCELLED,
+            AzureAnalysisServicesRefreshStatus.TIMED_OUT,
         ],
     )
     async def test_run_yields_error_on_failure_status(self, status):

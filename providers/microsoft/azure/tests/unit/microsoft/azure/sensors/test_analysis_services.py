@@ -50,7 +50,7 @@ class TestAzureAnalysisServicesSensor:
         [
             (AzureAnalysisServicesRefreshStatus.SUCCEEDED, True),
             (AzureAnalysisServicesRefreshStatus.IN_PROGRESS, False),
-            (AzureAnalysisServicesRefreshStatus.NOT_PROCESSED, False),
+            (AzureAnalysisServicesRefreshStatus.NOT_STARTED, False),
         ],
     )
     def test_poke_returns_correct_value(self, sensor, status, expected):
@@ -64,6 +64,7 @@ class TestAzureAnalysisServicesSensor:
         [
             AzureAnalysisServicesRefreshStatus.FAILED,
             AzureAnalysisServicesRefreshStatus.CANCELLED,
+            AzureAnalysisServicesRefreshStatus.TIMED_OUT,
         ],
     )
     def test_poke_raises_on_failure_status(self, sensor, status):

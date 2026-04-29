@@ -93,9 +93,6 @@ class TestAzureAnalysisServicesHook:
             hook.get_conn()
             mock_cred.assert_called_once()
 
-    def test_get_base_url(self, hook):
-        assert hook._get_base_url() == BASE_URL
-
     def test_get_base_url_strips_trailing_slash(self, create_mock_connections):
         create_mock_connections(
             Connection(
@@ -149,12 +146,17 @@ class TestAzureAnalysisServicesHook:
         mock_response.raise_for_status = MagicMock()
 
         with (
-            patch(f"{MODULE}.requests.post", return_value=mock_response),
+            patch(f"{MODULE}.requests.post", return_value=mock_response) as mock_post,
             patch.object(hook, "_get_headers", return_value={}),
         ):
-            result = hook.trigger_refresh(SERVER_NAME, DATABASE, refresh_type="clearValues")
+            hook.trigger_refresh(SERVER_NAME, DATABASE, refresh_type="clearValues")
 
-        assert result == REFRESH_ID
+        _, kwargs = mock_post.call_args
+        assert kwargs["json"] == {"type": "clearValues"}
+
+    def test_trigger_refresh_raises_on_invalid_type(self, hook):
+        with pytest.raises(ValueError, match="Invalid refresh_type"):
+            hook.trigger_refresh(SERVER_NAME, DATABASE, refresh_type="bogus")
 
     def test_trigger_refresh_raises_on_http_error(self, hook):
         mock_response = MagicMock()
@@ -179,9 +181,18 @@ class TestAzureAnalysisServicesHook:
         ):
             hook.trigger_refresh(SERVER_NAME, DATABASE)
 
-    def test_get_refresh_status(self, hook):
+    @pytest.mark.parametrize(
+        ("api_status", "expected"),
+        [
+            ("succeeded", AzureAnalysisServicesRefreshStatus.SUCCEEDED),
+            ("inProgress", AzureAnalysisServicesRefreshStatus.IN_PROGRESS),
+            ("notStarted", AzureAnalysisServicesRefreshStatus.NOT_STARTED),
+            ("timedOut", AzureAnalysisServicesRefreshStatus.TIMED_OUT),
+        ],
+    )
+    def test_get_refresh_status(self, hook, api_status, expected):
         mock_response = MagicMock()
-        mock_response.json.return_value = {"status": "succeeded"}
+        mock_response.json.return_value = {"status": api_status}
         mock_response.raise_for_status = MagicMock()
 
         with (
@@ -190,7 +201,7 @@ class TestAzureAnalysisServicesHook:
         ):
             status = hook.get_refresh_status(SERVER_NAME, DATABASE, REFRESH_ID)
 
-        assert status == AzureAnalysisServicesRefreshStatus.SUCCEEDED
+        assert status == expected
         mock_get.assert_called_once_with(
             f"{BASE_URL}/servers/{SERVER_NAME}/models/{DATABASE}/refreshes/{REFRESH_ID}",
             headers={"Authorization": "Bearer token"},
@@ -213,6 +224,7 @@ class TestAzureAnalysisServicesHook:
             ([AzureAnalysisServicesRefreshStatus.SUCCEEDED], True),
             ([AzureAnalysisServicesRefreshStatus.FAILED], False),
             ([AzureAnalysisServicesRefreshStatus.CANCELLED], False),
+            ([AzureAnalysisServicesRefreshStatus.TIMED_OUT], False),
             (
                 [
                     AzureAnalysisServicesRefreshStatus.IN_PROGRESS,

@@ -81,6 +81,7 @@ with DAG(
 ) as dag:
     setup = create_connection(CONN_ID)
 
+    # [START howto_operator_azure_analysis_services_refresh]
     refresh = AzureAnalysisServicesRefreshOperator(
         task_id="refresh_model",
         server_name=SERVER_NAME,
@@ -88,8 +89,20 @@ with DAG(
         azure_analysis_services_conn_id=CONN_ID,
         refresh_type="full",
     )
+    # [END howto_operator_azure_analysis_services_refresh]
 
-    setup >> refresh
+    # [START howto_operator_azure_analysis_services_refresh_deferrable]
+    refresh_deferrable = AzureAnalysisServicesRefreshOperator(
+        task_id="refresh_model_deferrable",
+        server_name=SERVER_NAME,
+        database=DATABASE,
+        azure_analysis_services_conn_id=CONN_ID,
+        refresh_type="full",
+        deferrable=True,
+    )
+    # [END howto_operator_azure_analysis_services_refresh_deferrable]
+
+    setup >> refresh >> refresh_deferrable
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

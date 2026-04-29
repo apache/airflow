@@ -27,31 +27,41 @@ AzureAnalysisServicesRefreshOperator
 Use the :class:`~airflow.providers.microsoft.azure.operators.analysis_services.AzureAnalysisServicesRefreshOperator`
 to trigger a model refresh on an Azure Analysis Services database.
 
-By default, the operator waits for the refresh to complete before finishing. To trigger a refresh
-without waiting, set ``wait_for_termination`` to ``False`` — the refresh ID will be pushed to XCom
-and you can use :class:`~airflow.providers.microsoft.azure.sensors.analysis_services.AzureAnalysisServicesSensor`
-to wait for it later.
+By default, the operator waits for the refresh to complete before finishing.
 
-The operator also supports deferrable mode (``deferrable=True``) to free up worker slots while polling
-for completion on the Airflow Triggerer.
+The ``refresh_type`` parameter controls what processing is performed:
 
-For connection setup, see :ref:`howto/connection:azure_analysis_services`.
+.. list-table::
+   :header-rows: 1
 
-Example usage:
+   * - Value
+     - Description
+   * - ``full``
+     - Refreshes data and recalculates all dependencies (default)
+   * - ``clearValues``
+     - Clears calculated values without re-ingesting data
+   * - ``calculate``
+     - Recalculates all dependents without refreshing data
+   * - ``dataOnly``
+     - Refreshes data only, skips recalculation
+   * - ``automatic``
+     - Azure determines what needs refreshing based on metadata state
+   * - ``defragment``
+     - Defragments the database without changing data
 
-.. code-block:: python
+.. exampleinclude:: /../tests/system/microsoft/azure/example_azure_analysis_services.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_azure_analysis_services_refresh]
+    :end-before: [END howto_operator_azure_analysis_services_refresh]
 
-    from airflow.providers.microsoft.azure.operators.analysis_services import (
-        AzureAnalysisServicesRefreshOperator,
-    )
+To run in deferrable mode and free up worker slots while polling on the Airflow Triggerer:
 
-    refresh = AzureAnalysisServicesRefreshOperator(
-        task_id="refresh_model",
-        server_name="myserver",
-        database="AdventureWorks",
-        azure_analysis_services_conn_id="azure_analysis_services_default",
-        refresh_type="full",
-    )
+.. exampleinclude:: /../tests/system/microsoft/azure/example_azure_analysis_services.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_azure_analysis_services_refresh_deferrable]
+    :end-before: [END howto_operator_azure_analysis_services_refresh_deferrable]
 
 .. _howto/operator:AzureAnalysisServicesSensor:
 
@@ -60,8 +70,19 @@ AzureAnalysisServicesSensor
 Use the :class:`~airflow.providers.microsoft.azure.sensors.analysis_services.AzureAnalysisServicesSensor`
 to poll an existing Azure Analysis Services model refresh until it reaches a terminal state.
 
-This is useful when you trigger a refresh with ``wait_for_termination=False`` and want to check its
-status from a separate task.
+This is useful when you trigger a refresh with ``wait_for_termination=False`` and want to monitor
+its status from a separate downstream task. The ``refresh_id`` pushed to XCom by the operator can
+be passed directly to the sensor.
+
+For connection setup, see :ref:`howto/connection:azure_analysis_services`.
+
+Reference
+---------
+
+For further information, please refer to the Microsoft documentation:
+
+  * `Azure Analysis Services Documentation <https://learn.microsoft.com/en-us/azure/analysis-services/>`__
+  * `Azure Analysis Services REST API <https://learn.microsoft.com/en-us/rest/api/analysisservices/>`__
 
 .. spelling:word-list::
     asazure

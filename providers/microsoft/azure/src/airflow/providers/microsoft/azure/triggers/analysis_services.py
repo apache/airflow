@@ -56,7 +56,7 @@ class AzureAnalysisServicesRefreshTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize AzureAnalysisServicesRefreshTrigger arguments and classpath."""
         return (
-            "airflow.providers.microsoft.azure.triggers.analysis_services.AzureAnalysisServicesRefreshTrigger",
+            f"{self.__class__.__module__}.{self.__class__.__name__}",
             {
                 "conn_id": self.conn_id,
                 "server_name": self.server_name,
@@ -69,7 +69,7 @@ class AzureAnalysisServicesRefreshTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Poll Azure Analysis Services for the refresh status until a terminal state is reached."""
         hook = AzureAnalysisServicesHook(azure_analysis_services_conn_id=self.conn_id)
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             while True:
                 status = await loop.run_in_executor(

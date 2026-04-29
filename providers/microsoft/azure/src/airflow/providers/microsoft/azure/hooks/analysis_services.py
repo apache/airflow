@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import requests
 from azure.identity import ClientSecretCredential
@@ -33,6 +33,11 @@ if TYPE_CHECKING:
 
 TOKEN_SCOPE = "https://*.asazure.windows.net/.default"
 
+RefreshType = Literal["full", "clearValues", "calculate", "dataOnly", "automatic", "defragment"]
+VALID_REFRESH_TYPES: frozenset[str] = frozenset(
+    {"full", "clearValues", "calculate", "dataOnly", "automatic", "defragment"}
+)
+
 
 class AzureAnalysisServicesRefreshStatus:
     """Azure Analysis Services model refresh statuses."""
@@ -40,11 +45,12 @@ class AzureAnalysisServicesRefreshStatus:
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     CANCELLED = "cancelled"
-    NOT_PROCESSED = "notProcessed"
+    TIMED_OUT = "timedOut"
+    NOT_STARTED = "notStarted"
     IN_PROGRESS = "inProgress"
 
-    TERMINAL_STATUSES = {SUCCEEDED, FAILED, CANCELLED}
-    FAILURE_STATUSES = {FAILED, CANCELLED}
+    TERMINAL_STATUSES = {SUCCEEDED, FAILED, CANCELLED, TIMED_OUT}
+    FAILURE_STATUSES = {FAILED, CANCELLED, TIMED_OUT}
 
 
 class AzureAnalysisServicesRefreshException(AirflowException):
@@ -147,15 +153,21 @@ class AzureAnalysisServicesHook(BaseHook):
             "Content-Type": "application/json",
         }
 
-    def trigger_refresh(self, server_name: str, database: str, refresh_type: str = "full") -> str:
+    def trigger_refresh(self, server_name: str, database: str, refresh_type: RefreshType = "full") -> str:
         """
         Trigger a model refresh and return the refresh ID.
 
         :param server_name: The Analysis Services server name.
         :param database: The model (database) name.
         :param refresh_type: The type of processing to perform. Default is ``full``.
+            Valid values: ``full``, ``clearValues``, ``calculate``, ``dataOnly``,
+            ``automatic``, ``defragment``.
         :return: The refresh ID extracted from the ``Location`` response header.
         """
+        if refresh_type not in VALID_REFRESH_TYPES:
+            raise ValueError(
+                f"Invalid refresh_type {refresh_type!r}. Valid values are: {sorted(VALID_REFRESH_TYPES)}"
+            )
         url = f"{self._get_base_url()}/servers/{server_name}/models/{database}/refreshes"
         try:
             response = requests.post(url, json={"type": refresh_type}, headers=self._get_headers())
@@ -178,7 +190,7 @@ class AzureAnalysisServicesHook(BaseHook):
         :param server_name: The Analysis Services server name.
         :param database: The model (database) name.
         :param refresh_id: The refresh ID.
-        :return: The refresh status string (lower-cased).
+        :return: The refresh status string as returned by the API.
         """
         url = f"{self._get_base_url()}/servers/{server_name}/models/{database}/refreshes/{refresh_id}"
         try:
@@ -186,7 +198,7 @@ class AzureAnalysisServicesHook(BaseHook):
             response.raise_for_status()
         except requests.HTTPError as e:
             raise AzureAnalysisServicesRefreshException(f"Failed to get refresh status: {e}") from e
-        return response.json().get("status", "").lower()
+        return response.json().get("status", "")
 
     def wait_for_refresh(
         self,
