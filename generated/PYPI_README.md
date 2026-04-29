@@ -49,7 +49,7 @@ PROJECT BY THE `generate-pypi-readme` PREK HOOK. YOUR CHANGES HERE WILL BE AUTOM
 
 When workflows are defined as code, they become more maintainable, versionable, testable, and collaborative.
 
-Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow scheduler executes your tasks on an array of workers while following the specified dependencies. Rich command line utilities make performing complex surgeries on Dags a snap. The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
+Dag (Directed Acyclic Graph) is a collection of tasks organized to show their dependencies. Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow scheduler executes your tasks on an array of workers while following the specified dependencies. Rich command line utilities make performing complex surgeries on Dags a snap. The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
 
 ## Requirements
 
@@ -86,6 +86,28 @@ Visit the official Airflow website documentation (latest **stable** release) for
 [installing Airflow](https://airflow.apache.org/docs/apache-airflow/stable/installation/),
 [getting started](https://airflow.apache.org/docs/apache-airflow/stable/start.html), or walking
 through a more complete [tutorial](https://airflow.apache.org/docs/apache-airflow/stable/tutorial/).
+
+### Example dag
+
+Here is a minimal example of a dag:
+
+```python
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+from datetime import datetime
+
+with DAG(
+    dag_id="hello_airflow",
+    start_date=datetime(2024, 1, 1),
+    schedule=None,
+    catchup=False,
+) as dag:
+
+    task1 = BashOperator(
+        task_id="greet",
+        bash_command="echo 'Hello Airflow'"
+    )
+```
 
 > Note: If you're looking for documentation for the main branch (latest development branch): you can find it on [s.apache.org/airflow-docs](https://s.apache.org/airflow-docs/).
 

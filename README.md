@@ -148,10 +148,7 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    task1 = BashOperator(
-        task_id="greet",
-        bash_command="echo 'Hello Airflow'"
-    )
+    task1 = BashOperator(task_id="greet", bash_command="echo 'Hello Airflow'")
 ```
 
 > Note: If you're looking for documentation for the main branch (latest development branch): you can find it on [s.apache.org/airflow-docs](https://s.apache.org/airflow-docs/).
