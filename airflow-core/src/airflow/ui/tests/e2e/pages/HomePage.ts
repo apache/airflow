@@ -54,7 +54,7 @@ export class HomePage extends BasePage {
     this.failedDagsCard = page.getByRole("link", { name: /failed/i });
     this.runningDagsCard = page.getByRole("link", { name: /running/i });
     this.activeDagsCard = page.getByRole("link", { name: /active/i });
-    this.dagImportErrorsCard = page.getByRole("button", { name: "DAG Import Errors" });
+    this.dagImportErrorsCard = page.getByRole("button", { name: "Dag Import Errors" });
 
     // Navigate to parent via ".." since there are no ARIA landmark/region roles on these sections.
     this.statsSection = page.getByRole("heading", { name: "Stats" }).locator("..");
@@ -62,7 +62,7 @@ export class HomePage extends BasePage {
     this.metaDatabaseHealth = page.getByText("Metadatabase").first();
     this.schedulerHealth = page.getByText("Scheduler").first();
     this.triggererHealth = page.getByText("Triggerer").first();
-    this.dagProcessorHealth = page.getByText("DAG Processor").first();
+    this.dagProcessorHealth = page.getByText("Dag Processor").first();
 
     this.poolSummarySection = page.getByRole("heading", { name: "Pool Summary" }).locator("..");
 

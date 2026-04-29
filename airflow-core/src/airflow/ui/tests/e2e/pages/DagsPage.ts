@@ -55,7 +55,7 @@ export class DagsPage extends BasePage {
     this.confirmButton = page.getByRole("dialog").getByRole("button", { name: "Trigger" });
 
     this.searchBox = page.getByRole("textbox", { name: /search/i });
-    this.searchInput = page.getByPlaceholder("Search DAGs");
+    this.searchInput = page.getByPlaceholder("Search Dags");
     this.operatorFilter = page.getByTestId("operator-filter");
     this.triggerRuleFilter = page.getByTestId("trigger-rule-filter");
     this.retriesFilter = page.getByTestId("retries-filter");
