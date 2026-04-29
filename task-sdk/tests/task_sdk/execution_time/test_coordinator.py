@@ -21,6 +21,7 @@ import contextlib
 import os
 import socket
 import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -358,6 +359,20 @@ class TestRunTaskExecution:
 
 
 class TestRuntimeSubprocessEntrypoint:
+    @pytest.fixture(autouse=True)
+    def _restore_process_context_env(self):
+        """``_runtime_subprocess_entrypoint`` runs inside a forked child in production
+        and sets ``_AIRFLOW_PROCESS_CONTEXT`` for the runtime subprocess. When tests
+        invoke it in-process, the env var leaks into other tests — restore it."""
+        old = os.environ.get("_AIRFLOW_PROCESS_CONTEXT")
+        try:
+            yield
+        finally:
+            if old is None:
+                os.environ.pop("_AIRFLOW_PROCESS_CONTEXT", None)
+            else:
+                os.environ["_AIRFLOW_PROCESS_CONTEXT"] = old
+
     def test_unknown_entrypoint_info_type_raises(self):
         class TestCoordinator(BaseCoordinator):
             sdk = "test"
@@ -476,7 +491,7 @@ class TestRuntimeSubprocessEntrypoint:
 
         # Mock resolved bundle
         mock_bundle_instance = MagicMock()
-        mock_bundle_instance.path = "/resolved/bundles/test-bundle"
+        mock_bundle_instance.path = Path("/resolved/bundles/test-bundle")
         mock_resolve_bundle.return_value = mock_bundle_instance
 
         # BundleVersionLock as context manager
