@@ -101,7 +101,30 @@ class AirflowClient:
         response.raise_for_status()
         return response.json()
 
+    def get_dag(self, dag_id: str):
+        return self._make_request(method="GET", endpoint=f"dags/{dag_id}")
+
+    def wait_for_dag(self, dag_id: str, timeout: int = 120, check_interval: int = 3):
+        """Poll until *dag_id* is registered (parsed & serialized) and reachable via the API.
+
+        On remote CI runners the DAG processor may need extra time to parse & serialize
+        new DAG files, so calling ``un_pause_dag`` immediately can return a 404. Retry
+        until the DAG exists or *timeout* seconds elapse.
+        """
+        start = time.monotonic()
+        last_error: Exception | None = None
+        while time.monotonic() - start < timeout:
+            try:
+                return self.get_dag(dag_id)
+            except requests.HTTPError as exc:
+                if exc.response is None or exc.response.status_code != 404:
+                    raise
+                last_error = exc
+            time.sleep(check_interval)
+        raise TimeoutError(f"DAG {dag_id} was not registered within {timeout}s. Last error: {last_error}")
+
     def un_pause_dag(self, dag_id: str):
+        self.wait_for_dag(dag_id)
         return self._make_request(
             method="PATCH",
             endpoint=f"dags/{dag_id}",
