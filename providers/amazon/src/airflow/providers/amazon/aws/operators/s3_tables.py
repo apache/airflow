@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -102,3 +103,60 @@ class S3TablesCreateTableOperator(AwsBaseOperator[AwsBaseHook]):
         table_arn = response["tableARN"]
         self.log.info("Created table: %s", table_arn)
         return table_arn
+
+
+class S3TablesDeleteTableOperator(AwsBaseOperator[AwsBaseHook]):
+    """
+    Delete a table from an Amazon S3 Tables namespace.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3TablesDeleteTableOperator`
+
+    :param table_bucket_arn: The ARN of the table bucket containing the table. (templated)
+    :param namespace: The namespace of the table. (templated)
+    :param table_name: The name of the table to delete. (templated)
+    :param version_token: Optional version token for optimistic concurrency. (templated)
+    """
+
+    template_fields: Sequence[str] = aws_template_fields(
+        "table_bucket_arn", "namespace", "table_name", "version_token"
+    )
+    aws_hook_class = AwsBaseHook
+
+    def __init__(
+        self,
+        *,
+        table_bucket_arn: str,
+        namespace: str,
+        table_name: str,
+        version_token: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.table_bucket_arn = table_bucket_arn
+        self.namespace = namespace
+        self.table_name = table_name
+        self.version_token = version_token
+
+    @property
+    def _hook_parameters(self):
+        return {**super()._hook_parameters, "client_type": "s3tables"}
+
+    def execute(self, context: Context) -> None:
+        self.log.info(
+            "Deleting S3 table %s from namespace %s (bucket %s)",
+            self.table_name,
+            self.namespace,
+            self.table_bucket_arn,
+        )
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "tableBucketARN": self.table_bucket_arn,
+                "namespace": self.namespace,
+                "name": self.table_name,
+                "versionToken": self.version_token,
+            }
+        )
+        self.hook.conn.delete_table(**kwargs)
+        self.log.info("Deleted table %s", self.table_name)

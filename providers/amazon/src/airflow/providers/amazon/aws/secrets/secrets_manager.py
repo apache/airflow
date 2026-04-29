@@ -316,8 +316,18 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param team_name: Team name associated to the task trying to access the variable (if any)
         """
         if lookup_pattern and not re.match(lookup_pattern, secret_id, re.IGNORECASE):
+            self.log.debug(
+                "Skipping lookup of %r: does not match configured lookup_pattern %r.",
+                secret_id,
+                lookup_pattern,
+            )
             return None
         if team_name is None and re.fullmatch(r"[^-]+--.+", secret_id):
+            self.log.warning(
+                "Secret ID %r contains a '--' separator, which is reserved for team-scoped lookups, "
+                "but no team context was provided. Returning None.",
+                secret_id,
+            )
             return None
         if path_prefix and team_name:
             secrets_path = self.build_path(path_prefix, f"{team_name}--{secret_id}", self.sep)

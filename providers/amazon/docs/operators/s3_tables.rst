@@ -25,10 +25,24 @@ Create an Amazon S3 Table
 =========================
 
 To create a new Iceberg table in an Amazon S3 Tables namespace you can use
-:class:`~airflow.providers.amazon.aws.operators.s3tables.S3TablesCreateTableOperator`.
+:class:`~airflow.providers.amazon.aws.operators.s3_tables.S3TablesCreateTableOperator`.
 
-.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3tables.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3tables_create_table]
     :end-before: [END howto_operator_s3tables_create_table]
+
+.. _howto/operator:S3TablesDeleteTableOperator:
+
+Delete a Table
+~~~~~~~~~~~~~~
+
+To delete a table from an Amazon S3 Tables namespace, use
+:class:`~airflow.providers.amazon.aws.operators.s3_tables.S3TablesDeleteTableOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3_tables.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3tables_delete_table]
+    :end-before: [END howto_operator_s3tables_delete_table]
