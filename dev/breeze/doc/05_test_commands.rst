@@ -424,7 +424,7 @@ You can:
 * Manage KinD Kubernetes cluster, upload Airflow image, deploy Airflow to the cluster and check its status with
   ``breeze k8s create-cluster``, ``breeze k8s configure-cluster``, ``breeze k8s deploy-airflow``, ``breeze k8s status``,
   ``breeze k8s upload-k8s-image``, ``breeze k8s delete-cluster`` and ``breeze k8s deploy-cluster`` commands
-* Hot-reload DAGs and core sources (scheduler/triggerer/dag-processor) with ``breeze k8s dev`` (skaffold sync)
+* Hot-reload Dags and core sources (scheduler/triggerer/dag-processor) with ``breeze k8s dev`` (skaffold sync)
 * Run Kubernetes tests  specified with ``breeze k8s tests`` command
 * Run complete test run with ``breeze k8s run-complete-tests`` - performing the full cycle of creating
   cluster, uploading the image, deploying airflow, running tests and deleting the cluster
@@ -565,7 +565,7 @@ All parameters of the command are here:
   :width: 100%
   :alt: Breeze k8s deploy-airflow
 
-Hot-reloading DAGs and core sources
+Hot-reloading Dags and core sources
 ...................................
 
 After deploying Airflow you can run ``breeze k8s dev`` to sync local ``dags/`` and
