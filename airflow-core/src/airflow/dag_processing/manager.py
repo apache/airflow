@@ -478,7 +478,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self._add_callback_to_queue(callback)
             self._scan_stale_dags()
             self._cleanup_stale_bundle_versions()
-            DagWarning.purge_inactive_dag_warnings()
+            self.purge_inactive_dag_warnings()
 
             # Update number of loop iteration.
             self._num_run += 1
@@ -536,6 +536,16 @@ class DagFileProcessorManager(LoggingMixin):
         Default implementation reads from the metadata DB; override to source requests from an API.
         """
         return self._claim_priority_files()
+
+    def request_bundle_refresh(self, bundle_name: str) -> None:
+        """
+        Request that ``bundle_name`` be refreshed on the next refresh tick.
+
+        Use this from event handlers reacting to external signals to mark a
+        bundle as needing refresh; the next call to :meth:`_refresh_dag_bundles`
+        will not skip it via :meth:`should_skip_refresh`.
+        """
+        self._force_refresh_bundles.add(bundle_name)
 
     def should_skip_refresh(
         self,
@@ -690,6 +700,15 @@ class DagFileProcessorManager(LoggingMixin):
         if version is not None:
             values["version"] = version
         session.execute(update(DagBundleModel).where(DagBundleModel.name == bundle_name).values(**values))
+
+    def purge_inactive_dag_warnings(self) -> None:
+        """
+        Purge expired DAG warnings.
+
+        Default implementation deletes records from the metadata DB; override to
+        source warnings from an API or skip the cleanup entirely.
+        """
+        DagWarning.purge_inactive_dag_warnings()
 
     def _refresh_dag_bundles(self, known_files: dict[str, set[DagFileInfo]]):
         """Refresh DAG bundles, if required."""
