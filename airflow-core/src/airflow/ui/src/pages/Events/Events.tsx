@@ -31,6 +31,7 @@ import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import Time from "src/components/Time";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 
 import { EventsFilters } from "./EventsFilters";
 
@@ -184,6 +185,37 @@ export const Events = () => {
   const afterDate = afterFilter !== null && dayjs(afterFilter).isValid() ? afterFilter : undefined;
   const beforeDate = beforeFilter !== null && dayjs(beforeFilter).isValid() ? beforeFilter : undefined;
 
+  const dagIdArg = useAdvancedSearchArg({
+    patternApiKey: "dagIdPattern",
+    prefixApiKey: "dagIdPrefixPattern",
+    storageKey: DAG_ID_PARAM,
+    value: dagIdFilter,
+  });
+  const eventArg = useAdvancedSearchArg({
+    patternApiKey: "eventPattern",
+    prefixApiKey: "eventPrefixPattern",
+    storageKey: EVENT_TYPE_PARAM,
+    value: eventTypeFilter,
+  });
+  const ownerArg = useAdvancedSearchArg({
+    patternApiKey: "ownerPattern",
+    prefixApiKey: "ownerPrefixPattern",
+    storageKey: USER_PARAM,
+    value: userFilter,
+  });
+  const runIdArg = useAdvancedSearchArg({
+    patternApiKey: "runIdPattern",
+    prefixApiKey: "runIdPrefixPattern",
+    storageKey: RUN_ID_PARAM,
+    value: runIdFilter,
+  });
+  const taskIdArg = useAdvancedSearchArg({
+    patternApiKey: "taskIdPattern",
+    prefixApiKey: "taskIdPrefixPattern",
+    storageKey: TASK_ID_PARAM,
+    value: taskIdFilter,
+  });
+
   const { data, error, isFetching, isLoading } = useEventLogServiceGetEventLogs(
     {
       after: afterDate,
@@ -191,17 +223,17 @@ export const Events = () => {
       // Use exact match for URL params (dag/run/task context)
       dagId: dagId ?? undefined,
       // Use pattern search for filter inputs (partial matching)
-      dagIdPrefixPattern: dagIdFilter ?? undefined,
-      eventPrefixPattern: eventTypeFilter ?? undefined,
+      ...dagIdArg,
+      ...eventArg,
       limit: pagination.pageSize,
       mapIndex: mapIndexNumber,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
-      ownerPrefixPattern: userFilter ?? undefined,
+      ...ownerArg,
       runId: runId ?? undefined,
-      runIdPrefixPattern: runIdFilter ?? undefined,
+      ...runIdArg,
       taskId: taskId ?? undefined,
-      taskIdPrefixPattern: taskIdFilter ?? undefined,
+      ...taskIdArg,
       tryNumber: tryNumberNumber,
     },
     undefined,

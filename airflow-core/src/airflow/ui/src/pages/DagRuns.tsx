@@ -39,6 +39,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { DagRunsFilters } from "src/pages/DagRunsFilters";
 import DeleteRunButton from "src/pages/DeleteRunButton";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
@@ -232,6 +233,31 @@ export const DagRuns = () => {
 
   const refetchInterval = useAutoRefresh({});
 
+  const dagIdPatternArg = useAdvancedSearchArg({
+    patternApiKey: "dagIdPattern",
+    prefixApiKey: "dagIdPrefixPattern",
+    storageKey: DAG_ID_PATTERN_PARAM,
+    value: filteredDagIdPattern,
+  });
+  const runIdPatternArg = useAdvancedSearchArg({
+    patternApiKey: "runIdPattern",
+    prefixApiKey: "runIdPrefixPattern",
+    storageKey: RUN_ID_PATTERN_PARAM,
+    value: filteredRunIdPattern,
+  });
+  const triggeringUserArg = useAdvancedSearchArg({
+    patternApiKey: "triggeringUserNamePattern",
+    prefixApiKey: "triggeringUserNamePrefixPattern",
+    storageKey: TRIGGERING_USER_NAME_PATTERN_PARAM,
+    value: filteredTriggeringUserNamePattern,
+  });
+  const partitionKeyArg = useAdvancedSearchArg({
+    patternApiKey: "partitionKeyPattern",
+    prefixApiKey: "partitionKeyPrefixPattern",
+    storageKey: PARTITION_KEY_PATTERN_PARAM,
+    value: partitionKeyPattern,
+  });
+
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
       bundleVersion: bundleVersion ?? undefined,
@@ -239,7 +265,7 @@ export const DagRuns = () => {
       consumingAssetPattern: filteredConsumingAsset ?? undefined,
       cursor: cursor ?? "",
       dagId: dagId ?? "~",
-      dagIdPrefixPattern: filteredDagIdPattern ?? undefined,
+      ...dagIdPatternArg,
       dagVersion:
         filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
@@ -250,15 +276,15 @@ export const DagRuns = () => {
       logicalDateGte: logicalDateGte ?? undefined,
       logicalDateLte: logicalDateLte ?? undefined,
       orderBy,
-      partitionKeyPrefixPattern: partitionKeyPattern ?? undefined,
+      ...partitionKeyArg,
       runAfterGte: runAfterGte ?? undefined,
       runAfterLte: runAfterLte ?? undefined,
-      runIdPrefixPattern: filteredRunIdPattern ?? undefined,
+      ...runIdPatternArg,
       runType: filteredType === null ? undefined : [filteredType],
       startDateGte: startDateGte ?? undefined,
       startDateLte: startDateLte ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
-      triggeringUserNamePrefixPattern: filteredTriggeringUserNamePattern ?? undefined,
+      ...triggeringUserArg,
     },
     undefined,
     {
