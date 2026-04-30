@@ -633,7 +633,7 @@ paths:
       tags:
       - Dashboard
       summary: Dag Stats
-      description: Return basic DAG stats with counts of DAGs in various states.
+      description: Return basic Dag stats with counts of Dags in various states.
       operationId: dag_stats
       responses:
         '200':
@@ -1366,7 +1366,7 @@ paths:
       tags:
       - Calendar
       summary: Get Calendar
-      description: Get calendar data for a DAG including historical and planned DAG
+      description: Get calendar data for a Dag including historical and planned Dag
         runs.
       operationId: get_calendar
       security:
