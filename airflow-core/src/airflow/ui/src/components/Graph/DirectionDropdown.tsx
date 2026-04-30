@@ -26,7 +26,7 @@ import { useTranslation } from "react-i18next";
 export type Direction = "DOWN" | "LEFT" | "RIGHT" | "UP";
 
 export const DirectionDropdown = ({ graphId }: { readonly graphId: string }) => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation(["components", "dag"]);
 
   const [direction, setDirection] = useLocalStorage<Direction>(directionKey(graphId ?? ""), "RIGHT");
 
