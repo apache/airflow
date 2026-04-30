@@ -162,3 +162,24 @@ For more information on dbt Cloud list jobs, reference
     :dedent: 4
     :start-after: [START howto_operator_dbt_cloud_list_jobs]
     :end-before: [END howto_operator_dbt_cloud_list_jobs]
+
+
+.. _howto/operator:DbtCloudListJobRunsOperator:
+
+List job runs
+~~~~~~~~~~~~~
+
+Use the :class:`~airflow.providers.dbt.cloud.operators.dbt.DbtCloudListJobRunsOperator` to list
+all job runs tied to a specified dbt Cloud account. The ``account_id`` must be supplied either
+through the connection or supplied as a parameter to the task.
+
+If a ``job_id`` is supplied, only job runs pertaining to this job will be retrieved.
+
+For more information on dbt Cloud list jobs, reference
+`this documentation <https://docs.getdbt.com/dbt-cloud/api-v2#tag/Jobs/operation/listJobRunsForAccount>`__.
+
+.. exampleinclude:: /../tests/system/dbt/cloud/example_dbt_cloud.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dbt_cloud_list_job_runs]
+    :end-before: [END howto_operator_dbt_cloud_list_job_runs]
