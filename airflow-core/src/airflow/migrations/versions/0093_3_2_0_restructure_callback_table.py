@@ -96,3 +96,23 @@ def downgrade():
         batch_op.drop_column("type")
 
     op.rename_table("callback", "callback_request")
+
+    dialect_name = op.get_bind().dialect.name
+    if dialect_name == "postgresql":
+        op.execute("CREATE SEQUENCE IF NOT EXISTS callback_request_id_seq")
+        op.execute("ALTER SEQUENCE callback_request_id_seq OWNED BY callback_request.id")
+        with op.batch_alter_table("callback_request", schema=None) as batch_op:
+            batch_op.alter_column(
+                "id",
+                existing_type=sa.INTEGER(),
+                nullable=False,
+                server_default=sa.text("nextval('callback_request_id_seq')"),
+            )
+    elif dialect_name == "mysql":
+        with op.batch_alter_table("callback_request", schema=None) as batch_op:
+            batch_op.alter_column(
+                "id",
+                existing_type=sa.INTEGER(),
+                nullable=False,
+                autoincrement=True,
+            )
