@@ -3079,6 +3079,7 @@ export type GetExtraLinksData = {
     dagRunId: string;
     mapIndex?: number;
     taskId: string;
+    tryNumber?: number | null;
 };
 
 export type GetExtraLinksResponse = ExtraLinkCollectionResponse;
