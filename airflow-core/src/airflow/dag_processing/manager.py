@@ -525,7 +525,7 @@ class DagFileProcessorManager(LoggingMixin):
         """Queue any files requested for parsing as requested by users via UI/API."""
         files = self.claim_priority_files()
         self._add_files_to_queue(files, mode="frontprio")
-        self._force_refresh_bundles |= {file.bundle_name for file in files}
+        self.request_bundle_refresh(file.bundle_name for file in files)
         if self._force_refresh_bundles:
             self.log.info("Bundles being force refreshed: %s", ", ".join(self._force_refresh_bundles))
 
@@ -537,15 +537,15 @@ class DagFileProcessorManager(LoggingMixin):
         """
         return self._claim_priority_files()
 
-    def request_bundle_refresh(self, bundle_name: str) -> None:
+    def request_bundle_refresh(self, bundle_names: Iterable[str]) -> None:
         """
-        Request that ``bundle_name`` be refreshed on the next refresh tick.
+        Request that the given bundles be refreshed on the next refresh tick.
 
-        Use this from event handlers reacting to external signals to mark a
-        bundle as needing refresh; the next call to :meth:`_refresh_dag_bundles`
-        will not skip it via :meth:`should_skip_refresh`.
+        Use this from event handlers reacting to external signals to mark
+        bundles as needing refresh; the next call to :meth:`_refresh_dag_bundles`
+        will not skip them via :meth:`should_skip_refresh`.
         """
-        self._force_refresh_bundles.add(bundle_name)
+        self._force_refresh_bundles.update(bundle_names)
 
     def should_skip_refresh(
         self,

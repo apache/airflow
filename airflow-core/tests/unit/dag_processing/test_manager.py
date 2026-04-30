@@ -733,14 +733,13 @@ class TestDagFileProcessorManager:
         assert manager._file_queue == deque([file1, file2])
         assert manager._force_refresh_bundles == {"dags-folder"}
 
-    def test_request_bundle_refresh_marks_bundle_for_refresh(self):
-        """`request_bundle_refresh` adds the bundle to the force-refresh set."""
+    def test_request_bundle_refresh_marks_bundles_for_refresh(self):
+        """`request_bundle_refresh` adds the bundles to the force-refresh set."""
         manager = DagFileProcessorManager(max_runs=1)
         assert manager._force_refresh_bundles == set()
 
-        manager.request_bundle_refresh("bundleone")
-        manager.request_bundle_refresh("bundletwo")
-        manager.request_bundle_refresh("bundleone")  # idempotent
+        manager.request_bundle_refresh(["bundleone", "bundletwo"])
+        manager.request_bundle_refresh(["bundleone"])  # idempotent
 
         assert manager._force_refresh_bundles == {"bundleone", "bundletwo"}
 
