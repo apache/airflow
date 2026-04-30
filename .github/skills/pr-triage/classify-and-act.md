@@ -3,10 +3,10 @@
 
 # Classify and act
 
-Single-source decision file. Replaces the previous `classify.md`
-+ `suggested-actions.md` split. Combines the two steps that the
-old SKILL.md called Step 2 (classify) and Step 3 (suggest action)
-into one ordered decision table.
+Single-source decision file. Replaces the previous split between
+`classify.md` and `suggested-actions.md`. Combines the two steps
+that the old SKILL.md called Step 2 (classify) and Step 3
+(suggest action) into one ordered decision table.
 
 Reading order:
 
@@ -298,7 +298,7 @@ body. Rules:
   end with the proposal verb where applicable.
 - Substitute placeholders (`<base>`, `<reviewers>`, `N`, `K`,
   `M`) from the PR record. `<reviewers>` is `@login` mentions
-  joined with `, ` (comma + space) — see the canonical example
+  joined with a comma and a space (`,` + ` `) — see the canonical example
   below. Substitution happens at classification time;
   [`interaction-loop.md`](interaction-loop.md) displays the
   already-substituted string verbatim.
