@@ -3912,6 +3912,18 @@ def test_dag_fields_with_airflow_config_defaults_use_client_defaults():
     assert lazy_dag2.max_active_tasks == 16
     assert lazy_dag2.max_consecutive_failed_dag_runs == 0
 
+    # catchup=False with cfg catchup_by_default=True: user value differs from cfg, must be on the wire.
+    with conf_vars({("scheduler", "catchup_by_default"): "True"}):
+        dag3 = DAG(
+            dag_id="test_dag_catchup_override",
+            start_date=datetime(2023, 1, 1),
+            catchup=False,
+        )
+        serialized3 = DagSerialization.to_dict(dag3)
+
+    assert serialized3["dag"]["catchup"] is False
+    assert LazyDeserializedDAG(data=serialized3).catchup is False
+
 
 def test_email_optimization_removes_email_attrs_when_email_empty():
     """Test that email_on_failure and email_on_retry are removed when email is empty."""
