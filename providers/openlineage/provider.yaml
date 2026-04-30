@@ -104,6 +104,15 @@ config:
       This section applies settings for OpenLineage integration.
 
     options:
+      config_conn_id:
+        description: |
+          Specify a Generic Airflow connection ID that contains OpenLineage configuration in connection
+          extra. This can be used to keep the OpenLineage transport configuration, including auth settings,
+          outside of the Airflow configuration file.
+        version_added: ~
+        type: string
+        example: "openlineage_default"
+        default: ""
       config_path:
         description: |
           Specify the path to the YAML configuration file.
