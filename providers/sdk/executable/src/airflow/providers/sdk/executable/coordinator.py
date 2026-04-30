@@ -15,45 +15,50 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Native executable runtime coordinator for DAG file processing and task execution."""
+"""Native executable coordinator for DAG file processing and task execution."""
 
 from __future__ import annotations
 
-import contextlib
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from airflow.providers.sdk.executable.bundle_scanner import BundleScanner, read_source_code
-from airflow.sdk.execution_time.coordinator import BaseRuntimeCoordinator
+from airflow.sdk.execution_time.coordinator import BaseCoordinator
 
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
 
 
-class ExecutableRuntimeCoordinator(BaseRuntimeCoordinator):
+class ExecutableCoordinator(BaseCoordinator):
     """Coordinator that launches a native executable subprocess for DAG parsing and task execution."""
 
-    runtime_name = "executable"
+    sdk = "executable"
     file_extension = ""
 
     @classmethod
     def can_handle_dag_file(cls, bundle_name: str, path: str | os.PathLike[str]) -> bool:
-        """Return ``True`` when *path* is a native executable with Airflow SDK metadata."""
-        with contextlib.suppress(FileNotFoundError, KeyError):
+        """
+        Return ``True`` when *path* is a self-contained executable bundle.
+
+        Detection is by the ``AFBNDL01`` trailer magic appended by the SDK
+        packer; non-bundle files are silently rejected.
+        """
+        try:
             return BundleScanner.resolve_executable(Path(path)) is not None
-        return False
+        except OSError:
+            return False
 
     @classmethod
     def get_code_from_file(cls, fileloc: str) -> str:
-        """Read source code from a sidecar file alongside the executable."""
+        """Read the DAG source embedded in the bundle's footer."""
         code = read_source_code(Path(fileloc))
         if code is None:
             raise FileNotFoundError(f"No source code found for executable: {fileloc}")
         return code
 
     @classmethod
-    def dag_parsing_runtime_cmd(
+    def dag_parsing_cmd(
         cls,
         *,
         dag_file_path: str,
@@ -70,7 +75,7 @@ class ExecutableRuntimeCoordinator(BaseRuntimeCoordinator):
         ]
 
     @classmethod
-    def task_execution_runtime_cmd(
+    def task_execution_cmd(
         cls,
         *,
         what: TaskInstance,
@@ -102,9 +107,9 @@ class ExecutableRuntimeCoordinator(BaseRuntimeCoordinator):
                 "that delegate to native executable task execution."
             )
 
-        resolved = BundleScanner(Path(bundles_folder)).resolve(dag_id=what.dag_id)
+        executable_path = BundleScanner(Path(bundles_folder)).resolve(dag_id=what.dag_id)
         return [
-            resolved.executable_path,
+            executable_path,
             f"--comm={comm_addr}",
             f"--logs={logs_addr}",
         ]
