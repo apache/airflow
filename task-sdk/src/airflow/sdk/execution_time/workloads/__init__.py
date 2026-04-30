@@ -14,33 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Shared workload data transfer objects for Airflow distributions."""
+"""Workload schemas for Task SDK execution-time communication."""
 
 from __future__ import annotations
 
-import uuid
-
-from pydantic import BaseModel, Field
-
-
-class TaskInstanceDTO(BaseModel):
-    """Schema for TaskInstance with minimal required fields needed for Executors and Task SDK."""
-
-    id: uuid.UUID
-    dag_version_id: uuid.UUID
-    task_id: str
-    dag_id: str
-    run_id: str
-    try_number: int
-    map_index: int = -1
-
-    pool_slots: int
-    queue: str
-    priority_weight: int
-    executor_config: dict | None = Field(default=None, exclude=True)
-
-    parent_context_carrier: dict | None = None
-    context_carrier: dict | None = None
-
+from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 
 __all__ = ["TaskInstanceDTO"]

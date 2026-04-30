@@ -25,7 +25,6 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from airflow._shared.workloads import TaskInstanceDTO
 from airflow.providers.sdk.java.bundle_scanner import (
     MAIN_CLASS_MANIFEST_KEY,
     MANIFEST_PATH,
@@ -34,6 +33,7 @@ from airflow.providers.sdk.java.bundle_scanner import (
 )
 from airflow.providers.sdk.java.coordinator import JavaCoordinator
 from airflow.sdk.api.datamodels._generated import BundleInfo
+from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 

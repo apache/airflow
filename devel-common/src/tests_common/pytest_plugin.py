@@ -2540,7 +2540,7 @@ def create_runtime_ti(mocked_parse):
         from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
         if AIRFLOW_V_3_3_PLUS:
-            from airflow.sdk._shared.workloads import TaskInstanceDTO
+            from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
         else:
             from airflow.sdk.api.datamodels._generated import (  # type: ignore[no-redef,assignment]
                 TaskInstance as TaskInstanceDTO,
