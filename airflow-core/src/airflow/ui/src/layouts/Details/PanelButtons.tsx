@@ -42,6 +42,7 @@ import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { DagVersionSelect } from "src/components/DagVersionSelect";
+import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
 import { GraphTaskFilters } from "src/components/GraphTaskFilters";
 import { Tooltip } from "src/components/ui";
 import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
@@ -56,7 +57,6 @@ import { GridFilters } from "./GridFilters";
 import { TaskStreamFilter } from "./TaskStreamFilter";
 import { ToggleGroups } from "./ToggleGroups";
 import { VersionIndicatorSelect } from "./VersionIndicatorSelect";
-import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
 
 type Props = {
   readonly dagView: DagView;

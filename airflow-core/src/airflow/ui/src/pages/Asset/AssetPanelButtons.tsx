@@ -16,18 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  Button,
-  ButtonGroup,
-  Flex,
-  IconButton,
-  Popover,
-  Portal,
-} from "@chakra-ui/react";
+import { Box, Button, ButtonGroup, Flex, IconButton, Popover, Portal } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdSettings } from "react-icons/md";
 import { useParams } from "react-router-dom";
+
 import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
 
 type Props = {

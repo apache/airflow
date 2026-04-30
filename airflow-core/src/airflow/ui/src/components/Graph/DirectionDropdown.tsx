@@ -17,11 +17,11 @@
  * under the License.
  */
 import { createListCollection, Select, type SelectValueChangeDetails } from "@chakra-ui/react";
-import { useLocalStorage } from "usehooks-ts";
-import { directionKey } from "src/constants/localStorage";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
+import { useLocalStorage } from "usehooks-ts";
 
+import { directionKey } from "src/constants/localStorage";
 
 export type Direction = "DOWN" | "LEFT" | "RIGHT" | "UP";
 
@@ -39,14 +39,14 @@ export const DirectionDropdown = ({ graphId }: { readonly graphId: string }) => 
         { label: translate("graph.directionDown"), value: "DOWN" as Direction },
       ],
     });
-  
+
   const handleDirectionUpdate = (
-      event: SelectValueChangeDetails<{ label: string; value: Array<string> }>,
-    ) => {
-      if (event.value[0] !== undefined) {
-        setDirection(event.value[0] as Direction);
-      }
-    };
+    event: SelectValueChangeDetails<{ label: string; value: Array<string> }>,
+  ) => {
+    if (event.value[0] !== undefined) {
+      setDirection(event.value[0] as Direction);
+    }
+  };
 
   return (
     <Select.Root
@@ -56,9 +56,7 @@ export const DirectionDropdown = ({ graphId }: { readonly graphId: string }) => 
       size="sm"
       value={[direction]}
     >
-      <Select.Label fontSize="xs">
-        {translate("dag:panel.graphDirection.label")}
-      </Select.Label>
+      <Select.Label fontSize="xs">{translate("dag:panel.graphDirection.label")}</Select.Label>
       <Select.Control>
         <Select.Trigger>
           <Select.ValueText />

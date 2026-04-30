@@ -20,18 +20,18 @@ import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
+import { type Direction } from "src/components/Graph/DirectionDropdown";
 import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
+import { directionKey } from "src/constants/localStorage";
 import { useColorMode } from "src/context/colorMode";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { getReactFlowThemeStyle } from "src/theme";
-import { useLocalStorage } from "usehooks-ts";
-import { directionKey } from "src/constants/localStorage";
-import { type Direction } from "src/components/Graph/DirectionDropdown";
 
 export const AssetGraph = ({
   asset,
@@ -47,8 +47,8 @@ export const AssetGraph = ({
   const { data: graphData = { edges: [], nodes: [] } } = useDependencyGraph(`asset:${assetId}`, {
     dependencyType,
   });
-  
-  const [direction] = useLocalStorage<Direction>(directionKey(assetId ?? ""),"RIGHT");
+
+  const [direction] = useLocalStorage<Direction>(directionKey(assetId ?? ""), "RIGHT");
 
   const { data: layoutData } = useGraphLayout({
     ...graphData,
