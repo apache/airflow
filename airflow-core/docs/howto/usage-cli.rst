@@ -145,7 +145,7 @@ By default, Airflow looks for DAGs in the directory specified by the ``dags_fold
    .. code-block:: bash
 
       airflow dags test <DAG_ID> -f <path_to_dag_file>
-      
+
 Display Dag structure
 ---------------------
 
