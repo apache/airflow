@@ -93,7 +93,6 @@ from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
-from airflow.ti_deps.dependencies_states import ACTIVE_STATES
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -1939,26 +1938,24 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             session=session,
         )
 
-    @provide_session
     def get_num_active_task_instances(self, *, same_dagrun: bool = False, session: Session) -> int:
         """
-        Count active TIs for this task from the DB.
+        Count active (running or deferred) TIs for this task from the DB.
 
-        Counts task instances in running, queued, or deferred state.
         Deferred TIs are included because they are still logically in-flight
         and must count against max_active_tis_per_dag / max_active_tis_per_dagrun.
 
         :meta private:
         """
         return self._get_num_task_instances_of_state(
-            ACTIVE_STATES,
+            [TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED],
             same_dagrun=same_dagrun,
             session=session,
         )
 
     def _get_num_task_instances_of_state(
         self,
-        states: Iterable[TaskInstanceState],
+        states: Collection[TaskInstanceState],
         *,
         same_dagrun: bool = False,
         session: Session,
@@ -1966,12 +1963,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         stmt = (
             select(func.count())
             .select_from(TaskInstance)
-            .where(
-                TaskInstance.dag_id == self.dag_id,
-                TaskInstance.task_id == self.task_id,
-                TaskInstance.state.in_(states),
-            )
+            .where(TaskInstance.dag_id == self.dag_id, TaskInstance.task_id == self.task_id)
         )
+        if states:
+            stmt = stmt.where(or_(*(TaskInstance.state == s for s in states)))
+        else:
+            return 0
         if same_dagrun:
             stmt = stmt.where(TaskInstance.run_id == self.run_id)
         return session.scalar(stmt) or 0

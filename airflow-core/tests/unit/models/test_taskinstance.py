@@ -35,6 +35,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.attributes import set_committed_value
 
 from airflow import settings
 from airflow._shared.observability.metrics.stats import Stats
@@ -1580,11 +1581,8 @@ class TestTaskInstance:
         assert ti3 in session
         session.commit()
 
-        # get_num_active_task_instances now counts RUNNING + QUEUED + DEFERRED.
-        # ti1 (RUNNING) and ti2 (QUEUED) share the same dag_id/task_id, so both
-        # see a count of 2.  ti3 is in a different dag, so it sees 1.
-        assert ti1.get_num_active_task_instances(session=session) == 2
-        assert ti2.get_num_active_task_instances(session=session) == 2
+        assert ti1.get_num_active_task_instances(session=session) == 1
+        assert ti2.get_num_active_task_instances(session=session) == 1
         assert ti3.get_num_active_task_instances(session=session) == 1
 
     def test_get_num_active_task_instances_per_dagrun(self, create_task_instance, dag_maker):
@@ -1626,14 +1624,13 @@ class TestTaskInstance:
 
         session.commit()
 
-        # With QUEUED now counted, task_1 in each dagrun has 2 (1 RUNNING + 1 QUEUED)
-        assert tis1[("task_1", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 2
-        assert tis1[("task_1", 1)].get_num_active_task_instances(session=session, same_dagrun=True) == 2
+        assert tis1[("task_1", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+        assert tis1[("task_1", 1)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
         assert tis1[("task_2", 0)].get_num_active_task_instances(session=session) == 2
         assert tis1[("task_3", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
 
-        assert tis2[("task_1", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 2
-        assert tis2[("task_1", 1)].get_num_active_task_instances(session=session, same_dagrun=True) == 2
+        assert tis2[("task_1", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+        assert tis2[("task_1", 1)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
         assert tis2[("task_2", 0)].get_num_active_task_instances(session=session) == 2
         assert tis2[("task_3", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
 
@@ -3574,11 +3571,6 @@ def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
     Test that `get_dagrun()` fetches `DagRun` from DB when the `dag_run`
     relationship is marked as loaded but unset (`None`).
     """
-    from sqlalchemy.orm.attributes import set_committed_value
-
-    from airflow.operators.empty import EmptyOperator
-    from airflow.utils.state import State
-
     with dag_maker(dag_id="test_get_dagrun_loaded_none"):
         EmptyOperator(task_id="test_task")
 
