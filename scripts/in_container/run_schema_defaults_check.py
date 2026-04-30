@@ -157,8 +157,7 @@ def compare_operator_defaults() -> list[str]:
         # Direct comparison - no complex normalization needed
         if schema_value != server_value:
             errors.append(
-                f"Field '{field_name}': schema default is {schema_value!r}, "
-                f"server default is {server_value!r}"
+                f"Field '{field_name}': schema default is {schema_value!r}, server default is {server_value!r}"
             )
 
     # Check for schema defaults that don't have corresponding server defaults
@@ -183,6 +182,8 @@ def compare_operator_defaults() -> list[str]:
 
 def compare_dag_defaults() -> list[str]:
     """Compare DAG schema defaults with server-side defaults and return discrepancies."""
+    from airflow.serialization.serialized_objects import DAG_DEFAULTS
+
     schema_defaults = load_schema_defaults("dag")
     server_defaults = get_server_side_dag_defaults()
     errors = []
@@ -190,12 +191,17 @@ def compare_dag_defaults() -> list[str]:
     print(f"Found {len(schema_defaults)} DAG schema defaults")
     print(f"Found {len(server_defaults)} DAG server-side defaults")
 
+    # Fields in DAG_DEFAULTS have no schema default; their default comes from Airflow config.
+    dag_defaults_fields = set(DAG_DEFAULTS.keys())
+
     # Check each server default against schema
     for field_name, server_value in server_defaults.items():
         schema_value = schema_defaults.get(field_name)
 
         # Check if field exists in schema
         if field_name not in schema_defaults:
+            if field_name in dag_defaults_fields:
+                continue
             # Some server fields don't need defaults in schema (like None values, empty collections, or computed fields)
             if (
                 server_value is not None
@@ -210,8 +216,7 @@ def compare_dag_defaults() -> list[str]:
         # Direct comparison
         if schema_value != server_value:
             errors.append(
-                f"DAG field '{field_name}': schema default is {schema_value!r}, "
-                f"server default is {server_value!r}"
+                f"DAG field '{field_name}': schema default is {schema_value!r}, server default is {server_value!r}"
             )
 
     # Check for schema defaults that don't have corresponding server defaults

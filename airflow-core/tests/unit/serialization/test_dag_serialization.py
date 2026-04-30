@@ -80,6 +80,7 @@ from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
+    DAG_DEFAULTS,
     BaseSerialization,
     DagSerialization,
     LazyDeserializedDAG,
@@ -142,7 +143,7 @@ def operator_defaults(monkeypatch):
     """
     import airflow.sdk.definitions._internal.abstractoperator as abstract_op_module
     from airflow.sdk.bases.operator import OPERATOR_DEFAULTS
-    from airflow.serialization.serialized_objects import OperatorSerialization
+    from airflow.serialization.serialized_objects import DagSerialization, OperatorSerialization
 
     @contextlib.contextmanager
     def _operator_defaults(overrides):
@@ -155,14 +156,16 @@ def operator_defaults(monkeypatch):
             if hasattr(abstract_op_module, const_name):
                 monkeypatch.setattr(abstract_op_module, const_name, value)
 
-        # Clear the cache to ensure fresh generation
+        # Clear the caches to ensure fresh generation
         OperatorSerialization.generate_client_defaults.cache_clear()
+        DagSerialization.generate_client_defaults.cache_clear()
 
         try:
             yield
         finally:
-            # Clear cache again to restore normal behavior
+            # Clear caches again to restore normal behavior
             OperatorSerialization.generate_client_defaults.cache_clear()
+            DagSerialization.generate_client_defaults.cache_clear()
 
     return _operator_defaults
 
@@ -219,9 +222,6 @@ serialized_simple_dag_ground_truth = {
             "downstream_task_ids": [],
         },
         "is_paused_upon_creation": False,
-        "max_active_runs": 16,
-        "max_active_tasks": 16,
-        "max_consecutive_failed_dag_runs": 0,
         "dag_id": "simple_dag",
         "deadline": None,
         "allowed_run_types": None,
@@ -335,6 +335,15 @@ serialized_simple_dag_ground_truth = {
             },
         ],
         "params": [],
+    },
+    "client_defaults": {
+        "dag": {
+            "max_active_runs": 16,
+            "max_active_tasks": 16,
+            "max_consecutive_failed_dag_runs": 0,
+            "catchup": False,
+            "disable_bundle_versioning": False,
+        }
     },
 }
 
@@ -3749,7 +3758,6 @@ def test_handle_v2_serdag():
 
 def test_dag_schema_defaults_optimization():
     """Test that DAG fields matching schema defaults are excluded from serialization."""
-    config_driven_fields = {"max_active_runs", "max_active_tasks", "max_consecutive_failed_dag_runs"}
 
     # Create DAG with all schema default values
     dag_with_defaults = DAG(
@@ -3769,15 +3777,29 @@ def test_dag_schema_defaults_optimization():
     )
 
     # Serialize and check exclusions
-    serialized = DagSerialization.to_dict(dag_with_defaults)
-    dag_data = serialized["dag"]
+    with conf_vars(
+        {
+            ("core", "max_active_runs_per_dag"): "16",
+            ("core", "max_active_tasks_per_dag"): "16",
+            ("core", "max_consecutive_failed_dag_runs_per_dag"): "0",
+            ("scheduler", "catchup_by_default"): "False",
+            ("dag_processor", "disable_bundle_versioning"): "False",
+        }
+    ):
+        serialized = DagSerialization.to_dict(dag_with_defaults)
 
-    # Non-config-driven schema default fields should be excluded
-    for field in DagSerialization.get_schema_defaults("dag").keys():
-        if field in config_driven_fields:
-            assert field in dag_data, f"Config-driven field '{field}' must always be serialised"
-        else:
-            assert field not in dag_data, f"Schema default field '{field}' should be excluded"
+    dag_data = serialized["dag"]
+    dag_client_defaults = serialized.get("client_defaults", {}).get("dag", {})
+
+    dag_defaults_fields = set(DAG_DEFAULTS)
+    for field in dag_defaults_fields:
+        assert field not in dag_data, f"Config-driven field '{field}' should be omitted from dag_data"
+        assert field in dag_client_defaults, f"Config-driven field '{field}' must be in client_defaults.dag"
+
+    # Fields with Airflow-config defaults should also be excluded.
+    remaining_schema_defaults = DagSerialization.get_schema_defaults("dag").keys() - dag_defaults_fields
+    for field in remaining_schema_defaults:
+        assert field not in dag_data, f"Schema default field '{field}' should be excluded"
 
     # None fields should also be excluded
     none_fields = ["description", "doc_md"]
@@ -3805,7 +3827,13 @@ def test_dag_schema_defaults_optimization():
         description="Test description",  # Non-None
     )
 
-    serialized_non_defaults = DagSerialization.to_dict(dag_non_defaults)
+    with conf_vars(
+        {
+            ("core", "max_active_runs_per_dag"): "16",
+            ("scheduler", "catchup_by_default"): "False",
+        }
+    ):
+        serialized_non_defaults = DagSerialization.to_dict(dag_non_defaults)
     dag_non_defaults_data = serialized_non_defaults["dag"]
 
     # Non-default values should be included
@@ -3817,17 +3845,26 @@ def test_dag_schema_defaults_optimization():
     assert dag_non_defaults_data["description"] == "Test description"
 
 
-def test_config_driven_dag_fields_always_serialized():
-    """Config-driven fields must survive serialisation even when they equal the schema default."""
-    dag = DAG(
-        dag_id="test_config_driven_fields",
-        start_date=datetime(2023, 1, 1),
-        max_active_runs=16,
-        max_active_tasks=16,
-        max_consecutive_failed_dag_runs=0,
-    )
+def test_dag_fields_with_airflow_config_defaults_use_client_defaults():
+    """DAG fields whose defaults come from Airflow config follow the client_defaults pattern:
+    omitted from the wire when equal to the config default, preserved otherwise."""
 
-    serialized = DagSerialization.to_dict(dag)
+    with conf_vars(
+        {
+            ("core", "max_active_runs_per_dag"): "1",
+            ("core", "max_active_tasks_per_dag"): "1",
+            ("core", "max_consecutive_failed_dag_runs_per_dag"): "1",
+        }
+    ):
+        dag = DAG(
+            dag_id="test_dag_fields_with_airflow_config_defaults",
+            start_date=datetime(2023, 1, 1),
+            max_active_runs=16,
+            max_active_tasks=16,
+            max_consecutive_failed_dag_runs=0,
+        )
+        serialized = DagSerialization.to_dict(dag)
+
     dag_data = serialized["dag"]
 
     assert dag_data["max_active_runs"] == 16
@@ -3838,6 +3875,42 @@ def test_config_driven_dag_fields_always_serialized():
     assert lazy_dag.max_active_runs == 16
     assert lazy_dag.max_active_tasks == 16
     assert lazy_dag.max_consecutive_failed_dag_runs == 0
+
+    # When user value == cfg value the field is omitted from dag_data but still
+    # available in client_defaults["dag"].
+    with conf_vars(
+        {
+            ("core", "max_active_runs_per_dag"): "16",
+            ("core", "max_active_tasks_per_dag"): "16",
+            ("core", "max_consecutive_failed_dag_runs_per_dag"): "0",
+        }
+    ):
+        dag2 = DAG(
+            dag_id="test_dag_fields_with_airflow_config_defaults_omitted",
+            start_date=datetime(2023, 1, 1),
+            max_active_runs=16,
+            max_active_tasks=16,
+            max_consecutive_failed_dag_runs=0,
+        )
+        serialized2 = DagSerialization.to_dict(dag2)
+
+    dag_data2 = serialized2["dag"]
+
+    # Omitted from the wire; equal to cfg default.
+    assert "max_active_runs" not in dag_data2
+    assert "max_active_tasks" not in dag_data2
+    assert "max_consecutive_failed_dag_runs" not in dag_data2
+
+    # But available in client_defaults.
+    dag_cd = serialized2["client_defaults"]["dag"]
+    assert dag_cd["max_active_runs"] == 16
+    assert dag_cd["max_active_tasks"] == 16
+    assert dag_cd["max_consecutive_failed_dag_runs"] == 0
+
+    lazy_dag2 = LazyDeserializedDAG(data=serialized2)
+    assert lazy_dag2.max_active_runs == 16
+    assert lazy_dag2.max_active_tasks == 16
+    assert lazy_dag2.max_consecutive_failed_dag_runs == 0
 
 
 def test_email_optimization_removes_email_attrs_when_email_empty():
