@@ -298,7 +298,7 @@ body. Rules:
   end with the proposal verb where applicable.
 - Substitute placeholders (`<base>`, `<reviewers>`, `N`, `K`,
   `M`) from the PR record. `<reviewers>` is `@login` mentions
-  joined with a comma and a space (`,` + ` `) — see the canonical example
+  joined with a comma followed by a single space — see the canonical example
   below. Substitution happens at classification time;
   [`interaction-loop.md`](interaction-loop.md) displays the
   already-substituted string verbatim.
