@@ -1897,7 +1897,7 @@ class DagSerialization(BaseSerialization):
         if attrname == "dag_display_name" and var == op.dag_id:
             return True
 
-        # Exclude if value matches the Airflow config default.
+        # DAG schema defaults exclusion (same pattern as SerializedBaseOperator)
         if cls._matches_client_defaults(var, attrname):
             return True
 
