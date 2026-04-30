@@ -51,6 +51,15 @@ from airflow.utils.db import (
     upgradedb,
 )
 
+# The stairway runs hundreds of upgrade/downgrade cycles. Each cycle goes
+# through ``_single_connection_pool`` which calls ``settings.reconfigure_orm()``
+# at entry and exit, and ``dispose_orm()`` cannot synchronously close asyncpg
+# connections (it raises ``MissingGreenlet`` which is caught and logged).
+# Across the full stairway that leaks enough asyncpg connections to exhaust
+# Postgres ``max_connections``. On slower backends the total wall time also
+# exceeds the default 60s per-test timeout from ``--test-timeout``.
+_STAIRWAY_TIMEOUT_SECONDS = 900
+
 pytestmark = pytest.mark.db_test
 
 # Stairway starts from the 3.0.0 head revision.  Starting here (rather than
@@ -90,15 +99,34 @@ def stairway_db():
     Uses Airflow's downgrade()/upgradedb() wrappers so that backend-specific
     handling (MySQL metadata-lock, global migration lock, single-connection
     pool) is applied consistently.
+
+    Disables the async ORM session for the duration of the test: each
+    upgrade/downgrade cycle reconfigures the ORM, and dispose_orm() cannot
+    synchronously close asyncpg connections, so they would otherwise leak
+    until Postgres' max_connections is exhausted.
     """
-    downgrade(to_revision=_STAIRWAY_START_REVISION)
+    original_async_conn = settings.SQL_ALCHEMY_CONN_ASYNC
+    settings.SQL_ALCHEMY_CONN_ASYNC = ""
+    # Use NullPool: every connection is closed immediately on return to the
+    # pool. Each upgrade/downgrade leaks ~one connection from various places
+    # (alembic's env.py, _configured_alembic_environment, external DB manager
+    # post-migration hooks); over hundreds of revisions a normal pool fills up
+    # and exhausts Postgres' max_connections.
+    settings.dispose_orm(do_log=False)
+    settings.configure_orm(disable_connection_pool=True)
+    try:
+        downgrade(to_revision=_STAIRWAY_START_REVISION)
 
-    yield
+        yield
 
-    # Restore to latest heads even if the test failed mid-way.
-    upgradedb()
+        # Restore to latest heads even if the test failed mid-way.
+        upgradedb()
+    finally:
+        settings.SQL_ALCHEMY_CONN_ASYNC = original_async_conn
+        settings.reconfigure_orm()
 
 
+@pytest.mark.execution_timeout(_STAIRWAY_TIMEOUT_SECONDS)
 def test_migration_stairway(stairway_db) -> None:
     """
     Walk every incremental migration step since 3.0.0: upgrade → downgrade → re-upgrade.
@@ -126,6 +154,12 @@ def test_migration_stairway(stairway_db) -> None:
             upgradedb(to_revision=revision_id)
         except Exception as e:
             raise AssertionError(f"Stairway test failed at revision {revision_id!r}") from e
+        finally:
+            # upgradedb()/downgrade() each enter ``_single_connection_pool``,
+            # which calls ``reconfigure_orm()`` and resets the pool to default.
+            # Re-apply NullPool so the iteration cap is preserved.
+            settings.dispose_orm(do_log=False)
+            settings.configure_orm(disable_connection_pool=True)
 
 
 class TestDisableSqliteFkeys:
