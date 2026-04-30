@@ -32,11 +32,16 @@ immediately identifiable in CI logs.
 
 from __future__ import annotations
 
+import time
+from collections.abc import Callable
+from functools import partial
+
 import pytest
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from alembic.script import ScriptDirectory
 from sqlalchemy import text
+from sqlalchemy.exc import MissingGreenlet, OperationalError
 
 from airflow import settings
 from airflow.migrations.utils import (
@@ -67,6 +72,56 @@ pytestmark = pytest.mark.db_test
 # handling that airflow.utils.db.downgrade() applies when the target is below
 # 2.10.3, and keeps the number of steps manageable on slower backends.
 _STAIRWAY_START_REVISION = _REVISION_HEADS_MAP["3.0.0"]
+
+# CI shows two transient failure modes for this test:
+#   1. PostgreSQL "too many clients already" when the metadata DB pool is
+#      saturated by other parallel tests at the moment a step runs. This
+#      surfaces as ``sqlalchemy.exc.OperationalError``.
+#   2. SQLAlchemy ``MissingGreenlet`` during async-engine disposal between
+#      steps, which can leak into the next migration call.
+# Both are environmental; rebuilding the ORM (dispose + reconfigure with
+# NullPool) between attempts clears the leaked connections and restores
+# ``settings.Session`` so the next ``@provide_session``-wrapped call has a
+# working session.
+_STEP_RETRIES = 3
+_STEP_RETRY_BACKOFF_SECONDS = 2.0
+_TRANSIENT_STEP_ERRORS: tuple[type[BaseException], ...] = (OperationalError, MissingGreenlet)
+
+
+def _run_step_with_retry(step: Callable[[], None], *, revision_id: str, label: str) -> None:
+    """
+    Run a single migration step, retrying on known transient backend errors.
+
+    Only retries on :class:`sqlalchemy.exc.OperationalError` (e.g. PostgreSQL
+    ``too many clients already``) and :class:`sqlalchemy.exc.MissingGreenlet`
+    (async-engine disposal leaking into the next call) so genuine migration
+    regressions still surface immediately.
+
+    Rebuilds the ORM between attempts: a plain ``dispose_orm`` would leave
+    ``settings.Session`` set to ``None``, causing the next
+    ``@provide_session``-wrapped call to raise
+    ``RuntimeError("Session must be set before!")``. NullPool is reapplied so
+    the fixture's connection-leak guard is preserved across retries.
+    """
+    last_exc: BaseException | None = None
+    for attempt in range(1, _STEP_RETRIES + 1):
+        try:
+            step()
+            return
+        except _TRANSIENT_STEP_ERRORS as exc:
+            last_exc = exc
+            if attempt == _STEP_RETRIES:
+                break
+            # Free pooled connections and rebuild Session/engine before retry.
+            try:
+                settings.dispose_orm(do_log=False)
+                settings.configure_orm(disable_connection_pool=True)
+            except Exception:
+                pass
+            time.sleep(_STEP_RETRY_BACKOFF_SECONDS * attempt)
+    raise AssertionError(
+        f"Stairway test failed at revision {revision_id!r} during {label} after {_STEP_RETRIES} attempts"
+    ) from last_exc
 
 
 def _get_revisions_in_order() -> list[str]:
@@ -144,16 +199,21 @@ def test_migration_stairway(stairway_db) -> None:
 
     for revision_id in revisions:
         try:
-            # Step 1: upgrade to this revision.
-            upgradedb(to_revision=revision_id)
-
-            # Step 2: downgrade exactly one step back.
-            downgrade(to_revision="-1")
-
-            # Step 3: re-apply so the next iteration starts from the right state.
-            upgradedb(to_revision=revision_id)
-        except Exception as e:
-            raise AssertionError(f"Stairway test failed at revision {revision_id!r}") from e
+            _run_step_with_retry(
+                partial(upgradedb, to_revision=revision_id),
+                revision_id=revision_id,
+                label="upgrade",
+            )
+            _run_step_with_retry(
+                partial(downgrade, to_revision="-1"),
+                revision_id=revision_id,
+                label="downgrade",
+            )
+            _run_step_with_retry(
+                partial(upgradedb, to_revision=revision_id),
+                revision_id=revision_id,
+                label="re-upgrade",
+            )
         finally:
             # upgradedb()/downgrade() each enter ``_single_connection_pool``,
             # which calls ``reconfigure_orm()`` and resets the pool to default.
