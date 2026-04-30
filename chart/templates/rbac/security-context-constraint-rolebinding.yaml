@@ -90,7 +90,7 @@ subjects:
     name: {{ include "migrateDatabaseJob.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  {{- if eq (include "createUserJob.isEnabled" .) "true" }}
+  {{- if .Values.createUserJob.enabled }}
   - kind: ServiceAccount
     name: {{ include "createUserJob.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"

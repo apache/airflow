@@ -130,7 +130,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if eq (include "createUserJob.isEnabled" .) "true" }}
+{{- if .Values.createUserJob.enabled }}
 Default user (Airflow UI) Login credentials:
     username: {{ .Values.createUserJob.defaultUser.username }}
     password: {{ .Values.createUserJob.defaultUser.password }}
