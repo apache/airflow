@@ -2109,8 +2109,10 @@ class TestRuntimeTaskInstance:
         test_task_id = "pull_task"
         task = CustomOperator(task_id=test_task_id)
 
-        # In case of the specific map_index or None we should check it is passed to TI
-        extra_for_ti = {"map_index": map_indexes} if map_indexes in (1, None) else {}
+        # In case of the specific map_index we should check it is passed to TI.
+        # ``None`` is not a valid TaskInstanceDTO.map_index value, but xcom_pull's
+        # behaviour with ``map_indexes=None`` is independent of the TI's own map_index.
+        extra_for_ti = {"map_index": map_indexes} if isinstance(map_indexes, int) else {}
         runtime_ti = create_runtime_ti(task=task, **extra_for_ti)
 
         ser_value = BaseXCom.serialize_value(xcom_values)
@@ -4542,7 +4544,8 @@ class TestTaskRunnerCallsCallbacks:
 class TestTriggerDagRunOperator:
     """Tests to verify various aspects of TriggerDagRunOperator"""
 
-    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    # make timetravel timezone-aware
+    @time_machine.travel(datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc), tick=False)
     def test_handle_trigger_dag_run(self, create_runtime_ti, mock_supervisor_comms):
         """Test that TriggerDagRunOperator (with default args) sends the correct message to the Supervisor"""
         from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
@@ -4590,7 +4593,7 @@ class TestTriggerDagRunOperator:
             (False, TaskInstanceState.FAILED),
         ],
     )
-    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    @time_machine.travel(datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc), tick=False)
     def test_handle_trigger_dag_run_conflict(
         self, skip_when_already_exists, expected_state, create_runtime_ti, mock_supervisor_comms
     ):
@@ -4634,7 +4637,7 @@ class TestTriggerDagRunOperator:
             ([DagRunState.SUCCESS], None, DagRunState.FAILED, DagRunState.FAILED),
         ],
     )
-    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    @time_machine.travel(datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc), tick=False)
     def test_handle_trigger_dag_run_wait_for_completion(
         self,
         allowed_states,
@@ -4755,7 +4758,7 @@ class TestTriggerDagRunOperator:
 
         assert state == intermediate_state
 
-    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    @time_machine.travel(datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc), tick=False)
     def test_handle_trigger_dag_run_deferred_with_reset_uses_run_id_only(
         self, create_runtime_ti, mock_supervisor_comms
     ):

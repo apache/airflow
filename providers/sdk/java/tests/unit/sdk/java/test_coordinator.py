@@ -169,7 +169,7 @@ class TestTaskExecutionCmd:
         bundle_info = BundleInfo(name="my_bundle")
 
         cmd = JavaCoordinator.task_execution_cmd(
-            what=ti,
+            what=ti,  # type: ignore[arg-type]
             dag_file_path=str(jar),
             bundle_path=bundle_path,
             bundle_info=bundle_info,
@@ -199,7 +199,7 @@ class TestTaskExecutionCmd:
             return_value=str(bundles_folder),
         ):
             cmd = JavaCoordinator.task_execution_cmd(
-                what=ti,
+                what=ti,  # type: ignore[arg-type]
                 dag_file_path="/dags/stub_dag.py",
                 bundle_path="/some/bundle/path",
                 bundle_info=bundle_info,
@@ -233,7 +233,7 @@ class TestTaskExecutionCmd:
         ):
             with pytest.raises(ValueError, match="bundles_folder config must be set"):
                 JavaCoordinator.task_execution_cmd(
-                    what=ti,
+                    what=ti,  # type: ignore[arg-type]
                     dag_file_path="/dags/stub_dag.py",
                     bundle_path="/some/bundle/path",
                     bundle_info=bundle_info,
