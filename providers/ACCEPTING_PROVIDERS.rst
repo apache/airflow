@@ -62,6 +62,7 @@ The discussion thread should include:
 * Identification of the proposed stewards and their sponsoring committer(s)
 * Commitment to meet incubation health metrics within 6 months
 * Plan for participating in quarterly governance updates
+* Sponsoring committer(s) if you already have alignment with one or asking for a volunteer
 
 If no objections are raised within 7 days, the proposal is considered accepted and the
 contributor may proceed with opening a PR.
