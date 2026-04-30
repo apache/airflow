@@ -97,7 +97,6 @@ apache-airflow-shared-serialization = false
 apache-airflow-scripts = false
 apache-airflow-providers-exasol = false
 apache-airflow-providers-mongo = false
-apache-airflow-shared-workloads = false
 apache-airflow-providers-apprise = false
 apache-airflow-providers-apache-impala = false
 apache-airflow-ctl = false
@@ -288,7 +287,6 @@ members = [
     "apache-airflow-shared-state",
     "apache-airflow-shared-template-rendering",
     "apache-airflow-shared-timezones",
-    "apache-airflow-shared-workloads",
     "apache-airflow-task-sdk",
     "apache-airflow-task-sdk-integration-tests",
     "docker-stack",
@@ -1448,7 +1446,6 @@ dev = [
     { name = "apache-airflow-shared-state" },
     { name = "apache-airflow-shared-template-rendering" },
     { name = "apache-airflow-shared-timezones" },
-    { name = "apache-airflow-shared-workloads" },
     { name = "apache-airflow-task-sdk", extra = ["all"] },
     { name = "apache-airflow-task-sdk-integration-tests" },
 ]
@@ -1724,7 +1721,6 @@ dev = [
     { name = "apache-airflow-shared-state", editable = "shared/state" },
     { name = "apache-airflow-shared-template-rendering", editable = "shared/template_rendering" },
     { name = "apache-airflow-shared-timezones", editable = "shared/timezones" },
-    { name = "apache-airflow-shared-workloads", editable = "shared/workloads" },
     { name = "apache-airflow-task-sdk", extras = ["all"], editable = "task-sdk" },
     { name = "apache-airflow-task-sdk-integration-tests", editable = "task-sdk-integration-tests" },
 ]
@@ -8480,25 +8476,6 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
 mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
-
-[[package]]
-name = "apache-airflow-shared-workloads"
-version = "0.0"
-source = { editable = "shared/workloads" }
-dependencies = [
-    { name = "pydantic" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "apache-airflow-devel-common" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "pydantic", specifier = ">=2.10.0" }]
-
-[package.metadata.requires-dev]
-dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-task-sdk"

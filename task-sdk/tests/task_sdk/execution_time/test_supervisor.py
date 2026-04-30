@@ -48,7 +48,6 @@ from pytest_unordered import unordered
 from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
-from airflow._shared.workloads import TaskInstanceDTO
 from airflow.executors.workloads import BundleInfo
 from airflow.sdk import BaseOperator, timezone
 from airflow.sdk.api import client as sdk_client
@@ -147,6 +146,7 @@ from airflow.sdk.execution_time.supervisor import (
     supervise_task,
 )
 from airflow.sdk.execution_time.task_runner import run
+from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 
 from tests_common.test_utils.config import conf_vars
 

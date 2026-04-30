@@ -22,9 +22,8 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
-from airflow._shared.workloads import TaskInstanceDTO as _BaseTaskInstanceDTO
 from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
 from airflow.utils.state import TaskInstanceState
 
@@ -34,12 +33,13 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 
-class TaskInstanceDTO(_BaseTaskInstanceDTO):
+class BaseTaskInstanceDTO(BaseModel):
     """
-    TaskInstanceDTO with executor-specific ``key`` property.
+    Base schema for TaskInstance with the minimal fields shared by Executors and the Task SDK.
 
-    Extends the shared :class:`~airflow._shared.workloads.TaskInstanceDTO`
-    to add the :attr:`key` property used by executors for workload tracking.
+    This definition is duplicated in :mod:`airflow.sdk.execution_time.workloads.task`
+    and the two are kept in sync by the ``check-task-instance-dto-sync`` prek
+    hook. Update both files together.
     """
 
     id: uuid.UUID
@@ -54,10 +54,15 @@ class TaskInstanceDTO(_BaseTaskInstanceDTO):
     queue: str
     priority_weight: int
     executor_config: dict | None = Field(default=None, exclude=True)
-    external_executor_id: str | None = Field(default=None, exclude=True)
 
     parent_context_carrier: dict | None = None
     context_carrier: dict | None = None
+
+
+class TaskInstanceDTO(BaseTaskInstanceDTO):
+    """TaskInstanceDTO with executor-specific ``external_executor_id`` field and ``key`` property."""
+
+    external_executor_id: str | None = Field(default=None, exclude=True)
 
     # TODO: Task-SDK: Can we replace TaskInstanceKey with just the uuid across the codebase?
     @property
