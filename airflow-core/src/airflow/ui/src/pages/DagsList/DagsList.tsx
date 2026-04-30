@@ -46,6 +46,7 @@ import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { DAGS_LIST_DISPLAY_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDags } from "src/queries/useDags";
@@ -216,6 +217,7 @@ export const DagsList = () => {
 
   const { pagination, sorting } = tableURLState;
   const dagDisplayNamePattern = searchParams.get(NAME_PATTERN) ?? "";
+  const advancedSearch = useAdvancedSearch("dags");
 
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
@@ -261,6 +263,7 @@ export const DagsList = () => {
   }
 
   const { data, error, isLoading } = useDags({
+    advancedSearch: advancedSearch.enabled,
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
     isFavorite,
@@ -291,6 +294,7 @@ export const DagsList = () => {
     <DagsLayout>
       <VStack alignItems="none">
         <SearchBar
+          advancedSearch={advancedSearch}
           defaultValue={dagDisplayNamePattern}
           onChange={handleSearchChange}
           placeholder={translate("dags:search.dags")}

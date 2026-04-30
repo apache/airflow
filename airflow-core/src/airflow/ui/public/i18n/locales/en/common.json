@@ -193,6 +193,12 @@
     },
     "tooltip": "Press {{hotkey}} to scroll to {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Match anywhere in the value (substring search). Slower on large deployments because it can't use the default B-tree index. See the docs section on custom metadata indexes for details.",
+      "title": "Match anywhere"
+    }
+  },
   "security": {
     "actions": "Actions",
     "permissions": "Permissions",

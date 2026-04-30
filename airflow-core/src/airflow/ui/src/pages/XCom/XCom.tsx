@@ -30,6 +30,7 @@ import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import AddXComButton from "./AddXComButton";
@@ -165,8 +166,33 @@ export const XCom = () => {
   const runAfterGte = searchParams.get(RUN_AFTER_GTE);
   const runAfterLte = searchParams.get(RUN_AFTER_LTE);
 
+  const dagDisplayNameArg = useAdvancedSearchArg({
+    patternApiKey: "dagDisplayNamePattern",
+    prefixApiKey: "dagDisplayNamePrefixPattern",
+    storageKey: DAG_DISPLAY_NAME_PATTERN_PARAM,
+    value: filteredDagDisplayName,
+  });
+  const runIdArg = useAdvancedSearchArg({
+    patternApiKey: "runIdPattern",
+    prefixApiKey: "runIdPrefixPattern",
+    storageKey: RUN_ID_PATTERN_PARAM,
+    value: filteredRunId,
+  });
+  const taskIdArg = useAdvancedSearchArg({
+    patternApiKey: "taskIdPattern",
+    prefixApiKey: "taskIdPrefixPattern",
+    storageKey: TASK_ID_PATTERN_PARAM,
+    value: filteredTaskId,
+  });
+  const xcomKeyArg = useAdvancedSearchArg({
+    patternApiKey: "xcomKeyPattern",
+    prefixApiKey: "xcomKeyPrefixPattern",
+    storageKey: KEY_PATTERN_PARAM,
+    value: filteredKey,
+  });
+
   const apiParams = {
-    dagDisplayNamePrefixPattern: filteredDagDisplayName ?? undefined,
+    ...dagDisplayNameArg,
     dagId,
     dagRunId: runId,
     limit: pagination.pageSize,
@@ -182,10 +208,10 @@ export const XCom = () => {
     orderBy,
     runAfterGte: runAfterGte ?? undefined,
     runAfterLte: runAfterLte ?? undefined,
-    runIdPrefixPattern: filteredRunId ?? undefined,
+    ...runIdArg,
     taskId,
-    taskIdPrefixPattern: filteredTaskId ?? undefined,
-    xcomKeyPrefixPattern: filteredKey ?? undefined,
+    ...taskIdArg,
+    ...xcomKeyArg,
   };
 
   const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
