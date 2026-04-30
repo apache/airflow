@@ -23,7 +23,7 @@ import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
-import { type Direction } from "src/components/Graph/DirectionDropdown";
+import type { Direction } from "src/components/Graph/DirectionDropdown";
 import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
