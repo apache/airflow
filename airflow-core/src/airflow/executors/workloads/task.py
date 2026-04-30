@@ -28,8 +28,6 @@ from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    import uuid
-
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.models.taskinstance import TaskInstance as TIModel
     from airflow.models.taskinstancekey import TaskInstanceKey

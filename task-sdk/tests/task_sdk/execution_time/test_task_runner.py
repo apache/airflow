@@ -170,6 +170,7 @@ from airflow.sdk.execution_time.task_runner import (
     run,
     startup,
 )
+from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.serde import deserialize
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent

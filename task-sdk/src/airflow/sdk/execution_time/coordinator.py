@@ -52,9 +52,9 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
 
-    from airflow.sdk._shared.workloads import TaskInstanceDTO
     from airflow.sdk.api.datamodels._generated import BundleInfo
     from airflow.sdk.execution_time.comms import StartupDetails
+    from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 
 
 def _start_server() -> socket.socket:
