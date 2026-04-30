@@ -175,6 +175,7 @@ _trace_propagator = TraceContextTextMapPropagator()
 _log_retry_warning = before_log(log, logging.WARNING)
 
 __all__ = [
+    "CallbackOperations",
     "Client",
     "ConnectionOperations",
     "ServerResponseError",
@@ -1047,6 +1048,36 @@ class HITLOperations:
         return HITLDetailResponse.model_validate_json(resp.read())
 
 
+class CallbackOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def start(self, id: uuid.UUID | str) -> None:
+        """
+        Mark a callback as RUNNING and exchange a workload token for an execution token.
+
+        Mirrors ``TaskInstanceOperations.start``: this is the single API call that
+        accepts a workload-scoped token; the server returns the new execution token
+        via the ``Refreshed-API-Token`` response header and the Client's response
+        hook automatically swaps it onto subsequent requests.
+        """
+        self.client.post(f"callbacks/{id}/run")
+
+    def finish(
+        self,
+        id: uuid.UUID | str,
+        state: str,
+        output: str | None = None,
+    ) -> None:
+        """Tell the API server that this callback has reached a terminal state."""
+        body: dict[str, Any] = {"state": state}
+        if output is not None:
+            body["output"] = output
+        self.client.patch(f"callbacks/{id}/state", json=body)
+
+
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -1241,6 +1272,12 @@ class Client(httpx.Client):
     def dags(self) -> DagsOperations:
         """Operations related to DAGs."""
         return DagsOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def callbacks(self) -> CallbackOperations:
+        """Operations related to Callbacks."""
+        return CallbackOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead

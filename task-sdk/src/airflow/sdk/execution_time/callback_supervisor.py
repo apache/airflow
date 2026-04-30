@@ -356,6 +356,15 @@ def supervise_callback(
         logger = structlog.get_logger(logger_name="callback").bind()
 
     with _ensure_client(server, token, client=client) as client:
+        # Mark the callback as RUNNING via the API. This is the single endpoint
+        # that accepts a workload-scoped token; it returns a fresh execution
+        # token via the Refreshed-API-Token header which the Client's response
+        # hook adopts automatically for the rest of the run.
+        client.callbacks.start(id)
+
+        terminal_state = "failed"
+        terminal_output = None
+
         try:
             process = CallbackSubprocess.start(
                 id=id,
@@ -376,9 +385,23 @@ def supervise_callback(
                 exit_code=exit_code,
                 duration=end - start,
             )
-            if exit_code != 0:
-                raise RuntimeError(f"Callback subprocess exited with code {exit_code}")
-            return exit_code
+            if exit_code == 0:
+                terminal_state = "success"
+            else:
+                terminal_output = f"Callback subprocess exited with code {exit_code}"
+        except Exception as e:
+            terminal_output = f"Callback supervisor error: {type(e).__name__}: {e}"
+            log.exception("Callback supervisor error", workload_id=id)
+            raise
         finally:
+            try:
+                client.callbacks.finish(id, state=terminal_state, output=terminal_output)
+            except Exception:
+                log.exception("Failed to report final callback state", workload_id=id)
+
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()
+
+        if exit_code != 0:
+            raise RuntimeError(f"Callback subprocess exited with code {exit_code}")
+        return exit_code

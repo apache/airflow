@@ -63,6 +63,45 @@ class AssetProfile(BaseModel):
     type: Annotated[str, Field(title="Type")]
 
 
+class AssetStatePutBody(BaseModel):
+    """
+    Request body for setting an asset state value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: Annotated[str, Field(title="Value")]
+
+
+class AssetStateResponse(BaseModel):
+    """
+    Asset state value returned to a worker.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: Annotated[str, Field(title="Value")]
+
+
+class State(str, Enum):
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+class CallbackTerminalStatePayload(BaseModel):
+    """
+    Payload for transitioning a callback from RUNNING to a terminal state.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: Annotated[State, Field(title="State")]
+    output: Annotated[str | None, Field(title="Output")] = None
+
+
 class ConnectionResponse(BaseModel):
     """
     Connection schema for responses with fields that are needed for Runtime.

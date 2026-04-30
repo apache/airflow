@@ -24,11 +24,17 @@ from dataclasses import dataclass
 from operator import attrgetter
 from typing import Any
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 import structlog
 
-from airflow.sdk.execution_time.callback_supervisor import CallbackSubprocess, execute_callback
+from airflow.sdk.api.client import Client
+from airflow.sdk.execution_time.callback_supervisor import (
+    CallbackSubprocess,
+    execute_callback,
+    supervise_callback,
+)
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     GetConnection,
@@ -239,3 +245,108 @@ class TestCallbackHandleRequest:
 
         if client_mock:
             mock_client_method.assert_called_once_with(*client_mock.args, **client_mock.kwargs)
+
+
+class TestSuperviseCallback:
+    """supervise_callback drives every callback state transition through the API."""
+
+    def _make_mock_client(self, mocker):
+        client = mocker.Mock(spec=Client)
+        client.callbacks = mocker.Mock()
+        client.callbacks.start = mocker.Mock()
+        client.callbacks.finish = mocker.Mock()
+        return client
+
+    def test_start_called_before_subprocess_then_finish_success(self, mocker):
+        cb_id = str(uuid4())
+        client = self._make_mock_client(mocker)
+
+        order: list[str] = []
+        client.callbacks.start.side_effect = lambda _id: order.append("start_api")
+        client.callbacks.finish.side_effect = lambda _id, state, output=None: order.append(f"finish:{state}")
+
+        proc = mocker.Mock()
+        proc.wait.return_value = 0
+
+        def _subprocess_start(**_):
+            order.append("subprocess_start")
+            return proc
+
+        mocker.patch.object(CallbackSubprocess, "start", side_effect=_subprocess_start)
+
+        exit_code = supervise_callback(
+            id=cb_id,
+            callback_path="tests.fake.callback",
+            callback_kwargs={},
+            token="workload-token",
+            client=client,
+        )
+
+        assert exit_code == 0
+        client.callbacks.start.assert_called_once_with(cb_id)
+        client.callbacks.finish.assert_called_once_with(cb_id, state="success", output=None)
+        assert order == ["start_api", "subprocess_start", "finish:success"]
+
+    def test_finish_called_with_failed_when_subprocess_exits_nonzero(self, mocker):
+        cb_id = str(uuid4())
+        client = self._make_mock_client(mocker)
+
+        proc = mocker.Mock()
+        proc.wait.return_value = 1
+        mocker.patch.object(CallbackSubprocess, "start", return_value=proc)
+
+        with pytest.raises(RuntimeError, match="exited with code 1"):
+            supervise_callback(
+                id=cb_id,
+                callback_path="tests.fake.callback",
+                callback_kwargs={},
+                token="workload-token",
+                client=client,
+            )
+
+        client.callbacks.start.assert_called_once_with(cb_id)
+        client.callbacks.finish.assert_called_once()
+        kwargs = client.callbacks.finish.call_args.kwargs
+        assert kwargs["state"] == "failed"
+        assert "exited with code 1" in kwargs["output"]
+
+    def test_finish_called_with_failed_when_subprocess_raises(self, mocker):
+        cb_id = str(uuid4())
+        client = self._make_mock_client(mocker)
+
+        mocker.patch.object(CallbackSubprocess, "start", side_effect=RuntimeError("boom"))
+
+        with pytest.raises(RuntimeError, match="boom"):
+            supervise_callback(
+                id=cb_id,
+                callback_path="tests.fake.callback",
+                callback_kwargs={},
+                token="workload-token",
+                client=client,
+            )
+
+        client.callbacks.finish.assert_called_once()
+        kwargs = client.callbacks.finish.call_args.kwargs
+        assert kwargs["state"] == "failed"
+        assert "RuntimeError" in kwargs["output"]
+
+    def test_finish_failure_is_swallowed(self, mocker):
+        """If the terminal-state report fails, supervisor must still propagate the run result."""
+        cb_id = str(uuid4())
+        client = self._make_mock_client(mocker)
+        client.callbacks.finish.side_effect = RuntimeError("network down")
+
+        proc = mocker.Mock()
+        proc.wait.return_value = 0
+        mocker.patch.object(CallbackSubprocess, "start", return_value=proc)
+
+        # Should not raise — finish() is best-effort because the executor's
+        # event channel is the safety net.
+        exit_code = supervise_callback(
+            id=cb_id,
+            callback_path="tests.fake.callback",
+            callback_kwargs={},
+            token="workload-token",
+            client=client,
+        )
+        assert exit_code == 0

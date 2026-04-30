@@ -659,6 +659,58 @@ class TestSchedulerJob:
         assert session.get(ExecutorCallback, queued_callback.id).state == CallbackState.QUEUED
         assert session.get(ExecutorCallback, running_callback.id).state == CallbackState.RUNNING
 
+    @pytest.mark.parametrize(
+        ("db_state", "event_state", "expected_state"),
+        [
+            # The state QUEUED can't go forward, it is only available by calling api
+            (CallbackState.QUEUED, CallbackState.RUNNING, CallbackState.QUEUED),
+            (CallbackState.QUEUED, CallbackState.SUCCESS, CallbackState.QUEUED),
+            (CallbackState.QUEUED, CallbackState.FAILED, CallbackState.QUEUED),
+            (CallbackState.RUNNING, CallbackState.SUCCESS, CallbackState.SUCCESS),
+            (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.FAILED),
+            # Stale events must not regress an already-terminal callback. The API
+            # path (POST /run, PATCH /state) is authoritative; events are a fallback.
+            (CallbackState.SUCCESS, CallbackState.RUNNING, CallbackState.SUCCESS),
+            (CallbackState.SUCCESS, CallbackState.FAILED, CallbackState.SUCCESS),
+            (CallbackState.FAILED, CallbackState.RUNNING, CallbackState.FAILED),
+            (CallbackState.FAILED, CallbackState.SUCCESS, CallbackState.FAILED),
+            # Already RUNNING in DB: a duplicate RUNNING event is a no-op.
+            (CallbackState.RUNNING, CallbackState.RUNNING, CallbackState.RUNNING),
+        ],
+    )
+    def test_process_executor_events_writes_callback_state_forward_only(
+        self, dag_maker, session, db_state, event_state, expected_state
+    ):
+        def test_callback():
+            pass
+
+        with dag_maker(dag_id="test_callback_forward_only"):
+            pass
+        dag_run = dag_maker.create_dagrun()
+
+        callback = Deadline(
+            deadline_time=timezone.utcnow(),
+            callback=SyncCallback(test_callback),
+            dagrun_id=dag_run.id,
+            deadline_alert_id=None,
+        ).callback
+        callback.state = db_state
+        callback.data["dag_run_id"] = dag_run.id
+        callback.data["dag_id"] = dag_run.dag_id
+        session.add(callback)
+        session.flush()
+
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[callback.id] = (event_state, None)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        self.job_runner._process_executor_events(executor=executor, session=session)
+
+        session.flush()
+        session.expire_all()
+        assert session.get(ExecutorCallback, callback.id).state == expected_state
+
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_process_executor_events_with_callback(

@@ -1268,7 +1268,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             else:
                 cls.logger().error("Unknown workload key type in event buffer: %r", key)
 
-        # Handle callback state events
+        # Handle callback state events.
         for callback_id in callback_keys_with_events:
             state, info = event_buffer.pop(callback_id)
             callback = session.get(Callback, UUID(str(callback_id)))
@@ -1280,17 +1280,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
+            # Callback state transitions are now driven by the supervisor through
+            # the Execution API (POST /callbacks/{id}/run, PATCH /callbacks/{id}/state).
+            # The in-process events from the executor are kept as a fallback safety
+            # net for cases where the supervisor crashed before reporting a terminal state
+
+            need_to_modify = False
+
             if state == CallbackState.RUNNING:
-                callback.state = CallbackState.RUNNING
                 cls.logger().info("Callback %s is currently running", callback_id)
+                if callback.state == CallbackState.QUEUED:
+                    # The state change QUEUE -> RUNNING must be only executed by api
+                    pass
             elif state == CallbackState.SUCCESS:
-                callback.state = CallbackState.SUCCESS
                 cls.logger().info("Callback %s completed successfully", callback_id)
+                if callback.state == CallbackState.RUNNING:
+                    callback.state = CallbackState.SUCCESS
+                    need_to_modify = True
             elif state == CallbackState.FAILED:
-                callback.state = CallbackState.FAILED
-                callback.output = str(info) if info else "Execution failed"
                 cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
-            session.add(callback)
+                if callback.state == CallbackState.RUNNING:
+                    callback.state = CallbackState.FAILED
+                    callback.output = str(info) if info else "Execution failed"
+                    need_to_modify = True
+
+            if need_to_modify:
+                session.add(callback)
 
         # Return if no finished tasks
         if not tis_with_right_state:

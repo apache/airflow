@@ -1987,3 +1987,81 @@ class TestAssetStateOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.asset_state.clear(uri="s3://bucket/key")
         assert result == OKResponse(ok=True)
+
+
+class TestCallbackOperations:
+    def test_start_posts_and_picks_up_refreshed_token(self):
+        """start() POSTs to /callbacks/{id}/run; the response hook applies the new bearer."""
+        callback_id = uuid6.uuid7()
+        seen: dict[str, str | None] = {}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/callbacks/{callback_id}/run":
+                seen["method"] = request.method
+                seen["auth"] = request.headers.get("Authorization")
+                return httpx.Response(
+                    status_code=204,
+                    headers={"Refreshed-API-Token": "new-execution-token"},
+                )
+            seen["follow_up_auth"] = request.headers.get("Authorization")
+            return httpx.Response(status_code=200, json={})
+
+        client = Client(
+            base_url="test://server",
+            token="initial-workload-token",
+            transport=httpx.MockTransport(handle_request),
+        )
+
+        client.callbacks.start(callback_id)
+
+        assert seen["method"] == "POST"
+        assert seen["auth"] == "Bearer initial-workload-token"
+
+        # A subsequent call should now carry the refreshed token, proving the
+        # response hook adopted Refreshed-API-Token onto the client's auth.
+        client.get(f"/callbacks/{callback_id}/something-else")
+        assert seen["follow_up_auth"] == "Bearer new-execution-token"
+
+    def test_start_propagates_server_error(self):
+        callback_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                status_code=409,
+                json={"detail": {"reason": "invalid_state", "current_state": "success"}},
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(ServerResponseError) as exc_info:
+            client.callbacks.start(callback_id)
+
+        assert exc_info.value.response.status_code == 409
+
+    @pytest.mark.parametrize(
+        ("state", "output"),
+        [
+            ("success", None),
+            ("failed", "Callback subprocess exited with code 1"),
+        ],
+    )
+    def test_finish_patches_state_endpoint(self, state, output):
+        callback_id = uuid6.uuid7()
+        seen: dict = {}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/callbacks/{callback_id}/state":
+                seen["method"] = request.method
+                seen["body"] = json.loads(request.read())
+                return httpx.Response(status_code=204)
+            return httpx.Response(status_code=400)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        client.callbacks.finish(callback_id, state=state, output=output)
+
+        assert seen["method"] == "PATCH"
+        assert seen["body"]["state"] == state
+        if output is not None:
+            assert seen["body"]["output"] == output
+        else:
+            assert "output" not in seen["body"]
