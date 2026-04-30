@@ -19,6 +19,8 @@ from __future__ import annotations
 import contextlib
 from contextlib import contextmanager
 
+from sqlalchemy import text
+
 
 def get_dialect_name(op) -> str:
     conn = op.get_bind()
