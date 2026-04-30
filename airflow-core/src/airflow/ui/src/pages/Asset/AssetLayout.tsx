@@ -30,7 +30,7 @@ import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ProgressBar } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { OpenGroupsProvider } from "src/context/openGroups";
+import { GroupsProvider } from "src/context/groups";
 
 import { AssetGraph } from "./AssetGraph";
 import { AssetPanelButtons } from "./AssetPanelButtons";
@@ -112,9 +112,9 @@ export const AssetLayout = () => {
           <Panel defaultSize={70} minSize={6}>
             <Box height="100%" position="relative" pr={2}>
               <AssetPanelButtons dependencyType={dependencyType} setDependencyType={setDependencyType} />
-              <OpenGroupsProvider dagId="~">
+              <GroupsProvider dagId="~">
                 <AssetGraph asset={asset} dependencyType={dependencyType} />
-              </OpenGroupsProvider>
+              </GroupsProvider>
             </Box>
           </Panel>
           <PanelResizeHandle

@@ -447,6 +447,18 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     @functools.cached_property
     def client(self) -> Client:
+        return self.make_client()
+
+    def make_client(self) -> Client:
+        """
+        Build the API client used to talk to the API server.
+
+        Subclasses may override this to substitute a different transport — e.g. a
+        real HTTP client pointing at a remote API server — instead of the default
+        in-process one. The returned client must have ``base_url`` set; downstream
+        request handling (``self.client.variables``, ``.xcoms``, etc.) reads it
+        when issuing requests.
+        """
         from airflow.sdk.api.client import Client
 
         client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)

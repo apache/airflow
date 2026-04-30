@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, Bedrock
 from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockBatchInferenceOperator,
     BedrockCreateDataSourceOperator,
+    BedrockCreateGuardrailOperator,
     BedrockCreateKnowledgeBaseOperator,
     BedrockCreateProvisionedModelThroughputOperator,
     BedrockCustomizeModelOperator,
@@ -762,6 +763,113 @@ class TestBedrockBatchInferenceOperator:
         assert response == self.JOB_ARN
         assert bedrock_hook.get_waiter.call_count == wait_for_completion
         assert self.operator.defer.call_count == deferrable
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+GUARDRAIL_NAME = "test-guardrail"
+GUARDRAIL_ID = "abc123"
+
+
+class TestBedrockCreateGuardrailOperator:
+    def setup_method(self):
+        self.operator = BedrockCreateGuardrailOperator(
+            task_id="create_guardrail",
+            guardrail_name=GUARDRAIL_NAME,
+            blocked_input_messaging="Input blocked.",
+            blocked_outputs_messaging="Output blocked.",
+        )
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail.return_value = {
+            "guardrailId": GUARDRAIL_ID,
+            "guardrailArn": "arn:aws:bedrock:us-east-1:123456789012:guardrail/abc123",
+            "version": "DRAFT",
+        }
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        mock_client.create_guardrail.assert_called_once_with(
+            name=GUARDRAIL_NAME,
+            blockedInputMessaging="Input blocked.",
+            blockedOutputsMessaging="Output blocked.",
+        )
+        assert result == GUARDRAIL_ID
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_policies(self, mock_conn):
+        op = BedrockCreateGuardrailOperator(
+            task_id="create_guardrail",
+            guardrail_name=GUARDRAIL_NAME,
+            blocked_input_messaging="Input blocked.",
+            blocked_outputs_messaging="Output blocked.",
+            description="Test guardrail",
+            content_policy_config={
+                "filtersConfig": [{"type": "HATE", "inputStrength": "HIGH", "outputStrength": "HIGH"}]
+            },
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail.return_value = {"guardrailId": GUARDRAIL_ID}
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        call_kwargs = mock_client.create_guardrail.call_args[1]
+        assert call_kwargs["name"] == GUARDRAIL_NAME
+        assert call_kwargs["description"] == "Test guardrail"
+        assert "contentPolicyConfig" in call_kwargs
+        assert result == GUARDRAIL_ID
+
+    @mock.patch.object(BedrockHook, "get_guardrail_id_by_name", return_value=GUARDRAIL_ID)
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_skip_existing(self, mock_conn, mock_get_id):
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateGuardrail",
+        )
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        assert result == GUARDRAIL_ID
+        mock_get_id.assert_called_once_with(GUARDRAIL_NAME)
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_fail_on_conflict(self, mock_conn):
+        op = BedrockCreateGuardrailOperator(
+            task_id="create_guardrail",
+            guardrail_name=GUARDRAIL_NAME,
+            blocked_input_messaging="Input blocked.",
+            blocked_outputs_messaging="Output blocked.",
+            if_exists="fail",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateGuardrail",
+        )
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError):
+            op.execute({})
+
+    @mock.patch.object(BedrockHook, "get_guardrail_id_by_name", return_value=None)
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_skip_existing_not_found(self, mock_conn, mock_get_id):
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateGuardrail",
+        )
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError):
+            self.operator.execute({})
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

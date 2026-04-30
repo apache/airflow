@@ -25,28 +25,25 @@ import { allGroupsKey, dependenciesKey, openGroupsKey } from "src/constants/loca
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils";
 
-import { OpenGroupsContext, type OpenGroupsContextType } from "./Context";
+import { GroupsContext, type GroupsContextType } from "./Context";
 
 type Props = {
   readonly dagId: string;
 } & PropsWithChildren;
 
-export const OpenGroupsProvider = ({ children, dagId }: Props) => {
+export const GroupsProvider = ({ children, dagId }: Props) => {
   const [openGroupIds, setOpenGroupIds] = useLocalStorage<Array<string>>(openGroupsKey(dagId), []);
   const [allGroupIds, setAllGroupIds] = useLocalStorage<Array<string>>(allGroupsKey(dagId), []);
 
-  // use a ref to track the current allGroupIds without causing re-renders
   const allGroupIdsRef = useRef(allGroupIds);
 
   useEffect(() => {
     allGroupIdsRef.current = allGroupIds;
   }, [allGroupIds]);
 
-  // For Graph view support: dependencies + selected version
   const selectedVersion = useSelectedVersion();
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(dependenciesKey(dagId), "tasks");
 
-  // Fetch structure (minimal params if you want it lightweight for Grid)
   const { data: structure = { edges: [], nodes: [] } } = useStructureServiceStructureData(
     {
       dagId,
@@ -57,21 +54,17 @@ export const OpenGroupsProvider = ({ children, dagId }: Props) => {
     { enabled: Boolean(dagId) && selectedVersion !== undefined },
   );
 
-  // Update allGroupIds whenever structure changes
-  useEffect(() => {
-    const observedGroupIds = flattenGraphNodes(structure.nodes).allGroupIds;
+  const { allGroupIds: observedGroupIds, allOperators } = flattenGraphNodes(structure.nodes);
 
+  useEffect(() => {
     if (JSON.stringify(observedGroupIds) !== JSON.stringify(allGroupIdsRef.current)) {
       setAllGroupIds(observedGroupIds);
     }
-  }, [structure.nodes, setAllGroupIds]);
+  }, [observedGroupIds, setAllGroupIds]);
 
-  const debouncedSetOpenGroupIds = useDebouncedCallback(
-    (newGroupIds: Array<string>) => {
-      setOpenGroupIds(newGroupIds);
-    },
-    100, // 100ms debounce for batch operations
-  );
+  const debouncedSetOpenGroupIds = useDebouncedCallback((newGroupIds: Array<string>) => {
+    setOpenGroupIds(newGroupIds);
+  }, 100);
 
   const toggleGroupId = (groupId: string) => {
     if (openGroupIds.includes(groupId)) {
@@ -86,13 +79,14 @@ export const OpenGroupsProvider = ({ children, dagId }: Props) => {
     setOpenGroupIds(newGroupIds);
   };
 
-  const value: OpenGroupsContextType = {
+  const value: GroupsContextType = {
     allGroupIds,
+    allOperators,
     openGroupIds,
     setAllGroupIds,
     setOpenGroupIds: setOpenGroupIdsImmediate,
     toggleGroupId,
   };
 
-  return <OpenGroupsContext.Provider value={value}>{children}</OpenGroupsContext.Provider>;
+  return <GroupsContext.Provider value={value}>{children}</GroupsContext.Provider>;
 };

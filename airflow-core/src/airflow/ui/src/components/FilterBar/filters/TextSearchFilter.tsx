@@ -16,8 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { HStack } from "@chakra-ui/react";
 import { useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { LuRegex } from "react-icons/lu";
+
+import { AdvancedSearchToggle } from "src/components/AdvancedSearchToggle";
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 
 import { InputWithAddon } from "../../ui";
 import { FilterPill } from "../FilterPill";
@@ -26,6 +31,8 @@ import { isValidFilterValue } from "../utils";
 
 export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
   const hotkeyInputRef = useRef<HTMLInputElement>(null);
+  const advanced = useAdvancedSearch(filter.config.key);
+  const showAdvancedToggle = filter.config.supportsAdvancedSearch === true;
 
   const hasValue = isValidFilterValue(filter.config.type, filter.value);
 
@@ -45,15 +52,32 @@ export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginPro
     { enabled: !filter.config.hotkeyDisabled, preventDefault: true },
   );
 
+  const isAdvanced = showAdvancedToggle && advanced.enabled;
+  const stringValue = hasValue && typeof filter.value === "string" ? filter.value : "";
+
   return (
     <FilterPill
-      displayValue={hasValue && typeof filter.value === "string" ? filter.value : ""}
+      displayValue={
+        isAdvanced && stringValue !== "" ? (
+          <HStack as="span" gap={1}>
+            <LuRegex aria-label="match anywhere" />
+            {stringValue}
+          </HStack>
+        ) : (
+          stringValue
+        )
+      }
       filter={filter}
       hasValue={hasValue}
       onRemove={onRemove}
       renderInput={(props) => (
         <InputWithAddon
           {...props}
+          endAddon={
+            showAdvancedToggle ? (
+              <AdvancedSearchToggle enabled={advanced.enabled} onToggle={advanced.onToggle} variant="addon" />
+            ) : undefined
+          }
           label={filter.config.label}
           onChange={handleInputChange}
           placeholder={filter.config.placeholder}

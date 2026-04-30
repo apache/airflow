@@ -82,6 +82,7 @@
   },
   "navigation": {
     "navigation": "Navigation: Shift+{{arrow}}",
+    "openGraphFilters": "Task Filters: Ctrl+Shift+F",
     "toggleGroup": "Toggle group: Space"
   },
   "notFound": {
@@ -131,6 +132,16 @@
     },
     "graphDirection": {
       "label": "Graph Direction"
+    },
+    "graphFilters": {
+      "clearFilters": "Clear Filters",
+      "durationGte": "Min duration (s)",
+      "durationGteHint": "For mapped tasks, measures total span across all instances",
+      "mapIndex": "Min. map index",
+      "mapIndexHint": "Shows mapped tasks expanded to at least this index",
+      "selectStatus": "Select status",
+      "selectTaskGroup": "Select task group",
+      "title": "Task Filters"
     },
     "showVersionIndicator": {
       "label": "Show Version Indicator",

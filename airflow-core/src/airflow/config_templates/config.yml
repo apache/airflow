@@ -2997,6 +2997,20 @@ dag_processor:
       example: ~
       default: "warning"
 
+state_store:
+  description: |
+    Configuration for task and asset state storage backend.
+  options:
+    backend:
+      description: |
+        Full dotted path to the class that implements state storage for tasks and assets.
+        The class must be a subclass of ``BaseStateBackend``.
+        The default implementation persists state in the Airflow metadata database.
+      version_added: 3.3.0
+      type: string
+      example: "mypackage.state.CustomStateBackend"
+      default: "airflow.state.metastore.MetastoreStateBackend"
+
 profiling:
   description: |
     Configuration for memory profiling in Airflow component.

@@ -29,6 +29,7 @@ export type CustomNodeProps = {
   depth?: number;
   height?: number;
   id: string;
+  isFiltered?: boolean;
   isGroup?: boolean;
   isMapped?: boolean;
   isOpen?: boolean;
@@ -123,6 +124,7 @@ type Edge = {
 export type EdgeData = {
   rest: {
     edgeType?: "data" | "scheduling";
+    isFiltered?: boolean;
     isSelected?: boolean;
     isSetupTeardown?: boolean;
   } & ElkExtendedEdge;

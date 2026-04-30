@@ -18,7 +18,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.providers.amazon.aws.operators.s3tables import S3TablesCreateTableOperator
+from airflow.providers.amazon.aws.operators.s3_tables import (
+    S3TablesCreateTableOperator,
+    S3TablesDeleteTableOperator,
+)
 from airflow.providers.common.compat.sdk import DAG, chain
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -75,17 +78,6 @@ with DAG(
         boto3.client("s3tables").create_namespace(tableBucketARN=table_bucket_arn, namespace=[namespace])
 
     @task(trigger_rule=TriggerRule.ALL_DONE)
-    def delete_table(table_bucket_arn: str, namespace: str, name: str):
-        """Delete the table."""
-        import boto3
-
-        client = boto3.client("s3tables")
-        try:
-            client.delete_table(tableBucketARN=table_bucket_arn, namespace=namespace, name=name)
-        except client.exceptions.NotFoundException:
-            pass
-
-    @task(trigger_rule=TriggerRule.ALL_DONE)
     def delete_namespace(table_bucket_arn: str, namespace: str):
         """Delete the namespace."""
         import boto3
@@ -120,6 +112,16 @@ with DAG(
     )
     # [END howto_operator_s3tables_create_table]
 
+    # [START howto_operator_s3tables_delete_table]
+    delete_table = S3TablesDeleteTableOperator(
+        task_id="delete_table",
+        table_bucket_arn=bucket_arn,
+        namespace=namespace,
+        table_name=table_name,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_s3tables_delete_table]
+
     chain(
         # TEST SETUP
         test_context,
@@ -128,7 +130,7 @@ with DAG(
         # TEST BODY
         create_table,
         # TEST TEARDOWN
-        delete_table(table_bucket_arn=bucket_arn, namespace=namespace, name=table_name),
+        delete_table,
         delete_namespace(table_bucket_arn=bucket_arn, namespace=namespace),
         delete_table_bucket(table_bucket_arn=bucket_arn),
     )

@@ -92,19 +92,23 @@ export const flattenNodes = (
 
 export const flattenGraphNodes = (
   nodes: Array<NodeResponse>,
-  depth: number = 0,
-): { allGroupIds: Array<string> } => {
+): { allGroupIds: Array<string>; allOperators: Array<string> } => {
   let allGroupIds: Array<string> = [];
+  const operators = new Set<string>();
 
   nodes.forEach((node) => {
+    if (node.operator !== undefined && node.operator !== null) {
+      operators.add(node.operator);
+    }
     if (node.children) {
       allGroupIds.push(node.id);
 
-      const { allGroupIds: childGroupIds } = flattenGraphNodes(node.children, depth + 1);
+      const { allGroupIds: childGroupIds, allOperators: childOperators } = flattenGraphNodes(node.children);
 
       allGroupIds = [...allGroupIds, ...childGroupIds];
+      childOperators.forEach((op) => operators.add(op));
     }
   });
 
-  return { allGroupIds };
+  return { allGroupIds, allOperators: [...operators].sort() };
 };

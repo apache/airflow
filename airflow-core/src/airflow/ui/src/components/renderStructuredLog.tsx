@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable max-lines */
 import { chakra, Code, Link } from "@chakra-ui/react";
 import type { TFunction } from "i18next";
 import type { JSX } from "react";
 import * as React from "react";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { StructuredLogMessage } from "openapi/requests/types.gen";
+import type { StructuredLogMessage, TaskInstancesLogResponse } from "openapi/requests/types.gen";
 import AnsiRenderer from "src/components/AnsiRenderer";
 import Time from "src/components/Time";
 import { urlRegex } from "src/constants/urlRegex";
@@ -108,6 +110,69 @@ const addAnsiWithLinks = (line: string) => {
 };
 
 const sourceFields = ["logger", "chan", "lineno", "filename", "loc"];
+
+// Fields bound once per task-instance process via bind_contextvars — identical on every log line,
+// so we strip them from per-line rendering and show them once as a preamble instead.
+export const tiContextFields = ["ti_id", "dag_id", "task_id", "run_id", "try_number", "map_index"];
+
+export const renderTIContextPreamble = (
+  context: Record<string, unknown>,
+  renderingMode: "jsx" | "text" = "jsx",
+  label?: string,
+): JSX.Element | string => {
+  const fields = tiContextFields.filter((field) => field in context);
+
+  if (renderingMode === "text") {
+    const prefix = label === undefined ? "" : `${label} `;
+
+    return prefix + fields.map((field) => `${field}=${String(context[field])}`).join(" ");
+  }
+
+  return (
+    <chakra.span lineHeight={1.5} opacity={0.7}>
+      {label === undefined ? undefined : <chakra.span fontWeight="medium">{label}</chakra.span>}
+      {fields.map((field) => (
+        <React.Fragment key={field}>
+          {" "}
+          <span>
+            <chakra.span color="fg.info">{field}</chakra.span>={String(context[field])}
+          </span>
+        </React.Fragment>
+      ))}
+    </chakra.span>
+  );
+};
+
+const extractFromStructuredDatum = (
+  line: string | StructuredLogMessage,
+): Record<string, unknown> | undefined => {
+  if (typeof line === "string") {
+    return undefined;
+  }
+  const ctx: Record<string, unknown> = {};
+
+  for (const field of tiContextFields) {
+    if (Object.hasOwn(line, field) && line[field] !== undefined) {
+      ctx[field] = line[field];
+    }
+  }
+
+  return Object.keys(ctx).length > 0 ? ctx : undefined;
+};
+
+export const extractTIContext = (
+  data: TaskInstancesLogResponse["content"],
+): Record<string, unknown> | undefined => {
+  for (const datum of data) {
+    const ctx = extractFromStructuredDatum(datum);
+
+    if (ctx !== undefined) {
+      return ctx;
+    }
+  }
+
+  return undefined;
+};
 
 const renderStructuredLogImpl = ({
   index,
@@ -238,6 +303,9 @@ const renderStructuredLogImpl = ({
   for (const key in reStructured) {
     if (Object.hasOwn(reStructured, key)) {
       if (!showSource && sourceFields.includes(key)) {
+        continue; // eslint-disable-line no-continue
+      }
+      if (tiContextFields.includes(key)) {
         continue; // eslint-disable-line no-continue
       }
       const val = reStructured[key] as boolean | number | object | string | null;

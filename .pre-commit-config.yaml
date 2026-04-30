@@ -176,6 +176,8 @@ repos:
           - "||"
           - --license-filepath
           - scripts/ci/license-templates/SHORT_LICENSE.md
+          - --detect-license-in-X-top-lines
+          - '30'
           - --fuzzy-match-generates-todo
         files:
           (?x)
@@ -186,12 +188,7 @@ repos:
           ^(?:.*/)?SKILL\.md$
         exclude:
           (?x)
-          ^scripts/ci/license-templates/|
-          ^\.github/instructions/|
-          ^\.github/skills/airflow-translations/SKILL\.md$|
-          ^\.github/skills/pr-stats/SKILL\.md$|
-          ^\.github/skills/pr-triage/SKILL\.md$|
-          ^\.github/skills/maintainer-review/SKILL\.md$
+          ^scripts/ci/license-templates/
       - id: insert-license
         name: Add license for all other files
         args:
@@ -289,6 +286,9 @@ repos:
         alias: blacken-docs
         additional_dependencies:
          - 'black==26.1.0'
+        exclude: >
+          (?x)
+          ^\.github/skills/aip-user-stories
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
@@ -1015,6 +1015,12 @@ repos:
         language: python
         pass_filenames: true
         files: ^(airflow-core|airflow-ctl|task-sdk|providers|shared)/.*\.py$
+      - id: check-no-new-airflow-core-utils-modules
+        name: Check that no new modules are added under airflow-core/src/airflow/utils
+        entry: ./scripts/ci/prek/check_no_new_airflow_core_utils_modules.py
+        language: python
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/utils/[^/]+$|^scripts/ci/prek/known_airflow_core_utils_modules\.txt$|^scripts/ci/prek/check_no_new_airflow_core_utils_modules\.py$
       - id: bandit
         name: bandit
         description: "Bandit is a tool for finding common security issues in Python code"
