@@ -22,6 +22,8 @@ import re
 import shutil
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from collections.abc import Generator
 from functools import cache, partial
 from multiprocessing import Pool
@@ -86,6 +88,77 @@ def regenerate_provider_dependencies_once() -> None:
         subprocess.check_call(
             ["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()], cwd=AIRFLOW_ROOT_PATH
         )
+
+
+def _fetch_pypi_released_versions(package_name: str) -> set[str] | None:
+    """
+    Fetch the set of versions of ``package_name`` released on PyPI.
+
+    Returns ``None`` on network/HTTP error so the caller can skip pruning
+    rather than crash a long batch run.
+    """
+    pypi_url = f"https://pypi.org/pypi/{package_name}/json"
+    try:
+        with urllib.request.urlopen(pypi_url, timeout=30) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as e:
+        console_print(f"[warning]Could not fetch PyPI data for {package_name}: {e}")
+        return None
+    return set((data.get("releases") or {}).keys())
+
+
+def prune_unreleased_versions_from_provider_yaml(provider_id: str) -> list[str]:
+    """
+    Check ``versions[1:]`` in a provider's ``provider.yaml`` against PyPI.
+
+    The first entry is intentionally skipped — it is the in-progress next
+    release, which is allowed to predate its PyPI publication. For every
+    other entry, if PyPI does not list that exact version, the entry is
+    removed from the file in place.
+
+    Returns the list of versions that were removed, in original order.
+    Returns ``[]`` if nothing was pruned (or PyPI lookup failed).
+    """
+    import yaml
+
+    # Local import to avoid a circular import: packages.py already depends on
+    # provider_dependencies.py via get_provider_dependencies() lookups.
+    from airflow_breeze.utils.packages import get_provider_yaml
+
+    provider_yaml_path = get_provider_yaml(provider_id)
+    provider_yaml_text = provider_yaml_path.read_text()
+    provider_yaml_dict = yaml.safe_load(provider_yaml_text)
+    versions: list[str] = provider_yaml_dict.get("versions") or []
+    if len(versions) <= 1:
+        return []
+
+    package_name = "apache-airflow-providers-" + provider_id.replace(".", "-")
+    pypi_released = _fetch_pypi_released_versions(package_name)
+    if pypi_released is None:
+        # On network failure, leave the file alone — better than deleting
+        # entries based on incomplete data.
+        return []
+
+    to_prune = [v for v in versions[1:] if v not in pypi_released]
+    if not to_prune:
+        return []
+
+    new_text = provider_yaml_text
+    for v in to_prune:
+        # Match the exact line shape produced by _update_version_in_provider_yaml
+        # in provider_documentation.py: two-space indent, "- ", version, EOL.
+        # `[ \t]*\n` (not `\s*\n`) avoids consuming the next line's newline.
+        new_text = re.sub(
+            rf"^[ \t]+-[ \t]+{re.escape(v)}[ \t]*\n",
+            "",
+            new_text,
+            count=1,
+            flags=re.MULTILINE,
+        )
+
+    if new_text != provider_yaml_text:
+        provider_yaml_path.write_text(new_text)
+    return to_prune
 
 
 def _calculate_provider_deps_hash():

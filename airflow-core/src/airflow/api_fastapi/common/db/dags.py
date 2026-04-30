@@ -37,13 +37,13 @@ def generate_dag_with_latest_run_query(
     max_run_filters: list[BaseParam], order_by: SortParam, *, dag_ids: set[str] | None = None
 ) -> Select:
     """
-    Generate a query to fetch DAGs with their latest run.
+    Generate a query to fetch Dags with their latest run.
 
     :param max_run_filters: List of filters to apply to the latest run
     :param order_by: Sort parameter for ordering results
-    :param dag_ids: Optional set of DAG IDs to limit the query to. When provided, both the main
-        DAG query and the subquery for finding the latest runs will be filtered to
-        only these DAG IDs, improving performance when users have limited DAG access.
+    :param dag_ids: Optional set of Dag IDs to limit the query to. When provided, both the main
+        Dag query and the subquery for finding the latest runs will be filtered to
+        only these Dag IDs, improving performance when users have limited Dag access.
     :return: SQLAlchemy Select statement
     """
     query = select(DagModel).options(selectinload(DagModel.tags))

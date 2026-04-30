@@ -2440,12 +2440,14 @@
                         "retentionDays": {
                             "description": "Number of days to retain the logs when running the Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.retentionDays`` instead). Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                             "type": "integer",
-                            "default": 15
+                            "default": 15,
+                            "minimum": 0
                         },
                         "retentionMinutes": {
                             "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.retentionMinutes`` instead). Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                             "type": "integer",
-                            "default": 0
+                            "default": 0,
+                            "minimum": 0
                         },
                         "frequencyMinutes": {
                             "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar (deprecated, use ``workers.celery.logGroomerSidecar.frequencyMinutes`` instead).",
@@ -3664,7 +3666,8 @@
                                         "integer",
                                         "null"
                                     ],
-                                    "default": null
+                                    "default": null,
+                                    "minimum": 0
                                 },
                                 "retentionMinutes": {
                                     "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
@@ -3672,7 +3675,8 @@
                                         "integer",
                                         "null"
                                     ],
-                                    "default": null
+                                    "default": null,
+                                    "minimum": 0
                                 },
                                 "frequencyMinutes": {
                                     "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar.",
@@ -10639,7 +10643,7 @@
             ]
         },
         "dags": {
-            "description": "DAGs settings.",
+            "description": "Dags settings.",
             "type": "object",
             "x-docsSection": "Airflow",
             "additionalProperties": false,
@@ -10757,7 +10761,7 @@
                             "default": "tests/dags"
                         },
                         "wait": {
-                            "description": "Interval between git sync attempts in seconds. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
+                            "description": "Interval between git sync attempts in seconds. High values are more likely to cause Dags to become out of sync between different components. Low values cause more traffic to the remote git repository.",
                             "type": [
                                 "integer",
                                 "null"
@@ -10765,7 +10769,7 @@
                             "default": null
                         },
                         "period": {
-                            "description": "Interval between git sync attempts in Go-style duration string. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
+                            "description": "Interval between git sync attempts in Go-style duration string. High values are more likely to cause Dags to become out of sync between different components. Low values cause more traffic to the remote git repository.",
                             "type": "string",
                             "default": "5s"
                         },
@@ -14400,12 +14404,14 @@
                 "retentionDays": {
                     "description": "Number of days to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                     "type": "integer",
-                    "default": 15
+                    "default": 15,
+                    "minimum": 0
                 },
                 "retentionMinutes": {
                     "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar. Total retention time is ``retentionDays`` + ``retentionMinutes``.",
                     "type": "integer",
-                    "default": 0
+                    "default": 0,
+                    "minimum": 0
                 },
                 "frequencyMinutes": {
                     "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar.",

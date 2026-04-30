@@ -105,6 +105,44 @@ class TestDagRunOperator:
             session.commit()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    def test_trigger_dagrun_with_run_after(self):
+        """
+        Test TriggerDagRunOperator.
+
+        We only verify that the operator runs and raises correct exception. The actual execution logic
+        after the exception is in Task SDK code.
+        """
+        with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf={"foo": "bar"},
+                run_after=timezone.datetime(2025, 2, 19, 12, 0, 0),
+            )
+
+            # Ensure correct exception is raised
+            with pytest.raises(DagRunTriggerException) as exc_info:
+                task.execute(context={})
+
+            assert exc_info.value.trigger_dag_id == TRIGGERED_DAG_ID
+            assert exc_info.value.conf == {"foo": "bar"}
+            assert exc_info.value.logical_date is None
+            assert exc_info.value.reset_dag_run is False
+            assert exc_info.value.skip_when_already_exists is False
+            assert exc_info.value.wait_for_completion is False
+            assert exc_info.value.allowed_states == [DagRunState.SUCCESS]
+            assert exc_info.value.failed_states == [DagRunState.FAILED]
+            if getattr(exc_info, "note", None) is not None:
+                assert exc_info.value.note == "Test note"
+
+            expected_run_id = DagRun.generate_run_id(
+                run_type=DagRunType.MANUAL, run_after=task.run_after
+            ).rsplit("_", 1)[0]
+            # rsplit because last few characters are random.
+            assert exc_info.value.dag_run_id.rsplit("_", 1)[0] == expected_run_id
+            assert task.trigger_run_id.rsplit("_", 1)[0] == expected_run_id  # run_id is saved as attribute
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
     def test_trigger_dagrun(self):
         """
         Test TriggerDagRunOperator.
@@ -557,7 +595,7 @@ class TestDagRunOperatorAF2:
         with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
             with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
                 task = TriggerDagRunOperator(
-                    task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID, note="Test note"
+                    task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID, note="Test note", run_after=None
                 )
             mock_warning = mock.patch.object(task.log, "warning").start()
             dag_maker.sync_dagbag_to_db()
@@ -566,11 +604,30 @@ class TestDagRunOperatorAF2:
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
             dagrun = dag_maker.session.scalar(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID))
+            unsupported_params = ["run_after", "note"]
             assert mock_warning.mock_calls == [
-                mock.call("Parameter 'note' is not supported in Airflow 2.x and will be ignored.")
+                mock.call(
+                    "The following parameters are not supported in Airflow 2.x and will be ignored: %s",
+                    ", ".join(unsupported_params),
+                )
             ]
             assert dagrun.run_type == DagRunType.MANUAL
             assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, dagrun.logical_date)
+
+    def test_trigger_dagrun_does_not_warn_for_default_unsupported_params(
+        self, dag_maker, mock_supervisor_comms
+    ):
+        """Test TriggerDagRunOperator does not warn for unsupported params when they are not provided."""
+        with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
+            with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
+                task = TriggerDagRunOperator(task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID)
+            mock_warning = mock.patch.object(task.log, "warning").start()
+            dag_maker.sync_dagbag_to_db()
+            parse_and_sync_to_db(self.f_name)
+            dag_maker.create_dagrun()
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+            mock_warning.assert_not_called()
 
     def test_explicitly_provided_trigger_run_id_is_saved_as_attr(self, dag_maker, session):
         with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):

@@ -34,6 +34,7 @@ import { Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
 
@@ -144,6 +145,7 @@ export const Connections = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
   const [connectionIdPattern, setConnectionIdPattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
+  const advancedSearch = useAdvancedSearch("connections");
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   useConnectionTypeMeta(); // Pre-fetch connection type metadata
@@ -151,7 +153,9 @@ export const Connections = () => {
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["connection_id"];
   const { data, error, isFetching, isLoading } = useConnectionServiceGetConnections({
-    connectionIdPrefixPattern: connectionIdPattern ?? undefined,
+    ...(advancedSearch.enabled
+      ? { connectionIdPattern: connectionIdPattern ?? undefined }
+      : { connectionIdPrefixPattern: connectionIdPattern ?? undefined }),
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
@@ -191,6 +195,7 @@ export const Connections = () => {
     <>
       <VStack alignItems="none">
         <SearchBar
+          advancedSearch={advancedSearch}
           defaultValue={connectionIdPattern ?? ""}
           onChange={handleSearchChange}
           placeholder={translate("connections.searchPlaceholder")}

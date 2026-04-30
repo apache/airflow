@@ -64,7 +64,7 @@ def list_dag_warnings(
     readable_dag_warning_filter: ReadableDagWarningsFilterDep,
     session: SessionDep,
 ) -> DAGWarningCollectionResponse:
-    """Get a list of DAG warnings."""
+    """Get a list of Dag warnings."""
     dag_warnings_select, total_entries = paginated_select(
         statement=select(DagWarning).options(joinedload(DagWarning.dag_model)),
         filters=[warning_type, dag_id, readable_dag_warning_filter],

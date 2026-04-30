@@ -633,7 +633,7 @@ paths:
       tags:
       - Dashboard
       summary: Dag Stats
-      description: Return basic DAG stats with counts of DAGs in various states.
+      description: Return basic Dag stats with counts of Dags in various states.
       operationId: dag_stats
       responses:
         '200':
@@ -650,13 +650,13 @@ paths:
       tags:
       - Deadlines
       summary: Get Deadlines
-      description: 'Get deadlines for a DAG run.
+      description: 'Get deadlines for a Dag run.
 
 
         This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve
         Deadlines for all
 
-        DAGs and DAG runs.'
+        Dags and Dag runs.'
       operationId: get_deadlines
       security:
       - OAuth2PasswordBearer: []
@@ -816,7 +816,7 @@ paths:
       tags:
       - Deadlines
       summary: Get Dag Deadline Alerts
-      description: Get all deadline alerts defined on a DAG.
+      description: Get all deadline alerts defined on a Dag.
       operationId: get_dag_deadline_alerts
       security:
       - OAuth2PasswordBearer: []
@@ -1427,9 +1427,11 @@ paths:
         progressively without waiting for all runs to complete.
 
 
-        The serialized Dag structure is loaded once and reused for all runs that
+        The serialized Dag structure is served from the app-wide ``DBDagBag`` cache
 
-        share the same ``dag_version_id``, avoiding repeated deserialization.'
+        (keyed by ``dag_version_id``), which avoids repeated deserialization across
+
+        runs of the same version *and* across requests.'
       operationId: get_grid_ti_summaries_stream
       security:
       - OAuth2PasswordBearer: []
@@ -1524,7 +1526,7 @@ paths:
       tags:
       - Calendar
       summary: Get Calendar
-      description: Get calendar data for a DAG including historical and planned DAG
+      description: Get calendar data for a Dag including historical and planned Dag
         runs.
       operationId: get_calendar
       security:

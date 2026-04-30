@@ -55,12 +55,13 @@ Airflow Helm Chart `1.2x.x` releases will be cut from [chart/v1-2x-test](https:/
 The 2.x line is not just a version bump. The refurbish work converging on `main` includes:
 
 * **Dropped deprecations.** Long-deprecated values, templates, and behaviours that have
-  carried warnings through the 1.2x.x line are removed in 2.x. Anything you remove on
+  carried warnings through the 1.x.x line are removed in 2.x. Anything you remove on
   `main` should land with a deprecation warning on `chart/v1-2x-test` first (when
-  feasible) so 1.2x.x users get one release of notice before the breaking change in 2.x.
+  feasible), so users of the latest Helm Chart version get one release of notice before the
+  breaking change in 2.x.
 * **Slimmer core chart, kustomizable overlays for optional features.** A number of
   features that today live inside the chart as feature-flagged templates and `values.yaml`
-  knobs are being moved out of the core chart and into **separate kustomizable overlays**.
+  knobs are being moved out of the core chart into **separate kustomizable overlays**.
   The core chart on `main` is being trimmed to the components every Airflow deployment
   needs; opt-in features (extra integrations, optional sidecars, niche deployment shapes,
   etc.) ship as overlays that users layer on with `kustomize` on top of the rendered
@@ -74,26 +75,26 @@ The 2.x line is not just a version bump. The refurbish work converging on `main`
 > [!IMPORTANT]
 > When you propose a change on `main`, decide up-front which of the three buckets it
 > falls into and call it out in the PR description: (1) bug-fix or doc-fix that should
-> also be cherry-picked to `chart/v1-2x-test`, (2) deprecation that lands on
+> be cherry-picked to `chart/v1-2x-test`, (2) deprecation that lands on
 > `chart/v1-2x-test` as a warning and on `main` as a removal, or (3) `main`-only
-> restructuring / overlay extraction that 1.2x.x users will not see.
+> restructuring/overlay extraction that 1.2x.x users will not see.
 
 ## Scope of Helm Chart 2.0
 
-Concrete in-scope items for the first 2.x release, captured from the
+Concrete in-scope items for the 2.0 release, captured from the
 [Release Plan](https://cwiki.apache.org/confluence/display/AIRFLOW/Release+Plan)
 on Apache Confluence:
 
-* **Drop support for Airflow `< 3.1`.** The 2.x chart will only target Airflow 3.1+,
-  which lets us remove the compatibility branches that today bridge 2.x and 3.x
-  Airflow on the same chart.
+* **Drop support for Airflow `< 3.1`.** The 2.0 chart will only target Airflow 3.1+,
+  which removes the compatibility branches that today bridge 2.x and 3.x Airflow on
+  the same chart.
 * **Cut out complex features and document Kustomize.** This is the overlay extraction
   work referenced above: features that don't belong in every deployment move out of
   the core chart, and the chart docs gain a Kustomize section explaining how users
   compose them back in.
-* **Drop in-chart DB support, document a "simple" Postgres container setup, and use
-  it in our own CI.** The bundled Postgres/MySQL subcharts go away; users running a
-  trivial dev/test setup get a documented standalone Postgres container recipe, and
+* **Drop in-chart DB support, document a "simple" PostgreSQL container setup, and use
+  it in our own CI.** The bundled PostgreSQL subcharts go away; users running a
+  trivial dev/test setup get a documented standalone PostgreSQL container recipe, and
   CI switches to that recipe so the chart itself stays focused on Airflow.
 * **Review bumping the default Helm tooling to 4.0.**
 * **Consider supporting multiple Airflow instances in a single Kubernetes namespace.**
@@ -105,9 +106,8 @@ on Apache Confluence:
 > on this file.
 
 The 1.2x.x release line on `chart/v1-2x-test` continues in parallel on its own
-cadence (the next 1.2x.x release at the time of writing is 1.22.0). The exact dates
-move; the [Release Plan](https://cwiki.apache.org/confluence/display/AIRFLOW/Release+Plan)
-holds the current schedule.
+cadence. The [Release Plan](https://cwiki.apache.org/confluence/display/AIRFLOW/Release+Plan)
+holds the current schedule for next 1.2x.x releases.
 
 # Contributors
 
@@ -145,7 +145,7 @@ PRs should target `main` branch.
 
 ### Contributing a bug-fix that should land in 1.2x.x
 
-Where you open the PR depends on **where the bug exists**. Pick one of the three:
+Where you open the bug-fix PR, the target branch depends on **where the bug exists**. Pick one of the three:
 
 1. **The bug exists in both `main` (2.x) and `chart/v1-2x-test` (1.2x.x).**
    This is the common case for any bug that has been around for a while.

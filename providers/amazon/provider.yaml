@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1776777112
+source-date-epoch: 1777234668
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.27.0
   - 9.26.0
   - 9.25.0
   - 9.24.0
@@ -298,6 +299,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/s3/s3.rst
     tags: [aws]
+  - integration-name: Amazon S3 Tables
+    external-doc-url: https://aws.amazon.com/s3/features/tables/
+    logo: /docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/s3_tables.rst
+    tags: [aws]
   - integration-name: Amazon Systems Manager (SSM)
     external-doc-url: https://aws.amazon.com/systems-manager/
     logo: /docs/integration-logos/AWS-Systems-Manager_light-bg@4x.png
@@ -323,6 +330,7 @@ integrations:
     logo: /docs/integration-logos/AWS-Glue_light-bg@4x.png
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/glue.rst
+      - /docs/apache-airflow-providers-amazon/operators/glue_catalog.rst
     tags: [aws]
   - integration-name: AWS Lambda
     external-doc-url: https://aws.amazon.com/lambda/
@@ -386,6 +394,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/mwaa.rst
     tags: [aws]
+  - integration-name: Amazon S3 Vectors
+    external-doc-url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors.html
+    logo: /docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/s3_vectors.rst
+    tags: [aws]
 
 
 operators:
@@ -437,6 +451,7 @@ operators:
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.operators.glue
+      - airflow.providers.amazon.aws.operators.glue_catalog
       - airflow.providers.amazon.aws.operators.glue_crawler
   - integration-name: AWS Lambda
     python-modules:
@@ -450,6 +465,9 @@ operators:
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3
+  - integration-name: Amazon S3 Tables
+    python-modules:
+      - airflow.providers.amazon.aws.operators.s3_tables
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker
@@ -490,6 +508,9 @@ operators:
   - integration-name: Amazon Neptune
     python-modules:
       - airflow.providers.amazon.aws.operators.neptune
+  - integration-name: Amazon S3 Vectors
+    python-modules:
+      - airflow.providers.amazon.aws.operators.s3_vectors
 
 sensors:
   - integration-name: Amazon Athena

@@ -42,6 +42,7 @@ import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { DagVersionSelect } from "src/components/DagVersionSelect";
+import { GraphTaskFilters } from "src/components/GraphTaskFilters";
 import { Tooltip } from "src/components/ui";
 import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import type { DagView } from "src/constants/dagView";
@@ -208,6 +209,7 @@ export const PanelButtons = ({
         <Flex alignItems="center" gap={1} justifyContent="space-between">
           <ToggleGroups />
           <TaskStreamFilter />
+          {dagView === "graph" && <GraphTaskFilters />}
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>
@@ -315,7 +317,15 @@ export const PanelButtons = ({
         </Flex>
       </Flex>
 
-      {dagView !== "graph" && (
+      {dagView === "graph" ? (
+        <Flex justifyContent="flex-end" mt={1}>
+          <Flex color="fg.muted" gap={2}>
+            <Tooltip content={<Text>{translate("dag:navigation.openGraphFilters")}</Text>} portalled>
+              <LuKeyboard />
+            </Tooltip>
+          </Flex>
+        </Flex>
+      ) : (
         <Flex justifyContent="space-between" mt={1}>
           <GridFilters />
           <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>

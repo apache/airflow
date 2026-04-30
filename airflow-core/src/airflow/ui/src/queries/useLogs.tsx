@@ -25,7 +25,11 @@ import innerText from "react-innertext";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
 import type { TaskInstanceResponse, TaskInstancesLogResponse } from "openapi/requests/types.gen";
-import { renderStructuredLog } from "src/components/renderStructuredLog";
+import {
+  extractTIContext,
+  renderStructuredLog,
+  renderTIContextPreamble,
+} from "src/components/renderStructuredLog";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 import { parseStreamingLogContent } from "src/utils/logs";
@@ -169,6 +173,34 @@ const parseLogs = ({
     // Handle unclosed groups: their lines are already in result as flat entries
     return result;
   })();
+
+  // Extract TI identity fields from the first structured log line and insert a single preamble
+  // entry after the "Log message source details" group (or at position 0 if absent), so they
+  // appear once rather than repeated on every line.
+  const tiContext = extractTIContext(data);
+
+  if (tiContext !== undefined) {
+    let insertAt = 0;
+    const sourceDetailsIndex = flatEntries.findIndex(
+      (entry) =>
+        entry.group?.type === "header" &&
+        typeof entry.element === "string" &&
+        entry.element.startsWith("Log message source details"),
+    );
+
+    const sourceGroup = sourceDetailsIndex === -1 ? undefined : flatEntries[sourceDetailsIndex];
+
+    if (sourceGroup?.group !== undefined) {
+      const sourceGroupId = sourceGroup.group.id;
+      const lastMemberIndex = flatEntries.reduce(
+        (last, entry, idx) => (entry.group?.id === sourceGroupId ? idx : last),
+        sourceDetailsIndex,
+      );
+
+      insertAt = lastMemberIndex + 1;
+    }
+    flatEntries.splice(insertAt, 0, { element: renderTIContextPreamble(tiContext, "jsx", "Task Identity") });
+  }
 
   return {
     parsedLogs: flatEntries,

@@ -1657,7 +1657,7 @@ class JobCollectionResponse(BaseModel):
 
 class PatchTaskInstanceBody(BaseModel):
     """
-    Request body for Clear Task Instances endpoint.
+    Request body for patching task instance state.
     """
 
     model_config = ConfigDict(
