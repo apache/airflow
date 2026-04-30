@@ -93,7 +93,7 @@ jobs:
       disable-airflow-repo-cache: "false"
 
   build-and-publish-registry:
-    timeout-minutes: 30
+    timeout-minutes: 45
     name: "Build & Publish Registry"
     needs: [build-ci-image]
     runs-on: ubuntu-latest
