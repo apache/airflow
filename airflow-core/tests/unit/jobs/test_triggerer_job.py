@@ -375,7 +375,7 @@ def test_metric_tags_raises_without_job(jobless_supervisor):
 
 def test_emit_metrics_uses_metric_tags_override(jobless_supervisor, mocker):
     """Subclasses can supply tags by overriding metric_tags() instead of threading args."""
-    gauge = mocker.patch("airflow.jobs.triggerer_job_runner.DualStatsManager.gauge")
+    gauge = mocker.patch("airflow.jobs.triggerer_job_runner.stats.gauge")
     mocker.patch.object(
         TriggerRunnerSupervisor,
         "metric_tags",
@@ -386,7 +386,7 @@ def test_emit_metrics_uses_metric_tags_override(jobless_supervisor, mocker):
 
     assert gauge.call_count == 2
     for call in gauge.call_args_list:
-        assert call.kwargs["extra_tags"] == {"hostname": "astro-host", "deployment": "demo"}
+        assert call.kwargs["tags"] == {"hostname": "astro-host", "deployment": "demo"}
 
 
 def test_load_triggers_raises_without_job(jobless_supervisor, mocker):
