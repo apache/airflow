@@ -110,7 +110,7 @@ class AssetAndTimeSchedule(Timetable):
         self,
         *,
         timetable: Timetable,
-        assets: Collection[Asset] | BaseAsset | SerializedAssetBase,
+        assets: Collection[SerializedAsset] | SerializedAssetBase,
     ) -> None:
         self.timetable = timetable
 
