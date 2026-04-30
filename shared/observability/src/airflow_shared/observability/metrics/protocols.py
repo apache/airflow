@@ -30,8 +30,7 @@ DeltaType = int | float | datetime.timedelta
 class TimerProtocol(Protocol):
     """Type protocol for StatsLogger.timer."""
 
-    @property
-    def duration(self) -> float | None: ...
+    duration: float | None
 
     def __enter__(self) -> Self: ...
 

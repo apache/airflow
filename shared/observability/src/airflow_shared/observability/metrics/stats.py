@@ -294,10 +294,7 @@ class _DualTimer:
     def __init__(self, regular_timer: Timer, legacy_timer: Timer) -> None:
         self._regular = regular_timer
         self._legacy = legacy_timer
-
-    @property
-    def duration(self) -> float | None:
-        return self._regular.duration
+        self.duration: float | None = None
 
     def __enter__(self):
         return self.start()
@@ -313,6 +310,7 @@ class _DualTimer:
     def stop(self, send: bool = True) -> None:
         self._regular.stop(send=send)
         self._legacy.stop(send=send)
+        self.duration = self._regular.duration
 
 
 class Stats:
