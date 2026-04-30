@@ -28,6 +28,7 @@ import attrs
 import structlog
 from pydantic import Field, TypeAdapter
 
+from airflow.sdk._shared.logging.structlog import clear_structlog_shared_lock
 from airflow.sdk._shared.module_loading import accepts_context, accepts_keyword_args
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
@@ -378,3 +379,4 @@ def supervise_callback(
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()
+                clear_structlog_shared_lock(log_file_descriptor)

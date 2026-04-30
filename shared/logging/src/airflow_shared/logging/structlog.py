@@ -28,7 +28,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cache, cached_property, partial
 from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
+from typing import IO, TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
 
 import pygtrie
 import structlog
@@ -807,6 +807,16 @@ def reconfigure_logger(
         **getattr(logger, "_context", {}),
         __level_override=level_override,
     )
+
+
+def clear_structlog_shared_lock(log_file_descriptor: IO[Any]):
+    try:
+        from structlog._output import WRITE_LOCKS
+    except ImportError:
+        WRITE_LOCKS = None  # type: ignore[assignment]
+
+    if WRITE_LOCKS is not None:
+        WRITE_LOCKS.pop(log_file_descriptor, None)
 
 
 if __name__ == "__main__":
