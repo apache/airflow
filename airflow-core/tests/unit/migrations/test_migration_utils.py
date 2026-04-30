@@ -242,9 +242,8 @@ class TestIgnoreSqliteValueError:
 
         with settings.engine.connect() as conn:
             ctx = MigrationContext.configure(conn)
-            with Operations.context(ctx):
-                with ignore_sqlite_value_error():
-                    raise ValueError("should be suppressed on SQLite")
+            with Operations.context(ctx), ignore_sqlite_value_error():
+                raise ValueError("should be suppressed on SQLite")
 
     @pytest.mark.backend("postgres", "mysql")
     def test_non_sqlite_does_not_suppress(self):
@@ -252,16 +251,14 @@ class TestIgnoreSqliteValueError:
 
         with settings.engine.connect() as conn:
             ctx = MigrationContext.configure(conn)
-            with Operations.context(ctx):
-                with pytest.raises(ValueError, match="should propagate"):
-                    with ignore_sqlite_value_error():
-                        raise ValueError("should propagate")
+            with Operations.context(ctx), pytest.raises(ValueError, match="should propagate"):
+                with ignore_sqlite_value_error():
+                    raise ValueError("should propagate")
 
     def test_does_not_suppress_other_exceptions(self):
         """Even on SQLite, only ``ValueError`` is suppressed — other exceptions propagate."""
         with settings.engine.connect() as conn:
             ctx = MigrationContext.configure(conn)
-            with Operations.context(ctx):
-                with pytest.raises(TypeError):
-                    with ignore_sqlite_value_error():
-                        raise TypeError("not a ValueError")
+            with Operations.context(ctx), pytest.raises(TypeError):
+                with ignore_sqlite_value_error():
+                    raise TypeError("not a ValueError")

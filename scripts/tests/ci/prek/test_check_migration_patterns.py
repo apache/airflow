@@ -38,119 +38,162 @@ from ci.prek.check_migration_patterns import (
 
 
 def write_migration(tmp_path: Path, source: str) -> Path:
-    """Write *source* to a temp file that looks like a migration file."""
     p = tmp_path / "0099_test_migration.py"
     p.write_text(source)
     return p
 
 
 def parse_migration(tmp_path: Path, source: str) -> MigrationFile:
-    """Write *source* to a temp file and return a parsed ``MigrationFile``."""
     return MigrationFile.from_path(write_migration(tmp_path, source))
 
 
 class TestGetNoqaCodes:
-    def test_single_code(self):
-        assert _get_noqa_codes("op.execute(...)  # noqa: MIG001") == {"MIG001"}
+    @pytest.mark.parametrize(
+        ("line", "expected"),
+        [
+            pytest.param(
+                "op.execute(...)  # noqa: MIG001",
+                {"MIG001"},
+                id="single-code",
+            ),
+            pytest.param(
+                "op.execute(...)  # noqa: MIG001, MIG003",
+                {"MIG001", "MIG003"},
+                id="multiple-codes",
+            ),
+            pytest.param(
+                "op.execute('UPDATE foo SET x=1')",
+                set(),
+                id="no-noqa-comment",
+            ),
+            pytest.param(
+                "",
+                set(),
+                id="empty-string",
+            ),
+        ],
+    )
+    def test_get_noqa_codes(self, line: str, expected: set[str]) -> None:
+        assert _get_noqa_codes(line) == expected
 
-    def test_multiple_codes(self):
-        assert _get_noqa_codes("op.execute(...)  # noqa: MIG001, MIG003") == {"MIG001", "MIG003"}
-
-    def test_code_with_reason_suffix(self):
-        # Reason after '--' should NOT be included in the code set.
+    def test_code_with_reason_suffix(self) -> None:
         codes = _get_noqa_codes("op.execute(...)  # noqa: MIG003 -- safe in offline mode")
         assert "MIG003" in codes
         assert "--" not in "".join(codes)
         assert "safe" not in "".join(codes)
 
-    def test_no_noqa_comment(self):
-        assert _get_noqa_codes("op.execute('UPDATE foo SET x=1')") == set()
 
-    def test_empty_string(self):
-        assert _get_noqa_codes("") == set()
-
-
-class TestLineHasNoqa:
-    def test_line_has_matching_code(self):
-        lines = ["op.execute('UPDATE ...')  # noqa: MIG001"]
-        assert _line_has_noqa(lines, 1, "MIG001") is True
-
-    def test_line_has_different_code(self):
-        lines = ["op.execute('UPDATE ...')  # noqa: MIG002"]
-        assert _line_has_noqa(lines, 1, "MIG001") is False
-
-    @pytest.mark.parametrize("lineno", [0, 2], ids=["zero", "beyond_end"])
-    def test_out_of_bounds(self, lineno):
-        assert _line_has_noqa(["some line"], lineno, "MIG001") is False
+@pytest.mark.parametrize(
+    ("lines", "lineno", "code", "expected"),
+    [
+        pytest.param(
+            ["op.execute('UPDATE ...')  # noqa: MIG001"],
+            1,
+            "MIG001",
+            True,
+            id="matching-code",
+        ),
+        pytest.param(
+            ["op.execute('UPDATE ...')  # noqa: MIG002"],
+            1,
+            "MIG001",
+            False,
+            id="different-code",
+        ),
+        pytest.param(["some line"], 0, "MIG001", False, id="out-of-bounds-zero"),
+        pytest.param(["some line"], 2, "MIG001", False, id="out-of-bounds-beyond-end"),
+    ],
+)
+def test_line_has_noqa(lines: list[str], lineno: int, code: str, expected: bool) -> None:
+    assert _line_has_noqa(lines, lineno, code) is expected
 
 
 class TestCheckMig001:
-    def test_no_violation_no_guard(self, tmp_path):
-        """MIG001 only fires when disable_sqlite_fkeys IS present; no guard → no error."""
-        src = """
+    @pytest.mark.parametrize(
+        "src",
+        [
+            pytest.param(
+                """
 def upgrade():
     op.execute("UPDATE dag SET x=1")
-"""
-        assert check_mig001(parse_migration(tmp_path, src)) == []
-
-    def test_no_violation_dml_inside_guard(self, tmp_path):
-        """DML inside the guard block is fine."""
-        src = """
+""",
+                id="no-guard-no-error",
+            ),
+            pytest.param(
+                """
 def upgrade():
     with disable_sqlite_fkeys(op):
         op.execute("UPDATE dag SET x=1")
-"""
-        assert check_mig001(parse_migration(tmp_path, src)) == []
-
-    def test_violation_dml_before_guard(self, tmp_path):
-        """DML before disable_sqlite_fkeys fires MIG001."""
-        src = """
-def upgrade():
-    op.execute("UPDATE dag SET x=1")
-    with disable_sqlite_fkeys(op):
-        pass
-"""
-        errors = check_mig001(parse_migration(tmp_path, src))
-        assert len(errors) == 1
-        assert "MIG001" in errors[0]
-
-    @pytest.mark.parametrize(
-        "dml",
-        [
-            "INSERT INTO dag VALUES (1)",
-            "DELETE FROM dag WHERE id=1",
-        ],
-        ids=["insert", "delete"],
-    )
-    def test_violation_dml_keyword(self, tmp_path, dml):
-        src = f"""
-def upgrade():
-    op.execute("{dml}")
-    with disable_sqlite_fkeys(op):
-        pass
-"""
-        errors = check_mig001(parse_migration(tmp_path, src))
-        assert any("MIG001" in e for e in errors)
-
-    def test_violation_text_wrapped(self, tmp_path):
-        """op.execute(text("UPDATE ...")) also fires."""
-        src = """
-def upgrade():
-    op.execute(text("UPDATE dag SET x=1"))
-    with disable_sqlite_fkeys(op):
-        pass
-"""
-        errors = check_mig001(parse_migration(tmp_path, src))
-        assert any("MIG001" in e for e in errors)
-
-    def test_noqa_suppresses_mig001(self, tmp_path):
-        src = """
+""",
+                id="dml-inside-guard",
+            ),
+            pytest.param(
+                """
 def upgrade():
     op.execute("UPDATE dag SET x=1")  # noqa: MIG001
     with disable_sqlite_fkeys(op):
         pass
-"""
+""",
+                id="noqa-suppressed",
+            ),
+        ],
+    )
+    def test_no_violation(self, tmp_path, src):
         assert check_mig001(parse_migration(tmp_path, src)) == []
+
+    @pytest.mark.parametrize(
+        "src",
+        [
+            pytest.param(
+                """
+def upgrade():
+    op.execute("UPDATE dag SET x=1")
+    with disable_sqlite_fkeys(op):
+        pass
+""",
+                id="dml-before-guard",
+            ),
+            pytest.param(
+                """
+def upgrade():
+    op.execute("INSERT INTO dag VALUES (1)")
+    with disable_sqlite_fkeys(op):
+        pass
+""",
+                id="insert-before-guard",
+            ),
+            pytest.param(
+                """
+def upgrade():
+    op.execute("DELETE FROM dag WHERE id=1")
+    with disable_sqlite_fkeys(op):
+        pass
+""",
+                id="delete-before-guard",
+            ),
+            pytest.param(
+                """
+def upgrade():
+    op.execute(text("UPDATE dag SET x=1"))
+    with disable_sqlite_fkeys(op):
+        pass
+""",
+                id="text-wrapped",
+            ),
+            pytest.param(
+                """
+def downgrade():
+    op.execute("UPDATE dag SET x=1")
+    with disable_sqlite_fkeys(op):
+        pass
+""",
+                id="in-downgrade",
+            ),
+        ],
+    )
+    def test_violation(self, tmp_path, src):
+        errors = check_mig001(parse_migration(tmp_path, src))
+        assert any("MIG001" in e for e in errors)
 
     def test_noqa_wrong_code_does_not_suppress(self, tmp_path):
         src = """
@@ -162,116 +205,132 @@ def upgrade():
         errors = check_mig001(parse_migration(tmp_path, src))
         assert any("MIG001" in e for e in errors)
 
-    def test_violation_in_downgrade(self, tmp_path):
-        src = """
-def downgrade():
-    op.execute("UPDATE dag SET x=1")
-    with disable_sqlite_fkeys(op):
-        pass
-"""
-        errors = check_mig001(parse_migration(tmp_path, src))
-        assert any("MIG001" in e for e in errors)
-
 
 class TestCheckMig002:
-    def test_no_violation_ddl_inside_guard(self, tmp_path):
-        src = """
+    @pytest.mark.parametrize(
+        "src",
+        [
+            pytest.param(
+                """
 def upgrade():
     with disable_sqlite_fkeys(op):
         op.add_column("dag", sa.Column("x", sa.Integer()))
-"""
-        assert check_mig002(parse_migration(tmp_path, src)) == []
-
-    def test_violation_ddl_before_guard(self, tmp_path):
-        src = """
-def upgrade():
-    op.add_column("dag", sa.Column("x", sa.Integer()))
-    with disable_sqlite_fkeys(op):
-        pass
-"""
-        errors = check_mig002(parse_migration(tmp_path, src))
-        assert any("MIG002" in e for e in errors)
-
-    def test_dml_before_guard_does_not_trigger_mig002(self, tmp_path):
-        """DML is MIG001's territory; MIG002 must not double-report it."""
-        src = """
+""",
+                id="ddl-inside-guard",
+            ),
+            pytest.param(
+                """
 def upgrade():
     op.execute("UPDATE dag SET x=1")
     with disable_sqlite_fkeys(op):
         pass
-"""
-        errors = check_mig002(parse_migration(tmp_path, src))
-        assert errors == []
-
-    def test_noqa_suppresses_mig002(self, tmp_path):
-        src = """
+""",
+                id="dml-not-double-reported",
+            ),
+            pytest.param(
+                """
 def upgrade():
     op.add_column("dag", sa.Column("x", sa.Integer()))  # noqa: MIG002
     with disable_sqlite_fkeys(op):
         pass
-"""
+""",
+                id="noqa-suppressed",
+            ),
+        ],
+    )
+    def test_no_violation(self, tmp_path, src):
         assert check_mig002(parse_migration(tmp_path, src)) == []
 
-    def test_violation_batch_alter_table(self, tmp_path):
-        src = """
+    @pytest.mark.parametrize(
+        "src",
+        [
+            pytest.param(
+                """
+def upgrade():
+    op.add_column("dag", sa.Column("x", sa.Integer()))
+    with disable_sqlite_fkeys(op):
+        pass
+""",
+                id="add-column-before-guard",
+            ),
+            pytest.param(
+                """
 def upgrade():
     op.batch_alter_table("dag")
     with disable_sqlite_fkeys(op):
         pass
-"""
+""",
+                id="batch-alter-table-before-guard",
+            ),
+        ],
+    )
+    def test_violation(self, tmp_path, src):
         errors = check_mig002(parse_migration(tmp_path, src))
         assert any("MIG002" in e for e in errors)
 
 
 class TestCheckMig003:
-    def test_no_violation_no_dml(self, tmp_path):
-        src = """
+    @pytest.mark.parametrize(
+        "src",
+        [
+            pytest.param(
+                """
 def upgrade():
     op.add_column("dag", sa.Column("x", sa.Integer()))
-"""
-        assert check_mig003(parse_migration(tmp_path, src)) == []
-
-    def test_no_violation_offline_guard_present(self, tmp_path):
-        src = """
+""",
+                id="no-dml",
+            ),
+            pytest.param(
+                """
 def upgrade():
     if not context.is_offline_mode():
         op.execute("UPDATE dag SET x=1")
-"""
-        assert check_mig003(parse_migration(tmp_path, src)) == []
-
-    def test_violation_dml_without_guard(self, tmp_path):
-        src = """
-def upgrade():
-    op.execute("UPDATE dag SET x=1")
-"""
-        errors = check_mig003(parse_migration(tmp_path, src))
-        assert any("MIG003" in e for e in errors)
-
-    def test_noqa_suppresses_mig003(self, tmp_path):
-        src = """
+""",
+                id="offline-guard-present",
+            ),
+            pytest.param(
+                """
 def upgrade():
     op.execute("UPDATE dag SET x=1")  # noqa: MIG003
-"""
+""",
+                id="noqa-suppressed",
+            ),
+        ],
+    )
+    def test_no_violation(self, tmp_path, src):
         assert check_mig003(parse_migration(tmp_path, src)) == []
 
-    def test_violation_in_downgrade(self, tmp_path):
-        src = """
+    @pytest.mark.parametrize(
+        "src",
+        [
+            pytest.param(
+                """
+def upgrade():
+    op.execute("UPDATE dag SET x=1")
+""",
+                id="dml-without-guard",
+            ),
+            pytest.param(
+                """
 def downgrade():
     op.execute("DELETE FROM dag WHERE id=1")
-"""
+""",
+                id="in-downgrade",
+            ),
+        ],
+    )
+    def test_violation(self, tmp_path, src):
         errors = check_mig003(parse_migration(tmp_path, src))
         assert any("MIG003" in e for e in errors)
 
 
 def _parse_call(code: str) -> ast.Call:
-    """Parse a single expression and return the Call node."""
     node = ast.parse(code, mode="eval").body
     assert isinstance(node, ast.Call)
     return node
 
 
 def _parse_func(code: str) -> ast.FunctionDef:
-    """Parse code and return the first FunctionDef."""
     tree = ast.parse(code)
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
@@ -281,28 +340,29 @@ def _parse_func(code: str) -> ast.FunctionDef:
 
 class TestExtractDmlTableName:
     @pytest.mark.parametrize(
-        "sql, expected",
+        ("sql", "expected"),
         [
-            ('op.execute("UPDATE dag SET x=1")', "dag"),
-            ('op.execute("DELETE FROM dag_code")', "dag_code"),
-            ('op.execute("INSERT INTO new_table SELECT * FROM old")', "new_table"),
-            ('op.execute("INSERT IGNORE INTO dag_bundle (name) VALUES (1)")', "dag_bundle"),
-            ('op.execute("INSERT OR IGNORE INTO dag_bundle (name) VALUES (1)")', "dag_bundle"),
-            ("op.execute(\"update dag_run set run_type = 'x'\")", "dag_run"),
-            ('op.execute(text("UPDATE slot_pool SET x=1"))', "slot_pool"),
-            ('op.execute(sa.text("UPDATE slot_pool SET x=1"))', "slot_pool"),
-            ('op.execute("UPDATE `dag` SET x=1")', "dag"),
-        ],
-        ids=[
-            "update",
-            "delete_from",
-            "insert_into",
-            "insert_ignore",
-            "insert_or_ignore",
-            "lowercase_sql",
-            "text_wrapped",
-            "sa_text_wrapped",
-            "backtick_quoted",
+            pytest.param('op.execute("UPDATE dag SET x=1")', "dag", id="update"),
+            pytest.param('op.execute("DELETE FROM dag_code")', "dag_code", id="delete-from"),
+            pytest.param(
+                'op.execute("INSERT INTO new_table SELECT * FROM old")', "new_table", id="insert-into"
+            ),
+            pytest.param(
+                'op.execute("INSERT IGNORE INTO dag_bundle (name) VALUES (1)")',
+                "dag_bundle",
+                id="insert-ignore",
+            ),
+            pytest.param(
+                'op.execute("INSERT OR IGNORE INTO dag_bundle (name) VALUES (1)")',
+                "dag_bundle",
+                id="insert-or-ignore",
+            ),
+            pytest.param("op.execute(\"update dag_run set run_type = 'x'\")", "dag_run", id="lowercase-sql"),
+            pytest.param('op.execute(text("UPDATE slot_pool SET x=1"))', "slot_pool", id="text-wrapped"),
+            pytest.param(
+                'op.execute(sa.text("UPDATE slot_pool SET x=1"))', "slot_pool", id="sa-text-wrapped"
+            ),
+            pytest.param('op.execute("UPDATE `dag` SET x=1")', "dag", id="backtick-quoted"),
         ],
     )
     def test_extracts_table(self, sql, expected):
@@ -311,82 +371,84 @@ class TestExtractDmlTableName:
     @pytest.mark.parametrize(
         "sql",
         [
-            "op.execute()",
-            'op.execute("SELECT * FROM dag")',
-            "op.execute(some_var)",
+            pytest.param("op.execute()", id="no-args"),
+            pytest.param('op.execute("SELECT * FROM dag")', id="non-dml"),
+            pytest.param("op.execute(some_var)", id="variable-arg"),
         ],
-        ids=["no_args", "non_dml", "variable_arg"],
     )
     def test_returns_none(self, sql):
         assert _extract_dml_table_name(_parse_call(sql)) is None
 
 
 class TestCollectDdlTableNames:
-    def test_batch_alter_table(self):
-        func = _parse_func('def upgrade():\n    with op.batch_alter_table("dag") as b: pass')
-        assert _collect_ddl_table_names(func) == {"dag"}
-
-    def test_rename_table_collects_both(self):
-        func = _parse_func('def upgrade():\n    op.rename_table("old", "new")')
-        tables = _collect_ddl_table_names(func)
-        assert tables == {"old", "new"}
-
-    def test_add_column(self):
-        func = _parse_func('def upgrade():\n    op.add_column("dag_run", col)')
-        assert "dag_run" in _collect_ddl_table_names(func)
-
-    def test_variable_arg_skipped(self):
-        func = _parse_func("def upgrade():\n    op.batch_alter_table(table_name)")
-        assert _collect_ddl_table_names(func) == set()
-
-    def test_multiple_tables(self):
-        src = (
-            "def upgrade():\n"
-            '    with op.batch_alter_table("dag") as b: pass\n'
-            '    with op.batch_alter_table("task_instance") as b: pass\n'
-        )
+    @pytest.mark.parametrize(
+        ("src", "expected"),
+        [
+            pytest.param(
+                'def upgrade():\n    with op.batch_alter_table("dag") as b: pass',
+                {"dag"},
+                id="batch-alter-table",
+            ),
+            pytest.param(
+                'def upgrade():\n    op.rename_table("old", "new")',
+                {"old", "new"},
+                id="rename-table-both",
+            ),
+            pytest.param(
+                'def upgrade():\n    op.add_column("dag_run", col)',
+                {"dag_run"},
+                id="add-column",
+            ),
+            pytest.param(
+                "def upgrade():\n    op.batch_alter_table(table_name)",
+                set(),
+                id="variable-arg-skipped",
+            ),
+            pytest.param(
+                "def upgrade():\n"
+                '    with op.batch_alter_table("dag") as b: pass\n'
+                '    with op.batch_alter_table("task_instance") as b: pass\n',
+                {"dag", "task_instance"},
+                id="multiple-tables",
+            ),
+        ],
+    )
+    def test_collect(self, src, expected):
         func = _parse_func(src)
-        assert _collect_ddl_table_names(func) == {"dag", "task_instance"}
+        assert _collect_ddl_table_names(func) == expected
 
 
 class TestCheckMig003SameTableDdl:
-    def test_no_violation_dml_with_same_table_ddl(self, tmp_path):
-        src = """
+    @pytest.mark.parametrize(
+        "src",
+        [
+            pytest.param(
+                """
 def upgrade():
     op.execute("UPDATE dag SET x='' WHERE x IS NULL")
     with op.batch_alter_table("dag") as batch_op:
         batch_op.alter_column("x", nullable=False)
-"""
-        assert check_mig003(parse_migration(tmp_path, src)) == []
-
-    def test_violation_dml_different_table_than_ddl(self, tmp_path):
-        src = """
-def upgrade():
-    op.execute("UPDATE dag_run SET run_type='x'")
-    with op.batch_alter_table("dag") as batch_op:
-        batch_op.alter_column("x", nullable=False)
-"""
-        errors = check_mig003(parse_migration(tmp_path, src))
-        assert any("MIG003" in e for e in errors)
-
-    def test_no_violation_delete_before_rename_table(self, tmp_path):
-        src = """
+""",
+                id="same-table-batch-alter",
+            ),
+            pytest.param(
+                """
 def downgrade():
     op.execute("DELETE FROM callback_request")
     op.rename_table("callback_request", "callback")
-"""
-        assert check_mig003(parse_migration(tmp_path, src)) == []
-
-    def test_no_violation_insert_into_created_table(self, tmp_path):
-        src = """
+""",
+                id="delete-before-rename",
+            ),
+            pytest.param(
+                """
 def upgrade():
     op.create_table("new_table", sa.Column("id", sa.Integer()))
     op.execute("INSERT INTO new_table SELECT * FROM old_table")
-"""
-        assert check_mig003(parse_migration(tmp_path, src)) == []
-
-    def test_no_violation_multiple_tables(self, tmp_path):
-        src = """
+""",
+                id="insert-into-created-table",
+            ),
+            pytest.param(
+                """
 def upgrade():
     op.execute("UPDATE connection SET x=1 WHERE x IS NULL")
     op.execute("UPDATE dag SET y=0 WHERE y IS NULL")
@@ -394,41 +456,63 @@ def upgrade():
         b.alter_column("x", nullable=False)
     with op.batch_alter_table("dag") as b:
         b.alter_column("y", nullable=False)
-"""
-        assert check_mig003(parse_migration(tmp_path, src)) == []
-
-    def test_violation_standalone_dml_no_ddl(self, tmp_path):
-        src = """
-def upgrade():
-    op.execute("update dag_run set run_type = 'asset_triggered'")
-"""
-        errors = check_mig003(parse_migration(tmp_path, src))
-        assert any("MIG003" in e for e in errors)
-
-    def test_no_violation_dml_with_add_column(self, tmp_path):
-        src = """
+""",
+                id="multiple-tables",
+            ),
+            pytest.param(
+                """
 def upgrade():
     op.add_column("dag_run", sa.Column("run_after", sa.DateTime))
     op.execute("update dag_run set run_after = logical_date")
-"""
-        assert check_mig003(parse_migration(tmp_path, src)) == []
-
-    def test_no_violation_text_wrapped_dml(self, tmp_path):
-        src = """
+""",
+                id="dml-with-add-column",
+            ),
+            pytest.param(
+                """
 def upgrade():
     op.execute(text("UPDATE slot_pool SET x = 0"))
     with op.batch_alter_table("slot_pool") as b:
         b.alter_column("x", nullable=False)
-"""
-        assert check_mig003(parse_migration(tmp_path, src)) == []
-
-    def test_offline_guard_still_takes_precedence(self, tmp_path):
-        src = """
+""",
+                id="text-wrapped-dml",
+            ),
+            pytest.param(
+                """
 def upgrade():
     if not context.is_offline_mode():
         op.execute("UPDATE dag SET x=1")
-"""
+""",
+                id="offline-guard-takes-precedence",
+            ),
+        ],
+    )
+    def test_no_violation(self, tmp_path, src):
         assert check_mig003(parse_migration(tmp_path, src)) == []
+
+    @pytest.mark.parametrize(
+        "src",
+        [
+            pytest.param(
+                """
+def upgrade():
+    op.execute("UPDATE dag_run SET run_type='x'")
+    with op.batch_alter_table("dag") as batch_op:
+        batch_op.alter_column("x", nullable=False)
+""",
+                id="different-table-than-ddl",
+            ),
+            pytest.param(
+                """
+def upgrade():
+    op.execute("update dag_run set run_type = 'asset_triggered'")
+""",
+                id="standalone-dml-no-ddl",
+            ),
+        ],
+    )
+    def test_violation(self, tmp_path, src):
+        errors = check_mig003(parse_migration(tmp_path, src))
+        assert any("MIG003" in e for e in errors)
 
 
 class TestMain:
