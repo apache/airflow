@@ -296,7 +296,7 @@ class _DualTimer:
         self._legacy = legacy_timer
 
     @property
-    def duration(self):
+    def duration(self) -> float | None:
         return self._regular.duration
 
     def __enter__(self):
