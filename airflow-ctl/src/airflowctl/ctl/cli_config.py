@@ -261,11 +261,17 @@ ARG_AUTH_PASSWORD = Arg(
     help="The password to use for authentication",
 )
 
-# Dag Commands Args
+# Dag / Task Commands Args
 ARG_DAG_ID = Arg(
     flags=("dag_id",),
     type=str,
-    help="The Dag ID of the Dag to pause or unpause",
+    help="The DAG ID",
+)
+
+ARG_DAG_RUN_ID = Arg(
+    flags=("dag_run_id",),
+    type=str,
+    help="The DAG run ID",
 )
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
@@ -926,6 +932,19 @@ DAG_COMMANDS = (
     ),
 )
 
+TASK_COMMANDS = (
+    ActionCommand(
+        name="states-for-dag-run",
+        help="Get task states for a DAG run",
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.states_for_dag_run"),
+        args=(
+            ARG_DAG_ID,
+            ARG_DAG_RUN_ID,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
 POOL_COMMANDS = (
     ActionCommand(
         name="import",
@@ -979,6 +998,11 @@ core_commands: list[CLICommand] = [
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    GroupCommand(
+        name="tasks",
+        help="Manage Airflow tasks",
+        subcommands=TASK_COMMANDS,
     ),
     ActionCommand(
         name="version",

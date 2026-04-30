@@ -68,6 +68,7 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskInstanceCollectionResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -637,6 +638,20 @@ class DagRunOperations(BaseOperations):
         try:
             self.response = self.client.get(f"/dags/{dag_id}/dagRuns", params=params)
             return DAGRunCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+
+class TaskInstancesOperations(BaseOperations):
+    """Task instance operations."""
+
+    def list_for_dag_run(
+        self, dag_id: str, dag_run_id: str
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """List task instances for a DAG run."""
+        try:
+            self.response = self.client.get(f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances")
+            return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
