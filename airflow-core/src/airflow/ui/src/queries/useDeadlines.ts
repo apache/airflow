@@ -17,49 +17,38 @@
  * under the License.
  */
 import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
+import { useAutoRefresh } from "src/utils";
 
 type UseDeadlinesParams = {
   readonly dagId: string;
   readonly enabled?: boolean;
-  readonly endDate: string;
   readonly limit: number;
-  readonly missed: boolean;
   readonly offset?: number;
-  readonly refetchInterval?: number | false;
-  readonly startDate: string;
 };
 
-export const useDeadlines = ({
-  dagId,
-  enabled,
-  endDate,
-  limit,
-  missed,
-  offset = 0,
-  refetchInterval,
-  startDate,
-}: UseDeadlinesParams) =>
-  useDeadlinesServiceGetDeadlines(
-    missed
-      ? {
-          dagId,
-          dagRunId: "~",
-          lastUpdatedAtGte: startDate,
-          lastUpdatedAtLte: endDate,
-          limit,
-          missed: true,
-          offset,
-          orderBy: ["-last_updated_at"],
-        }
-      : {
-          dagId,
-          dagRunId: "~",
-          deadlineTimeGte: endDate,
-          limit,
-          missed: false,
-          offset,
-          orderBy: ["deadline_time"],
-        },
+export const useDeadlines = ({ dagId, enabled, limit, offset = 0 }: UseDeadlinesParams) => {
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  return useDeadlinesServiceGetDeadlines(
+    {
+      dagId,
+      dagRunId: "~",
+      limit,
+      offset,
+      orderBy: ["deadline_time"],
+    },
     undefined,
-    { enabled, refetchInterval },
+    {
+      enabled,
+      refetchInterval: ({ state: { data } }) => {
+        if (data === undefined) {
+          return refetchInterval;
+        }
+        // Stop polling only when every deadline in the full result set is missed
+        const allMissed = data.total_entries > 0 && data.deadlines.every((deadline) => deadline.missed);
+
+        return allMissed ? false : refetchInterval;
+      },
+    },
   );
+};

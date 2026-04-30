@@ -75,9 +75,6 @@ export const DeadlineAlertsBadge = ({ dagId }: { readonly dagId: string }) => {
       <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} maxWidth="360px" width="fit-content">
         <Popover.Arrow />
         <Popover.Body>
-          <Text fontWeight="bold" mb={1}>
-            {translate("deadlineAlerts.title")}
-          </Text>
           <VStack gap={0} separator={<Separator />}>
             {alerts.map((alert) => (
               <AlertRow alert={alert} key={alert.id} />

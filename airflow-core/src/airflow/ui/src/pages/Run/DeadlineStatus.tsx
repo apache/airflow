@@ -110,17 +110,30 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
 
   // When there are multiple deadline instances, collapse into a single compact badge to
   // avoid stretching the run header. Clicking opens the modal with full details.
+  // Counts are derived from the loaded page (limit: 10); a single run virtually never has more
+  // than that, but the modal shows the authoritative paginated list either way.
   if (totalEntries > 1) {
-    const hasMissed = deadlines.some((deadline) => deadline.missed);
+    const missedCount = deadlines.filter((entry) => entry.missed).length;
+    const upcomingCount = deadlines.length - missedCount;
+    const hasMissed = missedCount > 0;
+    const hasUpcoming = upcomingCount > 0;
+
+    let label: string;
+
+    if (hasMissed && hasUpcoming) {
+      label = translate("deadlineStatus.mixedCount", { missedCount, upcomingCount });
+    } else if (hasMissed) {
+      label = translate("deadlineStatus.missedCount", { count: missedCount });
+    } else {
+      label = translate("deadlineStatus.upcomingCount", { count: upcomingCount });
+    }
 
     return (
       <>
         <Button onClick={() => setIsModalOpen(true)} p={0} size="sm" variant="plain">
           <Badge colorPalette={hasMissed ? "red" : "blue"} size="sm" variant="solid">
             {hasMissed ? <FiAlertTriangle /> : <FiClock />}
-            {hasMissed
-              ? translate("deadlineStatus.missedCount", { count: totalEntries })
-              : translate("deadlineStatus.viewAll", { count: totalEntries })}
+            {label}
           </Badge>
         </Button>
         <DeadlineStatusModal

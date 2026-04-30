@@ -18,6 +18,7 @@
  */
 import { Heading, HStack, Separator, Skeleton, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -32,38 +33,20 @@ const PAGE_LIMIT = 10;
 type AllDeadlinesModalProps = {
   readonly alertMap: Map<string, DeadlineAlertResponse>;
   readonly dagId: string;
-  readonly endDate: string;
-  readonly missed: boolean;
   readonly onClose: () => void;
   readonly open: boolean;
-  readonly refetchInterval: number | false;
-  readonly startDate: string;
-  readonly title: string;
 };
 
-export const AllDeadlinesModal = ({
-  alertMap,
-  dagId,
-  endDate,
-  missed,
-  onClose,
-  open,
-  refetchInterval,
-  startDate,
-  title,
-}: AllDeadlinesModalProps) => {
+export const AllDeadlinesModal = ({ alertMap, dagId, onClose, open }: AllDeadlinesModalProps) => {
+  const { t: translate } = useTranslation("dag");
   const [page, setPage] = useState(1);
   const offset = (page - 1) * PAGE_LIMIT;
 
   const { data, error, isLoading } = useDeadlines({
     dagId,
     enabled: open,
-    endDate,
     limit: PAGE_LIMIT,
-    missed,
     offset,
-    refetchInterval,
-    startDate,
   });
 
   const deadlines = data?.deadlines ?? [];
@@ -81,7 +64,7 @@ export const AllDeadlinesModal = ({
     <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside" size="lg">
       <Dialog.Content backdrop p={4}>
         <Dialog.Header>
-          <Heading size="sm">{title}</Heading>
+          <Heading size="sm">{translate("overview.deadlines.title")}</Heading>
         </Dialog.Header>
         <Dialog.CloseTrigger />
         <Dialog.Body pb={2}>
@@ -95,8 +78,8 @@ export const AllDeadlinesModal = ({
             </VStack>
           ) : (
             <VStack gap={0} separator={<Separator />}>
-              {deadlines.map((dl) => (
-                <DeadlineRow alert={getAlert(dl.alert_id)} deadline={dl} key={dl.id} />
+              {deadlines.map((deadline) => (
+                <DeadlineRow alert={getAlert(deadline.alert_id)} deadline={deadline} key={deadline.id} />
               ))}
             </VStack>
           )}

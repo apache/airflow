@@ -48,8 +48,7 @@
       "AverageRuntimeDeadline": "average runtime",
       "DagRunLogicalDateDeadline": "logical date",
       "DagRunQueuedAtDeadline": "queue time"
-    },
-    "title": "Deadline Alerts"
+    }
   },
   "deadlineStatus": {
     "actual": "Actual",
@@ -61,8 +60,11 @@
     "missed": "Missed",
     "missedCount_one": "{{count}} Missed Deadline",
     "missedCount_other": "{{count}} Missed Deadlines",
+    "mixedCount": "{{missedCount}} Missed, {{upcomingCount}} Upcoming",
     "stillRunning": "Still running",
     "upcoming": "Upcoming",
+    "upcomingCount_one": "{{count}} Upcoming Deadline",
+    "upcomingCount_other": "{{count}} Upcoming Deadlines"
   },
   "extraLinks": "Extra Links",
   "grid": {
@@ -128,8 +130,7 @@
       "assetEvent_other": "Created Asset Events"
     },
     "deadlines": {
-      "pending": "Pending Deadlines",
-      "recentlyMissed": "Recently Missed Deadlines",
+      "showAll": "Show All",
       "title": "Deadlines"
     },
     "failedLogs": {
