@@ -7073,7 +7073,14 @@ export const $VariableResponse = {
             title: 'Key'
         },
         value: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Value'
         },
         description: {
@@ -7104,7 +7111,7 @@ export const $VariableResponse = {
         }
     },
     type: 'object',
-    required: ['key', 'value', 'description', 'is_encrypted', 'team_name'],
+    required: ['key', 'description', 'is_encrypted', 'team_name'],
     title: 'VariableResponse',
     description: 'Variable serializer for responses.'
 } as const;

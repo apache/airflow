@@ -1,5 +1,1 @@
-``GET /variables/{variable_key}`` now returns ``"value": null`` when the stored
-value cannot be decrypted (for example after a Fernet key rotation or
-misconfiguration), matching the behavior of the list endpoint
-``GET /variables``. Previously the detail endpoint failed with HTTP 500 because
-the response schema declared ``value`` as a required string.
+Return ``"value": null`` (HTTP 200) from ``GET /variables/{key}`` when the stored value cannot be decrypted, matching ``GET /variables`` instead of failing with HTTP 500.

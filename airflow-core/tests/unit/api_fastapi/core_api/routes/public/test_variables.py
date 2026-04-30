@@ -263,10 +263,11 @@ class TestGetVariable(TestVariableEndpoint):
         respond with HTTP 200 and ``"value": null`` instead of failing with an
         HTTP 500 caused by response-schema validation.
         """
+        from cryptography.fernet import InvalidToken
+
         self.create_variables()
-        with mock.patch(
-            "airflow.models.variable.Variable.get_val", return_value=None
-        ):
+        with mock.patch("airflow.models.variable.get_fernet") as mock_get_fernet:
+            mock_get_fernet.return_value.decrypt.side_effect = InvalidToken
             response = test_client.get(f"/variables/{TEST_VARIABLE_KEY}")
 
         assert response.status_code == 200
