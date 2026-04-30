@@ -4895,3 +4895,61 @@ class TestTranslateAirflowAsset:
             return_value=fake_pm,
         ):
             assert translate_airflow_asset(asset, None) is None
+
+
+class TestNextQueryCounterFromContext:
+    def test_increments_counter_in_context_dict(self):
+        from airflow.providers.openlineage.utils.utils import next_query_counter_from_context
+
+        fake_context: dict = {}
+        context_path = (
+            "airflow.sdk.get_current_context"
+            if AIRFLOW_V_3_0_PLUS
+            else "airflow.operators.python.get_current_context"
+        )
+        with mock.patch(context_path, return_value=fake_context):
+            assert next_query_counter_from_context() == "1"
+            assert next_query_counter_from_context() == "2"
+            assert next_query_counter_from_context() == "3"
+        # The helper persists state in the caller-supplied dict.
+        assert fake_context["_openlineage_manual_query_counter"] == 3
+
+    def test_isolated_per_context(self):
+        """Two separate contexts do not share the counter."""
+        from airflow.providers.openlineage.utils.utils import next_query_counter_from_context
+
+        ctx_a: dict = {}
+        ctx_b: dict = {}
+        context_path = (
+            "airflow.sdk.get_current_context"
+            if AIRFLOW_V_3_0_PLUS
+            else "airflow.operators.python.get_current_context"
+        )
+        with mock.patch(context_path, return_value=ctx_a):
+            assert next_query_counter_from_context() == "1"
+            assert next_query_counter_from_context() == "2"
+        with mock.patch(context_path, return_value=ctx_b):
+            assert next_query_counter_from_context() == "1"
+
+    def test_returns_random_suffix_and_warns_when_no_context(self, caplog):
+        """When `get_current_context` raises (no active task), return a random suffix + log warning."""
+        import logging
+
+        from airflow.providers.openlineage.utils.utils import next_query_counter_from_context
+
+        context_path = (
+            "airflow.sdk.get_current_context"
+            if AIRFLOW_V_3_0_PLUS
+            else "airflow.operators.python.get_current_context"
+        )
+        with (
+            mock.patch(context_path, side_effect=RuntimeError("no context")),
+            caplog.at_level(logging.INFO),
+        ):
+            first = next_query_counter_from_context()
+            second = next_query_counter_from_context()
+
+        assert len(first) == 8
+        assert len(second) == 8
+        assert first != second  # random per call
+        assert "OpenLineage encountered an error when retrieving query counter from context" in caplog.text

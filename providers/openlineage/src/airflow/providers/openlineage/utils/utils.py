@@ -190,6 +190,47 @@ def get_task_instance_from_context():
     return task_instance
 
 
+def next_query_counter_from_context() -> str:
+    """
+    Return the next sequential per-task query counter, suitable for use as a job-name suffix.
+
+    The counter is stored under a private key in the Airflow execution context dict. Airflow
+    creates a fresh context per task and discards it when the task ends, so the counter resets
+    automatically per task and per retry — there is no module-level state to leak.
+
+    When no Airflow execution context is available (for example, the helper was called from a
+    script with an explicit ``task_instance=`` outside a running task), a random suffix
+    is returned instead and a warning is logged.
+    """
+    try:
+        from airflow.sdk import get_current_context
+    except (ImportError, AttributeError, ModuleNotFoundError):
+        from airflow.operators.python import get_current_context  # type: ignore[no-redef]
+
+    try:
+        context = get_current_context()
+
+        query_counter_context_key = "_openlineage_manual_query_counter"
+        # `Context` is a TypedDict, so mypy refuses non-literal keys and types `.get()` of an
+        # unknown key as `object`. At runtime `Context` is a regular `dict`, so
+        # both operations below are safe — the type-ignores silence pure type-checker noise.
+        counter = int(context.get(query_counter_context_key, 0)) + 1  # type: ignore[call-overload]
+        context[query_counter_context_key] = counter  # type: ignore[literal-required]
+        return str(counter)
+    except Exception as err:
+        from airflow.utils.strings import get_random_string
+
+        random_suffix = get_random_string()
+        log.info(
+            "OpenLineage encountered an error when retrieving query counter from context: `%s`. "
+            "Returning random suffix `%s`",
+            err,
+            random_suffix,
+        )
+
+        return random_suffix
+
+
 def get_dag_run_dag_and_task_from_ti(task_instance):
     """
     Return a ``(dag_run, dag, task)`` tuple for the given task instance.
@@ -1996,8 +2037,7 @@ def _get_providers_manager_instance():
     Return the ProvidersManager instance to use for OpenLineage converter lookup.
 
     Picks the task-runtime-safe entry point on Airflow 3.2+ and falls back to the legacy
-    ``airflow.providers_manager.ProvidersManager`` on 3.0 / 3.1 and 2.x. Returns ``None``
-    if neither import is available (very old Airflow).
+    ``airflow.providers_manager.ProvidersManager``.
 
     Kept as a module-level function so tests can patch this single seam with a plain
     ``mock.patch(..., return_value=fake_pm)`` instead of juggling ``sys.modules`` or
@@ -2008,14 +2048,10 @@ def _get_providers_manager_instance():
         from airflow.sdk.plugins_manager import ProvidersManagerTaskRuntime
 
         return ProvidersManagerTaskRuntime()
-    except ImportError:
-        pass
-    try:
+    except (ImportError, ModuleNotFoundError, AttributeError):
         from airflow.providers_manager import ProvidersManager
 
         return ProvidersManager()
-    except ImportError:
-        return None
 
 
 def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset | None:

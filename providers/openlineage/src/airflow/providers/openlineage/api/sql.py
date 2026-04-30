@@ -19,19 +19,21 @@
 from __future__ import annotations
 
 import logging
-from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from openlineage.client.facet_v2 import error_message_run, external_query_run, sql_job
 
 from airflow.providers.openlineage.api.core import emit, is_openlineage_active
 from airflow.providers.openlineage.plugins.adapter import _PRODUCER
-from airflow.providers.openlineage.plugins.macros import lineage_job_name, lineage_run_id
+from airflow.providers.openlineage.plugins.macros import lineage_job_name
 from airflow.providers.openlineage.utils.sql_hook_lineage import (
     _create_ol_event_pair,
     _parse_query_into_datasets,
 )
-from airflow.providers.openlineage.utils.utils import get_task_instance_from_context
+from airflow.providers.openlineage.utils.utils import (
+    get_task_instance_from_context,
+    next_query_counter_from_context,
+)
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -45,10 +47,6 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 __all__ = ["emit_query_lineage"]
-
-# Per-task counters so repeated emit_query_lineage calls within one task get unique job names.
-# The dict is process-global, but each task buckets under its own unique deterministic Ol run id
-_QUERY_COUNTERS: dict[str, int] = defaultdict(int)
 
 
 def emit_query_lineage(
@@ -160,12 +158,12 @@ def emit_query_lineage(
         if query_text:
             job_facets["sql"] = sql_job.SQLJobFacet(query=query_text, producer=_PRODUCER)
 
-        ti_key = lineage_run_id(task_instance)
-        _QUERY_COUNTERS[ti_key] += 1
+        if job_name is None:
+            job_name = f"{lineage_job_name(task_instance)}.manual_query.{next_query_counter_from_context()}"
 
         start_event, end_event = _create_ol_event_pair(
             task_instance=task_instance,
-            job_name=job_name or f"{lineage_job_name(task_instance)}.manual_query.{_QUERY_COUNTERS[ti_key]}",
+            job_name=job_name,
             is_successful=is_successful,
             inputs=all_inputs,
             outputs=all_outputs,

@@ -22,7 +22,6 @@ from unittest import mock
 import pytest
 from openlineage.client.event_v2 import RunState
 
-import airflow.providers.openlineage.api.sql as api_sql_module
 from airflow.providers.openlineage.api.sql import emit_query_lineage
 
 _MODULE = "airflow.providers.openlineage.api.sql"
@@ -54,10 +53,21 @@ def _make_task_instance(task_id: str = "task_id", dr_conf: dict | None = None):
 
 
 @pytest.fixture(autouse=True)
-def _reset_counters():
-    api_sql_module._QUERY_COUNTERS.clear()
-    yield
-    api_sql_module._QUERY_COUNTERS.clear()
+def fake_query_counter():
+    """
+    Replace `next_query_counter_from_context` (as bound in the api.sql module) with a per-test
+    in-memory counter. Mirrors the real context-backed behavior (each call returns the next int)
+    without needing a live Airflow execution context. Tests that simulate a fresh task context
+    can reset the counter mid-test via ``fake_query_counter["counter"] = 0``.
+    """
+    state = {"counter": 0}
+
+    def _next():
+        state["counter"] += 1
+        return str(state["counter"])
+
+    with mock.patch(f"{_MODULE}.next_query_counter_from_context", side_effect=_next):
+        yield state
 
 
 @pytest.fixture
@@ -154,10 +164,13 @@ def test_increments_job_name_across_calls(patched_emit):
     assert "dag_id.task_id.manual_query.2" in names
 
 
-def test_counters_are_per_task(patched_emit):
+def test_counters_are_per_task(patched_emit, fake_query_counter):
+    """Each task has its own context, so the counter resets to 1 in a new task."""
     ti1 = _make_task_instance("task_a")
     ti2 = _make_task_instance("task_b")
     emit_query_lineage(query_id="x", query_source_namespace="snowflake://ACCT", task_instance=ti1)
+    # Simulate the second task starting with a fresh execution context.
+    fake_query_counter["counter"] = 0
     emit_query_lineage(query_id="y", query_source_namespace="snowflake://ACCT", task_instance=ti2)
     names = {call.args[0].job.name for call in patched_emit.call_args_list}
     assert "dag_id.task_a.manual_query.1" in names
