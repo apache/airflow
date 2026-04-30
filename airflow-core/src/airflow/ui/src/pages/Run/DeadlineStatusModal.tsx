@@ -79,7 +79,7 @@ export const DeadlineStatusModal = ({
   };
 
   return (
-    <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside" size="lg">
+    <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside" size="md">
       <Dialog.Content backdrop p={4}>
         <Dialog.Header>
           <Heading size="sm">{translate("deadlineStatus.label")}</Heading>
