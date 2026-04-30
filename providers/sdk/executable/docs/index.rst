@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: References
 
+    Bundle Spec Format <bundle-spec>
     Python API <_api/airflow/providers/sdk/executable/index>
 
 .. toctree::

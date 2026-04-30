@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://airflow.apache.org/schemas/sdk-executable/airflow-metadata-1.0.schema.json",
+  "title": "Airflow Executable SDK Bundle Metadata",
+  "description": "Build-time manifest declaring DAG and task identifiers exposed by an Airflow native-executable SDK bundle. See the Bundle Spec Format documentation in apache-airflow-providers-sdk-executable.",
+  "type": "object",
+  "required": ["format_version", "sdk", "source", "executable", "dags"],
+  "additionalProperties": true,
+  "properties": {
+    "format_version": {
+      "type": "string",
+      "description": "Bundle-spec version this manifest conforms to (currently '1.0').",
+      "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
+    },
+    "sdk": {
+      "type": "object",
+      "description": "Identifies the SDK that produced the bundle.",
+      "required": ["language", "version"],
+      "additionalProperties": true,
+      "properties": {
+        "language": {
+          "type": "string",
+          "description": "Lower-case source-language identifier (e.g. 'go', 'rust', 'cpp', 'zig').",
+          "pattern": "^[a-z][a-z0-9_+.\\-]*$"
+        },
+        "version": {
+          "type": "string",
+          "description": "SDK version used at build time.",
+          "minLength": 1
+        }
+      }
+    },
+    "source": {
+      "type": "string",
+      "description": "Archive-relative path to the primary DAG source file.",
+      "minLength": 1
+    },
+    "executable": {
+      "type": "string",
+      "description": "Archive-relative path to the compiled executable.",
+      "minLength": 1
+    },
+    "dags": {
+      "type": "object",
+      "description": "Mapping of dag_id to DAG entry. Every dag_id the bundle exposes must appear here.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/dagEntry"
+      }
+    }
+  },
+  "$defs": {
+    "dagEntry": {
+      "type": "object",
+      "description": "Static description of a single DAG declared in the bundle.",
+      "required": ["tasks"],
+      "additionalProperties": true,
+      "properties": {
+        "tasks": {
+          "type": "array",
+          "description": "Static list of task_ids declared in the DAG.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}
