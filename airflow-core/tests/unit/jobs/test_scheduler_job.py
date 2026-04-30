@@ -113,8 +113,10 @@ from airflow.sdk import (
     DAG,
     Asset,
     AssetAlias,
+    AssetAndTimeSchedule,
     AssetWatcher,
     CronPartitionTimetable,
+    CronTriggerTimetable,
     FixedKeyMapper,
     HourWindow,
     IdentityMapper,
@@ -130,13 +132,11 @@ from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.timetables.assets import AssetAndTimeSchedule
 from airflow.timetables.base import DagRunInfo, DataInterval, compute_rollup_fingerprint
 from airflow.timetables.simple import (
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
-from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState

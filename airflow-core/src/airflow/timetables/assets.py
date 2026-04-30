@@ -32,7 +32,6 @@ if typing.TYPE_CHECKING:
 
     import pendulum
 
-    from airflow.sdk.definitions.asset import Asset
     from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 
 
