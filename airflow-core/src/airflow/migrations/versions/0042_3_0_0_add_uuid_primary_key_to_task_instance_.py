@@ -240,7 +240,7 @@ def upgrade():
         op.execute(mysql_uuid7_fn)
 
         # Migrate existing rows with UUID v7
-        op.execute(  # noqa: MIG003 -- UUID primary key population
+        op.execute(
             """
             UPDATE task_instance
             SET id = uuid_generate_v7(coalesce(queued_dttm, start_date, NOW(3)))

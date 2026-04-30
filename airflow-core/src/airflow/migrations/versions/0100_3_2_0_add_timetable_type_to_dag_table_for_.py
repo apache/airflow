@@ -46,7 +46,7 @@ def upgrade():
         with op.batch_alter_table("dag", schema=None) as batch_op:
             batch_op.add_column(sa.Column("timetable_type", sa.String(length=255)))
 
-        op.execute("UPDATE dag SET timetable_type = '' WHERE timetable_type IS NULL")  # noqa: MIG003 -- backfill default for NOT NULL
+        op.execute("UPDATE dag SET timetable_type = '' WHERE timetable_type IS NULL")
 
         with op.batch_alter_table("dag", schema=None) as batch_op:
             batch_op.alter_column("timetable_type", existing_type=sa.String(length=255), nullable=False)

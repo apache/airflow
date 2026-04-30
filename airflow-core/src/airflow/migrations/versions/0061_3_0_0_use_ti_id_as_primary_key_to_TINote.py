@@ -49,7 +49,7 @@ def upgrade():
             sa.Column("ti_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"))
         )
     if dialect_name == "postgresql":
-        op.execute(  # noqa: MIG003 -- primary key migration
+        op.execute(
             """
             UPDATE task_instance_note SET ti_id = task_instance.id
             FROM task_instance
@@ -60,7 +60,7 @@ def upgrade():
             """
         )
     elif dialect_name == "mysql":
-        op.execute(  # noqa: MIG003 -- primary key migration
+        op.execute(
             """
             UPDATE task_instance_note tin
             JOIN task_instance ti ON
@@ -72,7 +72,7 @@ def upgrade():
             """
         )
     else:
-        op.execute(  # noqa: MIG003 -- primary key migration
+        op.execute(
             """
             UPDATE task_instance_note
             SET ti_id = (SELECT id FROM task_instance WHERE task_instance_note.task_id = task_instance.task_id
@@ -109,7 +109,7 @@ def downgrade():
         batch_op.add_column(sa.Column("map_index", sa.Integer(), nullable=True, server_default=sa.text("-1")))
 
     if dialect_name == "postgresql":
-        op.execute(  # noqa: MIG003 -- primary key migration
+        op.execute(
             """
             UPDATE task_instance_note
             SET dag_id = task_instance.dag_id,
@@ -121,7 +121,7 @@ def downgrade():
             """
         )
     elif dialect_name == "mysql":
-        op.execute(  # noqa: MIG003 -- primary key migration
+        op.execute(
             """
             UPDATE task_instance_note tin
             JOIN task_instance ti ON
@@ -133,7 +133,7 @@ def downgrade():
             """
         )
     else:
-        op.execute(  # noqa: MIG003 -- primary key migration
+        op.execute(
             """
             UPDATE task_instance_note
             SET dag_id = (SELECT dag_id FROM task_instance WHERE task_instance_note.ti_id = task_instance.id),

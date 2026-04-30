@@ -57,7 +57,7 @@ def downgrade():
     # Clean up non-numeric user_id values before type conversion to prevent errors
     if dialect_name == "postgresql":
         # For PostgreSQL, use regex to identify non-integer values and set them to NULL
-        op.execute(  # noqa: MIG003 -- user ID type reversion during downgrade
+        op.execute(
             text("""
                 UPDATE dag_run_note
                 SET user_id = NULL
@@ -65,7 +65,7 @@ def downgrade():
                 AND user_id !~ '^[0-9]+$'
             """)
         )
-        op.execute(  # noqa: MIG003 -- user ID type reversion during downgrade
+        op.execute(
             text("""
                 UPDATE task_instance_note
                 SET user_id = NULL
@@ -75,7 +75,7 @@ def downgrade():
         )
     elif dialect_name == "mysql":
         # For MySQL, use REGEXP to identify non-integer values
-        op.execute(  # noqa: MIG003 -- user ID type reversion during downgrade
+        op.execute(
             text("""
                 UPDATE dag_run_note
                 SET user_id = NULL
@@ -83,7 +83,7 @@ def downgrade():
                 AND user_id NOT REGEXP '^[0-9]+$'
             """)
         )
-        op.execute(  # noqa: MIG003 -- user ID type reversion during downgrade
+        op.execute(
             text("""
                 UPDATE task_instance_note
                 SET user_id = NULL
@@ -93,7 +93,7 @@ def downgrade():
         )
     elif dialect_name == "sqlite":
         # SQLite doesn't have regex, so use GLOB pattern matching
-        op.execute(  # noqa: MIG003 -- user ID type reversion during downgrade
+        op.execute(
             text("""
                 UPDATE dag_run_note
                 SET user_id = NULL
@@ -101,7 +101,7 @@ def downgrade():
                 AND (user_id = '' OR user_id GLOB '*[^0-9]*')
             """)
         )
-        op.execute(  # noqa: MIG003 -- user ID type reversion during downgrade
+        op.execute(
             text("""
                 UPDATE task_instance_note
                 SET user_id = NULL

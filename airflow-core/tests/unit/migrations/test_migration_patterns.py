@@ -41,27 +41,28 @@ check_mig003 = _mod.check_mig003
 MIGRATIONS_DIR = Path(__file__).resolve().parents[3] / "src" / "airflow" / "migrations" / "versions"
 
 
-def migration_files() -> list[Path]:
-    """Discover all migration Python files (called at collection time by parametrize)."""
-    return sorted(MIGRATIONS_DIR.glob("*.py"))
+@pytest.fixture(
+    scope="module",
+    params=sorted(MIGRATIONS_DIR.glob("*.py")),
+    ids=lambda p: p.name,
+)
+def parsed_migration(request):
+    return MigrationFile.from_path(request.param)
 
 
-@pytest.mark.parametrize("migration_file", migration_files(), ids=lambda p: p.name)
-def test_mig001_no_dml_before_sqlite_fkeys_guard(migration_file: Path):
+def test_mig001_no_dml_before_sqlite_fkeys_guard(parsed_migration):
     """MIG001: No DML via op.execute() should appear before disable_sqlite_fkeys."""
-    errors = check_mig001(MigrationFile.from_path(migration_file))
+    errors = check_mig001(parsed_migration)
     assert not errors, "\n".join(errors)
 
 
-@pytest.mark.parametrize("migration_file", migration_files(), ids=lambda p: p.name)
-def test_mig002_no_ddl_before_sqlite_fkeys_guard(migration_file: Path):
+def test_mig002_no_ddl_before_sqlite_fkeys_guard(parsed_migration):
     """MIG002: No DDL via op.*() should appear before disable_sqlite_fkeys."""
-    errors = check_mig002(MigrationFile.from_path(migration_file))
+    errors = check_mig002(parsed_migration)
     assert not errors, "\n".join(errors)
 
 
-@pytest.mark.parametrize("migration_file", migration_files(), ids=lambda p: p.name)
-def test_mig003_dml_requires_offline_mode_guard(migration_file: Path):
+def test_mig003_dml_requires_offline_mode_guard(parsed_migration):
     """MIG003: DML via op.execute() requires context.is_offline_mode() guard."""
-    errors = check_mig003(MigrationFile.from_path(migration_file))
+    errors = check_mig003(parsed_migration)
     assert not errors, "\n".join(errors)

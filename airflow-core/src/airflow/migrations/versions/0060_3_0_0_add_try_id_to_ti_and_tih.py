@@ -78,7 +78,7 @@ def upgrade():
         conn.execute(stmt.bindparams(uuid=uuid_value, row_id=row.id))
     # Update task_instance_id
     if dialect_name == "postgresql":
-        op.execute(  # noqa: MIG003 -- try_id population during migration
+        op.execute(
             """
             UPDATE task_instance_history SET task_instance_id = task_instance.id
             FROM task_instance
@@ -89,7 +89,7 @@ def upgrade():
             """
         )
     elif dialect_name == "mysql":
-        op.execute(  # noqa: MIG003 -- try_id population during migration
+        op.execute(
             """
             UPDATE task_instance_history tih
             JOIN task_instance ti ON
@@ -101,7 +101,7 @@ def upgrade():
             """
         )
     else:
-        op.execute(  # noqa: MIG003 -- try_id population during migration
+        op.execute(
             """
             UPDATE task_instance_history
             SET task_instance_id = (SELECT id FROM task_instance WHERE task_instance_history.task_id = task_instance.task_id
@@ -168,7 +168,7 @@ def downgrade():
             """
         )
     else:
-        op.execute(  # noqa: MIG003 -- try_id population during migration
+        op.execute(
             """
             UPDATE task_instance_history
             SET id = (SELECT COUNT(*) FROM task_instance_history t2 WHERE t2.id <= task_instance_history.id);

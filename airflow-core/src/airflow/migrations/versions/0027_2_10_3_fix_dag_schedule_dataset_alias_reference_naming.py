@@ -116,7 +116,7 @@ def upgrade():
             ),
             sa.PrimaryKeyConstraint("alias_id", "dag_id", name="dsdar_pkey"),
         )
-        op.execute("INSERT INTO new_table SELECT * FROM dag_schedule_dataset_alias_reference")  # noqa: MIG003 -- data copy between tables during rename
+        op.execute("INSERT INTO new_table SELECT * FROM dag_schedule_dataset_alias_reference")
         op.drop_table("dag_schedule_dataset_alias_reference")
         op.rename_table("new_table", "dag_schedule_dataset_alias_reference")
         op.create_index(
@@ -227,7 +227,7 @@ def downgrade():
             ),
             sa.PrimaryKeyConstraint("alias_id", "dag_id", name="dsdar_pkey"),
         )
-        op.execute("INSERT INTO new_table SELECT * FROM dag_schedule_dataset_alias_reference")  # noqa: MIG003 -- data copy between tables during rename
+        op.execute("INSERT INTO new_table SELECT * FROM dag_schedule_dataset_alias_reference")
         op.drop_table("dag_schedule_dataset_alias_reference")
         op.rename_table("new_table", "dag_schedule_dataset_alias_reference")
         op.create_index(

@@ -51,7 +51,7 @@ def upgrade():
             )
         )
     if dialect_name == "postgresql":
-        op.execute(  # noqa: MIG003 -- foreign key migration
+        op.execute(
             """
             UPDATE task_reschedule SET ti_id = task_instance.id
             FROM task_instance
@@ -62,7 +62,7 @@ def upgrade():
             """
         )
     elif dialect_name == "mysql":
-        op.execute(  # noqa: MIG003 -- foreign key migration
+        op.execute(
             """
             UPDATE task_reschedule tir
             JOIN task_instance ti ON
@@ -74,7 +74,7 @@ def upgrade():
             """
         )
     else:
-        op.execute(  # noqa: MIG003 -- foreign key migration
+        op.execute(
             """
             UPDATE task_reschedule
             SET ti_id = (SELECT id FROM task_instance WHERE task_reschedule.task_id = task_instance.task_id
@@ -121,7 +121,7 @@ def downgrade():
         )
     # fill the task_id, dag_id, run_id, map_index columns from taskinstance
     if dialect_name == "postgresql":
-        op.execute(  # noqa: MIG003 -- foreign key migration
+        op.execute(
             """
                 UPDATE task_reschedule
                 SET dag_id = task_instance.dag_id,
@@ -133,7 +133,7 @@ def downgrade():
                 """
         )
     elif dialect_name == "mysql":
-        op.execute(  # noqa: MIG003 -- foreign key migration
+        op.execute(
             """
                 UPDATE task_reschedule tir
                 JOIN task_instance ti ON
@@ -145,7 +145,7 @@ def downgrade():
                 """
         )
     else:
-        op.execute(  # noqa: MIG003 -- foreign key migration
+        op.execute(
             """
                 UPDATE task_reschedule
                 SET dag_id = (SELECT dag_id FROM task_instance WHERE task_reschedule.ti_id = task_instance.id),

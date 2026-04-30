@@ -137,6 +137,17 @@ later.
             batch_op.alter_column("col", nullable=False)
 
 
+**Exception -- DML tied to DDL on the same table:**
+
+When an ``op.execute()`` DML call targets a table that also has DDL operations
+(``batch_alter_table``, ``create_table``, ``drop_table``, ``rename_table``,
+``add_column``, ``drop_column``, ``alter_column``, ``create_index``, ``drop_index``,
+``drop_constraint``) in the same ``upgrade()`` or ``downgrade()`` function, MIG003
+is not raised.  This covers the common pattern of filling NULL values before adding
+a NOT NULL constraint, deleting rows before dropping a table, etc.  The DML is
+considered a safe prerequisite for the DDL.
+
+
 Known Limitation -- Future MIG004 Candidate
 ---------------------------------------------
 
@@ -171,6 +182,15 @@ from rich.console import Console
 console = Console(color_system="standard", width=200)
 
 DML_KEYWORDS = ("UPDATE", "INSERT", "DELETE")
+
+_DML_TABLE_RE = re.compile(
+    r"^\s*(?:"
+    r"(?:UPDATE)\s+[`\"]?(\w+)[`\"]?"
+    r"|(?:DELETE\s+FROM)\s+[`\"]?(\w+)[`\"]?"
+    r"|(?:INSERT\s+(?:(?:OR\s+)?IGNORE\s+)?INTO)\s+[`\"]?(\w+)[`\"]?"
+    r")",
+    re.IGNORECASE,
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -213,6 +233,98 @@ def _is_dml_string(node: ast.expr) -> bool:
                     return True
                 break  # only the leading fragment matters
     return False
+
+
+def _get_sql_string_value(node: ast.expr) -> str | None:
+    """Extract the leading SQL string from an AST expression."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.JoinedStr):
+        for value in node.values:
+            if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                return value.value
+            break
+    return None
+
+
+def _extract_dml_table_name(node: ast.Call) -> str | None:
+    """Extract the target table name from a DML ``op.execute()`` call.
+
+    Returns the lowercase table name, or None if extraction fails.
+    """
+    if not node.args:
+        return None
+    arg = node.args[0]
+    if isinstance(arg, ast.Call) and arg.args:
+        arg = arg.args[0]
+    sql = _get_sql_string_value(arg)
+    if sql is None:
+        return None
+    m = _DML_TABLE_RE.match(sql)
+    if m is None:
+        return None
+    table = m.group(1) or m.group(2) or m.group(3)
+    return table.lower() if table else None
+
+
+_DDL_TABLE_FIRST_ARG = frozenset(
+    {
+        "batch_alter_table",
+        "drop_table",
+        "create_table",
+        "add_column",
+        "drop_column",
+        "alter_column",
+    }
+)
+
+
+def _collect_ddl_table_names(func_node: ast.FunctionDef) -> set[str]:
+    """Collect all table names referenced by DDL operations in a function."""
+    tables: set[str] = set()
+
+    def _str_arg(call: ast.Call, index: int) -> str | None:
+        if index < len(call.args):
+            a = call.args[index]
+            if isinstance(a, ast.Constant) and isinstance(a.value, str):
+                return a.value.lower()
+        return None
+
+    for node in ast.walk(func_node):
+        if not isinstance(node, ast.Call):
+            continue
+        if not (
+            isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "op"
+        ):
+            continue
+        attr = node.func.attr
+        if attr in _DDL_TABLE_FIRST_ARG:
+            name = _str_arg(node, 0)
+            if name:
+                tables.add(name)
+        elif attr == "rename_table":
+            for i in range(2):
+                name = _str_arg(node, i)
+                if name:
+                    tables.add(name)
+        elif attr in ("create_index", "drop_constraint"):
+            name = _str_arg(node, 1)
+            if name:
+                tables.add(name)
+        elif attr == "drop_index":
+            name = _str_arg(node, 1)
+            if name is None:
+                for kw in node.keywords:
+                    if kw.arg == "table_name":
+                        if isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+                            name = kw.value.value.lower()
+                        break
+            if name:
+                tables.add(name)
+
+    return tables
 
 
 def _is_op_execute_with_dml(node: ast.Call) -> bool:
@@ -353,10 +465,17 @@ def check_mig003(mf: MigrationFile) -> list[str]:
         if _has_offline_mode_check(func):
             continue  # function has the guard
 
+        ddl_tables = _collect_ddl_table_names(func)
+
         for node in ast.walk(func):
             if not isinstance(node, ast.Call):
                 continue
-            if _is_op_execute_with_dml(node) and not _line_has_noqa(mf.lines, node.lineno, "MIG003"):
+            if not _is_op_execute_with_dml(node):
+                continue
+            dml_table = _extract_dml_table_name(node)
+            if dml_table is not None and dml_table in ddl_tables:
+                continue
+            if not _line_has_noqa(mf.lines, node.lineno, "MIG003"):
                 errors.append(
                     f"MIG003 {func.name}(): op.execute() with DML at line {node.lineno} "
                     f"without context.is_offline_mode() guard"

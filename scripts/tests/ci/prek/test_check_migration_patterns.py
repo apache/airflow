@@ -19,12 +19,15 @@
 
 from __future__ import annotations
 
+import ast
 import sys
 from pathlib import Path
 
 import pytest
 from ci.prek.check_migration_patterns import (
     MigrationFile,
+    _collect_ddl_table_names,
+    _extract_dml_table_name,
     _get_noqa_codes,
     _line_has_noqa,
     check_mig001,
@@ -258,6 +261,174 @@ def downgrade():
 """
         errors = check_mig003(parse_migration(tmp_path, src))
         assert any("MIG003" in e for e in errors)
+
+
+def _parse_call(code: str) -> ast.Call:
+    """Parse a single expression and return the Call node."""
+    node = ast.parse(code, mode="eval").body
+    assert isinstance(node, ast.Call)
+    return node
+
+
+def _parse_func(code: str) -> ast.FunctionDef:
+    """Parse code and return the first FunctionDef."""
+    tree = ast.parse(code)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            return node
+    raise ValueError("No function found")
+
+
+class TestExtractDmlTableName:
+    @pytest.mark.parametrize(
+        "sql, expected",
+        [
+            ('op.execute("UPDATE dag SET x=1")', "dag"),
+            ('op.execute("DELETE FROM dag_code")', "dag_code"),
+            ('op.execute("INSERT INTO new_table SELECT * FROM old")', "new_table"),
+            ('op.execute("INSERT IGNORE INTO dag_bundle (name) VALUES (1)")', "dag_bundle"),
+            ('op.execute("INSERT OR IGNORE INTO dag_bundle (name) VALUES (1)")', "dag_bundle"),
+            ("op.execute(\"update dag_run set run_type = 'x'\")", "dag_run"),
+            ('op.execute(text("UPDATE slot_pool SET x=1"))', "slot_pool"),
+            ('op.execute(sa.text("UPDATE slot_pool SET x=1"))', "slot_pool"),
+            ('op.execute("UPDATE `dag` SET x=1")', "dag"),
+        ],
+        ids=[
+            "update",
+            "delete_from",
+            "insert_into",
+            "insert_ignore",
+            "insert_or_ignore",
+            "lowercase_sql",
+            "text_wrapped",
+            "sa_text_wrapped",
+            "backtick_quoted",
+        ],
+    )
+    def test_extracts_table(self, sql, expected):
+        assert _extract_dml_table_name(_parse_call(sql)) == expected
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "op.execute()",
+            'op.execute("SELECT * FROM dag")',
+            "op.execute(some_var)",
+        ],
+        ids=["no_args", "non_dml", "variable_arg"],
+    )
+    def test_returns_none(self, sql):
+        assert _extract_dml_table_name(_parse_call(sql)) is None
+
+
+class TestCollectDdlTableNames:
+    def test_batch_alter_table(self):
+        func = _parse_func('def upgrade():\n    with op.batch_alter_table("dag") as b: pass')
+        assert _collect_ddl_table_names(func) == {"dag"}
+
+    def test_rename_table_collects_both(self):
+        func = _parse_func('def upgrade():\n    op.rename_table("old", "new")')
+        tables = _collect_ddl_table_names(func)
+        assert tables == {"old", "new"}
+
+    def test_add_column(self):
+        func = _parse_func('def upgrade():\n    op.add_column("dag_run", col)')
+        assert "dag_run" in _collect_ddl_table_names(func)
+
+    def test_variable_arg_skipped(self):
+        func = _parse_func("def upgrade():\n    op.batch_alter_table(table_name)")
+        assert _collect_ddl_table_names(func) == set()
+
+    def test_multiple_tables(self):
+        src = (
+            "def upgrade():\n"
+            '    with op.batch_alter_table("dag") as b: pass\n'
+            '    with op.batch_alter_table("task_instance") as b: pass\n'
+        )
+        func = _parse_func(src)
+        assert _collect_ddl_table_names(func) == {"dag", "task_instance"}
+
+
+class TestCheckMig003SameTableDdl:
+    def test_no_violation_dml_with_same_table_ddl(self, tmp_path):
+        src = """
+def upgrade():
+    op.execute("UPDATE dag SET x='' WHERE x IS NULL")
+    with op.batch_alter_table("dag") as batch_op:
+        batch_op.alter_column("x", nullable=False)
+"""
+        assert check_mig003(parse_migration(tmp_path, src)) == []
+
+    def test_violation_dml_different_table_than_ddl(self, tmp_path):
+        src = """
+def upgrade():
+    op.execute("UPDATE dag_run SET run_type='x'")
+    with op.batch_alter_table("dag") as batch_op:
+        batch_op.alter_column("x", nullable=False)
+"""
+        errors = check_mig003(parse_migration(tmp_path, src))
+        assert any("MIG003" in e for e in errors)
+
+    def test_no_violation_delete_before_rename_table(self, tmp_path):
+        src = """
+def downgrade():
+    op.execute("DELETE FROM callback_request")
+    op.rename_table("callback_request", "callback")
+"""
+        assert check_mig003(parse_migration(tmp_path, src)) == []
+
+    def test_no_violation_insert_into_created_table(self, tmp_path):
+        src = """
+def upgrade():
+    op.create_table("new_table", sa.Column("id", sa.Integer()))
+    op.execute("INSERT INTO new_table SELECT * FROM old_table")
+"""
+        assert check_mig003(parse_migration(tmp_path, src)) == []
+
+    def test_no_violation_multiple_tables(self, tmp_path):
+        src = """
+def upgrade():
+    op.execute("UPDATE connection SET x=1 WHERE x IS NULL")
+    op.execute("UPDATE dag SET y=0 WHERE y IS NULL")
+    with op.batch_alter_table("connection") as b:
+        b.alter_column("x", nullable=False)
+    with op.batch_alter_table("dag") as b:
+        b.alter_column("y", nullable=False)
+"""
+        assert check_mig003(parse_migration(tmp_path, src)) == []
+
+    def test_violation_standalone_dml_no_ddl(self, tmp_path):
+        src = """
+def upgrade():
+    op.execute("update dag_run set run_type = 'asset_triggered'")
+"""
+        errors = check_mig003(parse_migration(tmp_path, src))
+        assert any("MIG003" in e for e in errors)
+
+    def test_no_violation_dml_with_add_column(self, tmp_path):
+        src = """
+def upgrade():
+    op.add_column("dag_run", sa.Column("run_after", sa.DateTime))
+    op.execute("update dag_run set run_after = logical_date")
+"""
+        assert check_mig003(parse_migration(tmp_path, src)) == []
+
+    def test_no_violation_text_wrapped_dml(self, tmp_path):
+        src = """
+def upgrade():
+    op.execute(text("UPDATE slot_pool SET x = 0"))
+    with op.batch_alter_table("slot_pool") as b:
+        b.alter_column("x", nullable=False)
+"""
+        assert check_mig003(parse_migration(tmp_path, src)) == []
+
+    def test_offline_guard_still_takes_precedence(self, tmp_path):
+        src = """
+def upgrade():
+    if not context.is_offline_mode():
+        op.execute("UPDATE dag SET x=1")
+"""
+        assert check_mig003(parse_migration(tmp_path, src)) == []
 
 
 class TestMain:
