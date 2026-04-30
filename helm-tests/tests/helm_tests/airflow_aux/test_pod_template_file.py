@@ -48,7 +48,6 @@ class TestPodTemplateFile:
 
     def test_should_work(self):
         docs = render_chart(
-            values={},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -359,7 +358,6 @@ class TestPodTemplateFile:
 
     def test_mount_airflow_cfg(self):
         docs = render_chart(
-            values={},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -1468,7 +1466,6 @@ class TestPodTemplateFile:
 
     def test_empty_resources(self):
         docs = render_chart(
-            values={},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )

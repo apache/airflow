@@ -48,10 +48,8 @@ class TestFernetKeySecret:
 
     def test_should_generate_valid_fernetkey_secret(self):
         """Test that a valid Fernet key is generated."""
-        docs = render_chart(
-            values={},  # No fernetKey provided
-            show_only=["templates/secrets/fernetkey-secret.yaml"],
-        )[0]
+        # No fernetKey provided
+        docs = render_chart(show_only=["templates/secrets/fernetkey-secret.yaml"])[0]
 
         # Extract the base64 encoded fernet key from the secret
         fernet_key_b64 = jmespath.search('data."fernet-key"', docs).strip('"')

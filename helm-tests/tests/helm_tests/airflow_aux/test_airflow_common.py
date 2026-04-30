@@ -362,7 +362,6 @@ class TestAirflowCommon:
 
     def test_have_all_variables(self):
         docs = render_chart(
-            values={},
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
