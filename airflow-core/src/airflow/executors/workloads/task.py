@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import BaseModel, Field
 
 from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
@@ -47,6 +48,7 @@ class TaskInstanceDTO(BaseModel):
     queue: str
     priority_weight: int
     executor_config: dict | None = Field(default=None, exclude=True)
+    external_executor_id: str | None = Field(default=None, exclude=True)
 
     parent_context_carrier: dict | None = None
     context_carrier: dict | None = None
@@ -72,6 +74,24 @@ class ExecuteTask(BaseDagBundleWorkload):
     sentry_integration: str = ""
 
     type: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
+
+    @property
+    def key(self) -> TaskInstanceKey:
+        """Return the TaskInstanceKey for this workload."""
+        return self.ti.key
+
+    @property
+    def display_name(self) -> str:
+        """Return the task instance ID as a display name."""
+        return str(self.ti.id)
+
+    @property
+    def success_state(self) -> TaskInstanceState:
+        return TaskInstanceState.SUCCESS
+
+    @property
+    def failure_state(self) -> TaskInstanceState:
+        return TaskInstanceState.FAILED
 
     @classmethod
     def make(

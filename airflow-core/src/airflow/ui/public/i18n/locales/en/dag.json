@@ -43,6 +43,8 @@
   "extraLinks": "Extra Links",
   "grid": {
     "buttons": {
+      "newerRuns": "Newer runs",
+      "olderRuns": "Older runs",
       "resetToLatest": "Reset to latest",
       "toggleGroup": "Toggle group"
     },
@@ -52,6 +54,9 @@
     "buttons": {
       "advanced": "Advanced",
       "dagDocs": "Dag Docs"
+    },
+    "status": {
+      "deactivated": "Deactivated"
     }
   },
   "logs": {
@@ -66,12 +71,18 @@
     },
     "info": "INFO",
     "noTryNumber": "No try number",
+    "search": {
+      "matchCount": "{{current}} of {{total}}",
+      "noMatches": "No matches",
+      "placeholder": "Search logs..."
+    },
     "settings": "Log Settings",
     "viewInExternal": "View logs in {{name}} (attempt {{attempt}})",
     "warning": "WARNING"
   },
   "navigation": {
     "navigation": "Navigation: Shift+{{arrow}}",
+    "openGraphFilters": "Task Filters: Ctrl+Shift+F",
     "toggleGroup": "Toggle group: Space"
   },
   "notFound": {
@@ -121,6 +132,16 @@
     },
     "graphDirection": {
       "label": "Graph Direction"
+    },
+    "graphFilters": {
+      "clearFilters": "Clear Filters",
+      "durationGte": "Min duration (s)",
+      "durationGteHint": "For mapped tasks, measures total span across all instances",
+      "mapIndex": "Min. map index",
+      "mapIndexHint": "Shows mapped tasks expanded to at least this index",
+      "selectStatus": "Select status",
+      "selectTaskGroup": "Select task group",
+      "title": "Task Filters"
     },
     "showVersionIndicator": {
       "label": "Show Version Indicator",

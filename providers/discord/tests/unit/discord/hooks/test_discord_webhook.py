@@ -204,6 +204,12 @@ class TestDiscordWebhookHook:
         # Then
         assert webhook_endpoint == expected_webhook_endpoint
 
+    def test_get_conn_does_not_leak_webhook_endpoint_as_header(self):
+        """webhook_endpoint in connection extra must not be sent as an HTTP header to Discord."""
+        hook = DiscordWebhookHook(http_conn_id="default-discord-webhook")
+        session = hook.get_conn()
+        assert "webhook_endpoint" not in session.headers
+
 
 class TestDiscordWebhookAsyncHook:
     @pytest.fixture(autouse=True)

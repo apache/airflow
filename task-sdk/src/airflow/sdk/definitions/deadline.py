@@ -98,7 +98,7 @@ class FixedDatetimeDeadline(BaseDeadlineReference):
 
     @classmethod
     def deserialize_reference(cls, reference_data: dict[str, Any]) -> FixedDatetimeDeadline:
-        from airflow._shared.timezones import timezone
+        from airflow.sdk._shared.timezones import timezone
 
         return cls(_datetime=timezone.from_timestamp(reference_data["datetime"]))
 
@@ -145,9 +145,11 @@ class DeadlineAlert:
         reference: DeadlineReferenceType,
         interval: timedelta,
         callback: Callback,
+        name: str | None = None,
     ):
         self.reference = reference
         self.interval = interval
+        self.name = name
 
         if not isinstance(callback, (AsyncCallback, SyncCallback)):
             raise ValueError(f"Callbacks of type {type(callback).__name__} are not currently supported")

@@ -39,6 +39,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { DagRunsFilters } from "src/pages/DagRunsFilters";
 import DeleteRunButton from "src/pages/DeleteRunButton";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
@@ -204,11 +205,11 @@ export const DagRuns = () => {
       partition_key: false,
     },
   });
-  const { pagination, sorting } = tableURLState;
+  const { cursor, pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-run_after"];
 
-  const { pageIndex, pageSize } = pagination;
+  const { pageSize } = pagination;
   const filteredState = searchParams.get(STATE_PARAM);
   const filteredType = searchParams.get(RUN_TYPE_PARAM);
   const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
@@ -232,13 +233,39 @@ export const DagRuns = () => {
 
   const refetchInterval = useAutoRefresh({});
 
+  const dagIdPatternArg = useAdvancedSearchArg({
+    patternApiKey: "dagIdPattern",
+    prefixApiKey: "dagIdPrefixPattern",
+    storageKey: DAG_ID_PATTERN_PARAM,
+    value: filteredDagIdPattern,
+  });
+  const runIdPatternArg = useAdvancedSearchArg({
+    patternApiKey: "runIdPattern",
+    prefixApiKey: "runIdPrefixPattern",
+    storageKey: RUN_ID_PATTERN_PARAM,
+    value: filteredRunIdPattern,
+  });
+  const triggeringUserArg = useAdvancedSearchArg({
+    patternApiKey: "triggeringUserNamePattern",
+    prefixApiKey: "triggeringUserNamePrefixPattern",
+    storageKey: TRIGGERING_USER_NAME_PATTERN_PARAM,
+    value: filteredTriggeringUserNamePattern,
+  });
+  const partitionKeyArg = useAdvancedSearchArg({
+    patternApiKey: "partitionKeyPattern",
+    prefixApiKey: "partitionKeyPrefixPattern",
+    storageKey: PARTITION_KEY_PATTERN_PARAM,
+    value: partitionKeyPattern,
+  });
+
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
       bundleVersion: bundleVersion ?? undefined,
       confContains: confContains !== null && confContains !== "" ? confContains : undefined,
       consumingAssetPattern: filteredConsumingAsset ?? undefined,
+      cursor: cursor ?? "",
       dagId: dagId ?? "~",
-      dagIdPattern: filteredDagIdPattern ?? undefined,
+      ...dagIdPatternArg,
       dagVersion:
         filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
@@ -248,17 +275,16 @@ export const DagRuns = () => {
       limit: pageSize,
       logicalDateGte: logicalDateGte ?? undefined,
       logicalDateLte: logicalDateLte ?? undefined,
-      offset: pageIndex * pageSize,
       orderBy,
-      partitionKeyPattern: partitionKeyPattern ?? undefined,
+      ...partitionKeyArg,
       runAfterGte: runAfterGte ?? undefined,
       runAfterLte: runAfterLte ?? undefined,
-      runIdPattern: filteredRunIdPattern ?? undefined,
+      ...runIdPatternArg,
       runType: filteredType === null ? undefined : [filteredType],
       startDateGte: startDateGte ?? undefined,
       startDateLte: startDateLte ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
-      triggeringUserNamePattern: filteredTriggeringUserNamePattern ?? undefined,
+      ...triggeringUserArg,
     },
     undefined,
     {
@@ -270,6 +296,9 @@ export const DagRuns = () => {
 
   const columns = runColumns(translate, dagId);
 
+  const nextCursor = data?.next_cursor ?? undefined;
+  const previousCursor = data?.previous_cursor ?? undefined;
+
   return (
     <>
       <DagRunsFilters dagId={dagId} />
@@ -280,8 +309,9 @@ export const DagRuns = () => {
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="common:dagRun"
+        nextCursor={nextCursor}
         onStateChange={setTableURLState}
-        total={data?.total_entries}
+        previousCursor={previousCursor}
       />
     </>
   );

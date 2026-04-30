@@ -83,7 +83,7 @@ jobs:
         integration: ${{ fromJSON(inputs.testable-core-integrations) }}
     env:
       BACKEND: "postgres"
-      BACKEND_VERSION: ${{ inputs.default-postgres-version }}"
+      BACKEND_VERSION: ${{ inputs.default-postgres-version }}
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       JOB_ID: "integration-core-${{ matrix.integration }}"
       SKIP_PROVIDERS_TESTS: "${{ inputs.skip-providers-tests }}"
@@ -134,7 +134,7 @@ jobs:
         integration: ${{ fromJSON(inputs.testable-providers-integrations) }}
     env:
       BACKEND: "postgres"
-      BACKEND_VERSION: ${{ inputs.default-postgres-version }}"
+      BACKEND_VERSION: ${{ inputs.default-postgres-version }}
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       JOB_ID: "integration-providers-${{ matrix.integration }}"
       SKIP_PROVIDERS_TESTS: "${{ inputs.skip-providers-tests }}"
@@ -179,7 +179,7 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       BACKEND: "postgres"
-      BACKEND_VERSION: ${{ inputs.default-postgres-version }}"
+      BACKEND_VERSION: ${{ inputs.default-postgres-version }}
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       JOB_ID: "system"
       SKIP_PROVIDERS_TESTS: "${{ inputs.skip-providers-tests }}"

@@ -22,7 +22,6 @@
         "title": "已觸發 Dag 執行"
       }
     },
-    "tooltip": "回填功能需要 Dag 具有排程",
     "unpause": "觸發時取消暫停 {{dag_display_name}}",
     "validation": {
       "datesRequired": "必須提供資料區間的開始與結束日期。",

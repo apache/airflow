@@ -22,6 +22,9 @@ packages:
 overrides:
   brace-expansion@<1.1.13: '>=1.1.13'
   liquidjs@<10.25.0: '>=10.25.0'
+  liquidjs@<=10.25.2: '>=10.25.3'
+  liquidjs@<=10.25.3: '>=10.25.4'
+  liquidjs@<=10.25.4: '>=10.25.5'
   markdown-it@>=13.0.0 <14.1.1: '>=14.1.1'
   minimatch@<3.1.3: '>=3.1.3'
   minimatch@<3.1.4: '>=3.1.4'

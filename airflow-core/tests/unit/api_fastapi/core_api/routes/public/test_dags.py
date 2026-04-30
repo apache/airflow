@@ -388,6 +388,9 @@ class TestGetDags(TestDagEndpoint):
             ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
             ({"dag_id_pattern": "1|2"}, 2, [DAG1_ID, DAG2_ID]),
             ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
+            ({"dag_id_prefix_pattern": "test_dag1"}, 1, [DAG1_ID]),
+            ({"dag_id_prefix_pattern": "test_dag1|test_dag2"}, 2, [DAG1_ID, DAG2_ID]),
+            ({"dag_display_name_prefix_pattern": "test_dag2"}, 1, [DAG2_ID]),
             # Bundle filters
             (
                 {"bundle_name": "dag_maker"},
@@ -788,7 +791,7 @@ class TestPatchDags(TestDagEndpoint):
             assert {dag["dag_id"] for dag in body["dags"]} == set(expected_ids)
             paused_dag_ids = {dag["dag_id"] for dag in body["dags"] if dag["is_paused"]}
             assert paused_dag_ids == set(expected_paused_ids)
-            check_last_log(session, dag_id=DAG1_ID, event="patch_dag", logical_date=None)
+            check_last_log(session, dag_id=None, event="patch_dags", logical_date=None)
 
     @pytest.mark.parametrize(
         ("tags_to_add", "query_params", "body", "expected_ids", "expected_paused_ids"),
@@ -1016,6 +1019,7 @@ class TestDagDetails(TestDagEndpoint):
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
+            "is_backfillable": False,
             "is_favorite": False,
             "is_paused": False,
             "is_paused_upon_creation": None,
@@ -1058,6 +1062,7 @@ class TestDagDetails(TestDagEndpoint):
             "template_search_path": None,
             "timetable_description": "Never, external triggers only",
             "timetable_partitioned": False,
+            "timetable_periodic": False,
             "timetable_summary": None,
             "timezone": UTC_JSON_REPR,
         }
@@ -1115,6 +1120,7 @@ class TestDagDetails(TestDagEndpoint):
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
+            "is_backfillable": False,
             "is_favorite": False,
             "is_stale": False,
             "is_paused": False,
@@ -1158,6 +1164,7 @@ class TestDagDetails(TestDagEndpoint):
             "timetable_summary": None,
             "timetable_description": "Never, external triggers only",
             "timetable_partitioned": False,
+            "timetable_periodic": False,
             "timezone": UTC_JSON_REPR,
         }
         assert res_json == expected
@@ -1295,6 +1302,7 @@ class TestGetDag(TestDagEndpoint):
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
+            "is_backfillable": False,
             "is_paused": False,
             "is_stale": False,
             "last_expired": None,
@@ -1312,6 +1320,7 @@ class TestGetDag(TestDagEndpoint):
             "tags": tags,
             "timetable_description": "Never, external triggers only",
             "timetable_partitioned": False,
+            "timetable_periodic": False,
             "timetable_summary": None,
         }
         assert res_json == expected

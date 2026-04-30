@@ -714,6 +714,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     :param conn_id: the connection ID used to connect to the database
     :param database: name of database which overwrite the defined one in connection
+    :param accept_none: If True, an empty table (row count=0) will not trigger a failure.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -738,6 +739,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         partition_clause: str | None = None,
         conn_id: str | None = None,
         database: str | None = None,
+        accept_none: bool = False,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -745,6 +747,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.table = table
         self.checks = checks
         self.partition_clause = _initialize_partition_clause(partition_clause)
+        self.accept_none = accept_none
         self.sql = f"SELECT check_name, check_result FROM ({self._generate_sql_query()}) AS check_table"
 
     def execute(self, context: Context):
@@ -752,6 +755,16 @@ class SQLTableCheckOperator(BaseSQLOperator):
         records = hook.get_records(self.sql)
 
         if not records:
+            # accept_none prevents an error from being thrown if there are no records in the table
+            if self.accept_none:
+                self.log.warning(
+                    "No records found for table: %s, but accept_none=True, "
+                    "therefore, no tests are being marked as failed.",
+                    self.table,
+                )
+                return
+
+            # Otherwise, we'll raise an exception
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
         self.log.info("Record:\n%s", records)

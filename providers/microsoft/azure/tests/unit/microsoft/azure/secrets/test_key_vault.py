@@ -73,6 +73,46 @@ class TestAzureKeyVaultBackend:
         mock_client.get_secret.assert_called_with(name="af-secrets-test-mysql-password")
         assert secret_val == "super-secret"
 
+    @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
+    def test_get_conn_value_uses_team_specific_secret_first(self, mock_client):
+        mock_client.get_secret.return_value = mock.Mock(value="team-secret")
+
+        backend = AzureKeyVaultBackend()
+        secret_val = backend.get_conn_value("my_db", team_name="team_a")
+
+        assert secret_val == "team-secret"
+        mock_client.get_secret.assert_called_once_with(name="airflow-connections-team-a--my-db")
+
+    @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
+    def test_get_variable_falls_back_to_global_secret_when_team_secret_is_missing(self, mock_client):
+        mock_client.get_secret.side_effect = [ResourceNotFoundError, mock.Mock(value="global-value")]
+
+        backend = AzureKeyVaultBackend()
+        secret_val = backend.get_variable("hello", team_name="team_a")
+
+        assert secret_val == "global-value"
+        assert mock_client.get_secret.call_args_list == [
+            mock.call(name="airflow-variables-team-a--hello"),
+            mock.call(name="airflow-variables-hello"),
+        ]
+
+    @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
+    def test_get_variable_uses_team_secret_with_custom_prefix(self, mock_client):
+        mock_client.get_secret.return_value = mock.Mock(value="team-value")
+
+        backend = AzureKeyVaultBackend(variables_prefix="custom-variables")
+        secret_val = backend.get_variable("hello", team_name="team_a")
+
+        assert secret_val == "team-value"
+        mock_client.get_secret.assert_called_once_with(name="custom-variables-team-a--hello")
+
+    @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
+    def test_get_variable_returns_none_for_team_scoped_key_without_team_name(self, mock_client):
+        backend = AzureKeyVaultBackend()
+
+        assert backend.get_variable("teama--hello") is None
+        mock_client.get_secret.assert_not_called()
+
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend._get_secret")
     def test_variable_prefix_none_value(self, mock_get_secret):
         """

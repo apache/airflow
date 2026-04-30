@@ -10,9 +10,12 @@ This directory contains prek (pre-commit) hook scripts. Shared utilities live in
 
 ## Breeze CI image scripts
 
-Some prek scripts require the Breeze CI Docker image to run (e.g. mypy checks, OpenAPI spec
-generation, provider validation). These scripts use the `run_command_via_breeze_shell` helper
-from `common_prek_utils.py` to execute commands inside the container.
+Some prek scripts require the Breeze CI Docker image to run (e.g. `mypy-providers`, OpenAPI
+spec generation, provider validation). These scripts use the `run_command_via_breeze_shell`
+helper from `common_prek_utils.py` to execute commands inside the container. Non-provider
+mypy hooks (`mypy-airflow-core`, `mypy-task-sdk`, `mypy-shared-<dist>`, etc.) run locally via
+`run_mypy_full_dist_local_venv_or_breeze_in_ci.py`, which builds a dedicated virtualenv per hook under `.build/mypy-venvs/`
+using `uv sync --frozen --project <X> --group mypy` — no Breeze image needed.
 
 When adding a new breeze-dependent hook:
 

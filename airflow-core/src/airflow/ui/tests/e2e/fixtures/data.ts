@@ -40,7 +40,7 @@ import {
 } from "../utils/test-helpers";
 import { test as base } from "./pom";
 
-/** Shape returned by single DAG run fixtures. */
+/** Shape returned by single Dag run fixtures. */
 export type DagRunFixtureData = {
   dagId: string;
   logicalDate: string;
@@ -55,13 +55,13 @@ export type SuccessAndFailedRunsData = {
 };
 
 export type DataWorkerFixtures = {
-  /** Ensures the default test DAG is parsed and ready. Worker-scoped, no cleanup needed. */
+  /** Ensures the default test Dag is parsed and ready. Worker-scoped, no cleanup needed. */
   dagReady: string;
-  /** A DAG run triggered via scheduler and completed. Worker-scoped with auto-cleanup. */
+  /** A Dag run triggered via scheduler and completed. Worker-scoped with auto-cleanup. */
   executedDagRun: DagRunFixtureData;
-  /** Two DAG runs: one success, one failed. Worker-scoped with auto-cleanup. */
+  /** Two Dag runs: one success, one failed. Worker-scoped with auto-cleanup. */
   successAndFailedRuns: SuccessAndFailedRunsData;
-  /** A DAG run in "success" state (API-only, no scheduler). Worker-scoped with auto-cleanup. */
+  /** A Dag run in "success" state (API-only, no scheduler). Worker-scoped with auto-cleanup. */
   successDagRun: DagRunFixtureData;
 };
 
@@ -85,22 +85,21 @@ async function createAndSetupDagRun(
   const offsetMs = options.parallelIndex * 7_200_000;
   const logicalDate = options.logicalDate ?? new Date(Date.now() - offsetMs).toISOString();
 
-  await apiCreateDagRun(request, dagId, {
+  const actualRunId = await apiCreateDagRun(request, dagId, {
     dag_run_id: runId,
     logical_date: logicalDate,
   });
-  await apiSetDagRunState(request, { dagId, runId, state: options.state });
 
-  return { dagId, logicalDate, runId };
+  await apiSetDagRunState(request, { dagId, runId: actualRunId, state: options.state });
+
+  return { dagId, logicalDate, runId: actualRunId };
 }
 
 async function cleanupMultipleRuns(
   request: APIRequestContext,
   runs: Array<{ dagId: string; runId: string }>,
 ): Promise<void> {
-  for (const { dagId, runId } of runs) {
-    await safeCleanupDagRun(request, dagId, runId);
-  }
+  await Promise.all(runs.map(({ dagId, runId }) => safeCleanupDagRun(request, dagId, runId)));
 }
 
 export const test = base.extend<DataTestFixtures, DataWorkerFixtures>({

@@ -26,6 +26,22 @@
 Changelog
 ---------
 
+2.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add rendered map_index template to OpenLineage events (#65529)``
+
+Bug Fixes
+~~~~~~~~~
+* ``Fix DetachedInstanceError in OpenLineage listener by using safe_getattr (#65579)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.14.0
 ......
 
@@ -34,9 +50,18 @@ Features
 
 * ``Add OpenLineage parent and transport info injection to 'EmrServerlessStartJobOperator' (#64807)``
 * ``Add OpenLineage parent info injection to GlueJobOperator (#64513)``
+* ``Add dagrun partition info to OpenLineage events (#64897)``
+* ``Fix OpenLineage SQL utils emitting duplicate datasets for tables in multiple schemas (#64622)``
+
+Misc
+~~~~
+
+* ``Fix example dags documentation links (#65071)``
+
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-04-07 (#64864)``
 
 2.13.0
 ......

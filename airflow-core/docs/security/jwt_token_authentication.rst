@@ -201,16 +201,25 @@ Token structure (Execution API)
 Token scopes (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Execution API defines two token scopes:
+The Execution API defines two token scopes with different lifetimes:
 
 **workload**
-   A restricted scope accepted only on endpoints that explicitly opt in via
-   ``Security(require_auth, scopes=["token:workload"])``. Used for endpoints that
-   manage task state transitions.
+   A token embedded in the workload JSON payload when the Scheduler
+   dispatches a task. The longer lifetime
+   allows tasks to remain valid while waiting in executor queues before execution
+   begins. When a worker calls the ``/run`` endpoint with a ``workload`` token, the
+   server issues a fresh ``execution``-scoped token in the ``Refreshed-API-Token``
+   response header. Lifetime equals ``[scheduler] task_queued_timeout`` (default
+   600 seconds) — the same timeout the scheduler uses to reap queue-starved tasks —
+   so tuning ``task_queued_timeout`` also widens the window a task can wait in a
+   backed-up queue before its workload token expires.
 
 **execution**
-   Accepted by all Execution API endpoints. This is the standard scope for worker
-   communication and allows access
+   A short-lived token (default 10 minutes) accepted by all Execution API endpoints.
+   This is the standard scope for worker communication during task execution. Issued
+   by the server when the worker transitions to running via the ``/run`` endpoint.
+   The ``JWTReissueMiddleware`` refreshes ``execution`` tokens transparently,
+   so the worker maintains access for the duration of the task.
 
 Tokens without a ``scope`` claim default to ``"execution"`` for backwards compatibility.
 
@@ -219,14 +228,19 @@ Token delivery to workers
 
 The token flows through the execution stack as follows:
 
-1. **Scheduler** generates the token and embeds it in the workload JSON payload that it passes to
-   **Executor**.
+1. **Scheduler** generates a ``workload``-scoped token (lifetime equals
+   ``[scheduler] task_queued_timeout``, default 600 seconds) and embeds it in the workload
+   JSON payload that it passes to **Executor**.
 2. The workload JSON is passed to the worker process (via the executor-specific mechanism:
    Celery message, Kubernetes Pod spec, local subprocess arguments, etc.).
 3. The worker's ``execute_workload()`` function reads the workload JSON and extracts the token.
-4. The ``supervise()`` function receives the token and creates an ``httpx.Client`` instance
+4. The ``supervise_task()`` function receives the token and creates an ``httpx.Client`` instance
    with ``BearerAuth(token)`` for all Execution API HTTP requests.
-5. The token is included in the ``Authorization: Bearer <token>`` header of every request.
+5. The worker calls the ``/run`` endpoint with the ``workload``-scoped token to mark the task
+   as running. The server responds with a fresh ``execution``-scoped token in the
+   ``Refreshed-API-Token`` header.
+6. The client's ``_update_auth()`` hook detects the header and transparently updates
+   the ``BearerAuth`` instance to use the new ``execution`` token for all subsequent requests.
 
 Token validation (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -251,7 +265,8 @@ Route-level enforcement is handled by ``require_auth``:
 Token refresh (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The ``JWTReissueMiddleware`` automatically refreshes valid tokens that are approaching expiry:
+The ``JWTReissueMiddleware`` automatically refreshes valid tokens that are approaching
+expiry. The token must be valid at the start of the request for refresh to occur:
 
 1. After each response, the middleware checks the token's remaining validity.
 2. If less than **20%** of the total validity remains (minimum 30 seconds), the server
@@ -260,16 +275,20 @@ The ``JWTReissueMiddleware`` automatically refreshes valid tokens that are appro
 4. The client's ``_update_auth()`` hook detects this header and transparently updates
    the ``BearerAuth`` instance for subsequent requests.
 
-This mechanism ensures long-running tasks do not lose API access due to token expiry,
-without requiring the worker to re-authenticate.
+The middleware only refreshes ``execution``-scoped tokens. ``workload``-scoped tokens are
+sized to span the queued-timeout window and are explicitly skipped by the middleware —
+they are designed to survive executor queue wait times without needing refresh. This
+ensures long-running tasks do not lose API access without requiring the worker to
+re-authenticate.
 
 No token revocation (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Execution API tokens are not subject to revocation. They are short-lived (default 10 minutes)
-and automatically refreshed by the ``JWTReissueMiddleware``, so revocation is not part of the
-Execution API security model. Once an Execution API token is issued to a worker, it remains
-valid until it expires.
+Execution API tokens are not subject to revocation. ``execution``-scoped tokens are short-lived
+(default 10 minutes) and automatically refreshed by the ``JWTReissueMiddleware``.
+``workload``-scoped tokens (tracking ``[scheduler] task_queued_timeout``) are not refreshed —
+they expire naturally after their validity period. Revocation is not part of the Execution API
+security model.
 
 
 
@@ -284,11 +303,12 @@ Default timings (Execution API)
      - Default
    * - ``[execution_api] jwt_expiration_time``
      - 600 seconds (10 minutes)
+   * - Workload token lifetime (derived)
+     - ``[scheduler] task_queued_timeout`` (default 600 seconds)
    * - ``[execution_api] jwt_audience``
      - ``urn:airflow.apache.org:task``
    * - Token refresh threshold
-     - 20% of validity remaining (minimum 30 seconds, i.e., at ~120 seconds before expiry
-       with the default 600-second token lifetime)
+     - 20% of validity remaining (minimum 30 seconds)
 
 
 Dag File Processor and Triggerer
@@ -386,7 +406,10 @@ All JWT-related configuration parameters:
      - JWKS endpoint URL or local file path for token validation. Mutually exclusive with ``jwt_secret``.
    * - ``[execution_api] jwt_expiration_time``
      - 600 (10 min)
-     - Execution API token lifetime in seconds.
+     - Execution API ``execution``-scoped token lifetime in seconds.
+   * - ``[scheduler] task_queued_timeout``
+     - 600.0 (10 min)
+     - Queue-starvation timeout. Also sets the ``workload``-scoped token lifetime to the same value.
    * - ``[execution_api] jwt_audience``
      - ``urn:airflow.apache.org:task``
      - Audience claim for Execution API tokens.

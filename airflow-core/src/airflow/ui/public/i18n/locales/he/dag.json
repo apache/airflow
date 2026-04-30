@@ -71,6 +71,7 @@
   },
   "navigation": {
     "navigation": "ניווט: {{arrow}}",
+    "openGraphFilters": "פילטרים משימות: Ctrl+Shift+F",
     "toggleGroup": "החלפת קבוצה: רווח"
   },
   "overview": {
@@ -118,6 +119,16 @@
     },
     "graphDirection": {
       "label": "כיוון התרשים"
+    },
+    "graphFilters": {
+      "clearFilters": "נקה פילטרים",
+      "durationGte": "משך מינימלי (בשניות)",
+      "durationGteHint": "למשימות ממופות, מודד את סך כל הזמן לאורך כל המופעים",
+      "mapIndex": "אינדקס מיפוי מינימלי",
+      "mapIndexHint": "מציג משימות ממופות מורחבות לפחות באינדקס הזה",
+      "selectStatus": "בחר סטטוס",
+      "selectTaskGroup": "בחר קבוצת משימות",
+      "title": "פילטרים משימות"
     },
     "taskStreamFilter": {
       "activeFilter": "מסנן פעיל",

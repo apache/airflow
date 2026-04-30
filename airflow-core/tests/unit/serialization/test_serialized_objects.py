@@ -32,6 +32,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels import taskinstance as ti_datamodel
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import (
     AirflowException,
@@ -42,8 +43,6 @@ from airflow.exceptions import (
 )
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
-from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom_arg import XComArg
 from airflow.partition_mappers.identity import IdentityMapper as CoreIdentityMapper
 from airflow.partition_mappers.temporal import (
@@ -86,6 +85,7 @@ from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
+from airflow.serialization import serialized_objects
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -103,12 +103,9 @@ from airflow.serialization.serialized_objects import (
     DagSerialization,
     LazyDeserializedDAG,
     _has_kubernetes,
-    create_scheduler_operator,
 )
 from airflow.triggers.base import BaseTrigger
 from airflow.utils.db import LazySelectSequence
-from airflow.utils.state import DagRunState, State
-from airflow.utils.types import DagRunType
 
 from unit.models import DEFAULT_DATE
 
@@ -224,31 +221,14 @@ def test_serde_validate_schema_valid_json():
     assert t.obj == {"foo": "bar"}
 
 
-TI = TaskInstance(
-    task=create_scheduler_operator(EmptyOperator(task_id="test-task")),
+TASK_CALLBACK_TI = ti_datamodel.TaskInstance(
+    id=uuid7(),
+    task_id="test-task",
+    dag_id="test-dag",
     run_id="fake_run",
-    state=State.RUNNING,
+    try_number=1,
     dag_version_id=uuid7(),
 )
-
-TI_WITH_START_DAY = TaskInstance(
-    task=create_scheduler_operator(EmptyOperator(task_id="test-task")),
-    run_id="fake_run",
-    state=State.RUNNING,
-    dag_version_id=uuid7(),
-)
-TI_WITH_START_DAY.start_date = timezone.datetime(2020, 1, 1, 0, 0, 0)
-
-DAG_RUN = DagRun(
-    dag_id="test_dag_id",
-    run_id="test_dag_run_id",
-    run_type=DagRunType.MANUAL,
-    logical_date=timezone.utcnow(),
-    start_date=timezone.utcnow(),
-    state=DagRunState.SUCCESS,
-)
-DAG_RUN.id = 1
-
 
 # we add the tasks out of order, to ensure they are deserialized in the correct order
 DAG_WITH_TASKS = DAG(dag_id="test_dag", start_date=datetime.now())
@@ -400,14 +380,9 @@ class MockLazySelectSequence(LazySelectSequence):
             equal_serialized_asset,
         ),
         (
-            Connection(conn_id="TEST_ID", uri="mysql://"),
-            DAT.CONNECTION,
-            lambda a, b: a.get_uri() == b.get_uri(),
-        ),
-        (
             TaskCallbackRequest(
                 filepath="filepath",
-                ti=TI,
+                ti=TASK_CALLBACK_TI,
                 bundle_name="testing",
                 bundle_version=None,
             ),
@@ -503,6 +478,19 @@ def test_serialize_deserialize(input, encoded_type, cmp_func):
     json.dumps(serialized)  # does not raise
 
 
+@pytest.mark.db_test
+def test_serialize_deserialize_connection():
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    connection = Connection(conn_id="TEST_ID", uri="mysql://")
+    serialized = BaseSerialization.serialize(connection)
+    json.dumps(serialized)
+    assert serialized[Encoding.TYPE] == DAT.CONNECTION
+
+    deserialized = BaseSerialization.deserialize(serialized)
+    assert deserialized.get_uri() == connection.get_uri()
+
+
 @pytest.mark.parametrize("reference", REFERENCE_TYPES)
 def test_serialize_deserialize_deadline_alert(reference):
     public_deadline_alert_fields = {
@@ -540,6 +528,7 @@ def test_serialize_deserialize_deadline_alert(reference):
         ),
     ],
 )
+@pytest.mark.db_test
 def test_backcompat_deserialize_connection(conn_uri):
     """Test deserialize connection which serialised by previous serializer implementation."""
     from airflow.serialization.serialized_objects import BaseSerialization
@@ -1049,3 +1038,76 @@ class TestKubernetesImportAvoidance:
         result = _has_kubernetes()
 
         assert result is True
+
+    def test_serialize_v1pod_attempts_import_before_serializing(self, monkeypatch):
+        """Regression test: V1Pod serialization must call _has_kubernetes(attempt_import=True)."""
+        k8s = pytest.importorskip("kubernetes.client.models")
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+
+        calls = []
+
+        def fake_has_kubernetes(*, attempt_import=False):
+            calls.append(attempt_import)
+            return True
+
+        monkeypatch.setattr(serialized_objects, "_has_kubernetes", fake_has_kubernetes)
+        monkeypatch.setattr(serialized_objects, "k8s", k8s, raising=False)
+        monkeypatch.setattr(serialized_objects, "PodGenerator", PodGenerator, raising=False)
+
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="test-pod"))
+        result = BaseSerialization.serialize(pod)
+
+        assert isinstance(result, dict), "V1Pod should serialize to a dict, not a string"
+        assert result.get(Encoding.TYPE) == DAT.POD, "V1Pod should have type DAT.POD"
+        assert True in calls
+
+
+@pytest.mark.db_test
+def test_serialized_dag_getitem_returns_task(dag_maker):
+    from airflow.serialization.definitions.dag import SerializedDAG
+
+    with dag_maker() as dag:
+        BashOperator(task_id="my_task", bash_command="echo 1")
+
+    ser_dict = DagSerialization.to_dict(dag)
+    ser_dag = DagSerialization.from_dict(ser_dict)
+    assert isinstance(ser_dag, SerializedDAG)
+    assert ser_dag["my_task"].task_id == "my_task"
+
+
+@pytest.mark.db_test
+def test_serialized_dag_getitem_missing_raises_node_not_found(dag_maker):
+    from airflow.exceptions import NodeNotFound
+
+    with dag_maker() as dag:
+        BashOperator(task_id="my_task", bash_command="echo 1")
+
+    ser_dict = DagSerialization.to_dict(dag)
+    ser_dag = DagSerialization.from_dict(ser_dict)
+    with pytest.raises(NodeNotFound):
+        ser_dag["nonexistent"]
+
+
+@pytest.mark.db_test
+def test_serialized_dag_getitem_missing_is_key_error(dag_maker):
+    with dag_maker() as dag:
+        BashOperator(task_id="my_task", bash_command="echo 1")
+
+    ser_dict = DagSerialization.to_dict(dag)
+    ser_dag = DagSerialization.from_dict(ser_dict)
+    with pytest.raises(KeyError):
+        ser_dag["nonexistent"]
+
+
+@pytest.mark.db_test
+def test_serialized_dag_getitem_returns_task_group(dag_maker):
+    from airflow.serialization.definitions.dag import SerializedDAG
+
+    with dag_maker() as dag:
+        with TaskGroup(group_id="section") as tg:
+            BashOperator(task_id="t", bash_command="echo 1")
+
+    ser_dict = DagSerialization.to_dict(dag)
+    ser_dag = DagSerialization.from_dict(ser_dict)
+    assert isinstance(ser_dag, SerializedDAG)
+    assert ser_dag["section"].group_id == tg.group_id
