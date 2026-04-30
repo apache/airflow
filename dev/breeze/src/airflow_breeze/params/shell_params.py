@@ -229,6 +229,7 @@ class ShellParams:
     restart: bool = False
     run_db_tests_only: bool = False
     run_tests: bool = False
+    sdk: tuple[str, ...] = ()
     skip_assets_compilation: bool = False
     skip_db_tests: bool = False
     skip_environment_initialization: bool = False
@@ -663,6 +664,8 @@ services:
         _set_var(_env, "GITHUB_TOKEN", self.github_token)
         if "go" in self.worker_type:
             _set_var(_env, "GO_WORKER", True)
+        if "java" in self.sdk:
+            _set_var(_env, "JAVA_SDK", True)
         _set_var(_env, "HOST_GROUP_ID", self.host_group_id)
         _set_var(_env, "HOST_OS", self.host_os)
         _set_var(_env, "HOST_USER_ID", self.host_user_id)

@@ -97,6 +97,9 @@ services:
         source: ../../../go-sdk
         target: /opt/airflow/go-sdk
       - type: bind
+        source: ../../../java-sdk
+        target: /opt/airflow/java-sdk
+      - type: bind
         source: ../../../helm-tests
         target: /opt/airflow/helm-tests
       - type: bind
