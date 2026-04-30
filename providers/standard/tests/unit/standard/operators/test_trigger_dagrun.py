@@ -105,7 +105,7 @@ class TestDagRunOperator:
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.models.dagbundle import DagBundleModel
 
-                session.query(DagBundleModel).filter_by(name="test_bundle").delete(synchronize_session=False)
+                session.execute(delete(DagBundleModel).where(DagBundleModel.name == "test_bundle"))
             session.commit()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
