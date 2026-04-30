@@ -22,12 +22,16 @@ import uuid
 import pytest
 
 from airflowctl.api.client import ClientKind
-from airflowctl.api.datamodels.generated import TaskInstanceCollectionResponse, TaskInstanceResponse
+from airflowctl.api.datamodels.generated import (
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
+    TaskInstanceState,
+)
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import task_command
 
 
-def _make_task_instance(task_id: str, state: str) -> TaskInstanceResponse:
+def _make_task_instance(task_id: str, state: TaskInstanceState) -> TaskInstanceResponse:
     return TaskInstanceResponse(
         id=uuid.uuid4(),
         task_id=task_id,
@@ -53,8 +57,8 @@ class TestTaskCommand:
 
     collection_response = TaskInstanceCollectionResponse(
         task_instances=[
-            _make_task_instance("task_one", "success"),
-            _make_task_instance("task_two", "failed"),
+            _make_task_instance("task_one", TaskInstanceState.SUCCESS),
+            _make_task_instance("task_two", TaskInstanceState.FAILED),
         ],
         total_entries=2,
     )
@@ -67,7 +71,9 @@ class TestTaskCommand:
             kind=ClientKind.CLI,
         )
         result = task_command.states_for_dag_run(
-            self.parser.parse_args(["tasks", "states-for-dag-run", self.dag_id, self.dag_run_id]),
+            self.parser.parse_args(
+                ["tasks", "states-for-dag-run", "--dag-id", self.dag_id, "--dag-run-id", self.dag_run_id]
+            ),
             api_client=api_client,
         )
         assert result == [
@@ -84,6 +90,8 @@ class TestTaskCommand:
         )
         with pytest.raises(SystemExit):
             task_command.states_for_dag_run(
-                self.parser.parse_args(["tasks", "states-for-dag-run", self.dag_id, self.dag_run_id]),
+                self.parser.parse_args(
+                    ["tasks", "states-for-dag-run", "--dag-id", self.dag_id, "--dag-run-id", self.dag_run_id]
+                ),
                 api_client=api_client,
             )

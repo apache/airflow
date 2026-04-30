@@ -100,3 +100,6 @@ xcom:
 plugins:
   list: "List all installed Airflow plugins"
   list-import-errors: "List all plugin import errors"
+
+taskinstances:
+  list-for-dag-run: "List task instances and their states for a specific DAG run"

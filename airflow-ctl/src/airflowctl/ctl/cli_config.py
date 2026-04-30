@@ -261,16 +261,27 @@ ARG_AUTH_PASSWORD = Arg(
     help="The password to use for authentication",
 )
 
-# Dag / Task Commands Args
+# Dag Commands Args
 ARG_DAG_ID = Arg(
     flags=("dag_id",),
     type=str,
     help="The DAG ID",
 )
 
-ARG_DAG_RUN_ID = Arg(
-    flags=("dag_run_id",),
+# Task Commands Args
+ARG_TASK_DAG_ID = Arg(
+    flags=("--dag-id",),
+    dest="dag_id",
     type=str,
+    required=True,
+    help="The DAG ID",
+)
+
+ARG_TASK_DAG_RUN_ID = Arg(
+    flags=("--dag-run-id",),
+    dest="dag_run_id",
+    type=str,
+    required=True,
     help="The DAG run ID",
 )
 
@@ -938,8 +949,8 @@ TASK_COMMANDS = (
         help="Get task states for a DAG run",
         func=lazy_load_command("airflowctl.ctl.commands.task_command.states_for_dag_run"),
         args=(
-            ARG_DAG_ID,
-            ARG_DAG_RUN_ID,
+            ARG_TASK_DAG_ID,
+            ARG_TASK_DAG_RUN_ID,
             ARG_OUTPUT,
         ),
     ),

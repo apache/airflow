@@ -50,6 +50,8 @@ EXCLUDED_METHODS = {
 }
 
 EXCLUDED_COMMANDS = {
+    # Exposed via the custom `tasks states-for-dag-run` command with dedicated unit tests
+    "taskinstances list-for-dag-run",
     "assets delete-dag-queued-events",
     "assets delete-queued-event",
     "assets delete-queued-events",
