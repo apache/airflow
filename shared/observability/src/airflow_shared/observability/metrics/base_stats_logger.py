@@ -29,8 +29,6 @@ if TYPE_CHECKING:
 class StatsLogger(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
 
-    instance: StatsLogger | NoStatsLogger | None = None
-
     @classmethod
     def initialize(
         cls,
