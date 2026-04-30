@@ -781,6 +781,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.hooks.s3"],
             },
             {
+                "integration-name": "Amazon S3 Tables",
+                "python-modules": ["airflow.providers.amazon.aws.hooks.s3_tables"],
+            },
+            {
                 "integration-name": "Amazon SageMaker",
                 "python-modules": ["airflow.providers.amazon.aws.hooks.sagemaker"],
             },

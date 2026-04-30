@@ -714,6 +714,9 @@ hooks:
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.hooks.s3
+  - integration-name: Amazon S3 Tables
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.s3_tables
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.hooks.sagemaker
