@@ -108,21 +108,55 @@ def _add_example_dag_bundle(bundle_config_list: list[_ExternalBundleConfig]):
 
 
 def _add_provider_example_dags_to_bundle(bundle_config_list: list[_ExternalBundleConfig]):
-    from airflow import providers
+    """
+    Add an ``example_dags`` folder of every installed provider as a bundle.
 
-    for provider_path in providers.__path__:
-        for name in os.listdir(provider_path):
-            example_dag_folder = os.path.join(provider_path, name, "example_dags")
-            if os.path.isdir(example_dag_folder):
-                bundle_config_list.append(
-                    _ExternalBundleConfig(
-                        name=f"airflow-provider-{name}-example-dags",
-                        classpath="airflow.dag_processing.bundles.local.LocalDagBundle",
-                        kwargs={
-                            "path": example_dag_folder,
-                        },
-                    )
+    Provider locations are resolved through ``ProvidersManager`` instead of
+    walking ``airflow.providers.__path__`` so that:
+
+    - nested providers (e.g. ``apache-airflow-providers-common-sql`` whose
+      module path is ``airflow.providers.common.sql``) are discovered;
+    - providers installed outside the ``airflow.providers`` namespace package
+      are discovered via their entry point.
+    """
+    import importlib
+    import logging
+
+    from airflow.providers_manager import ProvidersManager
+
+    log = logging.getLogger(__name__)
+    seen: set[str] = set()
+
+    for package_name in ProvidersManager().providers:
+        # apache-airflow-providers-foo-bar -> airflow.providers.foo.bar
+        if not package_name.startswith("apache-airflow-providers-"):
+            module_name = package_name.replace("-", "_")
+        else:
+            suffix = package_name[len("apache-airflow-providers-") :]
+            module_name = "airflow.providers." + suffix.replace("-", ".")
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            log.debug("Could not import provider module %s for example DAG discovery", module_name)
+            continue
+
+        for module_path in getattr(module, "__path__", []):
+            example_dag_folder = os.path.join(module_path, "example_dags")
+            if not os.path.isdir(example_dag_folder):
+                continue
+            bundle_name = f"airflow-provider-{package_name}-example-dags"
+            if bundle_name in seen:
+                continue
+            seen.add(bundle_name)
+            bundle_config_list.append(
+                _ExternalBundleConfig(
+                    name=bundle_name,
+                    classpath="airflow.dag_processing.bundles.local.LocalDagBundle",
+                    kwargs={
+                        "path": example_dag_folder,
+                    },
                 )
+            )
 
 
 def _is_safe_bundle_url(url: str) -> bool:
