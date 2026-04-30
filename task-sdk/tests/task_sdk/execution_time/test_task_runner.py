@@ -2256,8 +2256,10 @@ class TestRuntimeTaskInstance:
         test_task_id = "pull_task"
         task = CustomOperator(task_id=test_task_id)
 
-        # In case of the specific map_index or None we should check it is passed to TI
-        extra_for_ti = {"map_index": map_indexes} if map_indexes in (1, None) else {}
+        # In case of the specific map_index we should check it is passed to TI.
+        # ``None`` is not a valid TaskInstanceDTO.map_index value, but xcom_pull's
+        # behaviour with ``map_indexes=None`` is independent of the TI's own map_index.
+        extra_for_ti = {"map_index": map_indexes} if isinstance(map_indexes, int) else {}
         runtime_ti = create_runtime_ti(task=task, **extra_for_ti)
 
         ser_value = BaseXCom.serialize_value(xcom_values)
