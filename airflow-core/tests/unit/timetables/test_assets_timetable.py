@@ -137,16 +137,11 @@ def sdk_asset_and_time_timetable(test_timetable, test_assets) -> SdkAssetAndTime
 
 
 @pytest.fixture
-def core_asset_and_time_timetable(
-    test_timetable: MockTimetable, test_assets: list[Asset]
-) -> CoreAssetAndTimeSchedule:
-    """
-    Pytest fixture for creating an AssetAndTimeSchedule object.
-
-    :param test_timetable: The test timetable instance.
-    :param test_assets: A list of Asset instances.
-    """
-    return CoreAssetAndTimeSchedule(timetable=test_timetable, assets=test_assets)
+def core_asset_and_time_timetable(test_timetable: MockTimetable) -> CoreAssetAndTimeSchedule:
+    return CoreAssetAndTimeSchedule(
+        timetable=test_timetable,
+        assets=SerializedAssetAll([SerializedAsset("test_asset", "test://asset/", "asset", {}, [])]),
+    )
 
 
 @pytest.fixture
