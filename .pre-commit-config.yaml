@@ -235,6 +235,16 @@ repos:
           ^pyproject\.toml$
         pass_filenames: false
         require_serial: true
+      - id: check-cadwyn-response-field-optional
+        name: Check Cadwyn response-downgrade fields are optional on HEAD
+        entry: ./scripts/ci/prek/check_cadwyn_response_field_optional.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/api_fastapi/execution_api/versions/v.*\.py$|
+          ^airflow-core/src/airflow/api_fastapi/execution_api/datamodels/.*\.py$
+        pass_filenames: false
+        require_serial: true
       - id: sync-uv-min-version-markers
         name: Sync `# sync-uv-min-version` markers with [tool.uv] required-version
         entry: ./scripts/ci/prek/sync_uv_min_version_markers.py

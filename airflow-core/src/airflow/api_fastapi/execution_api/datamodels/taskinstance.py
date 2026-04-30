@@ -300,11 +300,11 @@ class DagRun(StrictBaseModel):
     end_date: UtcDateTime | None
     clear_number: int = 0
     run_type: DagRunType
-    state: DagRunState
+    state: DagRunState | None = None
     conf: dict[str, Any] | None = None
     triggering_user_name: str | None = None
     consumed_asset_events: list[AssetEventDagRunReference]
-    partition_key: str | None
+    partition_key: str | None = None
     note: str | None = None
     team_name: str | None = None
 
