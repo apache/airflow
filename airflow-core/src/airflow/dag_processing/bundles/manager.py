@@ -264,6 +264,15 @@ class DagBundlesManager(LoggingMixin):
 
     @provide_session
     def sync_bundles_to_db(self, *, session: Session = NEW_SESSION) -> None:
+        """
+        Persist the configured DAG bundles into ``DagBundleModel`` rows.
+
+        This only reconciles bundle metadata, not the DAGs contained in them.
+        Parsing each bundle's DAG files and writing the resulting
+        ``DagModel`` / ``SerializedDagModel`` rows is the responsibility of
+        ``DagBag`` plus ``sync_bag_to_db`` (or, in production, the DAG
+        processor); calling this method does not trigger that work.
+        """
         self.log.debug("Syncing DAG bundles to the database")
 
         def _extract_and_sign_template(bundle_name: str) -> tuple[str | None, dict]:

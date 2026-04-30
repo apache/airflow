@@ -47,7 +47,6 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.providers.standard import example_dags as standard_example_dags
 from airflow.sdk import DAG, BaseOperator
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
@@ -58,7 +57,25 @@ from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
 
-standard_example_dags_folder = Path(standard_example_dags.__file__).parent
+
+def _standard_example_dags_folder() -> Path:
+    """
+    Return the filesystem path of the standard provider's ``example_dags``.
+
+    Importing the provider lazily keeps the test module collectable in
+    environments where the standard provider is not yet installed. The
+    tests that actually need the folder will fail explicitly when the
+    provider is missing, instead of breaking pytest collection.
+    """
+    from airflow.providers.standard import example_dags
+
+    return Path(example_dags.__file__).parent
+
+
+@pytest.fixture
+def standard_example_dags_folder() -> Path:
+    return _standard_example_dags_folder()
+
 
 PY311 = sys.version_info >= (3, 11)
 PY313 = sys.version_info >= (3, 13)
@@ -343,11 +360,13 @@ class TestDagBag:
         dagbag2 = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
         assert dagbag2.bundle_name is None
 
-    def test_get_existing_dag(self, tmp_path):
+    def test_get_existing_dag(self, tmp_path, standard_example_dags_folder):
         """
         Test that we're able to parse some example DAGs and retrieve them
         """
-        dagbag = DagBag(dag_folder=standard_example_dags_folder, include_examples=False, bundle_name="test_bundle")
+        dagbag = DagBag(
+            dag_folder=standard_example_dags_folder, include_examples=False, bundle_name="test_bundle"
+        )
 
         some_expected_dag_ids = ["example_bash_operator", "example_python_operator"]
 
@@ -716,7 +735,7 @@ class TestDagBag:
         assert len(dagbag.dags) == len(valid_dag_files)
 
     @patch.object(DagModel, "get_current")
-    def test_get_dag_without_refresh(self, mock_dagmodel):
+    def test_get_dag_without_refresh(self, mock_dagmodel, standard_example_dags_folder):
         """
         Test that, once a DAG is loaded, it doesn't get refreshed again if it
         hasn't been expired.
@@ -744,25 +763,24 @@ class TestDagBag:
         assert dagbag.process_file_calls == 1
 
     @pytest.mark.parametrize(
-        ("file_to_load", "expected"),
+        ("file_name", "expected_dag_id"),
         (
             pytest.param(
-                pathlib.Path(standard_example_dags_folder) / "example_bash_operator.py",
-                {
-                    "example_bash_operator": f"{standard_example_dags_folder.relative_to(AIRFLOW_ROOT_PATH) / 'example_bash_operator.py'}"
-                },
+                "example_bash_operator.py",
+                "example_bash_operator",
                 id="example_bash_operator",
             ),
         ),
     )
-    def test_get_dag_registration(self, file_to_load, expected):
+    def test_get_dag_registration(self, file_name, expected_dag_id, standard_example_dags_folder):
         pytest.importorskip("system.standard")
+        file_to_load = standard_example_dags_folder / file_name
+        expected_path = standard_example_dags_folder.relative_to(AIRFLOW_ROOT_PATH) / file_name
         dagbag = DagBag(dag_folder=os.devnull, include_examples=False)
         dagbag.process_file(os.fspath(file_to_load))
-        for dag_id, path in expected.items():
-            dag = dagbag.get_dag(dag_id)
-            assert dag, f"{dag_id} was bagged"
-            assert dag.fileloc.endswith(path)
+        dag = dagbag.get_dag(expected_dag_id)
+        assert dag, f"{expected_dag_id} was bagged"
+        assert dag.fileloc.endswith(str(expected_path))
 
     @pytest.mark.parametrize(
         ("expected"),
@@ -806,7 +824,7 @@ class TestDagBag:
         assert [dag.dag_id for dag in found] == ["test_example_bash_operator"]
 
     @patch.object(DagModel, "get_current")
-    def test_refresh_py_dag(self, mock_dagmodel, tmp_path):
+    def test_refresh_py_dag(self, mock_dagmodel, tmp_path, standard_example_dags_folder):
         """
         Test that we can refresh an ordinary .py DAG
         """
