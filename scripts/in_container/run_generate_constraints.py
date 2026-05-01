@@ -523,7 +523,18 @@ def _collect_workspace_build_reqs(workspace_root: Path) -> dict[str, set[str]]:
     PEP 508 requirement strings seen across workspace packages.  All strings
     are passed to the resolver so it can compute their intersection.
     """
-    skip_dirs = {".git", ".venv", "node_modules", "__pycache__", ".tox", ".mypy_cache", ".ruff_cache"}
+    skip_dirs = {
+        ".git",
+        ".venv",
+        "node_modules",
+        "__pycache__",
+        ".tox",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".build",
+        "dist",
+        "files",
+    }
     build_reqs: dict[str, set[str]] = {}
     for pyproject_path in sorted(workspace_root.glob("**/pyproject.toml")):
         if any(part in skip_dirs for part in pyproject_path.parts):
@@ -568,14 +579,19 @@ def _parse_uv_lock(uv_lock_path: Path) -> list[_LockPackage]:
 
 
 def _extract_build_reqs_from_tar(sdist_url: str) -> list[str]:
-    """Stream-download a .tar.gz sdist and extract build-system.requires."""
+    """Stream-download a .tar.gz sdist and extract build-system.requires.
+
+    Only the top-level ``<dist>/pyproject.toml`` is read; nested pyproject.toml
+    files (vendored sub-projects, test fixtures) are ignored so they cannot
+    pollute the build constraints.
+    """
     req = urllib.request.Request(sdist_url)
     with urllib.request.urlopen(req, timeout=120) as resp:
         with tarfile.open(fileobj=resp, mode="r|gz") as tar:
             for i, member in enumerate(tar):
                 if i > 10000:
                     break
-                if member.name.endswith("pyproject.toml"):
+                if member.name.count("/") == 1 and member.name.endswith("/pyproject.toml"):
                     extracted = tar.extractfile(member)
                     if extracted:
                         data = tomllib.loads(extracted.read().decode())
@@ -584,12 +600,17 @@ def _extract_build_reqs_from_tar(sdist_url: str) -> list[str]:
 
 
 def _extract_build_reqs_from_zip(sdist_url: str) -> list[str]:
-    """Download a .zip sdist and extract build-system.requires."""
+    """Download a .zip sdist and extract build-system.requires.
+
+    Only the top-level ``<dist>/pyproject.toml`` is read; nested pyproject.toml
+    files (vendored sub-projects, test fixtures) are ignored so they cannot
+    pollute the build constraints.
+    """
     req = urllib.request.Request(sdist_url)
     with urllib.request.urlopen(req, timeout=120) as resp:
         with zipfile.ZipFile(io.BytesIO(resp.read())) as zf:
             for name in zf.namelist():
-                if name.endswith("pyproject.toml"):
+                if name.count("/") == 1 and name.endswith("/pyproject.toml"):
                     data = tomllib.loads(zf.read(name).decode())
                     return data.get("build-system", {}).get("requires", [])
     return []
@@ -776,13 +797,20 @@ def _resolve_build_requirements(
         if result.returncode == 0:
             break
 
-        # Try to identify the conflicting package from the error output
-        # uv error format: "Because you require <pkg>>=... and <pkg>>=..."
+        # Identify the conflicting package by intersecting our known candidates
+        # with names mentioned in stderr alongside a version specifier.  This
+        # avoids depending on any single uv diagnostic phrase ("you require",
+        # "the project depends on", ...) so that future wording changes do not
+        # silently turn conflicts into hard failures.
+        stderr_text = result.stderr or ""
         conflict_name = None
-        for line in (result.stderr or "").splitlines():
-            match = re.search(r"you require\s+([a-zA-Z0-9][-a-zA-Z0-9_.]*)", line)
-            if match:
-                conflict_name = _normalize_package_name(match.group(1))
+        for name in lines_by_name:
+            # Look for "<name><op>" where <op> starts a PEP 440 specifier.
+            # ``re.escape`` handles names that contain ``.`` or other regex
+            # metacharacters; ``\b`` prevents matching ``mycython`` for ``cython``.
+            pattern = rf"\b{re.escape(name)}\s*[<>=!~]"
+            if re.search(pattern, stderr_text, re.IGNORECASE):
+                conflict_name = name
                 break
 
         if conflict_name and conflict_name in lines_by_name:
