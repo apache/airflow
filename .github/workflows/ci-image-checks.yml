@@ -264,7 +264,7 @@ jobs:
           inputs.canary-run == 'true' &&
           matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_new'
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+        uses: slackapi/slack-github-action@03ea5433c137af7c0495bc0cad1af10403fc800c  # v3.0.2
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -280,7 +280,7 @@ jobs:
           inputs.canary-run == 'true' &&
           matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_reminder'
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+        uses: slackapi/slack-github-action@03ea5433c137af7c0495bc0cad1af10403fc800c  # v3.0.2
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -296,7 +296,7 @@ jobs:
           inputs.canary-run == 'true' &&
           matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_recovery'
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+        uses: slackapi/slack-github-action@03ea5433c137af7c0495bc0cad1af10403fc800c  # v3.0.2
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
