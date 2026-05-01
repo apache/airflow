@@ -21,6 +21,9 @@ labelPRBasedOnFilePath:
   provider:airbyte:
     - providers/airbyte/**
 
+  provider:akeyless:
+    - providers/akeyless/**
+
   provider:alibaba:
     - providers/alibaba/**
 
@@ -368,7 +371,7 @@ labelPRBasedOnFilePath:
   # Apply to PRs touching airflow-ctl code so the release manager notices when a
   # fix should land on the airflow-ctl/v0-1-test maintenance branch.
   # Scoped to PRs targeting `main` only.
-  backport-to-airflow-ctl-v0-1-test:
+  backport-to-airflow-ctl/v0-1-test:
     paths:
       - airflow-ctl/**/*
     targetBranchFilter:
@@ -603,7 +606,7 @@ firstPRWelcomeComment: >
   - In case of a new feature add useful documentation (in docstrings or in `docs/` directory).
   Adding a new operator? Check this short
   [guide](https://github.com/apache/airflow/blob/main/airflow-core/docs/howto/custom-operator.rst)
-  Consider adding an example DAG that shows how users should use it.
+  Consider adding an example Dag that shows how users should use it.
 
   - Consider using [Breeze environment](https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst)
   for testing locally, it's a heavy docker but it ships with a working Airflow and a lot of integrations.

@@ -2586,6 +2586,10 @@ scheduler:
     task_queued_timeout:
       description: |
         Amount of time a task can be in the queued state before being retried or set to failed.
+
+        This value also sets the lifetime of the workload JWT token that is sent with the task
+        to an executor queue, so a task waiting in the queue can still authenticate to the
+        Execution API until its queue-starvation deadline.
       version_added: 2.6.0
       type: float
       example: ~
@@ -2681,6 +2685,15 @@ triggerer:
       type: float
       example: ~
       default: "30"
+    blocked_main_thread_warning_threshold:
+      description: |
+        Threshold in seconds for logging a warning when the Triggerer's async thread appears blocked.
+        Increase this value if your deployment can tolerate longer delays in the Triggerer's async
+        loop before logging a warning.
+      version_added: 3.2.0
+      type: float
+      example: ~
+      default: "0.2"
     max_trigger_to_select_per_loop:
       description: |
         Maximum number of triggers to select per loop. Set this notably lower than ``[triggerer] capacity``
@@ -2695,7 +2708,7 @@ triggerer:
         Maximum number of seconds the triggerer will wait for ``BaseTrigger.on_kill()`` to complete
         before giving up and logging a warning. Prevents a slow or hung external API call from
         blocking the triggerer indefinitely when a deferred task is killed by a user.
-      version_added: 3.2.0
+      version_added: 3.3.0
       type: integer
       example: ~
       default: "30"
@@ -2983,6 +2996,20 @@ dag_processor:
       type: string
       example: ~
       default: "warning"
+
+state_store:
+  description: |
+    Configuration for task and asset state storage backend.
+  options:
+    backend:
+      description: |
+        Full dotted path to the class that implements state storage for tasks and assets.
+        The class must be a subclass of ``BaseStateBackend``.
+        The default implementation persists state in the Airflow metadata database.
+      version_added: 3.3.0
+      type: string
+      example: "mypackage.state.CustomStateBackend"
+      default: "airflow.state.metastore.MetastoreStateBackend"
 
 profiling:
   description: |

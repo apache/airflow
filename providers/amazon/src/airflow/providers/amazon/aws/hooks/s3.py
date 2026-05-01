@@ -168,7 +168,8 @@ class S3Hook(AwsBaseHook):
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("s3") <S3.Client>`
     and :external+boto3:py:class:`boto3.resource("s3") <S3.ServiceResource>`.
 
-    :param transfer_config_args: Configuration object for managed S3 transfers.
+    :param transfer_config_args: Default Configuration object for managed S3 transfers.
+        Can also be set in the service_config.
     :param extra_args: Extra arguments that may be passed to the download/upload operations.
 
     .. seealso::
@@ -198,13 +199,20 @@ class S3Hook(AwsBaseHook):
 
         if transfer_config_args and not isinstance(transfer_config_args, dict):
             raise TypeError(f"transfer_config_args expected dict, got {type(transfer_config_args).__name__}.")
-        self.transfer_config = TransferConfig(**transfer_config_args or {})
+        self._transfer_config_args = transfer_config_args or {}
 
         if extra_args and not isinstance(extra_args, dict):
             raise TypeError(f"extra_args expected dict, got {type(extra_args).__name__}.")
         self._extra_args = extra_args or {}
 
         super().__init__(*args, **kwargs)
+
+    @property
+    def transfer_config(self):
+        if not hasattr(self, "_transfer_config"):
+            self._transfer_config_args.update(self.service_config.get("transfer_config_args", {}))
+            self._transfer_config = TransferConfig(**self._transfer_config_args)
+        return self._transfer_config
 
     @cached_property
     def resource(self):

@@ -253,29 +253,15 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.config_prefix, key, self.config_lookup_pattern)
 
-    def _get_secret(
-        self, path_prefix, secret_id: str, lookup_pattern: str | None, team_name: str | None = None
-    ) -> str | None:
+    def _get_secret_value(self, secret_id: str, secrets_path: str) -> str | None:
         """
-        Get secret value from Secrets Manager.
+        Fetch a secret value from Secrets Manager.
 
-        :param path_prefix: Prefix for the Path to get Secret
-        :param secret_id: Secret Key
-        :param lookup_pattern: If provided, `secret_id` must match this pattern to look up the secret in
-            Secrets Manager
+        :param secret_id: Secret Key, used for logging on not-found.
+        :param secrets_path: Full path to look up in Secrets Manager.
+        :return: The secret value, or None if not found or on error.
         """
-        if lookup_pattern and not re.match(lookup_pattern, secret_id, re.IGNORECASE):
-            return None
-
         error_msg = "An error occurred when calling the get_secret_value operation"
-        if path_prefix and team_name:
-            secrets_path = self.build_path(path_prefix, team_name, self.sep)
-            secrets_path = self.build_path(secrets_path, secret_id, self.sep)
-        elif path_prefix:
-            secrets_path = self.build_path(path_prefix, secret_id, self.sep)
-        else:
-            secrets_path = secret_id
-
         try:
             response = self.client.get_secret_value(
                 SecretId=secrets_path,
@@ -316,3 +302,42 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                 exc_info=True,
             )
             return None
+
+    def _get_secret(
+        self, path_prefix, secret_id: str, lookup_pattern: str | None, team_name: str | None = None
+    ) -> str | None:
+        """
+        Get secret value from Secrets Manager.
+
+        :param path_prefix: Prefix for the Path to get Secret
+        :param secret_id: Secret Key
+        :param lookup_pattern: If provided, `secret_id` must match this pattern to look up the secret in
+            Secrets Manager
+        :param team_name: Team name associated to the task trying to access the variable (if any)
+        """
+        if lookup_pattern and not re.match(lookup_pattern, secret_id, re.IGNORECASE):
+            self.log.debug(
+                "Skipping lookup of %r: does not match configured lookup_pattern %r.",
+                secret_id,
+                lookup_pattern,
+            )
+            return None
+        if team_name is None and re.fullmatch(r"[^-]+--.+", secret_id):
+            self.log.warning(
+                "Secret ID %r contains a '--' separator, which is reserved for team-scoped lookups, "
+                "but no team context was provided. Returning None.",
+                secret_id,
+            )
+            return None
+        if path_prefix and team_name:
+            secrets_path = self.build_path(path_prefix, f"{team_name}--{secret_id}", self.sep)
+            value = self._get_secret_value(secret_id, secrets_path)
+            if value is not None:
+                return value
+
+        if path_prefix:
+            secrets_path = self.build_path(path_prefix, secret_id, self.sep)
+        else:
+            secrets_path = secret_id
+
+        return self._get_secret_value(secret_id, secrets_path)

@@ -19,328 +19,251 @@
 
 # Maintainer PR Triage and Review
 
-This document describes the **auto-triage** workflow — a maintainer-driven tool that helps
-Apache Airflow maintainers triage and review incoming Pull Requests faster and in a more
-informed way. The tool is part of the Breeze development environment and is invoked via
-`breeze pr auto-triage`.
+This document describes how Apache Airflow maintainers triage incoming Pull Requests
+using **agentic skills** that run inside [Claude Code](https://claude.com/claude-code).
+The triage workflow that used to live in the `breeze pr auto-triage` command has been
+replaced by the [`pr-triage`](../.github/skills/pr-triage/SKILL.md) skill, which is
+maintained as plain Markdown alongside the codebase and is invoked from a maintainer's
+local Claude Code session.
 
 ## Overview
 
-Apache Airflow receives a high volume of Pull Requests from contributors around the world.
-Maintainers need to assess each PR for basic quality criteria, CI status, merge conflicts,
-and code correctness before it can be merged. The **auto-triage** tool streamlines this
-process by combining deterministic checks with optional LLM-assisted analysis, while
-keeping the maintainer firmly in control of every decision.
+Apache Airflow receives a high volume of Pull Requests from contributors around the
+world. Maintainers need to assess each PR for basic quality criteria, CI status, merge
+conflicts, and code correctness before it can be merged. The skill-based workflow
+streamlines this in a way that:
 
-**Key principles:**
+- **keeps the maintainer in control** — every state-changing action (draft, close,
+  comment, label, rerun, approve workflow) is proposed by the skill and only happens
+  on explicit confirmation;
+- **stays human-readable and editable** — the skill is just Markdown checked into the
+  repository, so anyone who reads English can change the rules, add a violation type,
+  or reword a comment template, and the change goes through normal code review;
+- **runs against `gh` and the GitHub GraphQL API directly** — no bespoke long-running
+  tool, no per-developer setup beyond `gh auth login`.
 
-- **Maintainer-driven** — The tool presents information and suggests actions, but every
-  decision (drafting, closing, commenting, approving) is made by a human maintainer
-  through interactive prompts. The tool never takes autonomous action on PRs.
+## Why the first pass is automated
 
-- **Two-stage process** — The workflow is split into two distinct stages: a fast **triage**
-  pass that checks basic quality criteria, and a deeper **review** pass that performs
-  detailed code analysis with LLM assistance.
+This anchor is referenced by the AI-attribution footer that the skill appends to every
+contributor-facing comment. Contributors who follow the link from one of those
+comments land here.
 
-- **Better-informed decisions** — By aggregating CI status, merge conflicts, unresolved
-  review threads, main-branch failure patterns, and LLM assessments into a single
-  interactive session, maintainers can make faster and more consistent decisions.
+Apache Airflow gets dozens of new Pull Requests every day from contributors all over
+the world. A maintainer's most valuable resource is the time they spend in actual
+conversation with a contributor — explaining a design decision, helping a first-time
+contributor land their change, weighing a tradeoff that only a human reviewer can
+weigh. That time is finite and irreplaceable.
+
+To protect it, the project splits PR handling into two stages:
+
+1. **First pass — automated, mechanical, fast.** A maintainer invokes the
+   [`pr-triage`](../.github/skills/pr-triage/SKILL.md) skill, which sweeps the open
+   PR queue, runs purely deterministic checks (CI status, merge conflicts, unresolved
+   review threads, workflow-approval state, draft staleness), and proposes a
+   disposition for each PR. The maintainer confirms in batches — accepting a group of
+   "rebase" PRs in one keystroke, pulling individual PRs out for case-by-case
+   handling, skipping anything that doesn't fit. Comments posted by the skill are
+   drafted by an AI-assisted tool, attribute themselves clearly to the contributor,
+   and link back here so contributors understand why their first piece of feedback
+   came from a tool rather than a person.
+2. **Second pass — human review, on PRs that survived the first pass.** Once a PR
+   carries the `ready for maintainer review` label, a maintainer reads the diff,
+   leaves substantive comments, asks questions, suggests improvements, and ultimately
+   approves or requests changes. This is the part of the work that has to be done by
+   a human and benefits from a human's full attention.
+
+Automating the first pass is what makes the second pass possible. Without it,
+maintainers would spend most of their week mechanically checking whether each PR has
+green CI, is rebased on `main`, and has no unresolved review threads — instead of
+actually reviewing code. **There is no rush** — the skill grants generous grace
+windows and posts comments that explicitly tell contributors to take their time. The
+goal is not to push contributors faster; it is to make sure that when a maintainer
+*does* engage, it is on a PR that is ready for that engagement.
 
 ## Two-stage workflow
-
-The auto-triage tool operates in two modes that correspond to the two stages of the PR
-lifecycle:
 
 ```mermaid
 flowchart TD
     A[Contributor opens PR] --> B["Open PR (no label)"]
-    B -->|"Maintainer runs<br/>breeze pr auto-triage"| C["Stage 1: TRIAGE<br/>Basic quality check"]
+    B -->|"Maintainer invokes<br/>pr-triage skill in Claude Code"| C["Stage 1: TRIAGE<br/>Deterministic checks"]
     C --> D{Outcome}
-    D -->|Issues found| E[Convert to Draft<br/>with comment]
+    D -->|Issues found| E[Convert to Draft<br/>with comment + AI footer]
     D -->|Looks good| F["Add 'ready for<br/>maintainer review' label"]
     D -->|Suspicious| G[Close all PRs<br/>by author]
     E --> H[Contributor fixes<br/>and marks Ready]
     H --> I[Stage 2: REVIEW]
     F --> I
-    I["Stage 2: REVIEW<br/>Detailed code review with LLM<br/>(breeze pr auto-triage --mode review)"] --> J{Outcome}
+    I["Stage 2: REVIEW<br/>Maintainer reads the diff<br/>and leaves human review"] --> J{Outcome}
     J -->|Comments posted| K[Author addresses feedback]
     J -->|Approve| L[Merge]
     J -->|Request changes| K
     K --> I
 ```
 
-## Stage 1: Triage
+Stage 1 is the focus of this document. Stage 2 is plain human review and intentionally
+has no automation behind it — the dedicated review skill that may eventually live
+alongside `pr-triage` is out of scope here.
 
-The triage stage is the first pass over incoming PRs. It focuses on whether each PR meets
-the project's basic [quality criteria](05_pull_requests.rst#pull-request-quality-criteria)
-and is ready for deeper review. It is invoked with:
+## Stage 1: invoking the `pr-triage` skill
 
-```bash
-breeze pr auto-triage
-```
+The skill lives at [`.github/skills/pr-triage/`](../.github/skills/pr-triage/) with a
+matching symlink at `.claude/skills/pr-triage` so Claude Code picks it up without any
+per-developer setup. Its entry point is
+[`SKILL.md`](../.github/skills/pr-triage/SKILL.md); the rest of the directory breaks
+the logic out by topic (classification, fetch-and-batch, stale sweeps, comment
+templates, etc.).
 
-This is the default mode (`--mode triage`).
+To run a triage pass, open Claude Code in your local clone of the repository and ask
+for a triage. Common phrasings the skill recognises:
 
-### What the triage stage checks
+- `triage the PR queue` — default sweep over open non-collaborator PRs
+- `triage PR 12345` — re-triage a single PR (e.g. after a contributor pushed)
+- `triage PRs with label area:core` — restrict to a label
+- `triage PRs from <login>` — restrict to one author
+- `triage review-for-me` — only PRs with review requested from you
+- `run the stale sweep` — close stale drafts / convert inactive PRs to draft
+- `morning triage` — same as the default sweep
 
-The triage stage performs a series of **deterministic checks** on each PR:
+The skill's `when_to_use` block (in [`SKILL.md`](../.github/skills/pr-triage/SKILL.md))
+lists the full set of recognised invocation patterns.
 
-1. **CI status** — Are the CI checks passing, failing, or still running? PRs with
-   in-progress workflows are skipped until the next triage run.
+### What the triage skill checks
 
-2. **Merge conflicts** — Does the PR have merge conflicts with the base branch? If so,
-   the author needs to rebase.
+The first-pass classification is purely deterministic — see
+[`classify.md`](../.github/skills/pr-triage/classify.md) for the full decision matrix
+— and runs against data fetched in a single aliased GraphQL call per page of PRs:
 
-3. **Unresolved review threads** — Are there open review conversations that the author
-   has not addressed?
-
-4. **Workflow approval** — For PRs from first-time contributors, CI workflows need
-   maintainer approval before they can run. The triage tool presents these PRs first
-   so maintainers can review the diff for security concerns before approving.
-
-After deterministic checks, PRs that pass are optionally sent to an **LLM for quality
-assessment**. The LLM evaluates the PR title, description, and metadata against the
-project's [Pull Request guidelines](05_pull_requests.rst#pull-request-guidelines)
-and flags potential violations such as:
-
-- Generic or unclear PR titles
-- Missing or inadequate descriptions
-- Missing Gen-AI disclosure (when AI-generated patterns are detected)
-- Unrelated changes bundled together
-
-### How triage processes PRs
-
-```mermaid
-flowchart TD
-    A[Fetch PRs via GraphQL] --> B[Filter: exclude already-triaged,<br/>drafts with known issues]
-    B --> C[Enrich: fetch CI checks,<br/>merge status, review threads]
-    C --> D[Deterministic checks<br/>CI, conflicts, unresolved threads]
-    C --> E[LLM assessment<br/>title, description, quality criteria]
-    D --> F
-    E --> F
-    F[Interactive maintainer session]
-
-    subgraph F[Interactive maintainer session]
-        direction TB
-        G["For each PR, display:<br/>- PR title, author, age, labels<br/>- CI status with failure details<br/>- Merge conflict status<br/>- Unresolved thread summary<br/>- LLM assessment (if available)<br/>- Main-branch failure patterns"]
-        G --> H["Maintainer chooses action:<br/>[d]raft [c]omment [x]close [r]erun CI<br/>[b]rebase [m]ark ready [s]kip [q]uit"]
-    end
-```
+1. **Pending workflow approval** — first-time-contributor PRs whose CI workflows
+   need maintainer approval before they can run. The skill surfaces these first so
+   the maintainer can review the diff for tampering before approving.
+2. **Merge conflicts** — `mergeable: CONFLICTING`. Routed straight to draft (GitHub's
+   `update-branch` endpoint cannot resolve conflicts, so a `rebase` suggestion would
+   waste a round-trip).
+3. **Failing CI** — fetched via the repo-level
+   `GET /repos/.../actions/runs?status=action_required` endpoint as the primary
+   signal, then cross-referenced against `statusCheckRollup`. The REST call is
+   needed because the rollup can return `SUCCESS` while real CI is still pending —
+   see Golden rule 1b in [`SKILL.md`](../.github/skills/pr-triage/SKILL.md#golden-rules).
+4. **Unresolved review threads** — open conversations from collaborators or from
+   `copilot*[bot]` (Copilot threads are evaluated separately, with a 7-day grace
+   window).
+5. **Staleness** — drafts older than 7 days with no author reply after a triage
+   comment, untriaged drafts older than 2 weeks, non-draft PRs with 4+ weeks of
+   inactivity, and workflow-approval PRs with 4+ weeks of inactivity. See
+   [`stale-sweeps.md`](../.github/skills/pr-triage/stale-sweeps.md).
 
 ### Available triage actions
 
-When the tool presents a PR, the maintainer can choose from these actions:
+For each classified PR the skill picks a default action and groups the PRs by action
+so the maintainer can confirm a whole group at once. Per-PR override is always
+available. The full set of actions:
 
 | Action | Description |
-|--------|-------------|
-| **[d]raft** | Convert the PR to draft status and post a comment listing the issues found. The maintainer can select which violations to include. This signals to the contributor that they should fix the listed issues and mark the PR as "Ready for review" once done. |
-| **[c]omment** | Post a comment listing the issues without converting to draft. Useful when the contributor is actively working on the PR. |
-| **[x]close** | Close the PR with a comment explaining the quality violations. Used when a contributor has multiple PRs with repeated quality issues. |
-| **[r]erun** | Rerun failed CI checks. Useful when failures appear to be transient or caused by infrastructure issues. |
-| **[b]rebase** | Suggest that the author rebase onto the latest base branch. |
-| **[m]ark** | Add the `ready for maintainer review` label, signaling that the PR has passed basic quality checks and is ready for the deeper review stage. |
-| **[s]kip** | Skip the PR without taking any action. |
-| **[o]pen** | Open the PR in the browser for manual inspection. |
-| **[w]show** | Display the PR diff inline in the terminal. |
-| **[q]uit** | Exit the triage session. Progress on already-processed PRs is preserved. |
+|---|---|
+| `draft` | Convert to draft and post a comment listing the violations. |
+| `comment` | Post the violations comment without converting to draft (used while the contributor is actively working). |
+| `close` | Close with a comment — used for repeated quality violations from the same author. Never accepts batch-confirm without a per-PR review. |
+| `rebase` | Trigger GitHub's update-branch — only for PRs that are *not* in conflict (conflicting PRs are routed to `draft` instead). |
+| `rerun` | Rerun failed CI checks — used for transient failures or for PRs whose failures match recent main-branch flakes. |
+| `mark-ready` | Add the `ready for maintainer review` label, signalling that Stage 1 is done. **Never** applied while workflow approval is pending; the skill MUST verify zero `action_required` workflow runs before adding the label. |
+| `ping` | Ping author or stale reviewer about an unresolved thread. |
+| `approve-workflow` | Approve a first-time-contributor's pending CI workflows after a diff inspection. |
+| `flag-suspicious` | Close all PRs from the author and apply the `suspicious changes detected` label. Per-PR confirm always required. |
+| `skip` | Leave the PR alone this run. |
 
-### CI failure analysis
+The full action recipes (the `gh` / GraphQL calls each action issues) are in
+[`actions.md`](../.github/skills/pr-triage/actions.md); the comment bodies posted by
+the `draft` / `comment` / `close` / `ping` actions are in
+[`comment-templates.md`](../.github/skills/pr-triage/comment-templates.md).
 
-The triage tool provides context to help maintainers distinguish between failures caused
-by the PR and systemic failures on the main branch:
+### AI-attribution footer on every contributor-facing comment
 
-- **Main-branch failure patterns** — The tool fetches recent merged PRs and identifies
-  checks that are consistently failing across the repository. When a PR's failed check
-  matches a known main-branch failure, this is highlighted so the maintainer knows not
-  to penalize the contributor.
+Every comment the skill posts to a contributor ends with the same AI-attribution
+footer (see [`comment-templates.md`](../.github/skills/pr-triage/comment-templates.md#ai-attribution-footer)).
+The footer:
 
-- **Canary build status** — The status of scheduled canary builds on the main branch is
-  displayed, giving maintainers a quick view of overall CI health.
+- tells the contributor the comment was drafted by an AI-assisted tool and may
+  contain mistakes,
+- promises that an Apache Airflow maintainer — a real person — will take the next
+  look once the contributor has addressed the points raised,
+- links back to the [Why the first pass is automated](#why-the-first-pass-is-automated)
+  section above so the contributor can read the rationale for the two-stage process.
 
-- **Grace period** — CI failures are given a grace window before the PR is flagged,
-  so contributors have time to address them at their own pace:
+This is non-negotiable per Golden rule 8 in
+[`SKILL.md`](../.github/skills/pr-triage/SKILL.md#golden-rules) — only the
+intentionally-terse `suspicious-changes` template is exempt.
 
-  - **24 hours (default)** — For new PRs without collaborator engagement. This gives
-    contributors a full day to notice and fix CI issues.
-  - **96 hours (extended)** — When a collaborator, member, or owner has already left
-    a review or comment on the PR. This extended window acknowledges that the contributor
-    is actively working with a maintainer and should not be rushed.
+## Stage 2: human review
 
-  PRs within their grace window are skipped during triage. The tool displays which
-  grace period applies and whether collaborator engagement was detected.
+PRs that survive Stage 1 (carry the `ready for maintainer review` label) are read by
+a maintainer. There is no automation behind this stage by design — the read,
+critique, suggest, and approve loop is exactly the part of the work that needs full
+human attention.
 
-## Stage 2: Review
+A separate `pr-review` skill that handles structured walk-throughs of long diffs may
+appear alongside `pr-triage` in the future, but it is out of scope here. Anything
+about line-level review comments, approve / request-changes submissions, or merge
+decisions belongs in that future skill, not in `pr-triage`.
 
-The review stage is a deeper, LLM-assisted code review of PRs that have already passed
-triage and carry the `ready for maintainer review` label. It is invoked with:
+## Backlog statistics — the `pr-stats` skill
 
-```bash
-breeze pr auto-triage --mode review
-```
+The [`pr-stats`](../.github/skills/pr-stats/SKILL.md) skill is the read-only,
+no-mutations counterpart of `pr-triage`. It is the successor to the now-removed
+`breeze pr stats` command and produces two summary tables grouped by `area:*` label:
 
-### What the review stage does
+- **Triaged PRs — Final State** — for PRs that were triaged and have since been
+  closed or merged: closed-vs-merged ratios per area, plus the share of authors who
+  responded before close.
+- **Triaged PRs — Still Open** — for currently-open PRs: per-area triage coverage,
+  draft / non-draft split, response rates, ready-for-review counts, plus age-bucket
+  histograms (`<1d`, `1-7d`, `1-4w`, `>4w`) on both the time-since-drafting and
+  time-since-author-response axes.
 
-```mermaid
-flowchart TD
-    A["Fetch PRs labeled<br/>'ready for maintainer review'"] --> B[Deterministic checks<br/>CI, conflicts, unresolved threads]
-    A --> C[LLM code review<br/>fetches full diff, analyzes code changes]
-    B --> D
-    C -->|runs in parallel| D
+Invoke it the same way as `pr-triage` — open Claude Code in your local clone and ask
+for stats. Phrasings the skill recognises include `run PR stats`, `show the area
+breakdown`, `how is the PR queue doing`, or any variation on "give me numbers about
+the open PR backlog". A typical workflow is `pr-stats` → spot the area with the worst
+triage coverage → `pr-triage label:area:<that-area>` to act on it.
 
-    subgraph D[Interactive review session]
-        direction TB
-        E["Phase 1: Deterministic failures<br/>Present PRs with CI/conflict issues"]
-        E --> F["Phase 2: LLM code review results<br/>- Overall assessment<br/>- Line-level review comments"]
-        F --> G["For each comment, maintainer chooses:<br/>[p]ost [e]dit [o]pen in browser<br/>[s]kip [q]uit"]
-    end
-```
-
-The LLM code review analyzes the full PR diff and produces:
-
-- **Overall assessment** — A high-level verdict: approve, comment, or request changes.
-- **Summary** — A concise summary of what the PR does and potential concerns.
-- **Line-level comments** — Specific review comments attached to particular files and
-  lines, covering areas such as:
-
-  - Correctness and potential bugs
-  - Security concerns
-  - Performance implications
-  - Architecture boundary violations
-  - API design issues
-  - Testing coverage
-  - Style and best practices
-
-### Interactive comment submission
-
-For each line-level comment proposed by the LLM, the maintainer reviews it and decides:
-
-- **[p]ost** — Post the comment to the PR on GitHub.
-- **[e]dit** — Edit the comment text before posting (opens `$EDITOR`).
-- **[o]pen** — Open the relevant file in the browser for context.
-- **[s]kip** — Skip this comment.
-- **[q]uit** — Stop reviewing comments for this PR.
-
-The tool detects duplicate comments (same file, line, and body as an existing review
-comment) and skips them automatically. Nearby existing comments are displayed for context
-to avoid redundant feedback.
-
-After individual comments, the maintainer is prompted to post an overall review comment
-summarizing the review.
-
-## LLM integration and safety
-
-The auto-triage tool optionally uses LLM providers (Claude or Codex) for PR assessment
-and code review. Several safety measures are in place:
-
-- **Read-only mode** — The LLM runs in a restricted permission mode with access only to
-  read-only tools (file reading, code search). It cannot modify files or execute code.
-
-- **Repository restriction** — LLM-assisted triage is only enabled for trusted
-  repositories (`apache/airflow`).
-
-- **No autonomous actions** — The LLM produces assessments and review comments, but
-  posting them to GitHub always requires explicit maintainer confirmation through the
-  interactive prompts.
-
-- **Caching** — LLM results are cached by PR number and commit SHA, so re-running
-  triage on the same PR state does not incur redundant LLM calls. The cache can be
-  cleared with `--clear-cache`.
-
-- **Safety validation** — The tool checks for dangerous environment variables that could
-  bypass LLM sandboxing and blocks them. The maintainer must confirm before LLM
-  processing begins.
+The skill detects triaged PRs by scanning comment bodies for the canonical
+`Pull Request quality criteria` marker that `pr-triage` posts on every triage comment.
+That same detector also catches the legacy HTML-comment markers left by the removed
+breeze command, so historical triaged PRs are still counted correctly.
 
 ## Labels and PR states
 
-The triage workflow uses specific labels and PR states to track progress:
+The triage workflow uses the following labels and states:
 
 | Label / State | Meaning |
-|---------------|---------|
-| `ready for maintainer review` | PR has passed basic quality checks and is queued for detailed review (Stage 2). |
-| `closed because of multiple quality violations` | PR was closed because the contributor has multiple open PRs with quality issues. |
-| `suspicious changes detected` | PR (and all PRs by the same author) was closed because the diff contained suspicious patterns (e.g., secret exfiltration attempts, malicious CI modifications). |
-| **Draft status** | PR was converted to draft because it does not meet quality criteria. The contributor should fix the issues listed in the comment and mark it as "Ready for review" when done. |
-
-## Common usage examples
-
-Triage all open PRs:
-
-```bash
-breeze pr auto-triage
-```
-
-Triage PRs with a specific label:
-
-```bash
-breeze pr auto-triage --label area:core
-```
-
-Triage a single PR:
-
-```bash
-breeze pr auto-triage --pr 12345
-```
-
-Review PRs that are ready for maintainer review:
-
-```bash
-breeze pr auto-triage --mode review
-```
-
-Review PRs assigned to you:
-
-```bash
-breeze pr auto-triage --mode review --reviews-for-me
-```
-
-Use only deterministic checks (no LLM):
-
-```bash
-breeze pr auto-triage --check-mode api
-```
-
-Dry run (no actions taken, just display what would be done):
-
-```bash
-breeze pr auto-triage --dry-run
-```
-
-Clear cached LLM assessments and start fresh:
-
-```bash
-breeze pr auto-triage --clear-cache
-```
+|---|---|
+| `ready for maintainer review` | PR has passed Stage 1 and is queued for human review. Applied only after the skill has verified that no workflow runs are awaiting approval. |
+| `closed because of multiple quality violations` | PR was closed because the author has multiple open PRs with quality issues. |
+| `suspicious changes detected` | PR (and all open PRs by the same author) was closed because the diff contained suspicious patterns (secret exfiltration, malicious CI modifications, etc.). |
+| **Draft status** | PR was converted to draft because it does not meet quality criteria. The contributor is asked to fix the listed issues and mark the PR as "Ready for review" once done. |
 
 ## For contributors
 
-As a contributor, you don't need to use the auto-triage tool — it is a maintainer-facing
-workflow. However, understanding how it works helps you get your PRs reviewed faster.
+You don't need to use the triage skill — it is a maintainer-facing workflow. But
+understanding how it works helps you get your PRs reviewed faster.
 
-**There is no rush.** We want contributors to work at their own pace. The triage tool
-gives you a generous grace period to fix issues — 24 hours by default, and 96 hours
-once a maintainer has started engaging with your PR. Comments posted by the tool will
-always remind you that you can take your time.
+**There is no rush.** The skill grants generous grace windows: 24 hours by default
+before a PR with failing CI gets flagged, 96 hours once a maintainer has already
+engaged with you, 7 days before a draft is closed for inactivity, 4 weeks before an
+inactive non-draft PR is converted to draft. Comments posted by the skill explicitly
+remind you that you can take your time.
 
-Here are some tips:
+Tips for getting through Stage 1 quickly:
 
-1. **Start with Draft** — Keep your PR in draft until CI passes and you're confident
+1. **Start in Draft.** Keep your PR in draft until CI is green and you are confident
    it meets the [quality criteria](05_pull_requests.rst#pull-request-quality-criteria).
-
-2. **Write a clear title and description** — Both the deterministic checks and the LLM
-   assessment evaluate your PR title and description. A descriptive title and meaningful
-   description help your PR pass triage quickly.
-
-3. **Fix issues at your own pace** — If your PR is converted to draft with a comment
-   listing issues, address each one and mark the PR as "Ready for review" when you're
-   done. The next triage run will re-evaluate it. There is no deadline.
-
-4. **Keep CI green** — Resolve CI failures before requesting review. The triage tool
-   flags PRs with failing checks, but gives you at least 24 hours before flagging
-   (96 hours if a maintainer has already engaged).
-
-5. **Resolve review threads** — Unresolved conversations block the triage process. Address
-   reviewer feedback and resolve the threads.
-
-6. **Disclose Gen-AI usage** — If you used Gen-AI tools, include a disclosure in the PR
-   description per the [Gen-AI guidelines](05_pull_requests.rst#gen-ai-assisted-contributions).
-   The LLM assessment flags PRs that appear AI-generated but lack disclosure.
+2. **Write a clear title and description.** Both the deterministic checks and a
+   maintainer's eventual human review depend on these.
+3. **Fix issues at your own pace.** If your PR is converted to draft with a comment,
+   address each item and mark the PR as "Ready for review" again. The next triage
+   pass will re-evaluate.
+4. **Keep CI green.** Resolve CI failures before requesting review.
+5. **Resolve review threads yourself.** Reviewers don't auto-close their own
+   threads. Once you've addressed a thread — by pushing a fix or by replying with
+   why the suggestion doesn't apply — click "Resolve conversation" yourself.
+6. **Disclose Gen-AI usage.** If you used Gen-AI tools, include the disclosure block
+   from the [Gen-AI guidelines](05_pull_requests.rst#gen-ai-assisted-contributions).

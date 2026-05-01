@@ -1238,7 +1238,10 @@ class TestDagRunOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.dag_runs.trigger(
-            dag_id="test_trigger", run_id="test_run_id", logical_date=timezone.datetime(2025, 1, 1)
+            dag_id="test_trigger",
+            run_id="test_run_id",
+            logical_date=timezone.datetime(2025, 1, 1),
+            run_after=timezone.datetime(2025, 1, 2),
         )
 
         assert result == OKResponse(ok=True)

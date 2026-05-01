@@ -39,7 +39,6 @@ const mockDag = {
   is_stale: true,
   last_parse_duration: 0.23,
   // `null` matches the API response shape for DAGs without version metadata.
-  // eslint-disable-next-line unicorn/no-null
   latest_dag_version: null,
   next_dagrun_logical_date: "2024-08-22T00:00:00+00:00",
   next_dagrun_run_after: "2024-08-22T19:00:00+00:00",

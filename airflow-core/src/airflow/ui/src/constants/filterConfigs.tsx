@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* eslint-disable max-lines */
 import { Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
@@ -107,18 +105,21 @@ export const useFilterConfigs = () => {
       hotkeyDisabled: true,
       icon: <DagIcon />,
       label: translate("common:dagId"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.DAG_ID]: {
       hotkeyDisabled: true,
       icon: <DagIcon />,
       label: translate("common:dagId"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.DAG_ID_PATTERN]: {
       hotkeyDisabled: true,
       icon: <DagIcon />,
       label: translate("common:dagId"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.DAG_VERSION]: {
@@ -163,6 +164,7 @@ export const useFilterConfigs = () => {
     },
     [SearchParamsKeys.EVENT_TYPE]: {
       label: translate("browse:auditLog.filters.eventType"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.EXECUTOR_CLASS]: {
@@ -198,6 +200,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.KEY_PATTERN]: {
       icon: <MdSearch />,
       label: translate("admin:columns.key"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.LOGICAL_DATE_RANGE]: {
@@ -227,30 +230,35 @@ export const useFilterConfigs = () => {
       hotkeyDisabled: true,
       icon: <TaskIcon />,
       label: translate("common:taskId"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.OPERATOR_NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <MdBuild />,
       label: translate("common:task.operator"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.PARTITION_KEY_PATTERN]: {
       hotkeyDisabled: true,
       icon: <MdSearch />,
       label: translate("common:dagRun.partitionKey"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.POOL_NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <BiTargetLock />,
       label: translate("common:taskInstance.pool"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.QUEUE_NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <PiQueue />,
       label: translate("common:taskInstance.queue"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.RESPONDED_BY_USER_NAME]: {
@@ -286,12 +294,14 @@ export const useFilterConfigs = () => {
       hotkeyDisabled: true,
       icon: <FiBarChart />,
       label: translate("common:runId"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.RUN_ID_PATTERN]: {
       hotkeyDisabled: true,
       icon: <FiBarChart />,
       label: translate("common:runId"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.RUN_TYPE]: {
@@ -341,12 +351,14 @@ export const useFilterConfigs = () => {
       hotkeyDisabled: true,
       icon: <TaskIcon />,
       label: translate("common:taskId"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.TASK_ID_PATTERN]: {
       hotkeyDisabled: true,
       icon: <TaskIcon />,
       label: translate("common:taskId"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.TASK_STATE]: {
@@ -367,6 +379,7 @@ export const useFilterConfigs = () => {
       hotkeyDisabled: true,
       icon: <FiUser />,
       label: translate("common:dagRun.triggeringUser"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.TRY_NUMBER]: {
@@ -377,6 +390,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.USER]: {
       icon: <FiUser />,
       label: translate("common:user"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
   };

@@ -32,14 +32,14 @@ class MwaaDagRunCompletedTrigger(AwsBaseWaiterTrigger):
     """
     Trigger when an MWAA Dag Run is complete.
 
-    :param external_env_name: The external MWAA environment name that contains the DAG Run you want to wait for
+    :param external_env_name: The external MWAA environment name that contains the Dag Run you want to wait for
         (templated)
-    :param external_dag_id: The DAG ID in the external MWAA environment that contains the DAG Run you want to wait for
+    :param external_dag_id: The Dag ID in the external MWAA environment that contains the Dag Run you want to wait for
         (templated)
-    :param external_dag_run_id: The DAG Run ID in the external MWAA environment that you want to wait for (templated)
-    :param success_states: Collection of DAG Run states that would make this task marked as successful, default is
+    :param external_dag_run_id: The Dag Run ID in the external MWAA environment that you want to wait for (templated)
+    :param success_states: Collection of Dag Run states that would make this task marked as successful, default is
         ``{airflow.utils.state.DagRunState.SUCCESS}`` (templated)
-    :param failure_states: Collection of DAG Run states that would make this task marked as failed and raise an
+    :param failure_states: Collection of Dag Run states that would make this task marked as failed and raise an
         AirflowException, default is ``{airflow.utils.state.DagRunState.FAILED}`` (templated)
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 720)
@@ -80,8 +80,8 @@ class MwaaDagRunCompletedTrigger(AwsBaseWaiterTrigger):
                 "Path": f"/dags/{external_dag_id}/dagRuns/{external_dag_run_id}",
                 "Method": "GET",
             },
-            failure_message=f"The DAG run {external_dag_run_id} of DAG {external_dag_id} in MWAA environment {external_env_name} failed with state",
-            status_message="State of DAG run",
+            failure_message=f"The Dag run {external_dag_run_id} of Dag {external_dag_id} in MWAA environment {external_env_name} failed with state",
+            status_message="State of Dag run",
             status_queries=["RestApiResponse.state"],
             return_key="dag_run_id",
             return_value=external_dag_run_id,
@@ -112,10 +112,10 @@ class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
 
     :param external_env_name: The external MWAA environment name that contains the Task Instance you want to wait for
         (templated)
-    :param external_dag_id: The DAG ID in the external MWAA environment that contains the Task Instance you want to wait for
+    :param external_dag_id: The Dag ID in the external MWAA environment that contains the Task Instance you want to wait for
         (templated)
-    :param external_dag_run_id: The DAG Run ID in the external MWAA environment that you want to wait for (templated).
-        If not provided, the latest DAG run is used by default.
+    :param external_dag_run_id: The Dag Run ID in the external MWAA environment that you want to wait for (templated).
+        If not provided, the latest Dag run is used by default.
     :param external_task_id: The Task ID in the external MWAA environment that you want to wait for (templated)
     :param success_states: Collection of task instance states that would make this task marked as successful, default is
         ``{airflow.utils.state.TaskInstanceState.SUCCESS}`` (templated)
@@ -166,8 +166,8 @@ class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
                 "Path": f"/dags/{external_dag_id}/dagRuns/{external_dag_run_id}/taskInstances/{external_task_id}",
                 "Method": "GET",
             },
-            failure_message=f"The task {external_task_id} of DAG run {external_dag_run_id} of DAG {external_dag_id} in MWAA environment {external_env_name} failed with state",
-            status_message="State of DAG run",
+            failure_message=f"The task {external_task_id} of Dag run {external_dag_run_id} of Dag {external_dag_id} in MWAA environment {external_env_name} failed with state",
+            status_message="State of Dag run",
             status_queries=["RestApiResponse.state"],
             return_key="task_id",
             return_value=external_task_id,

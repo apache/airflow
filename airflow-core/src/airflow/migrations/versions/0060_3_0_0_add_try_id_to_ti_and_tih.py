@@ -78,16 +78,19 @@ def upgrade():
         conn.execute(stmt.bindparams(uuid=uuid_value, row_id=row.id))
     # Update task_instance_id
     if dialect_name == "postgresql":
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_instance_history SET task_instance_id = task_instance.id
             FROM task_instance
             WHERE task_instance_history.task_id = task_instance.task_id
             AND task_instance_history.dag_id = task_instance.dag_id
             AND task_instance_history.run_id = task_instance.run_id
             AND task_instance_history.map_index = task_instance.map_index
-            """)
+            """
+        )
     elif dialect_name == "mysql":
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_instance_history tih
             JOIN task_instance ti ON
                 tih.task_id = ti.task_id
@@ -95,15 +98,18 @@ def upgrade():
                 AND tih.run_id = ti.run_id
                 AND tih.map_index = ti.map_index
             SET tih.task_instance_id = ti.id
-            """)
+            """
+        )
     else:
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_instance_history
             SET task_instance_id = (SELECT id FROM task_instance WHERE task_instance_history.task_id = task_instance.task_id
             AND task_instance_history.dag_id = task_instance.dag_id
             AND task_instance_history.run_id = task_instance.run_id
             AND task_instance_history.map_index = task_instance.map_index)
-            """)
+            """
+        )
     with op.batch_alter_table("task_instance_history") as batch_op:
         batch_op.alter_column(
             "try_id",
@@ -162,10 +168,12 @@ def downgrade():
             """
         )
     else:
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_instance_history
             SET id = (SELECT COUNT(*) FROM task_instance_history t2 WHERE t2.id <= task_instance_history.id);
-        """)
+        """
+        )
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.alter_column("id", nullable=False, existing_type=sa.INTEGER)
         batch_op.drop_column("try_id")

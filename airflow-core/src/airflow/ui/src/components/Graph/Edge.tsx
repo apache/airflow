@@ -23,6 +23,7 @@ import type { Edge as EdgeType } from "@xyflow/react";
 import { useNodesData } from "@xyflow/react";
 import type { ElkPoint } from "elkjs";
 
+import { opacityStyle } from "./graphTypes";
 import type { EdgeData } from "./reactflowUtils";
 
 type Props = EdgeType<EdgeData>;
@@ -48,7 +49,7 @@ const CustomEdge = ({ data, source, target }: Props) => {
   const edgeStrokeColor = isSelected ? (rest.edgeType === "data" ? dataEdgeColor : blueColor) : strokeColor;
 
   return (
-    <>
+    <g {...opacityStyle(rest.isFiltered)}>
       {rest.labels?.map(({ height, id, text, width, x, y }) => {
         if (y === undefined || x === undefined) {
           return undefined;
@@ -80,7 +81,7 @@ const CustomEdge = ({ data, source, target }: Props) => {
           y={(point: ElkPoint) => point.y}
         />
       ))}
-    </>
+    </g>
   );
 };
 

@@ -67,22 +67,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if and .Values.webserver.enabled (or .Values.ingress.web.enabled .Values.ingress.enabled) }}
-Airflow Webserver:
-{{- range .Values.ingress.web.hosts | default (list .Values.ingress.web.host) }}
-      {{- $tlsEnabled := $.Values.ingress.web.tls.enabled -}}
-      {{- $hostname := $.Values.ingress.web.host -}}
-      {{- $path := $.Values.ingress.web.path -}}
-      {{- if . | kindIs "string" | not }}
-      {{- $hostname = .name -}}
-      {{- if .tls }}
-      {{- $tlsEnabled = .tls.enabled -}}
-      {{- end }}
-      {{- end }}
-      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $path }}{{ if (hasSuffix "/" $path) | not }}/{{ end }}
-{{- end }}
-{{- end }}
-{{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+{{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (contains "CeleryExecutor" .Values.executor) }}
 Flower Dashboard:
 {{- range .Values.ingress.flower.hosts | default (list .Values.ingress.flower.host) }}
       {{- $tlsEnabled := $.Values.ingress.flower.tls.enabled -}}
@@ -100,14 +85,10 @@ Flower Dashboard:
 {{- else }}
 You can now access your dashboard(s) by executing the following command(s) and visiting the corresponding port at localhost in your browser:
 
-{{- if semverCompare "<3.0.0" .Values.airflowVersion }}
-Airflow Webserver:     kubectl port-forward svc/{{ include "airflow.fullname" . }}-webserver {{ .Values.ports.airflowUI }}:{{ .Values.ports.airflowUI }} --namespace {{ .Release.Namespace }}
-{{- else }}
 Airflow API Server:     kubectl port-forward svc/{{ include "airflow.fullname" . }}-api-server {{ .Values.ports.airflowUI }}:{{ .Values.ports.airflowUI }} --namespace {{ .Release.Namespace }}
-{{- end }}
 
 {{- if .Values.flower.enabled }}
-{{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)}}
+{{- if contains "CeleryExecutor" .Values.executor }}
 Flower Dashboard:      kubectl port-forward svc/{{ include "airflow.fullname" . }}-flower {{ .Values.ports.flowerUI }}:{{ .Values.ports.flowerUI }} --namespace {{ .Release.Namespace }}
 {{- end }}
 {{- end }}
@@ -151,8 +132,8 @@ DEPRECATION WARNING:
 
 {{- if eq (include "createUserJob.isEnabled" .) "true" }}
 Default user (Airflow UI) Login credentials:
-    username: {{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.username }}{{ else }}{{ .Values.createUserJob.defaultUser.username }}{{ end }}
-    password: {{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.password }}{{ else }}{{ .Values.createUserJob.defaultUser.password }}{{ end }}
+    username: {{ .Values.createUserJob.defaultUser.username }}
+    password: {{ .Values.createUserJob.defaultUser.password }}
 {{- end }}
 
 {{- if .Values.postgresql.enabled }}
@@ -171,7 +152,7 @@ You can get Fernet Key value by running the following:
 
 {{- end }}
 
-{{- if or (contains "KubernetesExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
+{{- if contains "KubernetesExecutor" .Values.executor }}
 {{- if and (not .Values.logs.persistence.enabled) (eq (lower (tpl .Values.config.logging.remote_logging .)) "false") }}
 
 WARNING:
@@ -213,14 +194,6 @@ DEPRECATION WARNING:
 {{- end }}
 
 
-{{- if .Values.webserver.extraNetworkPolicies }}
-
-DEPRECATION WARNING:
-    `webserver.extraNetworkPolicies` has been renamed to `webserver.networkPolicy.peers`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
 {{- if .Values.securityContext }}
 
  DEPRECATION WARNING:
@@ -233,14 +206,6 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `scheduler.securityContext` has been renamed to `scheduler.securityContexts`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if .Values.webserver.securityContext }}
-
- DEPRECATION WARNING:
-    `webserver.securityContext` has been renamed to `webserver.securityContexts`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
@@ -501,7 +466,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (quote .Values.workers.keda.query) (quote "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ( {{- range $i, $q := splitList \",\" .Values.workers.queue -}} {{- if $i }},{{ end }}'{{ $q | trim }}' {{- end -}} ) {{- if contains \"CeleryKubernetesExecutor\" .Values.executor }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- else if contains \"KubernetesExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'KubernetesExecutor' {{- else if contains \"airflow.providers.edge3.executors.EdgeExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'EdgeExecutor' {{- end }}") }}
+{{- if ne (quote .Values.workers.keda.query) (quote "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ( {{- range $i, $q := splitList \",\" .Values.workers.queue -}} {{- if $i }},{{ end }}'{{ $q | trim }}' {{- end -}} ) {{- if contains \"KubernetesExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'KubernetesExecutor' {{- else if contains \"airflow.providers.edge3.executors.EdgeExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'EdgeExecutor' {{- end }}") }}
 
  DEPRECATION WARNING:
     `workers.keda.query` has been renamed to `workers.celery.keda.query`.
@@ -861,7 +826,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (int .Values.workers.logGroomerSidecar.retentionDays) 15 }}
+{{- if ne .Values.workers.logGroomerSidecar.retentionDays nil }}
 
  DEPRECATION WARNING:
     `workers.logGroomerSidecar.retentionDays` has been renamed to `workers.celery.logGroomerSidecar.retentionDays`.
@@ -869,7 +834,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (int .Values.workers.logGroomerSidecar.retentionMinutes) 0 }}
+{{- if ne .Values.workers.logGroomerSidecar.retentionMinutes nil }}
 
  DEPRECATION WARNING:
     `workers.logGroomerSidecar.retentionMinutes` has been renamed to `workers.celery.logGroomerSidecar.retentionMinutes`.
@@ -877,7 +842,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (int .Values.workers.logGroomerSidecar.frequencyMinutes) 15 }}
+{{- if ne .Values.workers.logGroomerSidecar.frequencyMinutes nil }}
 
  DEPRECATION WARNING:
     `workers.logGroomerSidecar.frequencyMinutes` has been renamed to `workers.celery.logGroomerSidecar.frequencyMinutes`.
@@ -885,7 +850,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (int .Values.workers.logGroomerSidecar.maxSizeBytes) 0 }}
+{{- if ne .Values.workers.logGroomerSidecar.maxSizeBytes nil }}
 
  DEPRECATION WARNING:
     `workers.logGroomerSidecar.maxSizeBytes` has been renamed to `workers.celery.logGroomerSidecar.maxSizeBytes`.
@@ -893,7 +858,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (int .Values.workers.logGroomerSidecar.maxSizePercent) 0 }}
+{{- if ne .Values.workers.logGroomerSidecar.maxSizePercent nil }}
 
  DEPRECATION WARNING:
     `workers.logGroomerSidecar.maxSizePercent` has been renamed to `workers.celery.logGroomerSidecar.maxSizePercent`.
@@ -965,14 +930,6 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not (empty .Values.webserver.defaultUser) }}
-
- DEPRECATION WARNING:
-    `webserver.defaultUser` has been renamed to `createUserJob.defaultUser`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
 {{- if not .Values.dags.gitSync.recommendedProbeSetting }}
 
  DEPRECATION WARNING:
@@ -981,21 +938,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName .Values.apiSecretKey .Values.apiSecretKeySecretName) }}
-{{ if (semverCompare ">=3.0.0" .Values.airflowVersion) }}
+{{- if not (or .Values.apiSecretKey .Values.apiSecretKeySecretName) }}
 #####################################################
 #  WARNING: You should set a static API secret key  #
 #####################################################
-{{ else }}
-###########################################################
-#  WARNING: You should set a static webserver secret key  #
-###########################################################
-{{ end }}
-{{- $serverKind := ternary "API" "webserver" (semverCompare ">=3.0.0" .Values.airflowVersion) }}
-You are using a dynamically generated {{ $serverKind }} secret key, which can lead to
+You are using a dynamically generated API secret key, which can lead to
 unnecessary restarts of your Airflow components.
 
-Information on how to set a static {{ $serverKind }} secret key can be found here:
+Information on how to set a static API secret key can be found here:
 https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#api-secret-key
 
 {{- end }}

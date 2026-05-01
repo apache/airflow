@@ -1196,7 +1196,7 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
     :param enable_application_ui_links: If True, the operator will generate one-time links to EMR Serverless
-        application UIs. The generated links will allow any user with access to the DAG to see the Spark or
+        application UIs. The generated links will allow any user with access to the Dag to see the Spark or
         Tez UI or Spark stdout logs. Defaults to False.
     :param cancel_on_kill: If True, the EMR Serverless job will be cancelled when the task is killed
         while in deferrable mode. This ensures that orphan jobs are not left running in EMR Serverless
