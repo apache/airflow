@@ -495,6 +495,27 @@ class TestGCSHook:
                 destination_object=destination_object,
             )
 
+    def test_rewrite_retention_mode_without_retain_until_time(self):
+        with pytest.raises(ValueError, match="retention_mode cannot be set without retain_until_time."):
+            self.gcs_hook.rewrite(
+                source_bucket="test-source-bucket",
+                source_object="test-source-object",
+                destination_bucket="test-dest-bucket",
+                destination_object="test-dest-object",
+                retention_mode="Locked",
+            )
+
+    def test_rewrite_invalid_retention_mode(self):
+        with pytest.raises(ValueError, match="retention_mode must be 'Locked' or 'Unlocked'"):
+            self.gcs_hook.rewrite(
+                source_bucket="test-source-bucket",
+                source_object="test-source-object",
+                destination_bucket="test-dest-bucket",
+                destination_object="test-dest-object",
+                retain_until_time=datetime(2027, 1, 1),
+                retention_mode="Invalid",
+            )
+
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_rewrite_exposes_lineage(self, mock_service, hook_lineage_collector):
         source_bucket_name = "test-source-bucket"
@@ -525,6 +546,104 @@ class TestGCSHook:
         assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
             uri=f"gs://{destination_bucket_name}/{destination_object_name}"
         )
+
+    @mock.patch("google.cloud.storage.Bucket")
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_rewrite_with_retention(self, mock_service, mock_bucket):
+        source_bucket = "test-source-bucket"
+        source_object = "test-source-object"
+        destination_bucket = "test-dest-bucket"
+        destination_object = "test-dest-object"
+        retain_until = datetime(2027, 1, 1)
+
+        source_blob = mock_bucket.blob(source_object)
+
+        # Given
+        bucket_mock = mock_service.return_value.bucket
+        bucket_mock.return_value = mock_bucket
+        get_blob_method = bucket_mock.return_value.blob
+        destination_blob = get_blob_method.return_value
+        rewrite_method = destination_blob.rewrite
+        rewrite_method.side_effect = [(None, mock.ANY, mock.ANY)]
+
+        # When
+        self.gcs_hook.rewrite(
+            source_bucket=source_bucket,
+            source_object=source_object,
+            destination_bucket=destination_bucket,
+            destination_object=destination_object,
+            retain_until_time=retain_until,
+            retention_mode="Locked",
+        )
+
+        # Then
+        rewrite_method.assert_called_once_with(source=source_blob)
+        assert destination_blob.retention.mode == "Locked"
+        assert destination_blob.retention.retain_until_time == retain_until
+        destination_blob.patch.assert_called_once()
+
+    @mock.patch("google.cloud.storage.Bucket")
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_rewrite_without_retention_does_not_patch(self, mock_service, mock_bucket):
+        source_bucket = "test-source-bucket"
+        source_object = "test-source-object"
+        destination_bucket = "test-dest-bucket"
+        destination_object = "test-dest-object"
+
+        mock_bucket.blob(source_object)
+
+        # Given
+        bucket_mock = mock_service.return_value.bucket
+        bucket_mock.return_value = mock_bucket
+        get_blob_method = bucket_mock.return_value.blob
+        destination_blob = get_blob_method.return_value
+        rewrite_method = destination_blob.rewrite
+        rewrite_method.side_effect = [(None, mock.ANY, mock.ANY)]
+
+        # When
+        self.gcs_hook.rewrite(
+            source_bucket=source_bucket,
+            source_object=source_object,
+            destination_bucket=destination_bucket,
+            destination_object=destination_object,
+        )
+
+        # Then — no retention set, so patch should not be called
+        destination_blob.patch.assert_not_called()
+
+    @mock.patch("google.cloud.storage.Bucket")
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_rewrite_with_retention_defaults_to_unlocked(self, mock_service, mock_bucket):
+        source_bucket = "test-source-bucket"
+        source_object = "test-source-object"
+        destination_bucket = "test-dest-bucket"
+        destination_object = "test-dest-object"
+        retain_until = datetime(2027, 6, 1)
+
+        source_blob = mock_bucket.blob(source_object)
+
+        # Given
+        bucket_mock = mock_service.return_value.bucket
+        bucket_mock.return_value = mock_bucket
+        get_blob_method = bucket_mock.return_value.blob
+        destination_blob = get_blob_method.return_value
+        rewrite_method = destination_blob.rewrite
+        rewrite_method.side_effect = [(None, mock.ANY, mock.ANY)]
+
+        # When — retention_mode not specified, should default to "Unlocked"
+        self.gcs_hook.rewrite(
+            source_bucket=source_bucket,
+            source_object=source_object,
+            destination_bucket=destination_bucket,
+            destination_object=destination_object,
+            retain_until_time=retain_until,
+        )
+
+        # Then
+        rewrite_method.assert_called_once_with(source=source_blob)
+        assert destination_blob.retention.mode == "Unlocked"
+        assert destination_blob.retention.retain_until_time == retain_until
+        destination_blob.patch.assert_called_once()
 
     @mock.patch("google.cloud.storage.Bucket")
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
