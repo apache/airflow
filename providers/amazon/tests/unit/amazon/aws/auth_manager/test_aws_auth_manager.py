@@ -588,7 +588,7 @@ class TestAwsAuthManager:
         result = auth_manager.batch_is_authorized_connection(
             requests=[
                 {"method": "GET"},
-                {"method": "PUT", "details": ConnectionDetails(conn_id="test")},
+                {"method": "PUT", "details": ConnectionDetails(conn_id="test", team_name="team_a")},
             ],
             user=mock,
         )
@@ -599,11 +599,13 @@ class TestAwsAuthManager:
                     "method": "GET",
                     "entity_type": AvpEntities.CONNECTION,
                     "entity_id": None,
+                    "team_name": None,
                 },
                 {
                     "method": "PUT",
                     "entity_type": AvpEntities.CONNECTION,
                     "entity_id": "test",
+                    "team_name": "team_a",
                 },
             ],
             user=ANY,
@@ -622,10 +624,14 @@ class TestAwsAuthManager:
         result = auth_manager.batch_is_authorized_dag(
             requests=[
                 {"method": "GET"},
-                {"method": "GET", "details": DagDetails(id="dag_1")},
+                {"method": "GET", "details": DagDetails(id="dag_1", team_name="team_a")},
             ]
             + [
-                {"method": "GET", "details": DagDetails(id="dag_1"), "access_entity": dag_access_entity}
+                {
+                    "method": "GET",
+                    "details": DagDetails(id="dag_1", team_name="team_a"),
+                    "access_entity": dag_access_entity,
+                }
                 for dag_access_entity in (
                     DagAccessEntity.AUDIT_LOG,
                     DagAccessEntity.CODE,
@@ -648,12 +654,14 @@ class TestAwsAuthManager:
                     "method": "GET",
                     "entity_type": AvpEntities.DAG,
                     "entity_id": None,
+                    "team_name": None,
                     "context": None,
                 },
                 {
                     "method": "GET",
                     "entity_type": AvpEntities.DAG,
                     "entity_id": "dag_1",
+                    "team_name": "team_a",
                     "context": None,
                 },
             ]
@@ -662,6 +670,7 @@ class TestAwsAuthManager:
                     "method": "GET",
                     "entity_type": AvpEntities.DAG,
                     "entity_id": "dag_1",
+                    "team_name": "team_a",
                     "context": {"dag_entity": {"string": dag_entity}},
                 }
                 for dag_entity in (
@@ -693,7 +702,7 @@ class TestAwsAuthManager:
         result = auth_manager.batch_is_authorized_pool(
             requests=[
                 {"method": "GET"},
-                {"method": "PUT", "details": PoolDetails(name="test")},
+                {"method": "PUT", "details": PoolDetails(name="test", team_name="team_a")},
             ],
             user=mock,
         )
@@ -704,11 +713,13 @@ class TestAwsAuthManager:
                     "method": "GET",
                     "entity_type": AvpEntities.POOL,
                     "entity_id": None,
+                    "team_name": None,
                 },
                 {
                     "method": "PUT",
                     "entity_type": AvpEntities.POOL,
                     "entity_id": "test",
+                    "team_name": "team_a",
                 },
             ],
             user=ANY,
@@ -727,7 +738,7 @@ class TestAwsAuthManager:
         result = auth_manager.batch_is_authorized_variable(
             requests=[
                 {"method": "GET"},
-                {"method": "PUT", "details": VariableDetails(key="test")},
+                {"method": "PUT", "details": VariableDetails(key="test", team_name="team_a")},
             ],
             user=mock,
         )
@@ -738,11 +749,13 @@ class TestAwsAuthManager:
                     "method": "GET",
                     "entity_type": AvpEntities.VARIABLE,
                     "entity_id": None,
+                    "team_name": None,
                 },
                 {
                     "method": "PUT",
                     "entity_type": AvpEntities.VARIABLE,
                     "entity_id": "test",
+                    "team_name": "team_a",
                 },
             ],
             user=ANY,
