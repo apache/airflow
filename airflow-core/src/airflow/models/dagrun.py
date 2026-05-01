@@ -134,6 +134,7 @@ if TYPE_CHECKING:
     from airflow.models.dag_version import DagVersion
     from airflow.models.task_coordinates import SchedulingTI
     from airflow.sdk import DAG as SDKDAG
+    from airflow.sdk.definitions.context import CallbackMeta, CallbackSource
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
@@ -1823,6 +1824,7 @@ class DagRun(Base, LoggingMixin):
             }
 
         context["reason"] = reason
+        context["callback"] = CallbackMeta(source=CallbackSource.DAG)
 
         callbacks = dag.on_success_callback if success else dag.on_failure_callback
         if not callbacks:
