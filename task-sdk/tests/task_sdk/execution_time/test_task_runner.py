@@ -802,6 +802,69 @@ def test_run_downstream_skipped(mocked_parse, create_runtime_ti, mock_supervisor
     )
 
 
+def test_run_emits_endgroup_before_execute(create_runtime_ti, mock_supervisor_comms):
+    """::endgroup:: is emitted to close the pre-execute log group just before execute() runs."""
+    call_order: list[str] = []
+
+    class TrackingOperator(BaseOperator):
+        def execute(self, context):
+            call_order.append("execute")
+
+    task = TrackingOperator(task_id="tracking_task")
+    ti = create_runtime_ti(task=task)
+    log = mock.MagicMock(spec=["info", "debug", "warning", "error", "exception", "bind"])
+
+    def tracking_info(msg, *args, **kwargs):
+        if msg == "::endgroup::":
+            call_order.append("::endgroup::")
+
+    log.info.side_effect = tracking_info
+
+    run(ti, context=ti.get_template_context(), log=log)
+
+    assert "::endgroup::" in call_order, "::endgroup:: was never emitted"
+    assert "execute" in call_order, "execute() was never called"
+    assert call_order.index("::endgroup::") < call_order.index("execute")
+
+
+def test_run_emits_post_execute_group_before_xcom_push(create_runtime_ti, mock_supervisor_comms):
+    """::group::Post Execute is opened before 'Pushing xcom' so the push appears inside the group."""
+    call_order: list[str] = []
+
+    class ReturningOperator(BaseOperator):
+        def execute(self, context):
+            return "some_value"
+
+    task = ReturningOperator(task_id="returning_task")
+    ti = create_runtime_ti(task=task)
+    log = mock.MagicMock(spec=["info", "debug", "warning", "error", "exception", "bind"])
+
+    def tracking_info(msg, *args, **kwargs):
+        if msg in ("::group::Post Execute", "Pushing xcom"):
+            call_order.append(msg)
+
+    log.info.side_effect = tracking_info
+
+    run(ti, context=ti.get_template_context(), log=log)
+
+    assert "::group::Post Execute" in call_order
+    assert "Pushing xcom" in call_order
+    assert call_order.index("::group::Post Execute") < call_order.index("Pushing xcom")
+
+
+def test_finalize_emits_endgroup(create_runtime_ti, mock_supervisor_comms):
+    """finalize() closes the post-execute log group but does not open it."""
+    task = BaseOperator(task_id="some_task")
+    ti = create_runtime_ti(task=task)
+    log = mock.MagicMock()
+
+    finalize(ti, state=TaskInstanceState.SUCCESS, context=ti.get_template_context(), log=log)
+
+    info_calls = log.info.call_args_list
+    assert call("::group::Post Execute") not in info_calls
+    assert info_calls[-1] == call("::endgroup::")
+
+
 def test_resume_from_deferred(time_machine, create_runtime_ti, mock_supervisor_comms, spy_agency: SpyAgency):
     from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
 
