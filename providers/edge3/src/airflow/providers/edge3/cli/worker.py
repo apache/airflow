@@ -554,7 +554,9 @@ class EdgeWorker:
             else results_queue.get()
         )
         # Ensure that supervisor really ended after we grabbed results from queue
-        while job.is_running:
+        while True:
+            if not job.is_running:
+                break
             await sleep(0.1)
 
         self.jobs.remove(job)
