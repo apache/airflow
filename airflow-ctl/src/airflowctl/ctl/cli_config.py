@@ -944,6 +944,66 @@ POOL_COMMANDS = (
     ),
 )
 
+
+TASKS_COMMANDS = (
+    ActionCommand(
+        name="clear",
+        help="Clear task instances for a DAG run",
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.clear"),
+        args=(
+            ARG_DAG_ID,
+            ARG_OUTPUT,
+            ARG_DAG_RUN_ID,
+            Arg(
+                flags=("--task-ids",),
+                help="Comma-separated list of task IDs to clear",
+            ),
+            Arg(
+                flags=("--dry-run",),
+                action="store_true",
+                help="Perform a dry run (no actual changes)",
+            ),
+            Arg(
+                flags=("--only-failed",),
+                action="store_true",
+                default=True,
+                help="Only clear failed task instances",
+            ),
+            Arg(
+                flags=("--only-running",),
+                action="store_true",
+                help="Only clear running task instances",
+            ),
+            Arg(
+                flags=("--upstream",),
+                action="store_true",
+                help="Include upstream tasks",
+            ),
+            Arg(
+                flags=("--downstream",),
+                action="store_true",
+                help="Include downstream tasks",
+            ),
+        ),
+    ),
+    ActionCommand(
+        name="states-for-dag-run",
+        help="Get task instance states for a DAG run",
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.states_for_dag_run"),
+        args=(
+            ARG_DAG_ID,
+            ARG_DAG_RUN_ID,
+            ARG_OUTPUT,
+            Arg(
+                flags=("--limit",),
+                type=int,
+                default=100,
+                help="Maximum number of task instances to return",
+            ),
+        ),
+    ),
+)
+
 VARIABLE_COMMANDS = (
     ActionCommand(
         name="import",
@@ -994,6 +1054,11 @@ core_commands: list[CLICommand] = [
         name="variables",
         help="Manage Airflow variables",
         subcommands=VARIABLE_COMMANDS,
+    ),
+    GroupCommand(
+        name="tasks",
+        help="Manage Airflow task instances",
+        subcommands=TASKS_COMMANDS,
     ),
 ]
 # Add generated group commands
