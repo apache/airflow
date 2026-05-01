@@ -438,6 +438,13 @@ repos:
     # changes quickly - especially when we want the early modifications from the first local group
     # to be applied before the non-local prek hooks are run
     hooks:
+      - id: validate-agent-skills
+        name: Validate Agent Skills structure
+        entry: ./scripts/ci/prek/validate_skills.py
+        language: python
+        pass_filenames: false
+        additional_dependencies: ['pyyaml>=6.0.3']
+        files: ^\.agents/skills/.*$
       - id: check-shared-distributions-structure
         name: Check shared distributions structure
         entry: ./scripts/ci/prek/check_shared_distributions_structure.py
