@@ -53,8 +53,11 @@ class _LazyLogRecordDict(collections.abc.Mapping):
         # If there is no callsite info (often for stdout/stderr), show the same sort of thing that stdlib
         # logging would
         # https://github.com/python/cpython/blob/d3c888b4ec15dbd7d6b6ef4f15b558af77c228af/Lib/logging/__init__.py#L1652C34-L1652C48
-        if key == "lineno":
-            return self.event.get("lineno") or 0
+        if key in ("lineno", "thread", "process"):
+            val = self.event.get(key)
+            if val is None or val == "(unknown)":
+                return 0
+            return val
         if key == "filename":
             return self.event.get("filename", "(unknown file)")
         if key == "funcName":
