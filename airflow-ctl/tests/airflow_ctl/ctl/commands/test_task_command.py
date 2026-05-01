@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import httpx
 import pytest
@@ -31,7 +32,47 @@ class TestTaskCommands:
     dag_id = "test_dag"
     dag_run_id = "test_run"
 
-    def test_tasks_clear(self):
+    @pytest.mark.parametrize(
+        ("extra_cli_args", "expected_checks"),
+        [
+            pytest.param(
+                [],
+                {
+                    "_no_task_ids": True,
+                    "dag_run_id": "test_run",
+                    "dry_run": False,
+                    "only_failed": True,
+                    "only_running": False,
+                    "include_upstream": False,
+                    "include_downstream": False,
+                },
+                id="defaults",
+            ),
+            pytest.param(
+                [
+                    "--task-ids",
+                    "a, b",
+                    "--no-only-failed",
+                    "--only-running",
+                    "--upstream",
+                    "--downstream",
+                    "--dry-run",
+                ],
+                {
+                    "_no_task_ids": False,
+                    "dag_run_id": "test_run",
+                    "dry_run": True,
+                    "only_failed": False,
+                    "only_running": True,
+                    "include_upstream": True,
+                    "include_downstream": True,
+                    "task_ids": ["a", "b"],
+                },
+                id="with_flags",
+            ),
+        ],
+    )
+    def test_tasks_clear(self, extra_cli_args: list[str], expected_checks: dict[str, Any]):
         received: dict[str, object] = {}
 
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -56,63 +97,19 @@ class TestTaskCommands:
                     self.dag_id,
                     "--dag-run-id",
                     self.dag_run_id,
+                    *extra_cli_args,
                 ]
             ),
             api_client=api_client,
         )
 
         body = received["body"]
-        assert body["dag_run_id"] == self.dag_run_id
-        assert body["dry_run"] is False
-        assert body["only_failed"] is True
-        assert body["only_running"] is False
-        assert body["include_upstream"] is False
-        assert body["include_downstream"] is False
-        assert body.get("task_ids") is None
-
-    def test_tasks_clear_with_flags(self):
-        received: dict[str, object] = {}
-
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            received["body"] = json.loads(request.content)
-            return httpx.Response(200, json={"task_instances": [], "total_entries": 0})
-
-        api_client = Client(
-            base_url="http://localhost:8080",
-            transport=httpx.MockTransport(handle_request),
-            token="",
-            kind=ClientKind.CLI,
-        )
-
-        task_command.clear(
-            self.parser.parse_args(
-                [
-                    "tasks",
-                    "clear",
-                    "--dag-id",
-                    self.dag_id,
-                    "--dag-run-id",
-                    self.dag_run_id,
-                    "--task-ids",
-                    "a, b",
-                    "--no-only-failed",
-                    "--only-running",
-                    "--upstream",
-                    "--downstream",
-                    "--dry-run",
-                ]
-            ),
-            api_client=api_client,
-        )
-
-        body = received["body"]
-        assert body["dag_run_id"] == self.dag_run_id
-        assert body["dry_run"] is True
-        assert body["only_failed"] is False
-        assert body["only_running"] is True
-        assert body["include_upstream"] is True
-        assert body["include_downstream"] is True
-        assert body["task_ids"] == ["a", "b"]
+        checks = dict(expected_checks)
+        no_task_ids = checks.pop("_no_task_ids")
+        if no_task_ids:
+            assert body.get("task_ids") is None
+        for key, value in checks.items():
+            assert body[key] == value
 
     def test_tasks_clear_api_error(self, api_client_maker):
         api_client = api_client_maker(

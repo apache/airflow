@@ -273,14 +273,14 @@ ARG_TASK_CLEAR_DAG_ID = Arg(
     type=str,
     required=True,
     dest="dag_id",
-    help="DAG ID whose task instances are cleared",
+    help="Dag ID whose task instances are cleared",
 )
 ARG_TASK_DAG_RUN_ID = Arg(
     flags=("--dag-run-id",),
     type=str,
     required=True,
     dest="dag_run_id",
-    help="DAG run ID that scopes which task instances are cleared",
+    help="Dag run ID that scopes which task instances are cleared",
 )
 ARG_TASK_IDS = Arg(
     flags=("--task-ids",),
