@@ -59,7 +59,7 @@ router = VersionedAPIRouter(
 
 def _resolve_asset_id(name: str, session: SessionDep) -> int:
     """Resolve asset name → integer asset_id, 404 if not found."""
-    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.name == name))
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.name == name, AssetModel.active.has()))
     if asset_id is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -76,7 +76,7 @@ def get_asset_state(
 ) -> AssetStateResponse:
     """Get an asset state value."""
     asset_id = _resolve_asset_id(name, session)
-    value = get_state_backend().get(AssetScope(asset_id=asset_id), key)
+    value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -97,7 +97,7 @@ def set_asset_state(
 ) -> None:
     """Set an asset state value."""
     asset_id = _resolve_asset_id(name, session)
-    get_state_backend().set(AssetScope(asset_id=asset_id), key, body.value)
+    get_state_backend().set(AssetScope(asset_id=asset_id), key, body.value, session=session)
 
 
 @router.delete("/{name}/{key}", status_code=status.HTTP_204_NO_CONTENT)
@@ -108,7 +108,7 @@ def delete_asset_state(
 ) -> None:
     """Delete a single asset state key."""
     asset_id = _resolve_asset_id(name, session)
-    get_state_backend().delete(AssetScope(asset_id=asset_id), key)
+    get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
 
 
 @router.delete("/{name}", status_code=status.HTTP_204_NO_CONTENT)
@@ -118,4 +118,4 @@ def clear_asset_state(
 ) -> None:
     """Delete all state keys for an asset."""
     asset_id = _resolve_asset_id(name, session)
-    get_state_backend().clear(AssetScope(asset_id=asset_id))
+    get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)

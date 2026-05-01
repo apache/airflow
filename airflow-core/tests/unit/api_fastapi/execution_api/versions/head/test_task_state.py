@@ -165,12 +165,13 @@ class TestClearTaskState:
 
         assert response.status_code == 204
         with create_session() as session:
-            count = session.scalar(
-                select(TaskStateModel)
-                .where(TaskStateModel.dag_id == ti.dag_id, TaskStateModel.task_id == ti.task_id)
-                .with_only_columns(TaskStateModel.key)
-            )
-            assert count is None
+            remaining = session.scalars(
+                select(TaskStateModel.key).where(
+                    TaskStateModel.dag_id == ti.dag_id,
+                    TaskStateModel.task_id == ti.task_id,
+                )
+            ).all()
+            assert remaining == []
 
     def test_clear_when_empty_is_noop(self, client: TestClient, create_task_instance: CreateTaskInstance):
         ti = create_task_instance()

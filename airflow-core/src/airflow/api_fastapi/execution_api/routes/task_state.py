@@ -64,7 +64,7 @@ def get_task_state(
 ) -> TaskStateResponse:
     """Get value for a task state."""
     scope = _get_task_scope_for_ti(task_instance_id, session)
-    value = get_state_backend().get(scope, key)
+    value = get_state_backend().get(scope, key, session=session)
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -85,7 +85,7 @@ def set_task_state(
 ) -> None:
     """Set a task state key, creating or updating the row."""
     scope = _get_task_scope_for_ti(task_instance_id, session)
-    get_state_backend().set(scope, key, body.value)
+    get_state_backend().set(scope, key, body.value, session=session)
 
 
 @router.delete("/{task_instance_id}/{key}", status_code=status.HTTP_204_NO_CONTENT)
@@ -96,7 +96,7 @@ def delete_task_state(
 ) -> None:
     """Delete a single task state key."""
     scope = _get_task_scope_for_ti(task_instance_id, session)
-    get_state_backend().delete(scope, key)
+    get_state_backend().delete(scope, key, session=session)
 
 
 @router.delete("/{task_instance_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -109,10 +109,19 @@ def clear_task_state(
     Delete all task state keys for this task instance.
 
     By default, only keys for the requesting TI's exact ``map_index`` are
-    cleared — same isolation as single-key DELETE. Pass
-    ``?all_map_indices=true`` to wipe state across every mapped instance of
-    the task; the SDK forwards this when the caller asks for a fleet-wide
-    reset.
+    cleared — same isolation as DELETE endpoint above.
+
+    Pass ``?all_map_indices=true`` to wipe state for every mapped sibling of
+    the task in the same DAG run.  This is intentionally fleet-wide: the
+    ``ti:self`` JWT authentication scope authenticates that the caller is
+    a legitimate member of the mapped task group, and grants it authority
+    to reset shared task state on behalf of the whole group.
+    The SDK only forwards this flag when the user calls ``task_state.clear(all_map_indices=True)``
+    explicitly, so the expanded scope is always an explicit opt-in by the task author.
+
+    For non-mapped tasks (``map_index=-1``), there is only ever one index, so
+    ``?all_map_indices=true`` is functionally identical to the default and is
+    accepted without error.
     """
     ti = session.get(TI, task_instance_id)
     if ti is None:
@@ -124,4 +133,4 @@ def clear_task_state(
             },
         )
     scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
-    get_state_backend().clear(scope, all_map_indices=all_map_indices)
+    get_state_backend().clear(scope, all_map_indices=all_map_indices, session=session)

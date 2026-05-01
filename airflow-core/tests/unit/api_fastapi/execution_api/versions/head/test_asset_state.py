@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 import pytest
 from sqlalchemy import delete, select
 
-from airflow.models.asset import AssetModel
+from airflow.models.asset import AssetActive, AssetModel
 from airflow.models.asset_state import AssetStateModel
 from airflow.utils.session import create_session
 
@@ -42,6 +42,17 @@ def reset_state_tables():
 @pytest.fixture
 def asset(session: Session) -> AssetModel:
     asset = AssetModel(name="test_asset", uri="s3://bucket/test", group="asset")
+    session.add(asset)
+    session.flush()
+    session.add(AssetActive.for_asset(asset))
+    session.commit()
+    return asset
+
+
+@pytest.fixture
+def inactive_asset(session: Session) -> AssetModel:
+    """An asset row with no asset_active entry — simulates a removed asset."""
+    asset = AssetModel(name="inactive_asset", uri="s3://bucket/inactive", group="asset")
     session.add(asset)
     session.commit()
     return asset
@@ -134,3 +145,15 @@ class TestClearAssetState:
         with create_session() as session:
             row = session.scalar(select(AssetStateModel).where(AssetStateModel.asset_id == asset.id))
             assert row is None
+
+
+class TestInactiveAssetRejected:
+    """An asset row without a corresponding asset_active entry is treated as not found."""
+
+    def test_get_inactive_asset_returns_404(self, client: TestClient, inactive_asset: AssetModel):
+        response = client.get(_api_url(inactive_asset.name, "watermark"))
+        assert response.status_code == 404
+
+    def test_put_inactive_asset_returns_404(self, client: TestClient, inactive_asset: AssetModel):
+        response = client.put(_api_url(inactive_asset.name, "watermark"), json={"value": "x"})
+        assert response.status_code == 404
