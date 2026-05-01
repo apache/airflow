@@ -1116,7 +1116,7 @@ class TestPodTemplateFile:
                 "scheduler": {"safeToEvict": True},
                 "triggerer": {"safeToEvict": True},
                 "executor": "KubernetesExecutor",
-                "dagProcessor": {"enabled": True, "safeToEvict": True},
+                "dagProcessor": {"safeToEvict": True},
             },
             show_only=[
                 "templates/dag-processor/dag-processor-deployment.yaml",
