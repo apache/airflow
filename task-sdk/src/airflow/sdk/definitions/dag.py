@@ -1289,34 +1289,54 @@ class DAG:
             else:
                 timetable = coerce_to_core_timetable(self.timetable)
                 data_interval = timetable.infer_manual_data_interval(run_after=logical_date)
+            # These imports are intentionally lazy: this Task SDK module must not
+            # pull in airflow-core at import time (worker isolation).
+            from airflow.dag_processing.bundles.manager import DagBundlesManager
+            from airflow.dag_processing.dagbag import BundleDagBag, sync_bag_to_db
+            from airflow.models.dag import DagModel
             from airflow.models.dag_version import DagVersion
 
-            version = DagVersion.get_version(self.dag_id)
-            if not version:
-                from airflow.dag_processing.bundles.manager import DagBundlesManager
-                from airflow.dag_processing.dagbag import BundleDagBag, sync_bag_to_db
-                from airflow.sdk.definitions._internal.dag_parsing_context import (
-                    _airflow_parsing_context_manager,
-                )
+            manager = DagBundlesManager()
+            manager.sync_bundles_to_db(session=session)
+            session.commit()
 
-                manager = DagBundlesManager()
-                manager.sync_bundles_to_db(session=session)
-                session.commit()
-                # sync all bundles? or use the dags-folder bundle?
-                # What if the test dag is in a different bundle?
-                for bundle in manager.get_all_dag_bundles():
-                    if not bundle.is_initialized:
-                        bundle.initialize()
-                    with _airflow_parsing_context_manager(dag_id=self.dag_id):
-                        dagbag = BundleDagBag(
-                            dag_folder=bundle.path,
-                            bundle_path=bundle.path,
-                            bundle_name=bundle.name,
-                        )
-                        sync_bag_to_db(dagbag, bundle.name, bundle.version)
-                    version = DagVersion.get_version(self.dag_id)
-                    if version:
-                        break
+            # Re-sync the bundle that owns ``self`` so sibling DAGs (e.g. targets of
+            # TriggerDagRunOperator) are written to the metadata DB on every call,
+            # not just the first one (apache/airflow#64884). When we can identify
+            # ``self``'s bundle from a prior sync we walk only that bundle; otherwise
+            # we walk every configured bundle until we find it. ``sync_bag_to_db``
+            # is idempotent at the per-DAG hash level.
+            #
+            # Note: we deliberately do NOT use ``_airflow_parsing_context_manager``
+            # here. Setting ``_AIRFLOW_PARSING_CONTEXT_DAG_ID`` to ``self.dag_id``
+            # would cause DAG files that follow the documented dynamic-DAG
+            # optimization (early-return when the parsing context dag_id doesn't
+            # match) to omit sibling DAGs from the bag, defeating the whole point
+            # of this re-sync.
+            all_bundles = list(manager.get_all_dag_bundles())
+            existing_dm = DagModel.get_current(self.dag_id, session=session)
+            existing_bundle_name = existing_dm.bundle_name if existing_dm else None
+            owning = (
+                [b for b in all_bundles if b.name == existing_bundle_name]
+                if existing_bundle_name is not None
+                else []
+            )
+            # If the recorded bundle is no longer in the configured bundle list
+            # (renamed / removed), fall back to walking all bundles so the sync
+            # doesn't silently skip.
+            bundles_to_sync = owning if owning else all_bundles
+
+            for bundle in bundles_to_sync:
+                if not bundle.is_initialized:
+                    bundle.initialize()
+                dagbag = BundleDagBag(
+                    dag_folder=bundle.path,
+                    bundle_path=bundle.path,
+                    bundle_name=bundle.name,
+                )
+                sync_bag_to_db(dagbag, bundle.name, bundle.version)
+                if DagVersion.get_version(self.dag_id):
+                    break
 
             # Preserve callback functions from original Dag since they're lost during serialization
             # and yes it is a hack for now! It is a tradeoff for code simplicity.
