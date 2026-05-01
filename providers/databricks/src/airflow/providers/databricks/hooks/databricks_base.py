@@ -341,8 +341,12 @@ class BaseDatabricksHook(BaseHook):
             for attempt in self._get_retry_object():
                 with attempt:
                     if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
-                        client_id = self.databricks_conn.extra_dejson.get("azure_managed_identity_client_id", None)
-                        token = ManagedIdentityCredential(client_id=client_id).get_token(f"{resource}/.default")
+                        client_id = self.databricks_conn.extra_dejson.get(
+                            "azure_managed_identity_client_id", None
+                        )
+                        token = ManagedIdentityCredential(client_id=client_id).get_token(
+                            f"{resource}/.default"
+                        )
                     else:
                         credential = ClientSecretCredential(
                             client_id=self._get_connection_attr("login"),
@@ -389,7 +393,9 @@ class BaseDatabricksHook(BaseHook):
             async for attempt in self._a_get_retry_object():
                 with attempt:
                     if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
-                        client_id = self.databricks_conn.extra_dejson.get("azure_managed_identity_client_id", None)
+                        client_id = self.databricks_conn.extra_dejson.get(
+                            "azure_managed_identity_client_id", None
+                        )
                         async with AsyncManagedIdentityCredential(client_id=client_id) as credential:
                             token = await credential.get_token(f"{resource}/.default")
                     else:

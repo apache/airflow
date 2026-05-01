@@ -17,10 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta
 from unittest import mock
 
-import json
 import aiohttp
 import pytest
 import time_machine
@@ -466,7 +466,6 @@ class TestBaseDatabricksHook:
             mock_check_metadata.assert_called_once()
             mock_get_aad_token.assert_called_once_with(DEFAULT_DATABRICKS_SCOPE)
             mock_log_debug.assert_called_once_with("Using AAD Token for managed identity.")
-
 
     @mock.patch("azure.identity.ManagedIdentityCredential")
     def test_get_aad_token_with_managed_identity_client_id(
