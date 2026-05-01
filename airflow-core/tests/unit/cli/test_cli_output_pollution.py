@@ -30,16 +30,16 @@ pytestmark = pytest.mark.db_test
 
 class TestCliOutputPollution:
     def test_cli_list_dags_json_output_no_pollution(self, stdout_capture, stderr_capture):
-        \"\"\"
+        """
         Test that 'airflow dags list -o json' output is not polluted by logs.
-        \"\"\"
+        """
         root_logger = logging.getLogger()
         original_streams = {h: h.stream for h in root_logger.handlers if isinstance(h, logging.StreamHandler)}
         
         try:
-            with mock.patch(\"sys.argv\", [\"airflow\", \"dags\", \"list\", \"-o\", \"json\"]):
+            with mock.patch("sys.argv", ["airflow", "dags", "list", "-o", "json"]):
                 with stdout_capture as temp_stdout, stderr_capture as temp_stderr:
-                    logging.info(\"Pollution message\")
+                    logging.info("Pollution message")
                     
                     main()
                     
@@ -51,23 +51,23 @@ class TestCliOutputPollution:
                 data = json.loads(stdout_val)
                 assert isinstance(data, list)
             except json.JSONDecodeError as e:
-                pytest.fail(f\"CLI output is not valid JSON: {stdout_val}\\nError: {e}\")
+                pytest.fail(f"CLI output is not valid JSON: {stdout_val}\nError: {e}")
                 
             # Verify that the pollution message is NOT in stdout but IS in stderr
-            assert \"Pollution message\" not in stdout_val
-            assert \"Pollution message\" in stderr_val
+            assert "Pollution message" not in stdout_val
+            assert "Pollution message" in stderr_val
         finally:
             # Restore original streams
             for handler, stream in original_streams.items():
                 handler.setStream(stream)
 
     def test_cli_list_dags_table_output_still_on_stdout(self, stdout_capture, stderr_capture):
-        \"\"\"
+        """
         Test that 'airflow dags list' (default table) still prints to stdout.
-        \"\"\"
-        with mock.patch(\"sys.argv\", [\"airflow\", \"dags\", \"list\"]):
+        """
+        with mock.patch("sys.argv", ["airflow", "dags", "list"]):
             with stdout_capture as temp_stdout, stderr_capture as temp_stderr:
-                logging.info(\"Regular log message\")
+                logging.info("Regular log message")
                 
                 main()
                 
@@ -76,4 +76,4 @@ class TestCliOutputPollution:
         # In table mode, logs might still be on stdout depending on config, 
         # but our fix ONLY redirects if output != 'table'.
         # So we just check that we didn't break normal output.
-        assert \"dag_id\" in stdout_val
+        assert "dag_id" in stdout_val
