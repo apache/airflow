@@ -797,20 +797,23 @@ def _resolve_build_requirements(
         if result.returncode == 0:
             break
 
-        # Identify the conflicting package by intersecting our known candidates
-        # with names mentioned in stderr alongside a version specifier.  This
-        # avoids depending on any single uv diagnostic phrase ("you require",
-        # "the project depends on", ...) so that future wording changes do not
-        # silently turn conflicts into hard failures.
+        # Identify the conflicting package by extracting candidate names from
+        # stderr and intersecting them (after PEP 503 normalization) with our
+        # known build dep names.  This avoids depending on any single uv
+        # diagnostic phrase ("you require", "the project depends on", ...) and
+        # also tolerates separator differences between the raw requirement
+        # echoed in stderr (``pdm_backend>=2``) and the normalized key
+        # (``pdm-backend``).
         stderr_text = result.stderr or ""
+        known_names = set(lines_by_name)
+        candidate_pattern = re.compile(
+            r"\b([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^\]]+\])?\s*(?:\{[^}]+\})?\s*[<>=!~]"
+        )
         conflict_name = None
-        for name in lines_by_name:
-            # Look for "<name><op>" where <op> starts a PEP 440 specifier.
-            # ``re.escape`` handles names that contain ``.`` or other regex
-            # metacharacters; ``\b`` prevents matching ``mycython`` for ``cython``.
-            pattern = rf"\b{re.escape(name)}\s*[<>=!~]"
-            if re.search(pattern, stderr_text, re.IGNORECASE):
-                conflict_name = name
+        for raw_name in candidate_pattern.findall(stderr_text):
+            normalized_name = _normalize_package_name(raw_name)
+            if normalized_name in known_names:
+                conflict_name = normalized_name
                 break
 
         if conflict_name and conflict_name in lines_by_name:
