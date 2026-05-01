@@ -1,4 +1,9 @@
 {
+  "deadlines": {
+    "last24h": "Last 24 hours + upcoming",
+    "seeAll": "See all",
+    "title": "Deadlines"
+  },
   "favorite": {
     "favoriteDags_one": "First {{count}} favorite Dag",
     "favoriteDags_other": "First {{count}} favorite Dags",

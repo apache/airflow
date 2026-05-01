@@ -18,7 +18,6 @@
  */
 import { Badge, Box, Heading, Link, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import dayjs from "dayjs";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
@@ -119,12 +118,10 @@ export const Deadlines = () => {
 
   const missedFilter = filteredMissed === "true" ? true : filteredMissed === "false" ? false : undefined;
 
-  const defaultDeadlineTimeGte = dayjs().subtract(24, "hour").toISOString();
-
   const { data, error, isFetching, isLoading } = useDeadlinesServiceGetDeadlines({
     dagId: filteredDagId !== null && filteredDagId !== "" ? filteredDagId : "~",
     dagRunId: "~",
-    deadlineTimeGte: deadlineTimeGte ?? defaultDeadlineTimeGte,
+    deadlineTimeGte: deadlineTimeGte ?? undefined,
     deadlineTimeLte: deadlineTimeLte ?? undefined,
     limit: pagination.pageSize,
     missed: missedFilter,
