@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.s3_vectors import (
+    S3VectorsCreateIndexOperator,
     S3VectorsCreateVectorBucketOperator,
     S3VectorsDeleteVectorBucketOperator,
 )
@@ -28,13 +29,23 @@ from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import TriggerRule
+    from airflow.sdk import TriggerRule, task
 else:
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 DAG_ID = "example_s3_vectors"
 
 sys_test_context_task = SystemTestContextBuilder().build()
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_index(vector_bucket_name: str, index_name: str):
+    """Delete the index."""
+    import boto3
+
+    boto3.client("s3vectors").delete_index(vectorBucketName=vector_bucket_name, indexName=index_name)
+
 
 with DAG(
     dag_id=DAG_ID,
@@ -45,6 +56,7 @@ with DAG(
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
     bucket_name = f"{env_id}-test-vectors"
+    index_name = f"{env_id}-test-index"
 
     # [START howto_operator_s3vectors_create_vector_bucket]
     create_vector_bucket = S3VectorsCreateVectorBucketOperator(
@@ -52,6 +64,17 @@ with DAG(
         vector_bucket_name=bucket_name,
     )
     # [END howto_operator_s3vectors_create_vector_bucket]
+
+    # [START howto_operator_s3vectors_create_index]
+    create_index = S3VectorsCreateIndexOperator(
+        task_id="create_index",
+        vector_bucket_name=bucket_name,
+        index_name=index_name,
+        data_type="float32",
+        dimension=128,
+        distance_metric="cosine",
+    )
+    # [END howto_operator_s3vectors_create_index]
 
     # [START howto_operator_s3vectors_delete_vector_bucket]
     delete_vector_bucket = S3VectorsDeleteVectorBucketOperator(
@@ -64,6 +87,8 @@ with DAG(
     chain(
         test_context,
         create_vector_bucket,
+        create_index,
+        delete_index(vector_bucket_name=bucket_name, index_name=index_name),
         delete_vector_bucket,
     )
 
