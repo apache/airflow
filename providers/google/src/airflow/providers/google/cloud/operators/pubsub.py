@@ -65,7 +65,7 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
         :ref:`howto/operator:PubSubCreateTopicOperator`
 
     By default, if the topic already exists, this operator will
-    not cause the DAG to fail. ::
+    not cause the Dag to fail. ::
 
         with DAG("successful DAG") as dag:
             create_topic = PubSubCreateTopicOperator(project_id="my-project", topic="my_new_topic")
@@ -202,7 +202,7 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
     Subscription can be created in a different project from its topic.
 
     By default, if the subscription already exists, this operator will
-    not cause the DAG to fail. However, the topic must exist in the project. ::
+    not cause the Dag to fail. However, the topic must exist in the project. ::
 
         with DAG("successful DAG") as dag:
             create_subscription = PubSubCreateSubscriptionOperator(
@@ -431,7 +431,7 @@ class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
         :ref:`howto/operator:PubSubDeleteTopicOperator`
 
     By default, if the topic does not exist, this operator will
-    not cause the DAG to fail. ::
+    not cause the Dag to fail. ::
 
         with DAG("successful DAG") as dag:
             PubSubDeleteTopicOperator(project_id="my-project", topic="non_existing_topic")

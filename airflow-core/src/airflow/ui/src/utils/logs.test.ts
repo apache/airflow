@@ -49,7 +49,6 @@ describe("parseStreamingLogContent", () => {
   });
 
   it("returns empty array for null data", () => {
-    // eslint-disable-next-line unicorn/no-null
     const data = null as unknown as TaskInstancesLogResponse;
 
     expect(parseStreamingLogContent(data)).toEqual([]);

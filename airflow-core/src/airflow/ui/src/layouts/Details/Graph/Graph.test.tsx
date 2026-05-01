@@ -62,8 +62,8 @@ vi.mock("src/hooks/useSelectedVersion", () => ({
   default: vi.fn(() => 1),
 }));
 
-vi.mock("src/context/openGroups", () => ({
-  useOpenGroups: vi.fn(() => ({ allGroupIds: [], openGroupIds: [], setAllGroupIds: vi.fn() })),
+vi.mock("src/context/groups", () => ({
+  useGroups: vi.fn(() => ({ allGroupIds: [], openGroupIds: [], setAllGroupIds: vi.fn() })),
 }));
 
 vi.mock("@xyflow/react", async () => {

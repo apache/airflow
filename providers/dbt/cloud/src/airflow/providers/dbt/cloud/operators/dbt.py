@@ -148,25 +148,25 @@ class DbtCloudRunJobOperator(BaseOperator):
         self.deferrable = deferrable
         self.hook_params = hook_params or {}
 
-    def execute(self, context: Context):
-        if self.trigger_reason is None:
-            self.trigger_reason = (
-                f"Triggered via Apache Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
+    def _resolve_job_id(self) -> int:
+        if self.job_id is not None:
+            return self.job_id
+
+        if not all([self.project_name, self.environment_name, self.job_name]):
+            raise ValueError(
+                "Either job_id or project_name, environment_name, and job_name must be provided."
             )
 
-        if self.job_id is None:
-            if not all([self.project_name, self.environment_name, self.job_name]):
-                raise ValueError(
-                    "Either job_id or project_name, environment_name, and job_name must be provided."
-                )
-            self.job_id = self.hook.get_job_by_name(
-                account_id=self.account_id,
-                project_name=self.project_name,
-                environment_name=self.environment_name,
-                job_name=self.job_name,
-            )["id"]
+        return self.hook.get_job_by_name(
+            account_id=self.account_id,
+            project_name=self.project_name,
+            environment_name=self.environment_name,
+            job_name=self.job_name,
+        )["id"]
 
+    def _get_or_trigger_run(self, context: Context) -> tuple[int, str]:
         non_terminal_runs = None
+
         if self.reuse_existing_run:
             non_terminal_runs = self.hook.get_job_runs(
                 account_id=self.account_id,
@@ -176,24 +176,52 @@ class DbtCloudRunJobOperator(BaseOperator):
                     "order_by": "-created_at",
                 },
             ).json()["data"]
+
             if non_terminal_runs:
-                self.run_id = non_terminal_runs[0]["id"]
+                run_id = non_terminal_runs[0]["id"]
                 job_run_url = non_terminal_runs[0]["href"]
+                return run_id, job_run_url
 
         is_retry = context["ti"].try_number != 1
 
-        if not self.reuse_existing_run or not non_terminal_runs:
-            trigger_job_response = self.hook.trigger_job_run(
-                account_id=self.account_id,
-                job_id=self.job_id,
-                cause=self.trigger_reason,
-                steps_override=self.steps_override,
-                schema_override=self.schema_override,
-                retry_from_failure=is_retry and self.retry_from_failure,
-                additional_run_config=self.additional_run_config,
+        trigger_job_response = self.hook.trigger_job_run(
+            account_id=self.account_id,
+            job_id=self.job_id,
+            cause=self.trigger_reason,
+            steps_override=self.steps_override,
+            schema_override=self.schema_override,
+            retry_from_failure=is_retry and self.retry_from_failure,
+            additional_run_config=self.additional_run_config,
+        )
+
+        run_id = trigger_job_response.json()["data"]["id"]
+        job_run_url = trigger_job_response.json()["data"]["href"]
+
+        return run_id, job_run_url
+
+    def _handle_terminal_status(self, status: int) -> int | None:
+
+        if status == DbtCloudJobRunStatus.SUCCESS.value:
+            self.log.info("Job run %s has completed successfully.", self.run_id)
+            return self.run_id
+
+        if status in (
+            DbtCloudJobRunStatus.CANCELLED.value,
+            DbtCloudJobRunStatus.ERROR.value,
+        ):
+            raise DbtCloudJobRunException(f"Job run {self.run_id} has failed or has been cancelled.")
+
+        return None
+
+    def execute(self, context: Context):
+        if self.trigger_reason is None:
+            self.trigger_reason = (
+                f"Triggered via Apache Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
             )
-            self.run_id = trigger_job_response.json()["data"]["id"]
-            job_run_url = trigger_job_response.json()["data"]["href"]
+
+        self.job_id = self._resolve_job_id()
+
+        self.run_id, job_run_url = self._get_or_trigger_run(context)
 
         # Push the ``job_run_url`` and ``job_run_id`` value to XCom regardless of what happens during execution.
         # This enables job monitoring via the operator link and provides direct access
@@ -242,14 +270,9 @@ class DbtCloudRunJobOperator(BaseOperator):
                     ),
                     method_name="execute_complete",
                 )
-            elif job_run_status == DbtCloudJobRunStatus.SUCCESS.value:
-                self.log.info("Job run %s has completed successfully.", self.run_id)
-                return self.run_id
-            elif job_run_status in (
-                DbtCloudJobRunStatus.CANCELLED.value,
-                DbtCloudJobRunStatus.ERROR.value,
-            ):
-                raise DbtCloudJobRunException(f"Job run {self.run_id} has failed or has been cancelled.")
+            else:
+                return self._handle_terminal_status(job_run_status)
+
         else:
             if self.deferrable is True:
                 warnings.warn(

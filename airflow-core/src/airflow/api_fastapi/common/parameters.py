@@ -354,7 +354,7 @@ class _TaskDisplayNamePrefixPatternParam(_PrefixPatternParam):
                 "Prefix match on task display name: optional ``_task_display_property_value`` else "
                 "``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly alternative to "
                 "``task_display_name_pattern``. On large databases, combine with ``dag_id_prefix_pattern`` "
-                "(or a specific DAG in the path) so ``(dag_id, task_id, ...)`` indexes apply. "
+                "(or a specific Dag in the path) so ``(dag_id, task_id, ...)`` indexes apply. "
                 "Use ``|`` for OR. Use ``~`` to match all. Trailing non-alphanumeric characters in the "
                 "term are stripped before matching so the range scan stays index-compatible under "
                 "locale-aware collations."
@@ -1056,7 +1056,7 @@ QueryAssetDependencyFilter = Annotated[_AssetDependencyFilter, Depends(_AssetDep
 
 
 class _ConsumingAssetFilter(BaseParam[str | None]):
-    """Filter DAG runs by consuming asset (name or URI)."""
+    """Filter Dag runs by consuming asset (name or URI)."""
 
     def to_orm(self, select: Select) -> Select:
         if not self.value and self.skip_none:

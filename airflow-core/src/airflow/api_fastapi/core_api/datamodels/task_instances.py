@@ -245,7 +245,7 @@ class ClearTaskInstancesBody(StrictBaseModel):
 
 
 class PatchTaskInstanceBody(StrictBaseModel):
-    """Request body for Clear Task Instances endpoint."""
+    """Request body for patching task instance state."""
 
     new_state: TaskInstanceState | None = None
     note: Annotated[str, StringConstraints(max_length=1000)] | None = None

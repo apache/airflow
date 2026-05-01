@@ -63,7 +63,7 @@
   },
   "dependencies": {
     "jquery-ui": "^1.14.2",
-    "moment-timezone": "^0.6.1"
+    "moment-timezone": "^0.6.2"
   },
   "pnpm": {
     "minimumReleaseAge": 5760,

@@ -247,13 +247,13 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         details: DagDetails | None = None,
     ) -> bool:
         """
-        Return whether the user is authorized to perform a given action on a DAG.
+        Return whether the user is authorized to perform a given action on a Dag.
 
         :param method: the method to perform
         :param user: the user to performing the action
-        :param access_entity: the kind of DAG information the authorization request is about.
-            If not provided, the authorization request is about the DAG itself
-        :param details: optional details about the DAG
+        :param access_entity: the kind of Dag information the authorization request is about.
+            If not provided, the authorization request is about the Dag itself
+        :param details: optional details about the Dag
         """
 
     @abstractmethod
@@ -564,7 +564,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
-        Get DAGs the user has access to.
+        Get Dags the user has access to.
 
         :param user: the user
         :param method: the method to filter on
@@ -604,13 +604,13 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         team_name: str | None = None,
     ) -> set[str]:
         """
-        Filter DAGs the user has access to.
+        Filter Dags the user has access to.
 
-        By default, check individually if the user has permissions to access the DAG.
+        By default, check individually if the user has permissions to access the Dag.
         Can lead to some poor performance. It is recommended to override this method in the auth manager
         implementation to provide a more efficient implementation.
 
-        :param dag_ids: the set of DAG ids
+        :param dag_ids: the set of Dag ids
         :param user: the user
         :param method: the method to filter on
         :param team_name: the name of the team associated to the Dags if Airflow environment runs in

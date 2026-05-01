@@ -17,20 +17,10 @@
  * under the License.
  */
 import { Box, Spinner, useToken } from "@chakra-ui/react";
-import {
-  ReactFlow,
-  Controls,
-  ControlButton,
-  Background,
-  MiniMap,
-  useReactFlow,
-  type Node as ReactFlowNode,
-} from "@xyflow/react";
+import { ReactFlow, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { MdCenterFocusStrong } from "react-icons/md";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useDagRunServiceGetDagRun, useStructureServiceStructureData } from "openapi/queries";
@@ -40,90 +30,32 @@ import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { dependenciesKey, directionKey } from "src/constants/localStorage";
 import { useColorMode } from "src/context/colorMode";
-import { useOpenGroups } from "src/context/openGroups";
+import { useGroups } from "src/context/groups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { getReactFlowThemeStyle } from "src/theme";
 
+import { FitViewOnLayout } from "./components/FitViewOnLayout";
+import { GraphControls } from "./components/GraphControls";
+import { useFilteredNodesAndEdges } from "./hooks/useFilteredNodesAndEdges";
+import { useGraphSearchParams } from "./hooks/useGraphSearchParams";
+import { useGraphFilteredNodes } from "./useGraphFilteredNodes";
+import { nodeColor } from "./utils/nodeColor";
+
 // Hoisted to module scope so ReactFlow receives a stable reference and skips
 // its internal shallow-equality check on every render.
 const defaultEdgeOptions = { zIndex: 1 };
 
-// Fits the viewport whenever a new layout is committed. Must live inside
-// <ReactFlow> to call useReactFlow(). Using layoutData as the dep means it
-// only fires when ELK produces a new layout, not on task-instance updates or
-// selection changes (unlike the `fitView` prop, which runs on every re-mount).
-const FitViewOnLayout = ({ layoutData }: { readonly layoutData: object | undefined }) => {
-  const { fitView } = useReactFlow();
-
-  useEffect(() => {
-    if (layoutData !== undefined) {
-      void fitView({ padding: 0.1 });
-    }
-  }, [fitView, layoutData]);
-
-  return null;
-};
-
-const GraphControls = ({ selectedNodeId }: { readonly selectedNodeId?: string }) => {
-  const { t: translate } = useTranslation("components");
-  const { fitView } = useReactFlow();
-
-  return (
-    <Controls showInteractive={false}>
-      {selectedNodeId === undefined ? undefined : (
-        <ControlButton
-          aria-label={translate("graph.zoomToTask")}
-          onClick={() => {
-            void fitView({ duration: 500, nodes: [{ id: selectedNodeId }], padding: 0.5 });
-          }}
-          title={translate("graph.zoomToTask")}
-        >
-          <MdCenterFocusStrong />
-        </ControlButton>
-      )}
-    </Controls>
-  );
-};
-
-const nodeColor = (
-  { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
-  evenColor?: string,
-  oddColor?: string,
-) => {
-  if (height === undefined || width === undefined || type === "join") {
-    return "";
-  }
-
-  if (taskInstance?.state !== undefined && !isOpen) {
-    return `var(--chakra-colors-${taskInstance.state}-solid)`;
-  }
-
-  if (isOpen && depth !== undefined && depth % 2 === 0) {
-    return evenColor ?? "";
-  } else if (isOpen) {
-    return oddColor ?? "";
-  }
-
-  return "";
-};
-
 export const Graph = () => {
   const { colorMode = "light" } = useColorMode();
   const { dagId = "", groupId, runId = "", taskId } = useParams();
-  const [searchParams] = useSearchParams();
 
   const selectedVersion = useSelectedVersion();
 
-  const filterRoot = searchParams.get("root") ?? undefined;
-  const includeUpstream = searchParams.get("upstream") === "true";
-  const includeDownstream = searchParams.get("downstream") === "true";
-  const depthParam = searchParams.get("depth");
-  const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
-
-  const hasActiveFilter = includeUpstream || includeDownstream;
+  const { depth, filterRoot, graphFilters, hasActiveFilter, includeDownstream, includeUpstream } =
+    useGraphSearchParams();
 
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
@@ -135,7 +67,7 @@ export const Graph = () => {
     "bg.emphasized",
   ]);
 
-  const { allGroupIds, openGroupIds, setAllGroupIds } = useOpenGroups();
+  const { allGroupIds, openGroupIds, setAllGroupIds } = useGroups();
 
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(dependenciesKey(dagId), "tasks");
   const [direction] = useLocalStorage<Direction>(directionKey(dagId), "RIGHT");
@@ -198,8 +130,8 @@ export const Graph = () => {
   });
   const gridTISummaries = runId ? summariesByRunId.get(runId) : undefined;
 
-  // Add task instances and selection state to node data without recalculating layout.
-  const nodes = data?.nodes.map((node) => {
+  // Add task instances to the node data but without having to recalculate how the graph is laid out
+  const nodesWithTI = data?.nodes.map((node) => {
     const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === node.id);
 
     return {
@@ -212,18 +144,15 @@ export const Graph = () => {
     };
   });
 
-  // isSelected is intentionally absent here — Edge.tsx reads it directly from
-  // the node store via useNodesData, so the edges array stays stable when only
-  // the selected task changes, avoiding a full edge reconciliation pass.
-  const edges = (data?.edges ?? []).map((edge) => ({
-    ...edge,
-    data: {
-      ...edge.data,
-      rest: {
-        ...edge.data?.rest,
-      },
-    },
-  }));
+  const baseFilteredNodes = useGraphFilteredNodes(nodesWithTI, graphFilters);
+
+  const { edges, nodes } = useFilteredNodesAndEdges({
+    baseFilteredNodes,
+    dagId,
+    groupId,
+    layoutEdges: data?.edges ?? [],
+    taskId,
+  });
 
   const selectedNodeId = taskId ?? groupId;
 

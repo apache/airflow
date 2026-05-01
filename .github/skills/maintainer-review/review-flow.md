@@ -29,7 +29,7 @@ number is always printed alongside its full URL so the
 maintainer can click straight through:
 
 ```
-PR #65934 — Fix scheduler N+1 on serialized DAG load
+PR #65934 — Fix scheduler N+1 on serialized Dag load
   https://github.com/apache/airflow/pull/65934
   Author: alice (CONTRIBUTOR, [external])
   Base:   main  •  Head: 4f8a09b1
@@ -220,7 +220,7 @@ the finding; restating drifts.
 - `major` — likely a bug. Use when the source rule's wording
   signals a *correctness* concern (the source files use words
   like *"silent no-op in production"*, *"silently collide
-  across DAGs"*, *"hides real bugs"* — those calibrate as
+  across Dags"*, *"hides real bugs"* — those calibrate as
   major).
 - `blocking` — security or correctness violation that the
   documented model treats as one (worker reaching DB,

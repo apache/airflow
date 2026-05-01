@@ -34,22 +34,22 @@ if TYPE_CHECKING:
 
 class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
     """
-    Waits for a DAG Run in an MWAA Environment to complete.
+    Waits for a Dag Run in an MWAA Environment to complete.
 
-    If the DAG Run fails, an AirflowException is thrown.
+    If the Dag Run fails, an AirflowException is thrown.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:MwaaDagRunSensor`
 
-    :param external_env_name: The external MWAA environment name that contains the DAG Run you want to wait for
+    :param external_env_name: The external MWAA environment name that contains the Dag Run you want to wait for
         (templated)
-    :param external_dag_id: The DAG ID in the external MWAA environment that contains the DAG Run you want to wait for
+    :param external_dag_id: The Dag ID in the external MWAA environment that contains the Dag Run you want to wait for
         (templated)
-    :param external_dag_run_id: The DAG Run ID in the external MWAA environment that you want to wait for (templated)
-    :param success_states: Collection of DAG Run states that would make this task marked as successful, default is
+    :param external_dag_run_id: The Dag Run ID in the external MWAA environment that you want to wait for (templated)
+    :param success_states: Collection of Dag Run states that would make this task marked as successful, default is
         ``{airflow.utils.state.DagRunState.SUCCESS}`` (templated)
-    :param failure_states: Collection of DAG Run states that would make this task marked as failed and raise an
+    :param failure_states: Collection of Dag Run states that would make this task marked as failed and raise an
         AirflowException, default is ``{airflow.utils.state.DagRunState.FAILED}`` (templated)
     :param airflow_version: The Airflow major version the MWAA environment runs.
             This parameter is only used if the local web token method is used to call Airflow API. (templated)
@@ -115,7 +115,7 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
 
     def poke(self, context: Context) -> bool:
         self.log.info(
-            "Poking for DAG run %s of DAG %s in MWAA environment %s",
+            "Poking for Dag run %s of Dag %s in MWAA environment %s",
             self.external_dag_run_id,
             self.external_dag_id,
             self.external_env_name,
@@ -137,7 +137,7 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
 
         if state in self.failure_states:
             raise AirflowException(
-                f"The DAG run {self.external_dag_run_id} of DAG {self.external_dag_id} in MWAA environment {self.external_env_name} "
+                f"The Dag run {self.external_dag_run_id} of Dag {self.external_dag_id} in MWAA environment {self.external_env_name} "
                 f"failed with state: {state}"
             )
 
@@ -147,7 +147,7 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
         validated_event = validate_execute_complete_event(event)
 
         if validated_event["status"] != "success":
-            raise AirflowException(f"Error in MWAA DAG run: {validated_event}")
+            raise AirflowException(f"Error in MWAA Dag run: {validated_event}")
 
     def execute(self, context: Context):
         if self.deferrable:
@@ -180,9 +180,9 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
 
     :param external_env_name: The external MWAA environment name that contains the Task Instance you want to wait for
         (templated)
-    :param external_dag_id: The DAG ID in the external MWAA environment that contains the Task Instance you want to wait for
+    :param external_dag_id: The Dag ID in the external MWAA environment that contains the Task Instance you want to wait for
         (templated)
-    :param external_dag_run_id: The DAG Run ID in the external MWAA environment that you want to wait for (templated)
+    :param external_dag_run_id: The Dag Run ID in the external MWAA environment that you want to wait for (templated)
     :param external_task_id: The Task ID in the external MWAA environment that you want to wait for (templated)
     :param success_states: Collection of task instance states that would make this task marked as successful, default is
         ``{airflow.utils.state.TaskInstanceState.SUCCESS}`` (templated)
@@ -255,7 +255,7 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
 
     def poke(self, context: Context) -> bool:
         self.log.info(
-            "Poking for task %s of DAG run %s of DAG %s in MWAA environment %s",
+            "Poking for task %s of Dag run %s of Dag %s in MWAA environment %s",
             self.external_task_id,
             self.external_dag_run_id,
             self.external_dag_id,
@@ -278,7 +278,7 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
 
         if state in self.failure_states:
             raise AirflowException(
-                f"The task {self.external_task_id} of DAG run {self.external_dag_run_id} of DAG {self.external_dag_id} in MWAA environment {self.external_env_name} "
+                f"The task {self.external_task_id} of Dag run {self.external_dag_run_id} of Dag {self.external_dag_id} in MWAA environment {self.external_env_name} "
                 f"failed with state: {state}"
             )
 

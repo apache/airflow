@@ -422,13 +422,13 @@ class Client(httpx.Client):
     @lru_cache()  # type: ignore[prop-decorator]
     @property
     def dags(self):
-        """Operations related to DAGs."""
+        """Operations related to Dags."""
         return DagsOperations(self)
 
     @lru_cache()  # type: ignore[prop-decorator]
     @property
     def dag_runs(self):
-        """Operations related to DAG runs."""
+        """Operations related to Dag runs."""
         return DagRunOperations(self)
 
     @lru_cache()  # type: ignore[prop-decorator]

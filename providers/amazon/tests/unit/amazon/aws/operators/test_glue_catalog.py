@@ -20,7 +20,10 @@ from unittest.mock import MagicMock
 
 from botocore.exceptions import ClientError
 
-from airflow.providers.amazon.aws.operators.glue_catalog import GlueCatalogCreateDatabaseOperator
+from airflow.providers.amazon.aws.operators.glue_catalog import (
+    GlueCatalogCreateDatabaseOperator,
+    GlueCatalogDeleteDatabaseOperator,
+)
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -87,6 +90,43 @@ class TestGlueCatalogCreateDatabaseOperator:
 
     def test_template_fields(self):
         op = GlueCatalogCreateDatabaseOperator(
+            task_id="test",
+            database_name=DB_NAME,
+        )
+        validate_template_fields(op)
+
+
+class TestGlueCatalogDeleteDatabaseOperator:
+    def test_execute(self):
+        op = GlueCatalogDeleteDatabaseOperator(
+            task_id="delete_db",
+            database_name=DB_NAME,
+        )
+        mock_conn = MagicMock()
+        op.hook.conn = mock_conn
+
+        op.execute({})
+
+        mock_conn.delete_database.assert_called_once_with(Name=DB_NAME)
+
+    def test_execute_with_catalog_id(self):
+        op = GlueCatalogDeleteDatabaseOperator(
+            task_id="delete_db",
+            database_name=DB_NAME,
+            catalog_id="123456789012",
+        )
+        mock_conn = MagicMock()
+        op.hook.conn = mock_conn
+
+        op.execute({})
+
+        mock_conn.delete_database.assert_called_once_with(
+            Name=DB_NAME,
+            CatalogId="123456789012",
+        )
+
+    def test_template_fields(self):
+        op = GlueCatalogDeleteDatabaseOperator(
             task_id="test",
             database_name=DB_NAME,
         )

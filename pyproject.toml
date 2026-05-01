@@ -590,6 +590,7 @@ extend-exclude = [
 
 [tool.ruff.lint]
 typing-modules = ["airflow.typing_compat"]
+external = ["MIG"]
 extend-select = [
     # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
@@ -692,7 +693,6 @@ ignore = [
     "COM812",
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
-    "ASYNC110", # TODO: Use `anyio.Event` instead of awaiting `anyio.sleep` in a `while` loop
     "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
 ]
 unfixable = [
@@ -1326,6 +1326,7 @@ dev = [
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-serialization",
+    "apache-airflow-shared-state",
     "apache-airflow-shared-template-rendering",
     "apache-airflow-shared-timezones",
 ]
@@ -1492,6 +1493,7 @@ apache-airflow-shared-providers-discovery = false
 apache-airflow-shared-secrets-backend = false
 apache-airflow-shared-secrets-masker = false
 apache-airflow-shared-serialization = false
+apache-airflow-shared-state = false
 apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
@@ -1642,6 +1644,7 @@ apache-airflow-shared-providers-discovery = false
 apache-airflow-shared-secrets-backend = false
 apache-airflow-shared-secrets-masker = false
 apache-airflow-shared-serialization = false
+apache-airflow-shared-state = false
 apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
@@ -1686,6 +1689,7 @@ apache-airflow-shared-providers-discovery = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-serialization = { workspace = true }
+apache-airflow-shared-state = { workspace = true }
 apache-airflow-shared-template-rendering = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
@@ -1822,6 +1826,7 @@ members = [
     "shared/secrets_backend",
     "shared/secrets_masker",
     "shared/serialization",
+    "shared/state",
     "shared/template_rendering",
     "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)

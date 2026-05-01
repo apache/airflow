@@ -25,7 +25,7 @@ import structlog
 from sqlalchemy import exc, or_, select
 from sqlalchemy.orm import joinedload
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.listeners.types import AssetEvent as ListenerAssetEvent
@@ -283,7 +283,7 @@ class AssetManager(LoggingMixin):
             )
         )
 
-        Stats.incr("asset.updates")
+        stats.incr("asset.updates")
 
         dags_to_queue = (
             dags_to_queue_from_asset | dags_to_queue_from_asset_alias | dags_to_queue_from_asset_ref
