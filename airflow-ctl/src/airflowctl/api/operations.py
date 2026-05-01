@@ -39,6 +39,7 @@ from airflowctl.api.datamodels.generated import (
     BulkBodyPoolBody,
     BulkBodyVariableBody,
     BulkResponse,
+    ClearTaskInstancesBody,
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
@@ -68,6 +69,7 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskInstanceCollectionResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -589,6 +591,19 @@ class DagsOperations(BaseOperations):
                 f"dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump(mode="json")
             )
             return DAGRunResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def clear_task_instances(
+        self, dag_id: str, clear_body: ClearTaskInstancesBody
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """Clear task instances (POST clearTaskInstances)."""
+        try:
+            self.response = self.client.post(
+                f"dags/{dag_id}/clearTaskInstances",
+                json=clear_body.model_dump(mode="json", exclude_none=True),
+            )
+            return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 

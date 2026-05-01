@@ -22,17 +22,13 @@ import sys
 import rich
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, ServerResponseError, provide_api_client
-from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, TaskInstanceCollectionResponse
+from airflowctl.api.datamodels.generated import ClearTaskInstancesBody
 from airflowctl.ctl.console_formatting import AirflowConsole
 
 
 @provide_api_client(kind=ClientKind.CLI)
 def clear(args, api_client=NEW_API_CLIENT) -> None:
-    """
-    Clear task instances for a DAG run via POST ``/api/v2/dags/{dag_id}/clearTaskInstances``.
-
-    The DAG run is selected with ``dag_run_id`` in the JSON body (not the URL path).
-    """
+    """Clear task instances for a DAG run (``POST .../clearTaskInstances``, body includes ``dag_run_id``)."""
     body = ClearTaskInstancesBody(
         dag_run_id=args.dag_run_id,
         dry_run=args.dry_run,
@@ -43,18 +39,13 @@ def clear(args, api_client=NEW_API_CLIENT) -> None:
         task_ids=args.task_ids,
     )
 
-    path = f"dags/{args.dag_id}/clearTaskInstances"
     try:
-        response = api_client.post(path, json=body.model_dump(mode="json", exclude_none=True))
-        cleared = TaskInstanceCollectionResponse.model_validate_json(response.content)
+        cleared = api_client.dags.clear_task_instances(dag_id=args.dag_id, clear_body=body)
     except ServerResponseError as e:
         rich.print(f"[red]Error clearing tasks for DAG {args.dag_id}, run {args.dag_run_id}: {e}[/red]")
         sys.exit(1)
 
-    payload = cleared.model_dump(mode="json")
-    cleared_task_instances = payload.get("task_instances", [])
-
     AirflowConsole().print_as(
-        data=cleared_task_instances,
+        data=[ti.model_dump(mode="json") for ti in cleared.task_instances],
         output=args.output,
     )

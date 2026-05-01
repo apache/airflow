@@ -48,6 +48,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionPoolBody,
     BulkCreateActionVariableBody,
     BulkResponse,
+    ClearTaskInstancesBody,
     Config,
     ConfigOption,
     ConfigSection,
@@ -91,6 +92,7 @@ from airflowctl.api.datamodels.generated import (
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     ReprocessBehavior,
+    TaskInstanceCollectionResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -1026,6 +1028,24 @@ class TestDagOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.dags.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
         assert response == self.dag_run_response
+
+    def test_clear_task_instances(self):
+        body_sent: dict = {}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
+            body_sent.clear()
+            body_sent.update(json.loads(request.content))
+            empty = TaskInstanceCollectionResponse(task_instances=[], total_entries=0)
+            return httpx.Response(200, json=json.loads(empty.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        clear_body = ClearTaskInstancesBody(dag_run_id="dr1", dry_run=True)
+        response = client.dags.clear_task_instances(dag_id=self.dag_id, clear_body=clear_body)
+        assert body_sent["dag_run_id"] == "dr1"
+        assert body_sent["dry_run"] is True
+        assert response.task_instances == []
 
 
 class TestDagRunOperations:

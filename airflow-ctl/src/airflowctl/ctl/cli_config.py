@@ -457,6 +457,8 @@ class CommandFactory:
             "_check_flag_and_exit_if_server_response_error",
             # Excluding bulk operation. Out of scope for CLI. Should use implemented commands.
             "bulk",
+            # Hand-written `tasks clear`; nested ClearTaskInstancesBody is not representable by CommandFactory.
+            "clear_task_instances",
         ]
         self.excluded_output_keys = [
             "total_entries",
