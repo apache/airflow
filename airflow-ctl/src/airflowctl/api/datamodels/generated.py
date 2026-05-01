@@ -279,7 +279,7 @@ class DAGPatchBody(BaseModel):
 
 class DAGRunClearBody(BaseModel):
     """
-    DAG Run serializer for clear endpoint body.
+    Dag Run serializer for clear endpoint body.
     """
 
     model_config = ConfigDict(
@@ -298,7 +298,7 @@ class DAGRunClearBody(BaseModel):
 
 class DAGRunPatchStates(str, Enum):
     """
-    Enum for DAG Run states when updating a DAG Run.
+    Enum for Dag Run states when updating a Dag Run.
     """
 
     QUEUED = "queued"
@@ -308,7 +308,7 @@ class DAGRunPatchStates(str, Enum):
 
 class DAGSourceResponse(BaseModel):
     """
-    DAG Source serializer for responses.
+    Dag Source serializer for responses.
     """
 
     content: Annotated[str | None, Field(title="Content")] = None
@@ -319,7 +319,7 @@ class DAGSourceResponse(BaseModel):
 
 class DAGTagCollectionResponse(BaseModel):
     """
-    DAG Tags Collection serializer for responses.
+    Dag Tags Collection serializer for responses.
     """
 
     tags: Annotated[list[str], Field(title="Tags")]
@@ -400,7 +400,7 @@ class DagRunType(str, Enum):
 
 class DagScheduleAssetReference(BaseModel):
     """
-    DAG schedule reference serializer for assets.
+    Dag schedule reference serializer for assets.
     """
 
     model_config = ConfigDict(
@@ -422,7 +422,7 @@ class DagStatsStateResponse(BaseModel):
 
 class DagTagResponse(BaseModel):
     """
-    DAG Tag serializer for responses.
+    Dag Tag serializer for responses.
     """
 
     name: Annotated[str, Field(title="Name")]
@@ -901,7 +901,7 @@ class TimeDelta(BaseModel):
 
 class TriggerDAGRunPostBody(BaseModel):
     """
-    Trigger DAG Run Serializer for POST body.
+    Trigger Dag Run Serializer for POST body.
     """
 
     model_config = ConfigDict(
@@ -1358,7 +1358,7 @@ class ConnectionCollectionResponse(BaseModel):
 
 class DAGDetailsResponse(BaseModel):
     """
-    Specific serializer for DAG Details responses.
+    Specific serializer for Dag Details responses.
     """
 
     dag_id: Annotated[str, Field(title="Dag Id")]
@@ -1423,7 +1423,7 @@ class DAGDetailsResponse(BaseModel):
 
 class DAGResponse(BaseModel):
     """
-    DAG serializer for responses.
+    Dag serializer for responses.
     """
 
     dag_id: Annotated[str, Field(title="Dag Id")]
@@ -1462,7 +1462,7 @@ class DAGResponse(BaseModel):
 
 class DAGRunPatchBody(BaseModel):
     """
-    DAG Run Serializer for PATCH requests.
+    Dag Run Serializer for PATCH requests.
     """
 
     model_config = ConfigDict(
@@ -1474,7 +1474,7 @@ class DAGRunPatchBody(BaseModel):
 
 class DAGRunResponse(BaseModel):
     """
-    DAG Run serializer for responses.
+    Dag Run serializer for responses.
     """
 
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
@@ -1502,7 +1502,7 @@ class DAGRunResponse(BaseModel):
 
 class DAGRunsBatchBody(BaseModel):
     """
-    List DAG Runs body for batch endpoint.
+    List Dag Runs body for batch endpoint.
     """
 
     model_config = ConfigDict(
@@ -1538,7 +1538,7 @@ class DAGRunsBatchBody(BaseModel):
 
 class DAGVersionCollectionResponse(BaseModel):
     """
-    DAG Version Collection serializer for responses.
+    Dag Version Collection serializer for responses.
     """
 
     dag_versions: Annotated[list[DagVersionResponse], Field(title="Dag Versions")]
@@ -1547,7 +1547,7 @@ class DAGVersionCollectionResponse(BaseModel):
 
 class DAGWarningResponse(BaseModel):
     """
-    DAG Warning serializer for responses.
+    Dag Warning serializer for responses.
     """
 
     dag_id: Annotated[str, Field(title="Dag Id")]
@@ -1559,7 +1559,7 @@ class DAGWarningResponse(BaseModel):
 
 class DagStatsResponse(BaseModel):
     """
-    DAG Stats serializer for responses.
+    Dag Stats serializer for responses.
     """
 
     dag_id: Annotated[str, Field(title="Dag Id")]
@@ -1934,7 +1934,7 @@ class BulkDeleteActionBulkTaskInstanceBody(BaseModel):
 
 class DAGCollectionResponse(BaseModel):
     """
-    DAG Collection serializer for responses.
+    Dag Collection serializer for responses.
     """
 
     dags: Annotated[list[DAGResponse], Field(title="Dags")]
@@ -1943,7 +1943,7 @@ class DAGCollectionResponse(BaseModel):
 
 class DAGRunCollectionResponse(BaseModel):
     """
-    DAG Run Collection serializer for responses.
+    Dag Run Collection serializer for responses.
     """
 
     dag_runs: Annotated[list[DAGRunResponse], Field(title="Dag Runs")]
@@ -1952,7 +1952,7 @@ class DAGRunCollectionResponse(BaseModel):
 
 class DAGWarningCollectionResponse(BaseModel):
     """
-    DAG warning collection serializer for responses.
+    Dag warning collection serializer for responses.
     """
 
     dag_warnings: Annotated[list[DAGWarningResponse], Field(title="Dag Warnings")]
@@ -1961,7 +1961,7 @@ class DAGWarningCollectionResponse(BaseModel):
 
 class DagStatsCollectionResponse(BaseModel):
     """
-    DAG Stats Collection serializer for responses.
+    Dag Stats Collection serializer for responses.
     """
 
     dags: Annotated[list[DagStatsResponse], Field(title="Dags")]

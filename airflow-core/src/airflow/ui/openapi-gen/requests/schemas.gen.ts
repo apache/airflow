@@ -1762,7 +1762,7 @@ export const $DAGCollectionResponse = {
     type: 'object',
     required: ['dags', 'total_entries'],
     title: 'DAGCollectionResponse',
-    description: 'DAG Collection serializer for responses.'
+    description: 'Dag Collection serializer for responses.'
 } as const;
 
 export const $DAGDetailsResponse = {
@@ -2189,7 +2189,7 @@ Deprecated: Use max_active_tasks instead.`,
     type: 'object',
     required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'catchup', 'dag_run_timeout', 'asset_expression', 'doc_md', 'start_date', 'end_date', 'is_paused_upon_creation', 'params', 'render_template_as_native_obj', 'template_search_path', 'timezone', 'last_parsed', 'default_args', 'file_token', 'concurrency', 'latest_dag_version'],
     title: 'DAGDetailsResponse',
-    description: 'Specific serializer for DAG Details responses.'
+    description: 'Specific serializer for Dag Details responses.'
 } as const;
 
 export const $DAGPatchBody = {
@@ -2446,7 +2446,7 @@ export const $DAGResponse = {
     type: 'object',
     required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'file_token'],
     title: 'DAGResponse',
-    description: 'DAG serializer for responses.'
+    description: 'Dag serializer for responses.'
 } as const;
 
 export const $DAGRunClearBody = {
@@ -2471,7 +2471,7 @@ export const $DAGRunClearBody = {
     additionalProperties: false,
     type: 'object',
     title: 'DAGRunClearBody',
-    description: 'DAG Run serializer for clear endpoint body.'
+    description: 'Dag Run serializer for clear endpoint body.'
 } as const;
 
 export const $DAGRunCollectionResponse = {
@@ -2491,7 +2491,7 @@ export const $DAGRunCollectionResponse = {
     type: 'object',
     required: ['dag_runs', 'total_entries'],
     title: 'DAGRunCollectionResponse',
-    description: 'DAG Run Collection serializer for responses.'
+    description: 'Dag Run Collection serializer for responses.'
 } as const;
 
 export const $DAGRunPatchBody = {
@@ -2522,14 +2522,14 @@ export const $DAGRunPatchBody = {
     additionalProperties: false,
     type: 'object',
     title: 'DAGRunPatchBody',
-    description: 'DAG Run Serializer for PATCH requests.'
+    description: 'Dag Run Serializer for PATCH requests.'
 } as const;
 
 export const $DAGRunPatchStates = {
     type: 'string',
     enum: ['queued', 'success', 'failed'],
     title: 'DAGRunPatchStates',
-    description: 'Enum for DAG Run states when updating a DAG Run.'
+    description: 'Enum for Dag Run states when updating a Dag Run.'
 } as const;
 
 export const $DAGRunResponse = {
@@ -2729,7 +2729,7 @@ export const $DAGRunResponse = {
     type: 'object',
     required: ['dag_run_id', 'dag_id', 'logical_date', 'queued_at', 'start_date', 'end_date', 'duration', 'data_interval_start', 'data_interval_end', 'run_after', 'last_scheduling_decision', 'run_type', 'state', 'triggered_by', 'triggering_user_name', 'conf', 'note', 'dag_versions', 'bundle_version', 'dag_display_name', 'partition_key'],
     title: 'DAGRunResponse',
-    description: 'DAG Run serializer for responses.'
+    description: 'Dag Run serializer for responses.'
 } as const;
 
 export const $DAGRunsBatchBody = {
@@ -3043,7 +3043,7 @@ export const $DAGRunsBatchBody = {
     additionalProperties: false,
     type: 'object',
     title: 'DAGRunsBatchBody',
-    description: 'List DAG Runs body for batch endpoint.'
+    description: 'List Dag Runs body for batch endpoint.'
 } as const;
 
 export const $DAGSourceResponse = {
@@ -3082,7 +3082,7 @@ export const $DAGSourceResponse = {
     type: 'object',
     required: ['content', 'dag_id', 'version_number', 'dag_display_name'],
     title: 'DAGSourceResponse',
-    description: 'DAG Source serializer for responses.'
+    description: 'Dag Source serializer for responses.'
 } as const;
 
 export const $DAGTagCollectionResponse = {
@@ -3102,7 +3102,7 @@ export const $DAGTagCollectionResponse = {
     type: 'object',
     required: ['tags', 'total_entries'],
     title: 'DAGTagCollectionResponse',
-    description: 'DAG Tags Collection serializer for responses.'
+    description: 'Dag Tags Collection serializer for responses.'
 } as const;
 
 export const $DAGVersionCollectionResponse = {
@@ -3122,7 +3122,7 @@ export const $DAGVersionCollectionResponse = {
     type: 'object',
     required: ['dag_versions', 'total_entries'],
     title: 'DAGVersionCollectionResponse',
-    description: 'DAG Version Collection serializer for responses.'
+    description: 'Dag Version Collection serializer for responses.'
 } as const;
 
 export const $DAGWarningCollectionResponse = {
@@ -3142,7 +3142,7 @@ export const $DAGWarningCollectionResponse = {
     type: 'object',
     required: ['dag_warnings', 'total_entries'],
     title: 'DAGWarningCollectionResponse',
-    description: 'DAG warning collection serializer for responses.'
+    description: 'Dag warning collection serializer for responses.'
 } as const;
 
 export const $DAGWarningResponse = {
@@ -3171,7 +3171,7 @@ export const $DAGWarningResponse = {
     type: 'object',
     required: ['dag_id', 'warning_type', 'message', 'timestamp', 'dag_display_name'],
     title: 'DAGWarningResponse',
-    description: 'DAG Warning serializer for responses.'
+    description: 'Dag Warning serializer for responses.'
 } as const;
 
 export const $DagProcessorInfoResponse = {
@@ -3337,7 +3337,7 @@ export const $DagScheduleAssetReference = {
     type: 'object',
     required: ['dag_id', 'created_at', 'updated_at'],
     title: 'DagScheduleAssetReference',
-    description: 'DAG schedule reference serializer for assets.'
+    description: 'Dag schedule reference serializer for assets.'
 } as const;
 
 export const $DagStatsCollectionResponse = {
@@ -3357,7 +3357,7 @@ export const $DagStatsCollectionResponse = {
     type: 'object',
     required: ['dags', 'total_entries'],
     title: 'DagStatsCollectionResponse',
-    description: 'DAG Stats Collection serializer for responses.'
+    description: 'Dag Stats Collection serializer for responses.'
 } as const;
 
 export const $DagStatsResponse = {
@@ -3381,7 +3381,7 @@ export const $DagStatsResponse = {
     type: 'object',
     required: ['dag_id', 'dag_display_name', 'stats'],
     title: 'DagStatsResponse',
-    description: 'DAG Stats serializer for responses.'
+    description: 'Dag Stats serializer for responses.'
 } as const;
 
 export const $DagStatsStateResponse = {
@@ -3418,7 +3418,7 @@ export const $DagTagResponse = {
     type: 'object',
     required: ['name', 'dag_id', 'dag_display_name'],
     title: 'DagTagResponse',
-    description: 'DAG Tag serializer for responses.'
+    description: 'Dag Tag serializer for responses.'
 } as const;
 
 export const $DagVersionResponse = {
@@ -6698,7 +6698,7 @@ export const $TriggerDAGRunPostBody = {
     type: 'object',
     required: ['logical_date'],
     title: 'TriggerDAGRunPostBody',
-    description: 'Trigger DAG Run Serializer for POST body.'
+    description: 'Trigger Dag Run Serializer for POST body.'
 } as const;
 
 export const $TriggerResponse = {
