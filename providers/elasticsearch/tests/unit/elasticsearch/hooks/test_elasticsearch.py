@@ -253,9 +253,21 @@ class TestElasticsearchSQLHook:
         self.spy_agency.assert_spy_called(self.cur.close)
         self.spy_agency.assert_spy_called(self.cur.execute)
 
-    def test_get_df_polars(self):
-        with pytest.raises(NotImplementedError):
-            self.db_hook.get_df("SQL", df_type="polars")
+    @mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.read_elasticsearch_sql_to_polars")
+    def test_get_df_polars(self, mock_reader):
+        mock_reader.return_value = "df"
+
+        self.conn.es = MagicMock()
+
+        result = self.db_hook.get_df("SELECT 1", df_type="polars")
+
+        assert result == "df"
+
+        mock_reader.assert_called_once_with(
+            client=self.conn.es,
+            query="SELECT 1",
+            params=None,
+        )
 
     def test_run(self):
         statement = "SELECT * FROM hollywood.actors"
