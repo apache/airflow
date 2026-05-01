@@ -199,20 +199,30 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
             DagBundlesManager().sync_bundles_to_db(session=session)
             session.flush()
 
-        dagbag = DagBag(dag_folder=folder, include_examples=include_examples)
         if AIRFLOW_V_3_1_PLUS:
             try:
                 from airflow.dag_processing.dagbag import sync_bag_to_db
             except ImportError:
                 from airflow.models.dagbag import sync_bag_to_db  # type: ignore[no-redef, attribute-defined]
+            # On 3.1+, example DAGs are exposed as their own bundles
+            # (``example_dags`` for core, ``airflow-provider-*-example-dags``
+            # for each provider that ships an ``example_dags`` folder). The
+            # bundle loop below already syncs every one of them, so the
+            # ``dags-folder`` DagBag must NOT pull example DAGs in too,
+            # otherwise the same DAG gets registered under two bundles and
+            # ``dag_schedule_asset_reference`` rows collide on the unique
+            # ``(asset_id, dag_id)`` constraint.
+            dagbag = DagBag(dag_folder=folder, include_examples=False)
             sync_bag_to_db(dagbag, "dags-folder", None, session=session)
             for bundle in DagBundlesManager().get_all_dag_bundles():
-                dagbag = DagBag(dag_folder=bundle.path, include_examples=include_examples)
-                sync_bag_to_db(dagbag, bundle.name, None, session=session)
+                bundle_dagbag = DagBag(dag_folder=bundle.path, include_examples=False)
+                sync_bag_to_db(bundle_dagbag, bundle.name, None, session=session)
 
         elif AIRFLOW_V_3_0_PLUS:
+            dagbag = DagBag(dag_folder=folder, include_examples=include_examples)
             dagbag.sync_to_db("dags-folder", None, session)  # type: ignore[attr-defined]
         else:
+            dagbag = DagBag(dag_folder=folder, include_examples=include_examples)
             dagbag.sync_to_db(session=session)  # type: ignore[attr-defined]
 
     return dagbag
