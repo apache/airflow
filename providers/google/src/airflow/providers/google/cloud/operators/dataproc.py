@@ -2378,7 +2378,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :param result_retry: Result retry object used to retry requests. Is used to decrease delay between
-        executing chained tasks in a DAG by specifying exact amount of seconds for executing.
+        executing chained tasks in a Dag by specifying exact amount of seconds for executing.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
     :param metadata: Additional metadata that is provided to the method.

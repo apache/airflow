@@ -28,7 +28,6 @@ export const FieldObject = ({ name, namespace = "default", onUpdate }: FlexibleF
   const handleChange = (value: string) => {
     try {
       // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
-      // eslint-disable-next-line unicorn/no-null
       const parsedValue = value === "" ? null : (JSON.parse(value) as JSON);
 
       if (paramsDict[name]) {

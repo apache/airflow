@@ -34,7 +34,7 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1775592062
+source-date-epoch: 1776778872
 build-system: hatchling
 
 # Note that those versions are maintained by release manager - do not update them manually
@@ -42,6 +42,7 @@ build-system: hatchling
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 3.5.0
   - 3.4.0
   - 3.3.0
   - 3.2.0
@@ -114,6 +115,25 @@ config:
         version_added: ~
         type: integer
         example: "10"
+        default: "30"
+      drain_timeout_sec:
+        description: |
+          Maximum seconds the worker waits for running jobs to finish after entering drain
+          (shutdown requested via SIGINT / SIGTERM / SHUTDOWN_REQUEST / version mismatch).
+          Once this timeout elapses the worker sends SIGTERM to each running job, then SIGKILL
+          after ``drain_kill_grace_sec``, and exits regardless of remaining jobs.
+          Set to 0 (the default) to wait indefinitely and preserve legacy behavior.
+        version_added: 3.6.0
+        type: integer
+        example: "3600"
+        default: "0"
+      drain_kill_grace_sec:
+        description: |
+          Grace period in seconds after SIGTERM before the worker escalates to SIGKILL and exits.
+          Only used when ``drain_timeout_sec`` is greater than 0.
+        version_added: 3.6.0
+        type: integer
+        example: "30"
         default: "30"
       worker_concurrency:
         description: |

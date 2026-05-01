@@ -29,14 +29,14 @@ from airflow.providers.common.compat.sdk import AirflowException
 
 class S3DagBundle(BaseDagBundle):
     """
-    S3 DAG bundle - exposes a directory in S3 as a DAG bundle.
+    S3 Dag bundle - exposes a directory in S3 as a Dag bundle.
 
-    This allows Airflow to load DAGs directly from an S3 bucket.
+    This allows Airflow to load Dags directly from an S3 bucket.
 
     :param aws_conn_id: Airflow connection ID for AWS.  Defaults to AwsBaseHook.default_conn_name.
-    :param bucket_name: The name of the S3 bucket containing the DAG files.
-    :param prefix:  Optional subdirectory within the S3 bucket where the DAGs are stored.
-                    If None, DAGs are assumed to be at the root of the bucket (Optional).
+    :param bucket_name: The name of the S3 bucket containing the Dag files.
+    :param prefix:  Optional subdirectory within the S3 bucket where the Dags are stored.
+                    If None, Dags are assumed to be at the root of the bucket (Optional).
     """
 
     supports_versioning = False
@@ -53,7 +53,7 @@ class S3DagBundle(BaseDagBundle):
         self.aws_conn_id = aws_conn_id
         self.bucket_name = bucket_name
         self.prefix = prefix
-        # Local path where S3 DAGs are downloaded
+        # Local path where S3 Dags are downloaded
         self.s3_dags_dir: Path = self.base_dir
 
         log = structlog.get_logger(__name__)
@@ -69,11 +69,11 @@ class S3DagBundle(BaseDagBundle):
     def _initialize(self):
         with self.lock():
             if not self.s3_dags_dir.exists():
-                self._log.info("Creating local DAGs directory: %s", self.s3_dags_dir)
+                self._log.info("Creating local Dags directory: %s", self.s3_dags_dir)
                 os.makedirs(self.s3_dags_dir)
 
             if not self.s3_dags_dir.is_dir():
-                raise AirflowException(f"Local DAGs path: {self.s3_dags_dir} is not a directory.")
+                raise AirflowException(f"Local Dags path: {self.s3_dags_dir} is not a directory.")
 
             if not self.s3_hook.check_for_bucket(bucket_name=self.bucket_name):
                 raise AirflowException(f"S3 bucket '{self.bucket_name}' does not exist.")
@@ -112,22 +112,22 @@ class S3DagBundle(BaseDagBundle):
         )
 
     def get_current_version(self) -> str | None:
-        """Return the current version of the DAG bundle. Currently not supported."""
+        """Return the current version of the Dag bundle. Currently not supported."""
         return None
 
     @property
     def path(self) -> Path:
-        """Return the local path to the DAG files."""
-        return self.s3_dags_dir  # Path where DAGs are downloaded.
+        """Return the local path to the Dag files."""
+        return self.s3_dags_dir  # Path where Dags are downloaded.
 
     def refresh(self) -> None:
-        """Refresh the DAG bundle by re-downloading the DAGs from S3."""
+        """Refresh the Dag bundle by re-downloading the Dags from S3."""
         if self.version:
             raise AirflowException("Refreshing a specific version is not supported")
 
         with self.lock():
             self._log.debug(
-                "Downloading DAGs from s3://%s/%s to %s", self.bucket_name, self.prefix, self.s3_dags_dir
+                "Downloading Dags from s3://%s/%s to %s", self.bucket_name, self.prefix, self.s3_dags_dir
             )
             self.s3_hook.sync_to_local_dir(
                 bucket_name=self.bucket_name,
@@ -138,7 +138,7 @@ class S3DagBundle(BaseDagBundle):
 
     def view_url(self, version: str | None = None) -> str | None:
         """
-        Return a URL for viewing the DAGs in S3. Currently, versioning is not supported.
+        Return a URL for viewing the Dags in S3. Currently, versioning is not supported.
 
         This method is deprecated and will be removed when the minimum supported Airflow version is 3.1.
         Use `view_url_template` instead.
@@ -146,7 +146,7 @@ class S3DagBundle(BaseDagBundle):
         return self.view_url_template()
 
     def view_url_template(self) -> str | None:
-        """Return a URL for viewing the DAGs in S3. Currently, versioning is not supported."""
+        """Return a URL for viewing the Dags in S3. Currently, versioning is not supported."""
         if self.version:
             raise AirflowException("S3 url with version is not supported")
         if hasattr(self, "_view_url_template") and self._view_url_template:

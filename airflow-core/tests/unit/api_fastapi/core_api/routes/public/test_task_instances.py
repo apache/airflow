@@ -29,6 +29,7 @@ import pendulum
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.orm import joinedload
 
 from airflow._shared.timezones.timezone import datetime
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
@@ -51,7 +52,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_task_instance_note
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, count_queries
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_runs,
@@ -1228,6 +1229,19 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"pool": "test_pool_1"},
+                    {"pool": "test_pool_2"},
+                    {"pool": "test_pool_3"},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"pool_name_prefix_pattern": "test_pool"},
+                3,
+                3,
+                id="test pool_name_prefix_pattern filter",
+            ),
+            pytest.param(
+                [
                     {"queue": "test_queue_1"},
                     {"queue": "test_queue_2"},
                     {"queue": "test_queue_3"},
@@ -1269,6 +1283,21 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"queue": "test_queue_1"},
+                    {"queue": "test_queue_2"},
+                    {"queue": "test_queue_3"},
+                    {"queue": "other_queue_3"},
+                    {"queue": "other_queue_3"},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"queue_name_prefix_pattern": "test"},
+                3,
+                3,
+                id="test queue_name_prefix_pattern filter",
+            ),
+            pytest.param(
+                [
                     {"executor": "test_exec_1"},
                     {"executor": "test_exec_2"},
                     {"executor": "test_exec_3"},
@@ -1305,6 +1334,19 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 2,
                 3,
                 id="test task_display_name_pattern filter",
+            ),
+            pytest.param(
+                [
+                    {"_task_display_property_value": "task_name_1"},
+                    {"_task_display_property_value": "task_name_2"},
+                    {"_task_display_property_value": "task_not_match_name_3"},
+                ],
+                True,
+                ("/dags/~/dagRuns/~/taskInstances"),
+                {"task_display_name_prefix_pattern": "task_name"},
+                2,
+                3,
+                id="test task_display_name_prefix_pattern filter",
             ),
             pytest.param(
                 "task_group_test",
@@ -1412,6 +1454,21 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"custom_operator_name": "CustomFirstOperator"},
+                    {"custom_operator_name": "CustomSecondOperator"},
+                    {"custom_operator_name": "SecondOperator"},
+                    {"custom_operator_name": "ThirdOperator"},
+                    {"custom_operator_name": "ThirdOperator"},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"operator_name_prefix_pattern": "Custom"},
+                2,
+                3,
+                id="test operator_name_prefix_pattern filter",
+            ),
+            pytest.param(
+                [
                     {"map_index": 0},
                     {"map_index": 1},
                     {"map_index": 2},
@@ -1439,6 +1496,17 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 # the create_task_instances method
                 3,
                 id="test run_id_pattern filter",
+            ),
+            pytest.param(
+                [
+                    {},
+                ],
+                True,
+                ("/dags/~/dagRuns/~/taskInstances"),
+                {"run_id_prefix_pattern": "TEST_DAG_"},
+                1,
+                3,
+                id="test run_id_prefix_pattern filter",
             ),
             pytest.param(
                 "dag_id_pattern_test",  # Special marker for multi-DAG test
@@ -1475,6 +1543,42 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 0,
                 3,
                 id="test dag_id_pattern no match",
+            ),
+            pytest.param(
+                "dag_id_pattern_test",
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_prefix_pattern": "example_python_operator"},
+                14,
+                3,
+                id="test dag_id_prefix_pattern exact match",
+            ),
+            pytest.param(
+                "dag_id_pattern_test",
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_prefix_pattern": "example_"},
+                22,
+                3,
+                id="test dag_id_prefix_pattern prefix",
+            ),
+            pytest.param(
+                "dag_id_pattern_test",
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_prefix_pattern": "example_skip"},
+                8,
+                3,
+                id="test dag_id_prefix_pattern specific prefix",
+            ),
+            pytest.param(
+                "dag_id_pattern_test",
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_prefix_pattern": "nonexistent"},
+                0,
+                3,
+                id="test dag_id_prefix_pattern no match",
             ),
         ],
     )
@@ -6477,3 +6581,567 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     def test_should_respond_422(self, test_client):
         response = test_client.patch(self.ENDPOINT_URL, json={})
         assert response.status_code == 422
+
+
+class TestPatchTaskGroup(TestTaskInstanceEndpoint):
+    DAG_ID = "example_task_group"
+    RUN_ID = "TEST_DAG_RUN_ID"
+    GROUP_ID = "section_1"
+    BASE_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskGroupInstances"
+    ENDPOINT_URL = f"{BASE_URL}/{GROUP_ID}"
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    def test_patch_task_group_success(self, mock_set_tg_state, test_client, session):
+        """Test that patching a task group sets state for all tasks in the group."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        tis = (
+            session.scalars(
+                select(TaskInstance)
+                .options(joinedload(TaskInstance.rendered_task_instance_fields))
+                .where(
+                    TaskInstance.dag_id == self.DAG_ID,
+                    TaskInstance.run_id == self.RUN_ID,
+                    TaskInstance.task_id.in_(["section_1.task_1", "section_1.task_2", "section_1.task_3"]),
+                )
+            )
+            .unique()
+            .all()
+        )
+
+        mock_set_tg_state.return_value = list(tis)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert mock_set_tg_state.call_count == 1
+        call_kwargs = mock_set_tg_state.call_args.kwargs
+        assert call_kwargs["group_id"] == self.GROUP_ID
+        assert call_kwargs["state"] == "success"
+        assert response_data["total_entries"] == 3
+        response_task_ids = sorted(ti["task_id"] for ti in response_data["task_instances"])
+        assert response_task_ids == ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+        for ti in response_data["task_instances"]:
+            assert ti["dag_id"] == self.DAG_ID
+            assert ti["dag_run_id"] == self.RUN_ID
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    def test_patch_task_group_failed_state(self, mock_set_tg_state, test_client, session):
+        """Test that patching a task group with failed state works."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        tis = (
+            session.scalars(
+                select(TaskInstance)
+                .options(joinedload(TaskInstance.rendered_task_instance_fields))
+                .where(
+                    TaskInstance.dag_id == self.DAG_ID,
+                    TaskInstance.run_id == self.RUN_ID,
+                    TaskInstance.task_id.in_(["section_1.task_1", "section_1.task_2", "section_1.task_3"]),
+                )
+            )
+            .unique()
+            .all()
+        )
+
+        mock_set_tg_state.return_value = list(tis)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "failed"},
+        )
+        assert response.status_code == 200
+        call_kwargs = mock_set_tg_state.call_args.kwargs
+        assert call_kwargs["state"] == "failed"
+        response_data = response.json()
+        assert response_data["total_entries"] == 3
+        response_task_ids = sorted(ti["task_id"] for ti in response_data["task_instances"])
+        assert response_task_ids == ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+        for ti in response_data["task_instances"]:
+            assert ti["dag_id"] == self.DAG_ID
+            assert ti["dag_run_id"] == self.RUN_ID
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    def test_patch_task_group_nested(self, mock_set_tg_state, test_client, session):
+        """Test that patching a nested task group includes tasks from inner groups."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        tis = (
+            session.scalars(
+                select(TaskInstance)
+                .options(joinedload(TaskInstance.rendered_task_instance_fields))
+                .where(
+                    TaskInstance.dag_id == self.DAG_ID,
+                    TaskInstance.run_id == self.RUN_ID,
+                )
+            )
+            .unique()
+            .all()
+        )
+
+        mock_set_tg_state.return_value = list(tis)
+
+        # section_2 contains task_1, and inner_section_2 which contains task_2, task_3, task_4
+        url = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskGroupInstances/section_2"
+        response = test_client.patch(
+            url,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+        assert mock_set_tg_state.call_count == 1
+        call_kwargs = mock_set_tg_state.call_args.kwargs
+        assert call_kwargs["group_id"] == "section_2"
+
+    def test_patch_task_group_not_found(self, test_client, session):
+        """Test that requesting a non-existent task group returns 404."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        url = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskGroupInstances/nonexistent_group"
+        response = test_client.patch(
+            url,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 404
+        assert "nonexistent_group" in response.json()["detail"]
+
+    def test_patch_task_group_invalid_state(self, test_client, session):
+        """Test that an invalid new_state returns 422."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "invalid_state"},
+        )
+        assert response.status_code == 422
+
+    def test_patch_task_group_dag_not_found(self, test_client, session):
+        """Test that requesting a non-existent DAG returns 404."""
+        url = f"/dags/nonexistent_dag/dagRuns/{self.RUN_ID}/taskGroupInstances/{self.GROUP_ID}"
+        response = test_client.patch(
+            url,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 404
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+        assert response.status_code == 403
+
+    def test_query_count_does_not_scale_with_task_group_size(self, test_client, session):
+        """Test that query count does not grow excessively with task group size."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        url_section_1 = f"{self.BASE_URL}/section_1"
+        url_section_2 = f"{self.BASE_URL}/section_2"
+
+        # --- section_1 (3 tasks) ---
+        with count_queries() as result_section_1:
+            response = test_client.patch(url_section_1, json={"new_state": "success"})
+        assert response.status_code == 200
+
+        # Reset TI states so the next call has work to do
+        for ti in session.scalars(
+            select(TaskInstance).where(TaskInstance.dag_id == self.DAG_ID, TaskInstance.run_id == self.RUN_ID)
+        ):
+            ti.state = State.RUNNING
+        session.commit()
+
+        # --- section_2 (4 tasks including nested inner_section_2) ---
+        with count_queries() as result_section_2:
+            response = test_client.patch(url_section_2, json={"new_state": "success"})
+        assert response.status_code == 200
+
+        count_section_1 = sum(result_section_1.values())
+        count_section_2 = sum(result_section_2.values())
+        per_task_overhead = count_section_2 - count_section_1
+        assert per_task_overhead <= 2, (
+            f"Adding one task should add at most a few queries for per-TI state updates, "
+            f"got {per_task_overhead} (section_1={count_section_1}, section_2={count_section_2})"
+        )
+
+    def test_patch_task_group_updates_ti_states_in_db(self, test_client, session):
+        """Test that patching a task group actually updates task instance states in the database."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        group_task_ids = ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+
+        # Verify all TIs in the group start as RUNNING
+        tis_before = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+        ).all()
+        assert all(ti.state == State.RUNNING for ti in tis_before)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+
+        # Verify states were actually updated in the database
+        session.expire_all()
+        tis_after = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+        ).all()
+        assert len(tis_after) == 3
+        for ti in tis_after:
+            assert ti.state == TaskInstanceState.SUCCESS, (
+                f"Expected {ti.task_id} to be SUCCESS, got {ti.state}"
+            )
+
+    def test_include_downstream_affects_downstream_tis(self, test_client, session):
+        """Test that include_downstream=True also sets state on downstream task instances."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        # section_1 is upstream of section_2 and end
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success", "include_downstream": True},
+        )
+        assert response.status_code == 200
+
+        session.expire_all()
+        # section_2 tasks and end are downstream of section_1 and should be affected
+        downstream_task_ids = [
+            "section_2.task_1",
+            "section_2.inner_section_2.task_2",
+            "section_2.inner_section_2.task_3",
+            "section_2.inner_section_2.task_4",
+            "end",
+        ]
+        downstream_tis = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(downstream_task_ids),
+            )
+        ).all()
+        assert len(downstream_tis) > 0
+        for ti in downstream_tis:
+            assert ti.state == TaskInstanceState.SUCCESS, (
+                f"Expected downstream {ti.task_id} to be SUCCESS, got {ti.state}"
+            )
+
+    def test_include_upstream_affects_upstream_tis(self, test_client, session):
+        """Test that include_upstream=True also sets state on upstream task instances."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        # section_1 is downstream of start
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success", "include_upstream": True},
+        )
+        assert response.status_code == 200
+
+        session.expire_all()
+        start_ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id == "start",
+            )
+        )
+        assert start_ti is not None
+        assert start_ti.state == TaskInstanceState.SUCCESS, (
+            f"Expected upstream 'start' to be SUCCESS, got {start_ti.state}"
+        )
+
+    def test_clears_failed_downstream_tasks(self, test_client, session):
+        """Test that setting a group to success clears failed downstream tasks."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        # Put downstream tasks in failed/upstream_failed state
+        downstream_task_ids = [
+            "section_2.task_1",
+            "section_2.inner_section_2.task_2",
+            "section_2.inner_section_2.task_3",
+            "section_2.inner_section_2.task_4",
+        ]
+        session.execute(
+            update(TaskInstance)
+            .where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(downstream_task_ids),
+            )
+            .values(state=TaskInstanceState.UPSTREAM_FAILED)
+        )
+        session.commit()
+
+        # Set section_1 to success — should clear downstream failed tasks
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+
+        session.expire_all()
+        downstream_tis = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(downstream_task_ids),
+            )
+        ).all()
+        for ti in downstream_tis:
+            assert ti.state != TaskInstanceState.UPSTREAM_FAILED, (
+                f"Expected {ti.task_id} to be cleared from upstream_failed, got {ti.state}"
+            )
+
+    def test_409_when_all_tis_already_in_target_state(self, test_client, session):
+        """Test that 409 is returned when all TIs are already in the target state."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        group_task_ids = ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+        session.execute(
+            update(TaskInstance)
+            .where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+            .values(state=TaskInstanceState.SUCCESS)
+        )
+        session.commit()
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 409
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    def test_includes_upstream_downstream_parameters(self, mock_set_tg_state, test_client, session):
+        """Test that include_upstream and include_downstream parameters are passed through."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        tis = (
+            session.scalars(
+                select(TaskInstance)
+                .options(joinedload(TaskInstance.rendered_task_instance_fields))
+                .where(
+                    TaskInstance.dag_id == self.DAG_ID,
+                    TaskInstance.run_id == self.RUN_ID,
+                    TaskInstance.task_id.in_(["section_1.task_1", "section_1.task_2", "section_1.task_3"]),
+                )
+            )
+            .unique()
+            .all()
+        )
+
+        mock_set_tg_state.return_value = list(tis[:1])
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "new_state": "success",
+                "include_upstream": True,
+                "include_downstream": True,
+                "include_future": True,
+                "include_past": True,
+            },
+        )
+        assert response.status_code == 200
+
+        # Verify the parameters were passed to set_task_group_state
+        call_kwargs = mock_set_tg_state.call_args.kwargs
+        assert call_kwargs["upstream"] is True
+        assert call_kwargs["downstream"] is True
+        assert call_kwargs["future"] is True
+        assert call_kwargs["past"] is True
+
+    def test_patch_task_group_note_only(self, test_client, session):
+        """Test that patching only the note updates notes for all TIs in the group without changing state."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        group_task_ids = ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+        note_value = "group note"
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            params={"update_mask": "note"},
+            json={"note": note_value},
+        )
+        assert response.status_code == 200, response.text
+        response_data = response.json()
+        assert response_data["total_entries"] == 3
+        response_task_ids = sorted(ti["task_id"] for ti in response_data["task_instances"])
+        assert response_task_ids == group_task_ids
+        for ti in response_data["task_instances"]:
+            assert ti["note"] == note_value
+
+        tis_after = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+        ).all()
+        for ti in tis_after:
+            assert ti.state == State.RUNNING
+            _check_task_instance_note(session, ti.id, {"content": note_value, "user_id": "test"})
+
+    def test_patch_task_group_state_and_note(self, test_client, session):
+        """Test that patching both new_state and note applies both, including reflecting the note in the response."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        group_task_ids = ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+        note_value = "marking task group as failed"
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "failed", "note": note_value},
+        )
+        assert response.status_code == 200, response.text
+        response_data = response.json()
+        assert response_data["total_entries"] == 3
+        response_task_ids = sorted(ti["task_id"] for ti in response_data["task_instances"])
+        assert response_task_ids == group_task_ids
+        for ti in response_data["task_instances"]:
+            assert ti["state"] == TaskInstanceState.FAILED
+            assert ti["note"] == note_value
+
+        session.expire_all()
+        tis_after = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+        ).all()
+        for ti in tis_after:
+            assert ti.state == TaskInstanceState.FAILED
+            _check_task_instance_note(session, ti.id, {"content": note_value, "user_id": "test"})
+
+
+class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
+    DAG_ID = "example_task_group"
+    RUN_ID = "TEST_DAG_RUN_ID"
+    GROUP_ID = "section_1"
+    BASE_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskGroupInstances"
+    ENDPOINT_URL = f"{BASE_URL}/{GROUP_ID}/dry_run"
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    def test_dry_run_returns_affected_tis_without_committing(self, mock_set_tg_state, test_client, session):
+        """Test that dry run returns TIs that would be affected without committing."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        tis = (
+            session.scalars(
+                select(TaskInstance)
+                .options(joinedload(TaskInstance.rendered_task_instance_fields))
+                .where(
+                    TaskInstance.dag_id == self.DAG_ID,
+                    TaskInstance.run_id == self.RUN_ID,
+                    TaskInstance.task_id.in_(["section_1.task_1", "section_1.task_2", "section_1.task_3"]),
+                )
+            )
+            .unique()
+            .all()
+        )
+
+        mock_set_tg_state.return_value = list(tis)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+        assert mock_set_tg_state.call_count == 1
+        # Verify commit=False was passed for dry run
+        call_kwargs = mock_set_tg_state.call_args.kwargs
+        assert call_kwargs["commit"] is False
+
+    def test_dry_run_query_count_does_not_scale(self, test_client, session):
+        """Test that dry_run query count does not grow excessively with task group size."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        url_section_1 = f"{self.BASE_URL}/section_1/dry_run"
+        url_section_2 = f"{self.BASE_URL}/section_2/dry_run"
+
+        # --- section_1 (3 tasks) ---
+        with count_queries() as result_section_1:
+            response = test_client.patch(url_section_1, json={"new_state": "success"})
+        assert response.status_code == 200
+
+        # --- section_2 (4 tasks including nested inner_section_2) ---
+        with count_queries() as result_section_2:
+            response = test_client.patch(url_section_2, json={"new_state": "success"})
+        assert response.status_code == 200
+
+        count_section_1 = sum(result_section_1.values())
+        count_section_2 = sum(result_section_2.values())
+        per_task_overhead = count_section_2 - count_section_1
+        assert per_task_overhead <= 2, (
+            f"Adding one task should add at most a few queries for per-TI state updates, "
+            f"got {per_task_overhead} (section_1={count_section_1}, section_2={count_section_2})"
+        )
+
+    def test_dry_run_does_not_update_ti_states_in_db(self, test_client, session):
+        """Test that dry run does not actually modify task instance states in the database."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        group_task_ids = ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+
+        # Verify states were NOT changed in the database
+        session.expire_all()
+        tis_after = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+        ).all()
+        for ti in tis_after:
+            assert ti.state == State.RUNNING, (
+                f"Expected {ti.task_id} to remain RUNNING after dry run, got {ti.state}"
+            )
+
+    def test_dry_run_task_group_not_found(self, test_client, session):
+        """Test that requesting a non-existent task group returns 404."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        url = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskGroupInstances/nonexistent_group/dry_run"
+        response = test_client.patch(
+            url,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 404
+
+    def test_dry_run_invalid_state(self, test_client, session):
+        """Test that an invalid new_state returns 422."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "invalid_state"},
+        )
+        assert response.status_code == 422
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+        assert response.status_code == 403

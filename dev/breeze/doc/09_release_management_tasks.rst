@@ -502,6 +502,28 @@ You can see all providers available by running this command:
 If you pass ``--tag`` fag, the distribution will create a source tarball release along with sdist.
 ``--tag`` flag corresponds to actual tag in git.
 
+.. note::
+
+    Before each provider is built, Breeze runs ``git clean -fdx -e .venv -e .idea -e .vscode``
+    inside the provider's source directory. This removes **all untracked and .gitignored**
+    files under that path — locally generated docs (``docs/_api``), sphinx caches,
+    ``__pycache__``, ``*.egg-info``, and any scratch files an RM produced while iterating.
+    The cleanup is necessary because the flit-based providers ship with explicit
+    ``[tool.flit.sdist]`` include lists that scan directories (``docs/``, ``tests/``,
+    ``src/``) rather than asking git, so any in-tree leftovers would otherwise leak into
+    the sdist/wheel and break reproducibility against the released artifacts on
+    dist.apache.org.
+
+    The top-level ``.venv``, ``.idea`` and ``.vscode`` directories at the **repository
+    root** are unaffected — they live outside any provider directory and are not in any
+    flit include path, so flit would never pick them up regardless. The ``-e .venv``,
+    ``-e .idea`` and ``-e .vscode`` excludes are a safety net for the rare case where
+    someone keeps a per-provider venv or IDE config **inside** the provider directory;
+    in that case the cleanup will still preserve them.
+
+    A dry-run pass (``git clean -ndx ...``) is printed first, so you see the list of
+    files that are about to be removed before the destructive pass runs.
+
 
 .. image:: ./images/output_release-management_prepare-provider-distributions.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-provider-distributions.svg

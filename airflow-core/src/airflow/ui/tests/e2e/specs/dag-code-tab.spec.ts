@@ -19,7 +19,7 @@
 import { testConfig } from "playwright.config";
 import { test } from "tests/e2e/fixtures";
 
-test.describe("DAG Code Tab", () => {
+test.describe("Dag Code Tab", () => {
   test.setTimeout(60_000);
   const dagId = testConfig.testDag.id;
 
@@ -27,7 +27,7 @@ test.describe("DAG Code Tab", () => {
     await dagCodePage.navigateToCodeTab(dagId);
   });
 
-  test("Verify DAG source code is displayed", async ({ dagCodePage }) => {
+  test("Verify Dag source code is displayed", async ({ dagCodePage }) => {
     await dagCodePage.verifySourceCodeDisplayed();
   });
 

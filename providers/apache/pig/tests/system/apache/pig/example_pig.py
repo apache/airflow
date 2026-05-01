@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAG demonstrating the usage of the PigOperator."""
+"""Example Dag demonstrating the usage of the PigOperator."""
 
 from __future__ import annotations
 
@@ -46,5 +46,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
+# Needed to run the example Dag with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

@@ -174,9 +174,9 @@ class BigQueryCheckOperator(
     deviation for the 7-day average.
 
     This operator can be used as a data quality check in your pipeline.
-    Depending on where you put it in your DAG, you have the choice to stop the
+    Depending on where you put it in your Dag, you have the choice to stop the
     critical path, preventing from publishing dubious data, or on the side and
-    receive email alerts without stopping the progress of the DAG.
+    receive email alerts without stopping the progress of the Dag.
 
     :param sql: SQL to execute.
     :param gcp_conn_id: Connection ID for Google Cloud.
@@ -2340,7 +2340,12 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
             with open(self.configuration) as file:
                 self.configuration = json.loads(file.read())
 
-    def _add_job_labels(self) -> None:
+    def _add_job_labels(self, hook: BigQueryHook | None = None) -> None:
+        if hook and hook.labels and "labels" not in self.configuration:
+            self.configuration["labels"] = dict(hook.labels)
+        elif hook and hook.labels and isinstance(self.configuration.get("labels"), dict):
+            self.configuration["labels"] = {**hook.labels, **self.configuration["labels"]}
+
         dag_label = self.dag_id.lower()
         task_label = self.task_id.lower().replace(".", "-")
 
@@ -2408,6 +2413,8 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         self.hook = hook
         if self.project_id is None:
             self.project_id = hook.project_id
+
+        self._add_job_labels(hook)
 
         # Handles Operator retries when a user does not explicitly set a job_id.
         # For example, if a previous job failed due to a 429 "Too Many Requests" error,

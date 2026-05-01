@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+6.12.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ''SnowflakeHook'' transaction support: multi-statement SQL and 'AUTOCOMMIT' (#65040)``
+* ``Mark Snowflake connection form 'Proxy Port' field optional (#65444)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
 6.12.1
 ......
 

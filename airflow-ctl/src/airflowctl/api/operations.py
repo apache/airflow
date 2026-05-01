@@ -354,7 +354,7 @@ class BackfillOperations(BaseOperations):
         """Create a backfill."""
         try:
             self.response = self.client.post(
-                "backfills", data=backfill.model_dump(mode="json", exclude_none=True)
+                "backfills", json=backfill.model_dump(mode="json", exclude_none=True)
             )
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -364,7 +364,7 @@ class BackfillOperations(BaseOperations):
         """Create a dry run backfill."""
         try:
             self.response = self.client.post(
-                "backfills/dry_run", data=backfill.model_dump(mode="json", exclude_none=True)
+                "backfills/dry_run", json=backfill.model_dump(mode="json", exclude_none=True)
             )
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -509,7 +509,7 @@ class DagsOperations(BaseOperations):
     """Dags operations."""
 
     def get(self, dag_id: str) -> DAGResponse | ServerResponseError:
-        """Get a DAG."""
+        """Get a Dag."""
         try:
             self.response = self.client.get(f"dags/{dag_id}")
             return DAGResponse.model_validate_json(self.response.content)

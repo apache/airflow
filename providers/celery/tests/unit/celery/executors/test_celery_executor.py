@@ -53,6 +53,16 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_2_PLUS,
 )
 
+try:
+    # Check whether a module-level function from stats is importable.
+    from airflow._shared.observability.metrics.stats import gauge  # noqa: F401
+
+    stats_reference = "airflow._shared.observability.metrics.stats"
+    _executor_name_tag_key = "executor_class_name"
+except ImportError:
+    stats_reference = "airflow.executors.base_executor.Stats"
+    _executor_name_tag_key = "name"
+
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
 if AIRFLOW_V_3_2_PLUS:
@@ -175,19 +185,25 @@ class TestCeleryExecutor:
 
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.sync")
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.trigger_tasks")
-    @mock.patch("airflow.executors.base_executor.Stats.gauge")
+    @mock.patch(f"{stats_reference}.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = celery_executor.CeleryExecutor()
         executor.heartbeat()
         calls = [
             mock.call(
-                "executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "CeleryExecutor"}
+                "executor.open_slots",
+                value=mock.ANY,
+                tags={"status": "open", _executor_name_tag_key: "CeleryExecutor"},
             ),
             mock.call(
-                "executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "CeleryExecutor"}
+                "executor.queued_tasks",
+                value=mock.ANY,
+                tags={"status": "queued", _executor_name_tag_key: "CeleryExecutor"},
             ),
             mock.call(
-                "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "CeleryExecutor"}
+                "executor.running_tasks",
+                value=mock.ANY,
+                tags={"status": "running", _executor_name_tag_key: "CeleryExecutor"},
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)
@@ -285,6 +301,39 @@ class TestCeleryExecutor:
 
         assert executor.workloads == {key_1: AsyncResult("231"), key_2: AsyncResult("232")}
         assert not_adopted_tis == []
+
+    @pytest.mark.backend("mysql", "postgres")
+    @time_machine.travel("2020-01-01", tick=False)
+    def test_try_adopt_with_and_without_external_executor_id(
+        self, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
+        """TIs with an ID are adopted; TIs without are returned for reset."""
+        start_date = timezone.utcnow() - timedelta(days=2)
+
+        with DAG("test_try_adopt_mixed", schedule=None) as dag:
+            task_1 = BaseOperator(task_id="task_1", start_date=start_date)
+            task_2 = BaseOperator(task_id="task_2", start_date=start_date)
+
+        if AIRFLOW_V_3_0_PLUS:
+            sync_dag_to_db(dag)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti_with_id = create_task_instance(task=task_1, run_id=None, dag_version_id=dag_version.id)
+            ti_without_id = create_task_instance(task=task_2, run_id=None, dag_version_id=dag_version.id)
+        else:
+            ti_with_id = TaskInstance(task=task_1, run_id=None)
+            ti_without_id = TaskInstance(task=task_2, run_id=None)
+        ti_with_id.external_executor_id = "231"
+        ti_with_id.state = State.QUEUED
+        ti_without_id.external_executor_id = None
+        ti_without_id.state = State.QUEUED
+
+        executor = celery_executor.CeleryExecutor()
+        not_adopted_tis = executor.try_adopt_task_instances([ti_with_id, ti_without_id])
+
+        key_1 = TaskInstanceKey(dag.dag_id, task_1.task_id, None, 0)
+        assert key_1 in executor.running
+        assert executor.workloads == {key_1: AsyncResult("231")}
+        assert not_adopted_tis == [ti_without_id]
 
     @pytest.fixture
     def mock_celery_revoke(self):
@@ -437,6 +486,68 @@ def test_send_workloads_to_celery_hang(register_signals):
         # multiprocessing.
         results = executor._send_workloads_to_celery(workload_tuples_to_send)
         assert results == [(None, None, 1) for _ in workload_tuples_to_send]
+
+
+def _has_external_executor_id_field() -> bool:
+    try:
+        from airflow.executors.workloads.task import TaskInstanceDTO
+
+        return "external_executor_id" in TaskInstanceDTO.model_fields
+    except (ImportError, AttributeError):
+        return False
+
+
+@pytest.mark.skipif(
+    not _has_external_executor_id_field(),
+    reason="TaskInstanceDTO.external_executor_id not available in this airflow-core version",
+)
+def test_send_workload_uses_external_executor_id_as_celery_task_id():
+    """Pre-assigned external_executor_id is passed as task_id to apply_async()."""
+    from airflow.executors.workloads.task import TaskInstanceDTO
+
+    pre_assigned_id = "pre-assigned-uuid-for-celery"
+    ti_dto = TaskInstanceDTO(
+        id="00000000-0000-0000-0000-000000000001",
+        dag_version_id="00000000-0000-0000-0000-000000000002",
+        task_id="test_task",
+        dag_id="test_dag",
+        run_id="test_run",
+        try_number=1,
+        map_index=-1,
+        pool_slots=1,
+        queue="default",
+        priority_weight=1,
+        external_executor_id=pre_assigned_id,
+    )
+    key = TaskInstanceKey(
+        dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=-1, try_number=1
+    )
+
+    mock_result = mock.Mock(task_id=pre_assigned_id)
+    mock_celery_task = mock.Mock()
+    mock_celery_task.apply_async.return_value = mock_result
+
+    mock_app = mock.Mock()
+    mock_app.tasks = {"execute_workload": mock_celery_task}
+
+    from airflow.executors.workloads import ExecuteTask
+
+    workload = mock.Mock(spec=ExecuteTask)
+    workload.ti = ti_dto
+    workload.model_dump_json.return_value = "{}"
+
+    with mock.patch(
+        "airflow.providers.celery.executors.celery_executor_utils.create_celery_app",
+        return_value=mock_app,
+    ):
+        result_key, _, result = celery_executor_utils.send_workload_to_executor(
+            (key, workload, "default", None)
+        )
+
+    mock_celery_task.apply_async.assert_called_once_with(
+        args=("{}",), queue="default", task_id=pre_assigned_id
+    )
+    assert result.task_id == pre_assigned_id
 
 
 @conf_vars({("celery", "result_backend"): "rediss://test_user:test_password@localhost:6379/0"})

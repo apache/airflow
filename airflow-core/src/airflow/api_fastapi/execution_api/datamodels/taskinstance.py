@@ -306,6 +306,7 @@ class DagRun(StrictBaseModel):
     consumed_asset_events: list[AssetEventDagRunReference]
     partition_key: str | None
     note: str | None = None
+    team_name: str | None = None
 
     @model_validator(mode="before")
     @classmethod

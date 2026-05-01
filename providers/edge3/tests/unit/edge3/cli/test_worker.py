@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import importlib
 import json
+import signal
 from datetime import datetime
 from io import StringIO
 from multiprocessing import Process, Queue
@@ -36,6 +38,7 @@ from airflow.cli import cli_parser
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.cli import edge_command
 from airflow.providers.edge3.cli.dataclasses import Job
+from airflow.providers.edge3.cli.signalling import SIG_STATUS
 from airflow.providers.edge3.cli.worker import EdgeWorker
 from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerModel,
@@ -79,6 +82,7 @@ MOCK_COMMAND = {
 class _MockProcess(Process):
     def __init__(self, returncode=None):
         self.generated_returncode = None
+        self._is_alive = False
 
     def poll(self):
         pass
@@ -86,6 +90,18 @@ class _MockProcess(Process):
     @property
     def returncode(self):
         return self.generated_returncode
+
+    def is_alive(self):
+        return self._is_alive
+
+    def terminate(self):
+        self._is_alive = False
+
+    def kill(self):
+        self._is_alive = False
+
+    def join(self, timeout=None):
+        pass
 
 
 class TestEdgeWorker:
@@ -217,7 +233,7 @@ class TestEdgeWorker:
         result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
 
         assert result == 0
-        q.put.assert_not_called()
+        q.put.assert_called_once()
 
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @pytest.mark.asyncio
@@ -293,6 +309,60 @@ class TestEdgeWorker:
         mock_push_log_chunks.assert_called_once()
         assert len(worker_with_job.jobs) == 1  # no new job added (was removed at the end...)
         mock_logs_push.assert_not_called()
+
+    @patch("airflow.sdk.execution_time.supervisor.supervise")
+    @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @patch("airflow.providers.edge3.cli.worker.jobs_set_state")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @pytest.mark.asyncio
+    async def test_fetch_and_run_job_possible_deadlock(
+        self,
+        mock_logs_push,
+        mock_push_log_chunks,
+        mock_jobs_set_state,
+        mock_jobs_fetch,
+        mock_supervise,
+        worker_with_job: EdgeWorker,
+    ):
+        """Verify that a large exception from the subprocess does not deadlock fetch_and_run_job."""
+
+        large_exception = Exception(f"Task execution failed with large error message {'-' * 66000}")
+        mock_supervise.side_effect = large_exception
+
+        mock_jobs_fetch.side_effect = [
+            EdgeJobFetched(
+                dag_id="test",
+                task_id="test",
+                run_id="test",
+                map_index=-1,
+                try_number=1,
+                concurrency_slots=1,
+                command=MOCK_COMMAND,  # type: ignore[arg-type]
+            ),
+            None,
+        ]
+        worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
+        worker_with_job.concurrency = 1  # only one job at a time
+        assert worker_with_job.free_concurrency == 0
+
+        try:
+            await asyncio.wait_for(worker_with_job.fetch_and_run_job(), timeout=10.0)
+        except asyncio.TimeoutError:
+            # Clean up any hanging subprocess to prevent blocking pytest
+            for job in list(worker_with_job.jobs):
+                if job.process.is_alive():
+                    job.process.terminate()
+                    job.process.join(timeout=1.0)
+                    if job.process.is_alive():
+                        job.process.kill()
+                        job.process.join()
+            pytest.fail("fetch_and_run_job timed out after 10s - DEADLOCK DETECTED. ")
+
+        # If we reach here without timeout, the deadlock was not triggered
+        assert mock_jobs_set_state.call_count >= 1
+        mock_push_log_chunks.assert_called()
+        assert len(worker_with_job.jobs) <= 1  # new job removed, original fixture job still there
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
     @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job", return_value=(Process(), Queue()))
@@ -462,6 +532,69 @@ class TestEdgeWorker:
         await worker_with_job.heartbeat()
         assert worker_with_job.drain
 
+    @patch("airflow.providers.edge3.cli.worker.os.kill")
+    @patch("airflow.providers.edge3.cli.worker.time.monotonic")
+    async def test_enforce_drain_timeout_disabled(
+        self, mock_monotonic, mock_kill, worker_with_job: EdgeWorker
+    ):
+        worker_with_job.drain_timeout_sec = 0
+        worker_with_job.drain = True
+        worker_with_job.drain_started_at = 0.0
+        mock_monotonic.return_value = 9999.0
+        assert await worker_with_job._enforce_drain_timeout() is False
+        mock_kill.assert_not_called()
+
+    @patch("airflow.providers.edge3.cli.worker.os.kill")
+    @patch("airflow.providers.edge3.cli.worker.time.monotonic")
+    async def test_enforce_drain_timeout_within_deadline(
+        self, mock_monotonic, mock_kill, worker_with_job: EdgeWorker
+    ):
+        worker_with_job.drain_timeout_sec = 60
+        worker_with_job.drain = True
+        worker_with_job.drain_started_at = 100.0
+        worker_with_job.jobs[0].process = mock.MagicMock(pid=4242)
+        mock_monotonic.return_value = 120.0  # 20s < 60s
+        assert await worker_with_job._enforce_drain_timeout() is False
+        mock_kill.assert_not_called()
+
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @patch("airflow.providers.edge3.cli.worker.os.kill")
+    @patch("airflow.providers.edge3.cli.worker.time.monotonic")
+    async def test_enforce_drain_timeout_sigterm_on_deadline(
+        self, mock_monotonic, mock_kill, mock_logs_push, worker_with_job: EdgeWorker
+    ):
+        worker_with_job.drain_timeout_sec = 60
+        worker_with_job.drain_kill_grace_sec = 30
+        worker_with_job.drain = True
+        worker_with_job.drain_started_at = 100.0
+        worker_with_job.jobs[0].process = mock.MagicMock(pid=4242)
+        mock_monotonic.return_value = 170.0  # 70s >= 60s, first trigger
+        assert await worker_with_job._enforce_drain_timeout() is False
+        mock_kill.assert_called_once_with(4242, signal.SIGTERM)
+        assert worker_with_job.drain_timed_out is True
+        assert worker_with_job.drain_kill_deadline == 200.0
+        mock_logs_push.assert_called_once()
+        assert "SIGTERM" in mock_logs_push.call_args.kwargs["log_chunk_data"]
+
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @patch("airflow.providers.edge3.cli.worker.os.kill")
+    @patch("airflow.providers.edge3.cli.worker.time.monotonic")
+    async def test_enforce_drain_timeout_sigkill_after_grace(
+        self, mock_monotonic, mock_kill, mock_logs_push, worker_with_job: EdgeWorker
+    ):
+        worker_with_job.drain_timeout_sec = 60
+        worker_with_job.drain_kill_grace_sec = 30
+        worker_with_job.drain = True
+        worker_with_job.drain_started_at = 100.0
+        worker_with_job.drain_timed_out = True
+        worker_with_job.drain_kill_deadline = 200.0
+        worker_with_job.jobs[0].process = mock.MagicMock(pid=4242)
+        mock_monotonic.return_value = 210.0  # past kill deadline
+        assert await worker_with_job._enforce_drain_timeout() is True
+        mock_kill.assert_called_once_with(4242, signal.SIGKILL)
+        mock_logs_push.assert_called_once()
+        assert "SIGKILL" in mock_logs_push.call_args.kwargs["log_chunk_data"]
+
     @pytest.mark.parametrize(
         "http_error",
         [
@@ -572,3 +705,121 @@ class TestEdgeWorker:
         ]:
             assert key in edge_workers[0]
         assert any("test_edge_worker" in h["worker_name"] for h in edge_workers)
+
+
+class TestSignalHandling:
+    """Regression tests for the SIGTERM-storm fix (Bug B)."""
+
+    # Override the module-level ``pytestmark = [pytest.mark.asyncio]`` — these
+    # tests are intentionally synchronous.
+    pytestmark: list = []
+
+    @staticmethod
+    def _make_workload():
+        # Pydantic coerces MOCK_COMMAND (dict) into a real ExecuteTask via
+        # EdgeJobFetched's field validator, giving us a workload with
+        # attribute access (``.ti.dag_id`` etc.) that the code path needs.
+        return EdgeJobFetched(
+            dag_id="test",
+            task_id="test1",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        ).command
+
+    @staticmethod
+    def _make_job(tmp_path: Path) -> Job:
+        logfile = tmp_path / "job.log"
+        logfile.touch()
+        proc = mock.Mock()
+        proc.pid = 12345
+        return Job(
+            edge_job=EdgeJobFetched(
+                dag_id="test",
+                task_id="test1",
+                run_id="test",
+                map_index=-1,
+                try_number=1,
+                concurrency_slots=1,
+                command=MOCK_COMMAND,  # type: ignore[arg-type]
+            ),
+            process=proc,
+            logfile=logfile,
+            logsize=0,
+        )
+
+    @pytest.fixture
+    def worker_with_one_job(self, tmp_path: Path):
+        worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
+        EdgeWorker.jobs = [self._make_job(tmp_path)]
+        EdgeWorker.drain = False
+        try:
+            yield worker
+        finally:
+            EdgeWorker.jobs = []
+            EdgeWorker.drain = False
+
+    def test_reset_parent_signal_state_clears_all_handlers(self):
+        from airflow.providers.edge3.cli.worker import _reset_parent_signal_state
+
+        original = {
+            signal.SIGTERM: signal.getsignal(signal.SIGTERM),
+            signal.SIGINT: signal.getsignal(signal.SIGINT),
+            SIG_STATUS: signal.getsignal(SIG_STATUS),
+        }
+        sentinel = lambda *_: None
+        signal.signal(signal.SIGTERM, sentinel)
+        signal.signal(signal.SIGINT, sentinel)
+        signal.signal(SIG_STATUS, sentinel)
+        try:
+            _reset_parent_signal_state()
+            assert signal.getsignal(signal.SIGTERM) is signal.SIG_DFL
+            assert signal.getsignal(signal.SIGINT) is signal.SIG_DFL
+            assert signal.getsignal(SIG_STATUS) is signal.SIG_DFL
+            assert signal.set_wakeup_fd(-1) == -1
+        finally:
+            for sig, prev in original.items():
+                signal.signal(sig, prev)
+
+    def test_run_job_via_supervisor_resets_signals_before_supervise(self, tmp_path):
+        """Reset must run first: before ``os.setpgrp`` and before ``supervise``."""
+        worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
+        worker.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
+        order = mock.MagicMock()
+        with (
+            mock.patch(
+                "airflow.providers.edge3.cli.worker._reset_parent_signal_state",
+                side_effect=lambda: order("reset"),
+            ),
+            mock.patch("os.setpgrp", side_effect=lambda: order("setpgrp")),
+            mock.patch(
+                "airflow.sdk.execution_time.supervisor.supervise",
+                side_effect=lambda **_: order("supervise"),
+            ),
+        ):
+            rc = worker._run_job_via_supervisor(
+                workload=self._make_workload(),
+                results_queue=mock.MagicMock(),
+            )
+        assert rc == 0
+        assert [c.args[0] for c in order.call_args_list] == ["reset", "setpgrp", "supervise"]
+
+    def test_shutdown_handler_is_idempotent(self, worker_with_one_job):
+        with mock.patch("os.kill") as m_kill:
+            worker_with_one_job.shutdown_handler()
+            worker_with_one_job.shutdown_handler()
+            worker_with_one_job.shutdown_handler()
+        assert m_kill.call_count == 1
+        assert worker_with_one_job.drain is True
+
+    def test_shutdown_handler_does_not_call_setpgid(self, worker_with_one_job):
+        with mock.patch("os.setpgid") as m_setpgid, mock.patch("os.kill"):
+            worker_with_one_job.shutdown_handler()
+        m_setpgid.assert_not_called()
+
+    def test_shutdown_handler_tolerates_dead_child(self, worker_with_one_job):
+        with mock.patch("os.kill", side_effect=ProcessLookupError):
+            worker_with_one_job.shutdown_handler()
+        assert worker_with_one_job.drain is True

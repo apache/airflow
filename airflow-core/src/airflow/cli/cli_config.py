@@ -1072,7 +1072,7 @@ BACKFILL_COMMANDS = (
     ActionCommand(
         name="create",
         help="Create a backfill for a dag.",
-        description="Run subsections of a DAG for a specified date range.",
+        description="Run subsections of a Dag for a specified date range.",
         func=lazy_load_command("airflow.cli.commands.backfill_command.create_backfill"),
         args=(
             ARG_BACKFILL_DAG,
