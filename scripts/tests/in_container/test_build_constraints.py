@@ -146,6 +146,21 @@ class TestCollectWorkspaceBuildReqs:
         result = _collect_workspace_build_reqs(tmp_path)
         assert "bad-pkg" not in result
 
+    def test_skips_transient_build_and_artifact_dirs(self, tmp_path):
+        """Transient directories must not affect authoritative build constraints."""
+        (tmp_path / "pkg").mkdir()
+        (tmp_path / "pkg" / "pyproject.toml").write_text('[build-system]\nrequires = ["hatchling==1.29.0"]\n')
+        for transient_dir in [".build/airflow_source", "dist/extracted", "files/constraints-3.12"]:
+            path = tmp_path / transient_dir
+            path.mkdir(parents=True)
+            (path / "pyproject.toml").write_text(
+                f'[build-system]\nrequires = ["polluted-{path.parts[-1]}"]\n'
+            )
+
+        result = _collect_workspace_build_reqs(tmp_path)
+
+        assert result == {"hatchling": {"hatchling==1.29.0"}}
+
     def test_logs_warning_on_parse_error(self, tmp_path):
         """A malformed pyproject.toml logs a warning but doesn't crash."""
         (tmp_path / "pyproject.toml").write_text("not valid toml {{{")
@@ -240,12 +255,36 @@ def _make_zip_sdist(tmp_path: Path, reqs: list[str] | None) -> Path:
     return zip_path
 
 
+def _pyproject_toml(reqs: list[str]) -> bytes:
+    return (
+        f'[build-system]\nrequires = {json.dumps(reqs)}\nbuild-backend = "setuptools.build_meta"\n'
+    ).encode()
+
+
 class TestExtractBuildReqsFromTar:
     def test_extracts_requirements(self, tmp_path):
         reqs = ["setuptools>=70.0", "wheel"]
         tar_path = _make_tar_sdist(tmp_path, reqs)
         result = _extract_build_reqs_from_tar(tar_path.as_uri())
         assert result == reqs
+
+    def test_uses_top_level_pyproject_not_first_nested_pyproject(self, tmp_path):
+        """Vendored or fixture pyproject.toml files must not drive build constraints."""
+        tar_path = tmp_path / "pkg-1.0.0.tar.gz"
+        with tarfile.open(tar_path, "w:gz") as tar:
+            nested_data = _pyproject_toml(["wrong-backend>=1"])
+            nested_info = tarfile.TarInfo(name="pkg-1.0.0/vendor/dep/pyproject.toml")
+            nested_info.size = len(nested_data)
+            tar.addfile(nested_info, io.BytesIO(nested_data))
+
+            root_data = _pyproject_toml(["right-backend>=2"])
+            root_info = tarfile.TarInfo(name="pkg-1.0.0/pyproject.toml")
+            root_info.size = len(root_data)
+            tar.addfile(root_info, io.BytesIO(root_data))
+
+        result = _extract_build_reqs_from_tar(tar_path.as_uri())
+
+        assert result == ["right-backend>=2"]
 
     def test_returns_empty_for_legacy_sdist(self, tmp_path):
         tar_path = _make_tar_sdist(tmp_path, None)
@@ -259,6 +298,17 @@ class TestExtractBuildReqsFromZip:
         zip_path = _make_zip_sdist(tmp_path, reqs)
         result = _extract_build_reqs_from_zip(zip_path.as_uri())
         assert result == reqs
+
+    def test_uses_top_level_pyproject_not_first_nested_pyproject(self, tmp_path):
+        """Vendored or fixture pyproject.toml files must not drive build constraints."""
+        zip_path = tmp_path / "pkg-1.0.0.zip"
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.writestr("pkg-1.0.0/tests/fixtures/pyproject.toml", _pyproject_toml(["wrong-backend>=1"]))
+            zf.writestr("pkg-1.0.0/pyproject.toml", _pyproject_toml(["right-backend>=2"]))
+
+        result = _extract_build_reqs_from_zip(zip_path.as_uri())
+
+        assert result == ["right-backend>=2"]
 
     def test_returns_empty_for_legacy_sdist(self, tmp_path):
         zip_path = _make_zip_sdist(tmp_path, None)
@@ -582,6 +632,46 @@ class TestResolveBuildRequirements:
             if call_count == 1:
                 return FailResult()
             # Second call (after removing cython) succeeds
+            output_path.write_text("setuptools==80.9.0\n")
+            return _make_success_result()
+
+        with patch("run_generate_constraints.run_command", side_effect=mock_run_command):
+            _resolve_build_requirements(build_reqs, output_path, config)
+
+        assert call_count == 2
+        assert output_path.read_text() == "setuptools==80.9.0\n"
+
+    def test_retries_on_conflict_when_uv_stderr_wording_changes(self, tmp_path):
+        """Conflict handling should not depend on one exact uv diagnostic phrase."""
+        build_reqs = {
+            "cython": {"cython>=3.0,<3.1", "cython>=3.1.2,<3.3.0"},
+            "setuptools": {"setuptools>=70.0"},
+        }
+        output_path = tmp_path / "build-constraints-3.12.txt"
+        config = ConfigParams(
+            airflow_constraints_mode="constraints-source-providers",
+            constraints_github_repository="apache/airflow",
+            default_constraints_branch="main",
+            github_actions=False,
+            python="3.12",
+        )
+
+        call_count = 0
+
+        def mock_run_command(cmd, **kwargs):
+            nonlocal call_count
+            call_count += 1
+
+            class FailResult:
+                returncode = 1
+                stdout = ""
+                stderr = (
+                    "Because the project depends on cython>=3.0,<3.1 and cython>=3.1.2,<3.3.0, "
+                    "the requirements are unsatisfiable."
+                )
+
+            if call_count == 1:
+                return FailResult()
             output_path.write_text("setuptools==80.9.0\n")
             return _make_success_result()
 
