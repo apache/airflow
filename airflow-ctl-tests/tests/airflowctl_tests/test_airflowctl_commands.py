@@ -109,8 +109,10 @@ TEST_COMMANDS = [
     "pools update --pool=test_pool --slots=10",
     "pools import tests/airflowctl_tests/fixtures/test_pools.json",
     "pools export tests/airflowctl_tests/fixtures/pools_export.json --output=json",
-    "pools delete test_pool",
-    "pools delete test_import_pool",
+    "pools delete --pool=test_pool",
+    "pools delete --pool=test_import_pool",
+    # Tasks commands
+    'tasks state --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0',
     # Providers commands
     "providers list",
     # Variables commands
