@@ -25,9 +25,7 @@ from airflowctl.ctl.console_formatting import AirflowConsole
 @provide_api_client(kind=ClientKind.CLI)
 def state(args, api_client=NEW_API_CLIENT) -> None:
     """Get the state of a task instance."""
-    response = api_client.get(
-        f"dags/{args.dag_id}/dagRuns/{args.dag_run_id}/taskInstances/{args.task_id}"
-    )
+    response = api_client.get(f"dags/{args.dag_id}/dagRuns/{args.dag_run_id}/taskInstances/{args.task_id}")
     task_instance = TaskInstanceResponse.model_validate_json(response.content)
     AirflowConsole().print_as(
         data=[{"state": task_instance.state.value if task_instance.state is not None else None}],
