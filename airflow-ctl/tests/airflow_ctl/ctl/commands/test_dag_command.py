@@ -185,7 +185,6 @@ class TestDagCommands:
             self.parser.parse_args(["dags", "next-execution", self.dag_id]),
             api_client=api_client,
         )
-        assert result["dag_id"] == self.dag_id
         assert result["next_dagrun_logical_date"] == datetime.datetime(2025, 1, 1, 0, 0, 0)
         assert result["next_dagrun_data_interval_start"] == datetime.datetime(2025, 1, 1, 0, 0, 0)
         assert result["next_dagrun_data_interval_end"] == datetime.datetime(2025, 1, 1, 0, 0, 0)

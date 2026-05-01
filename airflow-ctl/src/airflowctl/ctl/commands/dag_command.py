@@ -97,7 +97,7 @@ def next_execution(args, api_client=NEW_API_CLIENT) -> dict | None:
         rich.print(f"[yellow]No upcoming run scheduled for DAG {args.dag_id}.[/yellow]")
         return None
 
-    result = {"dag_id": response.dag_id, **next_exec_data}
+    result = next_exec_data
     AirflowConsole().print_as(
         data=[result],
         output=args.output,

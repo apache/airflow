@@ -52,7 +52,6 @@ connections:
   test: "Test connectivity for a given connection"
 
 dags:
-  next-execution: "Display the next scheduled execution time for a Dag"
   get: "Retrieve a Dag by its ID"
   get-details: "Retrieve detailed information for a Dag"
   get-tags: "List all tags used across Dags"
