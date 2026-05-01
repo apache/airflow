@@ -149,7 +149,12 @@ def _setup_event_driven_integration(dot_env_file, tmp_dir):
         }
     )
 
-    dot_env_file.write_text(f"AIRFLOW_UID={os.getuid()}\nAIRFLOW_CONN_KAFKA_DEFAULT='{kafka_conn}'\n")
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        f"AIRFLOW_CONN_KAFKA_DEFAULT='{kafka_conn}'\n"
+        "_PIP_ADDITIONAL_REQUIREMENTS="
+        "apache-airflow-providers-apache-kafka apache-airflow-providers-common-messaging\n"
+    )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
