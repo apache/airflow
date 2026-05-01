@@ -1,0 +1,2 @@
+Fix SearchBar input "rewind" issue caused by stale debounced updates.
+Added UX improvements: 'Enter' to trigger search immediately and 'Escape' to clear input.
