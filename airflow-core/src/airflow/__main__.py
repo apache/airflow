@@ -52,6 +52,9 @@ def main():
         from airflow.configuration import write_default_airflow_configuration_if_needed
 
         conf = write_default_airflow_configuration_if_needed()
+    from airflow.utils.cli import _setup_cli_logging
+
+    _setup_cli_logging(args)
     args.func(args)
 
 
