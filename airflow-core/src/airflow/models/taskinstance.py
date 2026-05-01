@@ -378,6 +378,11 @@ def clear_task_instances(
             ti.state = None
             ti.external_executor_id = None
             ti.clear_next_method_args()
+            # Match DagVersion to latest serialized DAG when run_on_latest_version.
+            if run_on_latest_version:
+                latest_dag_version = DagVersion.get_latest_version(ti.dag_id, session=session)
+                if latest_dag_version is not None:
+                    ti.dag_version_id = latest_dag_version.id
             session.merge(ti)
 
     if dag_run_state is not False and tis:
@@ -418,8 +423,7 @@ def clear_task_instances(
                         dr.created_dag_version_id = dag_version.id
                         dr.dag = dr_dag
                         dr.verify_integrity(session=session, dag_version_id=dag_version.id)
-                        for ti in dr.task_instances:
-                            ti.dag_version_id = dag_version.id
+                        # Only cleared TIs get latest dag_version_id above; do not rewrite others.
                 else:
                     dr_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
                 if not dr_dag:
@@ -431,6 +435,20 @@ def clear_task_instances(
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
                     dr.start_date = None
+            elif run_on_latest_version:
+                # Queued/running DagRun: update DR to latest version/bundle for workloads that use it.
+                dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
+                if dag_version and dr.created_dag_version_id != dag_version.id:
+                    dr_dag = scheduler_dagbag.get_latest_version_of_dag(dr.dag_id, session=session)
+                    if not dr_dag:
+                        log.warning("No serialized dag found for dag '%s'", dr.dag_id)
+                    else:
+                        dr.created_dag_version_id = dag_version.id
+                        dr.dag = dr_dag
+                        if not dr_dag.disable_bundle_versioning:
+                            bundle_version = dr.dag_model.bundle_version
+                            if bundle_version is not None:
+                                dr.bundle_version = bundle_version
     for ti in tis:
         ti.context_carrier = new_task_run_carrier(ti.dag_run.context_carrier)
     session.flush()
