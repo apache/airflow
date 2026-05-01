@@ -53,6 +53,8 @@ from airflow.sdk.definitions.asset.decorators import asset as asset
 from airflow.sdk.definitions.asset.metadata import Metadata as Metadata
 from airflow.sdk.definitions.connection import Connection as Connection
 from airflow.sdk.definitions.context import (
+    CallbackMeta as CallbackMeta,
+    CallbackSource as CallbackSource,
     Context as Context,
     get_current_context as get_current_context,
     get_parsing_context as get_parsing_context,
