@@ -17,7 +17,7 @@
  * under the License.
  */
 import { CloseButton, HStack, Input, InputGroup, Kbd, type InputGroupProps } from "@chakra-ui/react";
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { memo, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiSearch } from "react-icons/fi";
@@ -38,33 +38,45 @@ type Props = {
   readonly placeholder: string;
 } & Omit<InputGroupProps, "children" | "onChange">;
 
-export const SearchBar = ({
-  advancedSearch,
-  defaultValue,
-  hotkeyDisabled = false,
-  onChange,
-  placeholder,
-  ...props
-}: Props) => {
-  const handleSearchChange = useDebouncedCallback((val: string) => onChange(val), debounceDelay);
-  const searchRef = useRef<HTMLInputElement>(null);
-  const [value, setValue] = useState(defaultValue);
-  const metaKey = getMetaKey();
-  const { t: translate } = useTranslation(["dags"]);
+export const SearchBar = memo(
+  ({ advancedSearch, defaultValue, hotkeyDisabled = false, onChange, placeholder, ...props }: Props) => {
+    const lastSentValue = useRef(defaultValue);
+    const handleSearchChange = useDebouncedCallback((val: string) => {
+      lastSentValue.current = val;
+      onChange(val);
+    }, debounceDelay);
+    const searchRef = useRef<HTMLInputElement>(null);
+    const [value, setValue] = useState(defaultValue);
+    const metaKey = getMetaKey();
+    const { t: translate } = useTranslation(["dags"]);
 
-  useEffect(() => {
-    setValue(defaultValue);
-  }, [defaultValue]);
+    useEffect(() => {
+      if (defaultValue !== lastSentValue.current) {
+        setValue(defaultValue);
+        lastSentValue.current = defaultValue;
+      }
+    }, [defaultValue]);
 
-  const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setValue(event.target.value);
-    handleSearchChange(event.target.value);
-  };
-  const clearSearch = () => {
-    handleSearchChange.cancel();
-    setValue("");
-    onChange("");
-  };
+    const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
+      setValue(event.target.value);
+      handleSearchChange(event.target.value);
+    };
+
+    const clearSearch = () => {
+      handleSearchChange.cancel();
+      lastSentValue.current = "";
+      setValue("");
+      onChange("");
+    };
+
+    const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        handleSearchChange.flush();
+      }
+      if (event.key === "Escape") {
+        clearSearch();
+      }
+    };
 
   useHotkeys(
     "mod+k",
@@ -102,6 +114,7 @@ export const SearchBar = ({
       <Input
         data-testid="search-dags"
         onChange={onSearchChange}
+        onKeyDown={onKeyDown}
         placeholder={placeholder}
         pr={150}
         ref={searchRef}
@@ -120,4 +133,5 @@ export const SearchBar = ({
       <AdvancedSearchToggle {...advancedSearch} />
     </HStack>
   );
-};
+});
+
