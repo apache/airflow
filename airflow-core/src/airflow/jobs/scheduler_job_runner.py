@@ -1278,12 +1278,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
         if filter_for_tis is None:
             return len(event_buffer)
-        asset_loader, _ = _eager_load_dag_run_for_validation()
+        asset_loader, alias_loader = _eager_load_dag_run_for_validation()
         query = (
             select(TI)
             .where(filter_for_tis)
             .options(selectinload(TI.dag_model))
             .options(asset_loader)
+            .options(alias_loader)
             .options(joinedload(TI.dag_run).selectinload(DagRun.created_dag_version))
             .options(joinedload(TI.dag_version))
         )

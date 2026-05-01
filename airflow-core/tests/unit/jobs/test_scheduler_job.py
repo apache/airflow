@@ -848,11 +848,15 @@ class TestSchedulerJob:
         Test that _process_executor_events handles asset events without DetachedInstanceError.
 
         Regression test for scheduler crashes when task callbacks are built with
-        consumed_asset_events that weren't eager-loaded.
+        consumed_asset_events that weren't eager-loaded. Exercises both
+        ``AssetEvent.asset`` and ``AssetEvent.source_aliases`` so that missing
+        either loader option on the TI query surfaces as a ``DetachedInstanceError``
+        when the callback's ``DRDataModel`` is built.
         """
         asset1 = Asset(uri="test://asset1", name="test_asset_executor", group="test_group")
         asset_model = AssetModel(name=asset1.name, uri=asset1.uri, group=asset1.group)
-        session.add(asset_model)
+        asset_alias = AssetAliasModel(name="test_alias_executor", group="test_group")
+        session.add_all([asset_model, asset_alias])
         session.flush()
 
         with dag_maker(dag_id="test_executor_events_with_assets", schedule=[asset1], fileloc="/test_path1/"):
@@ -864,7 +868,9 @@ class TestSchedulerJob:
 
         dr = dag_maker.create_dagrun()
 
-        # Create asset event and attach to dag run
+        # Create asset event with an attached source alias so the lazy-loaded
+        # AssetEvent.source_aliases relationship is non-empty and must be
+        # eager-loaded to survive a detached ORM instance in the callback.
         asset_event = AssetEvent(
             asset_id=asset_model.id,
             source_task_id="upstream_task",
@@ -872,6 +878,7 @@ class TestSchedulerJob:
             source_run_id="upstream_run",
             source_map_index=-1,
         )
+        asset_event.source_aliases.append(asset_alias)
         session.add(asset_event)
         session.flush()
         dr.consumed_asset_events.append(asset_event)
@@ -895,12 +902,14 @@ class TestSchedulerJob:
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.FAILED
 
-        # Verify callback was created with asset event data
+        # Verify callback was created with asset event data including aliases
         self.job_runner.executor.callback_sink.send.assert_called_once()
         callback_request = self.job_runner.executor.callback_sink.send.call_args.args[0]
         assert callback_request.context_from_server is not None
-        assert len(callback_request.context_from_server.dag_run.consumed_asset_events) == 1
-        assert callback_request.context_from_server.dag_run.consumed_asset_events[0].asset.uri == asset1.uri
+        events = callback_request.context_from_server.dag_run.consumed_asset_events
+        assert len(events) == 1
+        assert events[0].asset.uri == asset1.uri
+        assert [alias.name for alias in events[0].source_aliases] == [asset_alias.name]
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_schedule_dag_run_with_asset_event(self, session: Session, dag_maker: DagMaker):
