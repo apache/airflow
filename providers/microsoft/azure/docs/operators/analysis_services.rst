@@ -86,3 +86,4 @@ For further information, please refer to the Microsoft documentation:
 
 .. spelling:word-list::
     asazure
+    Defragments
