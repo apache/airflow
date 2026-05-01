@@ -1,0 +1,1 @@
+CLI machine-readable output (JSON/YAML) is no longer polluted by log messages. Logs are now redirected to stderr when these formats are requested.

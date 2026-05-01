@@ -59,6 +59,20 @@ def _check_cli_args(args):
         )
 
 
+def _setup_cli_logging(args):
+    """
+    Sets up logging for the CLI.
+
+    If machine-readable output is requested (json, yaml), it redirects logs to stderr.
+    """
+    output = getattr(args, "output", None)
+    if output and output != "table":
+        root_logger = logging.getLogger()
+        for handler in root_logger.handlers:
+            if isinstance(handler, logging.StreamHandler) and handler.stream == sys.stdout:
+                handler.setStream(sys.stderr)
+
+
 def action_cli(func=None, check_db=True):
     def action_logging(f: T) -> T:
         """
@@ -93,6 +107,7 @@ def action_cli(func=None, check_db=True):
             :param kwargs: A passthrough keyword argument
             """
             _check_cli_args(args)
+            _setup_cli_logging(args[0])
             metrics = _build_metrics(f.__name__, args[0])
             cli_action_loggers.on_pre_execution(**metrics)
             verbose = getattr(args[0], "verbose", False)
@@ -444,6 +459,7 @@ def suppress_logs_and_warning(f: T) -> T:
     @functools.wraps(f)
     def _wrapper(*args, **kwargs):
         _check_cli_args(args)
+        _setup_cli_logging(args[0])
         if args[0].verbose:
             f(*args, **kwargs)
         else:

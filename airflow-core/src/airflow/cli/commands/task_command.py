@@ -290,8 +290,8 @@ def task_failed_deps(args) -> None:
         print("Task instance dependencies are all met.")
 
 
-@cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def task_state(args) -> None:
     """
@@ -307,8 +307,8 @@ def task_state(args) -> None:
     print(ti.state)
 
 
-@cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def task_list(args, dag: DAG | None = None) -> None:
     """List the tasks within a DAG at the command line."""
@@ -354,8 +354,8 @@ def _guess_debugger() -> _SupportedDebugger:
     raise exc
 
 
-@cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 @provide_session
 def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
@@ -457,8 +457,8 @@ def task_test(args, dag: DAG | None = None) -> None:
                 session.delete(ti.dag_run)
 
 
-@cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def task_render(args, dag: DAG | None = None) -> None:
     """Render and displays templated fields for a given task."""

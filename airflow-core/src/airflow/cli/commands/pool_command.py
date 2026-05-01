@@ -65,8 +65,8 @@ def pool_get(args):
         raise SystemExit(f"Pool {args.pool} does not exist")
 
 
-@cli_utils.action_cli
 @suppress_logs_and_warning
+@cli_utils.action_cli
 @providers_configuration_loaded
 def pool_set(args):
     """Create new pool with a given name and slots."""
@@ -90,8 +90,8 @@ def pool_delete(args):
         raise SystemExit(f"Pool {args.pool} does not exist")
 
 
-@cli_utils.action_cli
 @suppress_logs_and_warning
+@cli_utils.action_cli
 @providers_configuration_loaded
 def pool_import(args):
     """Import pools from the file."""

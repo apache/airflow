@@ -53,6 +53,7 @@ def _list_assets(args, *, session: Session) -> tuple[Any, type[BaseModel]]:
     return assets, AssetResponse
 
 
+@suppress_logs_and_warning
 @cli_utils.action_cli
 @provide_session
 def asset_list(args, *, session: Session = NEW_SESSION) -> None:
@@ -105,6 +106,7 @@ def _detail_asset(args, *, session: Session) -> BaseModel:
     return AssetResponse.model_validate(asset)
 
 
+@suppress_logs_and_warning
 @cli_utils.action_cli
 @provide_session
 def asset_details(args, *, session: Session = NEW_SESSION) -> None:

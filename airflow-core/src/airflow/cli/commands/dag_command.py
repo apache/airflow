@@ -392,8 +392,8 @@ def dag_next_execution(args) -> None:
             print(value)
 
 
-@cli_utils.action_cli
 @suppress_logs_and_warning
+@cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
 def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
@@ -480,8 +480,8 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     )
 
 
-@cli_utils.action_cli
 @suppress_logs_and_warning
+@cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
 def dag_details(args, session: Session = NEW_SESSION):
@@ -502,8 +502,8 @@ def dag_details(args, session: Session = NEW_SESSION):
     )
 
 
-@cli_utils.action_cli
 @suppress_logs_and_warning
+@cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
 def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
@@ -556,8 +556,8 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
         sys.exit(1)
 
 
-@cli_utils.action_cli
 @suppress_logs_and_warning
+@cli_utils.action_cli
 @providers_configuration_loaded
 def dag_report(args) -> None:
     """Display dagbag stats at the command line."""
@@ -591,8 +591,8 @@ def dag_report(args) -> None:
     )
 
 
-@cli_utils.action_cli
 @suppress_logs_and_warning
+@cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
 def dag_list_jobs(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> None:
@@ -622,8 +622,8 @@ def dag_list_jobs(args, dag: DAG | None = None, session: Session = NEW_SESSION) 
     )
 
 
-@cli_utils.action_cli
 @suppress_logs_and_warning
+@cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
 def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> None:
