@@ -1007,6 +1007,12 @@ repos:
         language: python
         pass_filenames: true
         files: ^(airflow-core|airflow-ctl|task-sdk|providers|shared)/.*\.py$
+      - id: check-no-new-airflow-core-utils-modules
+        name: Check that no new modules are added under airflow-core/src/airflow/utils
+        entry: ./scripts/ci/prek/check_no_new_airflow_core_utils_modules.py
+        language: python
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/utils/[^/]+$|^scripts/ci/prek/known_airflow_core_utils_modules\.txt$|^scripts/ci/prek/check_no_new_airflow_core_utils_modules\.py$
       - id: bandit
         name: bandit
         description: "Bandit is a tool for finding common security issues in Python code"
