@@ -681,6 +681,182 @@ class TestResolveBuildRequirements:
         assert call_count == 2
         assert output_path.read_text() == "setuptools==80.9.0\n"
 
+    def test_retries_on_conflict_when_uv_stderr_uses_marker_format(self, tmp_path):
+        """uv diagnostics can render requirement markers between the name and specifier."""
+        build_reqs = {
+            "cffi": {
+                "cffi>=2.0.0; platform_python_implementation != 'PyPy'",
+                "cffi>=1.17,<2.dev0; python_full_version < '3.14' "
+                "and platform_python_implementation != 'PyPy'",
+            },
+            "setuptools": {"setuptools>=70.0"},
+        }
+        output_path = tmp_path / "build-constraints-3.12.txt"
+        config = ConfigParams(
+            airflow_constraints_mode="constraints-source-providers",
+            constraints_github_repository="apache/airflow",
+            default_constraints_branch="main",
+            github_actions=False,
+            python="3.12",
+        )
+
+        call_count = 0
+
+        def mock_run_command(cmd, **kwargs):
+            nonlocal call_count
+            call_count += 1
+
+            class FailResult:
+                returncode = 1
+                stdout = ""
+                stderr = (
+                    "Because you require cffi{platform_python_implementation != 'PyPy'}>=2.0.0 "
+                    "and cffi{python_full_version < '3.14' and platform_python_implementation != "
+                    "'PyPy'}>=1.17,<2.dev0, we can conclude that your requirements are unsatisfiable."
+                )
+
+            if call_count == 1:
+                return FailResult()
+            output_path.write_text("setuptools==80.9.0\n")
+            return _make_success_result()
+
+        with patch("run_generate_constraints.run_command", side_effect=mock_run_command):
+            _resolve_build_requirements(build_reqs, output_path, config)
+
+        assert call_count == 2
+        assert output_path.read_text() == "setuptools==80.9.0\n"
+
+    def test_retries_on_conflict_when_name_uses_underscore_separator(self, tmp_path):
+        """Conflict detection must survive PEP 503 separator normalization.
+
+        ``lines_by_name`` keys are normalized (``pdm-backend``) but uv echoes
+        the raw requirement string back in stderr (``pdm_backend>=...``).
+        A literal regex on the normalized key would miss the underscore form.
+        """
+        build_reqs = {
+            "pdm-backend": {"pdm_backend>=2.0,<3", "pdm_backend>=3.0"},
+            "setuptools": {"setuptools>=70.0"},
+        }
+        output_path = tmp_path / "build-constraints-3.12.txt"
+        config = ConfigParams(
+            airflow_constraints_mode="constraints-source-providers",
+            constraints_github_repository="apache/airflow",
+            default_constraints_branch="main",
+            github_actions=False,
+            python="3.12",
+        )
+
+        call_count = 0
+
+        def mock_run_command(cmd, **kwargs):
+            nonlocal call_count
+            call_count += 1
+
+            class FailResult:
+                returncode = 1
+                stdout = ""
+                stderr = (
+                    "Because you require pdm_backend>=2.0,<3 and pdm_backend>=3.0, "
+                    "we can conclude that your requirements are unsatisfiable."
+                )
+
+            if call_count == 1:
+                return FailResult()
+            output_path.write_text("setuptools==80.9.0\n")
+            return _make_success_result()
+
+        with patch("run_generate_constraints.run_command", side_effect=mock_run_command):
+            _resolve_build_requirements(build_reqs, output_path, config)
+
+        assert call_count == 2
+        assert output_path.read_text() == "setuptools==80.9.0\n"
+
+    def test_raises_when_stderr_mentions_no_known_package(self, tmp_path):
+        """When the resolver fails for a reason unrelated to any candidate
+        build dep, we must NOT silently drop a random package — we must fail
+        loud so a maintainer can investigate.
+        """
+        build_reqs = {
+            "setuptools": {"setuptools>=70.0"},
+            "hatchling": {"hatchling>=1.20"},
+        }
+        output_path = tmp_path / "build-constraints-3.12.txt"
+        config = ConfigParams(
+            airflow_constraints_mode="constraints-source-providers",
+            constraints_github_repository="apache/airflow",
+            default_constraints_branch="main",
+            github_actions=False,
+            python="3.12",
+        )
+
+        def mock_run_command(cmd, **kwargs):
+            class FailResult:
+                returncode = 1
+                stdout = ""
+                stderr = (
+                    "error: Failed to download distribution: connection refused\n"
+                    "Caused by: network unreachable for files.pythonhosted.org"
+                )
+
+            return FailResult()
+
+        with patch("run_generate_constraints.run_command", side_effect=mock_run_command):
+            with pytest.raises(RuntimeError, match="uv pip compile failed"):
+                _resolve_build_requirements(build_reqs, output_path, config)
+
+    def test_conflict_resolution_follows_stderr_order(self, tmp_path):
+        """When stderr names multiple candidate packages, the first one in
+        stderr is removed even if another candidate appears earlier in the
+        input order.
+        """
+        build_reqs = {
+            # ``setuptools`` is inserted first, but the conflict is on ``cython``.
+            "setuptools": {"setuptools>=70.0"},
+            "hatchling": {"hatchling>=1.20"},
+            "cython": {"cython>=3.0,<3.1", "cython>=3.1.2,<3.3.0"},
+        }
+        output_path = tmp_path / "build-constraints-3.12.txt"
+        config = ConfigParams(
+            airflow_constraints_mode="constraints-source-providers",
+            constraints_github_repository="apache/airflow",
+            default_constraints_branch="main",
+            github_actions=False,
+            python="3.12",
+        )
+
+        call_count = 0
+        captured_reqs: list[str] = []
+
+        def mock_run_command(cmd, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            reqs_file = Path(cmd[3])
+            captured_reqs.append(reqs_file.read_text())
+
+            class FailResult:
+                returncode = 1
+                stdout = ""
+                stderr = (
+                    "Because you require cython>=3.0,<3.1 and cython>=3.1.2,<3.3.0, "
+                    "and because you require setuptools>=70.0 and setuptools<60.0, "
+                    "we can conclude that your requirements are unsatisfiable."
+                )
+
+            if call_count == 1:
+                return FailResult()
+            output_path.write_text("setuptools==80.9.0\nhatchling==1.29.0\n")
+            return _make_success_result()
+
+        with patch("run_generate_constraints.run_command", side_effect=mock_run_command):
+            _resolve_build_requirements(build_reqs, output_path, config)
+
+        assert call_count == 2
+        # The retry must contain setuptools and hatchling but NOT cython
+        retry_lines = sorted(captured_reqs[1].strip().split("\n"))
+        assert "setuptools>=70.0" in retry_lines
+        assert "hatchling>=1.20" in retry_lines
+        assert not any("cython" in line for line in retry_lines)
+
 
 # ===========================================================================
 # Phase 3 tests: resolve_build_constraints_file, _get_build_constraints_flags,
