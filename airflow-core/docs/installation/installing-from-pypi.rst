@@ -204,6 +204,11 @@ To use build constraints with ``pip`` (requires pip 25.3 or later):
     introduced. The runtime constraints (``--constraint``) remain the primary mechanism for reproducible
     installations.
 
+    Build constraints are available only for constraint branches generated after build constraints support
+    was introduced. If you are installing an older Airflow release whose constraint branch does not contain
+    ``build-constraints-${PYTHON_VERSION}.txt``, omit the ``--build-constraint`` or ``--build-constraints``
+    flag and use only the runtime constraints file.
+
 Upgrading and installing dependencies (including providers)
 ===========================================================
 
