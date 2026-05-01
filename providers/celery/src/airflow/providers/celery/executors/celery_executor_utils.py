@@ -432,10 +432,9 @@ def send_workload_to_executor(
     # If timeout fires during import, redis module gets partially cached in sys.modules
     # without the 'client' submodule bound, causing AttributeError on subsequent access.
     # See: https://github.com/apache/airflow/issues/41359
-    try:
+    # Redis not installed or not using Redis backend.
+    with contextlib.suppress(ImportError):
         import redis.client  # noqa: F401
-    except ImportError:
-        pass  # Redis not installed or not using Redis backend.
 
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
@@ -462,10 +461,9 @@ def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | Excep
     """
     # Pre-import redis.client to avoid SIGALRM interrupting module initialization.
     # See: https://github.com/apache/airflow/issues/41359
-    try:
+    # Redis not installed or not using Redis backend.
+    with contextlib.suppress(ImportError):
         import redis.client  # noqa: F401
-    except ImportError:
-        pass  # Redis not installed or not using Redis backend.
 
     try:
         with timeout(seconds=OPERATION_TIMEOUT):

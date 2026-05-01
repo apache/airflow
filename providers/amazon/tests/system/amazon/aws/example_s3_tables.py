@@ -32,6 +32,8 @@ else:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
+import contextlib
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_s3tables"
@@ -83,10 +85,8 @@ with DAG(
         import boto3
 
         client = boto3.client("s3tables")
-        try:
+        with contextlib.suppress(client.exceptions.NotFoundException):
             client.delete_namespace(tableBucketARN=table_bucket_arn, namespace=namespace)
-        except client.exceptions.NotFoundException:
-            pass
 
     @task(trigger_rule=TriggerRule.ALL_DONE)
     def delete_table_bucket(table_bucket_arn: str):
@@ -94,10 +94,8 @@ with DAG(
         import boto3
 
         client = boto3.client("s3tables")
-        try:
+        with contextlib.suppress(client.exceptions.NotFoundException):
             client.delete_table_bucket(tableBucketARN=table_bucket_arn)
-        except client.exceptions.NotFoundException:
-            pass
 
     bucket_arn = create_table_bucket(name=bucket_name)
     setup_namespace = create_namespace(table_bucket_arn=bucket_arn, namespace=namespace)
