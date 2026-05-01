@@ -223,3 +223,32 @@ class S3TablesCreateTableBucketOperator(AwsBaseOperator[S3TablesHook]):
                 raise
         self.log.info("Table bucket %s: %s", self.table_bucket_name, bucket_arn)
         return bucket_arn
+
+
+class S3TablesDeleteTableBucketOperator(AwsBaseOperator[S3TablesHook]):
+    """
+    Delete an Amazon S3 Tables table bucket.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3TablesDeleteTableBucketOperator`
+
+    :param table_bucket_arn: The ARN of the table bucket to delete. (templated)
+    """
+
+    template_fields: Sequence[str] = aws_template_fields("table_bucket_arn")
+    aws_hook_class = S3TablesHook
+
+    def __init__(
+        self,
+        *,
+        table_bucket_arn: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.table_bucket_arn = table_bucket_arn
+
+    def execute(self, context: Context) -> None:
+        self.log.info("Deleting S3 Tables table bucket %s", self.table_bucket_arn)
+        self.hook.conn.delete_table_bucket(tableBucketARN=self.table_bucket_arn)
+        self.log.info("Deleted table bucket %s", self.table_bucket_arn)
