@@ -222,7 +222,7 @@ class EdgeExecutor(BaseExecutor):
                 )
             )
 
-    def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
+    def _process_workloads(self, _workloads: Sequence[Any]) -> None:
         """
         No-op: EdgeExecutor does not use the BaseExecutor workload pipeline.
 
