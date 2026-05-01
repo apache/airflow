@@ -53,7 +53,7 @@ export const AssetPanelButtons = ({ dependencyType, setDependencyType }: Props) 
             {translate("assets:taskDependencies")}
           </Button>
         </ButtonGroup>
-        <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
+        <Popover.Root positioning={{ placement: "bottom-end" }}>
           <Popover.Trigger asChild>
             <IconButton
               aria-label={translate("dag:panel.buttons.options")}

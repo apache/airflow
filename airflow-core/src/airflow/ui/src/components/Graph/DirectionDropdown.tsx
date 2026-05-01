@@ -17,7 +17,6 @@
  * under the License.
  */
 import { createListCollection, Select, type SelectValueChangeDetails } from "@chakra-ui/react";
-import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -28,9 +27,9 @@ export type Direction = "DOWN" | "LEFT" | "RIGHT" | "UP";
 export const DirectionDropdown = ({ graphId }: { readonly graphId: string }) => {
   const { t: translate } = useTranslation(["components", "dag"]);
 
-  const [direction, setDirection] = useLocalStorage<Direction>(directionKey(graphId ?? ""), "RIGHT");
+  const [direction, setDirection] = useLocalStorage<Direction>(directionKey(graphId), "RIGHT");
 
-  const directionOptions = (translate: TFunction) =>
+  const directionOptions = () =>
     createListCollection({
       items: [
         { label: translate("graph.directionRight"), value: "RIGHT" as Direction },
@@ -51,7 +50,7 @@ export const DirectionDropdown = ({ graphId }: { readonly graphId: string }) => 
   return (
     <Select.Root
       // @ts-expect-error The expected option type is incorrect
-      collection={directionOptions(translate)}
+      collection={directionOptions()}
       onValueChange={handleDirectionUpdate}
       size="sm"
       value={[direction]}
@@ -67,7 +66,7 @@ export const DirectionDropdown = ({ graphId }: { readonly graphId: string }) => 
       </Select.Control>
       <Select.Positioner>
         <Select.Content>
-          {directionOptions(translate).items.map((option) => (
+          {directionOptions().items.map((option) => (
             <Select.Item item={option} key={option.value}>
               {option.label}
             </Select.Item>
