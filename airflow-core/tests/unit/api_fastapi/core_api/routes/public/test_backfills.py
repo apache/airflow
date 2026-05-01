@@ -757,6 +757,39 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
         response_json = response.json()
         assert response_json["backfills"] == expected_dates
 
+    def test_create_backfill_dry_run_rejects_invalid_conf(self, session, dag_maker, test_client):
+        from airflow.sdk import Param
+
+        with dag_maker(
+            session=session,
+            dag_id="TEST_DAG_2",
+            schedule="0 0 * * *",
+            start_date=pendulum.parse("2024-01-01"),
+            params={"validated_number": Param(1, type="integer", minimum=1, maximum=10)},
+        ) as dag:
+            EmptyOperator(task_id="mytask")
+
+        session.commit()
+
+        from_date = pendulum.parse("2024-01-01")
+        to_date = pendulum.parse("2024-01-05")
+
+        response = test_client.post(
+            url="/backfills/dry_run",
+            json={
+                "dag_id": dag.dag_id,
+                "from_date": to_iso(from_date),
+                "to_date": to_iso(to_date),
+                "max_active_runs": 5,
+                "run_backwards": False,
+                "dag_run_conf": {"validated_number": 99},
+                "reprocess_behavior": "none",
+            },
+        )
+
+        assert response.status_code == 422
+        assert "Invalid input for param validated_number" in response.json().get("detail")
+
     @pytest.mark.parametrize(
         ("repro_act", "repro_exp", "run_backwards", "status_code"),
         [
