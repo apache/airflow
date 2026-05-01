@@ -268,6 +268,29 @@ ARG_DAG_ID = Arg(
     help="The Dag ID of the Dag to pause or unpause",
 )
 
+# Task Commands Args
+ARG_TASK_DAG_ID = Arg(
+    flags=("--dag-id",),
+    type=str,
+    dest="dag_id",
+    required=True,
+    help="The Dag ID",
+)
+ARG_DAG_RUN_ID = Arg(
+    flags=("--dag-run-id",),
+    type=str,
+    dest="dag_run_id",
+    required=True,
+    help="The Dag Run ID",
+)
+ARG_TASK_ID = Arg(
+    flags=("--task-id",),
+    type=str,
+    dest="task_id",
+    required=True,
+    help="The Task ID",
+)
+
 ARG_ACTION_ON_EXISTING_KEY = Arg(
     flags=("-a", "--action-on-existing-key"),
     type=str,
@@ -953,6 +976,20 @@ VARIABLE_COMMANDS = (
     ),
 )
 
+TASK_COMMANDS = (
+    ActionCommand(
+        name="state",
+        help="Get the state of a task instance",
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.task_state"),
+        args=(
+            ARG_TASK_DAG_ID,
+            ARG_DAG_RUN_ID,
+            ARG_TASK_ID,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="auth",
@@ -994,6 +1031,11 @@ core_commands: list[CLICommand] = [
         name="variables",
         help="Manage Airflow variables",
         subcommands=VARIABLE_COMMANDS,
+    ),
+    GroupCommand(
+        name="tasks",
+        help="Manage Airflow tasks",
+        subcommands=TASK_COMMANDS,
     ),
 ]
 # Add generated group commands
