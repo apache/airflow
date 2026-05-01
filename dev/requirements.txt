@@ -1,5 +1,5 @@
-click>=8.0
-jinja2>=2.11.3
+click>=8.3.3
+jinja2>=3.1.6
 keyring==25.7.0
 PyGithub
 jsonpath_ng

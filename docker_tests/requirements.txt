@@ -1,6 +1,6 @@
-pytest>=8.2,<10
+pytest>=9.0.3,<10
 pytest-xdist
 # Requests 3 if it will be released, will be heavily breaking.
-requests>=2.27.0,<3
-python-on-whales>=0.70.0
+requests>=2.33.1,<3
+python-on-whales>=0.81.0
 hatchling==1.29.0
