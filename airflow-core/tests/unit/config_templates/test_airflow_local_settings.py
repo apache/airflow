@@ -127,12 +127,7 @@ def test_mixed_kwargs_split_correctly(remote_base, remote_io_path, restore_local
         assert "backup_count" not in mock_remote_io.call_args.kwargs
 
 
-def test_file_handler_params_matches_init():
-    """Guard: _FILE_HANDLER_PARAMS must stay in sync with FileTaskHandler.__init__."""
+def test_file_handler_params_introspected_correctly():
+    """The introspected FileTaskHandler params include the expected kwargs."""
     init_params = set(inspect.signature(FileTaskHandler.__init__).parameters) - {"self", "base_log_folder"}
-    expected = frozenset({"max_bytes", "backup_count", "delay"})
-    assert init_params == expected, (
-        f"FileTaskHandler.__init__ params changed. "
-        f"Update _FILE_HANDLER_PARAMS in airflow_local_settings.py. "
-        f"Expected {expected}, got {init_params}"
-    )
+    assert {"max_bytes", "backup_count", "delay"} <= init_params

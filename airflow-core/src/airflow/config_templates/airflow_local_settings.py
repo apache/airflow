@@ -160,11 +160,17 @@ if REMOTE_LOGGING:
             f"{type(remote_task_handler_kwargs)}"
         )
     _all_kwargs = cast("dict[str, Any]", remote_task_handler_kwargs)
-    # Params accepted by FileTaskHandler.__init__ (excluding base_log_folder, set separately).
-    # Everything else is forwarded to the RemoteLogIO constructor.
-    _FILE_HANDLER_PARAMS = frozenset({"max_bytes", "backup_count", "delay"})
-    _file_handler_kwargs = {k: v for k, v in _all_kwargs.items() if k in _FILE_HANDLER_PARAMS}
-    _io_kwargs = {k: v for k, v in _all_kwargs.items() if k not in _FILE_HANDLER_PARAMS}
+    # Dynamically determine which kwargs belong to FileTaskHandler vs RemoteLogIO.
+    import inspect
+
+    from airflow.utils.log.file_task_handler import FileTaskHandler
+
+    _fth_params = frozenset(inspect.signature(FileTaskHandler.__init__).parameters) - {
+        "self",
+        "base_log_folder",
+    }
+    _file_handler_kwargs = {k: v for k, v in _all_kwargs.items() if k in _fth_params}
+    _io_kwargs = {k: v for k, v in _all_kwargs.items() if k not in _fth_params}
     delete_local_copy = conf.getboolean("logging", "delete_local_logs")
 
     if remote_base_log_folder.startswith("s3://"):
@@ -182,7 +188,6 @@ if REMOTE_LOGGING:
                 | _io_kwargs,
             )
         )
-        _io_kwargs = {}
 
     elif remote_base_log_folder.startswith("cloudwatch://"):
         from airflow.providers.amazon.aws.log.cloudwatch_task_handler import CloudWatchRemoteLogIO
@@ -201,7 +206,7 @@ if REMOTE_LOGGING:
                 | _io_kwargs,
             )
         )
-        _io_kwargs = {}
+
     elif remote_base_log_folder.startswith("gs://"):
         from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO
 
@@ -220,7 +225,7 @@ if REMOTE_LOGGING:
                 | _io_kwargs,
             )
         )
-        _io_kwargs = {}
+
     elif remote_base_log_folder.startswith("wasb"):
         from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbRemoteLogIO
 
@@ -244,7 +249,7 @@ if REMOTE_LOGGING:
                 | _io_kwargs,
             )
         )
-        _io_kwargs = {}
+
     elif remote_base_log_folder.startswith("stackdriver://"):
         key_path = conf.get_mandatory_value("logging", "GOOGLE_KEY_PATH", fallback=None)
         # stackdriver:///airflow-tasks => airflow-tasks
@@ -275,7 +280,7 @@ if REMOTE_LOGGING:
                 | _io_kwargs,
             )
         )
-        _io_kwargs = {}
+
     elif remote_base_log_folder.startswith("hdfs://"):
         from airflow.providers.apache.hdfs.log.hdfs_task_handler import HdfsRemoteLogIO
 
@@ -292,7 +297,7 @@ if REMOTE_LOGGING:
                 | _io_kwargs,
             )
         )
-        _io_kwargs = {}
+
     elif ELASTICSEARCH_HOST:
         from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchRemoteLogIO
 
