@@ -4640,6 +4640,14 @@ paths:
           type: integer
           default: -1
           title: Map Index
+      - name: try_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Try Number
       responses:
         '200':
           description: Successful Response
