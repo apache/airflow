@@ -1199,7 +1199,7 @@ export type NewTaskResponse = {
 };
 
 /**
- * Request body for Clear Task Instances endpoint.
+ * Request body for patching task instance state.
  */
 export type PatchTaskInstanceBody = {
     new_state?: TaskInstanceState | null;
@@ -3139,6 +3139,7 @@ export type GetExtraLinksData = {
     dagRunId: string;
     mapIndex?: number;
     taskId: string;
+    tryNumber?: number | null;
 };
 
 export type GetExtraLinksResponse = ExtraLinkCollectionResponse;
@@ -3399,7 +3400,7 @@ export type GetTaskInstancesData = {
      */
     taskDisplayNamePattern?: string | null;
     /**
-     * Prefix match on task display name: optional ``_task_display_property_value`` else ``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly alternative to ``task_display_name_pattern``. On large databases, combine with ``dag_id_prefix_pattern`` (or a specific DAG in the path) so ``(dag_id, task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all. Trailing non-alphanumeric characters in the term are stripped before matching so the range scan stays index-compatible under locale-aware collations.
+     * Prefix match on task display name: optional ``_task_display_property_value`` else ``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly alternative to ``task_display_name_pattern``. On large databases, combine with ``dag_id_prefix_pattern`` (or a specific Dag in the path) so ``(dag_id, task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all. Trailing non-alphanumeric characters in the term are stripped before matching so the range scan stays index-compatible under locale-aware collations.
      */
     taskDisplayNamePrefixPattern?: string | null;
     /**
@@ -3459,6 +3460,25 @@ export type PostClearTaskInstancesData = {
 };
 
 export type PostClearTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type PatchTaskGroupInstancesData = {
+    dagId: string;
+    dagRunId: string;
+    groupId: string;
+    requestBody: PatchTaskInstanceBody;
+    updateMask?: Array<(string)> | null;
+};
+
+export type PatchTaskGroupInstancesResponse = TaskInstanceCollectionResponse;
+
+export type PatchTaskGroupInstancesDryRunData = {
+    dagId: string;
+    dagRunId: string;
+    groupId: string;
+    requestBody: PatchTaskInstanceBody;
+};
+
+export type PatchTaskGroupInstancesDryRunResponse = TaskInstanceCollectionResponse;
 
 export type PatchTaskInstanceDryRunByMapIndexData = {
     dagId: string;
@@ -6127,6 +6147,72 @@ export type $OpenApiTs = {
                  * Conflict
                  */
                 409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}': {
+        patch: {
+            req: PatchTaskGroupInstancesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}/dry_run': {
+        patch: {
+            req: PatchTaskGroupInstancesDryRunData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

@@ -23,7 +23,7 @@ import json
 import time
 from collections.abc import Sequence
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast, overload
 
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
@@ -43,7 +43,7 @@ from airflow.providers.common.compat.sdk import (
 )
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.utils.openlineage import safe_inject_openlineage_properties_into_dagrun_conf
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator, is_arg_set
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -127,6 +127,7 @@ class TriggerDagRunOperator(BaseOperator):
         If not provided, a run ID will be automatically generated.
     :param conf: Configuration for the DAG run (templated).
     :param logical_date: Logical date for the triggered DAG (templated).
+    :param run_after: The date before which the triggered DAG should not run.
     :param reset_dag_run: Whether clear existing DAG run if already exists.
         This is useful when backfill or rerun an existing DAG run.
         This only resets (not recreates) the DAG run.
@@ -162,6 +163,13 @@ class TriggerDagRunOperator(BaseOperator):
         "wait_for_completion",
         "skip_when_already_exists",
     )
+
+    attributes_not_supported_in_airflow_2 = {
+        # `run_after` uses NOTSET here so we can detect whether the user
+        # explicitly provided it and warn in Airflow 2.
+        "run_after": NOTSET,
+        "note": None,
+    }
     template_fields_renderers = {"conf": "py"}
     ui_color = "#ffefeb"
     operator_extra_links = [TriggerDagRunLink()]
@@ -173,6 +181,7 @@ class TriggerDagRunOperator(BaseOperator):
         trigger_run_id: str | None = None,
         conf: dict | None = None,
         logical_date: str | datetime.datetime | None | ArgNotSet = NOTSET,
+        run_after: str | datetime.datetime | None | ArgNotSet = NOTSET,
         reset_dag_run: bool = False,
         wait_for_completion: bool = False,
         poke_interval: int = 60,
@@ -205,27 +214,29 @@ class TriggerDagRunOperator(BaseOperator):
         self.openlineage_inject_parent_info = openlineage_inject_parent_info
         self.note = note
         self.deferrable = deferrable
+        logical_date = _validate_datetime_param("logical_date", logical_date)
+        run_after = _validate_datetime_param("run_after", run_after)
         self.logical_date = logical_date
-        if logical_date is NOTSET:
-            self.logical_date = NOTSET
-        elif logical_date is None or isinstance(logical_date, (str, datetime.datetime)):
-            self.logical_date = logical_date
-        else:
-            raise TypeError(
-                f"Expected str, datetime.datetime, or None for parameter 'logical_date'. Got {type(logical_date).__name__}"
-            )
-
+        self.run_after = run_after
         if fail_when_dag_is_paused and AIRFLOW_V_3_0_PLUS:
             raise NotImplementedError("Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.x")
 
     def execute(self, context: Context):
         if self.logical_date is NOTSET:
-            # If no logical_date is provided we will set utcnow()
-            parsed_logical_date = timezone.utcnow()
-        elif self.logical_date is None or isinstance(self.logical_date, datetime.datetime):
-            parsed_logical_date = self.logical_date  # type: ignore
-        elif isinstance(self.logical_date, str):
-            parsed_logical_date = timezone.parse(self.logical_date)
+            if self.run_after is not NOTSET:
+                parsed_logical_date = None
+            else:
+                # If no logical_date is provided we will set utcnow()
+                parsed_logical_date = timezone.utcnow()
+        else:
+            logical_date = cast("str | datetime.datetime | None", self.logical_date)
+            parsed_logical_date = _parse_datetime_param(logical_date)
+
+        if self.run_after is NOTSET:
+            parsed_run_after = parsed_logical_date
+        else:
+            run_after = cast("str | datetime.datetime | None", self.run_after)
+            parsed_run_after = _parse_datetime_param(run_after)
 
         try:
             if self.conf and isinstance(self.conf, str):
@@ -247,7 +258,7 @@ class TriggerDagRunOperator(BaseOperator):
                 run_id = DagRun.generate_run_id(
                     run_type=DagRunType.MANUAL,
                     logical_date=parsed_logical_date,
-                    run_after=parsed_logical_date or timezone.utcnow(),
+                    run_after=parsed_run_after or timezone.utcnow(),
                 )
             else:
                 run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_logical_date or timezone.utcnow())  # type: ignore[misc,call-arg]
@@ -267,14 +278,17 @@ class TriggerDagRunOperator(BaseOperator):
 
         if AIRFLOW_V_3_0_PLUS:
             self._trigger_dag_af_3(
-                context=context, run_id=self.trigger_run_id, parsed_logical_date=parsed_logical_date
+                context=context,
+                run_id=self.trigger_run_id,
+                parsed_logical_date=parsed_logical_date,
+                parsed_run_after=parsed_run_after if self.run_after is not NOTSET else None,
             )
         else:
             self._trigger_dag_af_2(
                 context=context, run_id=self.trigger_run_id, parsed_logical_date=parsed_logical_date
             )
 
-    def _trigger_dag_af_3(self, context, run_id, parsed_logical_date):
+    def _trigger_dag_af_3(self, context, run_id, parsed_logical_date, parsed_run_after=None):
         from airflow.providers.common.compat.sdk import DagRunTriggerException
 
         kwargs_accepted = dict(
@@ -291,16 +305,28 @@ class TriggerDagRunOperator(BaseOperator):
             deferrable=self.deferrable,
         )
 
-        if self.note and "note" in inspect.signature(DagRunTriggerException.__init__).parameters:
+        parameters = inspect.signature(DagRunTriggerException.__init__).parameters
+        if self.note and "note" in parameters:
             kwargs_accepted["note"] = self.note
+
+        if parsed_run_after and "run_after" in parameters:
+            kwargs_accepted["run_after"] = parsed_run_after
 
         raise DagRunTriggerException(**kwargs_accepted)
 
     def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
         try:
-            if self.note:
-                self.log.warning("Parameter 'note' is not supported in Airflow 2.x and will be ignored.")
+            unsupported_parameters = []
+            for attr, default_value in self.attributes_not_supported_in_airflow_2.items():
+                value = getattr(self, attr, default_value)
+                if value is not default_value:
+                    unsupported_parameters.append(attr)
 
+            if unsupported_parameters:
+                self.log.warning(
+                    "The following parameters are not supported in Airflow 2.x and will be ignored: %s",
+                    ", ".join(unsupported_parameters),
+                )
             dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,
                 run_id=run_id,
@@ -453,3 +479,42 @@ class TriggerDagRunOperator(BaseOperator):
                 f"{self.trigger_dag_id} return {state} which is not in {self.failed_states}"
                 f" or {self.allowed_states}"
             )
+
+
+@overload
+def _validate_datetime_param(name: str, value: ArgNotSet) -> ArgNotSet: ...
+@overload
+def _validate_datetime_param(name: str, value: None) -> None: ...
+@overload
+def _validate_datetime_param(name: str, value: str) -> str: ...
+@overload
+def _validate_datetime_param(name: str, value: datetime.datetime) -> datetime.datetime: ...
+
+
+def _validate_datetime_param(
+    name: str,
+    value: str | datetime.datetime | None | ArgNotSet,
+) -> str | datetime.datetime | None | ArgNotSet:
+    if not is_arg_set(value):
+        return NOTSET
+    if value is None or isinstance(value, (str, datetime.datetime)):
+        return value
+    raise TypeError(
+        f"Expected str, datetime.datetime, or None for parameter '{name}'. Got {type(value).__name__}"
+    )
+
+
+@overload
+def _parse_datetime_param(value: None) -> None: ...
+@overload
+def _parse_datetime_param(value: datetime.datetime) -> datetime.datetime: ...
+@overload
+def _parse_datetime_param(value: str) -> datetime.datetime: ...
+
+
+def _parse_datetime_param(
+    value: str | datetime.datetime | None,
+) -> datetime.datetime | None:
+    if value is None or isinstance(value, datetime.datetime):
+        return value
+    return timezone.parse(value)

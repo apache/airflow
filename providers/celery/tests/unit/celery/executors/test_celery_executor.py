@@ -53,6 +53,16 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_2_PLUS,
 )
 
+try:
+    # Check whether a module-level function from stats is importable.
+    from airflow._shared.observability.metrics.stats import gauge  # noqa: F401
+
+    stats_reference = "airflow._shared.observability.metrics.stats"
+    _executor_name_tag_key = "executor_class_name"
+except ImportError:
+    stats_reference = "airflow.executors.base_executor.Stats"
+    _executor_name_tag_key = "name"
+
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
 if AIRFLOW_V_3_2_PLUS:
@@ -175,19 +185,25 @@ class TestCeleryExecutor:
 
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.sync")
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.trigger_tasks")
-    @mock.patch("airflow.executors.base_executor.Stats.gauge")
+    @mock.patch(f"{stats_reference}.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = celery_executor.CeleryExecutor()
         executor.heartbeat()
         calls = [
             mock.call(
-                "executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "CeleryExecutor"}
+                "executor.open_slots",
+                value=mock.ANY,
+                tags={"status": "open", _executor_name_tag_key: "CeleryExecutor"},
             ),
             mock.call(
-                "executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "CeleryExecutor"}
+                "executor.queued_tasks",
+                value=mock.ANY,
+                tags={"status": "queued", _executor_name_tag_key: "CeleryExecutor"},
             ),
             mock.call(
-                "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "CeleryExecutor"}
+                "executor.running_tasks",
+                value=mock.ANY,
+                tags={"status": "running", _executor_name_tag_key: "CeleryExecutor"},
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)

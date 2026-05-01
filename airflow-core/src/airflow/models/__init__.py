@@ -61,6 +61,7 @@ def import_all_models():
         __getattr__(name)
 
     import airflow.models.asset
+    import airflow.models.asset_state
     import airflow.models.backfill
     import airflow.models.dag_favorite
     import airflow.models.dag_version
@@ -71,6 +72,7 @@ def import_all_models():
     import airflow.models.errors
     import airflow.models.revoked_token
     import airflow.models.serialized_dag
+    import airflow.models.task_state
     import airflow.models.taskinstancehistory
     import airflow.models.tasklog
     import airflow.models.team

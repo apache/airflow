@@ -23,8 +23,8 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useGanttServiceGetGanttData } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
+import { useGroups } from "src/context/groups";
 import { useHover } from "src/context/hover";
-import { useOpenGroups } from "src/context/openGroups";
 import { useTimezone } from "src/context/timezone";
 import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import {
@@ -71,7 +71,7 @@ export const Gantt = ({
 
   const { dagId = "", runId = "" } = useParams();
   const [searchParams] = useSearchParams();
-  const { openGroupIds, toggleGroupId } = useOpenGroups();
+  const { openGroupIds, toggleGroupId } = useGroups();
   const { selectedTimezone } = useTimezone();
   const { setHoveredTaskId } = useHover();
 

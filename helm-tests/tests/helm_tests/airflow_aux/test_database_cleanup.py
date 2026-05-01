@@ -281,22 +281,23 @@ class TestDatabaseCleanup:
         docs = render_chart(
             values={
                 "env": all_containers_envs,
-                "applyCustomEnv": custom_envs_enabled,
                 "databaseCleanup": {
                     "enabled": True,
+                    "applyCustomEnv": custom_envs_enabled,
                     "env": cleanup_envs,
                 },
             },
             show_only=["templates/database-cleanup/database-cleanup-cronjob.yaml"],
         )
+        envs = jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].env", docs[0])
+
         if cleanup_envs:
-            assert cleanup_envs[0] in jmespath.search(
-                "spec.jobTemplate.spec.template.spec.containers[0].env", docs[0]
-            )
+            assert cleanup_envs[0] in envs
         if all_containers_envs:
-            assert all_containers_envs[0] in jmespath.search(
-                "spec.jobTemplate.spec.template.spec.containers[0].env", docs[0]
-            )
+            if custom_envs_enabled:
+                assert all_containers_envs[0] in envs
+            else:
+                assert all_containers_envs[0] not in envs
 
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])

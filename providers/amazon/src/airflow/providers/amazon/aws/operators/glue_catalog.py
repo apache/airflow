@@ -107,3 +107,47 @@ class GlueCatalogCreateDatabaseOperator(AwsBaseOperator[AwsBaseHook]):
         else:
             self.log.info("Created Glue Catalog database: %s", self.database_name)
         return self.database_name
+
+
+class GlueCatalogDeleteDatabaseOperator(AwsBaseOperator[AwsBaseHook]):
+    """
+    Delete a database from the AWS Glue Data Catalog.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GlueCatalogDeleteDatabaseOperator`
+
+    :param database_name: The name of the database to delete.
+    :param catalog_id: The ID of the Data Catalog. Defaults to the account ID.
+    """
+
+    aws_hook_class = AwsBaseHook
+    template_fields: tuple[str, ...] = (
+        *AwsBaseOperator.template_fields,
+        "database_name",
+    )
+
+    def __init__(
+        self,
+        *,
+        database_name: str,
+        catalog_id: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.database_name = database_name
+        self.catalog_id = catalog_id
+
+    @property
+    def _hook_parameters(self) -> dict[str, Any]:
+        return {**super()._hook_parameters, "client_type": "glue"}
+
+    def execute(self, context: Context) -> None:
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "Name": self.database_name,
+                "CatalogId": self.catalog_id,
+            }
+        )
+        self.hook.conn.delete_database(**kwargs)
+        self.log.info("Deleted Glue Catalog database: %s", self.database_name)

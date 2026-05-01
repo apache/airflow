@@ -24,8 +24,8 @@ import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { TaskName } from "src/components/TaskName";
+import { useGroups } from "src/context/groups";
 import { useHover } from "src/context/hover";
-import { useOpenGroups } from "src/context/openGroups";
 
 import { ROW_HEIGHT } from "./constants";
 import type { GridTask } from "./utils";
@@ -42,7 +42,7 @@ const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
   const { t: translate } = useTranslation("dag");
   const { hoveredTaskId, setHoveredTaskId } = useHover();
-  const { toggleGroupId } = useOpenGroups();
+  const { toggleGroupId } = useGroups();
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 

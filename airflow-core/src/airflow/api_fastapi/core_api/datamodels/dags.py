@@ -33,6 +33,7 @@ from pydantic import (
     field_validator,
 )
 
+from airflow._shared.module_loading import qualname
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_partial_model
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
@@ -42,6 +43,11 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from airflow.serialization.definitions.param import SerializedParamsDict
+
+
+def _is_response_safe_pod_override(value: Any) -> bool:
+    """Whether a pod_override value is already safe to preserve in the response."""
+    return value is None or isinstance(value, str | int | float | Mapping | list)
 
 
 @cache
@@ -215,6 +221,37 @@ class DAGDetailsResponse(DAGResponse):
         if doc_md is None:
             return None
         return inspect.cleandoc(doc_md)
+
+    @field_validator("default_args", mode="before")
+    @classmethod
+    def get_default_args(cls, default_args: Mapping | None) -> Mapping | None:
+        """
+        Sanitize default_args for the API response.
+
+        Targets the common case where ``executor_config["pod_override"]`` is a
+        Kubernetes ``V1Pod``: when the value is not a JSON primitive
+        (``None``/``str``/``int``/``float``) or a ``Mapping``/``list``, it is
+        rewritten to a fully-qualified type-name string so the response stays
+        valid JSON. The container check is shallow — a ``Mapping`` or ``list``
+        whose contents are themselves non-serializable (e.g. nested ``V1Pod``)
+        will still raise during response serialization, as will any other
+        non-JSON values elsewhere in ``default_args``.
+        """
+        if default_args is None:
+            return None
+        executor_config = default_args.get("executor_config")
+        if not (isinstance(executor_config, Mapping) and "pod_override" in executor_config):
+            return default_args
+
+        pod_override = executor_config["pod_override"]
+        if _is_response_safe_pod_override(pod_override):
+            return default_args
+
+        sanitized_executor_config = dict(executor_config)
+        sanitized_executor_config["pod_override"] = qualname(pod_override)
+        result = dict(default_args)
+        result["executor_config"] = sanitized_executor_config
+        return result
 
     @field_validator("params", mode="before")
     @classmethod

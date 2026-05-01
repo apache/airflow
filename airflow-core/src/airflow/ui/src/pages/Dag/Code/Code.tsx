@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* eslint-disable max-lines */
 import { Box, Button, Heading, HStack, Link, VStack } from "@chakra-ui/react";
 import Editor, { type EditorProps } from "@monaco-editor/react";
 import { useState } from "react";

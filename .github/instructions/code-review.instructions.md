@@ -2,6 +2,8 @@
 applyTo: "**"
 excludeAgent: "coding-agent"
 ---
+<!-- SPDX-License-Identifier: Apache-2.0
+     https://www.apache.org/licenses/LICENSE-2.0 -->
 
 # Airflow Code Review Instructions
 

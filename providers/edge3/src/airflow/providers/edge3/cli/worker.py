@@ -388,6 +388,7 @@ class EdgeWorker:
                 server=self._execution_api_server_url,
                 log_path=workload.log_path,
             )
+            results_queue.put("OK")
             return 0
         except Exception as e:
             logger.exception("Task execution failed")
@@ -540,30 +541,35 @@ class EdgeWorker:
             self.background_tasks.add(task)
             task.add_done_callback(self.background_tasks.discard)
 
-        while job.is_running:
+        while job.is_running and results_queue.empty():
             await self._push_logs_in_chunks(job)
             for _ in range(0, self.job_poll_interval * 10):
                 await sleep(0.1)
                 if not job.is_running:
                     break
         await self._push_logs_in_chunks(job)
+        supervisor_msg = (
+            "(Unknown error, no exception details available)"
+            if results_queue.empty()
+            else results_queue.get()
+        )
+        # Ensure that supervisor really ended after we grabbed results from queue
+        while job.is_running:
+            await sleep(0.1)
 
         self.jobs.remove(job)
         if job.is_success:
             logger.info("Job completed: %s", job.edge_job.identifier)
             await jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
         else:
-            if results_queue.empty():
-                ex_txt = "(Unknown error, no exception details available)"
-            else:
-                ex = results_queue.get()
-                ex_txt = "\n".join(traceback.format_exception(ex))
-            logger.error("Job failed: %s with:\n%s", job.edge_job.identifier, ex_txt)
+            if isinstance(supervisor_msg, Exception):
+                supervisor_msg = "\n".join(traceback.format_exception(supervisor_msg))
+            logger.error("Job failed: %s with:\n%s", job.edge_job.identifier, supervisor_msg)
             # Push it upwards to logs for better diagnostic as well
             await logs_push(
                 task=job.edge_job.key,
                 log_chunk_time=timezone.utcnow(),
-                log_chunk_data=f"Error executing job:\n{ex_txt}",
+                log_chunk_data=f"Error executing job:\n{supervisor_msg}",
             )
             await jobs_set_state(job.edge_job.key, TaskInstanceState.FAILED)
 

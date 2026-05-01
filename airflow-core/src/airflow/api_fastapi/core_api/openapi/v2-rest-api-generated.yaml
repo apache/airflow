@@ -3240,7 +3240,7 @@ paths:
       tags:
       - DagWarning
       summary: List Dag Warnings
-      description: Get a list of DAG warnings.
+      description: Get a list of Dag warnings.
       operationId: list_dag_warnings
       security:
       - OAuth2PasswordBearer: []
@@ -4640,6 +4640,14 @@ paths:
           type: integer
           default: -1
           title: Map Index
+      - name: try_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Try Number
       responses:
         '200':
           description: Successful Response
@@ -7688,7 +7696,7 @@ paths:
           description: 'Prefix match on task display name: optional ``_task_display_property_value``
             else ``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly
             alternative to ``task_display_name_pattern``. On large databases, combine
-            with ``dag_id_prefix_pattern`` (or a specific DAG in the path) so ``(dag_id,
+            with ``dag_id_prefix_pattern`` (or a specific Dag in the path) so ``(dag_id,
             task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all.
             Trailing non-alphanumeric characters in the term are stripped before matching
             so the range scan stays index-compatible under locale-aware collations.'
@@ -7696,7 +7704,7 @@ paths:
         description: 'Prefix match on task display name: optional ``_task_display_property_value``
           else ``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly
           alternative to ``task_display_name_pattern``. On large databases, combine
-          with ``dag_id_prefix_pattern`` (or a specific DAG in the path) so ``(dag_id,
+          with ``dag_id_prefix_pattern`` (or a specific Dag in the path) so ``(dag_id,
           task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all.
           Trailing non-alphanumeric characters in the term are stripped before matching
           so the range scan stays index-compatible under locale-aware collations.'
@@ -8387,6 +8395,166 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}:
+    patch:
+      tags:
+      - Task Instance
+      summary: Patch Task Group Instances
+      description: Update the state of all task instances in a task group.
+      operationId: patch_task_group_instances
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTaskInstanceBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}/dry_run:
+    patch:
+      tags:
+      - Task Instance
+      summary: Patch Task Group Instances Dry Run
+      description: Dry-run of updating the state of all task instances in a task group.
+      operationId: patch_task_group_instances_dry_run
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTaskInstanceBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -9457,11 +9625,11 @@ paths:
       tags:
       - DagVersion
       summary: Get Dag Versions
-      description: 'Get all DAG Versions.
+      description: 'Get all Dag Versions.
 
 
-        This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions
-        for all DAGs.'
+        This endpoint allows specifying `~` as the dag_id to retrieve Dag Versions
+        for all Dags.'
       operationId: get_dag_versions
       security:
       - OAuth2PasswordBearer: []
@@ -13361,7 +13529,7 @@ components:
       additionalProperties: false
       type: object
       title: PatchTaskInstanceBody
-      description: Request body for Clear Task Instances endpoint.
+      description: Request body for patching task instance state.
     PluginCollectionResponse:
       properties:
         plugins:
