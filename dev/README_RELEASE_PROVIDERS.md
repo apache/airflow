@@ -687,6 +687,14 @@ Or if you just want to publish a few selected providers, you can run:
 > sleep. This command will run several (3!) workflows from your terminal and this is important to keep
 > it running until completion.
 
+<!-- -->
+
+> [!NOTE]
+> If the workflow fails because a file it references or executes is missing or has incompatible
+> logic in the release tag (e.g. it was added or changed in `main` after the tag was cut), see
+> [Fixing released documentation](#fixing-released-documentation) in the Misc section below for
+> the `-docs` branch workaround.
+
 There is also a manual way of running the workflows (see at the end of the document, this should normally
 not be needed unless there is some problem with workflow automation above)
 
@@ -1539,6 +1547,14 @@ Or if you just want to publish a few selected providers, you can run:
 > sleep. This command will run several (3!) workflows from your terminal and this is important to keep
 > it running until completion.
 
+<!-- -->
+
+> [!NOTE]
+> If the workflow fails because a file it references or executes is missing or has incompatible
+> logic in the release tag (e.g. it was added or changed in `main` after the tag was cut), see
+> [Fixing released documentation](#fixing-released-documentation) in the Misc section below for
+> the `-docs` branch workaround.
+
 There is also a manual way of running the workflows (see at the end of the document, this should normally
 not be needed unless there is some problem with workflow automation above)
 
@@ -1703,10 +1719,15 @@ Those processes are related to the release of Airflow but should be run in excep
 
 ## Fixing released documentation
 
-Sometimes we want to rebuild the documentation with some fixes that were merged in main,
-for example when there are html layout changes or typo fixes, or formatting issue fixes.
+This section covers two related scenarios:
 
-In this case the process is as follows:
+1. **Post-publish fixes** — rebuilding already-published docs with changes merged to `main` after
+   the release (e.g. HTML layout changes, typo fixes, formatting fixes).
+2. **Failed initial publish** — the `publish-docs-to-s3.yml` workflow fails because a file it
+   references or executes is missing or has incompatible logic in the release tag — e.g. it was
+   added or significantly changed in `main` after the tag was cut.
+
+In both cases the process is as follows:
 
 * When you want to re-publish `providers-PROVIDER/X.Y.Z` docs, create (or pull if already created)
   `providers-PROVIDER/X.Y.Z-docs` branch
