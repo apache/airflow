@@ -67,8 +67,8 @@ query(
           nodes {
             isResolved
             # `first: 5` rather than `first: 1`: the
-            # `mark-ready-with-ping` heuristic in
-            # [`suggested-actions.md`](suggested-actions.md) needs
+            # `unresolved_threads_only_likely_addressed` heuristic in
+            # [`classify-and-act.md`](classify-and-act.md) needs
             # to see whether the PR author has replied in-thread
             # after the reviewer's first comment. 5 is the smallest
             # window that catches the typical "reviewer comment →
@@ -127,8 +127,8 @@ sort:updated-asc
 
 ### Why this shape
 
-Every field above is consumed by Step 2 (classify) or Step 3
-(suggest action). Nothing here is speculative:
+Every field above is consumed by Step 2 (filter, classify, and
+pick action). Nothing here is speculative:
 
 - `mergeable` → conflict detection
 - `statusCheckRollup` → CI pass/fail + failing-check names for
@@ -142,7 +142,7 @@ Every field above is consumed by Step 2 (classify) or Step 3
   detection, and the active-maintainer-conversation pre-filter
   (recent collaborator comment + maintainer-to-maintainer
   `@`-ping detection — see
-  [`classify.md#5-active-maintainer-conversation-on-the-pr`](classify.md))
+  [`classify-and-act.md#pre-filters`](classify-and-act.md), F5a/F5b)
   — which is why the comment node carries `authorAssociation`
   and `bodyText` in addition to author login
 - `baseRef.target.history.totalCount` → commits-behind anchor
@@ -254,7 +254,7 @@ This lists **every** workflow run across the repo that is
 awaiting maintainer approval. Index the response by `head_sha`;
 any PR on the current page whose head SHA appears in the index
 is `pending_workflow_approval` (see
-[`classify.md#c1-pending_workflow_approval`](classify.md)).
+[`classify-and-act.md#decision-table`](classify-and-act.md), row 1).
 
 Why this is mandatory, not "fallback":
 
@@ -279,7 +279,7 @@ PR page — approval state changes fast.
 
 The REST call is the primary signal. The rollup + "real CI
 pattern" guard from
-[`classify.md#verifying-real-ci-ran`](classify.md) is the
+[`classify-and-act.md#real-ci-guard`](classify-and-act.md) is the
 belt-and-braces second check that protects against a rare case
 where the REST call misses a freshly-created run.
 

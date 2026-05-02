@@ -257,6 +257,7 @@ serialized_simple_dag_ground_truth = {
                         },
                     },
                     "doc_md": "### Task Tutorial Documentation",
+                    "has_retry_policy": False,
                     "_needs_expansion": False,
                     "inlets": [
                         {
@@ -298,6 +299,7 @@ serialized_simple_dag_ground_truth = {
                     "task_type": "CustomOperator",
                     "_operator_name": "@custom",
                     "_task_module": "tests_common.test_utils.mock_operators",
+                    "has_retry_policy": False,
                     "_needs_expansion": False,
                 },
             },
@@ -1567,6 +1569,7 @@ class TestStringifiedDAGs:
             "has_on_retry_callback": False,
             "has_on_skipped_callback": False,
             "has_on_success_callback": False,
+            "has_retry_policy": False,
             "ignore_first_depends_on_past": False,
             "is_setup": False,
             "is_teardown": False,

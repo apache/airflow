@@ -288,6 +288,7 @@ class TestOtelMetrics:
         with self.stats.timer() as timer:
             pass
 
+        assert hasattr(timer, "duration")
         assert isinstance(timer.duration, float)
         expected_duration = 3140.0
         assert timer.duration == expected_duration

@@ -157,6 +157,12 @@
             "date_released": "2026-04-12T14:24:40Z"
         }
     },
+    "akeyless": {
+        "0.1.0": {
+            "associated_airflow_version": "3.2.1",
+            "date_released": "2026-05-01T21:24:16Z"
+        }
+    },
     "alibaba": {
         "1.0.0": {
             "associated_airflow_version": "2.2.0",
@@ -699,6 +705,10 @@
         "9.26.0": {
             "associated_airflow_version": "3.2.1",
             "date_released": "2026-04-26T19:27:51Z"
+        },
+        "9.27.0": {
+            "associated_airflow_version": "3.2.1",
+            "date_released": "2026-05-01T21:24:16Z"
         }
     },
     "apache.beam": {
@@ -3773,6 +3783,10 @@
         "3.18.0": {
             "associated_airflow_version": "3.2.1",
             "date_released": "2026-04-12T14:24:14Z"
+        },
+        "3.19.0": {
+            "associated_airflow_version": "3.2.1",
+            "date_released": "2026-05-01T21:24:16Z"
         }
     },
     "cloudant": {

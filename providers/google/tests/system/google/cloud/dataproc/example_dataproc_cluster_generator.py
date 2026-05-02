@@ -81,6 +81,7 @@ CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
     internal_ip_only=False,
     cluster_tier="CLUSTER_TIER_STANDARD",
     cluster_type="STANDARD",
+    engine="DEFAULT",
 ).make()
 
 # [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]

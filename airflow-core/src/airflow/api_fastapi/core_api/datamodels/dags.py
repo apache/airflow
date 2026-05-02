@@ -72,7 +72,7 @@ DAG_ALIAS_MAPPING: dict[str, str] = {
 
 
 class DAGResponse(BaseModel):
-    """DAG serializer for responses."""
+    """Dag serializer for responses."""
 
     model_config = ConfigDict(
         alias_generator=AliasGenerator(
@@ -117,7 +117,7 @@ class DAGResponse(BaseModel):
     @field_validator("owners", mode="before")
     @classmethod
     def get_owners(cls, v: Any) -> list[str] | None:
-        """Convert owners attribute to DAG representation."""
+        """Convert owners attribute to Dag representation."""
         if not (v is None or isinstance(v, str)):
             return v
 
@@ -139,7 +139,7 @@ class DAGResponse(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def is_backfillable(self) -> bool:
-        """Whether this DAG's schedule supports backfilling."""
+        """Whether this Dag's schedule supports backfilling."""
         if not self.timetable_periodic:
             return False
         if self.allowed_run_types is not None and DagRunType.BACKFILL_JOB not in self.allowed_run_types:
@@ -168,14 +168,14 @@ DAGPatchBodyPartial = make_partial_model(DAGPatchBody)
 
 
 class DAGCollectionResponse(BaseModel):
-    """DAG Collection serializer for responses."""
+    """Dag Collection serializer for responses."""
 
     dags: Iterable[DAGResponse]
     total_entries: int
 
 
 class DAGDetailsResponse(DAGResponse):
-    """Specific serializer for DAG Details responses."""
+    """Specific serializer for Dag Details responses."""
 
     model_config = ConfigDict(
         from_attributes=True,

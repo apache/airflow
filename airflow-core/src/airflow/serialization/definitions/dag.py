@@ -30,7 +30,7 @@ import attrs
 import structlog
 from sqlalchemy import func, or_, select, tuple_
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, NodeNotFound, TaskNotFound
@@ -670,7 +670,7 @@ class SerializedDAG:
                             dag_id=orm_dagrun.dag_id,
                         )
                     )
-                    Stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
+                    stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
 
     @provide_session
     def set_task_instance_state(

@@ -586,7 +586,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     @return_on_error("00000000-0000-0000-0000-000000000000")
     def _generate_dag_key() -> str:
         """
-        Generate a DAG key.
+        Generate a Dag key.
 
         The Object Identifier (OID) namespace is used to salt the dag_id value.
         That salted value is used to generate a SHA-1 hash which, by definition,

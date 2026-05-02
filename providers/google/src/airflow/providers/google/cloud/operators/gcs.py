@@ -829,7 +829,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
         timespan_start = orig_start
         if orig_start >= orig_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
-            self.log.warning("DAG schedule not periodic, setting timespan end to max %s", orig_end)
+            self.log.warning("Dag schedule not periodic, setting timespan end to max %s", orig_end)
             timespan_end = pendulum.instance(datetime.datetime.max)
         else:
             timespan_end = orig_end

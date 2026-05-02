@@ -33,7 +33,7 @@ def update_dag_state(
     api_client,
     output: str,
 ):
-    """Update DAG state (pause/unpause)."""
+    """Update Dag state (pause/unpause)."""
     try:
         response = api_client.dags.update(
             dag_id=dag_id, dag_body=DAGPatchBody(is_paused=operation == "pause")
@@ -54,7 +54,7 @@ def update_dag_state(
 
 @provide_api_client(kind=ClientKind.CLI)
 def pause(args, api_client=NEW_API_CLIENT) -> None:
-    """Pause a DAG."""
+    """Pause a Dag."""
     return update_dag_state(
         dag_id=args.dag_id,
         operation="pause",
@@ -65,7 +65,7 @@ def pause(args, api_client=NEW_API_CLIENT) -> None:
 
 @provide_api_client(kind=ClientKind.CLI)
 def unpause(args, api_client=NEW_API_CLIENT) -> None:
-    """Unpause a DAG."""
+    """Unpause a Dag."""
     return update_dag_state(
         dag_id=args.dag_id,
         operation="unpause",

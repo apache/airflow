@@ -35,10 +35,7 @@ class TestPodReader:
         assert actual == ["release-name-airflow-api-server"]
 
     def test_pod_log_reader_role(self):
-        docs = render_chart(
-            values={},
-            show_only=["templates/rbac/pod-log-reader-role.yaml"],
-        )
+        docs = render_chart(show_only=["templates/rbac/pod-log-reader-role.yaml"])
         actual = jmespath.search("metadata.name", docs[0]) if docs else None
         assert actual == "release-name-pod-log-reader-role"
 

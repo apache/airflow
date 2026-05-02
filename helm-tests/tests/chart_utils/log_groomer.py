@@ -33,17 +33,12 @@ class LogGroomerTestBase:
         return [f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
 
     def test_log_groomer_collector_default_enabled(self):
-        if self.obj_name == "dag-processor":
-            values = {"dagProcessor": {"enabled": True}}
-        else:
-            values = None
-
         if self.obj_name == "workers-celery":
             container_name = "worker-log-groomer"
         else:
             container_name = f"{self.obj_name}-log-groomer"
 
-        docs = render_chart(values=values, show_only=self.get_show_only())
+        docs = render_chart(show_only=self.get_show_only())
 
         assert len(jmespath.search("spec.template.spec.containers", docs[0])) == 2
         assert container_name in [
@@ -52,12 +47,7 @@ class LogGroomerTestBase:
 
     def test_log_groomer_collector_can_be_disabled(self):
         if self.obj_name == "dag-processor":
-            values = {
-                "dagProcessor": {
-                    "enabled": True,
-                    "logGroomerSidecar": {"enabled": False},
-                }
-            }
+            values = {"dagProcessor": {"logGroomerSidecar": {"enabled": False}}}
         elif self.obj_name == "workers-celery":
             values = {
                 "workers": {
@@ -75,23 +65,13 @@ class LogGroomerTestBase:
         assert len(actual) == 1
 
     def test_log_groomer_collector_default_command_and_args(self):
-        if self.obj_name == "dag-processor":
-            values = {"dagProcessor": {"enabled": True}}
-        else:
-            values = None
-
-        docs = render_chart(values=values, show_only=self.get_show_only())
+        docs = render_chart(show_only=self.get_show_only())
 
         assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) is None
         assert jmespath.search("spec.template.spec.containers[1].args", docs[0]) == ["bash", "/clean-logs"]
 
     def test_log_groomer_collector_default_retention_days(self):
-        if self.obj_name == "dag-processor":
-            values = {"dagProcessor": {"enabled": True}}
-        else:
-            values = None
-
-        docs = render_chart(values=values, show_only=self.get_show_only())
+        docs = render_chart(show_only=self.get_show_only())
 
         assert {"name": "AIRFLOW__LOG_RETENTION_DAYS", "value": "15"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
@@ -104,7 +84,7 @@ class LogGroomerTestBase:
         ]
 
         if self.obj_name == "dag-processor":
-            values = {"dagProcessor": {"enabled": True, "logGroomerSidecar": {"env": env}}}
+            values = {"dagProcessor": {"logGroomerSidecar": {"env": env}}}
         elif self.obj_name == "workers-celery":
             values = {"workers": {"celery": {"logGroomerSidecar": {"env": env}}}}
         else:
@@ -127,12 +107,7 @@ class LogGroomerTestBase:
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_log_groomer_command_and_args_overrides(self, command, args):
         if self.obj_name == "dag-processor":
-            values = {
-                "dagProcessor": {
-                    "enabled": True,
-                    "logGroomerSidecar": {"command": command, "args": args},
-                }
-            }
+            values = {"dagProcessor": {"logGroomerSidecar": {"command": command, "args": args}}}
         elif self.obj_name == "workers-celery":
             values = {"workers": {"celery": {"logGroomerSidecar": {"command": command, "args": args}}}}
         else:
@@ -154,7 +129,6 @@ class LogGroomerTestBase:
         if self.obj_name == "dag-processor":
             values = {
                 "dagProcessor": {
-                    "enabled": True,
                     "logGroomerSidecar": {
                         "command": ["{{ .Release.Name }}"],
                         "args": ["{{ .Release.Service }}"],
@@ -190,9 +164,7 @@ class LogGroomerTestBase:
     @pytest.mark.parametrize(("retention_days", "retention_result"), [(None, None), (30, "30"), (0, "0")])
     def test_log_groomer_retention_days_overrides(self, retention_days, retention_result):
         if self.obj_name == "dag-processor":
-            values = {
-                "dagProcessor": {"enabled": True, "logGroomerSidecar": {"retentionDays": retention_days}}
-            }
+            values = {"dagProcessor": {"logGroomerSidecar": {"retentionDays": retention_days}}}
         elif self.obj_name == "workers-celery":
             values = {"workers": {"celery": {"logGroomerSidecar": {"retentionDays": retention_days}}}}
         else:
@@ -223,12 +195,7 @@ class LogGroomerTestBase:
     @pytest.mark.parametrize(("retention_minutes", "retention_result"), [(None, None), (0, "0"), (60, "60")])
     def test_log_groomer_retention_minutes_overrides(self, retention_minutes, retention_result):
         if self.obj_name == "dag-processor":
-            values = {
-                "dagProcessor": {
-                    "enabled": True,
-                    "logGroomerSidecar": {"retentionMinutes": retention_minutes},
-                }
-            }
+            values = {"dagProcessor": {"logGroomerSidecar": {"retentionMinutes": retention_minutes}}}
         elif self.obj_name == "workers-celery":
             values = {"workers": {"celery": {"logGroomerSidecar": {"retentionMinutes": retention_minutes}}}}
         else:
@@ -259,12 +226,7 @@ class LogGroomerTestBase:
     @pytest.mark.parametrize(("frequency_minutes", "frequency_result"), [(None, None), (20, "20")])
     def test_log_groomer_frequency_minutes_overrides(self, frequency_minutes, frequency_result):
         if self.obj_name == "dag-processor":
-            values = {
-                "dagProcessor": {
-                    "enabled": True,
-                    "logGroomerSidecar": {"frequencyMinutes": frequency_minutes},
-                }
-            }
+            values = {"dagProcessor": {"logGroomerSidecar": {"frequencyMinutes": frequency_minutes}}}
         elif self.obj_name == "workers-celery":
             values = {"workers": {"celery": {"logGroomerSidecar": {"frequencyMinutes": frequency_minutes}}}}
         else:
@@ -297,12 +259,7 @@ class LogGroomerTestBase:
     )
     def test_log_groomer_max_size_bytes_overrides(self, max_size_bytes, max_size_result):
         if self.obj_name == "dag-processor":
-            values = {
-                "dagProcessor": {
-                    "enabled": True,
-                    "logGroomerSidecar": {"maxSizeBytes": max_size_bytes},
-                }
-            }
+            values = {"dagProcessor": {"logGroomerSidecar": {"maxSizeBytes": max_size_bytes}}}
         elif self.obj_name == "workers-celery":
             values = {"workers": {"celery": {"logGroomerSidecar": {"maxSizeBytes": max_size_bytes}}}}
         else:
@@ -330,12 +287,7 @@ class LogGroomerTestBase:
     @pytest.mark.parametrize(("max_size_percent", "max_size_result"), [(None, None), (80, "80")])
     def test_log_groomer_max_size_percent_overrides(self, max_size_percent, max_size_result):
         if self.obj_name == "dag-processor":
-            values = {
-                "dagProcessor": {
-                    "enabled": True,
-                    "logGroomerSidecar": {"maxSizePercent": max_size_percent},
-                }
-            }
+            values = {"dagProcessor": {"logGroomerSidecar": {"maxSizePercent": max_size_percent}}}
         elif self.obj_name == "workers-celery":
             values = {"workers": {"celery": {"logGroomerSidecar": {"maxSizePercent": max_size_percent}}}}
         else:
@@ -364,7 +316,6 @@ class LogGroomerTestBase:
         if self.obj_name == "dag-processor":
             values = {
                 "dagProcessor": {
-                    "enabled": True,
                     "logGroomerSidecar": {
                         "resources": {
                             "requests": {"memory": "2Gi", "cpu": "1"},
@@ -412,12 +363,7 @@ class LogGroomerTestBase:
         }
 
     def test_log_groomer_has_airflow_home(self):
-        if self.obj_name == "dag-processor":
-            values = {"dagProcessor": {"enabled": True}}
-        else:
-            values = None
-
-        docs = render_chart(values=values, show_only=self.get_show_only())
+        docs = render_chart(show_only=self.get_show_only())
 
         assert (
             jmespath.search("spec.template.spec.containers[1].env[?name=='AIRFLOW_HOME'].name | [0]", docs[0])

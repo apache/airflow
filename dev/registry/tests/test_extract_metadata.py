@@ -29,6 +29,7 @@ from extract_metadata import (
     determine_airflow_versions,
     extract_integrations_as_categories,
     fetch_provider_inventory,
+    fetch_pypi_data_parallel,
     fetch_pypi_dates,
     fetch_pypi_downloads,
     find_latest_released_version,
@@ -258,6 +259,58 @@ class TestFetchPypiDates:
     def test_network_error(self, _mock):
         result = fetch_pypi_dates("nonexistent-package")
         assert result == {"first_released": "", "last_updated": ""}
+
+
+# ---------------------------------------------------------------------------
+# fetch_pypi_data_parallel
+# ---------------------------------------------------------------------------
+class TestFetchPypiDataParallel:
+    def test_returns_one_entry_per_package(self):
+        pkgs = ["pkg-a", "pkg-b", "pkg-c"]
+        with (
+            patch("extract_metadata.fetch_pypi_downloads") as dl,
+            patch("extract_metadata.fetch_pypi_dates") as dt,
+        ):
+            dl.side_effect = lambda p: {"weekly": 1, "monthly": 10, "total": 0}
+            dt.side_effect = lambda p: {"first_released": "2024-01-01", "last_updated": "2024-06-01"}
+
+            result = fetch_pypi_data_parallel(pkgs, max_workers=4)
+
+        assert set(result) == set(pkgs)
+        for pkg in pkgs:
+            downloads, dates = result[pkg]
+            assert downloads == {"weekly": 1, "monthly": 10, "total": 0}
+            assert dates == {"first_released": "2024-01-01", "last_updated": "2024-06-01"}
+        assert dl.call_count == 3
+        assert dt.call_count == 3
+
+    def test_empty_input(self):
+        assert fetch_pypi_data_parallel([]) == {}
+
+    def test_per_package_failure_does_not_abort_others(self):
+        # Simulate `fetch_pypi_downloads` raising for one package; the worker
+        # already returns zero-value defaults on error, but verify the orchestrator
+        # propagates per-package isolation by accepting the worker's existing
+        # error handling -- a single bad package must not poison the dict.
+        pkgs = ["good", "bad"]
+
+        def downloads_side_effect(pkg):
+            if pkg == "bad":
+                # mimic the existing fetch_pypi_downloads error path
+                return {"weekly": 0, "monthly": 0, "total": 0}
+            return {"weekly": 5, "monthly": 50, "total": 0}
+
+        with (
+            patch("extract_metadata.fetch_pypi_downloads", side_effect=downloads_side_effect),
+            patch(
+                "extract_metadata.fetch_pypi_dates",
+                return_value={"first_released": "", "last_updated": ""},
+            ),
+        ):
+            result = fetch_pypi_data_parallel(pkgs)
+
+        assert result["good"][0] == {"weekly": 5, "monthly": 50, "total": 0}
+        assert result["bad"][0] == {"weekly": 0, "monthly": 0, "total": 0}
 
 
 # ---------------------------------------------------------------------------

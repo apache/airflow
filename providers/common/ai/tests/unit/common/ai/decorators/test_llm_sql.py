@@ -54,7 +54,7 @@ class TestLLMSQLDecoratedOperator:
 
         assert result == "SELECT 1"
         assert op.prompt == "Get all users"
-        mock_agent.run_sync.assert_called_once_with("Get all users")
+        mock_agent.run_sync.assert_called_once_with("Get all users", usage_limits=None)
 
     @pytest.mark.parametrize(
         "return_value",

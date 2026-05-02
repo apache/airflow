@@ -329,7 +329,6 @@ class TestServiceAccountAnnotations:
             (
                 {
                     "dagProcessor": {
-                        "enabled": True,
                         "serviceAccount": {
                             "annotations": {
                                 "example": "dag-processor",
@@ -585,7 +584,6 @@ class TestServiceAccountAnnotations:
         (
             {
                 "dagProcessor": {
-                    "enabled": True,
                     "podAnnotations": {
                         "example": "{{ .Release.Name }}-dag-processor",
                     },

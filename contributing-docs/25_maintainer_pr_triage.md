@@ -130,7 +130,7 @@ lists the full set of recognised invocation patterns.
 ### What the triage skill checks
 
 The first-pass classification is purely deterministic — see
-[`classify.md`](../.github/skills/pr-triage/classify.md) for the full decision matrix
+[`classify-and-act.md`](../.github/skills/pr-triage/classify-and-act.md) for the full decision matrix
 — and runs against data fetched in a single aliased GraphQL call per page of PRs:
 
 1. **Pending workflow approval** — first-time-contributor PRs whose CI workflows

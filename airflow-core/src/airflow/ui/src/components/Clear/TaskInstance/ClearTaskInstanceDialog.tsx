@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
@@ -33,6 +33,7 @@ import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
+import { getRunOnLatestVersionState } from "./runOnLatestVersion";
 
 // Discriminated union: callers pass either `allMapped: true` together with
 // `dagId`/`dagRunId`/`taskId` (clears every mapped TI of the task), or a full
@@ -89,6 +90,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
+  const userToggledRunOnLatestRef = useRef(false);
   const [preventRunningTask, setPreventRunningTask] = useState(true);
 
   const [note, setNote] = useState<string | null>(taskInstance?.note ?? null);
@@ -132,16 +134,20 @@ const ClearTaskInstanceDialog = (props: Props) => {
     total_entries: 0,
   };
 
-  // Check if bundle versions are different (not applicable for allMapped —
-  // mapped TIs may be on several versions)
-  const currentDagBundleVersion = dagDetails?.bundle_version;
-  const taskInstanceDagVersionBundleVersion = taskInstance?.dag_version?.bundle_version;
-  const bundleVersionsDiffer = currentDagBundleVersion !== taskInstanceDagVersionBundleVersion;
-  const shouldShowBundleVersionOption =
-    !allMapped &&
-    bundleVersionsDiffer &&
-    taskInstanceDagVersionBundleVersion !== null &&
-    taskInstanceDagVersionBundleVersion !== "";
+  const { dagVersionsDiffer, shouldShowRunOnLatestOption } = getRunOnLatestVersionState({
+    latestBundleVersion: dagDetails?.bundle_version,
+    latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
+    selectedBundleVersion: taskInstance?.dag_version?.bundle_version,
+    selectedDagVersionNumber: taskInstance?.dag_version?.version_number,
+  });
+
+  useEffect(() => {
+    if (!openDialog) {
+      userToggledRunOnLatestRef.current = false;
+    } else if (!userToggledRunOnLatestRef.current) {
+      setRunOnLatestVersion(dagVersionsDiffer);
+    }
+  }, [openDialog, dagVersionsDiffer]);
 
   return (
     <>
@@ -205,14 +211,18 @@ const ClearTaskInstanceDialog = (props: Props) => {
             </Flex>
             <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
             <Flex
-              {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
-              justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
+              {...(shouldShowRunOnLatestOption ? { alignItems: "center" } : {})}
+              gap={3}
+              justifyContent={shouldShowRunOnLatestOption ? "space-between" : "end"}
               mt={3}
             >
-              {shouldShowBundleVersionOption ? (
+              {shouldShowRunOnLatestOption ? (
                 <Checkbox
                   checked={runOnLatestVersion}
-                  onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+                  onCheckedChange={(event) => {
+                    userToggledRunOnLatestRef.current = true;
+                    setRunOnLatestVersion(Boolean(event.checked));
+                  }}
                 >
                   {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
                 </Checkbox>

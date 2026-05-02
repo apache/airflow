@@ -66,7 +66,7 @@ class TestLLMBranchDecoratedOperator:
 
         assert result == "positive"
         assert op.prompt == "Route this review"
-        mock_agent.run_sync.assert_called_once_with("Route this review")
+        mock_agent.run_sync.assert_called_once_with("Route this review", usage_limits=None)
         mock_do_branch.assert_called_once()
 
     @pytest.mark.parametrize(

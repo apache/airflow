@@ -4640,6 +4640,14 @@ paths:
           type: integer
           default: -1
           title: Map Index
+      - name: try_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Try Number
       responses:
         '200':
           description: Successful Response
@@ -11568,7 +11576,7 @@ components:
       - dags
       - total_entries
       title: DAGCollectionResponse
-      description: DAG Collection serializer for responses.
+      description: Dag Collection serializer for responses.
     DAGDetailsResponse:
       properties:
         dag_id:
@@ -11785,7 +11793,7 @@ components:
         is_backfillable:
           type: boolean
           title: Is Backfillable
-          description: Whether this DAG's schedule supports backfilling.
+          description: Whether this Dag's schedule supports backfilling.
           readOnly: true
         file_token:
           type: string
@@ -11855,7 +11863,7 @@ components:
       - concurrency
       - latest_dag_version
       title: DAGDetailsResponse
-      description: Specific serializer for DAG Details responses.
+      description: Specific serializer for Dag Details responses.
     DAGPatchBody:
       properties:
         is_paused:
@@ -11998,7 +12006,7 @@ components:
         is_backfillable:
           type: boolean
           title: Is Backfillable
-          description: Whether this DAG's schedule supports backfilling.
+          description: Whether this Dag's schedule supports backfilling.
           readOnly: true
         file_token:
           type: string
@@ -12038,7 +12046,7 @@ components:
       - is_backfillable
       - file_token
       title: DAGResponse
-      description: DAG serializer for responses.
+      description: Dag serializer for responses.
     DAGRunClearBody:
       properties:
         dry_run:
@@ -12052,7 +12060,7 @@ components:
         only_new:
           type: boolean
           title: Only New
-          description: Only queue newly added tasks in the latest DAG version without
+          description: Only queue newly added tasks in the latest Dag version without
             clearing existing tasks.
           default: false
         run_on_latest_version:
@@ -12064,7 +12072,7 @@ components:
       additionalProperties: false
       type: object
       title: DAGRunClearBody
-      description: DAG Run serializer for clear endpoint body.
+      description: Dag Run serializer for clear endpoint body.
     DAGRunCollectionResponse:
       properties:
         dag_runs:
@@ -12097,7 +12105,7 @@ components:
       required:
       - dag_runs
       title: DAGRunCollectionResponse
-      description: 'DAG Run collection response supporting both offset and cursor
+      description: 'Dag Run collection response supporting both offset and cursor
         pagination.
 
 
@@ -12127,7 +12135,7 @@ components:
       additionalProperties: false
       type: object
       title: DAGRunPatchBody
-      description: DAG Run Serializer for PATCH requests.
+      description: Dag Run Serializer for PATCH requests.
     DAGRunPatchStates:
       type: string
       enum:
@@ -12135,7 +12143,7 @@ components:
       - success
       - failed
       title: DAGRunPatchStates
-      description: Enum for DAG Run states when updating a DAG Run.
+      description: Enum for Dag Run states when updating a Dag Run.
     DAGRunResponse:
       properties:
         dag_run_id:
@@ -12261,7 +12269,7 @@ components:
       - dag_display_name
       - partition_key
       title: DAGRunResponse
-      description: DAG Run serializer for responses.
+      description: Dag Run serializer for responses.
     DAGRunsBatchBody:
       properties:
         order_by:
@@ -12419,7 +12427,7 @@ components:
       additionalProperties: false
       type: object
       title: DAGRunsBatchBody
-      description: List DAG Runs body for batch endpoint.
+      description: List Dag Runs body for batch endpoint.
     DAGSourceResponse:
       properties:
         content:
@@ -12445,7 +12453,7 @@ components:
       - version_number
       - dag_display_name
       title: DAGSourceResponse
-      description: DAG Source serializer for responses.
+      description: Dag Source serializer for responses.
     DAGTagCollectionResponse:
       properties:
         tags:
@@ -12461,7 +12469,7 @@ components:
       - tags
       - total_entries
       title: DAGTagCollectionResponse
-      description: DAG Tags Collection serializer for responses.
+      description: Dag Tags Collection serializer for responses.
     DAGVersionCollectionResponse:
       properties:
         dag_versions:
@@ -12477,7 +12485,7 @@ components:
       - dag_versions
       - total_entries
       title: DAGVersionCollectionResponse
-      description: DAG Version Collection serializer for responses.
+      description: Dag Version Collection serializer for responses.
     DAGWarningCollectionResponse:
       properties:
         dag_warnings:
@@ -12493,7 +12501,7 @@ components:
       - dag_warnings
       - total_entries
       title: DAGWarningCollectionResponse
-      description: DAG warning collection serializer for responses.
+      description: Dag warning collection serializer for responses.
     DAGWarningResponse:
       properties:
         dag_id:
@@ -12519,7 +12527,7 @@ components:
       - timestamp
       - dag_display_name
       title: DAGWarningResponse
-      description: DAG Warning serializer for responses.
+      description: Dag Warning serializer for responses.
     DagProcessorInfoResponse:
       properties:
         status:
@@ -12656,7 +12664,7 @@ components:
       - created_at
       - updated_at
       title: DagScheduleAssetReference
-      description: DAG schedule reference serializer for assets.
+      description: Dag schedule reference serializer for assets.
     DagStatsCollectionResponse:
       properties:
         dags:
@@ -12672,7 +12680,7 @@ components:
       - dags
       - total_entries
       title: DagStatsCollectionResponse
-      description: DAG Stats Collection serializer for responses.
+      description: Dag Stats Collection serializer for responses.
     DagStatsResponse:
       properties:
         dag_id:
@@ -12692,7 +12700,7 @@ components:
       - dag_display_name
       - stats
       title: DagStatsResponse
-      description: DAG Stats serializer for responses.
+      description: Dag Stats serializer for responses.
     DagStatsStateResponse:
       properties:
         state:
@@ -12723,7 +12731,7 @@ components:
       - dag_id
       - dag_display_name
       title: DagTagResponse
-      description: DAG Tag serializer for responses.
+      description: Dag Tag serializer for responses.
     DagVersionResponse:
       properties:
         id:
@@ -14921,7 +14929,7 @@ components:
       required:
       - logical_date
       title: TriggerDAGRunPostBody
-      description: Trigger DAG Run Serializer for POST body.
+      description: Trigger Dag Run Serializer for POST body.
     TriggerResponse:
       properties:
         id:
