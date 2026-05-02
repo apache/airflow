@@ -29,14 +29,8 @@ Prerequisites:
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.sdk import dag, task
-
-if TYPE_CHECKING:
-    from airflow.providers.common.ai.policies.retry import LLMRetryPolicy as _LLMRetryPolicy
-
-llm_policy: _LLMRetryPolicy | None = None
 
 try:
     from airflow.providers.common.ai.policies.retry import LLMRetryPolicy
@@ -50,12 +44,6 @@ try:
             RetryRule(exception=PermissionError, action=RetryAction.FAIL),
         ],
     )
-except ImportError:
-    # RetryPolicy requires Airflow 3.3+
-    pass
-
-
-if llm_policy is not None:
 
     @dag(catchup=False, tags=["example", "retry_policy", "llm"])
     def example_llm_retry_policy():
@@ -79,3 +67,6 @@ if llm_policy is not None:
         task_data_error()
 
     example_llm_retry_policy()
+except ImportError:
+    # RetryPolicy requires Airflow 3.3+; example DAG is skipped on older versions.
+    pass
