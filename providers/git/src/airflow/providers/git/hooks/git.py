@@ -49,7 +49,7 @@ class GitHook(BaseHook):
     * ``ssh_config_file`` — path to a custom SSH config file.
     * ``host_proxy_cmd`` — SSH ProxyCommand string (e.g. for bastion/jump hosts).
     * ``ssh_port`` — non-default SSH port.
-    * ``github_app_id`` — GitHub App ID used for GitHub App authentication. Requires the GitHub App
+    * ``github_client_id`` — GitHub Client ID (or App ID) used for GitHub App authentication. Requires the GitHub App
       private key to be provided as a PEM-encoded key via either ``private_key`` (inline) or
       ``key_file`` (path to key file).
     * ``github_installation_id`` — GitHub App installation ID used for GitHub App authentication.
@@ -80,7 +80,7 @@ class GitHook(BaseHook):
                         "ssh_config_file": "",
                         "host_proxy_cmd": "",
                         "ssh_port": "",
-                        "github_app_id": "",
+                        "github_client_id": "",
                         "github_installation_id": "",
                     }
                 )
@@ -111,16 +111,16 @@ class GitHook(BaseHook):
         self.ssh_port: int | None = int(extra["ssh_port"]) if extra.get("ssh_port") else None
 
         # GitHub App Auth Options
-        raw_github_app_id = extra.get("github_app_id")
-        if raw_github_app_id is not None:
+        raw_github_client_id = extra.get("github_client_id")
+        if raw_github_client_id is not None:
             try:
-                self.github_app_id: int | None = int(raw_github_app_id)
-            except (TypeError, ValueError) as exc:
-                raise ValueError(
-                    f"Invalid 'github_app_id' value {raw_github_app_id!r}. It must be an integer."
-                ) from exc
+                # Accept either integer or string IDs (GitHubIntegration accepts both)
+                self.github_client_id: int | str | None = int(raw_github_client_id)
+            except (TypeError, ValueError):
+                # Keep as string when it is not an integer
+                self.github_client_id = str(raw_github_client_id)
         else:
-            self.github_app_id = None
+            self.github_client_id = None
 
         raw_github_installation_id = extra.get("github_installation_id")
         if raw_github_installation_id is not None:
@@ -136,13 +136,13 @@ class GitHook(BaseHook):
 
         if self.key_file and self.private_key:
             raise AirflowException("Both 'key_file' and 'private_key' cannot be provided at the same time")
-        if (self.github_app_id and not self.github_installation_id) or (
-            not self.github_app_id and self.github_installation_id
+        if (self.github_client_id is not None and self.github_installation_id is None) or (
+            self.github_client_id is None and self.github_installation_id is not None
         ):
             raise ValueError(
-                "Both 'github_app_id' and 'github_installation_id' must be provided to use GitHub App Authentication"
+                "Both 'github_client_id' and 'github_installation_id' must be provided to use GitHub App Authentication"
             )
-        if self.github_app_id and self.github_installation_id:
+        if self.github_client_id is not None and self.github_installation_id is not None:
             if not self.key_file and not self.private_key:
                 raise ValueError("Missing inline private_key or key_file for GitHub App Auth")
             if self.key_file and not self.private_key:
@@ -200,19 +200,18 @@ class GitHook(BaseHook):
 
     def _get_github_app_token(self):
         try:
-            from github import Auth as GithubAuth, Github as GithubClient
+            from github import GithubIntegration
         except ImportError as exc:
             raise ImportError(
                 "The PyGithub library is required for GitHub App authentication. Please install it with 'pip install apache-airflow-providers-git[github]'"
             ) from exc
 
-        github_auth = GithubAuth.AppAuth(
-            app_id=self.github_app_id, private_key=self.github_app_private_key
-        ).get_installation_auth(installation_id=self.github_installation_id)
+        integration = GithubIntegration(
+            integration_id=self.github_client_id, private_key=self.github_app_private_key
+        )
+        access_token = integration.get_access_token(installation_id=self.github_installation_id).token
 
-        # Client is needed to generate the token even though we don't use the client directly
-        GithubClient(auth=github_auth)
-        return "x-access-token", github_auth.token
+        return "x-access-token", access_token
 
     def _process_git_auth_url(self):
         if not isinstance(self.repo_url, str):

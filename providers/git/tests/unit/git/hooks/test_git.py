@@ -151,7 +151,7 @@ class TestGitHook:
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
                 extra={
-                    "github_app_id": "12345",
+                    "github_client_id": "12345",
                     "github_installation_id": "67890",
                     "private_key": "inline_pem_key",
                 },
@@ -162,7 +162,7 @@ class TestGitHook:
                 conn_id=CONN_APP_ONLY_APP_ID,
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
-                extra={"github_app_id": "12345"},
+                extra={"github_client_id": "12345"},
             )
         )
         create_connection_without_db(
@@ -178,7 +178,7 @@ class TestGitHook:
                 conn_id=CONN_APP_NO_KEY,
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
-                extra={"github_app_id": "12345", "github_installation_id": "67890"},
+                extra={"github_client_id": "12345", "github_installation_id": "67890"},
             )
         )
         create_connection_without_db(
@@ -187,7 +187,7 @@ class TestGitHook:
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
                 extra={
-                    "github_app_id": "not_an_int",
+                    "github_client_id": "not_an_int",
                     "github_installation_id": "67890",
                     "private_key": "inline_pem_key",
                 },
@@ -199,7 +199,7 @@ class TestGitHook:
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
                 extra={
-                    "github_app_id": "12345",
+                    "github_client_id": "12345",
                     "github_installation_id": "not_an_int",
                     "private_key": "inline_pem_key",
                 },
@@ -442,34 +442,34 @@ class TestGitHook:
 
     def test_only_app_id_without_installation_id_raises(self):
         with pytest.raises(
-            AirflowException, match="Both 'github_app_id' and 'github_installation_id' must be provided"
+            ValueError, match="Both 'github_client_id' and 'github_installation_id' must be provided"
         ):
             GitHook(git_conn_id=CONN_APP_ONLY_APP_ID)
 
     def test_only_installation_id_without_app_id_raises(self):
         with pytest.raises(
-            AirflowException,
-            match="Both 'github_app_id' and 'github_installation_id' must be provided",
+            ValueError,
+            match="Both 'github_client_id' and 'github_installation_id' must be provided",
         ):
             GitHook(git_conn_id=CONN_APP_ONLY_INSTALLATION_ID)
 
     def test_app_id_and_installation_id_without_key_raises(self):
         with pytest.raises(
-            AirflowException,
+            ValueError,
             match="Missing inline private_key or key_file for GitHub App Auth",
         ):
             GitHook(git_conn_id=CONN_APP_NO_KEY)
 
     def test_invalid_github_app_id_raises(self):
         with pytest.raises(
-            AirflowException,
-            match="Invalid 'github_app_id' value",
+            ValueError,
+            match="Invalid 'github_client_id' value",
         ):
             GitHook(git_conn_id=CONN_APP_INVALID_APP_ID)
 
     def test_invalid_github_installation_id_raises(self):
         with pytest.raises(
-            AirflowException,
+            ValueError,
             match="Invalid 'github_installation_id' value",
         ):
             GitHook(git_conn_id=CONN_APP_INVALID_INSTALLATION_ID)
@@ -483,7 +483,7 @@ class TestGitHook:
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
                 extra={
-                    "github_app_id": "12345",
+                    "github_client_id": "12345",
                     "github_installation_id": "67890",
                     "key_file": str(key_file),
                 },
@@ -505,13 +505,13 @@ class TestGitHook:
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
                 extra={
-                    "github_app_id": "12345",
+                    "github_client_id": "12345",
                     "github_installation_id": "67890",
                     "key_file": "/nonexistent/path/key.pem",
                 },
             )
         )
-        with pytest.raises(AirflowException, match="Failed to read GitHub App private key file"):
+        with pytest.raises(OSError, match="Failed to read GitHub App private key file"):
             GitHook(git_conn_id="git_app_missing_key_file")
 
     def test_app_auth_success_injects_token_into_https_url(self):
@@ -535,7 +535,7 @@ class TestGitHook:
                 lambda self: ("x-access-token", mock_token),
             )
             hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
-            assert hook.github_app_id == 12345
+            assert hook.github_client_id == 12345
             assert hook.github_installation_id == 67890
 
     @pytest.mark.parametrize(
@@ -554,7 +554,7 @@ class TestGitHook:
                 host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
                 extra={
-                    "github_app_id": app_id,
+                    "github_client_id": app_id,
                     "github_installation_id": installation_id,
                     "private_key": "inline_pem_key",
                 },
@@ -566,5 +566,5 @@ class TestGitHook:
                 lambda self: ("x-access-token", "token"),
             )
             hook = GitHook(git_conn_id="git_app_int_check")
-            assert isinstance(hook.github_app_id, int)
+            assert isinstance(hook.github_client_id, int)
             assert isinstance(hook.github_installation_id, int)
