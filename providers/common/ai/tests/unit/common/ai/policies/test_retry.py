@@ -21,6 +21,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# LLMRetryPolicy depends on the RetryPolicy ABC introduced in Airflow 3.3 (AIP-105).
+# Skip the entire test module on older Airflow versions tested in compat CI.
+pytest.importorskip("airflow.sdk.definitions.retry_policy", reason="RetryPolicy requires Airflow 3.3+")
+
 from airflow.providers.common.ai.policies.retry import (
     ErrorClassification,
     LLMRetryPolicy,
@@ -135,7 +139,9 @@ class TestLLMFallbackBehaviour:
         policy = LLMRetryPolicy(
             llm_conn_id="nonexistent",
             fallback_rules=[
-                RetryRule(exception=ConnectionError, action=RetryAction.RETRY, retry_delay=timedelta(seconds=10)),
+                RetryRule(
+                    exception=ConnectionError, action=RetryAction.RETRY, retry_delay=timedelta(seconds=10)
+                ),
                 RetryRule(exception=PermissionError, action=RetryAction.FAIL, reason="auth fallback"),
             ],
         )

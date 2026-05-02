@@ -14,10 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""LLM-powered retry policy using pydantic-ai for error classification.
+"""
+LLM-powered retry policy using pydantic-ai for error classification.
 
 Requires Airflow 3.3+ (RetryPolicy was added in AIP-105).
 """
+
 from __future__ import annotations
 
 import logging
@@ -76,7 +78,8 @@ class ErrorClassification(BaseModel):
 
 
 class LLMRetryPolicy(RetryPolicy):
-    """Retry policy that uses an LLM to classify errors and decide retry behaviour.
+    """
+    Retry policy that uses an LLM to classify errors and decide retry behaviour.
 
     Uses :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
     to call any configured LLM provider (OpenAI, Anthropic, Bedrock, Vertex,
@@ -167,9 +170,7 @@ class LLMRetryPolicy(RetryPolicy):
         )
 
         if not classification.should_retry:
-            return RetryDecision.fail(
-                reason=f"{classification.category}: {classification.reasoning}"
-            )
+            return RetryDecision.fail(reason=f"{classification.category}: {classification.reasoning}")
 
         delay = (
             timedelta(seconds=classification.suggested_delay_seconds)
@@ -180,4 +181,3 @@ class LLMRetryPolicy(RetryPolicy):
             delay=delay,
             reason=f"{classification.category}: {classification.reasoning}",
         )
-

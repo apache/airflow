@@ -21,34 +21,38 @@ Uses an LLM (via PydanticAIHook) to classify errors and decide whether
 to retry, fail immediately, or retry with a custom delay.
 
 Prerequisites:
-  - Connection 'pydanticai_default' with conn_type='pydanticai',
-    password=<API key>, extra='{"model": "anthropic:claude-haiku-4-5-20251001"}'
+  - Connection ``pydanticai_default`` with ``conn_type='pydanticai'``,
+    ``password=<API key>``, ``extra='{"model": "anthropic:claude-haiku-4-5-20251001"}'``
   - ``pip install apache-airflow-providers-common-ai[anthropic]``
 """
+
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.sdk import dag, task
 
-try:
-    from airflow.sdk.definitions.retry_policy import RetryAction, RetryRule
+if TYPE_CHECKING:
+    from airflow.providers.common.ai.policies.retry import LLMRetryPolicy as _LLMRetryPolicy
 
+llm_policy: _LLMRetryPolicy | None = None
+
+try:
     from airflow.providers.common.ai.policies.retry import LLMRetryPolicy
+    from airflow.sdk.definitions.retry_policy import RetryAction, RetryRule
 
     llm_policy = LLMRetryPolicy(
         llm_conn_id="pydanticai_default",
         timeout=30.0,
         fallback_rules=[
-            RetryRule(
-                exception=ConnectionError, action=RetryAction.RETRY, retry_delay=timedelta(seconds=10)
-            ),
+            RetryRule(exception=ConnectionError, action=RetryAction.RETRY, retry_delay=timedelta(seconds=10)),
             RetryRule(exception=PermissionError, action=RetryAction.FAIL),
         ],
     )
 except ImportError:
     # RetryPolicy requires Airflow 3.3+
-    llm_policy = None
+    pass
 
 
 if llm_policy is not None:
@@ -58,9 +62,7 @@ if llm_policy is not None:
         @task(retries=3, retry_delay=timedelta(minutes=1), retry_policy=llm_policy)
         def task_auth_error():
             """LLM should classify as auth -> FAIL immediately."""
-            raise PermissionError(
-                "403 Forbidden: API key expired for service account analytics@proj.iam"
-            )
+            raise PermissionError("403 Forbidden: API key expired for service account analytics@proj.iam")
 
         @task(retries=3, retry_delay=timedelta(minutes=1), retry_policy=llm_policy)
         def task_rate_limit():
