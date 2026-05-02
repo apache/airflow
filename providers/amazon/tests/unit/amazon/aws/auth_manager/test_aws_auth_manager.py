@@ -64,6 +64,12 @@ else:
 
 mock = Mock()
 
+
+def _with_team_name(details, team_name="team_a"):
+    setattr(details, "team_name", team_name)
+    return details
+
+
 SAML_METADATA_PARSED = {
     "idp": {
         "entityId": "https://portal.sso.us-east-1.amazonaws.com/saml/assertion/<assertion>",
@@ -447,7 +453,9 @@ class TestAwsAuthManager:
         mock_avp_facade.is_authorized = is_authorized
 
         result = auth_manager.is_authorized_dag(
-            method="GET", details=DagDetails(id="dag_1", team_name="team_a"), user=mock
+            method="GET",
+            details=_with_team_name(DagDetails(id="dag_1")),
+            user=mock,
         )
 
         is_authorized.assert_called_once_with(
@@ -588,7 +596,10 @@ class TestAwsAuthManager:
         result = auth_manager.batch_is_authorized_connection(
             requests=[
                 {"method": "GET"},
-                {"method": "PUT", "details": ConnectionDetails(conn_id="test", team_name="team_a")},
+                {
+                    "method": "PUT",
+                    "details": _with_team_name(ConnectionDetails(conn_id="test")),
+                },
             ],
             user=mock,
         )
@@ -624,12 +635,15 @@ class TestAwsAuthManager:
         result = auth_manager.batch_is_authorized_dag(
             requests=[
                 {"method": "GET"},
-                {"method": "GET", "details": DagDetails(id="dag_1", team_name="team_a")},
+                {
+                    "method": "GET",
+                    "details": _with_team_name(DagDetails(id="dag_1")),
+                },
             ]
             + [
                 {
                     "method": "GET",
-                    "details": DagDetails(id="dag_1", team_name="team_a"),
+                    "details": _with_team_name(DagDetails(id="dag_1")),
                     "access_entity": dag_access_entity,
                 }
                 for dag_access_entity in (
@@ -702,7 +716,10 @@ class TestAwsAuthManager:
         result = auth_manager.batch_is_authorized_pool(
             requests=[
                 {"method": "GET"},
-                {"method": "PUT", "details": PoolDetails(name="test", team_name="team_a")},
+                {
+                    "method": "PUT",
+                    "details": _with_team_name(PoolDetails(name="test")),
+                },
             ],
             user=mock,
         )
@@ -738,7 +755,10 @@ class TestAwsAuthManager:
         result = auth_manager.batch_is_authorized_variable(
             requests=[
                 {"method": "GET"},
-                {"method": "PUT", "details": VariableDetails(key="test", team_name="team_a")},
+                {
+                    "method": "PUT",
+                    "details": _with_team_name(VariableDetails(key="test")),
+                },
             ],
             user=mock,
         )
