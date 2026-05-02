@@ -19,7 +19,7 @@
 import { Input, type InputProps } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import tz from "dayjs/plugin/timezone";
-import { forwardRef, type ChangeEvent, useState } from "react";
+import { forwardRef, type ChangeEvent, type ClipboardEvent, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import { useTimezone } from "src/context/timezone";
@@ -54,16 +54,31 @@ export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, va
     debounceDelay,
   );
 
+  const onPaste = (event: ClipboardEvent<HTMLInputElement>) => {
+    const pasted = event.clipboardData.getData("text");
+    const parsed = dayjs(pasted);
+
+    if (parsed.isValid()) {
+      event.preventDefault();
+      // datetime-local input requires YYYY-MM-DDTHH:mm format
+      const localFormat = parsed.format("YYYY-MM-DDTHH:mm");
+
+      setDisplayDate(localFormat);
+      onDateChange({
+        ...event,
+        target: { ...event.currentTarget, value: localFormat },
+      } as unknown as ChangeEvent<HTMLInputElement>);
+    }
+  };
+
   return (
     <Input
       data-testid="datetime-input"
       onChange={(event) => {
-        const local = dayjs(event.target.value).isValid() ? event.target.value : "";
-
-        setDisplayDate(local);
-        // Parse input to UTC once user finishes typing
+        setDisplayDate(dayjs(event.target.value).isValid() ? event.target.value : "");
         debouncedOnDateChange(event);
       }}
+      onPaste={onPaste}
       ref={ref}
       type="datetime-local"
       value={displayDate}
