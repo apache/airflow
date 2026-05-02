@@ -153,7 +153,7 @@ def run_docker_compose_tests(
                     sys.exit(1)
 
     # Always with color
-    pytest_args = ["--color=yes"]
+    pytest_args = ["--color=yes", "-sv"]
     if test_type == "task-sdk-integration":
         test_path = Path("tests") / "task_sdk_tests"
         cwd = TASK_SDK_INTEGRATION_TESTS_ROOT_PATH.as_posix()
