@@ -317,6 +317,7 @@ and FastAPI middlewares (``fastapi_root_middlewares``).
 
 If you use the Airflow Helm Chart to deploy Airflow, please check your defined values against configuration options available in Airflow 3.
 All configuration options below ``webserver`` need to be changed to ``apiServer``. Consider that many parameters have been renamed or removed.
+For the full chart-specific upgrade checklist (``values.yaml`` changes, the standalone Dag processor, JWT secret, FAB defaults, minimum Kubernetes version, and renamed keys across chart ``1.16.0``..``1.18.0``), see :doc:`helm-chart:upgrading-to-airflow-3`.
 
 Step 7: Changes to your startup scripts
 ---------------------------------------
