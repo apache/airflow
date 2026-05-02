@@ -495,25 +495,32 @@ class TestGCSHook:
                 destination_object=destination_object,
             )
 
-    def test_rewrite_retention_mode_without_retain_until_time(self):
-        with pytest.raises(ValueError, match="retention_mode cannot be set without retain_until_time."):
+    @pytest.mark.parametrize(
+        ("retain_until_time", "retention_mode", "expected_error"),
+        [
+            pytest.param(
+                None,
+                "Locked",
+                "retention_mode cannot be set without retain_until_time.",
+                id="mode_without_retain_until_time",
+            ),
+            pytest.param(
+                datetime(2027, 1, 1),
+                "Invalid",
+                "retention_mode must be 'Locked' or 'Unlocked'",
+                id="invalid_mode_value",
+            ),
+        ],
+    )
+    def test_rewrite_invalid_retention_params(self, retain_until_time, retention_mode, expected_error):
+        with pytest.raises(ValueError, match=expected_error):
             self.gcs_hook.rewrite(
                 source_bucket="test-source-bucket",
                 source_object="test-source-object",
                 destination_bucket="test-dest-bucket",
                 destination_object="test-dest-object",
-                retention_mode="Locked",
-            )
-
-    def test_rewrite_invalid_retention_mode(self):
-        with pytest.raises(ValueError, match="retention_mode must be 'Locked' or 'Unlocked'"):
-            self.gcs_hook.rewrite(
-                source_bucket="test-source-bucket",
-                source_object="test-source-object",
-                destination_bucket="test-dest-bucket",
-                destination_object="test-dest-object",
-                retain_until_time=datetime(2027, 1, 1),
-                retention_mode="Invalid",
+                retain_until_time=retain_until_time,
+                retention_mode=retention_mode,
             )
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))

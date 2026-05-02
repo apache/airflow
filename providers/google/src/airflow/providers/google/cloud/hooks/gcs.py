@@ -237,7 +237,8 @@ class GCSHook(GoogleBaseHook):
             Can be omitted; then the same name is used.
         :param retain_until_time: Optional datetime specifying until when the destination
             object should be retained. Requires the destination bucket to have
-            object retention enabled. If ``tzinfo`` has not been set, UTC will be assumed.
+            object retention enabled. The value is passed to the GCS client as-is;
+            timezone handling follows the GCS client behavior.
         :param retention_mode: Optional retention mode for the destination object.
             Must be ``"Locked"`` or ``"Unlocked"``. Defaults to ``"Unlocked"`` when
             ``retain_until_time`` is set. Cannot be provided without ``retain_until_time``.
