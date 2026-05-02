@@ -19,8 +19,9 @@
 
 from __future__ import annotations
 
-from airflow.sdk import dag, task
 import pendulum
+
+from airflow.sdk import dag, task
 
 
 # [START example_measurement_correction_decorator]

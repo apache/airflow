@@ -21,9 +21,10 @@ using operator PythonOperator tasks.
 
 from __future__ import annotations
 
-from airflow import DAG
-from airflow.operators.python import PythonOperator
 import pendulum
+
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import DAG
 
 
 # Task 1: Return a raw measurement value
@@ -59,7 +60,6 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     read = PythonOperator(
         task_id="read_measurement",
         python_callable=read_measurement,
