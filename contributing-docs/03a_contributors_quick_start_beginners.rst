@@ -202,8 +202,8 @@ CI is green and reviews are ✅, a committer will merge.  🎉
 Example Dag Review Checklist
 ----------------------------
 
-To help maintain consistency and quality across example DAGs,
-please refer to the example DAG review checklist:
+To help maintain consistency and quality across example Dags,
+please refer to the example Dag review checklist:
 
 :doc:`example_dag_review_checklist`
 
