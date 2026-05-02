@@ -204,7 +204,7 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
                 from airflow.dag_processing.dagbag import sync_bag_to_db
             except ImportError:
                 from airflow.models.dagbag import sync_bag_to_db  # type: ignore[no-redef, attribute-defined]
-            # On 3.1+, example DAGs are exposed as their own bundles
+            # On 3.3+, example DAGs are exposed as their own bundles
             # (``example_dags`` for core, ``airflow-provider-*-example-dags``
             # for each provider that ships an ``example_dags`` folder). The
             # bundle loop below already syncs every one of them, so the
