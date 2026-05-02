@@ -1553,10 +1553,8 @@ class TestPostAssetMaterialize(TestAssets):
 
     def test_should_respond_with_bundle_version(self, test_client, session, dag_maker):
         """Test that asset materialization respects bundle_version parameter."""
-        from tests_common.test_utils.dag import sync_dag_to_db
-
         bundle_name = "testing_bundle"
-        asset = self.create_assets(session=session, num=1)[0].to_serialized()
+        asset = session.get(AssetModel, 1).to_serialized()
 
         with dag_maker(
             self.DAG_ASSET1_ID,
@@ -1564,9 +1562,8 @@ class TestPostAssetMaterialize(TestAssets):
             bundle_version="v1",
             schedule=None,
             session=session,
-        ) as dag1:
-            EmptyOperator(task_id="task", outlets=asset)
-        sync_dag_to_db(dag1, bundle_name=bundle_name)
+        ):
+            EmptyOperator(task_id="task_v1", outlets=asset)
 
         with dag_maker(
             self.DAG_ASSET1_ID,
@@ -1574,9 +1571,8 @@ class TestPostAssetMaterialize(TestAssets):
             bundle_version="v2",
             schedule=None,
             session=session,
-        ) as dag2:
-            EmptyOperator(task_id="task", outlets=asset)
-        sync_dag_to_db(dag2, bundle_name=bundle_name)
+        ):
+            EmptyOperator(task_id="task_v2", outlets=asset)
 
         response = test_client.post("/assets/1/materialize", json={"bundle_version": "v1"})
         assert response.status_code == 200
@@ -1589,8 +1585,15 @@ class TestPostAssetMaterialize(TestAssets):
             in response.json()["detail"]
         )
 
-        dag2.disable_bundle_versioning = True
-        sync_dag_to_db(dag2, bundle_name=bundle_name)
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v3",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v3", outlets=asset)
+            dag_maker.dag.disable_bundle_versioning = True
 
         response = test_client.post("/assets/1/materialize", json={"bundle_version": "v1"})
         assert response.status_code == 400

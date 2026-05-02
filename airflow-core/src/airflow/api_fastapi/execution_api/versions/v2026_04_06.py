@@ -218,7 +218,8 @@ class AddBundleVersionField(VersionChange):
     @convert_response_to_previous_version_for(DagRun)  # type: ignore[arg-type]
     def remove_bundle_version_from_dag_run_response(response: ResponseInfo) -> None:  # type: ignore[misc]
         """Remove the `bundle_version` field from direct DagRun responses for previous API versions."""
-        response.body.pop("bundle_version", None)
+        if isinstance(response.body, dict):
+            response.body.pop("bundle_version", None)
 
 
 class AddRunAfterField(VersionChange):

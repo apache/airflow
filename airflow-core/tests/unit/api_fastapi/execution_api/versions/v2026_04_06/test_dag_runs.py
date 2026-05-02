@@ -64,10 +64,10 @@ def test_get_previous_dag_run_redirect(ver_client, session, dag_maker):
     assert result["state"] == "failed"
 
 
-def test_get_dag_run_strips_bundle_version(ver_client, session, dag_maker):
-    """bundle_version must not appear in DagRun responses for API versions before 2026-04-06."""
-    dag_id = "test_dag_id_strip_bundle"
-    run_id = "test_run_strip_bundle"
+def test_get_dag_run_includes_bundle_version(client, session, dag_maker):
+    """The GET /{dag_id}/{run_id} endpoint added in 2026-04-06 exposes bundle_version."""
+    dag_id = "test_dag_id_bundle"
+    run_id = "test_run_bundle"
 
     with dag_maker(dag_id=dag_id, schedule=None, session=session, serialized=True):
         pass
@@ -80,6 +80,6 @@ def test_get_dag_run_strips_bundle_version(ver_client, session, dag_maker):
     )
     session.commit()
 
-    response = ver_client.get(f"/execution/dag-runs/{dag_id}/{run_id}")
+    response = client.get(f"/execution/dag-runs/{dag_id}/{run_id}")
     assert response.status_code == 200
-    assert "bundle_version" not in response.json()
+    assert "bundle_version" in response.json()
