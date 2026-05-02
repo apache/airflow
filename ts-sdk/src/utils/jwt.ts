@@ -27,11 +27,9 @@
 import { createHmac } from "node:crypto";
 
 function b64urlEncode(input: Buffer | string): string {
-    return Buffer.from(input)
-        .toString("base64")
-        .replace(/=+$/, "")
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_");
+    // Node's built-in base64url encoding strips padding and uses URL-safe
+    // characters — no manual char replacement needed.
+    return Buffer.from(input).toString("base64url");
 }
 
 interface EdgeJwtOptions {

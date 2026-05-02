@@ -46,7 +46,12 @@ export function resolveWorkerOptions(opts: StartWorkerOptions): ResolvedWorkerOp
     if (!rawBaseUrl) {
         throw new Error("startWorker: baseUrl is required (pass in options or set AIRFLOW__EDGE__API_URL)");
     }
-    const baseUrl = rawBaseUrl.replace(/\/edge_worker\/v1.*$/, "").replace(/\/$/, "");
+    // Strip an optional `/edge_worker/v1[/...]` suffix and any trailing slash,
+    // leaving the host root that the SDK appends its own paths onto. Uses
+    // indexOf/slice rather than regex to keep ReDoS analyzers happy.
+    const edgeIdx = rawBaseUrl.indexOf("/edge_worker/v1");
+    const root = edgeIdx >= 0 ? rawBaseUrl.slice(0, edgeIdx) : rawBaseUrl;
+    const baseUrl = root.endsWith("/") ? root.slice(0, -1) : root;
 
     const secret = opts.secret ?? process.env.AIRFLOW__API_AUTH__JWT_SECRET;
     if (!secret) {
