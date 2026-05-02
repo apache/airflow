@@ -2505,6 +2505,53 @@ class TestTriggerDagRun:
         assert response.status_code == 400
         assert f"DAG with dag_id: '{dag_id}' does not support bundle versioning" in response.json()["detail"]
 
+    def test_trigger_dag_run_bundle_version_validates_against_old_param_schema(
+        self, test_client, session, dag_maker
+    ):
+        """Conf is validated against the requested bundle version's param schema, not the live dag's."""
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        dag_id = "test_bundle_param_schema_dag"
+        bundle_name = "param_schema_bundle"
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            session=session,
+            params={"env": Param("staging", type="string", enum=["staging", "prod"])},
+        ) as dag1:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag1, bundle_name=bundle_name)
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            session=session,
+            params={"env": Param("dev", type="string", enum=["dev", "staging", "prod"])},
+        ) as dag2:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag2, bundle_name=bundle_name)
+
+        # "dev" is valid for v2 but not for v1's enum — triggering v1 should reject it.
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-02-01T00:00:00Z", "bundle_version": "v1", "conf": {"env": "dev"}},
+        )
+        assert response.status_code == 400
+
+        # "staging" is valid for both v1 and v2 — triggering v1 should accept it.
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={
+                "logical_date": "2024-02-02T00:00:00Z",
+                "bundle_version": "v1",
+                "conf": {"env": "staging"},
+            },
+        )
+        assert response.status_code == 200
+
 
 class TestWaitDagRun:
     # The way we init async engine does not work well with FastAPI app init.

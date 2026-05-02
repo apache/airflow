@@ -3858,6 +3858,11 @@ def test_disable_bundle_versioning(disable, bundle_version, expected, dag_maker,
 
 
 def test_create_dagrun_uses_resolved_bundle_version_for_integrity(dag_maker, session, clear_dags):
+    """
+    When no explicit bundle_version is passed, the live dag drives TI creation and
+    created_dag_version points to the latest serialized version.  DagRun.bundle_version
+    still records the DagModel.bundle_version for auditing purposes.
+    """
     with dag_maker(
         dag_id="test_dag_bundle_version_integrity",
         session=session,
@@ -3887,9 +3892,12 @@ def test_create_dagrun_uses_resolved_bundle_version_for_integrity(dag_maker, ses
         state=None,
     )
 
+    # DagRun.bundle_version records the DagModel value at trigger time (audit field).
     assert dr.bundle_version == "v1"
-    assert dr.created_dag_version.bundle_version == "v1"
-    assert {ti.task_id for ti in dr.get_task_instances(session=session)} == {"t1"}
+    # created_dag_version reflects the latest serialized version (v2), not the DagModel audit value.
+    assert dr.created_dag_version.bundle_version == "v2"
+    # TIs come from the live dag (dag_v2 with t1+t2), not from the old serialized version.
+    assert {ti.task_id for ti in dr.get_task_instances(session=session)} == {"t1", "t2"}
 
 
 def test_create_dagrun_callbacks_copied_to_resolved_bundle_version(dag_maker, session, clear_dags):
@@ -3911,10 +3919,6 @@ def test_create_dagrun_callbacks_copied_to_resolved_bundle_version(dag_maker, se
         EmptyOperator(task_id="t1")
         EmptyOperator(task_id="t2")
 
-    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_v2.dag_id))
-    dag_model.bundle_version = "v1"
-    session.commit()
-
     def some_callable(context):
         pass
 
@@ -3929,12 +3933,56 @@ def test_create_dagrun_callbacks_copied_to_resolved_bundle_version(dag_maker, se
         run_type="manual",
         triggered_by=DagRunTriggeredByType.TEST,
         state=None,
+        bundle_version="v1",
     )
 
     assert dr.dag.has_on_failure_callback is True
     assert dr.dag.has_on_success_callback is True
     assert dr.dag.on_failure_callback is some_callable
     assert dr.dag.on_success_callback is some_callable
+
+
+def test_create_dagrun_without_bundle_version_uses_live_dag(dag_maker, session, clear_dags):
+    """
+    When no explicit bundle_version is passed, TIs are created from the live dag even if
+    DagModel.bundle_version points to an older version.  This confirms backfills and other
+    callers that don't pass bundle_version are unaffected by the bundle_version feature.
+    """
+    with dag_maker(
+        dag_id="test_dag_backfill_bundle_version",
+        session=session,
+        serialized=True,
+        bundle_version="v1",
+    ) as _dag_v1:
+        EmptyOperator(task_id="t1")
+
+    with dag_maker(
+        dag_id="test_dag_backfill_bundle_version",
+        session=session,
+        serialized=True,
+        bundle_version="v2",
+    ) as dag_v2:
+        EmptyOperator(task_id="t1")
+        EmptyOperator(task_id="t2")
+
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_v2.dag_id))
+    dag_model.bundle_version = "v1"
+    session.commit()
+
+    dr = dag_v2.create_dagrun(
+        run_id="no_bundle_version_uses_live_dag",
+        run_after=pendulum.now(),
+        run_type="manual",
+        triggered_by=DagRunTriggeredByType.TEST,
+        state=None,
+    )
+
+    # TIs come from the live dag (dag_v2), not from the v1 serialized version.
+    assert {ti.task_id for ti in dr.get_task_instances(session=session)} == {"t1", "t2"}
+    # created_dag_version reflects the latest serialization (v2).
+    assert dr.created_dag_version.bundle_version == "v2"
+    # DagRun.bundle_version still records the DagModel value at trigger time.
+    assert dr.bundle_version == "v1"
 
 
 def test_get_run_data_interval():

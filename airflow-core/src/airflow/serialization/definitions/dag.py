@@ -69,6 +69,10 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger(__name__)
 
+# Callbacks are not serialized, so when running an older bundle version we copy them
+# from the live dag to the resolved dag so dag-level event hooks still fire correctly.
+# Other DAG-level attrs (max_active_runs, catchup, params, …) intentionally come from
+# the old serialized version, since the caller asked for that specific historical snapshot.
 _DAG_CALLBACK_ATTRS = (
     "sla_miss_callback",
     "on_success_callback",
@@ -522,6 +526,7 @@ class SerializedDAG:
         partition_date: datetime.datetime | None = None,
         note: str | None = None,
         bundle_version: str | None = None,
+        dag_version: DagVersion | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -610,6 +615,7 @@ class SerializedDAG:
             partition_date=partition_date,
             note=note,
             bundle_version=bundle_version,
+            dag_version=dag_version,
             session=session,
         )
 
@@ -1302,36 +1308,29 @@ def _create_orm_dagrun(
     partition_date: datetime.datetime | None = None,
     note: str | None = None,
     bundle_version: str | None = None,
+    dag_version: DagVersion | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
     resolved_bundle_version: str | None = None
     use_resolved_dag = False
-    if not dag.disable_bundle_versioning:
-        if bundle_version is not None:
-            resolved_bundle_version = bundle_version
-            dag_version = DagVersion.get_latest_version(
-                dag.dag_id, bundle_version=resolved_bundle_version, load_serialized_dag=True, session=session
+    if dag_version is not None:
+        resolved_bundle_version = bundle_version
+        use_resolved_dag = True
+    elif bundle_version is not None and not dag.disable_bundle_versioning:
+        resolved_bundle_version = bundle_version
+        dag_version = DagVersion.get_latest_version(
+            dag.dag_id, bundle_version=bundle_version, load_serialized_dag=True, session=session
+        )
+        if not dag_version:
+            raise DagVersionNotFound(
+                f"DAG with dag_id: '{dag.dag_id}' does not have a version for bundle_version '{bundle_version}'"
             )
-            if not dag_version:
-                raise DagVersionNotFound(
-                    f"DAG with dag_id: '{dag.dag_id}' does not have a version for bundle_version '{bundle_version}'"
-                )
-            use_resolved_dag = True
-        else:
+        use_resolved_dag = True
+    else:
+        if not dag.disable_bundle_versioning:
             resolved_bundle_version = session.scalar(
                 select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id)
             )
-            dag_version = DagVersion.get_latest_version(
-                dag.dag_id,
-                bundle_version=resolved_bundle_version,
-                load_serialized_dag=resolved_bundle_version is not None,
-                session=session,
-            )
-            if dag_version is None and resolved_bundle_version is not None:
-                dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
-            elif dag_version is not None and resolved_bundle_version is not None:
-                use_resolved_dag = True
-    else:
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
 
     if not dag_version:
