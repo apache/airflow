@@ -20,17 +20,21 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+from fastapi import Request
+from fastapi.testclient import TestClient
 from sqlalchemy import delete, select
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.app import cached_app
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+from airflow.api_fastapi.execution_api.security import _jwt_bearer
 from airflow.models.dagrun import DagRun
 from airflow.models.task_state import TaskStateModel
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
-    from fastapi.testclient import TestClient
-
     from tests_common.pytest_plugin import CreateTaskInstance
+
 
 pytestmark = pytest.mark.db_test
 
@@ -237,3 +241,34 @@ class TestClearTaskState:
                 )
             ).all()
             assert remaining == []
+
+
+class TestTiSelfEnforcement:
+    @pytest.fixture
+    def wrong_ti_client(self):
+        """TestClient using the real require_auth, JWT bound to a random TI UUID."""
+        app = cached_app(apps="execution")
+        other_ti_id = uuid4()
+
+        async def mock_jwt(request: Request) -> TIToken:
+            return TIToken(id=other_ti_id, claims=TIClaims(scope="execution"))
+
+        app.dependency_overrides[_jwt_bearer] = mock_jwt
+        with TestClient(app, headers={"Authorization": "Bearer fake"}) as client:
+            yield client
+        app.dependency_overrides.pop(_jwt_bearer, None)
+
+    def test_get_with_wrong_ti_token_returns_403(self, wrong_ti_client: TestClient, create_task_instance):
+        ti = create_task_instance()
+        response = wrong_ti_client.get(_api_url(ti.id, "some_key"))
+        assert response.status_code == 403
+
+    def test_put_with_wrong_ti_token_returns_403(self, wrong_ti_client: TestClient, create_task_instance):
+        ti = create_task_instance()
+        response = wrong_ti_client.put(_api_url(ti.id, "some_key"), json={"value": "x"})
+        assert response.status_code == 403
+
+    def test_clear_with_wrong_ti_token_returns_403(self, wrong_ti_client: TestClient, create_task_instance):
+        ti = create_task_instance()
+        response = wrong_ti_client.delete(_api_url(ti.id))
+        assert response.status_code == 403

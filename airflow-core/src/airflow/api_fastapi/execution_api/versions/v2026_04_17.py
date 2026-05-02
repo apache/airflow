@@ -46,8 +46,8 @@ class AddStateEndpoints(VersionChange):
         endpoint("/state/ti/{task_instance_id}/{key}", ["PUT"]).didnt_exist,
         endpoint("/state/ti/{task_instance_id}/{key}", ["DELETE"]).didnt_exist,
         endpoint("/state/ti/{task_instance_id}", ["DELETE"]).didnt_exist,
-        endpoint("/state/asset/{name}/{key}", ["GET"]).didnt_exist,
-        endpoint("/state/asset/{name}/{key}", ["PUT"]).didnt_exist,
-        endpoint("/state/asset/{name}/{key}", ["DELETE"]).didnt_exist,
-        endpoint("/state/asset/{name}", ["DELETE"]).didnt_exist,
+        endpoint("/state/asset/value", ["GET"]).didnt_exist,
+        endpoint("/state/asset/value", ["PUT"]).didnt_exist,
+        endpoint("/state/asset/value", ["DELETE"]).didnt_exist,
+        endpoint("/state/asset/clear", ["DELETE"]).didnt_exist,
     )

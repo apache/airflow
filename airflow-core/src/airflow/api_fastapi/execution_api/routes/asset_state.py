@@ -31,7 +31,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from cadwyn import VersionedAPIRouter
-from fastapi import HTTPException, Path, status
+from fastapi import HTTPException, Query, status
 from sqlalchemy import select
 
 from airflow._shared.state import AssetScope
@@ -40,6 +40,7 @@ from airflow.api_fastapi.execution_api.datamodels.asset_state import (
     AssetStatePutBody,
     AssetStateResponse,
 )
+from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute
 from airflow.models.asset import AssetModel
 from airflow.state import get_state_backend
 
@@ -50,6 +51,7 @@ from airflow.state import get_state_backend
 # Proper fix is a unified asset-registration check across all asset routes,
 # not just here.
 router = VersionedAPIRouter(
+    route_class=ExecutionAPIRoute,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_404_NOT_FOUND: {"description": "Not found"},
@@ -68,10 +70,10 @@ def _resolve_asset_id(name: str, session: SessionDep) -> int:
     return asset_id
 
 
-@router.get("/{name}/{key}")
+@router.get("/value")
 def get_asset_state(
-    name: Annotated[str, Path(min_length=1)],
-    key: Annotated[str, Path(min_length=1)],
+    name: Annotated[str, Query(min_length=1)],
+    key: Annotated[str, Query(min_length=1)],
     session: SessionDep,
 ) -> AssetStateResponse:
     """Get an asset state value."""
@@ -88,10 +90,10 @@ def get_asset_state(
     return AssetStateResponse(value=value)
 
 
-@router.put("/{name}/{key}", status_code=status.HTTP_204_NO_CONTENT)
+@router.put("/value", status_code=status.HTTP_204_NO_CONTENT)
 def set_asset_state(
-    name: Annotated[str, Path(min_length=1)],
-    key: Annotated[str, Path(min_length=1)],
+    name: Annotated[str, Query(min_length=1)],
+    key: Annotated[str, Query(min_length=1)],
     body: AssetStatePutBody,
     session: SessionDep,
 ) -> None:
@@ -100,10 +102,10 @@ def set_asset_state(
     get_state_backend().set(AssetScope(asset_id=asset_id), key, body.value, session=session)
 
 
-@router.delete("/{name}/{key}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/value", status_code=status.HTTP_204_NO_CONTENT)
 def delete_asset_state(
-    name: Annotated[str, Path(min_length=1)],
-    key: Annotated[str, Path(min_length=1)],
+    name: Annotated[str, Query(min_length=1)],
+    key: Annotated[str, Query(min_length=1)],
     session: SessionDep,
 ) -> None:
     """Delete a single asset state key."""
@@ -111,9 +113,9 @@ def delete_asset_state(
     get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
 
 
-@router.delete("/{name}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/clear", status_code=status.HTTP_204_NO_CONTENT)
 def clear_asset_state(
-    name: Annotated[str, Path(min_length=1)],
+    name: Annotated[str, Query(min_length=1)],
     session: SessionDep,
 ) -> None:
     """Delete all state keys for an asset."""

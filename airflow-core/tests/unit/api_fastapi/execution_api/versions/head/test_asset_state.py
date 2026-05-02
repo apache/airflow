@@ -58,30 +58,44 @@ def inactive_asset(session: Session) -> AssetModel:
     return asset
 
 
-def _api_url(name: str, key: str | None = None) -> str:
-    base = f"/execution/state/asset/{name}"
-    return f"{base}/{key}" if key else base
+_VALUE_URL = "/execution/state/asset/value"
+_CLEAR_URL = "/execution/state/asset/clear"
 
 
 class TestGetAssetState:
     def test_get_returns_value(self, client: TestClient, asset: AssetModel):
-        client.put(_api_url(asset.name, "watermark"), json={"value": "2026-04-29"})
+        client.put(_VALUE_URL, params={"name": asset.name, "key": "watermark"}, json={"value": "2026-04-29"})
 
-        response = client.get(_api_url(asset.name, "watermark"))
+        response = client.get(_VALUE_URL, params={"name": asset.name, "key": "watermark"})
 
         assert response.status_code == 200
         assert response.json() == {"value": "2026-04-29"}
 
     def test_get_missing_key_returns_404(self, client: TestClient, asset: AssetModel):
-        response = client.get(_api_url(asset.name, "never_set"))
+        response = client.get(_VALUE_URL, params={"name": asset.name, "key": "never_set"})
 
         assert response.status_code == 404
         assert response.json()["detail"]["reason"] == "not_found"
 
+    def test_get_asset_name_with_slashes(self, client: TestClient, session):
+        slashed = AssetModel(name="team/sales/orders", uri="s3://bucket/team/sales", group="asset")
+        session.add(slashed)
+        session.flush()
+        session.add(AssetActive.for_asset(slashed))
+        session.commit()
+
+        client.put(_VALUE_URL, params={"name": slashed.name, "key": "wm"}, json={"value": "x"})
+        response = client.get(_VALUE_URL, params={"name": slashed.name, "key": "wm"})
+
+        assert response.status_code == 200
+        assert response.json() == {"value": "x"}
+
 
 class TestPutAssetState:
     def test_put_creates_row(self, client: TestClient, asset: AssetModel):
-        response = client.put(_api_url(asset.name, "watermark"), json={"value": "2026-04-29"})
+        response = client.put(
+            _VALUE_URL, params={"name": asset.name, "key": "watermark"}, json={"value": "2026-04-29"}
+        )
 
         assert response.status_code == 204
         with create_session() as session:
@@ -95,25 +109,33 @@ class TestPutAssetState:
             assert row.value == "2026-04-29"
 
     def test_put_overwrites_existing(self, client: TestClient, asset: AssetModel):
-        client.put(_api_url(asset.name, "watermark"), json={"value": "2026-04-28"})
+        client.put(_VALUE_URL, params={"name": asset.name, "key": "watermark"}, json={"value": "2026-04-28"})
 
-        response = client.put(_api_url(asset.name, "watermark"), json={"value": "2026-04-29"})
+        response = client.put(
+            _VALUE_URL, params={"name": asset.name, "key": "watermark"}, json={"value": "2026-04-29"}
+        )
 
         assert response.status_code == 204
-        assert client.get(_api_url(asset.name, "watermark")).json() == {"value": "2026-04-29"}
+        assert client.get(_VALUE_URL, params={"name": asset.name, "key": "watermark"}).json() == {
+            "value": "2026-04-29"
+        }
 
     def test_put_empty_body_returns_422(self, client: TestClient, asset: AssetModel):
-        response = client.put(_api_url(asset.name, "watermark"), json={})
+        response = client.put(_VALUE_URL, params={"name": asset.name, "key": "watermark"}, json={})
 
         assert response.status_code == 422
 
     def test_put_extra_field_returns_422(self, client: TestClient, asset: AssetModel):
-        response = client.put(_api_url(asset.name, "watermark"), json={"value": "x", "extra": "y"})
+        response = client.put(
+            _VALUE_URL, params={"name": asset.name, "key": "watermark"}, json={"value": "x", "extra": "y"}
+        )
 
         assert response.status_code == 422
 
     def test_put_unknown_asset_returns_404(self, client: TestClient):
-        response = client.put(_api_url("nonexistent", "watermark"), json={"value": "x"})
+        response = client.put(
+            _VALUE_URL, params={"name": "nonexistent", "key": "watermark"}, json={"value": "x"}
+        )
 
         assert response.status_code == 404
         assert "nonexistent" in response.json()["detail"]["message"]
@@ -121,15 +143,15 @@ class TestPutAssetState:
 
 class TestDeleteAssetState:
     def test_delete_removes_key(self, client: TestClient, asset: AssetModel):
-        client.put(_api_url(asset.name, "watermark"), json={"value": "2026-04-29"})
+        client.put(_VALUE_URL, params={"name": asset.name, "key": "watermark"}, json={"value": "2026-04-29"})
 
-        response = client.delete(_api_url(asset.name, "watermark"))
+        response = client.delete(_VALUE_URL, params={"name": asset.name, "key": "watermark"})
 
         assert response.status_code == 204
-        assert client.get(_api_url(asset.name, "watermark")).status_code == 404
+        assert client.get(_VALUE_URL, params={"name": asset.name, "key": "watermark"}).status_code == 404
 
     def test_delete_missing_key_is_noop(self, client: TestClient, asset: AssetModel):
-        response = client.delete(_api_url(asset.name, "never_existed"))
+        response = client.delete(_VALUE_URL, params={"name": asset.name, "key": "never_existed"})
 
         assert response.status_code == 204
 
@@ -137,9 +159,9 @@ class TestDeleteAssetState:
 class TestClearAssetState:
     def test_clear_removes_all_keys(self, client: TestClient, asset: AssetModel):
         for k, v in [("watermark", "a"), ("last_id", "b"), ("schema_hash", "c")]:
-            client.put(_api_url(asset.name, k), json={"value": v})
+            client.put(_VALUE_URL, params={"name": asset.name, "key": k}, json={"value": v})
 
-        response = client.delete(_api_url(asset.name))
+        response = client.delete(_CLEAR_URL, params={"name": asset.name})
 
         assert response.status_code == 204
         with create_session() as session:
@@ -151,9 +173,11 @@ class TestInactiveAssetRejected:
     """An asset row without a corresponding asset_active entry is treated as not found."""
 
     def test_get_inactive_asset_returns_404(self, client: TestClient, inactive_asset: AssetModel):
-        response = client.get(_api_url(inactive_asset.name, "watermark"))
+        response = client.get(_VALUE_URL, params={"name": inactive_asset.name, "key": "watermark"})
         assert response.status_code == 404
 
     def test_put_inactive_asset_returns_404(self, client: TestClient, inactive_asset: AssetModel):
-        response = client.put(_api_url(inactive_asset.name, "watermark"), json={"value": "x"})
+        response = client.put(
+            _VALUE_URL, params={"name": inactive_asset.name, "key": "watermark"}, json={"value": "x"}
+        )
         assert response.status_code == 404

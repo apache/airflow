@@ -29,11 +29,12 @@ from airflow.api_fastapi.execution_api.datamodels.task_state import (
     TaskStatePutBody,
     TaskStateResponse,
 )
-from airflow.api_fastapi.execution_api.security import require_auth
+from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, require_auth
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.state import get_state_backend
 
 router = VersionedAPIRouter(
+    route_class=ExecutionAPIRoute,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Access denied"},
@@ -123,14 +124,5 @@ def clear_task_state(
     ``?all_map_indices=true`` is functionally identical to the default and is
     accepted without error.
     """
-    ti = session.get(TI, task_instance_id)
-    if ti is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": f"Task instance {task_instance_id} not found",
-            },
-        )
-    scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+    scope = _get_task_scope_for_ti(task_instance_id, session)
     get_state_backend().clear(scope, all_map_indices=all_map_indices, session=session)
