@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import json
 import time
 from datetime import datetime
@@ -111,21 +112,15 @@ def create_neptune_import_role(role_name: str) -> str:
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_neptune_import_role(role_name: str) -> None:
     iam_client = boto3.client("iam")
-    try:
+    with contextlib.suppress(iam_client.exceptions.NoSuchEntityException):
         iam_client.delete_role_policy(RoleName=role_name, PolicyName="NeptuneAnalyticsS3Access")
-    except iam_client.exceptions.NoSuchEntityException:
-        pass
-    try:
-        iam_client.delete_role(RoleName=role_name)
-    except iam_client.exceptions.NoSuchEntityException:
-        pass
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_graph_if_exists(graph_name: str) -> None:
     """Safety net to clean up the graph in case a previous task failed."""
     hook = NeptuneAnalyticsHook()
-    try:
+    with contextlib.suppress(Exception):
         # List graphs and find by name
         paginator = hook.conn.get_paginator("list_graphs")
         for page in paginator.paginate():
@@ -133,18 +128,15 @@ def delete_graph_if_exists(graph_name: str) -> None:
                 if graph.get("name") == graph_name:
                     graph_id = graph["id"]
                     # Disable deletion protection if enabled
-                    try:
-                        hook.conn.update_graph(graphIdentifier=graph_id, deletionProtection=False)
-                    except Exception:
-                        pass
+
+                    hook.conn.update_graph(graphIdentifier=graph_id, deletionProtection=False)
+
                     hook.conn.delete_graph(graphIdentifier=graph_id, skipSnapshot=True)
                     hook.conn.get_waiter("graph_deleted").wait(
                         graphIdentifier=graph_id,
                         WaiterConfig={"Delay": 30, "MaxAttempts": 60},
                     )
                     return
-    except Exception:
-        pass
 
 
 with DAG(
