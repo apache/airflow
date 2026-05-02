@@ -392,10 +392,6 @@ providers/slack/src/airflow/providers/slack/transfers/sql_to_slack.py::1
 providers/slack/src/airflow/providers/slack/transfers/sql_to_slack_webhook.py::3
 providers/smtp/src/airflow/providers/smtp/hooks/smtp.py::16
 providers/smtp/src/airflow/providers/smtp/operators/smtp.py::3
-providers/snowflake/src/airflow/providers/snowflake/hooks/snowflake.py::1
-providers/snowflake/src/airflow/providers/snowflake/hooks/snowflake_sql_api.py::3
-providers/snowflake/src/airflow/providers/snowflake/operators/snowflake.py::3
-providers/snowflake/tests/unit/snowflake/operators/test_snowflake.py::1
 providers/ssh/src/airflow/providers/ssh/hooks/ssh.py::5
 providers/ssh/src/airflow/providers/ssh/operators/ssh.py::3
 providers/ssh/src/airflow/providers/ssh/operators/ssh_remote_job.py::7

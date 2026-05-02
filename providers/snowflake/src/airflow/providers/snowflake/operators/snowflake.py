@@ -23,7 +23,7 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, SupportsAbs, cast
 
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLExecuteQueryOperator,
@@ -443,7 +443,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             if statement_status.get("status") == "success":
                 succeeded_query_ids.append(query_id)
             else:
-                raise AirflowException(f"{statement_status.get('status')}: {statement_status.get('message')}")
+                raise RuntimeError(f"{statement_status.get('status')}: {statement_status.get('message')}")
 
         if len(self.query_ids) == len(succeeded_query_ids):
             self.log.info("%s completed successfully.", self.task_id)
@@ -465,7 +465,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             while True:
                 statement_status = self.poll_on_queries()
                 if statement_status["error"]:
-                    raise AirflowException(statement_status["error"])
+                    raise RuntimeError(str(statement_status["error"]))
                 if not statement_status["running"]:
                     break
 
@@ -509,7 +509,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         if event:
             if "status" in event and event["status"] == "error":
                 msg = f"{event['status']}: {event['message']}"
-                raise AirflowException(msg)
+                raise RuntimeError(msg)
             if "status" in event and event["status"] == "success":
                 self.query_ids = cast("list[str]", event["statement_query_ids"])
                 self._hook.check_query_output(self.query_ids)
