@@ -80,10 +80,8 @@ time.sleep(300)
             assert not psutil.pid_exists(parent_pid)
             assert not psutil.pid_exists(child_pid)
         finally:
-            try:
+            with suppress(OSError):
                 os.kill(parent.pid, signal.SIGKILL)
-            except OSError:
-                pass
             parent.stdout.close()
             parent.wait()
 
