@@ -40,6 +40,12 @@
     "parseDuration": "파싱 기간:",
     "parsedAt": "파싱 시간:"
   },
+  "deadlineStatus": {
+    "missed": "미준수",
+    "missedCount_one": "데드라인 미준수 {{count}}건",
+    "missedCount_other": "데드라인 미준수 {{count}}건",
+    "mixedCount": "데드라인 미준수 {{missedCount}}건, 예정 {{upcomingCount}}건"
+  },
   "extraLinks": "추가 링크",
   "grid": {
     "buttons": {
