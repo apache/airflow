@@ -240,19 +240,14 @@ def get_last_dagrun(dag_id: str, session: Session, include_manually_triggered: b
     """
     Return the last dag run for a dag, None if there was none.
 
-    Last dag run can be any type of run e.g. scheduled, backfilled, manual, or asset-triggered.
-    Overridden DagRuns are ignored.
-
-    For scheduled runs with logical_date, ordering uses logical_date.
-    For runs without logical_date (manual/asset-triggered), ordering falls back to run_after.
-    This ensures correct behavior for depends_on_past with all run types (AIP-39).
+    Last dag run can be any type of run (e.g. scheduled, manual, asset-triggered).
+    Overridden DagRuns are ignored (AIP-39).
     """
     DR = DagRun
     query = select(DR).where(DR.dag_id == dag_id)
     if not include_manually_triggered:
         query = query.where(DR.run_type != DagRunType.MANUAL)
-    # Order by logical_date if available, otherwise by run_after
-    # This ensures all run types are included and ordered correctly
+    # Order by logical_date if available, otherwise fallback to run_after (AIP-39)
     query = query.order_by(func.coalesce(DR.logical_date, DR.run_after).desc())
     return session.scalar(query.limit(1))
 

@@ -981,11 +981,7 @@ class DagRun(Base, LoggingMixin):
         dag_run: DagRun, state: DagRunState | None = None, session: Session = NEW_SESSION
     ) -> DagRun | None:
         """
-        Return the previous DagRun, if there is one.
-
-        For scheduled runs with a logical_date, uses logical_date for ordering.
-        For runs without a logical_date (manual/asset-triggered), falls back to run_after.
-        This ensures depends_on_past works correctly for all run types (AIP-39).
+        Return the previous DagRun, if there is one (AIP-39).
 
         :param dag_run: the dag run
         :param session: SQLAlchemy ORM Session
@@ -998,13 +994,6 @@ class DagRun(Base, LoggingMixin):
         if state is not None:
             filters.append(DagRun.state == state)
 
-        # For scheduled runs with logical_date, use logical_date for ordering
-        if dag_run.logical_date is not None:
-            filters.append(DagRun.logical_date < dag_run.logical_date)
-            return session.scalar(select(DagRun).where(*filters).order_by(DagRun.logical_date.desc()).limit(1))
-
-        # For runs without logical_date (manual/asset-triggered), fall back to run_after
-        # This ensures depends_on_past checks work for non-scheduled runs
         filters.append(DagRun.run_after < dag_run.run_after)
         return session.scalar(select(DagRun).where(*filters).order_by(DagRun.run_after.desc()).limit(1))
 
