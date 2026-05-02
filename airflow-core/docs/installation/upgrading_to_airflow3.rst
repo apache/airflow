@@ -315,85 +315,9 @@ them to FastAPI apps or ensure you install the FAB provider which provides a bac
 Ideally, you should convert your plugins to the Airflow 3 Plugin interface i.e External Views (``external_views``), Fast API apps (``fastapi_apps``)
 and FastAPI middlewares (``fastapi_root_middlewares``).
 
-.. _helm-chart-upgrade:
-
-Upgrading the Airflow Helm Chart
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-If you deploy Airflow with the official Helm chart, upgrade the chart to ``1.16.0`` or later
-(chart ``1.16.0`` is the first release that supports Airflow 3) and review your ``values.yaml``
-against the items below. Many keys have been renamed, removed, or replaced and the chart will
-fail to render or deploy unsupported components silently if old keys remain.
-
-**Action items for your** ``values.yaml`` **and deployment:**
-
-- **Bump the Airflow image**: set ``defaultAirflowTag`` and ``airflowVersion`` to a 3.x release
-  (the chart ships with a 3.x default starting at chart ``1.17.0``).
-
-- **Rename** ``webserver`` **to** ``apiServer``: the Airflow 3 component that serves the UI and
-  the public REST API is the API server, not the webserver. All configuration that lived under
-  ``webserver:`` in the chart values must move under ``apiServer:``. The component now listens
-  on port ``8080`` and is started with ``airflow api-server``. For example:
-
-  .. code-block:: yaml
-
-     # Airflow 2.x chart values
-     webserver:
-       replicas: 2
-       service:
-         type: ClusterIP
-       resources: {}
-
-     # Airflow 3.x chart values
-     apiServer:
-       replicas: 2
-       service:
-         type: ClusterIP
-       resources: {}
-
-- **Move the secret key**: the API server reads ``[api] secret_key`` instead of
-  ``[webserver] secret_key``. If you set this through ``config:`` in your values file or through
-  ``extraEnv``, update the section name.
-
-- **Add a JWT secret**: Airflow 3 uses short-lived JWT tokens to authenticate workers and
-  triggerers against the API server. The chart generates a ``jwt-secret`` Secret on install;
-  if you template Secrets out-of-band or pin a custom name through ``jwtSecretName``, make sure
-  the referenced Secret exists with a ``jwt-secret`` key before workers and triggerers start.
-
-- **Deploy the standalone Dag processor**: in Airflow 3 the Dag file processor is no longer
-  embedded in the scheduler. The chart deploys it as a separate ``dag-processor`` Deployment
-  configured under ``dagProcessor:``. Review resources, tolerations, and any RBAC overrides for
-  this new component, including granting its ServiceAccount access to your Dag bundles
-  (git-sync, persistent volumes, or custom bundles).
-
-- **Pick an auth manager**: the chart defaults to ``FabAuthManager`` (provided by the
-  ``apache-airflow-providers-fab`` package) so that existing FAB-based users, roles, and SSO
-  configuration keep working. If you migrated to a different auth manager, set it explicitly
-  under ``config.core.auth_manager`` and ensure the corresponding provider is installed in your
-  image.
-
-- **Rework custom plugins**: if you mount a ``webserver_config.py`` or ship Flask-AppBuilder
-  plugins (``appbuilder_views``, ``appbuilder_menu_items``, ``flask_blueprints``), see the
-  plugin notes in Step 6, install the FAB provider, and mount the file under the
-  ``apiServer`` section instead of ``webserver``.
-
-- **Check the minimum Kubernetes version**: chart ``1.17.0`` raised the minimum supported
-  Kubernetes version to ``1.30``. Upgrade your cluster before upgrading the chart if needed.
-
-- **Run database migrations as part of the upgrade**: the chart's database migration job
-  handles ``airflow db migrate`` automatically when you run ``helm upgrade``. Make sure the
-  migration job completes successfully before traffic is sent to the new API server. If you
-  disable the built-in job, run ``airflow db migrate`` yourself before scaling up the
-  scheduler, API server, Dag processor, and triggerer.
-
-- **Re-check renamed or removed values**: many configuration options under
-  ``webserver``/``apiServer``, ``workers``, and ``scheduler`` were renamed or removed across
-  chart ``1.16.0``..``1.18.0``. Diff your existing ``values.yaml`` against the chart's default
-  ``values.yaml`` and the :doc:`Helm chart release notes <helm-chart:release_notes>` for those
-  versions before applying.
-
-After updating ``values.yaml``, render the chart locally with ``helm template`` and inspect the
-diff against your current release before running ``helm upgrade``.
+If you use the Airflow Helm Chart to deploy Airflow, please check your defined values against configuration options available in Airflow 3.
+All configuration options below ``webserver`` need to be changed to ``apiServer``. Consider that many parameters have been renamed or removed.
+For the full chart-specific upgrade checklist (``values.yaml`` changes, the standalone Dag processor, JWT secret, FAB defaults, minimum Kubernetes version, and renamed keys across chart ``1.16.0``..``1.18.0``), see :doc:`helm-chart:upgrading-to-airflow-3`.
 
 Step 7: Changes to your startup scripts
 ---------------------------------------
