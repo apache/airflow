@@ -20,8 +20,10 @@ from __future__ import annotations
 import collections.abc
 import datetime
 import operator
+import os
 import re
 import sys
+import threading
 from io import StringIO
 from typing import TYPE_CHECKING, ClassVar
 
@@ -53,11 +55,15 @@ class _LazyLogRecordDict(collections.abc.Mapping):
         # If there is no callsite info (often for stdout/stderr), show the same sort of thing that stdlib
         # logging would
         # https://github.com/python/cpython/blob/d3c888b4ec15dbd7d6b6ef4f15b558af77c228af/Lib/logging/__init__.py#L1652C34-L1652C48
-        if key in ("lineno", "thread", "process"):
-            val = self.event.get(key)
-            if val is None or val == "(unknown)":
-                return 0
-            return val
+        if key == "process":
+            val = self.event.get("process")
+            return val if val not in (None, "(unknown)") else os.getpid()
+        if key == "thread":
+            val = self.event.get("thread")
+            return val if val not in (None, "(unknown)") else threading.get_ident()
+        if key == "lineno":
+            val = self.event.get("lineno")
+            return val if val not in (None, "(unknown)") else 0
         if key == "filename":
             return self.event.get("filename", "(unknown file)")
         if key == "funcName":

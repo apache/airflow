@@ -40,3 +40,40 @@ class TestPercentFormatRender:
         )
 
         assert formatted == "test.py:0 our msg"
+
+    @mock.patch("airflow_shared.logging.percent_formatter.os.getpid")
+    @mock.patch("airflow_shared.logging.percent_formatter.threading.get_ident")
+    def test_process_thread_missing_returns_live_values(self, mock_get_ident, mock_getpid):
+        mock_getpid.return_value = 123
+        mock_get_ident.return_value = 456
+        fmt = "%(process)d %(thread)d %(lineno)d %(message)s"
+        renderer = PercentFormatRender(fmt)
+
+        event_dict = {"event": "test message"}
+        result = renderer(None, "info", event_dict)
+        assert result.startswith("123 456 0 test message")
+
+    @mock.patch("airflow_shared.logging.percent_formatter.os.getpid")
+    @mock.patch("airflow_shared.logging.percent_formatter.threading.get_ident")
+    def test_process_thread_unknown_string_returns_live_values(self, mock_get_ident, mock_getpid):
+        mock_getpid.return_value = 123
+        mock_get_ident.return_value = 456
+        fmt = "%(process)d %(thread)d %(lineno)d %(message)s"
+        renderer = PercentFormatRender(fmt)
+
+        event_dict = {
+            "event": "test message",
+            "process": "(unknown)",
+            "thread": "(unknown)",
+            "lineno": "(unknown)",
+        }
+        result = renderer(None, "info", event_dict)
+        assert result.startswith("123 456 0 test message")
+
+    def test_process_thread_valid_int_preserved(self):
+        fmt = "%(process)d %(thread)d %(lineno)d %(message)s"
+        renderer = PercentFormatRender(fmt)
+
+        event_dict = {"event": "test message", "process": 111, "thread": 222, "lineno": 333}
+        result = renderer(None, "info", event_dict)
+        assert result.startswith("111 222 333 test message")
