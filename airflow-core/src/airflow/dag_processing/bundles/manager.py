@@ -137,7 +137,7 @@ def _add_provider_example_dags_to_bundle(bundle_config_list: list[_ExternalBundl
         try:
             module = importlib.import_module(module_name)
         except ImportError:
-            log.debug("Could not import provider module %s for example DAG discovery", module_name)
+            log.warning("Could not import provider module %s for example DAG discovery", module_name)
             continue
 
         for module_path in getattr(module, "__path__", []):
