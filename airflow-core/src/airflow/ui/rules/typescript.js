@@ -1,5 +1,3 @@
-/* eslint-disable max-lines */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -504,7 +502,7 @@ export const typescriptRules = /** @type {const} @satisfies {FlatConfig.Config} 
     [`${typescriptNamespace}/naming-convention`]: [
       ERROR,
       {
-        format: null, // eslint-disable-line unicorn/no-null
+        format: null,
         leadingUnderscore: "allow",
         selector: "default",
         trailingUnderscore: "forbid",

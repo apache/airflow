@@ -88,11 +88,11 @@ class Client:
             raise AirflowBadRequest("Pool name shouldn't be empty")
         pool_name_length = Pool.pool.property.columns[0].type.length
         if len(name) > pool_name_length:
-            raise AirflowBadRequest(f"pool name cannot be more than {pool_name_length} characters")
+            raise AirflowBadRequest(f"Pool name cannot be more than {pool_name_length} characters")
         try:
             slots = int(slots)
         except ValueError:
-            raise AirflowBadRequest(f"Bad value for `slots`: {slots}")
+            raise AirflowBadRequest(f"Invalid value for `slots`: {slots}")
         pool = Pool.create_or_update_pool(
             name=name, slots=slots, description=description, include_deferred=include_deferred
         )

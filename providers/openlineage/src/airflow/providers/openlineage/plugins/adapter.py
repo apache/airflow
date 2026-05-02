@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import os
 import traceback
-from contextlib import ExitStack
 from typing import TYPE_CHECKING, Literal
 
 import yaml
@@ -36,13 +35,9 @@ from openlineage.client.facet_v2 import (
 )
 
 from airflow.providers.common.compat.sdk import Stats, conf as airflow_conf
-
-try:
-    from airflow.sdk.observability.stats import DualStatsManager
-except ImportError:
-    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
-from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
+from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.utils.utils import (
+    _PRODUCER,
     OpenLineageRedactor,
     build_dag_run_ol_run_id,
     build_task_instance_ol_run_id,
@@ -68,7 +63,6 @@ else:
         except ImportError:
             from airflow.utils.log.secrets_masker import SecretsMasker, _secrets_masker
 
-_PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
 
 set_producer(_PRODUCER)
 
@@ -162,18 +156,10 @@ class OpenLineageAdapter(LoggingMixin):
         transport_type = f"{self._client.transport.kind}".lower()
 
         try:
-            with ExitStack() as stack:
-                if DualStatsManager is not None:
-                    stack.enter_context(
-                        DualStatsManager.timer(
-                            "ol.emit.attempts",
-                            extra_tags={"event_type": event_type, "transport_type": transport_type},
-                        )
-                    )
-                else:
-                    stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
-                    stack.enter_context(Stats.timer("ol.emit.attempts"))
-
+            with Stats.timer(
+                "ol.emit.attempts",
+                tags={"event_type": event_type, "transport_type": transport_type},
+            ):
                 self._client.emit(redacted_event)
                 self.log.info(
                     "Successfully emitted OpenLineage `%s` event of id `%s`",

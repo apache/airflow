@@ -55,6 +55,7 @@ REGION = "europe-west1"
 CLUSTER_CONFIG = {
     "cluster_type": "STANDARD",
     "cluster_tier": "CLUSTER_TIER_STANDARD",
+    "engine": "DEFAULT",
     "master_config": {
         "num_instances": 1,
         "machine_type_uri": "n1-standard-4",

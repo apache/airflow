@@ -62,7 +62,7 @@ body:
         minimally and precisely as possible.
       placeholder: >
         Please provide the context in which the problem occurred and keep
-        in mind we do not have access to your cluster or DAGs. Remember that
+        in mind we do not have access to your cluster or Dags. Remember that
         non-reproducible issues will be closed! Opening a discussion is
         recommended as a first step. Feel free to use the following template:
         **Issue Description **
@@ -112,6 +112,7 @@ body:
       multiple: true
       options:
         - airbyte
+        - akeyless
         - alibaba
         - amazon
         - apache-beam
@@ -225,7 +226,8 @@ body:
       multiple: false
       options:
         - "Not Applicable"
-        - "1.20.0 (latest released)"
+        - "1.21.0 (latest released)"
+        - "1.20.0"
         - "1.19.0"
         - "1.18.0"
         - "1.17.0"

@@ -27,12 +27,30 @@ class TestPodLauncher:
     @pytest.mark.parametrize(
         ("executor", "rbac", "allow", "expected_accounts"),
         [
-            ("CeleryKubernetesExecutor", True, True, ["scheduler", "worker"]),
             ("KubernetesExecutor", True, True, ["scheduler", "worker"]),
+            (
+                "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor",
+                True,
+                True,
+                ["scheduler", "worker"],
+            ),
             ("CeleryExecutor", True, True, ["worker"]),
+            (
+                "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                True,
+                True,
+                ["worker"],
+            ),
             ("LocalExecutor", True, True, ["scheduler"]),
+            ("airflow.executors.local_executor.LocalExecutor", True, True, ["scheduler"]),
             ("LocalExecutor", False, False, []),
             ("CeleryExecutor,KubernetesExecutor", True, True, ["scheduler", "worker"]),
+            (
+                "CeleryExecutor,airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor",
+                True,
+                True,
+                ["scheduler", "worker"],
+            ),
         ],
     )
     def test_pod_launcher_role(self, executor, rbac, allow, expected_accounts):
@@ -73,7 +91,7 @@ class TestPodLauncher:
     ):
         docs = render_chart(
             namespace=namespace,
-            values={"webserver": {"allowPodLogReading": True}, "multiNamespaceMode": multiNamespaceMode},
+            values={"multiNamespaceMode": multiNamespaceMode},
             show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
         )
 
@@ -103,7 +121,7 @@ class TestPodLauncher:
     def test_pod_launcher_role_multi_namespace(self, multiNamespaceMode, namespace, expectedRole):
         docs = render_chart(
             namespace=namespace,
-            values={"webserver": {"allowPodLogReading": True}, "multiNamespaceMode": multiNamespaceMode},
+            values={"multiNamespaceMode": multiNamespaceMode},
             show_only=["templates/rbac/pod-launcher-role.yaml"],
         )
 

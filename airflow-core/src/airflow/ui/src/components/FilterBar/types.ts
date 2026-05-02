@@ -38,6 +38,10 @@ export type FilterConfig = {
   readonly placeholder?: string;
   readonly required?: boolean;
   readonly startKey?: string;
+  // Set on text filters whose API endpoint exposes both ``*_pattern`` (substring)
+  // and ``*_prefix_pattern`` (prefix) variants. The pill renders a toggle that
+  // controls which one the consuming page uses, via ``useAdvancedSearch``.
+  readonly supportsAdvancedSearch?: boolean;
   readonly type: "date" | "daterange" | "number" | "select" | "text";
 };
 

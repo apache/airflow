@@ -25,6 +25,11 @@ import Edge from "./Edge";
 import { JoinNode } from "./JoinNode";
 import { TaskNode } from "./TaskNode";
 
+export const opacityStyle = (isFiltered: boolean | undefined) => ({
+  opacity: isFiltered ? 0.2 : 1,
+  transition: "opacity 0.2s",
+});
+
 export const nodeTypes = {
   asset: AssetNode,
   "asset-alias": AliasNode,
@@ -33,7 +38,9 @@ export const nodeTypes = {
   "asset-uri-ref": DefaultNode,
   dag: DagNode,
   join: JoinNode,
+  sensor: DefaultNode,
   task: TaskNode,
+  trigger: DefaultNode,
 };
 
 export const edgeTypes = { custom: Edge };

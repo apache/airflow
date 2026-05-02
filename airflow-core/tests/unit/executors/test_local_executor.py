@@ -28,8 +28,8 @@ from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.executors import workloads
-from airflow.executors.base_executor import BaseExecutor, ExecutorConf
-from airflow.executors.local_executor import LocalExecutor, _get_execution_api_server_url
+from airflow.executors.base_executor import BaseExecutor, ExecutorConf, get_execution_api_server_url
+from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.callback import CallbackDTO
 from airflow.executors.workloads.task import TaskInstanceDTO
@@ -219,19 +219,25 @@ class TestLocalExecutor:
 
     @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
-    @mock.patch("airflow.executors.base_executor.Stats.gauge")
+    @mock.patch("airflow.executors.base_executor.stats.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = LocalExecutor()
         executor.heartbeat()
         calls = [
             mock.call(
-                "executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "LocalExecutor"}
+                "executor.open_slots",
+                value=mock.ANY,
+                tags={"status": "open", "executor_class_name": "LocalExecutor"},
             ),
             mock.call(
-                "executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "LocalExecutor"}
+                "executor.queued_tasks",
+                value=mock.ANY,
+                tags={"status": "queued", "executor_class_name": "LocalExecutor"},
             ),
             mock.call(
-                "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "LocalExecutor"}
+                "executor.running_tasks",
+                value=mock.ANY,
+                tags={"status": "running", "executor_class_name": "LocalExecutor"},
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)
@@ -289,7 +295,7 @@ class TestLocalExecutor:
 
         with conf_vars(conf_values):
             team_conf = ExecutorConf(team_name=None)
-            BaseExecutor.run_workload(_make_task_workload(), server=_get_execution_api_server_url(team_conf))
+            BaseExecutor.run_workload(_make_task_workload(), server=get_execution_api_server_url(team_conf))
 
             mock_run_workload.assert_called_once()
             assert mock_run_workload.call_args.kwargs["server"] == expected_server
@@ -318,7 +324,7 @@ class TestLocalExecutor:
                 # Test team-specific config
                 team_conf = ExecutorConf(team_name=team_name)
                 BaseExecutor.run_workload(
-                    _make_task_workload(), server=_get_execution_api_server_url(team_conf)
+                    _make_task_workload(), server=get_execution_api_server_url(team_conf)
                 )
 
                 # Verify team-specific server URL was used
@@ -330,7 +336,7 @@ class TestLocalExecutor:
                 # Test global config (no team)
                 global_conf = ExecutorConf(team_name=None)
                 BaseExecutor.run_workload(
-                    _make_task_workload(), server=_get_execution_api_server_url(global_conf)
+                    _make_task_workload(), server=get_execution_api_server_url(global_conf)
                 )
 
                 # Verify default server URL was used
@@ -394,6 +400,8 @@ class TestLocalExecutor:
 
 class TestLocalExecutorCallbackSupport:
     CALLBACK_UUID = "12345678-1234-5678-1234-567812345678"
+    TEST_TOKEN = "test_token"
+    TEST_SERVER = "http://localhost:8080/execution/"
 
     def test_supports_callbacks_flag_is_true(self):
         executor = LocalExecutor()
@@ -451,6 +459,8 @@ class TestLocalExecutorCallbackSupport:
             callback_kwargs={"arg1": "val1"},
             log_path="test.log",
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token=TestLocalExecutorCallbackSupport.TEST_TOKEN,
+            server=TestLocalExecutorCallbackSupport.TEST_SERVER,
         )
 
     @mock.patch(

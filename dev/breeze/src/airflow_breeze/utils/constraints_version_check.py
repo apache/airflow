@@ -62,6 +62,13 @@ def parse_constraints_generation_date(lines):
     return None
 
 
+def is_yanked_release(release_files: list[dict] | None) -> bool:
+    """Return True if the release has files and all of them are yanked on PyPI."""
+    if not release_files:
+        return False
+    return all(f.get("yanked", False) for f in release_files)
+
+
 def is_valid_version(version_str: str, latest_version: Version) -> bool:
     """Check if the version string is a valid one.
 
@@ -92,6 +99,7 @@ def count_versions_between(releases: dict[str, Any], current_version: str, lates
         v
         for v in releases.keys()
         if releases[v]
+        and not is_yanked_release(releases[v])
         and is_valid_version(version_str=v, latest_version=latest)
         and current < version.parse(v) <= latest
     ]
@@ -163,6 +171,8 @@ def should_show_package(releases, latest_version, constraints_date, mode, is_lat
     for version_info in releases.values():
         if not version_info:
             continue
+        if is_yanked_release(version_info):
+            continue
         try:
             release_date = datetime.fromisoformat(
                 version_info[0]["upload_time_iso_8601"].replace("Z", "+00:00")
@@ -186,6 +196,8 @@ def get_latest_version_with_cooldown(releases: dict[str, Any], cooldown_days: in
     candidates: list[tuple[version.Version, str]] = []
     for v, release_files in releases.items():
         if not release_files:
+            continue
+        if is_yanked_release(release_files):
             continue
         try:
             parsed_v = version.parse(v)
@@ -213,12 +225,12 @@ def get_first_newer_release_date_str(releases, current_version):
     try:
         current = version.parse(current_version)
 
-        # Filter and parse versions, excluding pre-releases and invalid versions
+        # Filter and parse versions, excluding pre-releases, yanked, and invalid versions
         valid_versions = []
         for v in releases:
             try:
                 parsed_v = version.parse(v)
-                if not parsed_v.is_prerelease and releases[v]:  # Check if release data exists
+                if not parsed_v.is_prerelease and releases[v] and not is_yanked_release(releases[v]):
                     valid_versions.append(parsed_v)
             except version.InvalidVersion:
                 continue

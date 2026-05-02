@@ -24,43 +24,20 @@ from chart_utils.helm_template_generator import render_chart
 class TestPodReader:
     """Tests RBAC Pod Reader."""
 
-    @pytest.mark.parametrize(
-        ("webserver", "airflow_version", "expected"),
-        [
-            (True, "2.11.0", ["release-name-airflow-webserver"]),
-            (False, "2.11.0", []),
-            (True, "3.0.0", ["release-name-airflow-api-server"]),
-            (False, "3.0.0", ["release-name-airflow-api-server"]),
-        ],
-    )
-    def test_pod_log_reader_rolebinding(self, webserver, airflow_version, expected):
+    def test_pod_log_reader_rolebinding(self):
         docs = render_chart(
             values={
-                "webserver": {"allowPodLogReading": webserver},
-                "apiServer": {"allowPodLogReading": airflow_version >= "3.0.0"},
-                "airflowVersion": airflow_version,
+                "apiServer": {"allowPodLogReading": True},
             },
             show_only=["templates/rbac/pod-log-reader-rolebinding.yaml"],
         )
         actual = jmespath.search("subjects[*].name", docs[0]) if docs else []
-        assert actual == expected
+        assert actual == ["release-name-airflow-api-server"]
 
-    @pytest.mark.parametrize(
-        ("webserver", "expected"),
-        [
-            (True, "release-name-pod-log-reader-role"),
-            (False, None),
-        ],
-    )
-    def test_pod_log_reader_role(self, webserver, expected):
-        docs = render_chart(
-            values={
-                "webserver": {"allowPodLogReading": webserver},
-            },
-            show_only=["templates/rbac/pod-log-reader-role.yaml"],
-        )
+    def test_pod_log_reader_role(self):
+        docs = render_chart(show_only=["templates/rbac/pod-log-reader-role.yaml"])
         actual = jmespath.search("metadata.name", docs[0]) if docs else None
-        assert actual == expected
+        assert actual == "release-name-pod-log-reader-role"
 
     @pytest.mark.parametrize(
         ("multiNamespaceMode", "namespace", "expectedRole", "expectedRoleBinding"),
@@ -90,7 +67,7 @@ class TestPodReader:
     ):
         docs = render_chart(
             namespace=namespace,
-            values={"webserver": {"allowPodLogReading": True}, "multiNamespaceMode": multiNamespaceMode},
+            values={"multiNamespaceMode": multiNamespaceMode},
             show_only=["templates/rbac/pod-log-reader-rolebinding.yaml"],
         )
 
@@ -120,7 +97,7 @@ class TestPodReader:
     def test_pod_log_reader_role_multi_namespace(self, multiNamespaceMode, namespace, expectedRole):
         docs = render_chart(
             namespace=namespace,
-            values={"webserver": {"allowPodLogReading": True}, "multiNamespaceMode": multiNamespaceMode},
+            values={"multiNamespaceMode": multiNamespaceMode},
             show_only=["templates/rbac/pod-log-reader-role.yaml"],
         )
 

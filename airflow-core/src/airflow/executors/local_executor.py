@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.base_executor import BaseExecutor, get_execution_api_server_url
 
 # add logger to parameter of setproctitle to support logging
 if sys.platform == "darwin":
@@ -48,19 +48,6 @@ else:
 if TYPE_CHECKING:
     from airflow.executors.workloads import ExecutorWorkload
     from airflow.executors.workloads.types import WorkloadResultType
-
-
-def _get_execution_api_server_url(team_conf) -> str:
-    """
-    Resolve the execution API server URL from team-specific configuration.
-
-    :param team_conf: Team-specific executor configuration (ExecutorConf or AirflowConfigParser)
-    """
-    base_url = team_conf.get("api", "base_url", fallback="/")
-    if base_url.startswith("/"):
-        base_url = f"http://localhost:8080{base_url}"
-    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
-    return team_conf.get("core", "execution_api_server_url", fallback=default_execution_api_server)
 
 
 def _get_executor_process_title_prefix(team_name: str | None) -> str:
@@ -114,7 +101,7 @@ def _run_worker(
         try:
             BaseExecutor.run_workload(
                 workload,
-                server=_get_execution_api_server_url(team_conf),
+                server=get_execution_api_server_url(team_conf),
                 proctitle=f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.display_name}",
                 subprocess_logs_to_stdout=True,
             )

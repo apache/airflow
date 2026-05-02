@@ -39,7 +39,7 @@ Datetime Usage
 ''''''''''''''
 For datetime parameters, date should be timezone aware and in ISO format.
 For example: ``2025-10-10T10:00:00+00:00``
-Let's take example of triggering a DAG run with a logical date, run after and a note.
+Let's take example of triggering a Dag run with a logical date, run after and a note.
 
 .. code-block:: bash
 

@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3ListOperator,
     S3ListPrefixesOperator,
     S3PutBucketTaggingOperator,
+    S3ReadObjectOperator,
 )
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
 from airflow.providers.common.compat.sdk import DAG, chain
@@ -140,6 +141,14 @@ with DAG(
         data=DATA,
         replace=True,
     )
+
+    # [START howto_operator_s3_read_object]
+    read_object = S3ReadObjectOperator(
+        task_id="read_object",
+        s3_bucket=bucket_name,
+        s3_key=key,
+    )
+    # [END howto_operator_s3_read_object]
 
     # [START howto_operator_s3_list_prefixes]
     list_prefixes = S3ListPrefixesOperator(
@@ -301,6 +310,7 @@ with DAG(
         delete_tagging,
         create_object,
         create_object_2,
+        read_object,
         list_prefixes,
         list_keys,
         [sensor_one_key, sensor_two_keys, sensor_key_with_function, sensor_key_with_regex],

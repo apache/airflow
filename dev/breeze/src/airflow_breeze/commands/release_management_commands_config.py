@@ -62,7 +62,18 @@ RELEASE_AIRFLOW_TASK_SDK_COMMANDS: dict[str, str | list[str]] = {
 
 RELEASE_AIRFLOW_CTL_COMMANDS: dict[str, str | list[str]] = {
     "name": "airflowctl release commands",
-    "commands": ["prepare-airflow-ctl-distributions", "generate-issue-content-airflow-ctl"],
+    "commands": [
+        "prepare-airflow-ctl-distributions",
+        "generate-issue-content-airflow-ctl",
+        "generate-airflowctl-changelog",
+    ],
+}
+
+RELEASE_MYPY_COMMANDS: dict[str, str | list[str]] = {
+    "name": "Apache Airflow Mypy release commands",
+    "commands": [
+        "prepare-mypy-distributions",
+    ],
 }
 
 RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
@@ -116,15 +127,13 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         }
     ],
-    "breeze release-management generate-issue-content-airflow-ctl": [
+    "breeze release-management prepare-mypy-distributions": [
         {
-            "name": "Generate issue flags",
+            "name": "Package flags",
             "options": [
-                "--github-token",
-                "--previous-release",
-                "--current-release",
-                "--excluded-pr-list",
-                "--limit-pr-count",
+                "--distribution-format",
+                "--version-suffix",
+                "--use-local-hatch",
             ],
         }
     ],
@@ -379,6 +388,31 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--current-release",
                 "--excluded-pr-list",
                 "--limit-pr-count",
+            ],
+        }
+    ],
+    "breeze release-management generate-issue-content-airflow-ctl": [
+        {
+            "name": "Generate issue flags",
+            "options": [
+                "--github-token",
+                "--previous-release",
+                "--current-release",
+                "--excluded-pr-list",
+                "--limit-pr-count",
+            ],
+        }
+    ],
+    "breeze release-management generate-airflowctl-changelog": [
+        {
+            "name": "Generate changelog flags",
+            "options": [
+                "--github-token",
+                "--previous-release",
+                "--current-release",
+                "--version",
+                "--excluded-pr-list",
+                "--output-file",
             ],
         }
     ],

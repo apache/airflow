@@ -135,10 +135,10 @@ you need to deploy Airflow with the ``--executor KubernetesExecutor`` flag.
     breeze k8s deploy-airflow --executor KubernetesExecutor
 
 
-Hot-reloading DAGs and core sources
+Hot-reloading Dags and core sources
 -----------------------------------
 
-If you want to iterate on DAGs or core sources without rebuilding images, run ``breeze k8s dev`` after the
+If you want to iterate on Dags or core sources without rebuilding images, run ``breeze k8s dev`` after the
 cluster is deployed. It starts a skaffold loop that syncs local changes under ``dags/`` and
 ``airflow-core/src/airflow`` into the running pods. Scheduler, triggerer, and dag-processor run in dev
 hot-reload mode; the API server and webserver UI are not hot-reloaded by default.
@@ -227,8 +227,12 @@ You can exit k9s by pressing Ctrl-C.
 Typical testing pattern for Kubernetes tests
 --------------------------------------------
 
-The typical session for tests with Kubernetes looks like follows:
+.. note::
 
+   Steps 1-6 from below instruction can be done by using one command ``breeze k8s deploy-cluster``.
+   For details visit `Test commands <../../dev/breeze/doc/05_test_commands.rst>`__.
+
+The typical session for tests with Kubernetes looks like follows:
 
 1. Prepare the environment:
 
@@ -431,7 +435,7 @@ Should show the status of current KinD cluster.
     breeze k8s upload-k8s-image
 
 
-5. Upload the image to KinD cluster - this uploads your image to make it available for the KinD cluster.
+6. Upload the image to KinD cluster - this uploads your image to make it available for the KinD cluster.
 
 .. code-block:: bash
 

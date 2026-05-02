@@ -20,6 +20,7 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Collect ambiguities during the release (for a follow-up doc PR)](#collect-ambiguities-during-the-release-for-a-follow-up-doc-pr)
 - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Prepare the Apache Airflow Helm Chart Release Candidate](#prepare-the-apache-airflow-helm-chart-release-candidate)
   - [Pre-requisites](#pre-requisites)
@@ -38,6 +39,7 @@
   - [Signature check](#signature-check)
   - [SHA512 sum check](#sha512-sum-check)
 - [Verify the release candidates by Contributors](#verify-the-release-candidates-by-contributors)
+  - [End-to-end verification with Breeze and KinD](#end-to-end-verification-with-breeze-and-kind)
 - [Publish the final release](#publish-the-final-release)
   - [Summarize the voting for the release](#summarize-the-voting-for-the-release)
   - [Publish release to SVN](#publish-release-to-svn)
@@ -64,6 +66,21 @@
 
 You can find the prerequisites to release Apache Airflow in [README.md](README.md). This document
 details the steps for releasing Helm Chart.
+
+# Collect ambiguities during the release (for a follow-up doc PR)
+
+These instructions are imperfect. Every release uncovers at least one command
+that has drifted, one step that is under-documented, or one automation that
+silently did the wrong thing. As you run through this document, jot down any
+such observations in a scratch file kept **outside** the repo (anywhere that
+is not tracked by git — a note in your home directory, a scratchpad, a
+gist). Once the release has landed, turn those notes into a follow-up PR
+against this document.
+
+Keeping the scratch file out of the repo avoids accidentally committing
+release-manager notes along with the release-prep PR, and makes it obvious
+that the notes are input to the next doc PR rather than something to keep
+around long-term.
 
 # Perform review of security issues that are marked for the release
 
@@ -198,18 +215,29 @@ the same between voted release candidate and final release.
 Because of this the version in the built artifacts that will become the
 official Apache releases must not include the rcN suffix.
 
-Make sure you have `apache` remote set up pointing to the apache git repo.
+Make sure you have the `upstream` remote set up pointing to the apache git repo
+(per the standard convention `upstream` → `apache/airflow`, `origin` → your fork —
+see
+[`contributing-docs/10_working_with_git.rst`](../contributing-docs/10_working_with_git.rst#git-remote-naming-conventions)).
 If needed, add it with:
 
 ```shell
-git remote add apache git@github.com:apache/airflow.git
-git fetch apache
+git remote add upstream git@github.com:apache/airflow.git
+git fetch upstream
 ```
 
 - We currently release Helm Chart from `main` branch:
 
+For releasing 1.2x.0
+
 ```shell
-git checkout apache/main
+git checkout apache/chart/v1-2x-test
+```
+
+For releasing 2.x.x and onwards
+
+```shell
+git checkout upstream/main
 ```
 
 - Clean the checkout: (note that this step will also clean any IDE settings you might have so better to
@@ -219,6 +247,39 @@ git checkout apache/main
 git clean -fxd
 rm -rf dist/*
 ```
+
+- Verify your GPG signing key is ready.
+
+  Before you spend 10+ minutes building artifacts only to discover that signing
+  fails, run these checks once:
+
+  ```shell
+  # 1. The apache.org key has a secret signing subkey available locally.
+  gpg --list-secret-keys apache.org
+
+  # 2. Signing actually works (exits 0, writes a .asc, verifies cleanly).
+  echo test > /tmp/sign-check && \
+      gpg --yes --armor --local-user apache.org \
+          --output /tmp/sign-check.asc --detach-sig /tmp/sign-check && \
+      gpg --verify /tmp/sign-check.asc /tmp/sign-check && \
+      rm -f /tmp/sign-check /tmp/sign-check.asc && \
+      echo "GPG signing OK"
+
+  # 3. The fingerprint of your signing (sub)key appears in the Airflow KEYS file.
+  #    Without this, PMC verifiers cannot validate the release.
+  FINGERPRINT=$(gpg --list-keys --with-colons apache.org | awk -F: '/^fpr:/ {print $10; exit}')
+  curl -fsS https://dist.apache.org/repos/dist/release/airflow/KEYS | \
+      grep -q "${FINGERPRINT}" && echo "Key ${FINGERPRINT} is in KEYS" || \
+      echo "MISSING: add your key to KEYS before releasing"
+  ```
+
+  If any of these fail, fix them before the build step. For first-time release
+  managers, adding your key to the `KEYS` file is a separate PR against
+  `https://dist.apache.org/repos/dist/release/airflow/` (SVN).
+
+  `sign.sh` defaults to `SIGN_WITH=apache.org`. If your `apache.org` uid resolves
+  to multiple keys (rare), set `SIGN_WITH` explicitly to the fingerprint of the
+  key you want to use.
 
 - Generate the source tarball:
 
@@ -302,7 +363,7 @@ popd
 
   ```shell
   cd ${AIRFLOW_REPO_ROOT}
-  git push apache tag helm-chart/${VERSION}${VERSION_SUFFIX}
+  git push upstream tag helm-chart/${VERSION}${VERSION_SUFFIX}
   ```
 
 ## Publish rc documentation
@@ -342,7 +403,7 @@ Content is generated with:
 
 ```shell
 breeze release-management generate-issue-content-helm-chart \
---previous-release helm-chart/<PREVIOUS_RELEASE> --current-release helm-chart/${VERSION}${VERSION_SUFFIX}
+--previous-release helm-chart/${PREVIOUS_VERSION_WITH_SUFFIX} --current-release helm-chart/${VERSION}${VERSION_SUFFIX}
 ```
 
 Copy the URL of the issue.
@@ -398,7 +459,7 @@ gpg:                using RSA key E1A1E984F55B8F280BD9CBA20BB7163892A2E48E
 gpg: Good signature from "Jed Cunningham <jedcunningham@apache.org>" [ultimate]
 plugin: Chart SHA verified. sha256:b33eac716e0416a18af89fb4fa1043fcfcf24f9f903cda3912729815213525df
 
-The documentation is available at https://airflow.staged.apache.org/helm-chart/${VERSION}/.
+The documentation is available at https://airflow.staged.apache.org/docs/helm-chart/${VERSION}/index.html.
 
 The vote will be open for at least 72 hours ($VOTE_END_TIME UTC) or until the necessary number of votes is reached.
 
@@ -421,7 +482,7 @@ https://github.com/apache/airflow/blob/main/dev/README_RELEASE_HELM_CHART.md#ver
 
 Consider this my (binding) +1.
 
-For license checks, the .rat-excludes files is included, so you can run the following to verify licenses (just update your path to rat):
+For license checks, the .rat-excludes files are included, so you can run the following to verify licenses (just update your path to rat):
 
 tar -xvf airflow-chart-${VERSION}-source.tar.gz
 cd airflow-chart-${VERSION}
@@ -700,7 +761,9 @@ Checking airflow-chart-1.0.0-source.tar.gz.sha512
 
 # Verify the release candidates by Contributors
 
-Contributors can run below commands to test the Helm Chart
+Contributors can run below commands to test the Helm Chart against any
+Kubernetes cluster they already have configured. Replace the version
+with the one being voted on:
 
 ```shell
 helm repo add apache-airflow-dev https://dist.apache.org/repos/dist/dev/airflow/helm-chart/1.1.0rc1/
@@ -710,6 +773,91 @@ helm install airflow apache-airflow-dev/airflow
 
 You can then perform any other verifications to check that it works as you expected by
 upgrading the Chart or installing by overriding default of `values.yaml`.
+
+## End-to-end verification with Breeze and KinD
+
+If you don't already have a Kubernetes cluster handy, the `breeze k8s`
+commands give you a clean room: a fresh KinD cluster plus the chart
+deployed from your local checkout. This runs the same chart files that
+were packaged into the RC tarball, so it doubles as a chart-content
+sanity check.
+
+1. Check out the RC tag so the local `chart/` directory is the candidate
+   under vote:
+
+   ```shell
+   git checkout helm-chart/${VERSION_RC}
+   ```
+
+2. Create the cluster, configure namespaces, build a k8s-ready airflow
+   image, and load it into KinD. On main these are bundled into a single
+   `breeze k8s deploy-cluster` (which also installs the shared k8s
+   tooling — kind, kubectl, helm — into Breeze's pinned virtualenv,
+   i.e. it includes the work `breeze k8s setup-env` would do); on older
+   tags, run `setup-env` plus the constituent commands in sequence:
+
+   ```shell
+   breeze k8s deploy-cluster --rebuild-base-image                  # main
+   # or, on older tags:
+   breeze k8s setup-env
+   breeze k8s create-cluster
+   breeze k8s configure-cluster
+   breeze ui compile-assets  # ensures the UI is built so the API server can serve index.html
+   breeze k8s build-k8s-image --rebuild-base-image
+   breeze k8s upload-k8s-image
+   ```
+
+3. Helm-install the chart into the cluster:
+
+   ```shell
+   breeze k8s deploy-airflow
+   ```
+
+   The command prints the forwarded `localhost:<port>` URL of the
+   airflow API server (default credentials `admin` / `admin`).
+
+4. Confirm the deployment is healthy:
+
+   ```shell
+   breeze k8s status                            # cluster + connection
+   curl -s http://localhost:<port>/api/v2/monitor/health
+   curl -s http://localhost:<port>/api/v2/version
+   ```
+
+   You want all four `metadatabase`, `scheduler`, `triggerer`,
+   `dag_processor` health entries to be `healthy`, and the version
+   endpoint to report the airflow version pinned by the chart's
+   `values.yaml`.
+
+5. Open the forwarded URL in your browser and poke around the UI —
+   automated health checks pass even when the UI assets fail to load
+   or auth is broken, so a human eyeball over the running deployment
+   is worth the 30 seconds. The URL `breeze k8s deploy-airflow`
+   printed in step 3 (`http://localhost:<port>`) lands on the login
+   page; sign in with `admin` / `admin`. Suggested manual sanity
+   checks:
+
+   - the login page renders (UI assets served correctly);
+   - after login, the Dags list loads and shows the example Dags
+     bundled with the image;
+   - open one example Dag, trigger a run, and watch a task instance
+     reach `success` (exercises scheduler → triggerer → executor and
+     log retrieval end-to-end);
+   - the `Admin → Connections` and `Admin → Variables` pages render
+     without backend errors.
+
+   If the forwarded port has been reclaimed (e.g. you re-ran the
+   deploy or your shell rotated), `breeze k8s status` re-prints the
+   current URL.
+
+6. Tear down the cluster when you're done:
+
+   ```shell
+   breeze k8s delete-cluster
+   ```
+
+Switch back to your working branch (`git checkout <branch>`) before
+running any other release-prep commands.
 
 # Publish the final release
 
@@ -806,7 +954,7 @@ Create and push the release tag:
 cd "${AIRFLOW_REPO_ROOT}"
 git checkout helm-chart/${VERSION}${VERSION_SUFFIX}
 git tag -s helm-chart/${VERSION} -m "Apache Airflow Helm Chart ${VERSION}"
-git push apache helm-chart/${VERSION}
+git push upstream helm-chart/${VERSION}
 ```
 
 ## Publish final documentation
@@ -967,7 +1115,7 @@ I invite everyone to help improve the chart for the next release, a list of open
 
 ## Update issue template with the new release
 
-Updating issue templates in `.github/ISSUE_TEMPLATE/4-airflow_helmchart_bug_report.yml` with the new version
+Updating issue templates in `.github/ISSUE_TEMPLATE/1-airflow_bug_report.yml.yml` with the new version
 
 ## Announce the release on the community slack
 

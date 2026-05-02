@@ -134,7 +134,7 @@ class LLMFileAnalysisOperator(LLMOperator):
             instructions=self._build_system_prompt(),
             **self.agent_params,
         )
-        result = agent.run_sync(request.user_content)
+        result = agent.run_sync(request.user_content, usage_limits=self.usage_limits)
         log_run_summary(self.log, result)
         output = result.output
 

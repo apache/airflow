@@ -42,6 +42,7 @@ from airflow.models.asset import (
 from airflow.models.dag import DAG, DagModel
 from airflow.sdk.definitions.asset import Asset
 
+from tests_common.test_utils.config import conf_vars
 from unit.listeners import asset_listener
 
 pytestmark = pytest.mark.db_test
@@ -317,3 +318,213 @@ class TestAssetManager:
         session.flush()
 
         assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
+
+
+def _make_dag(dag_id: str) -> DagModel:
+    dag = mock.Mock(spec=DagModel)
+    dag.dag_id = dag_id
+    return dag
+
+
+def _make_asset_model(allow_producer_teams: list[str] | None = None) -> AssetModel:
+    model = mock.Mock(spec=AssetModel)
+    extra = {}
+    if allow_producer_teams:
+        extra["allow_producer_teams"] = allow_producer_teams
+    model.extra = extra
+    return model
+
+
+class TestFilterDagsByTeam:
+    @conf_vars({("core", "multi_team"): "false"})
+    def test_multi_team_disabled_returns_all_dags(self):
+        """When multi_team is disabled, all DAGs are returned unchanged."""
+        dags = {_make_dag("dag1"), _make_dag("dag2")}
+        asset_model = _make_asset_model()
+
+        result = AssetManager._filter_dags_by_team(
+            dags_to_queue=dags,
+            source_teams={"team_a"},
+            asset_model=asset_model,
+            source_is_api=False,
+            session=mock.Mock(),
+        )
+
+        assert result == dags
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_empty_dags_returns_empty(self):
+        """Empty input returns empty output."""
+        result = AssetManager._filter_dags_by_team(
+            dags_to_queue=set(),
+            source_teams={"team_a"},
+            asset_model=_make_asset_model(),
+            source_is_api=False,
+            session=mock.Mock(),
+        )
+
+        assert result == set()
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_same_team_allowed(self):
+        """Producer Team A -> Consumer Team A: allowed."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_a"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams={"team_a"},
+                asset_model=_make_asset_model(),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_cross_team_blocked_without_allow(self):
+        """Producer Team A -> Consumer Team B with empty allow_producer_teams: blocked."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams={"team_a"},
+                asset_model=_make_asset_model(allow_producer_teams=[]),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag not in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_cross_team_allowed_via_allow_producer_teams(self):
+        """Producer Team A -> Consumer Team B with allow_producer_teams=["team_a"]: allowed."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams={"team_a"},
+                asset_model=_make_asset_model(allow_producer_teams=["team_a"]),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_teamless_dag_producer_triggers_all(self):
+        """Teamless DAG producer (not API) triggers all consumers including team-bound."""
+        dag_team_b = _make_dag("dag1")
+        dag_teamless = _make_dag("dag2")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag_team_b, dag_teamless},
+                source_teams=set(),
+                asset_model=_make_asset_model(),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag_team_b in result
+        assert dag_teamless in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_teamless_consumer_accepts_any_source(self):
+        """Teamless consumer accepts events from any source."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams={"team_a"},
+                asset_model=_make_asset_model(),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_teamless_api_user_triggers_only_teamless_consumers(self):
+        """Teamless API user can only trigger teamless consumers."""
+        dag_with_team = _make_dag("dag1")
+        dag_teamless = _make_dag("dag2")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag_with_team, dag_teamless},
+                source_teams=set(),
+                asset_model=_make_asset_model(),
+                source_is_api=True,
+                session=mock.Mock(),
+            )
+
+        assert dag_with_team not in result
+        assert dag_teamless in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_api_user_same_team_allowed(self):
+        """API user Team A -> Consumer Team A: allowed."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_a"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams={"team_a"},
+                asset_model=_make_asset_model(),
+                source_is_api=True,
+                session=mock.Mock(),
+            )
+
+        assert dag in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_api_user_cross_team_via_allow_producer_teams(self):
+        """API user Team A -> Consumer Team B with allow_producer_teams=["team_a"]: allowed."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={"dag1": "team_b"}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams={"team_a"},
+                asset_model=_make_asset_model(allow_producer_teams=["team_a"]),
+                source_is_api=True,
+                session=mock.Mock(),
+            )
+
+        assert dag in result
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_batch_team_resolution_called_once(self):
+        """Batch team resolution is called once for N consumers, not N times."""
+        dags = {_make_dag(f"dag{i}") for i in range(5)}
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={}) as mock_mapping:
+            AssetManager._filter_dags_by_team(
+                dags_to_queue=dags,
+                source_teams={"team_a"},
+                asset_model=_make_asset_model(),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        mock_mapping.assert_called_once()
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_both_teamless_allowed(self):
+        """Both producer and consumer teamless: allowed."""
+        dag = _make_dag("dag1")
+
+        with mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping", return_value={}):
+            result = AssetManager._filter_dags_by_team(
+                dags_to_queue={dag},
+                source_teams=set(),
+                asset_model=_make_asset_model(),
+                source_is_api=False,
+                session=mock.Mock(),
+            )
+
+        assert dag in result

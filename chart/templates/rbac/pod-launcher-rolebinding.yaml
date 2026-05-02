@@ -17,12 +17,12 @@
  under the License.
 */}}
 
-################################
+####################################
 ## Airflow Pod Launcher Role Binding
-#################################
+####################################
 {{- if and .Values.rbac.create .Values.allowPodLaunching }}
-{{- $schedulerLaunchExecutors := list "LocalExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
-{{- $workerLaunchExecutors := list "CeleryExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
+{{- $schedulerLaunchExecutors := list "LocalExecutor" "KubernetesExecutor" }}
+{{- $workerLaunchExecutors := list "CeleryExecutor" "KubernetesExecutor" }}
 {{- $executors := split "," .Values.executor }}
 apiVersion: rbac.authorization.k8s.io/v1
 {{- if .Values.multiNamespaceMode }}
@@ -59,7 +59,8 @@ roleRef:
   {{- end }}
 subjects:
   {{- range $executor := $executors }}
-  {{- if has $executor $schedulerLaunchExecutors }}
+  {{- $executorClass := last (splitList "." ($executor | trim)) }}
+  {{- if has $executorClass $schedulerLaunchExecutors }}
   - kind: ServiceAccount
     name: {{ include "scheduler.serviceAccountName" $ }}
     namespace: "{{ $.Release.Namespace }}"
@@ -67,7 +68,8 @@ subjects:
   {{- end }}
   {{- end }}
   {{- range $executor := $executors }}
-  {{- if has $executor $workerLaunchExecutors }}
+  {{- $executorClass := last (splitList "." ($executor | trim)) }}
+  {{- if has $executorClass $workerLaunchExecutors }}
   - kind: ServiceAccount
     name: {{ include "worker.serviceAccountName" $ }}
     namespace: "{{ $.Release.Namespace }}"

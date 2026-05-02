@@ -148,11 +148,12 @@ class WorkerStateBody(WorkerQueuesBase):
         ),
     ] = None
     sysinfo: Annotated[
-        dict[str, str | int],
+        dict[str, str | int | float | datetime],
         Field(
             description="System information of the worker.",
             examples=[
                 {
+                    "status": 20,
                     "concurrency": 4,
                     "free_concurrency": 3,
                     "airflow_version": "2.0.0",

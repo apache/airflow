@@ -292,11 +292,35 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "api_server.dag_bag.cache_hit"
+    description: "Number of cache hits when retrieving SerializedDAG from DBDagBag in the API server"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "api_server.dag_bag.cache_miss"
+    description: "Number of cache misses when retrieving SerializedDAG from DBDagBag in the API server"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "api_server.dag_bag.cache_clear"
+    description: "Number of times the DBDagBag cache was cleared in the API server"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   # ==========
   # Gauges
   # ==========
   - name: "dagbag_size"
     description: "Number of Dags found when the scheduler ran a scan based on its configuration"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "api_server.dag_bag.cache_size"
+    description: "Current number of SerializedDAG objects cached in the API server's DBDagBag"
     type: "gauge"
     legacy_name: "-"
     name_variables: []
@@ -444,11 +468,17 @@ metrics:
     legacy_name: "ti.deferred.{queue}.{dag_id}.{task_id}"
     name_variables: ["queue", "dag_id", "task_id"]
 
-  - name: "ol.event.size.{event_type}.{operator_name}"
+  - name: "ol.event.size"
     description: "Size in bytes of an OpenLineage event by event type and operator."
     type: "gauge"
-    legacy_name: "-"
+    legacy_name: "ol.event.size.{event_type}.{operator_name}"
     name_variables: ["event_type", "operator_name"]
+
+  - name: "edge_worker.status"
+    description: "Edge worker status (expressed as Python logging level)."
+    type: "gauge"
+    legacy_name: "edge_worker.status.{worker_name}"
+    name_variables: ["worker_name"]
 
   - name: "edge_worker.connected"
     description: "Edge worker in state connected."
@@ -534,8 +564,8 @@ metrics:
   - name: "dag_processing.last_duration"
     description: "Milliseconds taken to load the given Dag file"
     type: "timer"
-    legacy_name: "dag_processing.last_duration.{dag_file}"
-    name_variables: ["dag_file"]
+    legacy_name: "dag_processing.last_duration.{bundle_name}.{file_name}"
+    name_variables: ["bundle_name", "file_name"]
 
   - name: "dagrun.duration.success"
     description: "Milliseconds taken for a DagRun to reach success state"
@@ -628,10 +658,10 @@ metrics:
     legacy_name: "ol.emit.attempts.{event_type}.{transport_type}"
     name_variables: ["event_type", "transport_type"]
 
-  - name: "ol.extract.{event_type}.{operator_name}"
+  - name: "ol.extract"
     description: "Milliseconds taken to extract an OpenLineage event by event type and operator."
     type: "timer"
-    legacy_name: "-"
+    legacy_name: "ol.extract.{event_type}.{operator_name}"
     name_variables: ["event_type", "operator_name"]
 
   - name: "airflow.io.load_filesystems"
