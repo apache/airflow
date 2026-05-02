@@ -25,6 +25,7 @@ from airflow.models.pool import Pool
 from airflow.models.team import Team
 from airflow.utils.session import provide_session
 
+from tests_common.test_utils.asserts import count_queries
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_pools, clear_db_teams
 from tests_common.test_utils.logs import check_last_log
@@ -1132,6 +1133,43 @@ class TestBulkPools(TestPoolsEndpoint):
         assert updated_pool.slots == 50  # updated
         assert updated_pool.description is None  # unchanged
         assert updated_pool.include_deferred is True  # unchanged
+
+    def test_bulk_delete_query_count_is_independent_of_pool_count(self, test_client, session):
+        # Regression guard for the N+1 fix in BulkPoolService.handle_bulk_delete:
+        # the query count for a bulk delete must be the same regardless of how
+        # many pools are deleted. A regression that re-queries each pool inside
+        # the loop would add one SELECT per pool, so the larger run would issue
+        # strictly more queries than the smaller one.
+        counts: dict[int, int] = {}
+        for num_pools in (5, 10):
+            pool_names = [f"perf_pool_{num_pools}_{i}" for i in range(num_pools)]
+            session.add_all(Pool(pool=name, slots=1, include_deferred=False) for name in pool_names)
+            session.commit()
+
+            request_body = {
+                "actions": [
+                    {
+                        "action": "delete",
+                        "entities": pool_names,
+                        "action_on_non_existence": "fail",
+                    }
+                ]
+            }
+
+            with count_queries() as result:
+                response = test_client.patch("/pools", json=request_body)
+            counts[num_pools] = sum(result.values())
+
+            assert response.status_code == 200
+            assert sorted(response.json()["delete"]["success"]) == sorted(pool_names)
+            remaining = session.scalars(select(Pool).where(Pool.pool.in_(pool_names))).all()
+            assert remaining == []
+
+        assert counts[5] == counts[10], (
+            f"Bulk-delete query count is not constant: {counts[5]} queries for 5 pools "
+            f"vs {counts[10]} queries for 10 pools. A regression that re-queries pools "
+            f"inside the loop would add one SELECT per pool."
+        )
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/pools", json={})
