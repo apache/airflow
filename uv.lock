@@ -5353,7 +5353,7 @@ requires-dist = [
     { name = "google-cloud-dataflow-client", specifier = ">=0.8.6" },
     { name = "google-cloud-dataform", specifier = ">=0.5.0" },
     { name = "google-cloud-dataplex", specifier = ">=2.6.0" },
-    { name = "google-cloud-dataproc", specifier = ">=5.25.0" },
+    { name = "google-cloud-dataproc", specifier = ">=5.27.0" },
     { name = "google-cloud-dataproc-metastore", specifier = ">=1.12.0" },
     { name = "google-cloud-dlp", specifier = ">=3.12.0" },
     { name = "google-cloud-kms", specifier = ">=2.15.0" },

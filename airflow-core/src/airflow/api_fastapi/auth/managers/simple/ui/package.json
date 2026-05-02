@@ -18,17 +18,17 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@chakra-ui/react": "^3.34.0",
+    "@chakra-ui/react": "^3.35.0",
     "@hey-api/client-axios": "^0.9.1",
     "@hey-api/openapi-ts": "^0.96.1",
-    "@tanstack/react-query": "^5.99.2",
-    "axios": "^1.15.1",
+    "@tanstack/react-query": "^5.100.5",
+    "axios": "^1.15.2",
     "next-themes": "^0.4.6",
     "react": "^19.2.5",
     "react-cookie": "^8.1.0",
     "react-dom": "^19.2.5",
-    "react-hook-form": "^7.72.1",
-    "react-router-dom": "^7.14.1"
+    "react-hook-form": "^7.74.0",
+    "react-router-dom": "^7.14.2"
   },
   "devDependencies": {
     "@7nohe/openapi-react-query-codegen": "^2.1.0",
@@ -40,11 +40,11 @@
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@typescript-eslint/eslint-plugin": "8.58.2",
-    "@typescript-eslint/parser": "8.58.2",
-    "@typescript-eslint/utils": "^8.58.2",
+    "@typescript-eslint/eslint-plugin": "8.59.1",
+    "@typescript-eslint/parser": "8.59.1",
+    "@typescript-eslint/utils": "^8.59.1",
     "@vitejs/plugin-react-swc": "^4.3.0",
-    "@vitest/coverage-v8": "^4.1.4",
+    "@vitest/coverage-v8": "^4.1.5",
     "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -58,10 +58,10 @@
     "prettier": "^3.8.3",
     "ts-morph": "^28.0.0",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.58.2",
-    "vite": "^8.0.9",
+    "typescript-eslint": "^8.59.1",
+    "vite": "^8.0.10",
     "vite-plugin-css-injected-by-js": "^5.0.1",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.5"
   },
   "pnpm": {
     "minimumReleaseAge": 5760,

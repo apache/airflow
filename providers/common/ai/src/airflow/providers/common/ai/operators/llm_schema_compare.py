@@ -309,7 +309,7 @@ class LLMSchemaCompareOperator(LLMOperator):
             **self.agent_params,
         )
         self.log.info("Running LLM schema comparison...")
-        result = agent.run_sync(self.prompt)
+        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
         log_run_summary(self.log, result)
 
         output_result = result.output.model_dump()

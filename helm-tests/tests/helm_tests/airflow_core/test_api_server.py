@@ -20,11 +20,7 @@ from subprocess import CalledProcessError
 
 import jmespath
 import pytest
-from chart_utils.helm_template_generator import render_chart as _render_chart
-
-
-def render_chart(values=None, **kwargs):
-    return _render_chart(values=values or {}, **kwargs)
+from chart_utils.helm_template_generator import render_chart
 
 
 class TestAPIServerDeployment:

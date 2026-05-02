@@ -75,6 +75,13 @@ from airflow.sdk.definitions.partition_mappers.temporal import (
     StartOfWeekMapper,
     StartOfYearMapper,
 )
+from airflow.sdk.definitions.retry_policy import (
+    ExceptionRetryPolicy as ExceptionRetryPolicy,
+    RetryAction as RetryAction,
+    RetryDecision as RetryDecision,
+    RetryPolicy as RetryPolicy,
+    RetryRule as RetryRule,
+)
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
@@ -130,6 +137,7 @@ __all__ = [
     "DeltaTriggerTimetable",
     "EdgeModifier",
     "EventsTimetable",
+    "ExceptionRetryPolicy",
     "IdentityMapper",
     "Label",
     "Metadata",
@@ -140,6 +148,10 @@ __all__ = [
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "ProductMapper",
+    "RetryAction",
+    "RetryDecision",
+    "RetryPolicy",
+    "RetryRule",
     "SecretCache",
     "SkipMixin",
     "StartOfDayMapper",

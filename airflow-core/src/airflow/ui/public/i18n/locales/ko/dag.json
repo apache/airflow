@@ -43,6 +43,7 @@
   "extraLinks": "추가 링크",
   "grid": {
     "buttons": {
+      "newerRuns": "최신 실행",
       "olderRuns": "이전 실행",
       "resetToLatest": "최신 버전으로 재설정",
       "toggleGroup": "그룹 토글"
@@ -81,6 +82,7 @@
   },
   "navigation": {
     "navigation": "탐색: Shift+{{arrow}}",
+    "openGraphFilters": "작업 필터: Ctrl+Shift+F",
     "toggleGroup": "그룹 전환: Space"
   },
   "notFound": {
@@ -130,6 +132,16 @@
     },
     "graphDirection": {
       "label": "그래프 방향"
+    },
+    "graphFilters": {
+      "clearFilters": "필터 초기화",
+      "durationGte": "최소 실행 시간(초)",
+      "durationGteHint": "매핑된 작업의 경우 모든 인스턴스에 걸친 총 소요 시간을 기준으로 합니다.",
+      "mapIndex": "최소 맵 인덱스",
+      "mapIndexHint": "매핑된 작업을 해당 인덱스까지 펼쳐 표시합니다.",
+      "selectStatus": "상태 선택",
+      "selectTaskGroup": "작업 그룹 선택",
+      "title": "작업 필터"
     },
     "showVersionIndicator": {
       "label": "버전 인디케이터 표시",
