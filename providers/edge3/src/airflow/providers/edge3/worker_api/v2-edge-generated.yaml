@@ -1453,6 +1453,14 @@ components:
           format: date-time
           title: Last Update
           description: Time of the last update of the worker.
+        versions_match:
+          type: boolean
+          title: Versions Match
+          description: Whether the worker and the server have matching versions of
+            Airflow and the Edge Provider. If False, the worker version is not matching
+            and might need to be upgraded. But version is still compatible enough
+            to work. If True, worker and server versions match.
+          default: false
       type: object
       required:
       - last_update
@@ -1485,6 +1493,14 @@ components:
           title: Concurrency
           description: Desired concurrency for the worker set by an administrator.
             None means no remote override; the worker uses its startup value.
+        versions_match:
+          type: boolean
+          title: Versions Match
+          description: Whether the worker and the server have matching versions of
+            Airflow and the Edge Provider. If False, the worker version is not matching
+            and might need to be upgraded. But version is still compatible enough
+            to work. If True, worker and server versions match.
+          default: false
       type: object
       required:
       - state
