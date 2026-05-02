@@ -22,9 +22,18 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 
+const matchesSchemaType = (parsed: unknown, types: Array<string | undefined>): boolean => {
+  const valueType = Array.isArray(parsed) ? "array" : parsed === null ? "null" : typeof parsed;
+
+  // "integer" is a JSON Schema distinction; both map to JS "number"
+  return types.some((type) => type === valueType || (type === "integer" && valueType === "number"));
+};
+
 export const FieldMultiType = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
+
+  const schemaTypes = Array.isArray(param.schema.type) ? param.schema.type : [param.schema.type];
 
   // Display objects as pretty-printed JSON, plain strings as-is.
   const displayValue =
@@ -39,7 +48,11 @@ export const FieldMultiType = ({ name, namespace = "default", onUpdate }: Flexib
         paramsDict[name].value = null;
       } else {
         try {
-          paramsDict[name].value = JSON.parse(value) as JSON;
+          const parsed = JSON.parse(value) as JSON;
+
+          // Only store the parsed value if its type is valid per the schema;
+          // otherwise fall back to the raw string (e.g. "45" stays a string for type=["string","object"]).
+          paramsDict[name].value = matchesSchemaType(parsed, schemaTypes) ? parsed : value;
         } catch {
           paramsDict[name].value = value;
         }

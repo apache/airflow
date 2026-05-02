@@ -91,7 +91,9 @@ const isFieldStringArray = (fieldType: string, fieldSchema: ParamSchema) =>
 
 const isFieldMultiType = (fieldSchema: ParamSchema) =>
   Array.isArray(fieldSchema.type) &&
-  fieldSchema.type.filter((type) => type !== "null").length > 1;
+  fieldSchema.type.filter((type) => type !== "null").length > 1 &&
+  !Array.isArray(fieldSchema.enum) &&
+  !Array.isArray(fieldSchema.examples);
 
 const isFieldTime = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "string" && fieldSchema.format === "time";
