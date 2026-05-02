@@ -40,6 +40,11 @@
     "parseDuration": "파싱 기간:",
     "parsedAt": "파싱 시간:"
   },
+  "deadlineAlerts": {
+    "completionRule": "{{reference}}을(를) 기준으로 {{interval}} 이내에 완료되어야 합니다.",
+    "count_one": "{{count}}개의 마감 기한",
+    "count_other": "{{count}}개의 마감 기한"
+  },
   "extraLinks": "추가 링크",
   "grid": {
     "buttons": {
