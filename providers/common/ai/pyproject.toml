@@ -75,6 +75,10 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
+"presidio" = [
+    "presidio-analyzer>=2.2.360",
+    "presidio-anonymizer>=2.2.360",
+]
 "anthropic" = ["pydantic-ai-slim[anthropic]"]
 "bedrock" = ["pydantic-ai-slim[bedrock]"]
 "google" = ["pydantic-ai-slim[google]"]
@@ -107,7 +111,9 @@ dev = [
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
     "pydantic-ai-slim[mcp]",
-    "apache-airflow-providers-common-sql[datafusion]"
+    "apache-airflow-providers-common-sql[datafusion]",
+    "presidio-analyzer>=2.2.360",
+    "presidio-anonymizer>=2.2.360",
 ]
 
 # To build docs:

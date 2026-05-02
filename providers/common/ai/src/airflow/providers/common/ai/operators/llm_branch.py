@@ -76,11 +76,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         )
         output_type = list[downstream_tasks_enum] if self.allow_multiple_branches else downstream_tasks_enum
 
-        agent = self.llm_hook.create_agent(
-            output_type=output_type,
-            instructions=self.system_prompt,
-            **self.agent_params,
-        )
+        agent = self._create_agent(output_type=output_type, **self.agent_params)
         result = agent.run_sync(self.prompt)
         log_run_summary(self.log, result)
         output = result.output

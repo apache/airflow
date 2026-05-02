@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import sys
+from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -241,6 +242,116 @@ class TestPydanticAIHookCreateAgent:
             instructions="Be helpful.",
             retries=3,
         )
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.build_history_processor", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PresidioInputGuard", autospec=True)
+    def test_create_agent_with_input_guard_sanitizes_instructions_and_sets_history_processor(
+        self,
+        mock_guard_cls,
+        mock_build_history_processor,
+        mock_agent_cls,
+        mock_infer_model,
+    ):
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+        mock_guard = mock_guard_cls.return_value
+        mock_guard.sanitize_text.return_value = "Sanitized instructions"
+        processor = MagicMock()
+        mock_build_history_processor.return_value = processor
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(
+                instructions="My email is alice@example.com",
+                input_guard={"enabled": True},
+            )
+
+        mock_guard_cls.assert_called_once()
+        assert mock_guard_cls.call_args.kwargs == {"logger": hook.log}
+        assert mock_guard_cls.call_args.args[0].enabled is True
+        mock_guard.sanitize_text.assert_called_once_with(
+            "My email is alice@example.com",
+            source="instructions",
+        )
+        mock_build_history_processor.assert_called_once()
+        assert mock_build_history_processor.call_args.kwargs == {"logger": hook.log}
+        assert mock_build_history_processor.call_args.args[0].enabled is True
+        mock_agent_cls.assert_called_once_with(
+            mock_model,
+            output_type=str,
+            instructions="Sanitized instructions",
+            history_processors=[processor],
+        )
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.build_history_processor", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PresidioInputGuard", autospec=True)
+    def test_create_agent_prepends_history_processor_to_user_supplied_processors(
+        self,
+        mock_guard_cls,
+        mock_build_history_processor,
+        mock_agent_cls,
+        mock_infer_model,
+    ):
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+        mock_guard_cls.return_value.sanitize_text.return_value = "sanitized"
+        processor = MagicMock()
+        mock_build_history_processor.return_value = processor
+        user_processor = MagicMock()
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(
+                instructions="Be helpful.",
+                input_guard={"enabled": True},
+                history_processors=[user_processor],
+            )
+
+        mock_build_history_processor.assert_called_once()
+        assert mock_build_history_processor.call_args.kwargs == {"logger": hook.log}
+        assert mock_build_history_processor.call_args.args[0].enabled is True
+        mock_agent_cls.assert_called_once_with(
+            mock_model,
+            output_type=str,
+            instructions="sanitized",
+            history_processors=[processor, user_processor],
+        )
+
+
+@dataclass
+class _FakePart:
+    content: str
+
+
+@dataclass
+class _FakeMessage:
+    parts: list[_FakePart]
+
+
+class TestHistoryProcessor:
+    @patch("airflow.providers.common.ai.privacy.history.PresidioInputGuard", autospec=True)
+    def test_build_history_processor_sanitizes_message_content(self, mock_guard_cls):
+        from airflow.providers.common.ai.privacy.config import InputGuardConfig
+        from airflow.providers.common.ai.privacy.history import build_history_processor
+
+        mock_guard = mock_guard_cls.return_value
+        mock_guard.sanitize_text.side_effect = lambda text, source="text": text.replace(
+            "alice@example.com", "<EMAIL_ADDRESS>"
+        )
+
+        processor = build_history_processor(InputGuardConfig(enabled=True))
+        messages = [_FakeMessage(parts=[_FakePart(content="Email alice@example.com now")])]
+
+        sanitized = processor(messages)
+
+        assert sanitized[0].parts[0].content == "Email <EMAIL_ADDRESS> now"
+        assert messages[0].parts[0].content == "Email alice@example.com now"
 
 
 class TestPydanticAIHookTestConnection:

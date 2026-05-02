@@ -98,6 +98,30 @@ data back. The result is serialized via ``model_dump()`` for XCom.
     :start-after: [START howto_decorator_agent_structured]
     :end-before: [END howto_decorator_agent_structured]
 
+Input Guard
+-----------
+
+Set ``input_guard`` to sanitize model-bound prompts, message history, tool
+results returned to the model, and system instructions with Presidio:
+
+.. code-block:: python
+
+    AgentOperator(
+        task_id="analyze_customer",
+        llm_conn_id="pydanticai_default",
+        prompt="Investigate alice@example.com and 4111 1111 1111 1111",
+        toolsets=[SQLToolset(db_conn_id="postgres_default")],
+        input_guard={
+            "enabled": True,
+            "mode": "replace",
+            "entities": ("EMAIL_ADDRESS", "CREDIT_CARD"),
+        },
+    )
+
+This first iteration sanitizes **outbound model input only**. Raw values may
+still exist in Airflow-local artifacts such as HITL state, XComs, DEBUG logs,
+and durable cache files. See :doc:`../privacy`.
+
 
 Chaining with Downstream Tasks
 -------------------------------
@@ -230,6 +254,7 @@ Parameters
   every tool call is logged in real time. Default ``True``.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+- ``input_guard``: Optional Presidio-based outbound text sanitization config.
 - ``durable``: When ``True``, enables step-level caching of model responses and
   tool results via ObjectStorage. On retry, cached steps are replayed instead of
   re-executing expensive LLM calls. Requires the ``[common.ai] durable_cache_path``

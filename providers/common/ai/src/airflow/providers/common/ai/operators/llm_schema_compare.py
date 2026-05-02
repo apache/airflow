@@ -303,7 +303,7 @@ class LLMSchemaCompareOperator(LLMOperator):
 
         full_system_prompt = self._build_system_prompt(schema_context)
 
-        agent = self.llm_hook.create_agent(
+        agent = self._create_agent(
             output_type=SchemaCompareResult,
             instructions=full_system_prompt,
             **self.agent_params,
