@@ -69,7 +69,6 @@ class TestSCCActivation:
                 "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
-                "dagProcessor": {"enabled": True},
             },
             show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
         )

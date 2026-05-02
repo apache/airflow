@@ -19,8 +19,13 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+from botocore.exceptions import ClientError
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.s3_tables import S3TablesHook
 from airflow.providers.amazon.aws.operators.s3_tables import (
+    S3TablesCreateTableBucketOperator,
     S3TablesCreateTableOperator,
     S3TablesDeleteTableOperator,
 )
@@ -124,6 +129,86 @@ class TestS3TablesDeleteTableOperator:
             name=TABLE_NAME,
             versionToken="v1",
         )
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+BUCKET_NAME = "test-table-bucket"
+BUCKET_ARN = "arn:aws:s3tables:us-east-1:123456789012:bucket/test-table-bucket"
+
+
+class TestS3TablesCreateTableBucketOperator:
+    def setup_method(self):
+        self.operator = S3TablesCreateTableBucketOperator(
+            task_id="create_table_bucket",
+            table_bucket_name=BUCKET_NAME,
+        )
+
+    @mock.patch.object(S3TablesHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_table_bucket.return_value = {"arn": BUCKET_ARN}
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        mock_client.create_table_bucket.assert_called_once_with(name=BUCKET_NAME)
+        assert result == BUCKET_ARN
+
+    @mock.patch.object(S3TablesHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_encryption(self, mock_conn):
+        enc = {"sseAlgorithm": "aws:kms", "kmsKeyArn": "arn:aws:kms:us-east-1:123:key/abc"}
+        op = S3TablesCreateTableBucketOperator(
+            task_id="create_table_bucket",
+            table_bucket_name=BUCKET_NAME,
+            encryption_configuration=enc,
+            tags={"env": "test"},
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_table_bucket.return_value = {"arn": BUCKET_ARN}
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        mock_client.create_table_bucket.assert_called_once_with(
+            name=BUCKET_NAME,
+            encryptionConfiguration=enc,
+            tags={"env": "test"},
+        )
+        assert result == BUCKET_ARN
+
+    @mock.patch.object(S3TablesHook, "get_table_bucket_arn_by_name", return_value=BUCKET_ARN)
+    @mock.patch.object(S3TablesHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_skip_existing(self, mock_conn, mock_get_arn):
+        mock_client = mock.MagicMock()
+        mock_client.create_table_bucket.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateTableBucket",
+        )
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        assert result == BUCKET_ARN
+        mock_get_arn.assert_called_once_with(BUCKET_NAME)
+
+    @mock.patch.object(S3TablesHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_fail_on_conflict(self, mock_conn):
+        op = S3TablesCreateTableBucketOperator(
+            task_id="create_table_bucket",
+            table_bucket_name=BUCKET_NAME,
+            if_exists="fail",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_table_bucket.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateTableBucket",
+        )
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError):
+            op.execute({})
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

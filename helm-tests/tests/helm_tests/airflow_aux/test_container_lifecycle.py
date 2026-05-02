@@ -145,7 +145,6 @@ class TestContainerLifecycleHooks:
                     "containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE},
                 },
                 "dagProcessor": {
-                    "enabled": True,
                     "containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE},
                 },
             },

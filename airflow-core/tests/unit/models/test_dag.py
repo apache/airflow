@@ -1050,8 +1050,8 @@ class TestDag:
         assert dag_run.state == State.RUNNING
         assert dag_run.run_type != DagRunType.MANUAL
 
-    @patch("airflow.models.dagrun.Stats")
-    def test_dag_handle_callback_crash(self, mock_stats, testing_dag_bundle):
+    @patch("airflow._shared.observability.metrics.stats.incr")
+    def test_dag_handle_callback_crash(self, mock_incr, testing_dag_bundle):
         """
         Tests avoid crashes from calling dag callbacks exceptions
         """
@@ -1086,7 +1086,7 @@ class TestDag:
         dag_run.execute_dag_callbacks(dag=dag, success=False)
         dag_run.execute_dag_callbacks(dag=dag, success=True)
 
-        mock_stats.incr.assert_called_with(
+        mock_incr.assert_called_with(
             "dag.callback_exceptions",
             tags={"dag_id": "test_dag_callback_crash"},
         )

@@ -174,9 +174,9 @@ class BigQueryCheckOperator(
     deviation for the 7-day average.
 
     This operator can be used as a data quality check in your pipeline.
-    Depending on where you put it in your DAG, you have the choice to stop the
+    Depending on where you put it in your Dag, you have the choice to stop the
     critical path, preventing from publishing dubious data, or on the side and
-    receive email alerts without stopping the progress of the DAG.
+    receive email alerts without stopping the progress of the Dag.
 
     :param sql: SQL to execute.
     :param gcp_conn_id: Connection ID for Google Cloud.

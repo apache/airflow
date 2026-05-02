@@ -31,7 +31,7 @@ def test_should_add_airflow_home():
 
 
 def test_should_add_airflow_home_notset():
-    docs = render_chart(values={}, show_only=["templates/api-server/api-server-deployment.yaml"])
+    docs = render_chart(show_only=["templates/api-server/api-server-deployment.yaml"])
     assert {"name": "AIRFLOW_HOME", "value": "/opt/airflow"} in jmespath.search(
         "spec.template.spec.containers[0].env", docs[0]
     )

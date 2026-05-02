@@ -26,10 +26,7 @@ class TestAPIServerHPA:
 
     def test_hpa_disabled_by_default(self):
         """Disabled by default."""
-        docs = render_chart(
-            values={},
-            show_only=["templates/api-server/api-server-hpa.yaml"],
-        )
+        docs = render_chart(show_only=["templates/api-server/api-server-hpa.yaml"])
         assert docs == []
 
     def test_replicas_omitted_when_null(self):

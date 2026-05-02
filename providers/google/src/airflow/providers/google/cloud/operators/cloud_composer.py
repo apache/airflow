@@ -843,13 +843,13 @@ class CloudComposerRunAirflowCLICommandOperator(GoogleCloudBaseOperator):
 
 class CloudComposerTriggerDAGRunOperator(GoogleCloudBaseOperator):
     """
-    Trigger DAG run for provided Composer environment.
+    Trigger Dag run for provided Composer environment.
 
     :param project_id: The ID of the Google Cloud project that the service belongs to.
     :param region: The ID of the Google Cloud region that the service belongs to.
     :param environment_id: The ID of the Google Cloud environment that the service belongs to.
-    :param composer_dag_id: The ID of DAG which will be triggered.
-    :param composer_dag_conf: Configuration parameters for the DAG run.
+    :param composer_dag_id: The ID of Dag which will be triggered.
+    :param composer_dag_conf: Configuration parameters for the Dag run.
     :param timeout: The timeout for this request.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -914,7 +914,7 @@ class CloudComposerTriggerDAGRunOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info(
-            "Triggering the DAG %s on the %s environment...", self.composer_dag_id, self.environment_id
+            "Triggering the Dag %s on the %s environment...", self.composer_dag_id, self.environment_id
         )
         dag_run = hook.trigger_dag_run(
             composer_airflow_uri=composer_airflow_uri,
@@ -923,6 +923,6 @@ class CloudComposerTriggerDAGRunOperator(GoogleCloudBaseOperator):
             composer_airflow_version=composer_airflow_version,
             timeout=self.timeout,
         )
-        self.log.info("The DAG %s was triggered with Run ID: %s", self.composer_dag_id, dag_run["dag_run_id"])
+        self.log.info("The Dag %s was triggered with Run ID: %s", self.composer_dag_id, dag_run["dag_run_id"])
 
         return dag_run

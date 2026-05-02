@@ -66,6 +66,16 @@ from airflow.utils.state import State, TaskInstanceState
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
+try:
+    # Check whether a module-level function from stats is importable.
+    from airflow._shared.observability.metrics.stats import gauge  # noqa: F401
+
+    stats_reference = "airflow._shared.observability.metrics.stats"
+    _executor_name_tag_key = "executor_class_name"
+except ImportError:
+    stats_reference = "airflow.executors.base_executor.Stats"
+    _executor_name_tag_key = "name"
+
 if AIRFLOW_V_3_0_PLUS:
     LOGICAL_DATE_KEY = "logical_date"
 else:
@@ -718,23 +728,25 @@ class TestKubernetesExecutor:
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubeConfig")
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
-    @mock.patch("airflow.executors.base_executor.Stats.gauge")
+    @mock.patch(f"{stats_reference}.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync, mock_kube_config):
         executor = self.kubernetes_executor
         executor.heartbeat()
         calls = [
             mock.call(
-                "executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "KubernetesExecutor"}
+                "executor.open_slots",
+                value=mock.ANY,
+                tags={"status": "open", _executor_name_tag_key: "KubernetesExecutor"},
             ),
             mock.call(
                 "executor.queued_tasks",
                 value=mock.ANY,
-                tags={"status": "queued", "name": "KubernetesExecutor"},
+                tags={"status": "queued", _executor_name_tag_key: "KubernetesExecutor"},
             ),
             mock.call(
                 "executor.running_tasks",
                 value=mock.ANY,
-                tags={"status": "running", "name": "KubernetesExecutor"},
+                tags={"status": "running", _executor_name_tag_key: "KubernetesExecutor"},
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)

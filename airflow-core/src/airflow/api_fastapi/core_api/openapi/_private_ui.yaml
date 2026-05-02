@@ -2258,7 +2258,7 @@ components:
         is_backfillable:
           type: boolean
           title: Is Backfillable
-          description: Whether this DAG's schedule supports backfilling.
+          description: Whether this Dag's schedule supports backfilling.
           readOnly: true
         file_token:
           type: string
@@ -2347,7 +2347,7 @@ components:
       - dag_id
       - dag_display_name
       title: DagTagResponse
-      description: DAG Tag serializer for responses.
+      description: Dag Tag serializer for responses.
     DagVersionResponse:
       properties:
         id:

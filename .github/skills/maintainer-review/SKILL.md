@@ -1,36 +1,22 @@
 ---
 name: maintainer-review
 description: |
-  Walk a maintainer through deep code review of open pull
-  requests on `apache/airflow` (or another target repo). The
-  default working list — referred to throughout the docs as
-  **"my reviews"** — is the union of five signals on the
-  authenticated maintainer: PRs where review is requested
-  from them, PRs that touch files they recently modified, PRs
-  whose changed files they own per `CODEOWNERS`, PRs that
-  `@`-mention them, and PRs they already submitted a real
-  review on (triage comments do not count). Filters can narrow
-  by area label, collaborator status, or to a single PR. For
-  each PR the skill reads the diff, applies the project's
-  review criteria
+  Walk a maintainer through deep code review of open pull requests on `apache/airflow` (or another target repo). The
+  default working list — referred to throughout the docs as **"my reviews"** — is the union of five signals on the
+  authenticated maintainer: PRs where review is requested from them, PRs that touch files they recently modified, PRs
+  whose changed files they own per `CODEOWNERS`, PRs that `@`-mention them, and PRs they already submitted a real
+  review on (triage comments do not count). Filters can narrow by area label, collaborator status, or to a single PR.
+  For each PR the skill reads the diff, applies the project's review criteria
   ([.github/instructions/code-review.instructions.md](../../../.github/instructions/code-review.instructions.md)
-  and [AGENTS.md](../../../AGENTS.md)), runs any
-  locally-configured adversarial reviewer (e.g. the OpenAI
-  Codex plugin), surfaces findings, drafts an
-  `approve` / `request-changes` / `comment` review with
-  inline comments proposed by default, and — on the
-  maintainer's confirmation — posts it via the
-  `addPullRequestReview` mutation. This is the deep-review
-  counterpart to the triage skill.
+  and [AGENTS.md](../../../AGENTS.md)), runs any locally-configured adversarial reviewer (e.g. the OpenAI
+  Codex plugin), surfaces findings, drafts an `approve` / `request-changes` / `comment` review with
+  inline comments proposed by default, and — on the maintainer's confirmation — posts it via the
+  `addPullRequestReview` mutation. This is the deep-review counterpart to the triage skill.
 when_to_use: |
-  Invoke when a maintainer says "review my PRs", "go through
-  the PRs assigned to me", "review my queue", "review the
-  area:scheduler PRs", "review PR NNN", "do my review pass",
-  or any variation on "look over the code on PRs I'm
-  responsible for, one at a time." Distinct from `pr-triage`,
-  which decides *whether* to engage with a PR. This skill is
-  invoked **after** triage has produced PRs marked `ready for
-  maintainer review` (or any other curated selector) and a
+  Invoke when a maintainer says "review my PRs", "go through the PRs assigned to me", "review my queue", "review the
+  area:scheduler PRs", "review PR NNN", "do my review pass", or any variation on "look over the code on PRs I'm
+  responsible for, one at a time." Distinct from `pr-triage`, which decides *whether* to engage with a PR. This skill is
+  invoked **after** triage has produced PRs marked `ready for maintainer review` (or any other curated selector) and a
   human reviewer is doing the actual code review.
 license: Apache-2.0
 ---

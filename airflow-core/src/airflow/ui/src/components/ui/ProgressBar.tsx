@@ -21,7 +21,6 @@ import { forwardRef } from "react";
 
 export const ProgressBar = forwardRef<HTMLDivElement, ChakraProgress.RootProps>((props, ref) => (
   // default to indeterminate
-  // eslint-disable-next-line unicorn/no-null
   <ChakraProgress.Root value={null} {...props} ref={ref}>
     <ChakraProgress.Track>
       <ChakraProgress.Range />

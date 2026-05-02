@@ -1634,6 +1634,64 @@ class TestWorkerSets:
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == "test"
 
     @pytest.mark.parametrize(
+        ("queue", "expected_in_query"),
+        [
+            ("cpu", "queue IN ('cpu')"),
+            ("highcpu,highmem", "queue IN ('highcpu','highmem')"),
+        ],
+    )
+    def test_overwrite_queue_keda_query(self, queue, expected_in_query):
+        docs = render_chart(
+            name="test",
+            values={
+                "workers": {
+                    "celery": {
+                        "keda": {"enabled": True},
+                        "enableDefault": False,
+                        "sets": [{"name": "worker-set", "queue": queue}],
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+
+        assert len(docs) == 1
+        query = jmespath.search("spec.triggers[0].metadata.query", docs[0])
+        assert expected_in_query in query
+        assert "queue IN ('default')" not in query
+
+    @pytest.mark.parametrize(
+        ("queue", "expected_in_query"),
+        [
+            ("cpu", "queue IN ('cpu')"),
+            ("highcpu,highmem", "queue IN ('highcpu','highmem')"),
+        ],
+    )
+    def test_overwrite_queue_keda_query_with_default(self, queue, expected_in_query):
+        docs = render_chart(
+            name="test",
+            values={
+                "workers": {
+                    "celery": {
+                        "keda": {"enabled": True},
+                        "enableDefault": True,
+                        "sets": [{"name": "worker-set", "queue": queue}],
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+
+        assert len(docs) == 2
+        by_name = {d["metadata"]["name"]: d for d in docs}
+        set_query = jmespath.search("spec.triggers[0].metadata.query", by_name["test-worker-worker-set"])
+        default_query = jmespath.search("spec.triggers[0].metadata.query", by_name["test-worker"])
+        assert expected_in_query in set_query
+        assert "queue IN ('default')" not in set_query
+        assert "queue IN ('default')" in default_query
+        assert expected_in_query not in default_query
+
+    @pytest.mark.parametrize(
         "workers_values",
         [
             {

@@ -457,12 +457,12 @@ class CloudComposerHook(GoogleBaseHook, OperationHelper):
         timeout: float | None = None,
     ) -> dict:
         """
-        Trigger DAG run for provided Apache Airflow Web UI hosted within Composer environment.
+        Trigger Dag run for provided Apache Airflow Web UI hosted within Composer environment.
 
         :param composer_airflow_uri: The URI of the Apache Airflow Web UI hosted within Composer environment.
-        :param composer_dag_id: The ID of DAG which will be triggered.
+        :param composer_dag_id: The ID of Dag which will be triggered.
         :param composer_airflow_version: The version of Apache Airflow.
-        :param composer_dag_conf: Configuration parameters for the DAG run.
+        :param composer_dag_conf: Configuration parameters for the Dag run.
         :param timeout: The timeout for this request.
         """
         resource_path = f"/api/{self.get_airflow_rest_api_version(composer_airflow_version)}/dags/{composer_dag_id}/dagRuns"
@@ -492,10 +492,10 @@ class CloudComposerHook(GoogleBaseHook, OperationHelper):
         timeout: float | None = None,
     ) -> dict:
         """
-        Get the list of dag runs for provided DAG.
+        Get the list of dag runs for provided Dag.
 
         :param composer_airflow_uri: The URI of the Apache Airflow Web UI hosted within Composer environment.
-        :param composer_dag_id: The ID of DAG.
+        :param composer_dag_id: The ID of Dag.
         :param composer_airflow_version: The version of Apache Airflow.
         :param timeout: The timeout for this request.
         """
@@ -509,7 +509,7 @@ class CloudComposerHook(GoogleBaseHook, OperationHelper):
 
         if response.status_code != 200:
             self.log.error(
-                "Failed to get DAG runs for dag_id=%s from %s (status=%s): %s",
+                "Failed to get Dag runs for dag_id=%s from %s (status=%s): %s",
                 composer_dag_id,
                 composer_airflow_uri,
                 response.status_code,
@@ -528,10 +528,10 @@ class CloudComposerHook(GoogleBaseHook, OperationHelper):
         timeout: float | None = None,
     ) -> dict:
         """
-        Get the list of task instances for provided DAG.
+        Get the list of task instances for provided Dag.
 
         :param composer_airflow_uri: The URI of the Apache Airflow Web UI hosted within Composer environment.
-        :param composer_dag_id: The ID of DAG.
+        :param composer_dag_id: The ID of Dag.
         :param composer_airflow_version: The version of Apache Airflow.
         :query_parameters: Query parameters for this request.
         :param timeout: The timeout for this request.
@@ -879,10 +879,10 @@ class CloudComposerAsyncHook(GoogleBaseAsyncHook):
         timeout: float | None = None,
     ) -> dict:
         """
-        Get the list of dag runs for provided DAG.
+        Get the list of dag runs for provided Dag.
 
         :param composer_airflow_uri: The URI of the Apache Airflow Web UI hosted within Composer environment.
-        :param composer_dag_id: The ID of DAG.
+        :param composer_dag_id: The ID of Dag.
         :param composer_airflow_version: The version of Apache Airflow.
         :param timeout: The timeout for this request.
         """
@@ -896,7 +896,7 @@ class CloudComposerAsyncHook(GoogleBaseAsyncHook):
 
         if response_status_code != 200:
             self.log.error(
-                "Failed to get DAG runs for dag_id=%s from %s (status=%s): %s",
+                "Failed to get Dag runs for dag_id=%s from %s (status=%s): %s",
                 composer_dag_id,
                 composer_airflow_uri,
                 response_status_code,
@@ -915,10 +915,10 @@ class CloudComposerAsyncHook(GoogleBaseAsyncHook):
         timeout: float | None = None,
     ) -> dict:
         """
-        Get the list of task instances for provided DAG.
+        Get the list of task instances for provided Dag.
 
         :param composer_airflow_uri: The URI of the Apache Airflow Web UI hosted within Composer environment.
-        :param composer_dag_id: The ID of DAG.
+        :param composer_dag_id: The ID of Dag.
         :param composer_airflow_version: The version of Apache Airflow.
         :query_parameters: Query parameters for this request.
         :param timeout: The timeout for this request.
