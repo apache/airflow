@@ -104,10 +104,6 @@
       "assetEvent_one": "생성된 에셋 이벤트",
       "assetEvent_other": "생성된 에셋 이벤트"
     },
-    "deadlines": {
-      "showAll": "전체 보기",
-      "title": "제목"
-    },
     "failedLogs": {
       "hideLogs": "로그 숨기기",
       "showLogs": "로그 보기",
