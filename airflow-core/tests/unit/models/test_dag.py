@@ -1533,6 +1533,83 @@ class TestDag:
         dag.test()
         mock_object.assert_called_with("output of first task")
 
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_dag_test_with_trigger_dagrun_operator(self, test_dags_bundle, session):
+        dag_id = "test_dag_test_trigger_parent"
+        target_dag_id = "test_dag_test_trigger_target"
+
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        dag = dagbag.dags.get(dag_id)
+        assert dag is not None
+
+        dr = dag.test()
+
+        assert dr.state == DagRunState.SUCCESS
+        assert session.scalar(select(DagRun).where(DagRun.dag_id == target_dag_id)) is not None
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_dag_test_with_trigger_dagrun_operator_multi_bundle(
+        self, tmp_path, configure_dag_bundles, session
+    ):
+        # Setup bundle 1 (Parent)
+        dir1 = tmp_path / "bundle1"
+        dir1.mkdir()
+        parent_file = dir1 / "parent.py"
+        parent_file.write_text("""
+from airflow.sdk import DAG
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+from datetime import datetime
+
+with DAG(dag_id="parent_dag_multi", schedule=None, start_date=datetime(2024, 1, 1)):
+    TriggerDagRunOperator(task_id="trigger", trigger_dag_id="target_dag_multi")
+""")
+
+        # Setup bundle 2 (Target)
+        dir2 = tmp_path / "bundle2"
+        dir2.mkdir()
+        target_file = dir2 / "target.py"
+        target_file.write_text("""
+from airflow.sdk import DAG
+from airflow.providers.standard.operators.empty import EmptyOperator
+from datetime import datetime
+
+with DAG(dag_id="target_dag_multi", schedule=None, start_date=datetime(2024, 1, 1)):
+    EmptyOperator(task_id="target_task")
+""")
+
+        # Bundle names are sorted alphabetically. parent_bundle comes before target_bundle.
+        with configure_dag_bundles(
+            {
+                "aaa_parent_bundle": dir1,
+                "bbb_target_bundle": dir2,
+            }
+        ):
+            from airflow.models.dag_version import DagVersion
+
+            # Pre-check: No versions in DB
+            assert DagVersion.get_version("parent_dag_multi") is None
+            assert DagVersion.get_version("target_dag_multi") is None
+
+            # Load parent DAG from file manually to call test() on it
+            dagbag = DagBag(dag_folder=os.fspath(parent_file), include_examples=False)
+            parent_dag = dagbag.get_dag("parent_dag_multi")
+            assert parent_dag is not None
+
+            # This works because we now sync ALL bundles even if parent is found early.
+            dr = parent_dag.test()
+            assert dr.state == DagRunState.SUCCESS
+
+            # Verify target dag run was created
+            target_dr = session.scalar(select(DagRun).where(DagRun.dag_id == "target_dag_multi").limit(1))
+            assert target_dr is not None
+
+            # Cleanup dynamically created rows to avoid leaking state to other tests
+            session.execute(delete(DagRun).where(DagRun.dag_id.in_(["parent_dag_multi", "target_dag_multi"])))
+            session.execute(
+                delete(DagModel).where(DagModel.dag_id.in_(["parent_dag_multi", "target_dag_multi"]))
+            )
+            session.commit()
+
     def test_dag_test_with_fail_handler(self, testing_dag_bundle):
         mock_handle_object_1 = mock.MagicMock()
         mock_handle_object_2 = mock.MagicMock()

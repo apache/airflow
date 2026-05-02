@@ -1289,34 +1289,39 @@ class DAG:
             else:
                 timetable = coerce_to_core_timetable(self.timetable)
                 data_interval = timetable.infer_manual_data_interval(run_after=logical_date)
-            from airflow.models.dag_version import DagVersion
+            from airflow.dag_processing.bundles.manager import DagBundlesManager
+            from airflow.dag_processing.dagbag import BundleDagBag, sync_bag_to_db
+            from airflow.models.dag import DagModel
 
-            version = DagVersion.get_version(self.dag_id)
-            if not version:
-                from airflow.dag_processing.bundles.manager import DagBundlesManager
-                from airflow.dag_processing.dagbag import BundleDagBag, sync_bag_to_db
-                from airflow.sdk.definitions._internal.dag_parsing_context import (
-                    _airflow_parsing_context_manager,
+            manager = DagBundlesManager()
+            manager.sync_bundles_to_db(session=session)
+            session.commit()
+
+            # Find the bundle name for this DAG from the DB
+            bundle_name = session.query(DagModel.bundle_name).filter(DagModel.dag_id == self.dag_id).scalar()
+
+            bundles_to_sync = []
+            if bundle_name:
+                bundle = manager.get_bundle(bundle_name)
+                if bundle:
+                    bundles_to_sync = [bundle]
+
+            if not bundles_to_sync:
+                # Fallback to all bundles if not found or bundle gone
+                bundles_to_sync = list(manager.get_all_dag_bundles())
+
+            for bundle in bundles_to_sync:
+                if not bundle.is_initialized:
+                    bundle.initialize()
+
+                # We don't use _airflow_parsing_context_manager here because we want to sync
+                # all DAGs in the bundle (especially triggered ones)
+                dagbag = BundleDagBag(
+                    dag_folder=bundle.path,
+                    bundle_path=bundle.path,
+                    bundle_name=bundle.name,
                 )
-
-                manager = DagBundlesManager()
-                manager.sync_bundles_to_db(session=session)
-                session.commit()
-                # sync all bundles? or use the dags-folder bundle?
-                # What if the test dag is in a different bundle?
-                for bundle in manager.get_all_dag_bundles():
-                    if not bundle.is_initialized:
-                        bundle.initialize()
-                    with _airflow_parsing_context_manager(dag_id=self.dag_id):
-                        dagbag = BundleDagBag(
-                            dag_folder=bundle.path,
-                            bundle_path=bundle.path,
-                            bundle_name=bundle.name,
-                        )
-                        sync_bag_to_db(dagbag, bundle.name, bundle.version)
-                    version = DagVersion.get_version(self.dag_id)
-                    if version:
-                        break
+                sync_bag_to_db(dagbag, bundle.name, bundle.version)
 
             # Preserve callback functions from original Dag since they're lost during serialization
             # and yes it is a hack for now! It is a tradeoff for code simplicity.
