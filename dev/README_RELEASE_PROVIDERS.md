@@ -1565,6 +1565,18 @@ not be needed unless there is some problem with workflow automation above)
 > manual intervention. If you need to rebuild the registry independently, trigger the `registry-build.yml`
 > workflow manually. See [`registry/README.md`](../registry/README.md) for details.
 
+### Update airflow-site index for new providers
+
+If this release adds a brand-new provider, also update
+`airflow-site/landing-pages/site/content/en/docs/_index.md` in the
+`apache/airflow-site` repository. The "Active providers" list there is
+maintained manually, so new providers will not appear on the public docs index
+until that file is updated and the live site refresh completes.
+
+To avoid publishing the provider in the site index too early, keep the
+`apache/airflow-site` change unmerged until the live release window, then merge
+it immediately before or together with the `live` refresh step above.
+
 ## Update providers metadata
 
 Create PR and open it to be merged:
