@@ -19,48 +19,20 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
-from contextlib import AsyncExitStack
-from functools import cache, cached_property
 
 import httpx
-from a2wsgi import ASGIMiddleware
-from airflowctl.api.client import Client as AirflowCtlClient
-from airflowctl.api.client import ClientKind as AirflowCtlClientKind
-from airflowctl.api.client import ServerResponseError
+from airflowctl.api.client import ClientKind as AirflowCtlClientKind, ServerResponseError, provide_api_client
 from airflowctl.api.datamodels.generated import PoolBody, TriggerDAGRunPostBody
-from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 
 from airflow.api.common import delete_dag, trigger_dag
-from airflow.api_fastapi.app import cached_app
+from airflow.api_fastapi.app import get_auth_manager, init_auth_manager
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.configuration import conf
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models.pool import Pool
 from airflow.utils.platform import getuser
 from airflow.utils.types import DagRunTriggeredByType
-
-
-class _InProcessCoreAPI:
-    @cached_property
-    def app(self):
-        return cached_app(apps="core")
-
-    @cached_property
-    def transport(self) -> httpx.WSGITransport:
-        middleware = ASGIMiddleware(self.app)
-
-        async def start_lifespan(cm: AsyncExitStack):
-            await cm.enter_async_context(self.app.router.lifespan_context(self.app))
-
-        self._cm = AsyncExitStack()
-        asyncio.run_coroutine_threadsafe(start_lifespan(self._cm), middleware.loop)
-        return httpx.WSGITransport(app=middleware)
-
-
-@cache
-def _in_process_core_api() -> _InProcessCoreAPI:
-    return _InProcessCoreAPI()
 
 
 class Client:
@@ -70,20 +42,16 @@ class Client:
         self._session: httpx.Client = session or httpx.Client()
         if auth:
             self._session.auth = auth
-        self._airflowctl_client = self._create_airflowctl_client()
+        self.api_token = self._create_api_token()
 
-    def _create_airflowctl_client(self) -> AirflowCtlClient | None:
-        app = _in_process_core_api().app
-        auth_manager = app.state.auth_manager
-        token = auth_manager.generate_jwt(
+    def _create_api_token(self) -> str:
+        try:
+            auth_manager = get_auth_manager()
+        except RuntimeError:
+            auth_manager = init_auth_manager()
+        return auth_manager.generate_jwt(
             user=SimpleAuthManagerUser(username=getuser(), role="admin"),
             expiration_time_in_seconds=conf.getint("api_auth", "jwt_cli_expiration_time"),
-        )
-        return AirflowCtlClient(
-            base_url=conf.get("api", "base_url", fallback="http://localhost:8080") or "http://localhost:8080",
-            token=token,
-            kind=AirflowCtlClientKind.CLI,
-            transport=_in_process_core_api().transport,
         )
 
     @staticmethod
@@ -98,6 +66,7 @@ class Client:
                 return detail
         return str(payload)
 
+    @provide_api_client(kind=AirflowCtlClientKind.CLI)
     def trigger_dag(
         self,
         dag_id,
@@ -106,12 +75,13 @@ class Client:
         logical_date=None,
         triggering_user_name=None,
         replace_microseconds=True,
+        api_client=None,
     ) -> dict | None:
-        if self._airflowctl_client is not None:
+        if api_client is not None:
             parsed_conf = conf
             if isinstance(conf, str):
                 parsed_conf = json.loads(conf)
-            dag_run = self._airflowctl_client.dags.trigger(
+            dag_run = api_client.dags.trigger(
                 dag_id,
                 TriggerDAGRunPostBody(
                     dag_run_id=run_id,
@@ -159,20 +129,22 @@ class Client:
             }
         return dag_run
 
-    def delete_dag(self, dag_id):
-        if self._airflowctl_client is not None:
+    @provide_api_client(kind=AirflowCtlClientKind.CLI)
+    def delete_dag(self, dag_id, api_client=None):
+        if api_client is not None:
             try:
-                self._airflowctl_client.dags.delete(dag_id)
+                api_client.dags.delete(dag_id)
             except ServerResponseError as err:
                 raise AirflowBadRequest(self._error_detail(err)) from err
             return f"Deleted DAG {dag_id}"
         count = delete_dag.delete_dag(dag_id)
         return f"Removed {count} record(s)"
 
-    def get_pool(self, name):
-        if self._airflowctl_client is not None:
+    @provide_api_client(kind=AirflowCtlClientKind.CLI)
+    def get_pool(self, name, api_client=None):
+        if api_client is not None:
             try:
-                pool = self._airflowctl_client.pools.get(name)
+                pool = api_client.pools.get(name)
             except ServerResponseError as err:
                 if err.response.status_code == 404:
                     raise PoolNotFound(f"Pool {name} not found") from err
@@ -183,16 +155,18 @@ class Client:
             raise PoolNotFound(f"Pool {name} not found")
         return pool.pool, pool.slots, pool.description, pool.include_deferred
 
-    def get_pools(self):
-        if self._airflowctl_client is not None:
-            pools = self._airflowctl_client.pools.list()
+    @provide_api_client(kind=AirflowCtlClientKind.CLI)
+    def get_pools(self, api_client=None):
+        if api_client is not None:
+            pools = api_client.pools.list()
             return [(pool.name, pool.slots, pool.description, pool.include_deferred) for pool in pools.pools]
         return [(p.pool, p.slots, p.description, p.include_deferred) for p in Pool.get_pools()]
 
-    def create_pool(self, name, slots, description, include_deferred):
-        if self._airflowctl_client is not None:
+    @provide_api_client(kind=AirflowCtlClientKind.CLI)
+    def create_pool(self, name, slots, description, include_deferred, api_client=None):
+        if api_client is not None:
             try:
-                pool = self._airflowctl_client.pools.create(
+                pool = api_client.pools.create(
                     PoolBody(
                         name=name,
                         slots=int(slots),
@@ -219,10 +193,11 @@ class Client:
         )
         return pool.pool, pool.slots, pool.description
 
-    def delete_pool(self, name):
-        if self._airflowctl_client is not None:
+    @provide_api_client(kind=AirflowCtlClientKind.CLI)
+    def delete_pool(self, name, api_client=None):
+        if api_client is not None:
             try:
-                self._airflowctl_client.pools.delete(name)
+                api_client.pools.delete(name)
             except ServerResponseError as err:
                 if err.response.status_code == 404:
                     raise PoolNotFound(f"Pool {name} not found") from err
