@@ -920,3 +920,28 @@ class PluginsOperations(BaseOperations):
             return PluginImportErrorCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
+
+
+class TaskOperations(BaseOperations):
+    """Task instance operations."""
+
+    def states_for_dag_run(
+        self, dag_id: str, dag_run_id: str, limit: int = 100
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """
+        Get task instance states for a DAG run.
+
+        Args:
+            dag_id: The DAG ID.
+            dag_run_id: The DAG run ID.
+            limit: Maximum number of task instances to return.
+        """
+        try:
+            self.response = self.client.get(
+                f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+                params={"limit": limit},
+            )
+            return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+

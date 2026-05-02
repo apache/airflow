@@ -1825,6 +1825,49 @@ class TestPluginsOperations:
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == ("/api/v2/plugins")
+
+
+class TestTaskOperations:
+    """Unit tests for TaskOperations."""
+
+    def test_states_for_dag_run(self):
+        """Test states_for_dag_run calls the correct endpoint with correct params."""
+        import httpx
+        from airflowctl.api.datamodels.generated import TaskInstanceCollectionResponse, TaskInstanceResponse
+
+        task_response = TaskInstanceCollectionResponse(
+            task_instances=[
+                TaskInstanceResponse(
+                    task_id="task_1",
+                    dag_id="example_dag",
+                    dag_run_id="run_1",
+                    logical_date="2025-01-01T00:00:00Z",
+                    start_date="2025-01-01T00:01:00Z",
+                    end_date="2025-01-01T00:05:00Z",
+                    duration=240.0,
+                    state="success",
+                    try_number=1,
+                    max_tries=2,
+                    task_display_name="Task 1",
+                )
+            ],
+            total_entries=1,
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/dags/example_dag/dagRuns/run_1/taskInstances"
+            params = dict(request.url.params)
+            assert params.get("limit") == "10"
+            return httpx.Response(200, json=json.loads(task_response.model_dump_json()))
+
+        from airflowctl.api.operations import make_api_client, TaskOperations
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        ops = TaskOperations(client=client.client)
+        response = ops.states_for_dag_run("example_dag", "run_1", limit=10)
+        assert response.total_entries == 1
+        assert len(response.task_instances) == 1
+        assert response.task_instances[0].task_id == "task_1"
+
             return httpx.Response(200, json=json.loads(self.plugin_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))

@@ -30,8 +30,8 @@ from airflowctl.api.client import (
 from airflowctl.api.datamodels.generated import (
     ClearTaskInstancesBody,
     ClearTaskInstanceCollectionResponse,
-    TaskInstanceCollectionResponse,
 )
+from airflowctl.api.operations import TaskOperations
 from airflowctl.ctl.console_formatting import AirflowConsole
 
 
@@ -75,14 +75,8 @@ def clear(args, api_client=NEW_API_CLIENT) -> None:
 def states_for_dag_run(args, api_client=NEW_API_CLIENT) -> None:
     """Get task instance states for a DAG run."""
     try:
-        response = api_client.client.get(
-            f"dags/{args.dag_id}/dagRuns/{args.dag_run_id}/taskInstances",
-            params={"limit": getattr(args, "limit", 100)},
-        )
-        if response.status_code >= 400:
-            rich.print(f"[red]Error: {response.status_code} {response.text}[/red]")
-            sys.exit(1)
-        tis = TaskInstanceCollectionResponse.model_validate_json(response.content)
+        ops = TaskOperations(client=api_client.client)
+        tis = ops.states_for_dag_run(args.dag_id, args.dag_run_id, getattr(args, "limit", 100))
         rich.print(f"[green]Found {len(tis.task_instances)} task instance(s)[/green]")
         AirflowConsole().print_as(
             data=[t.model_dump() for t in tis.task_instances],

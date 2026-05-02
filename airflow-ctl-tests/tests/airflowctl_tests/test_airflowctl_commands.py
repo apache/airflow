@@ -126,6 +126,9 @@ TEST_COMMANDS = [
     # Plugins command
     "plugins list",
     "plugins list-import-errors",
+    # Tasks commands
+    "tasks states-for-dag-run --dag-id=example_bash_operator --dag-run-id=run_1 --limit=5",
+    "tasks clear --dag-id=example_bash_operator --dag-run-id=run_1",
 ]
 
 NO_AUTH_TEST_COMMANDS = [
