@@ -18,15 +18,14 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pyspark.sql import SparkSession
 
-try:
+with contextlib.suppress(ImportError):
     from pyspark.sql import SparkSession
-except ImportError:
-    pass
 
 SPARK_WRITE_TO_JDBC: str = "spark_to_jdbc"
 SPARK_READ_FROM_JDBC: str = "jdbc_to_spark"
