@@ -623,7 +623,7 @@ class TestDag:
             logical_date=model.next_dagrun,
             run_type=DagRunType.SCHEDULED,
             session=session,
-            data_interval=(model.next_dagrun, model.next_dagrun),
+            data_interval=(model.next_dagrun, model.next_dagrun + timedelta(days=1)),
             run_after=model.next_dagrun_create_after,
             triggered_by=DagRunTriggeredByType.TEST,
         )
@@ -638,7 +638,7 @@ class TestDag:
         assert model.exceeds_max_non_backfill is True
 
         if catchup is True:
-            assert model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=1)
+            assert model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=2)
         else:
             assert model.next_dagrun_create_after > current_time + timedelta(days=-2)  # allow for fuzz
 
@@ -967,7 +967,10 @@ class TestDag:
             dag_run.execute_dag_callbacks(dag=dag, success=True)
 
     @time_machine.travel(timezone.datetime(2025, 11, 11))
-    @pytest.mark.parametrize(("catchup", "expected_next_dagrun"), [(True, DEFAULT_DATE), (False, None)])
+    @pytest.mark.parametrize(
+        ("catchup", "expected_next_dagrun"),
+        [(True, DEFAULT_DATE + datetime.timedelta(hours=1)), (False, None)],
+    )
     def test_next_dagrun_after_fake_scheduled_previous(
         self, catchup, expected_next_dagrun, testing_dag_bundle
     ):
@@ -995,7 +998,7 @@ class TestDag:
             run_type=DagRunType.SCHEDULED,
             logical_date=DEFAULT_DATE,
             state=State.SUCCESS,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE + delta),
         )
         sync_dag_to_db(dag)
         with create_session() as session:
@@ -1008,8 +1011,6 @@ class TestDag:
             # Verify next_dagrun_create_after is scheduled after next_dagrun
             assert model.next_dagrun_create_after > model.next_dagrun
         else:
-            # For catchup=True, even though there is a run for this date already,
-            # it is marked as manual/external, so we should create a scheduled one anyway!
             assert model.next_dagrun == expected_next_dagrun
             assert model.next_dagrun_create_after == expected_next_dagrun + delta
 
