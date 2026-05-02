@@ -439,7 +439,7 @@ class NeptuneDeletePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         vpc_endpoint_id = ""
 
-        if event and event.get("status").lower() == "success":
+        if event and (event.get("status") or "").lower() == "success":
             vpc_endpoint_id = event.get("endpoint_id", "Unknown")
 
             self.log.info("Endpoint id %s deleted", vpc_endpoint_id)
