@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import importlib
+import subprocess
 import sys
 from contextlib import nullcontext
 from unittest import mock
@@ -100,21 +100,26 @@ def _create_run_db_manager(*managers):
 
 class TestBaseDBManager:
     def test_importing_db_manager_does_not_eagerly_import_alembic(self):
-        original_db_manager_module = sys.modules.get("airflow.utils.db_manager")
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import sys\n"
+                    "import airflow.utils.db_manager as module\n"
+                    "assert hasattr(module, 'RunDBManager')\n"
+                    "alembic_modules = sorted(\n"
+                    "    name for name in sys.modules if name == 'alembic' or name.startswith('alembic.')\n"
+                    ")\n"
+                    "assert not alembic_modules, alembic_modules\n"
+                ),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
-        try:
-            sys.modules.pop("airflow.utils.db_manager", None)
-            for module_name in list(sys.modules):
-                if module_name == "alembic" or module_name.startswith("alembic."):
-                    sys.modules.pop(module_name)
-
-            module = importlib.import_module("airflow.utils.db_manager")
-
-            assert hasattr(module, "RunDBManager")
-            assert not any(name == "alembic" or name.startswith("alembic.") for name in sys.modules)
-        finally:
-            if original_db_manager_module is not None:
-                sys.modules["airflow.utils.db_manager"] = original_db_manager_module
+        assert result.returncode == 0, result.stderr or result.stdout
 
     @mock.patch.object(BaseDBManager, "get_alembic_config")
     @mock.patch.object(BaseDBManager, "get_current_revision")

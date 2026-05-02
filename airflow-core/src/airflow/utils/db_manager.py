@@ -55,6 +55,14 @@ def _get_alembic_command():
     return command
 
 
+class _AlembicCommandProxy:
+    def __getattr__(self, name):
+        return getattr(_get_alembic_command(), name)
+
+
+command = _AlembicCommandProxy()
+
+
 class BaseDBManager(LoggingMixin):
     """Abstract Base DB manager for external DBs."""
 
@@ -131,7 +139,7 @@ class BaseDBManager(LoggingMixin):
         engine = self.session.get_bind().engine
         self.metadata.create_all(engine)
         config = self.get_alembic_config()
-        _get_alembic_command().stamp(config, "head")
+        command.stamp(config, "head")
         self.log.info("%s tables have been created from the ORM", self.__class__.__name__)
 
     def drop_tables(self, connection):
@@ -185,7 +193,7 @@ class BaseDBManager(LoggingMixin):
             return
 
         config = self.get_alembic_config()
-        _get_alembic_command().upgrade(config, revision=to_revision or "heads", sql=show_sql_only)
+        command.upgrade(config, revision=to_revision or "heads", sql=show_sql_only)
         self.log.info("Migrated the %s database", self.__class__.__name__)
 
     def downgrade(self, to_revision, from_revision=None, show_sql_only=False):
