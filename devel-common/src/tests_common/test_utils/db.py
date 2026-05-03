@@ -21,6 +21,7 @@ import functools
 import json
 import logging
 import os
+import warnings
 from tempfile import gettempdir
 from typing import TYPE_CHECKING
 
@@ -186,6 +187,28 @@ def initial_db_init():
 
 
 def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
+    """
+    Parse DAGs in ``folder`` and sync them to the metadata database.
+
+    On Airflow 3.1+, ``include_examples`` is back-compat-only: example DAGs
+    are exposed as dedicated bundles (``example_dags`` for core,
+    ``apache-airflow-providers-*-example-dags`` for each provider that ships
+    an ``example_dags`` folder), and whether they are loaded is controlled by
+    the ``[core] load_examples`` configuration option, not by this argument.
+    Tests that need example DAGs should set ``conf_vars({("core", "load_examples"): "true"})``
+    instead. Passing ``include_examples=True`` on 3.1+ emits a
+    :class:`DeprecationWarning`.
+    """
+    if AIRFLOW_V_3_1_PLUS and include_examples is True:
+        warnings.warn(
+            "include_examples=True is deprecated for parse_and_sync_to_db on "
+            "Airflow 3.1+. Example DAGs are now loaded via dedicated bundles "
+            "controlled by the [core] load_examples configuration option. Set "
+            "conf_vars({('core', 'load_examples'): 'true'}) in the test instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
     if AIRFLOW_V_3_2_PLUS:
         from airflow.dag_processing.dagbag import DagBag
     else:
@@ -205,7 +228,7 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
             except ImportError:
                 from airflow.models.dagbag import sync_bag_to_db  # type: ignore[no-redef, attribute-defined]
             # On 3.3+, example DAGs are exposed as their own bundles
-            # (``example_dags`` for core, ``airflow-provider-*-example-dags``
+            # (``example_dags`` for core, ``apache-airflow-providers-*-example-dags``
             # for each provider that ships an ``example_dags`` folder). The
             # bundle loop below already syncs every one of them, so the
             # ``dags-folder`` DagBag must NOT pull example DAGs in too,

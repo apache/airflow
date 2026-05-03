@@ -1,0 +1,58 @@
+Provider example DAGs are exposed as dedicated bundles
+
+Example DAGs that ship with provider distributions are now discovered via
+``ProvidersManager`` and registered as their own DAG bundles, one per
+provider that ships an ``example_dags/`` folder. Bundle names follow the
+shape ``apache-airflow-providers-<distribution>-example-dags`` (for
+canonical Apache providers) or ``<distribution-name>-example-dags`` (for
+third-party providers). The ``[core] load_examples`` configuration option
+remains the single switch that controls whether any example bundles are
+registered.
+
+**What changed:**
+
+- Example DAGs that previously came in under the implicit ``dags-folder``
+  bundle are now persisted in ``DagBundleModel`` rows and emitted in REST
+  API responses (``GET /api/v2/dags/{dag_id}/dag-versions`` and the
+  ``bundle_name`` field on task-instance responses) under the new
+  per-provider bundle names.
+- Nested providers such as ``apache-airflow-providers-common-sql`` are
+  discovered correctly (previously they were missed because discovery
+  walked ``airflow.providers.__path__`` directly).
+
+**Behaviour changes:**
+
+- Clients filtering or tracking bundles by ``"dags-folder"`` for
+  previously-shipped example DAGs (e.g. ``example_python_operator``) need
+  to update to the new per-provider bundle names. The DAG identifiers
+  themselves are unchanged.
+
+**Deprecations:**
+
+- The ``include_examples`` parameter on ``DagBag.collect_dags`` and on
+  ``tests_common.test_utils.db.parse_and_sync_to_db`` is now back-compat
+  only. Passing ``include_examples=True`` emits a
+  :class:`DeprecationWarning`. Tests and external callers that need
+  example DAGs loaded should set the ``[core] load_examples`` config to
+  ``true`` (e.g. via ``conf_vars({("core", "load_examples"): "true"})``)
+  instead.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+  * Update clients that filter REST API responses by ``bundle_name`` to
+    match the new per-provider bundle names for example DAGs.
+  * Replace ``include_examples=True`` calls to ``DagBag`` /
+    ``parse_and_sync_to_db`` with
+    ``conf_vars({("core", "load_examples"): "true"})`` (or equivalent
+    configuration) before the deprecated argument is removed.
