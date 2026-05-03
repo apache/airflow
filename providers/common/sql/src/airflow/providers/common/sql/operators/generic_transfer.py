@@ -55,7 +55,8 @@ class GenericTransfer(BaseOperator):
     :param insert_args: extra params for `insert_rows` method.
     :param page_size: number of records to be read in paginated mode (optional).
     :param paginated_sql_statement_clause: SQL statement clause to be used for pagination (optional).
-    :param deferrable: Run operator in the deferrable mode
+    :param deferrable: Run operator in deferrable mode (only effective in paginated mode, i.e.
+        when `page_size` is set and `sql` is a string).
     """
 
     template_fields: Sequence[str] = (
