@@ -280,59 +280,18 @@ def test_id_matches_sub_claim(client, session):
 
 
 @pytest.mark.usefixtures("_use_real_jwt_bearer")
-def test_workload_token_swap_on_patch(client, session):
-    """PATCH accepts workload tokens and issues a Refreshed-API-Token; execution tokens don't."""
+@pytest.mark.parametrize("scope", ["workload", "execution"])
+def test_get_and_patch_accept_workload_and_execution_tokens(client, session, scope):
+    """Both endpoints accept workload + execution tokens (single client lifecycle)."""
     clear_db_connection_tests()
-    ct = ConnectionTestRequest(connection_id="x", conn_type="postgres")
-    ct.state = ConnectionTestState.RUNNING
+    ct = ConnectionTestRequest(connection_id=f"x_{scope}", conn_type="postgres")
     session.add(ct)
     session.commit()
 
     validator = mock.AsyncMock(spec=JWTValidator)
     validator.avalidated_claims.return_value = {
         "sub": str(ct.id),
-        "scope": "workload",
-        "exp": 9999999999,
-        "iat": 1000000000,
-        "nbf": 1000000000,
-    }
-    lifespan.registry.register_value(JWTValidator, validator)
-
-    body = {"state": "success", "result_message": "ok"}
-
-    resp = client.patch(f"/execution/connection-tests/{ct.id}", json=body)
-    assert resp.status_code == 204
-    assert resp.headers.get("Refreshed-API-Token")
-
-    # Re-arm row + validator with execution scope; no swap header expected this time.
-    ct = ConnectionTestRequest(connection_id="y", conn_type="postgres")
-    ct.state = ConnectionTestState.RUNNING
-    session.add(ct)
-    session.commit()
-    validator.avalidated_claims.return_value = {
-        **validator.avalidated_claims.return_value,
-        "sub": str(ct.id),
-        "scope": "execution",
-    }
-
-    resp = client.patch(f"/execution/connection-tests/{ct.id}", json=body)
-    assert resp.status_code == 204
-    assert "Refreshed-API-Token" not in resp.headers
-    clear_db_connection_tests()
-
-
-@pytest.mark.usefixtures("_use_real_jwt_bearer")
-def test_workload_token_rejected_on_get(client, session):
-    """GET /connection only accepts execution tokens; workload returns 403."""
-    clear_db_connection_tests()
-    ct = ConnectionTestRequest(connection_id="x", conn_type="postgres")
-    session.add(ct)
-    session.commit()
-
-    validator = mock.AsyncMock(spec=JWTValidator)
-    validator.avalidated_claims.return_value = {
-        "sub": str(ct.id),
-        "scope": "workload",
+        "scope": scope,
         "exp": 9999999999,
         "iat": 1000000000,
         "nbf": 1000000000,
@@ -340,6 +299,11 @@ def test_workload_token_rejected_on_get(client, session):
     lifespan.registry.register_value(JWTValidator, validator)
 
     resp = client.get(f"/execution/connection-tests/{ct.id}/connection")
-    assert resp.status_code == 403
-    assert "Token type 'workload' not allowed" in resp.json()["detail"]
+    assert resp.status_code == 200, resp.json()
+
+    resp = client.patch(
+        f"/execution/connection-tests/{ct.id}",
+        json={"state": "success", "result_message": "ok"},
+    )
+    assert resp.status_code == 204, resp.json()
     clear_db_connection_tests()

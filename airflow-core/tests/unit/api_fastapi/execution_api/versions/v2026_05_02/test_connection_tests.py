@@ -28,7 +28,7 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture
 def old_ver_client(client):
     """Client configured to use API version before connection-tests endpoint was added."""
-    client.headers["Airflow-API-Version"] = "2025-12-08"
+    client.headers["Airflow-API-Version"] = "2026-04-17"
     return client
 
 

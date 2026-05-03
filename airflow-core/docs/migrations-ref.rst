@@ -39,8 +39,8 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``a7e6d4c3b2f1`` (head) | ``8812eb67b63c`` | ``3.3.0``         | Add connection_test_request table for async connection       |
-|                         |                  |                   | testing.                                                     |
+| ``a7e6d4c3b2f1`` (head) | ``8812eb67b63c`` | ``3.3.0``         | Add connection_test_request table for the deferred           |
+|                         |                  |                   | connection-test workflow.                                    |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``8812eb67b63c``        | ``acc215baed80`` | ``3.3.0``         | Change Deadline interval to JSON.                            |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+

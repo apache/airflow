@@ -491,7 +491,7 @@ export const $AsyncConnectionTestResponse = {
     type: 'object',
     required: ['token', 'connection_id', 'state', 'created_at'],
     title: 'AsyncConnectionTestResponse',
-    description: 'Response returned when polling for async connection test status.'
+    description: 'Response returned when polling for the status of an enqueued connection test.'
 } as const;
 
 export const $BackfillCollectionResponse = {
@@ -2077,18 +2077,31 @@ export const $ConnectionTestQueuedResponse = {
     type: 'object',
     required: ['token', 'connection_id', 'state'],
     title: 'ConnectionTestQueuedResponse',
-    description: 'Response returned when an async connection test is queued.'
+    description: 'Response returned when a connection test has been enqueued for worker execution.'
 } as const;
 
 export const $ConnectionTestRequestBody = {
     properties: {
         connection_id: {
             type: 'string',
+            maxLength: 200,
+            pattern: '^[\\w.-]+$',
             title: 'Connection Id'
         },
         conn_type: {
             type: 'string',
             title: 'Conn Type'
+        },
+        description: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Description'
         },
         host: {
             anyOf: [
@@ -2156,6 +2169,18 @@ export const $ConnectionTestRequestBody = {
             ],
             title: 'Extra'
         },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 50
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
+        },
         commit_on_success: {
             type: 'boolean',
             title: 'Commit On Success',
@@ -2171,7 +2196,8 @@ export const $ConnectionTestRequestBody = {
                     type: 'null'
                 }
             ],
-            title: 'Executor'
+            title: 'Executor',
+            description: 'Executor name to dispatch the connection test to.'
         },
         queue: {
             anyOf: [
@@ -2182,14 +2208,19 @@ export const $ConnectionTestRequestBody = {
                     type: 'null'
                 }
             ],
-            title: 'Queue'
+            title: 'Queue',
+            description: 'Worker queue to route the connection test to (executor-dependent).'
         }
     },
     additionalProperties: false,
     type: 'object',
     required: ['connection_id', 'conn_type'],
     title: 'ConnectionTestRequestBody',
-    description: 'Request body for async connection test.'
+    description: `Request body for enqueueing a connection test on a worker.
+
+Inherits \`\`connection_id\`\` pattern, \`\`extra\`\` JSON validation, and
+\`\`team_name\`\` handling from \`\`ConnectionBody\`\` so tested connections share
+the same input contract as persisted ones.`
 } as const;
 
 export const $ConnectionTestResponse = {
