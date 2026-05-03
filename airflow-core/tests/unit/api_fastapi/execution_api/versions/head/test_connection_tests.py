@@ -260,7 +260,7 @@ def test_id_matches_sub_claim(client, session):
     validator = mock.AsyncMock(spec=JWTValidator)
     validator.avalidated_claims.return_value = {
         "sub": str(ct.id),
-        "scope": "execution",
+        "scope": "workload",
         "exp": 9999999999,
         "iat": 1000000000,
         "nbf": 1000000000,
@@ -280,18 +280,17 @@ def test_id_matches_sub_claim(client, session):
 
 
 @pytest.mark.usefixtures("_use_real_jwt_bearer")
-@pytest.mark.parametrize("scope", ["workload", "execution"])
-def test_get_and_patch_accept_workload_and_execution_tokens(client, session, scope):
-    """Both endpoints accept workload + execution tokens (single client lifecycle)."""
+def test_get_and_patch_accept_workload_token(client, session):
+    """Both endpoints accept the workload-scope JWT the supervisor arrives with."""
     clear_db_connection_tests()
-    ct = ConnectionTestRequest(connection_id=f"x_{scope}", conn_type="postgres")
+    ct = ConnectionTestRequest(connection_id="x_workload", conn_type="postgres")
     session.add(ct)
     session.commit()
 
     validator = mock.AsyncMock(spec=JWTValidator)
     validator.avalidated_claims.return_value = {
         "sub": str(ct.id),
-        "scope": scope,
+        "scope": "workload",
         "exp": 9999999999,
         "iat": 1000000000,
         "nbf": 1000000000,
@@ -306,4 +305,27 @@ def test_get_and_patch_accept_workload_and_execution_tokens(client, session, sco
         json={"state": "success", "result_message": "ok"},
     )
     assert resp.status_code == 204, resp.json()
+    clear_db_connection_tests()
+
+
+@pytest.mark.usefixtures("_use_real_jwt_bearer")
+def test_execution_scope_token_rejected(client, session):
+    """Endpoints reject execution-scope JWTs; only workload-scope is accepted."""
+    clear_db_connection_tests()
+    ct = ConnectionTestRequest(connection_id="x_execution", conn_type="postgres")
+    session.add(ct)
+    session.commit()
+
+    validator = mock.AsyncMock(spec=JWTValidator)
+    validator.avalidated_claims.return_value = {
+        "sub": str(ct.id),
+        "scope": "execution",
+        "exp": 9999999999,
+        "iat": 1000000000,
+        "nbf": 1000000000,
+    }
+    lifespan.registry.register_value(JWTValidator, validator)
+
+    resp = client.get(f"/execution/connection-tests/{ct.id}/connection")
+    assert resp.status_code == 403, resp.json()
     clear_db_connection_tests()
