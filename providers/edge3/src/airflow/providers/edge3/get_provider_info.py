@@ -144,6 +144,20 @@ def get_provider_info():
                         "default": None,
                         "example": "airflow.providers.edge3.cli.example_extended_sysinfo.get_example_extended_sysinfo",
                     },
+                    "automatic_maintenance_on": {
+                        "description": 'Enable automatic maintenance mode for edge workers based on reported system info status.\n\nWhen configured, edge workers will automatically enter maintenance mode when the reported system\ninfo status indicates a problem on the worker. So in conjunction with a\n``extended_system_info_function`` that reports system status, this can be used to automatically\ntake workers out when they are unhealthy.\n\nPossible options are "Error", "Warning" and "Off". When set to "Error", workers will enter\nmaintenance mode when the system info function reports a status of "Error". When set to "Warning",\nworkers will enter maintenance mode when the system info function reports a status of "Error" or\n"Warning".\n\nWhen set to "Off", automatic maintenance mode is disabled and workers will not automatically enter\nmaintenance mode based on system info status.\n',
+                        "version_added": "3.6.0",
+                        "type": "string",
+                        "example": "Error",
+                        "default": "Off",
+                    },
+                    "automatic_maintenance_exit": {
+                        "description": 'Enable automatic exit from maintenance mode for edge workers based on reported system info status.\n\nWhen configured, edge workers will automatically exit maintenance mode that was set by automatic\nmaintenance mode when the reported system info status indicates that the worker is healthy (again).\nSo in conjunction with a `extended_system_info_function` that reports system status, this can be\nused to automatically bring workers back when they are healthy.\n\nPossible options are "Warning", "Info" and "Off". When set to "Warning", workers will exit\nmaintenance mode when the system info function reports a status of "Warning" or "Info".\nWhen set to "Info", workers will exit maintenance mode when the system info function reports a\nstatus of "Info".\nWhen set to "Off", automatic maintenance exit is disabled and workers will not automatically exit\nmaintenance mode based on system info status.\n',
+                        "version_added": "3.6.0",
+                        "type": "string",
+                        "example": "Info",
+                        "default": "Off",
+                    },
                 },
             }
         },

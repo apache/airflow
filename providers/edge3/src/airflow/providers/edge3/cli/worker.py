@@ -156,6 +156,12 @@ class EdgeWorker:
         )
         self.push_logs = self.conf.getboolean("edge", "push_logs")
         self.push_log_chunk_size = self.conf.getint("edge", "push_log_chunk_size")
+        self.automatic_maintenance_on = (
+            self.conf.get("edge", "automatic_maintenance_on", fallback="Off") or "Off"
+        ).lower()
+        self.automatic_maintenance_exit = (
+            self.conf.get("edge", "automatic_maintenance_exit", fallback="Off") or "Off"
+        ).lower()
 
         self.extended_sysinfo: Callable[[], Awaitable[dict[str, str | int | float | datetime]]] | None = None
         extended_sysinfo_func_path = self.conf.get("edge", "extended_system_info_function", fallback=None)
@@ -326,6 +332,33 @@ class EdgeWorker:
             return True
         return False
 
+    def _adjust_maintenance_mode_based_on_sysinfo(
+        self, sysinfo: dict[str, str | int | float | datetime]
+    ) -> None:
+        """Adjust maintenance mode based on sysinfo status and config."""
+        status: int = sysinfo.get("status")  # type: ignore
+        if not self.maintenance_mode and (
+            (status >= logging.WARNING and self.automatic_maintenance_on == "warning")
+            or (status >= logging.ERROR and self.automatic_maintenance_on == "error")
+        ):
+            logger.info(
+                "Entering maintenance mode due to status %s in sysinfo.", logging.getLevelName(status)
+            )
+            self.maintenance_mode = True
+            self.maintenance_comments = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - Automatic maintenance mode entered due to status {logging.getLevelName(status)} in sysinfo."
+        elif (
+            self.maintenance_mode
+            and self.maintenance_comments
+            and "] - Automatic maintenance mode entered due to status " in self.maintenance_comments
+            and (
+                (status < logging.WARNING and self.automatic_maintenance_exit == "info")
+                or (status < logging.ERROR and self.automatic_maintenance_exit == "warning")
+            )
+        ):
+            logger.info("Exiting maintenance mode due to status %s in sysinfo.", logging.getLevelName(status))
+            self.maintenance_mode = False
+            self.maintenance_comments = None
+
     async def _get_sysinfo(self) -> dict[str, str | int | float | datetime]:
         """Produce the sysinfo from worker to post to central site."""
         sysinfo: dict[str, str | int | float | datetime] = {
@@ -358,6 +391,8 @@ class EdgeWorker:
             except Exception:
                 logger.exception("Failed to get extended sysinfo, skipping it.")
 
+        # After grabbing status, check if we need to enter/exit maintenance mode
+        self._adjust_maintenance_mode_based_on_sysinfo(sysinfo)
         return sysinfo
 
     def _get_state(self) -> EdgeWorkerState:
@@ -448,11 +483,12 @@ class EdgeWorker:
     async def start(self):
         """Start the execution in a loop until terminated."""
         try:
+            sysinfo = await self._get_sysinfo()
             register_result = await worker_register(
                 self.hostname,
-                EdgeWorkerState.STARTING,
+                EdgeWorkerState.MAINTENANCE_MODE if self.maintenance_mode else EdgeWorkerState.STARTING,
                 self.queues,
-                await self._get_sysinfo(),
+                sysinfo,
                 self.team_name,
             )
             self.versions_match = register_result.versions_match
@@ -595,8 +631,8 @@ class EdgeWorker:
 
     async def heartbeat(self, new_maintenance_comments: str | None = None) -> bool:
         """Report liveness state of worker to central site with stats."""
-        state = self._get_state()
         sysinfo = await self._get_sysinfo()
+        state = self._get_state()
         worker_state_changed: bool = False
         try:
             worker_info = await worker_set_state(
@@ -605,7 +641,7 @@ class EdgeWorker:
                 len(self.jobs),
                 self.queues,
                 sysinfo,
-                new_maintenance_comments,
+                new_maintenance_comments or self.maintenance_comments,
                 team_name=self.team_name,
             )
             self.versions_match = worker_info.versions_match
