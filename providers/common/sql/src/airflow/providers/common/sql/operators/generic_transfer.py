@@ -179,6 +179,8 @@ class GenericTransfer(BaseOperator):
                     self.log.info("Executing: \n %s", paginated_sql)
                     if rows := self.source_hook.get_records(paginated_sql):
                         self._insert_rows(rows=rows, context=context)
+                        if len(rows) < self.page_size:
+                            break
                         offset += self.page_size
                         self.log.info("Offset increased to %d", offset)
                     else:
