@@ -77,6 +77,16 @@ class TestTrigger:
             )
         )
 
+    def test_trigger_initializes_base_state(self):
+        trigger = AwaitMessageTrigger(
+            kafka_config_id="kafka_d",
+            apply_function="test.noop",
+            topics=["noop"],
+        )
+
+        assert trigger._task_instance is None
+        assert trigger.task_instance is None
+
     def test_trigger_serialization(self):
         trigger = AwaitMessageTrigger(
             kafka_config_id="kafka_d",
