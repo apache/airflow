@@ -189,8 +189,7 @@ async def require_auth(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Token subject does not match task instance ID",
             )
-
-    if "ct:self" in security_scopes.scopes:
+    elif "ct:self" in security_scopes.scopes:
         ct_self_id = str(request.path_params["connection_test_id"])
         if str(token.id) != ct_self_id:
             raise HTTPException(

@@ -1269,8 +1269,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ):
                     tis_with_right_state.append(key)
             elif isinstance(key, ConnectionTestKey):
-                # Worker already updated ConnectionTestRequest state via the execution API;
-                # the scheduler just drains the buffer entry here.
                 cls.logger().debug("Draining executor event with state %s for connection test %s", state, key)
             elif isinstance(key, CallbackKey):
                 cls.logger().info("Received executor event with state %s for callback %s", state, key)
@@ -1691,7 +1689,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
         timers.call_regular_interval(
-            delay=conf.getfloat("scheduler", "connection_test_reaper_interval", fallback=30.0),
+            delay=conf.getfloat("connection_test", "reaper_interval", fallback=30.0),
             action=self._reap_stale_connection_tests,
         )
 
@@ -1753,7 +1751,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Route ExecutorCallback workloads to executors (similar to task routing)
                     self._enqueue_executor_callbacks(session)
 
-                    # Enqueue pending connection tests to executors
                     self._enqueue_connection_tests(session=session)
 
                 # Heartbeat the scheduler periodically
@@ -3268,22 +3265,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session.execute(delete(AssetStateModel).where(AssetStateModel.asset_id.not_in(active_asset_ids)))
 
     def _enqueue_connection_tests(self, *, session: Session) -> None:
-        """Enqueue pending connection tests to executors that support them."""
-        max_concurrency = conf.getint("scheduler", "max_connection_test_concurrency", fallback=4)
-        timeout = conf.getint("scheduler", "connection_test_timeout", fallback=60)
+        """
+        Enqueue pending connection tests to executors that support them.
 
-        num_occupied_slots = sum(executor.slots_occupied for executor in self.executors)
-        parallelism_budget = conf.getint("core", "parallelism") - num_occupied_slots
-        if parallelism_budget <= 0:
-            return
+        ``max_concurrency`` is per-scheduler, not global: with N HA schedulers
+        the worst-case per-tick dispatch is ``N * max_concurrency``. Connection
+        tests are user-initiated and rare, so the overshoot self-corrects via
+        the reaper. For a true global cap, wrap the budget+claim below in a
+        sentinel-row ``SELECT ... FOR UPDATE``.
+        """
+        max_concurrency = conf.getint("connection_test", "max_concurrency", fallback=4)
+        timeout = conf.getint("connection_test", "timeout", fallback=60)
 
         active_count = session.scalar(
             select(func.count(ConnectionTestRequest.id)).where(
                 ConnectionTestRequest.state.in_(DISPATCHED_STATES)
             )
         )
-        concurrency_budget = max_concurrency - (active_count or 0)
-        budget = min(concurrency_budget, parallelism_budget)
+        budget = max_concurrency - (active_count or 0)
         if budget <= 0:
             return
 
@@ -3331,7 +3330,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def _reap_stale_connection_tests(self, *, session: Session = NEW_SESSION) -> None:
         """Mark connection tests that have exceeded their timeout as FAILED."""
-        timeout = conf.getint("scheduler", "connection_test_timeout", fallback=60)
+        timeout = conf.getint("connection_test", "timeout", fallback=60)
         grace_period = max(30, timeout // 2)
         cutoff = timezone.utcnow() - timedelta(seconds=timeout + grace_period)
 
@@ -3346,6 +3345,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ct.state = ConnectionTestState.FAILED
             ct.result_message = f"Connection test timed out (exceeded {timeout}s + {grace_period}s grace)"
             self.log.warning("Reaped stale connection test %s", ct.id)
+            key = ConnectionTestKey(id=str(ct.id))
+            for executor in self.executors:
+                if executor.supports_connection_test:
+                    executor.fail_connection_test(key)
 
         session.flush()
 

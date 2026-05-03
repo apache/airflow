@@ -246,11 +246,7 @@ export const prefetchUseConnectionServiceGetConnections = (queryClient: QueryCli
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, connectionIdPrefixPattern, limit, offset, orderBy }), queryFn: () => ConnectionService.getConnections({ connectionIdPattern, connectionIdPrefixPattern, limit, offset, orderBy }) });
 /**
 * Get Connection Test
-* Poll for the status of an async connection test.
-*
-* The ``connection_test_token`` is a crypto-random identifier used to
-* look up the specific test result. Access to this endpoint is still
-* governed by standard authentication and connection-level authorization.
+* Poll for the status of an enqueued connection test by its token.
 * @param data The data for the request.
 * @param data.connectionTestToken
 * @returns AsyncConnectionTestResponse Successful Response

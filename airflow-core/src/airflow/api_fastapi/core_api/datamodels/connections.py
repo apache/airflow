@@ -85,27 +85,8 @@ class ConnectionTestResponse(BaseModel):
     message: str
 
 
-class ConnectionTestRequestBody(StrictBaseModel):
-    """Request body for async connection test."""
-
-    connection_id: str
-    conn_type: str
-    host: str | None = None
-    login: str | None = None
-    schema_: str | None = Field(None, alias="schema")
-    port: int | None = None
-    password: str | None = None
-    extra: str | None = None
-    commit_on_success: bool = Field(
-        default=False,
-        description="If True, save or update the connection in the connection table when the test succeeds.",
-    )
-    executor: str | None = None
-    queue: str | None = None
-
-
 class ConnectionTestQueuedResponse(BaseModel):
-    """Response returned when an async connection test is queued."""
+    """Response returned when a connection test has been enqueued for worker execution."""
 
     token: str
     connection_id: str
@@ -113,7 +94,7 @@ class ConnectionTestQueuedResponse(BaseModel):
 
 
 class AsyncConnectionTestResponse(BaseModel):
-    """Response returned when polling for async connection test status."""
+    """Response returned when polling for the status of an enqueued connection test."""
 
     token: str
     connection_id: str
@@ -248,3 +229,26 @@ class ConnectionBody(StrictBaseModel):
 
 
 ConnectionBodyPartial = make_partial_model(ConnectionBody)
+
+
+class ConnectionTestRequestBody(ConnectionBody):
+    """
+    Request body for enqueueing a connection test on a worker.
+
+    Inherits ``connection_id`` pattern, ``extra`` JSON validation, and
+    ``team_name`` handling from ``ConnectionBody`` so tested connections share
+    the same input contract as persisted ones.
+    """
+
+    commit_on_success: bool = Field(
+        default=False,
+        description="If True, save or update the connection in the connection table when the test succeeds.",
+    )
+    executor: str | None = Field(
+        default=None,
+        description="Executor name to dispatch the connection test to.",
+    )
+    queue: str | None = Field(
+        default=None,
+        description="Worker queue to route the connection test to (executor-dependent).",
+    )

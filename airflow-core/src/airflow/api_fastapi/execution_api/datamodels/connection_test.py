@@ -17,17 +17,24 @@
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.models.connection_test import ConnectionTestState
+from airflow.models.connection_test import TERMINAL_STATES, ConnectionTestState
 
 
 class ConnectionTestResultBody(StrictBaseModel):
-    """Payload sent by workers to report connection test results."""
+    """Result a worker reports back for a connection test."""
 
     state: ConnectionTestState
-    result_message: str | None = None
+    result_message: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("state", mode="after")
+    @classmethod
+    def _only_terminal_states(cls, v: ConnectionTestState) -> ConnectionTestState:
+        if v not in TERMINAL_STATES:
+            raise ValueError(f"Workers may only report terminal states (success/failed); got {v.value!r}")
+        return v
 
 
 class ConnectionTestConnectionResponse(BaseModel):

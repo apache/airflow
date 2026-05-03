@@ -119,6 +119,9 @@ class FernetFieldsMixin:
             fernet = get_fernet()
             self._password = fernet.encrypt(bytes(value, "utf-8")).decode()
             self.is_encrypted = fernet.is_encrypted
+        else:
+            self._password = value
+            self.is_encrypted = False
 
     @declared_attr
     def password(cls):

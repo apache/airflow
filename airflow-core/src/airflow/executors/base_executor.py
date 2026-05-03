@@ -170,6 +170,8 @@ class BaseExecutor(LoggingMixin):
     supports_ad_hoc_ti_run: bool = False
     supports_callbacks: bool = False
     supports_multi_team: bool = False
+    # The connection-test supervisor uses ``signal.SIGALRM`` (via ``TimeoutPosix``)
+    # to bound hook execution. Executors that opt in must run on POSIX systems.
     supports_connection_test: bool = False
     sentry_integration: str = ""
 
@@ -347,7 +349,9 @@ class BaseExecutor(LoggingMixin):
         open_slots = self.parallelism - len(self.running)
 
         num_running_workloads = len(self.running)
-        num_queued_workloads = len(self.queued_tasks) + len(self.queued_callbacks)
+        num_queued_workloads = (
+            len(self.queued_tasks) + len(self.queued_callbacks) + len(self.queued_connection_tests)
+        )
 
         self._emit_metrics(open_slots, num_running_workloads, num_queued_workloads)
         self.trigger_tasks(open_slots)
@@ -369,6 +373,11 @@ class BaseExecutor(LoggingMixin):
 
         tests_to_run = list(self.queued_connection_tests.values())[:available]
         self._process_workloads(tests_to_run)
+
+    def fail_connection_test(self, key: ConnectionTestKey) -> None:
+        """Drop a connection-test workload from in-memory queues (called by the reaper)."""
+        self.queued_connection_tests.pop(key, None)
+        self.running.discard(key)
 
     def _get_metric_name(self, metric_base_name: str) -> str:
         return (

@@ -29,7 +29,6 @@ from airflow.api_fastapi.execution_api.versions.v2025_09_23 import AddDagVersion
 from airflow.api_fastapi.execution_api.versions.v2025_10_27 import MakeDagRunConfNullable
 from airflow.api_fastapi.execution_api.versions.v2025_11_05 import AddTriggeringUserNameField
 from airflow.api_fastapi.execution_api.versions.v2026_04_06 import (
-    AddConnectionTestEndpoint,
     AddDagEndpoint,
     AddDagRunDetailEndpoint,
     AddNoteField,
@@ -41,6 +40,7 @@ from airflow.api_fastapi.execution_api.versions.v2026_04_06 import (
     MovePreviousRunEndpoint,
     RemoveUpstreamMapIndexesField,
 )
+from airflow.api_fastapi.execution_api.versions.v2026_05_02 import AddConnectionTestEndpoint
 from airflow.api_fastapi.execution_api.versions.v2026_06_16 import (
     AddAssetsByAliasEndpoint,
     AddRetryPolicyFields,
@@ -59,9 +59,9 @@ bundle = VersionBundle(
         AddStateEndpoints,
         AddAssetsByAliasEndpoint,
     ),
+    Version("2026-05-02", AddConnectionTestEndpoint),
     Version(
         "2026-04-06",
-        AddConnectionTestEndpoint,
         AddPartitionKeyField,
         MovePreviousRunEndpoint,
         AddDagRunDetailEndpoint,

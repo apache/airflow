@@ -23,7 +23,8 @@ from unittest import mock
 import pytest
 from uuid6 import uuid7
 
-from airflow.sdk.api.datamodels._generated import ConnectionResponse, ConnectionTestState
+from airflow.sdk.api.datamodels._generated import ConnectionTestConnectionResponse, ConnectionTestState
+from airflow.sdk.exceptions import AirflowTaskTimeout
 from airflow.sdk.execution_time.connection_test_supervisor import supervise_connection_test
 
 SERVER = "http://localhost:8080/execution/"
@@ -41,7 +42,6 @@ def _call(**overrides):
     return supervise_connection_test(**kwargs)
 
 
-@mock.patch("airflow.sdk.execution_time.connection_test_supervisor.signal", autospec=True)
 @mock.patch("airflow.sdk.execution_time.connection_test_supervisor.Client", autospec=True)
 class TestSuperviseConnectionTest:
     @pytest.mark.parametrize(
@@ -52,9 +52,9 @@ class TestSuperviseConnectionTest:
         ],
         ids=["success", "failure"],
     )
-    def test_reports_state_from_hook_result(self, MockClient, mock_signal, hook_result, expected_final):
+    def test_reports_state_from_hook_result(self, MockClient, hook_result, expected_final):
         mock_client = MockClient.return_value
-        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
+        mock_client.connection_tests.get_connection.return_value = ConnectionTestConnectionResponse(
             conn_id="test_conn",
             conn_type="http",
             host="httpbin.org",
@@ -63,34 +63,33 @@ class TestSuperviseConnectionTest:
         test_id = uuid7()
 
         with mock.patch(
-            "airflow.models.connection.Connection.test_connection",
+            "airflow.sdk.definitions.connection.Connection.test_connection",
             autospec=True,
             return_value=hook_result,
         ):
             _call(connection_test_id=test_id)
 
         calls = mock_client.connection_tests.update_state.call_args_list
-        assert len(calls) == 2
-        assert calls[0].args == (test_id, ConnectionTestState.RUNNING)
-        assert calls[1].args == (test_id, *expected_final)
+        assert len(calls) == 1
+        assert calls[0].args == (test_id, *expected_final)
 
     @pytest.mark.parametrize(
         ("exception", "msg_substring"),
         [
             (RuntimeError("Something broke"), "Connection test failed unexpectedly: RuntimeError"),
-            (TimeoutError("Connection test timed out after 30s"), "timed out"),
+            (AirflowTaskTimeout("Connection test timed out"), "timed out"),
         ],
         ids=["generic_exception", "timeout"],
     )
-    def test_reports_failed_on_hook_exception(self, MockClient, mock_signal, exception, msg_substring):
+    def test_reports_failed_on_hook_exception(self, MockClient, exception, msg_substring):
         mock_client = MockClient.return_value
-        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
+        mock_client.connection_tests.get_connection.return_value = ConnectionTestConnectionResponse(
             conn_id="test_conn",
             conn_type="http",
         )
 
         with mock.patch(
-            "airflow.models.connection.Connection.test_connection",
+            "airflow.sdk.definitions.connection.Connection.test_connection",
             autospec=True,
             side_effect=exception,
         ):
@@ -100,7 +99,7 @@ class TestSuperviseConnectionTest:
         assert last.args[1] == ConnectionTestState.FAILED
         assert msg_substring in last.args[2]
 
-    def test_connection_not_found_via_execution_api(self, MockClient, mock_signal):
+    def test_connection_not_found_via_execution_api(self, MockClient):
         mock_client = MockClient.return_value
         mock_client.connection_tests.get_connection.side_effect = RuntimeError("not found")
 
@@ -110,9 +109,9 @@ class TestSuperviseConnectionTest:
         assert last.args[1] == ConnectionTestState.FAILED
         assert "Connection test failed unexpectedly" in last.args[2]
 
-    def test_connection_fields_passed_correctly(self, MockClient, mock_signal):
+    def test_connection_fields_passed_correctly(self, MockClient):
         mock_client = MockClient.return_value
-        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
+        mock_client.connection_tests.get_connection.return_value = ConnectionTestConnectionResponse(
             conn_id="full_conn",
             conn_type="postgres",
             host="db.example.com",
@@ -124,7 +123,7 @@ class TestSuperviseConnectionTest:
         )
 
         with mock.patch(
-            "airflow.models.connection.Connection.test_connection",
+            "airflow.sdk.definitions.connection.Connection.test_connection",
             autospec=True,
             return_value=(True, "OK"),
         ) as mock_test_connection:
@@ -140,44 +139,28 @@ class TestSuperviseConnectionTest:
         assert captured.port == 5432
         assert captured.extra == '{"sslmode": "require"}'
 
-    def test_alarm_is_cancelled_in_finally(self, MockClient, mock_signal):
-        mock_client = MockClient.return_value
-        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
-            conn_id="test_conn",
-            conn_type="http",
-        )
-
-        with mock.patch(
-            "airflow.models.connection.Connection.test_connection",
-            autospec=True,
-            return_value=(True, "OK"),
-        ):
-            _call(timeout=60)
-
-        alarm_calls = mock_signal.alarm.call_args_list
-        assert alarm_calls[0].args == (60,)
-        assert alarm_calls[-1].args == (0,)
-
-    def test_hook_lookup_resolves_via_preset_connections(self, MockClient, mock_signal):
+    def test_hook_lookup_resolves_via_preset_connections(self, MockClient):
         from airflow.sdk.execution_time.context import _get_connection
 
         mock_client = MockClient.return_value
-        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
+        mock_client.connection_tests.get_connection.return_value = ConnectionTestConnectionResponse(
             conn_id="never_in_secrets",
             conn_type="fs",
             extra='{"path": "/tmp"}',
         )
         observed: dict = {}
 
-        def capture(self):
+        def capture():
             observed["resolved"] = _get_connection("never_in_secrets")
             return True, "OK"
 
         with mock.patch(
-            "airflow.models.connection.Connection.test_connection",
+            "airflow.sdk.definitions.connection.Connection.get_hook",
             autospec=True,
-            side_effect=capture,
-        ):
+        ) as mock_get_hook:
+            hook = mock.MagicMock()
+            hook.test_connection.side_effect = capture
+            mock_get_hook.return_value = hook
             _call(connection_id="never_in_secrets")
 
         assert observed["resolved"].conn_id == "never_in_secrets"
@@ -187,11 +170,11 @@ class TestSuperviseConnectionTest:
             == ConnectionTestState.SUCCESS
         )
 
-    def test_preset_contextvar_is_reset_on_exception(self, MockClient, mock_signal):
+    def test_preset_contextvar_is_reset_on_exception(self, MockClient):
         from airflow.sdk.execution_time.context import _preset_connections
 
         mock_client = MockClient.return_value
-        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
+        mock_client.connection_tests.get_connection.return_value = ConnectionTestConnectionResponse(
             conn_id="isolated_conn",
             conn_type="fs",
             extra='{"path": "/tmp"}',
@@ -200,7 +183,7 @@ class TestSuperviseConnectionTest:
         before = _preset_connections.get()
 
         with mock.patch(
-            "airflow.models.connection.Connection.test_connection",
+            "airflow.sdk.definitions.connection.Connection.get_hook",
             autospec=True,
             side_effect=RuntimeError("boom"),
         ):
@@ -208,18 +191,18 @@ class TestSuperviseConnectionTest:
 
         assert _preset_connections.get() == before, "preset must be cleared after exception"
 
-    def test_preset_does_not_leak_for_other_conn_ids(self, MockClient, mock_signal):
+    def test_preset_does_not_leak_for_other_conn_ids(self, MockClient):
         from airflow.sdk.execution_time.context import _get_connection
 
         mock_client = MockClient.return_value
-        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
+        mock_client.connection_tests.get_connection.return_value = ConnectionTestConnectionResponse(
             conn_id="target_conn",
             conn_type="fs",
             extra='{"path": "/tmp"}',
         )
         observed: dict = {}
 
-        def capture(self):
+        def capture():
             try:
                 observed["unrelated"] = _get_connection("some_unrelated_id")
             except Exception as e:
@@ -228,15 +211,17 @@ class TestSuperviseConnectionTest:
 
         with (
             mock.patch(
-                "airflow.models.connection.Connection.test_connection",
+                "airflow.sdk.definitions.connection.Connection.get_hook",
                 autospec=True,
-                side_effect=capture,
-            ),
+            ) as mock_get_hook,
             mock.patch(
                 "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded",
                 return_value=[],
             ),
         ):
+            hook = mock.MagicMock()
+            hook.test_connection.side_effect = capture
+            mock_get_hook.return_value = hook
             _call(connection_id="target_conn")
 
         assert "unrelated" not in observed

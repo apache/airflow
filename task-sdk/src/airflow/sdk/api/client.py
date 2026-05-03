@@ -50,6 +50,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetStatePutBody,
     AssetStateResponse,
     ConnectionResponse,
+    ConnectionTestConnectionResponse,
     ConnectionTestResultBody,
     ConnectionTestState,
     DagResponse,
@@ -61,6 +62,7 @@ from airflow.sdk.api.datamodels._generated import (
     HITLUser,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
+    ResultMessage,
     TaskBreadcrumbsResponse,
     TaskInstanceState,
     TaskStatePutBody,
@@ -1055,16 +1057,19 @@ class ConnectionTestOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get_connection(self, connection_test_id: uuid.UUID) -> ConnectionResponse:
+    def get_connection(self, connection_test_id: uuid.UUID) -> ConnectionTestConnectionResponse:
         """Fetch connection data for a test request from the API server."""
         resp = self.client.get(f"connection-tests/{connection_test_id}/connection")
-        return ConnectionResponse.model_validate_json(resp.read())
+        return ConnectionTestConnectionResponse.model_validate_json(resp.read())
 
     def update_state(
         self, id: uuid.UUID, state: ConnectionTestState, result_message: str | None = None
     ) -> None:
         """Report the state of a connection test to the API server."""
-        body = ConnectionTestResultBody(state=state, result_message=result_message)
+        body = ConnectionTestResultBody(
+            state=state,
+            result_message=ResultMessage(result_message) if result_message is not None else None,
+        )
         self.client.patch(f"connection-tests/{id}", content=body.model_dump_json())
 
 

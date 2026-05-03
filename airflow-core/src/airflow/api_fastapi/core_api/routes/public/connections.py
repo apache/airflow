@@ -23,7 +23,10 @@ from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.resource_details import ConnectionDetails
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryConnectionIdPatternSearch,
@@ -49,6 +52,7 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    GetUserDep,
     ReadableConnectionsFilterDep,
     requires_access_connection,
     requires_access_connection_bulk,
@@ -242,11 +246,6 @@ def patch_connection(
             ConnectionBodyPartial(**patch_body.model_dump(include=fields_to_update))
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-    else:
-        try:
-            ConnectionBody(**patch_body.model_dump())
-        except ValidationError as e:
-            raise RequestValidationError(errors=e.errors())
 
     update_orm_from_pydantic(connection, patch_body, update_mask)
     return connection
@@ -285,7 +284,7 @@ def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
 
 
 @connections_router.post(
-    "/test-async",
+    "/enqueue-test",
     status_code=status.HTTP_202_ACCEPTED,
     responses=create_openapi_http_exception_doc(
         [
@@ -296,17 +295,11 @@ def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
     ),
     dependencies=[Depends(requires_access_connection(method="POST")), Depends(action_logging())],
 )
-def test_connection_async(
+def enqueue_connection_test(
     test_body: ConnectionTestRequestBody,
     session: SessionDep,
 ) -> ConnectionTestQueuedResponse:
-    """
-    Queue an async connection test to be executed on a worker.
-
-    The connection data is stored in the test request table and the worker
-    reads from there. Returns a token to poll for the result via
-    GET /connections/test-async/{token}.
-    """
+    """Enqueue a connection test for deferred execution on a worker; returns a polling token."""
     _ensure_test_connection_enabled()
     _ensure_executor_is_configured(test_body.executor)
 
@@ -324,6 +317,13 @@ def test_connection_async(
         queue=test_body.queue,
     )
     session.add(connection_test)
+    try:
+        session.flush()
+    except IntegrityError:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"An active connection test already exists for connection_id `{test_body.connection_id}`.",
+        )
 
     return ConnectionTestQueuedResponse(
         token=connection_test.token,
@@ -333,24 +333,30 @@ def test_connection_async(
 
 
 @connections_router.get(
-    "/test-async/{connection_test_token}",
+    "/enqueue-test/{connection_test_token}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_connection(method="GET"))],
 )
 def get_connection_test(
     connection_test_token: str,
     session: SessionDep,
+    user: GetUserDep,
 ) -> AsyncConnectionTestResponse:
-    """
-    Poll for the status of an async connection test.
-
-    The ``connection_test_token`` is a crypto-random identifier used to
-    look up the specific test result. Access to this endpoint is still
-    governed by standard authentication and connection-level authorization.
-    """
+    """Poll for the status of an enqueued connection test by its token."""
     connection_test = session.scalar(select(ConnectionTestRequest).filter_by(token=connection_test_token))
 
     if connection_test is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"No connection test found for token: `{connection_test_token}`",
+        )
+
+    team_name = Connection.get_team_name(connection_test.connection_id, session=session)
+    if not get_auth_manager().is_authorized_connection(
+        method="GET",
+        details=ConnectionDetails(conn_id=connection_test.connection_id, team_name=team_name),
+        user=user,
+    ):
+        # 404 (not 403) — the token is a secret; 403 would leak its existence.
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"No connection test found for token: `{connection_test_token}`",

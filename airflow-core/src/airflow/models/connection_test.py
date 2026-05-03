@@ -94,7 +94,7 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
     token: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     connection_id: Mapped[str] = mapped_column(String(250), nullable=False)
     state: Mapped[str] = mapped_column(String(20), nullable=False, default=ConnectionTestState.PENDING)
-    result_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_message: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False

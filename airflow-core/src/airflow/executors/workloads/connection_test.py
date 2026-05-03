@@ -24,11 +24,10 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import Field
 
 from airflow.executors.workloads.base import BaseWorkloadSchema
-from airflow.models.connection_test import ConnectionTestKey
+from airflow.models.connection_test import ConnectionTestKey, ConnectionTestState
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
-    from airflow.models.connection_test import ConnectionTestState
 
 
 class TestConnection(BaseWorkloadSchema):
@@ -53,20 +52,14 @@ class TestConnection(BaseWorkloadSchema):
 
     @property
     def success_state(self) -> ConnectionTestState:
-        from airflow.models.connection_test import ConnectionTestState
-
         return ConnectionTestState.SUCCESS
 
     @property
     def failure_state(self) -> ConnectionTestState:
-        from airflow.models.connection_test import ConnectionTestState
-
         return ConnectionTestState.FAILED
 
     @property
     def running_state(self) -> ConnectionTestState:
-        from airflow.models.connection_test import ConnectionTestState
-
         return ConnectionTestState.RUNNING
 
     @classmethod

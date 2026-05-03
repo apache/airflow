@@ -130,7 +130,7 @@ export type AssetWatcherResponse = {
 };
 
 /**
- * Response returned when polling for async connection test status.
+ * Response returned when polling for the status of an enqueued connection test.
  */
 export type AsyncConnectionTestResponse = {
     token: string;
@@ -595,7 +595,7 @@ export type ConnectionResponse = {
 };
 
 /**
- * Response returned when an async connection test is queued.
+ * Response returned when a connection test has been enqueued for worker execution.
  */
 export type ConnectionTestQueuedResponse = {
     token: string;
@@ -604,22 +604,34 @@ export type ConnectionTestQueuedResponse = {
 };
 
 /**
- * Request body for async connection test.
+ * Request body for enqueueing a connection test on a worker.
+ *
+ * Inherits ``connection_id`` pattern, ``extra`` JSON validation, and
+ * ``team_name`` handling from ``ConnectionBody`` so tested connections share
+ * the same input contract as persisted ones.
  */
 export type ConnectionTestRequestBody = {
     connection_id: string;
     conn_type: string;
+    description?: string | null;
     host?: string | null;
     login?: string | null;
     schema?: string | null;
     port?: number | null;
     password?: string | null;
     extra?: string | null;
+    team_name?: string | null;
     /**
      * If True, save or update the connection in the connection table when the test succeeds.
      */
     commit_on_success?: boolean;
+    /**
+     * Executor name to dispatch the connection test to.
+     */
     executor?: string | null;
+    /**
+     * Worker queue to route the connection test to (executor-dependent).
+     */
     queue?: string | null;
 };
 
@@ -2811,11 +2823,11 @@ export type TestConnectionData = {
 
 export type TestConnectionResponse = ConnectionTestResponse;
 
-export type TestConnectionAsyncData = {
+export type EnqueueConnectionTestData = {
     requestBody: ConnectionTestRequestBody;
 };
 
-export type TestConnectionAsyncResponse = ConnectionTestQueuedResponse;
+export type EnqueueConnectionTestResponse = ConnectionTestQueuedResponse;
 
 export type GetConnectionTestData = {
     connectionTestToken: string;
@@ -5199,9 +5211,9 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/connections/test-async': {
+    '/api/v2/connections/enqueue-test': {
         post: {
-            req: TestConnectionAsyncData;
+            req: EnqueueConnectionTestData;
             res: {
                 /**
                  * Successful Response
@@ -5226,7 +5238,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/connections/test-async/{connection_test_token}': {
+    '/api/v2/connections/enqueue-test/{connection_test_token}': {
         get: {
             req: GetConnectionTestData;
             res: {

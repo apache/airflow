@@ -157,12 +157,14 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
     return Variable(**var_result.model_dump(exclude={"type"}))
 
 
-_preset_connections: ContextVar[dict[str, Connection]] = ContextVar("_preset_connections", default={})
+_preset_connections: ContextVar[dict[str, Connection] | None] = ContextVar(
+    "_preset_connections", default=None
+)
 
 
 def _get_connection(conn_id: str) -> Connection:
     preset = _preset_connections.get()
-    if conn_id in preset:
+    if preset is not None and conn_id in preset:
         conn = preset[conn_id]
         _mask_connection_secrets(conn)
         return conn
@@ -208,7 +210,7 @@ def _get_connection(conn_id: str) -> Connection:
 
 async def _async_get_connection(conn_id: str) -> Connection:
     preset = _preset_connections.get()
-    if conn_id in preset:
+    if preset is not None and conn_id in preset:
         conn = preset[conn_id]
         _mask_connection_secrets(conn)
         return conn

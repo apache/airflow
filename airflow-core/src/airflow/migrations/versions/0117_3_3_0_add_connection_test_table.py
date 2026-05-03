@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add connection_test_request table for async connection testing.
+Add connection_test_request table for the deferred connection-test workflow.
 
 Revision ID: a7e6d4c3b2f1
 Revises: acc215baed80
@@ -48,7 +48,7 @@ def upgrade():
         sa.Column("token", sa.String(64), nullable=False),
         sa.Column("connection_id", sa.String(250), nullable=False),
         sa.Column("state", sa.String(20), nullable=False),
-        sa.Column("result_message", sa.Text(), nullable=True),
+        sa.Column("result_message", sa.String(2000), nullable=True),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("executor", sa.String(256), nullable=True),
@@ -60,8 +60,8 @@ def upgrade():
         sa.Column("schema", sa.String(500), nullable=True),
         sa.Column("port", sa.Integer(), nullable=True),
         sa.Column("extra", sa.Text(), nullable=True),
-        sa.Column("is_encrypted", sa.Boolean(), nullable=False),
-        sa.Column("is_extra_encrypted", sa.Boolean(), nullable=False),
+        sa.Column("is_encrypted", sa.Boolean(), nullable=False, server_default="0"),
+        sa.Column("is_extra_encrypted", sa.Boolean(), nullable=False, server_default="0"),
         sa.Column("commit_on_success", sa.Boolean(), nullable=False, server_default="0"),
         sa.Column("active_connection_id", sa.String(250), nullable=True),
         sa.PrimaryKeyConstraint("id", name=op.f("connection_test_request_pkey")),

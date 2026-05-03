@@ -82,7 +82,7 @@ class AssetWatcherResponse(BaseModel):
 
 class AsyncConnectionTestResponse(BaseModel):
     """
-    Response returned when polling for async connection test status.
+    Response returned when polling for the status of an enqueued connection test.
     """
 
     token: Annotated[str, Field(title="Token")]
@@ -326,7 +326,7 @@ class ConnectionResponse(BaseModel):
 
 class ConnectionTestQueuedResponse(BaseModel):
     """
-    Response returned when an async connection test is queued.
+    Response returned when a connection test has been enqueued for worker execution.
     """
 
     token: Annotated[str, Field(title="Token")]
@@ -336,20 +336,26 @@ class ConnectionTestQueuedResponse(BaseModel):
 
 class ConnectionTestRequestBody(BaseModel):
     """
-    Request body for async connection test.
+    Request body for enqueueing a connection test on a worker.
+
+    Inherits ``connection_id`` pattern, ``extra`` JSON validation, and
+    ``team_name`` handling from ``ConnectionBody`` so tested connections share
+    the same input contract as persisted ones.
     """
 
     model_config = ConfigDict(
         extra="forbid",
     )
-    connection_id: Annotated[str, Field(title="Connection Id")]
+    connection_id: Annotated[str, Field(max_length=200, pattern="^[\\w.-]+$", title="Connection Id")]
     conn_type: Annotated[str, Field(title="Conn Type")]
+    description: Annotated[str | None, Field(title="Description")] = None
     host: Annotated[str | None, Field(title="Host")] = None
     login: Annotated[str | None, Field(title="Login")] = None
     schema_: Annotated[str | None, Field(alias="schema", title="Schema")] = None
     port: Annotated[int | None, Field(title="Port")] = None
     password: Annotated[str | None, Field(title="Password")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
+    team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
     commit_on_success: Annotated[
         bool | None,
         Field(
@@ -357,8 +363,15 @@ class ConnectionTestRequestBody(BaseModel):
             title="Commit On Success",
         ),
     ] = False
-    executor: Annotated[str | None, Field(title="Executor")] = None
-    queue: Annotated[str | None, Field(title="Queue")] = None
+    executor: Annotated[
+        str | None, Field(description="Executor name to dispatch the connection test to.", title="Executor")
+    ] = None
+    queue: Annotated[
+        str | None,
+        Field(
+            description="Worker queue to route the connection test to (executor-dependent).", title="Queue"
+        ),
+    ] = None
 
 
 class ConnectionTestResponse(BaseModel):

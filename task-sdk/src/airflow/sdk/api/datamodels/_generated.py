@@ -93,6 +93,10 @@ class ConnectionTestConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class ResultMessage(RootModel[str]):
+    root: Annotated[str, Field(max_length=2000, title="Result Message")]
+
+
 class ConnectionTestState(str, Enum):
     """
     All possible states of a connection test.
@@ -633,14 +637,14 @@ class AssetStateResponse(BaseModel):
 
 class ConnectionTestResultBody(BaseModel):
     """
-    Payload sent by workers to report connection test results.
+    Result a worker reports back for a connection test.
     """
 
     model_config = ConfigDict(
         extra="forbid",
     )
     state: ConnectionTestState
-    result_message: Annotated[str | None, Field(title="Result Message")] = None
+    result_message: Annotated[ResultMessage | None, Field(title="Result Message")] = None
 
 
 class HITLDetailRequest(BaseModel):

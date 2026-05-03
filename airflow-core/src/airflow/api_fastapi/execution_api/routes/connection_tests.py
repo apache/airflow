@@ -19,45 +19,44 @@ from __future__ import annotations
 from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
-from fastapi import HTTPException, Response, Security, status
+from fastapi import HTTPException, Security, status
 
-from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.execution_api.datamodels.connection_test import (
     ConnectionTestConnectionResponse,
     ConnectionTestResultBody,
 )
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
-from airflow.api_fastapi.execution_api.deps import DepContainer
-from airflow.api_fastapi.execution_api.security import CurrentTIToken, ExecutionAPIRoute, require_auth
+from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, require_auth
 from airflow.models.connection_test import (
+    ACTIVE_STATES,
     TERMINAL_STATES,
     ConnectionTestRequest,
     ConnectionTestState,
 )
 
-router = VersionedAPIRouter()
-
-ct_id_router = VersionedAPIRouter(
+router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
     dependencies=[
-        Security(require_auth, scopes=["ct:self"]),
+        Security(require_auth, scopes=["ct:self", "token:workload"]),
     ],
 )
 
 
-@ct_id_router.get(
+@router.get(
     "/{connection_test_id}/connection",
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Connection test not found"},
+        status.HTTP_409_CONFLICT: {
+            "description": "Connection test already in RUNNING or terminal state",
+        },
     },
 )
 def get_connection_test_connection(
     connection_test_id: UUID,
     session: SessionDep,
 ) -> ConnectionTestConnectionResponse:
-    """Return the connection data stored in a test request (called by workers)."""
-    ct = session.get(ConnectionTestRequest, connection_test_id)
+    """Return the test request's connection data and atomically mark it RUNNING (single-fetch)."""
+    ct = session.get(ConnectionTestRequest, connection_test_id, with_for_update=True)
     if ct is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -66,6 +65,20 @@ def get_connection_test_connection(
                 "message": f"Connection test {connection_test_id} not found",
             },
         )
+
+    if ct.state not in (ConnectionTestState.PENDING, ConnectionTestState.QUEUED):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "reason": "conflict",
+                "message": (
+                    f"Connection test {connection_test_id} is in state {ct.state}; "
+                    "credentials can only be fetched once while PENDING or QUEUED."
+                ),
+            },
+        )
+
+    ct.state = ConnectionTestState.RUNNING
 
     return ConnectionTestConnectionResponse(
         conn_id=ct.connection_id,
@@ -79,10 +92,9 @@ def get_connection_test_connection(
     )
 
 
-@ct_id_router.patch(
+@router.patch(
     "/{connection_test_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Security(require_auth, scopes=["token:execution", "token:workload"])],
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Connection test not found"},
         status.HTTP_409_CONFLICT: {"description": "Connection test already in a terminal state"},
@@ -91,12 +103,9 @@ def get_connection_test_connection(
 def patch_connection_test(
     connection_test_id: UUID,
     body: ConnectionTestResultBody,
-    response: Response,
     session: SessionDep,
-    services=DepContainer,
-    token: TIToken = CurrentTIToken,
 ) -> None:
-    """Update the result of a connection test (called by workers)."""
+    """Update the result of a connection test."""
     ct = session.get(ConnectionTestRequest, connection_test_id, with_for_update=True)
     if ct is None:
         raise HTTPException(
@@ -112,7 +121,15 @@ def patch_connection_test(
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "reason": "conflict",
-                "message": f"Connection test {connection_test_id} is already in terminal state: {ct.state}",
+                "message": (f"Connection test {connection_test_id} is already in terminal state: {ct.state}"),
+            },
+        )
+    if ct.state not in ACTIVE_STATES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "reason": "conflict",
+                "message": f"Connection test {connection_test_id} is not in an active state: {ct.state}",
             },
         )
 
@@ -121,12 +138,3 @@ def patch_connection_test(
 
     if body.state == ConnectionTestState.SUCCESS and ct.commit_on_success:
         ct.commit_to_connection_table(session=session)
-
-    # JWTReissueMiddleware also writes Refreshed-API-Token but skips workload tokens, so we set it here for the workload→execution swap.
-    if token.claims.scope == "workload":
-        generator: JWTGenerator = services.get(JWTGenerator)
-        execution_token = generator.generate(extras={"sub": str(connection_test_id), "scope": "execution"})
-        response.headers["Refreshed-API-Token"] = execution_token
-
-
-router.include_router(ct_id_router)
