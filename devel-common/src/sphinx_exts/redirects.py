@@ -41,7 +41,7 @@ def generate_redirects(app):
         return
 
     with open(redirect_file_path) as redirects:
-        for line in redirects.readlines():
+        for line in redirects:
             # Skip empty line
             if not line.strip():
                 continue

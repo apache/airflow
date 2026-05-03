@@ -710,7 +710,7 @@ def get_task_sdk_version():
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_ROOT_PATH / "Dockerfile"
     with open(airflow_dockerfile) as dockerfile:
-        for line_raw in dockerfile.readlines():
+        for line_raw in dockerfile:
             if "ARG AIRFLOW_EXTRAS=" in line_raw:
                 line = line_raw.split("=")[1].strip()
                 return line.replace('"', "")

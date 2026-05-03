@@ -67,7 +67,7 @@ def main(filenames: list[str]) -> int:
     failed = False
     for filename in filenames:
         with open(filename) as f:
-            lines = [line.strip() for line in f.readlines()]
+            lines = [line.strip() for line in f]
         errors = validate_newsfragment(filename, lines)
         for error in errors:
             print(error)
