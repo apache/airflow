@@ -37,7 +37,7 @@ from airflowctl.ctl.console_formatting import AirflowConsole
 
 @provide_api_client(kind=ClientKind.CLI)
 def clear(args, api_client=NEW_API_CLIENT) -> None:
-    """Clear task instances for a DAG run."""
+    """Clear task instances for a Dag run."""
     try:
         body = ClearTaskInstancesBody(
             dry_run=getattr(args, "dry_run", False),
@@ -60,7 +60,7 @@ def clear(args, api_client=NEW_API_CLIENT) -> None:
             sys.exit(1)
         cleared = ClearTaskInstanceCollectionResponse.model_validate_json(response.content)
         rich.print(
-            f"[green]Cleared {len(cleared.task_instances)} task instance(s) for DAG {args.dag_id}[/green]"
+            f"[green]Cleared {len(cleared.task_instances)} task instance(s) for Dag {args.dag_id}[/green]"
         )
         AirflowConsole().print_as(
             data=[t.model_dump() for t in cleared.task_instances],
@@ -73,7 +73,7 @@ def clear(args, api_client=NEW_API_CLIENT) -> None:
 
 @provide_api_client(kind=ClientKind.CLI)
 def states_for_dag_run(args, api_client=NEW_API_CLIENT) -> None:
-    """Get task instance states for a DAG run."""
+    """Get task instance states for a Dag run."""
     try:
         ops = TaskOperations(client=api_client.client)
         tis = ops.states_for_dag_run(args.dag_id, args.dag_run_id, getattr(args, "limit", 100))
