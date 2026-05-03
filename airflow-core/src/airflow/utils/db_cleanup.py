@@ -284,12 +284,12 @@ def _do_delete(
             session.execute(delete)
             session.commit()
 
-        except BaseException as e:
-            raise e
+        except BaseException:
+            session.rollback()
+            raise
         finally:
             if target_table is not None and skip_archive:
-                bind = session.get_bind()
-                target_table.drop(bind=bind)
+                target_table.drop(bind=session.connection())
                 session.commit()
 
     print("Finished Performing Delete")

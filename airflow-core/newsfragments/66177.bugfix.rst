@@ -1,0 +1,1 @@
+Fix ``airflow db clean --skip-archive`` hanging indefinitely on MySQL when a delete fails due to a foreign-key constraint. The session now rolls back before dropping the temporary archive table, so the command fails fast with the database error instead of blocking on metadata locks.
