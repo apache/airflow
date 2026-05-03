@@ -110,6 +110,12 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
     commit_on_success: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )
+    is_encrypted: Mapped[bool] = mapped_column(
+        Boolean, unique=False, default=False, nullable=False, server_default="0"
+    )
+    is_extra_encrypted: Mapped[bool] = mapped_column(
+        Boolean, unique=False, default=False, nullable=False, server_default="0"
+    )
 
     active_connection_id: Mapped[str | None] = mapped_column(String(250), nullable=True)
 
