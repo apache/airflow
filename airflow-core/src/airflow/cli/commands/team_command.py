@@ -96,14 +96,14 @@ def team_delete(args, *, session=NEW_SESSION):
     # Check for associations
     associations = []
 
-    # Check DAG bundle associations
+    # Check Dag bundle associations
     dag_bundle_count = session.scalar(
         select(func.count())
         .select_from(dag_bundle_team_association_table)
         .where(dag_bundle_team_association_table.c.team_name == team.name)
     )
     if dag_bundle_count:
-        associations.append(f"{dag_bundle_count} DAG bundle(s)")
+        associations.append(f"{dag_bundle_count} Dag bundle(s)")
 
     # Check connection associations
     if connection_count := session.scalar(

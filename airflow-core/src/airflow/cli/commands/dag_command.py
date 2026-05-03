@@ -116,7 +116,7 @@ def dag_delete(args) -> None:
     api_client = get_current_api_client()
     if (
         args.yes
-        or input("This will drop all existing records related to the specified DAG. Proceed? (y/n)").upper()
+        or input("This will drop all existing records related to the specified Dag. Proceed? (y/n)").upper()
         == "Y"
     ):
         try:
@@ -243,21 +243,21 @@ def _bulk_clear_runs(
 @cli_utils.action_cli
 @providers_configuration_loaded
 def dag_pause(args) -> None:
-    """Pauses a DAG."""
+    """Pauses a Dag."""
     set_is_paused(True, args)
 
 
 @cli_utils.action_cli
 @providers_configuration_loaded
 def dag_unpause(args) -> None:
-    """Unpauses a DAG."""
+    """Unpauses a Dag."""
     set_is_paused(False, args)
 
 
 @providers_configuration_loaded
 @provide_session
 def set_is_paused(is_paused: bool, args, *, session: Session = NEW_SESSION) -> None:
-    """Set is_paused for DAG by a given dag_id."""
+    """Set is_paused for Dag by a given dag_id."""
     query = select(DagModel)
     if args.treat_dag_id_as_regex:
         query = query.where(DagModel.dag_id.regexp_match(args.dag_id))
@@ -268,13 +268,13 @@ def set_is_paused(is_paused: bool, args, *, session: Session = NEW_SESSION) -> N
 
     matched_dags = list(session.scalars(query).all())
     if not matched_dags:
-        print(f"No {'un' if is_paused else ''}paused DAGs were found")
+        print(f"No {'un' if is_paused else ''}paused Dags were found")
         return
 
     if not args.yes and args.treat_dag_id_as_regex:
         dags_ids = [dag.dag_id for dag in matched_dags]
         question = (
-            f"You are about to {'un' if not is_paused else ''}pause {len(dags_ids)} DAGs:\n"
+            f"You are about to {'un' if not is_paused else ''}pause {len(dags_ids)} Dags:\n"
             f"{','.join(dags_ids)}"
             f"\n\nAre you sure? [y/n]"
         )
@@ -296,7 +296,7 @@ def set_is_paused(is_paused: bool, args, *, session: Session = NEW_SESSION) -> N
 
 @providers_configuration_loaded
 def dag_dependencies_show(args) -> None:
-    """Display DAG dependencies, save to file or show as imgcat image."""
+    """Display Dag dependencies, save to file or show as imgcat image."""
     deduplicated_dag_dependencies = {
         dag_id: list(set(dag_dependencies))
         for dag_id, dag_dependencies in SerializedDagModel.get_dag_dependencies().items()
@@ -320,7 +320,7 @@ def dag_dependencies_show(args) -> None:
 
 @providers_configuration_loaded
 def dag_show(args) -> None:
-    """Display DAG or saves its graphic representation to the file."""
+    """Display Dag or saves its graphic representation to the file."""
     from airflow.models.serialized_dag import SerializedDagModel
 
     if not (dag := SerializedDagModel.get_dag(dag_id=args.dag_id)):
@@ -421,7 +421,7 @@ def dag_state(args, *, session: Session = NEW_SESSION) -> None:
     dag = DagModel.get_dagmodel(args.dag_id, session=session)
 
     if not dag:
-        raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
+        raise SystemExit(f"Dag: {args.dag_id} does not exist in 'dag' table")
     dr, _ = fetch_dag_run_from_run_id_or_logical_date_string(
         dag_id=dag.dag_id,
         value=args.logical_date_or_run_id,
@@ -467,10 +467,10 @@ def dag_next_execution(args) -> None:
         ).one_or_none()
 
     if not dag or not last_parsed_dag:
-        raise SystemExit(f"DAG: {args.dag_id} does not exist in the database")
+        raise SystemExit(f"Dag: {args.dag_id} does not exist in the database")
 
     if last_parsed_dag.is_paused:
-        print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
+        print("[INFO] Please be reminded this Dag is PAUSED now.", file=sys.stderr)
 
     def iter_next_dagrun_info() -> Iterator[DagRunInfo | None]:
         yield (dagrun_info := dag.timetable.next_run_info_from_dag_model(dag_model=last_parsed_dag))
@@ -496,7 +496,7 @@ def dag_next_execution(args) -> None:
             if info is None:
                 print(
                     "[WARN] No following schedule can be found. "
-                    "This DAG may have schedule interval '@once' or `None`.",
+                    "This Dag may have schedule interval '@once' or `None`.",
                     file=sys.stderr,
                 )
             else:
@@ -515,7 +515,7 @@ def dag_next_execution(args) -> None:
         if info is None:
             print(
                 "[WARN] No following schedule can be found. "
-                "This DAG may have schedule interval '@once' or `None`.",
+                "This Dag may have schedule interval '@once' or `None`.",
                 file=sys.stderr,
             )
             print(None)
@@ -594,7 +594,7 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
         return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}
 
     def filter_dags_by_bundle(dags: Iterable[DAG], bundle_names: list[str] | None) -> Iterable[DAG]:
-        """Filter DAGs based on the specified bundle name, if provided."""
+        """Filter Dags based on the specified bundle name, if provided."""
         if not bundle_names:
             return dags
 
@@ -619,10 +619,10 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
 @providers_configuration_loaded
 @provide_session
 def dag_details(args, *, session: Session = NEW_SESSION):
-    """Get DAG details given a DAG id."""
+    """Get Dag details given a Dag id."""
     dag = DagModel.get_dagmodel(args.dag_id, session=session)
     if not dag:
-        raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
+        raise SystemExit(f"Dag: {args.dag_id} does not exist in 'dag' table")
     dag_detail = DAGResponse.from_orm(dag).model_dump()
 
     if args.output in ["table", "plain"]:
@@ -738,7 +738,7 @@ def dag_list_jobs(args, dag: DAG | None = None, *, session: Session = NEW_SESSIO
         dag = DagModel.get_dagmodel(args.dag_id, session=session)
 
         if not dag:
-            raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
+            raise SystemExit(f"Dag: {args.dag_id} does not exist in 'dag' table")
         queries.append(Job.dag_id == args.dag_id)
 
     if args.state:
@@ -761,14 +761,14 @@ def dag_list_jobs(args, dag: DAG | None = None, *, session: Session = NEW_SESSIO
 @providers_configuration_loaded
 @provide_session
 def dag_list_dag_runs(args, dag: DAG | None = None, *, session: Session = NEW_SESSION) -> None:
-    """List dag runs for a given DAG."""
+    """List dag runs for a given Dag."""
     if dag:
         args.dag_id = dag.dag_id
     else:
         dag = DagModel.get_dagmodel(args.dag_id, session=session)
 
         if not dag:
-            raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
+            raise SystemExit(f"Dag: {args.dag_id} does not exist in 'dag' table")
 
     state = args.state.lower() if args.state else None
     dag_runs = DagRun.find(
@@ -799,7 +799,7 @@ def dag_list_dag_runs(args, dag: DAG | None = None, *, session: Session = NEW_SE
 @providers_configuration_loaded
 @provide_session
 def dag_test(args, dag: DAG | None = None, *, session: Session = NEW_SESSION) -> None:
-    """Execute one single DagRun for a given DAG and logical date."""
+    """Execute one single DagRun for a given Dag and logical date."""
     run_conf = None
     if args.conf:
         try:
@@ -857,7 +857,7 @@ def dag_test(args, dag: DAG | None = None, *, session: Session = NEW_SESSION) ->
 @providers_configuration_loaded
 @provide_session
 def dag_reserialize(args, *, session: Session = NEW_SESSION) -> None:
-    """Serialize a DAG instance."""
+    """Serialize a Dag instance."""
     manager = DagBundlesManager()
     manager.sync_bundles_to_db(session=session)
     session.commit()

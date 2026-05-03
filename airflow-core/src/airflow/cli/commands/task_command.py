@@ -73,9 +73,9 @@ log = logging.getLogger(__name__)
 
 def _generate_temporary_run_id() -> str:
     """
-    Generate a ``run_id`` for a DAG run that will be created temporarily.
+    Generate a ``run_id`` for a Dag run that will be created temporarily.
 
-    This is used mostly by ``airflow task test`` to create a DAG run that will
+    This is used mostly by ``airflow task test`` to create a Dag run that will
     be deleted after the task is run.
     """
     return f"__airflow_temporary_run_{timezone.utcnow().isoformat()}__"
@@ -89,16 +89,16 @@ def _get_dag_run(
     session: Session | None = None,
 ) -> tuple[DagRun, bool]:
     """
-    Try to retrieve a DAG run from a string representing either a run ID or logical date.
+    Try to retrieve a Dag run from a string representing either a run ID or logical date.
 
-    This checks DAG runs like this:
+    This checks Dag runs like this:
 
-    1. If the input ``logical_date_or_run_id`` matches a DAG run ID, return the run.
+    1. If the input ``logical_date_or_run_id`` matches a Dag run ID, return the run.
     2. Try to parse the input as a date. If that works, and the resulting
-       date matches a DAG run's logical date, return the run.
+       date matches a Dag run's logical date, return the run.
     3. If ``create_if_necessary`` is *False* and the input works for neither of
        the above, raise ``DagRunNotFound``.
-    4. Try to create a new DAG run. If the input looks like a date, use it as
+    4. Try to create a new Dag run. If the input looks like a date, use it as
        the logical date; otherwise use it as a run ID and set the logical date
        to the current time.
     """
@@ -173,7 +173,7 @@ def _get_ti(
 ):
     dag = task.dag
     if dag is None:
-        raise ValueError("Cannot get task instance for a task not assigned to a DAG")
+        raise ValueError("Cannot get task instance for a task not assigned to a Dag")
 
     # this check is imperfect because diff dags could have tasks with same name
     # but in a task, dag_id is a property that accesses its dag, and we don't
@@ -311,7 +311,7 @@ def task_state(args) -> None:
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def task_list(args, dag: DAG | None = None) -> None:
-    """List the tasks within a DAG at the command line."""
+    """List the tasks within a Dag at the command line."""
     dag = dag or get_bagged_dag(args.bundle_name, args.dag_id)
     tasks = sorted(t.task_id for t in dag.tasks)
     print("\n".join(tasks))
@@ -495,13 +495,13 @@ def task_render(args, dag: DAG | None = None) -> None:
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def task_clear(args) -> None:
-    """Clear all task instances or only those matched by regex for a DAG(s)."""
+    """Clear all task instances or only those matched by regex for a Dag(s)."""
     logging.basicConfig(level=logging.INFO, format=settings.SIMPLE_LOG_FORMAT)
     if args.dag_id and not args.bundle_name and not args.dag_regex and not args.task_regex:
         dags = [get_db_dag(bundle_names=args.bundle_name, dag_id=args.dag_id)]
     else:
         # todo clear command only accepts a single dag_id. no reason for get_dags with 's' except regex?
-        # Reading from_db because clear method still not implemented in Task SDK DAG
+        # Reading from_db because clear method still not implemented in Task SDK Dag
         dags = get_dags(args.bundle_name, args.dag_id, use_regex=args.dag_regex, from_db=True)
 
         if args.task_regex:

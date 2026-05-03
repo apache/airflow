@@ -133,8 +133,8 @@ def asset_materialize(args, *, session: Session = NEW_SESSION) -> None:
     """
     Materialize the specified asset.
 
-    This is done by finding the DAG with the asset defined as outlet, and create
-    a run for that DAG.
+    This is done by finding the Dag with the asset defined as outlet, and create
+    a run for that Dag.
     """
     if not args.name and not args.uri:
         raise SystemExit("Either --name or --uri is required")

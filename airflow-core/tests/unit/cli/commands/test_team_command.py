@@ -168,17 +168,17 @@ class TestCliTeams:
             team_command.team_delete(self.parser.parse_args(["teams", "delete", "", "--yes"]))
 
     def test_team_delete_with_dag_bundle_association(self):
-        """Test deleting team that has DAG bundle associations."""
+        """Test deleting team that has Dag bundle associations."""
         # Create team
         team_command.team_create(self.parser.parse_args(["teams", "create", "bundle-team"]))
         team = self.session.scalar(select(Team).where(Team.name == "bundle-team"))
 
-        # Create a DAG bundle first
+        # Create a Dag bundle first
         dag_bundle = DagBundleModel(name="test-bundle")
         self.session.add(dag_bundle)
         self.session.commit()
 
-        # Create a DAG bundle association
+        # Create a Dag bundle association
         self.session.execute(
             dag_bundle_team_association_table.insert().values(
                 dag_bundle_name="test-bundle", team_name=team.name
@@ -189,7 +189,7 @@ class TestCliTeams:
         # Try to delete team
         with pytest.raises(
             SystemExit,
-            match="Cannot delete team 'bundle-team' because it is associated with: 1 DAG bundle\\(s\\)",
+            match="Cannot delete team 'bundle-team' because it is associated with: 1 Dag bundle\\(s\\)",
         ):
             team_command.team_delete(self.parser.parse_args(["teams", "delete", "bundle-team", "--yes"]))
 
@@ -253,7 +253,7 @@ class TestCliTeams:
         team_command.team_create(self.parser.parse_args(["teams", "create", "multi-team"]))
         team = self.session.scalar(select(Team).where(Team.name == "multi-team"))
 
-        # Create a DAG bundle first
+        # Create a Dag bundle first
         dag_bundle = DagBundleModel(name="multi-bundle")
         self.session.add(dag_bundle)
         self.session.commit()
@@ -279,7 +279,7 @@ class TestCliTeams:
 
         error_msg = str(exc_info.value)
         assert "Cannot delete team 'multi-team' because it is associated with:" in error_msg
-        assert "1 DAG bundle(s)" in error_msg
+        assert "1 Dag bundle(s)" in error_msg
         assert "1 connection(s)" in error_msg
         assert "1 variable(s)" in error_msg
         assert "1 pool(s)" in error_msg
