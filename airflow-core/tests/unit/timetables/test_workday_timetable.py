@@ -112,3 +112,14 @@ def test_next_schedule_after_friday(timetable: Timetable, restriction: TimeRestr
         restriction=restriction,
     )
     assert next_info == expected_next_info
+
+
+def test_holiday_calendar_is_cached():
+    """The holiday calendar should be initialized once and reused across calls."""
+    pytest.importorskip("pandas.tseries.holiday")
+
+    first = AfterWorkdayTimetable._get_holiday_calendar()
+    second = AfterWorkdayTimetable._get_holiday_calendar()
+
+    assert first is not None
+    assert first is second
