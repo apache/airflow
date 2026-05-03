@@ -43,11 +43,16 @@ def _beam_module_stubs() -> dict[str, types.ModuleType]:
     beam_package.__path__ = []
     hooks_package = types.ModuleType("airflow.providers.apache.beam.hooks")
     hooks_package.__path__ = []
-    beam_module = types.ModuleType("airflow.providers.apache.beam.hooks.beam")
 
     class BeamRunnerType:
         DataflowRunner = "DataflowRunner"
 
+    class BeamModule(types.ModuleType):
+        BeamHook: object
+        BeamRunnerType: object
+        beam_options_to_args: object
+
+    beam_module = BeamModule("airflow.providers.apache.beam.hooks.beam")
     beam_module.BeamHook = mock.MagicMock()
     beam_module.BeamRunnerType = BeamRunnerType
     beam_module.beam_options_to_args = mock.MagicMock(return_value=[])
