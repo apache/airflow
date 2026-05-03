@@ -49,7 +49,7 @@ def reparse_dag_file(
     session: SessionDep,
     request: Request,
 ) -> None:
-    """Request re-parsing a DAG file."""
+    """Request re-parsing a Dag file."""
     secret_key = request.app.state.secret_key
     auth_s = URLSafeSerializer(secret_key)
     try:

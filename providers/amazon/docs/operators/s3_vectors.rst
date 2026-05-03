@@ -40,3 +40,17 @@ Reference
 ~~~~~~~~~
 
 * `AWS boto3 Library Documentation for S3 Vectors <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3vectors.html>`__
+
+.. _howto/operator:S3VectorsDeleteVectorBucketOperator:
+
+Delete a Vector Bucket
+~~~~~~~~~~~~~~~~~~~~~~
+
+To delete an Amazon S3 Vectors vector bucket, use
+:class:`~airflow.providers.amazon.aws.operators.s3_vectors.S3VectorsDeleteVectorBucketOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3_vectors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3vectors_delete_vector_bucket]
+    :end-before: [END howto_operator_s3vectors_delete_vector_bucket]

@@ -1643,6 +1643,90 @@ class TestTIUpdateState:
         assert tih.task_instance_id
         assert tih.task_instance_id != ti.id
 
+    def test_ti_update_state_retry_with_policy_overrides(self, client, session, create_task_instance):
+        """Test that retry_delay_seconds and retry_reason from a RetryPolicy are stored on the TI."""
+        ti = create_task_instance(
+            task_id="test_retry_policy_override",
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": State.UP_FOR_RETRY,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "retry_delay_seconds": 42.5,
+                "retry_reason": "Rate limit: backing off",
+            },
+        )
+
+        assert response.status_code == 204
+
+        ti = session.scalar(
+            select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+        )
+        assert ti.state == State.UP_FOR_RETRY
+        assert ti.retry_delay_override == 42.5
+        assert ti.retry_reason == "Rate limit: backing off"
+
+    def test_ti_update_state_retry_without_policy_overrides(self, client, session, create_task_instance):
+        """Without retry policy fields, the columns remain NULL."""
+        ti = create_task_instance(
+            task_id="test_retry_no_policy",
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": State.UP_FOR_RETRY,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+
+        ti = session.scalar(
+            select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+        )
+        assert ti.state == State.UP_FOR_RETRY
+        assert ti.retry_delay_override is None
+        assert ti.retry_reason is None
+
+    def test_ti_run_clears_retry_policy_overrides(self, client, session, create_task_instance):
+        """When a task enters RUNNING, retry policy overrides from the previous attempt are cleared."""
+        ti = create_task_instance(
+            task_id="test_retry_cleared_on_run",
+            state=State.QUEUED,
+        )
+        # Simulate having retry overrides from a previous attempt
+        ti.retry_delay_override = 60.0
+        ti.retry_reason = "previous attempt rate limit"
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "test-host",
+                "unixname": "test-user",
+                "pid": 12345,
+                "start_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+
+        session.expire_all()
+        ti = session.scalar(
+            select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+        )
+        assert ti.state == State.RUNNING
+        assert ti.retry_delay_override is None
+        assert ti.retry_reason is None
+
     @pytest.mark.parametrize(
         "target_state",
         [

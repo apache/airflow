@@ -94,8 +94,8 @@ class GridNodeAgg:
 
 
 def _merge_node_dicts(current: list[dict[str, Any]], new: list[dict[str, Any]] | None) -> None:
-    """Merge node dictionaries from different DAG versions, handling structure changes."""
-    # Handle None case - can occur when merging old DAG versions
+    """Merge node dictionaries from different Dag versions, handling structure changes."""
+    # Handle None case - can occur when merging old Dag versions
     # where a TaskGroup was converted to a task or vice versa
     if new is None:
         return
@@ -106,7 +106,7 @@ def _merge_node_dicts(current: list[dict[str, Any]], new: list[dict[str, Any]] |
         current_node = current_nodes_by_id.get(node_id)
         if current_node is not None:
             # Only merge children if current node already has children
-            # This preserves the structure of the latest DAG version
+            # This preserves the structure of the latest Dag version
             if current_node.get("children") is not None:
                 _merge_node_dicts(current_node["children"], node.get("children"))
         else:

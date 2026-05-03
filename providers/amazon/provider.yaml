@@ -303,7 +303,7 @@ integrations:
     external-doc-url: https://aws.amazon.com/s3/features/tables/
     logo: /docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png
     how-to-guide:
-      - /docs/apache-airflow-providers-amazon/operators/s3tables/s3tables.rst
+      - /docs/apache-airflow-providers-amazon/operators/s3_tables.rst
     tags: [aws]
   - integration-name: Amazon Systems Manager (SSM)
     external-doc-url: https://aws.amazon.com/systems-manager/
@@ -375,6 +375,12 @@ integrations:
   - integration-name: Amazon Verified Permissions
     external-doc-url: https://aws.amazon.com/verified-permissions/
     logo: /docs/integration-logos/Amazon-Verified-Permissions.png
+    tags: [aws]
+  - integration-name: Amazon MWAA Serverless
+    external-doc-url: https://docs.aws.amazon.com/mwaa/latest/userguide/mwaa-serverless.html
+    logo: /docs/integration-logos/Amazon-MWAA.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/mwaa_serverless.rst
     tags: [aws]
   - integration-name: Amazon Neptune
     external-doc-url: https://aws.amazon.com/neptune/
@@ -462,12 +468,15 @@ operators:
   - integration-name: Amazon Managed Workflows for Apache Airflow (MWAA)
     python-modules:
       - airflow.providers.amazon.aws.operators.mwaa
+  - integration-name: Amazon MWAA Serverless
+    python-modules:
+      - airflow.providers.amazon.aws.operators.mwaa_serverless
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3
   - integration-name: Amazon S3 Tables
     python-modules:
-      - airflow.providers.amazon.aws.operators.s3tables
+      - airflow.providers.amazon.aws.operators.s3_tables
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker
@@ -714,6 +723,9 @@ hooks:
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.hooks.s3
+  - integration-name: Amazon S3 Tables
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.s3_tables
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.hooks.sagemaker

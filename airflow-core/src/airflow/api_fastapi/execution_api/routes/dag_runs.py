@@ -128,6 +128,7 @@ def trigger_dag_run(
             run_type=DagRunType.OPERATOR_TRIGGERED,
             conf=payload.conf,
             logical_date=payload.logical_date,
+            run_after=payload.run_after,
             triggered_by=DagRunTriggeredByType.OPERATOR,
             replace_microseconds=False,
             partition_key=payload.partition_key,

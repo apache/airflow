@@ -126,4 +126,4 @@ name = "Misc"
 showcontent = true
 
 [tool.uv]
-required-version = ">=0.6.3"
+required-version = ">=0.11.8"

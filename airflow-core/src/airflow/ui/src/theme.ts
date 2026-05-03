@@ -18,8 +18,6 @@
  */
 
 /* eslint-disable perfectionist/sort-objects */
-
-/* eslint-disable max-lines */
 import {
   createSystem,
   defaultConfig,

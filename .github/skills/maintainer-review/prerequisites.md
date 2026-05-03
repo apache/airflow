@@ -151,28 +151,31 @@ a separate call. The state is one of:
 
 ## Browser-open availability (DEGRADES)
 
-By default the skill opens each `[Y]es`-confirmed PR in the
-maintainer's default browser via `gh pr view <N> --web` (see
-Golden rule 11 in [`SKILL.md`](SKILL.md)). At session start
-the skill checks that `gh pr view --web` is callable in this
-shell:
+The skill prompts before opening each PR's files tab in the
+maintainer's default browser (see Golden rule 11 in
+[`SKILL.md`](SKILL.md)). The opener is `xdg-open` (Linux),
+`open` (macOS), or `start` (Windows). At session start the
+skill checks that at least one is on `$PATH`:
 
 ```bash
-gh pr view --help 2>/dev/null | grep -q -- '--web' || echo "missing"
+command -v xdg-open >/dev/null 2>&1 \
+  || command -v open >/dev/null 2>&1 \
+  || command -v start >/dev/null 2>&1 \
+  || echo "missing"
 ```
 
-If `--web` is missing (older `gh`) or the command can't reach
-a browser (headless session, missing `xdg-open` /
-`open` / `start`), announce once and degrade to URL-only:
+If none is available (headless session, container with no
+freedesktop tools), announce once and degrade — the prompt is
+still asked, but on `[y]` the skill **prints the files-tab
+URL** instead of trying to launch:
 
-> *`gh pr view --web` not available — falling back to printing
-> the PR URL only. Click the URL in your terminal to open the
-> PR.*
+> *No browser opener (`xdg-open` / `open` / `start`) available
+> — on `[y]` I'll print the files-tab URL for you to click
+> manually.*
 
 The PR URL is still always rendered per Golden rule 10, so
-the maintainer can click it manually in any URL-aware
-terminal. If the maintainer passed `no-browser`, skip this
-check entirely and stay quiet.
+the maintainer can click it directly in any URL-aware
+terminal at any time.
 
 ---
 

@@ -19,7 +19,7 @@
 import { expect } from "@playwright/test";
 import { test } from "tests/e2e/fixtures/calendar-data";
 
-test.describe("DAG Calendar Tab", () => {
+test.describe("Dag Calendar Tab", () => {
   test.setTimeout(90_000);
 
   // calendarRunsData is triggered once per worker via beforeEach.
@@ -32,7 +32,7 @@ test.describe("DAG Calendar Tab", () => {
     await dagCalendarTab.switchToHourly();
   });
 
-  test("verify active cells appear for DAG runs", async ({ dagCalendarTab }) => {
+  test("verify active cells appear for Dag runs", async ({ dagCalendarTab }) => {
     await dagCalendarTab.switchToHourly();
 
     const count = await dagCalendarTab.getActiveCellCount();

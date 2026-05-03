@@ -115,4 +115,48 @@ describe("Test SearchBar", () => {
 
     expect((input as HTMLInputElement).value).toBe("user-typing");
   });
+
+  it("does not render advanced toggle by default", () => {
+    render(<SearchBar defaultValue="" onChange={vi.fn()} placeholder="Search" />, {
+      wrapper: Wrapper,
+    });
+
+    expect(screen.queryByTestId("advanced-search-toggle")).toBeNull();
+  });
+
+  it("renders advanced toggle and reflects enabled state", () => {
+    const onToggle = vi.fn();
+
+    render(
+      <SearchBar
+        advancedSearch={{ enabled: false, onToggle }}
+        defaultValue=""
+        onChange={vi.fn()}
+        placeholder="Search"
+      />,
+      { wrapper: Wrapper },
+    );
+
+    const toggle = screen.getByTestId("advanced-search-toggle");
+
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(toggle);
+
+    expect(onToggle).toHaveBeenCalledWith(true);
+  });
+
+  it("shows advanced toggle as pressed when enabled", () => {
+    render(
+      <SearchBar
+        advancedSearch={{ enabled: true, onToggle: vi.fn() }}
+        defaultValue=""
+        onChange={vi.fn()}
+        placeholder="Search"
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByTestId("advanced-search-toggle").getAttribute("aria-pressed")).toBe("true");
+  });
 });

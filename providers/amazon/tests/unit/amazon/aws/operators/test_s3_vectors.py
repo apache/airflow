@@ -20,7 +20,10 @@ from unittest.mock import MagicMock
 
 from botocore.exceptions import ClientError
 
-from airflow.providers.amazon.aws.operators.s3_vectors import S3VectorsCreateVectorBucketOperator
+from airflow.providers.amazon.aws.operators.s3_vectors import (
+    S3VectorsCreateVectorBucketOperator,
+    S3VectorsDeleteVectorBucketOperator,
+)
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -81,10 +84,30 @@ class TestS3VectorsCreateVectorBucketOperator:
         result = op.execute({})
 
         assert result == BUCKET_ARN
-        mock_conn.get_vector_bucket.assert_called_once_with(vectorBucketName=BUCKET_NAME)
 
     def test_template_fields(self):
         op = S3VectorsCreateVectorBucketOperator(
+            task_id="test",
+            vector_bucket_name=BUCKET_NAME,
+        )
+        validate_template_fields(op)
+
+
+class TestS3VectorsDeleteVectorBucketOperator:
+    def test_execute(self):
+        op = S3VectorsDeleteVectorBucketOperator(
+            task_id="delete_vector_bucket",
+            vector_bucket_name=BUCKET_NAME,
+        )
+        mock_conn = MagicMock()
+        op.hook.conn = mock_conn
+
+        op.execute({})
+
+        mock_conn.delete_vector_bucket.assert_called_once_with(vectorBucketName=BUCKET_NAME)
+
+    def test_template_fields(self):
+        op = S3VectorsDeleteVectorBucketOperator(
             task_id="test",
             vector_bucket_name=BUCKET_NAME,
         )

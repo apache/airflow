@@ -59,6 +59,7 @@ class Context(TypedDict, total=False):
     map_index_template: NotRequired[str | None]
     outlets: list
     params: dict[str, Any]
+    partition_key: NotRequired[str | None]
     prev_data_interval_start_success: NotRequired[DateTime | None]
     prev_data_interval_end_success: NotRequired[DateTime | None]
     prev_start_date_success: NotRequired[DateTime | None]

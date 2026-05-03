@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import importlib
 import json
+import multiprocessing
 import signal
 from datetime import datetime
 from io import StringIO
@@ -78,9 +80,22 @@ MOCK_COMMAND = {
 }
 
 
+def _emit_large_exception_target(results_queue):
+    """Worker-process target used by ``test_fetch_and_run_job_possible_deadlock``.
+
+    Pushes a >64 KB pickled exception to ``results_queue``. On Linux the OS pipe
+    backing ``multiprocessing.Queue`` only has ~64 KB of buffer, so the queue's
+    feeder thread blocks on ``send_bytes`` and the subprocess can't terminate
+    until the parent reads from the queue — exactly the production deadlock
+    condition that #66144 fixed.
+    """
+    results_queue.put(Exception(f"Task execution failed with large error message {'-' * 66000}"))
+
+
 class _MockProcess(Process):
     def __init__(self, returncode=None):
         self.generated_returncode = None
+        self._is_alive = False
 
     def poll(self):
         pass
@@ -88,6 +103,18 @@ class _MockProcess(Process):
     @property
     def returncode(self):
         return self.generated_returncode
+
+    def is_alive(self):
+        return self._is_alive
+
+    def terminate(self):
+        self._is_alive = False
+
+    def kill(self):
+        self._is_alive = False
+
+    def join(self, timeout=None):
+        pass
 
 
 class TestEdgeWorker:
@@ -219,7 +246,7 @@ class TestEdgeWorker:
         result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
 
         assert result == 0
-        q.put.assert_not_called()
+        q.put.assert_called_once()
 
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @pytest.mark.asyncio
@@ -295,6 +322,72 @@ class TestEdgeWorker:
         mock_push_log_chunks.assert_called_once()
         assert len(worker_with_job.jobs) == 1  # no new job added (was removed at the end...)
         mock_logs_push.assert_not_called()
+
+    @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @patch("airflow.providers.edge3.cli.worker.jobs_set_state")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @pytest.mark.asyncio
+    async def test_fetch_and_run_job_possible_deadlock(
+        self,
+        mock_logs_push,
+        mock_push_log_chunks,
+        mock_jobs_set_state,
+        mock_jobs_fetch,
+        worker_with_job: EdgeWorker,
+    ):
+        """Verify that a large exception from the subprocess does not deadlock fetch_and_run_job.
+
+        Uses an explicit ``fork`` context to spawn the simulated worker subprocess. Python 3.14
+        flipped the POSIX default ``multiprocessing`` start method to ``forkserver``, which
+        spawns a fresh interpreter for the child — patches applied in the test process do not
+        propagate, so older variants of this test that mocked ``supervise`` no longer triggered
+        the deadlock condition. Forking a small top-level target sidesteps that and reproduces
+        the actual queue-feeder/pipe-buffer deadlock the fix targets.
+        """
+        mock_jobs_fetch.side_effect = [
+            EdgeJobFetched(
+                dag_id="test",
+                task_id="test",
+                run_id="test",
+                map_index=-1,
+                try_number=1,
+                concurrency_slots=1,
+                command=MOCK_COMMAND,  # type: ignore[arg-type]
+            ),
+            None,
+        ]
+        worker_with_job.concurrency = 1  # only one job at a time
+        assert worker_with_job.free_concurrency == 0
+
+        ctx = multiprocessing.get_context("fork")
+        results_queue = ctx.Queue()
+        process = ctx.Process(target=_emit_large_exception_target, args=(results_queue,))
+
+        with patch.object(EdgeWorker, "_launch_job", return_value=(process, results_queue)):
+            process.start()
+            try:
+                await asyncio.wait_for(worker_with_job.fetch_and_run_job(), timeout=10.0)
+            except asyncio.TimeoutError:
+                # Clean up any hanging subprocess to prevent blocking pytest
+                if process.is_alive():
+                    process.terminate()
+                    process.join(timeout=1.0)
+                    if process.is_alive():
+                        process.kill()
+                        process.join()
+                pytest.fail("fetch_and_run_job timed out after 10s - DEADLOCK DETECTED. ")
+            finally:
+                if process.is_alive():
+                    process.join(timeout=1.0)
+                    if process.is_alive():
+                        process.terminate()
+                        process.join(timeout=1.0)
+
+        # If we reach here without timeout, the deadlock was not triggered
+        assert mock_jobs_set_state.call_count >= 1
+        mock_push_log_chunks.assert_called()
+        assert len(worker_with_job.jobs) <= 1  # new job removed, original fixture job still there
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
     @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job", return_value=(Process(), Queue()))

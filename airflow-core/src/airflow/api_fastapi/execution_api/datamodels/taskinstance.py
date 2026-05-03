@@ -184,6 +184,8 @@ class TIRetryStatePayload(StrictBaseModel):
     ]
     end_date: UtcDateTime
     rendered_map_index: str | None = None
+    retry_delay_seconds: float | None = None
+    retry_reason: str | None = None
 
 
 class TISkippedDownstreamTasksStatePayload(StrictBaseModel):

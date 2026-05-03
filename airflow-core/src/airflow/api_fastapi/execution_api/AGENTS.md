@@ -43,7 +43,7 @@ Adding a new Execution API feature touches multiple packages. All of these must 
 4. **Task SDK message types** — add request/response to `task-sdk/src/airflow/sdk/execution_time/comms.py`.
 5. **Task SDK client** — add the client method in `task-sdk/src/airflow/sdk/api/client.py`.
 6. **Supervisor** — handle the new message in `task-sdk/src/airflow/sdk/execution_time/supervisor.py`.
-7. **DAG processor & triggerer exclusions** — these use `InProcessExecutionAPI` and have explicit message type unions. Add new types to their handler or exclusion lists in `airflow/dag_processing/processor.py` and `airflow/jobs/triggerer_job_runner.py`.
+7. **Dag processor & triggerer exclusions** — these use `InProcessExecutionAPI` and have explicit message type unions. Add new types to their handler or exclusion lists in `airflow/dag_processing/processor.py` and `airflow/jobs/triggerer_job_runner.py`.
 8. **Regenerate models** — `cd task-sdk && python dev/generate_task_sdk_models.py`.
 9. **Tests** — if the new message type requires an API endpoint, add tests in all of these:
    - `airflow-core/tests/unit/api_fastapi/execution_api/` — endpoint tests
@@ -59,7 +59,7 @@ Adding a new Execution API feature touches multiple packages. All of these must 
 - Message types: `task-sdk/src/airflow/sdk/execution_time/comms.py`
 - Client: `task-sdk/src/airflow/sdk/api/client.py`
 - Supervisor: `task-sdk/src/airflow/sdk/execution_time/supervisor.py`
-- DAG processor handler: `airflow-core/src/airflow/dag_processing/processor.py`
+- Dag processor handler: `airflow-core/src/airflow/dag_processing/processor.py`
 - Triggerer handler: `airflow-core/src/airflow/jobs/triggerer_job_runner.py`
 - Task SDK generated models: `task-sdk/src/airflow/sdk/api/datamodels/_generated.py`
 - Full versioning guide: [`contributing-docs/19_execution_api_versioning.rst`](../../../../contributing-docs/19_execution_api_versioning.rst)

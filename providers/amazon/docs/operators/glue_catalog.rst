@@ -40,3 +40,17 @@ Reference
 ~~~~~~~~~
 
 * `AWS boto3 Library Documentation for Glue <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html>`__
+
+.. _howto/operator:GlueCatalogDeleteDatabaseOperator:
+
+Delete a Catalog Database
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To delete a database from the AWS Glue Data Catalog, use
+:class:`~airflow.providers.amazon.aws.operators.glue_catalog.GlueCatalogDeleteDatabaseOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_glue_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_glue_catalog_delete_database]
+    :end-before: [END howto_operator_glue_catalog_delete_database]

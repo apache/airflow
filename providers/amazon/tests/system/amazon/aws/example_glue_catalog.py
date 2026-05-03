@@ -18,16 +18,18 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.providers.amazon.aws.operators.glue_catalog import GlueCatalogCreateDatabaseOperator
+from airflow.providers.amazon.aws.operators.glue_catalog import (
+    GlueCatalogCreateDatabaseOperator,
+    GlueCatalogDeleteDatabaseOperator,
+)
 from airflow.providers.common.compat.sdk import DAG, chain
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import TriggerRule, task
+    from airflow.sdk import TriggerRule
 else:
-    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 DAG_ID = "example_glue_catalog"
@@ -52,17 +54,18 @@ with DAG(
     )
     # [END howto_operator_glue_catalog_create_database]
 
-    @task(trigger_rule=TriggerRule.ALL_DONE)
-    def delete_database(name: str):
-        """Delete the Glue Catalog database."""
-        import boto3
-
-        boto3.client("glue").delete_database(Name=name)
+    # [START howto_operator_glue_catalog_delete_database]
+    delete_database = GlueCatalogDeleteDatabaseOperator(
+        task_id="delete_database",
+        database_name=db_name,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_glue_catalog_delete_database]
 
     chain(
         test_context,
         create_database,
-        delete_database(name=db_name),
+        delete_database,
     )
 
     from tests_common.test_utils.watcher import watcher

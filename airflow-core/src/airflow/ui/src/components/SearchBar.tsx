@@ -16,18 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { CloseButton, Input, InputGroup, Kbd, type InputGroupProps } from "@chakra-ui/react";
+import { CloseButton, HStack, Input, InputGroup, Kbd, type InputGroupProps } from "@chakra-ui/react";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiSearch } from "react-icons/fi";
 import { useDebouncedCallback } from "use-debounce";
 
+import { AdvancedSearchToggle, type AdvancedSearchToggleProps } from "src/components/AdvancedSearchToggle";
 import { getMetaKey } from "src/utils";
 
 const debounceDelay = 200;
 
+type AdvancedSearchProps = Omit<AdvancedSearchToggleProps, "size">;
+
 type Props = {
+  readonly advancedSearch?: AdvancedSearchProps;
   readonly defaultValue: string;
   readonly hotkeyDisabled?: boolean;
   readonly onChange: (value: string) => void;
@@ -35,6 +39,7 @@ type Props = {
 } & Omit<InputGroupProps, "children" | "onChange">;
 
 export const SearchBar = ({
+  advancedSearch,
   defaultValue,
   hotkeyDisabled = false,
   onChange,
@@ -69,7 +74,7 @@ export const SearchBar = ({
     { enabled: !hotkeyDisabled, preventDefault: true },
   );
 
-  return (
+  const inputGroup = (
     <InputGroup
       colorPalette="brand"
       {...props}
@@ -103,5 +108,16 @@ export const SearchBar = ({
         value={value}
       />
     </InputGroup>
+  );
+
+  if (!advancedSearch) {
+    return inputGroup;
+  }
+
+  return (
+    <HStack alignItems="center" gap={2} w="100%">
+      {inputGroup}
+      <AdvancedSearchToggle {...advancedSearch} />
+    </HStack>
   );
 };
