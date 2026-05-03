@@ -39,7 +39,9 @@ from airflowctl.ctl.console_formatting import AirflowConsole
 def clear(args, api_client=NEW_API_CLIENT) -> None:
     """Clear task instances for a Dag run."""
     try:
-        body = ClearTaskInstancesBody(
+        ops = TaskOperations(client=api_client.client)
+        cleared = ops.clear(
+            dag_id=args.dag_id,
             dry_run=getattr(args, "dry_run", False),
             only_failed=getattr(args, "only_failed", True),
             only_running=getattr(args, "only_running", False),
@@ -51,14 +53,6 @@ def clear(args, api_client=NEW_API_CLIENT) -> None:
             include_future=getattr(args, "include_future", False),
             include_past=getattr(args, "include_past", False),
         )
-        response = api_client.client.post(
-            f"dags/{args.dag_id}/clearTaskInstances",
-            json=body.model_dump(mode="json", exclude_none=True),
-        )
-        if response.status_code >= 400:
-            rich.print(f"[red]Error: {response.status_code} {response.text}[/red]")
-            sys.exit(1)
-        cleared = ClearTaskInstanceCollectionResponse.model_validate_json(response.content)
         rich.print(
             f"[green]Cleared {len(cleared.task_instances)} task instance(s) for Dag {args.dag_id}[/green]"
         )
@@ -69,7 +63,6 @@ def clear(args, api_client=NEW_API_CLIENT) -> None:
     except ServerResponseError as e:
         rich.print(f"[red]Error clearing task instances: {e}[/red]")
         sys.exit(1)
-
 
 @provide_api_client(kind=ClientKind.CLI)
 def states_for_dag_run(args, api_client=NEW_API_CLIENT) -> None:
