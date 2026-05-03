@@ -3086,6 +3086,78 @@ class TestInProcessTestSupervisor:
         assert isinstance(response, VariableResult)
         assert response.value == "value"
 
+    @pytest.mark.parametrize(
+        "task_state",
+        [TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY],
+    )
+    def test_start_sets_exception_in_context_before_finalize(self, mocker, make_ti_context, task_state):
+        """
+        Regression test for the in-process dag.test() path.
+
+        `task_runner.main()` (the subprocess path) sets ``context["exception"] = error``
+        immediately after ``run()`` and before ``finalize()`` so that
+        ``on_failure_callback`` and ``on_retry_callback`` can read the raised
+        exception from context. The in-process supervisor used by ``dag.test()``
+        must mirror that contract.
+        """
+        raised = ValueError("kaboom")
+        captured: dict[str, Any] = {}
+
+        def fake_finalize(_ti, state, context, _log, error=None):
+            captured["state"] = state
+            captured["error"] = error
+            captured["exception_in_context"] = context.get("exception")
+
+        mocker.patch(
+            "airflow.sdk.execution_time.task_runner.run",
+            return_value=(task_state, MagicMock(), raised),
+        )
+        mocker.patch(
+            "airflow.sdk.execution_time.task_runner.finalize",
+            side_effect=fake_finalize,
+        )
+
+        fake_runtime_ti = MagicMock()
+        fake_runtime_ti.get_template_context.return_value = {}
+        mocker.patch(
+            "airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.model_construct",
+            return_value=fake_runtime_ti,
+        )
+
+        # No real sockets / no real terminal-state notification needed for this test.
+        mocker.patch.object(
+            InProcessTestSupervisor,
+            "_setup_subprocess_socket",
+            return_value=mock.MagicMock(),
+        )
+        mocker.patch.object(InProcessTestSupervisor, "update_task_state_if_needed")
+
+        mock_client = MagicMock(spec=sdk_client.Client)
+        mock_client.task_instances.start.return_value = make_ti_context()
+        mocker.patch.object(InProcessTestSupervisor, "_api_client", return_value=mock_client)
+
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="t",
+            dag_id="d",
+            run_id="r",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+        task = MagicMock()
+        task.dag = MagicMock()
+
+        result = InProcessTestSupervisor.start(what=ti, task=task)
+
+        assert result.state == task_state
+        assert result.error is raised
+        assert captured["state"] == task_state
+        assert captured["error"] is raised
+        # The bug being fixed: without the in-process supervisor mirroring the
+        # subprocess path, this would be missing/None and failure or retry
+        # callbacks couldn't read the exception from context.
+        assert captured["exception_in_context"] is raised
+
 
 class TestInProcessClient:
     def test_no_retries(self):

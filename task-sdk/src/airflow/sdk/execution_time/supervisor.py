@@ -1886,6 +1886,9 @@ class InProcessTestSupervisor(ActivitySubprocess):
                 log = structlog.get_logger(logger_name="task")
 
                 state, msg, error = run(ti, context, log)
+                # Mirror the subprocess path in `task_runner.main()`: expose the raised
+                # exception via `context["exception"]` so failure/retry callbacks see it.
+                context["exception"] = error
                 finalize(ti, state, context, log, error)
 
                 # In the normal subprocess model, the task runner calls this before exiting.
