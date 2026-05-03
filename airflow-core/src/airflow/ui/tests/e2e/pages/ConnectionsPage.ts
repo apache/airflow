@@ -267,9 +267,9 @@ export class ConnectionsPage extends BasePage {
 
   public async getConnectionIds(): Promise<Array<string>> {
     const rowLocator = this.connectionRows;
-    const count = await rowLocator.count();
+    const countRow = await rowLocator.count();
 
-    if (count === 0) {
+    if (countRow === 0) {
       return [];
     }
 
