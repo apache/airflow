@@ -78,7 +78,7 @@ def get_asset_state(
 ) -> AssetStateResponse:
     """Get an asset state value."""
     asset_id = _resolve_asset_id(name, session)
-    value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)
+    value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -99,7 +99,7 @@ def set_asset_state(
 ) -> None:
     """Set an asset state value."""
     asset_id = _resolve_asset_id(name, session)
-    get_state_backend().set(AssetScope(asset_id=asset_id), key, body.value, session=session)
+    get_state_backend().set(AssetScope(asset_id=asset_id), key, body.value, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
 
 
 @router.delete("/value", status_code=status.HTTP_204_NO_CONTENT)
@@ -110,7 +110,7 @@ def delete_asset_state(
 ) -> None:
     """Delete a single asset state key."""
     asset_id = _resolve_asset_id(name, session)
-    get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
+    get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
 
 
 @router.delete("/clear", status_code=status.HTTP_204_NO_CONTENT)
@@ -120,4 +120,4 @@ def clear_asset_state(
 ) -> None:
     """Delete all state keys for an asset."""
     asset_id = _resolve_asset_id(name, session)
-    get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)
+    get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
