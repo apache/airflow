@@ -85,7 +85,7 @@ def extract_single_connected_component(
 
 
 def get_scheduling_dependencies(readable_dag_ids: set[str] | None = None) -> dict[str, list[dict]]:
-    """Get scheduling dependencies between DAGs."""
+    """Get scheduling dependencies between Dags."""
     from airflow.models.serialized_dag import SerializedDagModel
 
     nodes_dict: dict[str, dict] = {}
