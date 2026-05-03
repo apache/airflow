@@ -101,7 +101,7 @@ class TestLLMFileAnalysisOperator:
             max_text_chars=100_000,
             sample_rows=10,
         )
-        mock_agent.run_sync.assert_called_once_with("prepared prompt")
+        mock_agent.run_sync.assert_called_once_with("prepared prompt", usage_limits=None)
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch(

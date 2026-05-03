@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* eslint-disable max-lines -- Gantt transform, time range, links, and axis ticks share one module */
 import dayjs from "dayjs";
 import type { To } from "react-router-dom";
 

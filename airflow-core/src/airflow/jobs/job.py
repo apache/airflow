@@ -29,7 +29,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.orm.session import make_transient
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -245,7 +245,7 @@ class Job(Base, LoggingMixin):
             self.log.debug("[heartbeat]")
             self.heartbeat_failed = False
         except OperationalError:
-            Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
+            stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
             if not self.heartbeat_failed:
                 self.log.exception("%s heartbeat failed with error", self.__class__.__name__)
                 self.heartbeat_failed = True
@@ -268,7 +268,7 @@ class Job(Base, LoggingMixin):
     @provide_session
     def prepare_for_execution(self, session: Session = NEW_SESSION):
         """Prepare the job for execution."""
-        Stats.incr(self.__class__.__name__.lower() + "_start", 1, 1)
+        stats.incr(self.__class__.__name__.lower() + "_start", 1, 1)
         self.state = JobState.RUNNING
         self.start_date = timezone.utcnow()
         session.add(self)
@@ -284,7 +284,7 @@ class Job(Base, LoggingMixin):
         self.end_date = timezone.utcnow()
         session.merge(self)
         session.commit()
-        Stats.incr(self.__class__.__name__.lower() + "_end", 1, 1)
+        stats.incr(self.__class__.__name__.lower() + "_end", 1, 1)
 
     @provide_session
     def most_recent_job(self, session: Session = NEW_SESSION) -> Job | None:

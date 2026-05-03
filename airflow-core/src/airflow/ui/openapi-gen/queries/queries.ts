@@ -769,15 +769,17 @@ export const useEventLogServiceGetEventLogs = <TData = Common.EventLogServiceGet
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.tryNumber
 * @returns ExtraLinkCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useExtraLinksServiceGetExtraLinks = <TData = Common.ExtraLinksServiceGetExtraLinksDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId }: {
+export const useExtraLinksServiceGetExtraLinks = <TData = Common.ExtraLinksServiceGetExtraLinksDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId, tryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
+  tryNumber?: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }, queryKey), queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId, tryNumber }) as TData, ...options });
 /**
 * Get Extra Links
 * Get extra links for task instance.
@@ -786,15 +788,17 @@ export const useExtraLinksServiceGetExtraLinks = <TData = Common.ExtraLinksServi
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.tryNumber
 * @returns ExtraLinkCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetExtraLinks = <TData = Common.TaskInstanceServiceGetExtraLinksDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId }: {
+export const useTaskInstanceServiceGetExtraLinks = <TData = Common.TaskInstanceServiceGetExtraLinksDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId, tryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
+  tryNumber?: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }, queryKey), queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId, tryNumber }) as TData, ...options });
 /**
 * Get Task Instance
 * Get task instance.
@@ -2480,6 +2484,53 @@ export const useTaskInstanceServiceBulkTaskInstances = <TData = Common.TaskInsta
   dagRunId: string;
   requestBody: BulkBody_BulkTaskInstanceBody_;
 }, TContext>({ mutationFn: ({ dagId, dagRunId, requestBody }) => TaskInstanceService.bulkTaskInstances({ dagId, dagRunId, requestBody }) as unknown as Promise<TData>, ...options });
+/**
+* Patch Task Group Instances
+* Update the state of all task instances in a task group.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.groupId
+* @param data.requestBody
+* @param data.updateMask
+* @returns TaskInstanceCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useTaskInstanceServicePatchTaskGroupInstances = <TData = Common.TaskInstanceServicePatchTaskGroupInstancesMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  groupId: string;
+  requestBody: PatchTaskInstanceBody;
+  updateMask?: string[];
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  groupId: string;
+  requestBody: PatchTaskInstanceBody;
+  updateMask?: string[];
+}, TContext>({ mutationFn: ({ dagId, dagRunId, groupId, requestBody, updateMask }) => TaskInstanceService.patchTaskGroupInstances({ dagId, dagRunId, groupId, requestBody, updateMask }) as unknown as Promise<TData>, ...options });
+/**
+* Patch Task Group Instances Dry Run
+* Dry-run of updating the state of all task instances in a task group.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.groupId
+* @param data.requestBody
+* @returns TaskInstanceCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useTaskInstanceServicePatchTaskGroupInstancesDryRun = <TData = Common.TaskInstanceServicePatchTaskGroupInstancesDryRunMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  groupId: string;
+  requestBody: PatchTaskInstanceBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  groupId: string;
+  requestBody: PatchTaskInstanceBody;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, groupId, requestBody }) => TaskInstanceService.patchTaskGroupInstancesDryRun({ dagId, dagRunId, groupId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Task Instance Dry Run
 * Update a task instance dry_run mode.

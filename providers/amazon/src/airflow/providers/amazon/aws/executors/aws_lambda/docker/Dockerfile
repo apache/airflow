@@ -80,18 +80,18 @@ ENV REQUIREMENTS_PATH=$requirements_path
 #ENV AWS_DEFAULT_REGION=$aws_default_region
 #ENV AWS_SESSION_TOKEN=$aws_session_token
 
-## Loading DAGs
-# This Dockerfile supports 2 ways to load DAGs onto the container.
+## Loading Dags
+# This Dockerfile supports 2 ways to load Dags onto the container.
 # One is to download them from S3 at runtime during the Lambda app invocation. The other
 # is to copy the dags into the image at build time, this will make task execution
 # much faster, since the images will already be present but the image will need to be rebuilt
-# every time the DAGs are updated.
-# If you would like to use an alternative method of loading DAGs, feel free to make the
+# every time the Dags are updated.
+# If you would like to use an alternative method of loading Dags, feel free to make the
 # necessary changes to this file.
 
 ARG host_dag_path=./dags
 ENV HOST_DAG_PATH=$host_dag_path
-# Uncomment the line below to copy the DAGs from the host to the container.
+# Uncomment the line below to copy the Dags from the host to the container.
 # COPY $HOST_DAG_PATH $AIRFLOW__CORE__DAGS_FOLDER
 
 # Use these arguments to load DAGs at runtime. If you are using the provided Lambda function (app.py),

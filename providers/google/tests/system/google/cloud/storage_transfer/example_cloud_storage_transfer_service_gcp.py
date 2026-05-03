@@ -141,21 +141,24 @@ with DAG(
     # [START howto_operator_gcp_transfer_update_job]
     update_transfer = CloudDataTransferServiceUpdateJobOperator(
         task_id="update_transfer",
-        job_name="{{task_instance.xcom_pull('create_transfer')['name']}}",
+        # verbose form: "{{ task_instance.xcom_pull('create_transfer')['name'] }}"
+        job_name=create_transfer.output["name"],
         body=update_body,
     )
     # [END howto_operator_gcp_transfer_update_job]
 
     wait_for_transfer = CloudDataTransferServiceJobStatusSensor(
         task_id="wait_for_transfer",
-        job_name="{{task_instance.xcom_pull('create_transfer')['name']}}",
+        # verbose form: "{{ task_instance.xcom_pull('create_transfer')['name'] }}"
+        job_name=create_transfer.output["name"],
         project_id=PROJECT_ID_TRANSFER,
         expected_statuses={GcpTransferOperationStatus.SUCCESS},
     )
 
     wait_for_transfer_defered = CloudDataTransferServiceJobStatusSensor(
         task_id="wait_for_transfer_defered",
-        job_name="{{task_instance.xcom_pull('create_transfer')['name']}}",
+        # verbose form: "{{ task_instance.xcom_pull('create_transfer')['name'] }}"
+        job_name=create_transfer.output["name"],
         project_id=PROJECT_ID_TRANSFER,
         expected_statuses={GcpTransferOperationStatus.SUCCESS},
         deferrable=True,
@@ -164,7 +167,8 @@ with DAG(
     # [START howto_operator_gcp_transfer_run_job]
     run_transfer = CloudDataTransferServiceRunJobOperator(
         task_id="run_transfer",
-        job_name="{{task_instance.xcom_pull('create_transfer')['name']}}",
+        # verbose form: "{{ task_instance.xcom_pull('create_transfer')['name'] }}"
+        job_name=create_transfer.output["name"],
         project_id=PROJECT_ID_TRANSFER,
     )
     # [END howto_operator_gcp_transfer_run_job]
@@ -173,18 +177,20 @@ with DAG(
         task_id="list_operations",
         request_filter={
             FILTER_PROJECT_ID: PROJECT_ID_TRANSFER,
-            FILTER_JOB_NAMES: ["{{task_instance.xcom_pull('create_transfer')['name']}}"],
+            # verbose form: "{{ task_instance.xcom_pull('create_transfer')['name'] }}"
+            FILTER_JOB_NAMES: [create_transfer.output["name"]],
         },
     )
 
     get_operation = CloudDataTransferServiceGetOperationOperator(
         task_id="get_operation",
-        operation_name="{{task_instance.xcom_pull('list_operations')[0]['name']}}",
+        operation_name="{{ task_instance.xcom_pull('list_operations')[0]['name'] }}",
     )
 
     delete_transfer = CloudDataTransferServiceDeleteJobOperator(
         task_id="delete_transfer_from_gcp_job",
-        job_name="{{task_instance.xcom_pull('create_transfer')['name']}}",
+        # verbose form: "{{ task_instance.xcom_pull('create_transfer')['name'] }}"
+        job_name=create_transfer.output["name"],
         project_id=PROJECT_ID_TRANSFER,
     )
 

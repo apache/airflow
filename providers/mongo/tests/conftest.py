@@ -16,13 +16,40 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
+import time
+
 import pytest
 from testcontainers.mongodb import MongoDbContainer
 
 pytest_plugins = "tests_common.pytest_plugin"
 
+# Pinned to a specific major to keep the image tag stable and avoid drifting
+# under us when Docker Hub re-resolves :latest on every run.
+MONGO_IMAGE = "mongo:8.0"
+
 
 @pytest.fixture(scope="session")
 def mongodb_container():
-    with MongoDbContainer("mongo:latest") as mongo:
-        yield mongo.get_connection_url()
+    # Retry container start to absorb transient Docker Hub failures (e.g.
+    # registry-auth timeouts) so a single registry blip does not cascade
+    # into setup errors across the whole mongo test suite.
+    last_exc: Exception | None = None
+    for attempt in range(3):
+        container = MongoDbContainer(MONGO_IMAGE)
+        try:
+            container.start()
+        except Exception as exc:
+            last_exc = exc
+            with contextlib.suppress(Exception):
+                container.stop()
+            if attempt < 2:
+                time.sleep(5 * (attempt + 1))
+                continue
+            raise
+        try:
+            yield container.get_connection_url()
+        finally:
+            container.stop()
+        return
+    raise last_exc  # pragma: no cover

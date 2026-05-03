@@ -375,7 +375,6 @@ paths:
                 - large_node
                 - wisconsin_site
                 sysinfo:
-                  status: 20
                   concurrency: 4
                   airflow_version: 2.10.0
                   edge_provider_version: 1.0.0
@@ -448,7 +447,6 @@ paths:
                 - large_node
                 - wisconsin_site
                 sysinfo:
-                  status: 20
                   concurrency: 4
                   airflow_version: 2.10.0
                   edge_provider_version: 1.0.0

@@ -41,7 +41,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
@@ -76,13 +76,12 @@ from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
 
-pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
-
-
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.serialization.definitions.dag import SerializedDAG
+
+pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
@@ -1044,7 +1043,7 @@ class TestDagRun:
         runs = func(session).all()
         assert runs == []
 
-    @mock.patch.object(Stats, "timing")
+    @mock.patch("airflow._shared.observability.metrics.stats.timing")
     def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock, session, testing_dag_bundle):
         """
         Tests that dag scheduling delay stat is not called if the dagrun is not a scheduled run.
@@ -1122,7 +1121,7 @@ class TestDagRun:
             ti.set_state(TaskInstanceState.SUCCESS, session)
             session.flush()
 
-            with mock.patch.object(Stats, "timing") as stats_mock:
+            with mock.patch("airflow._shared.observability.metrics.stats.timing") as stats_mock:
                 dag_run.update_state(session)
 
             metric_name = f"dagrun.{dag.dag_id}.first_task_scheduling_delay"
@@ -1368,9 +1367,14 @@ class TestDagRun:
         pytest.param(DagRunType.BACKFILL_JOB, 3, id="backfill"),
     ],
 )
-@mock.patch.object(Stats, "incr")
-def test_verify_integrity_task_start_and_end_date(Stats_incr, dag_maker, session, run_type, expected_tis):
+@mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+def test_verify_integrity_task_start_and_end_date(
+    mock_get_backend, dag_maker, session, run_type, expected_tis
+):
     """Test that tasks with specific dates are only created for backfill runs"""
+    mock_stats = mock.MagicMock(spec=StatsLogger)
+    mock_get_backend.return_value = mock_stats
+
     with dag_maker("test", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE) as dag:
         EmptyOperator(task_id="without")
         EmptyOperator(task_id="with_start_date", start_date=DEFAULT_DATE + datetime.timedelta(1))
@@ -1392,12 +1396,12 @@ def test_verify_integrity_task_start_and_end_date(Stats_incr, dag_maker, session
     tis = dag_run.task_instances
     assert len(tis) == expected_tis
 
-    Stats_incr.assert_any_call(
+    mock_stats.incr.assert_any_call(
         "task_instance_created_EmptyOperator",
         count=expected_tis,
         tags={"dag_id": "test", "run_type": run_type},
     )
-    Stats_incr.assert_any_call(
+    mock_stats.incr.assert_any_call(
         "task_instance_created",
         count=expected_tis,
         tags={"dag_id": "test", "run_type": run_type, "task_type": "EmptyOperator"},
@@ -2260,7 +2264,6 @@ def test_schedule_tis_only_one_scheduler_update_succeeds_when_competing(dag_make
     assert refreshed_ti.try_number == 1
 
 
-@pytest.mark.xfail(reason="We can't keep this behaviour with remote workers where scheduler can't reach xcom")
 @pytest.mark.need_serialized_dag
 def test_schedule_tis_start_trigger(dag_maker, session):
     """

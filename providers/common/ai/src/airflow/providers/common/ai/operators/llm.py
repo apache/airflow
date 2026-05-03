@@ -32,6 +32,7 @@ from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
+    from pydantic_ai.usage import UsageLimits
 
     from airflow.sdk import Context
 
@@ -56,6 +57,11 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
         See `pydantic-ai Agent docs <https://ai.pydantic.dev/api/agent/>`__
         for the full list.
+    :param usage_limits: Optional pydantic-ai
+        :class:`~pydantic_ai.usage.UsageLimits` enforced on the run. Pass
+        ``UsageLimits(request_limit=..., total_tokens_limit=..., ...)`` to fail
+        the task when the agent exceeds the configured token, request, or tool
+        budget. ``None`` (default) means no enforcement.
     :param require_approval: If ``True``, the task defers after generating
         output and waits for a human reviewer to approve or reject via the
         HITL interface.  Default ``False``.
@@ -83,6 +89,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         system_prompt: str = "",
         output_type: type = str,
         agent_params: dict[str, Any] | None = None,
+        usage_limits: UsageLimits | None = None,
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
         allow_modifications: bool = False,
@@ -95,6 +102,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.agent_params = agent_params or {}
+        self.usage_limits = usage_limits
         self.require_approval = require_approval
         self.approval_timeout = approval_timeout
         self.allow_modifications = allow_modifications
@@ -118,7 +126,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         agent: Agent[None, Any] = self.llm_hook.create_agent(
             output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
         )
-        result = agent.run_sync(self.prompt)
+        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
         log_run_summary(self.log, result)
         output = result.output
 

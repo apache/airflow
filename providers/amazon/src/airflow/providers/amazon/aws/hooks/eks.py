@@ -586,10 +586,9 @@ class EksHook(AwsBaseHook):
             if fd is not None:
                 os.close(fd)
             if temp_path and os.path.exists(temp_path):
-                try:
+                # Best effort cleanup
+                with contextlib.suppress(OSError):
                     os.unlink(temp_path)
-                except OSError:
-                    pass  # Best effort cleanup
 
     @contextmanager
     def generate_config_file(

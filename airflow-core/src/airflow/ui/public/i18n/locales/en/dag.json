@@ -40,6 +40,32 @@
     "parseDuration": "Parse Duration:",
     "parsedAt": "Parsed at:"
   },
+  "deadlineAlerts": {
+    "completionRule": "Must complete within {{interval}} of {{reference}}",
+    "count_one": "{{count}} deadline",
+    "count_other": "{{count}} deadlines",
+    "referenceType": {
+      "AverageRuntimeDeadline": "average runtime",
+      "DagRunLogicalDateDeadline": "logical date",
+      "DagRunQueuedAtDeadline": "queue time"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "Actual",
+    "expected": "Expected",
+    "finishedEarly": "Finished {{duration}} before deadline",
+    "finishedLate": "Finished {{duration}} after deadline",
+    "label": "Deadline",
+    "met": "Met",
+    "missed": "Missed",
+    "missedCount_one": "{{count}} Missed Deadline",
+    "missedCount_other": "{{count}} Missed Deadlines",
+    "mixedCount": "{{missedCount}} Missed, {{upcomingCount}} Upcoming",
+    "stillRunning": "Still running",
+    "upcoming": "Upcoming",
+    "upcomingCount_one": "{{count}} Upcoming Deadline",
+    "upcomingCount_other": "{{count}} Upcoming Deadlines"
+  },
   "extraLinks": "Extra Links",
   "grid": {
     "buttons": {
@@ -103,6 +129,10 @@
     "charts": {
       "assetEvent_one": "Created Asset Event",
       "assetEvent_other": "Created Asset Events"
+    },
+    "deadlines": {
+      "showAll": "Show All",
+      "title": "Deadlines"
     },
     "failedLogs": {
       "hideLogs": "Hide Logs",

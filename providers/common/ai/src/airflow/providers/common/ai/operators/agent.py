@@ -40,6 +40,7 @@ from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
 if TYPE_CHECKING:
     from pydantic_ai import Agent
     from pydantic_ai.toolsets.abstract import AbstractToolset
+    from pydantic_ai.usage import UsageLimits
 
     from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
     from airflow.providers.common.ai.durable.storage import DurableStorage
@@ -102,6 +103,12 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         arguments at DEBUG level. Set to ``False`` to disable.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+    :param usage_limits: Optional pydantic-ai
+        :class:`~pydantic_ai.usage.UsageLimits` enforced on every agent run
+        (initial run, durable replay, and HITL regeneration). Pass
+        ``UsageLimits(request_limit=..., total_tokens_limit=..., tool_calls_limit=..., ...)``
+        to fail the task when the agent exceeds the configured token, request,
+        or tool budget. ``None`` (default) means no enforcement.
     :param durable: When ``True``, enables step-level caching of model
         responses and tool results for durable execution.  On retry, cached
         steps are replayed instead of re-executing.  Default ``False``.
@@ -147,6 +154,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         toolsets: list[AbstractToolset] | None = None,
         enable_tool_logging: bool = True,
         agent_params: dict[str, Any] | None = None,
+        usage_limits: UsageLimits | None = None,
         durable: bool = False,
         # Agent feedback parameters
         enable_hitl_review: bool = False,
@@ -165,6 +173,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.toolsets = toolsets
         self.enable_tool_logging = enable_tool_logging
         self.agent_params = agent_params or {}
+        self.usage_limits = usage_limits
 
         self.durable = durable
 
@@ -246,9 +255,9 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             resolved_model = infer_model(agent.model)
             caching_model = CachingModel(resolved_model, storage=storage, counter=counter)
             with agent.override(model=caching_model):
-                result = agent.run_sync(self.prompt)
+                result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
         else:
-            result = agent.run_sync(self.prompt)
+            result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
 
         log_run_summary(self.log, result)
 
@@ -293,7 +302,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         """Re-run the agent with *feedback* appended to the conversation history."""
         agent = self._build_agent()
         messages = message_history or []
-        result = agent.run_sync(feedback, message_history=messages)
+        result = agent.run_sync(feedback, message_history=messages, usage_limits=self.usage_limits)
         log_run_summary(self.log, result)
 
         output = result.output
