@@ -994,8 +994,19 @@ class DagRun(Base, LoggingMixin):
         if state is not None:
             filters.append(DagRun.state == state)
 
-        filters.append(DagRun.run_after < dag_run.run_after)
-        return session.scalar(select(DagRun).where(*filters).order_by(DagRun.run_after.desc()).limit(1))
+        # Use (run_after, id) to correctly order runs when run_after values are equal
+        # (e.g. two manual runs triggered at the same time, or a scheduled run whose
+        # run_after equals the next run's run_after).  id is a monotonically-increasing
+        # surrogate key so it gives a stable, deterministic tiebreak.
+        filters.append(
+            or_(
+                DagRun.run_after < dag_run.run_after,
+                and_(DagRun.run_after == dag_run.run_after, DagRun.id < dag_run.id),
+            )
+        )
+        return session.scalar(
+            select(DagRun).where(*filters).order_by(DagRun.run_after.desc(), DagRun.id.desc()).limit(1)
+        )
 
     @staticmethod
     @provide_session
