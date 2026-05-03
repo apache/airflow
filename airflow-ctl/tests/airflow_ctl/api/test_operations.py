@@ -1843,3 +1843,109 @@ class TestPluginsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.plugins.list_import_errors()
         assert response == self.plugin_import_error_collection_response
+
+
+class TestTaskOperations:
+    dag_id: str = "test_dag"
+    dag_run_id: str = "manual__2025-01-24T00:00:00+00:00"
+    task_id: str = "test_task"
+
+    def test_tasks_list(self):
+        expected_response = {"tasks": [], "total_entries": 0}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "GET"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/tasks"
+            return httpx.Response(200, json=expected_response)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.tasks.list(dag_id=self.dag_id)
+        assert response == expected_response
+
+    def test_task_instances_list(self):
+        expected_response = {"task_instances": [], "total_entries": 0}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "GET"
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances"
+            )
+            return httpx.Response(200, json=expected_response)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.list(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
+        assert response == expected_response
+
+    def test_task_instance_get(self):
+        expected_response = {"task_id": self.task_id}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "GET"
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}"
+            )
+            return httpx.Response(200, json=expected_response)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.get(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+        )
+        assert response == expected_response
+
+    def test_task_instance_get_dependencies(self):
+        expected_response = {"dependencies": []}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "GET"
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
+                f"taskInstances/{self.task_id}/dependencies"
+            )
+            return httpx.Response(200, json=expected_response)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.get_dependencies(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+        )
+        assert response == expected_response
+
+    def test_clear_task_instances(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
+            return httpx.Response(200, json={"task_instances": []})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.clear(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
+        assert response is not None
+
+    def test_clear_task_instances_payload(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
+            body = json.loads(request.content)
+            assert set(body) == {"dag_run_id", "dry_run"}
+            assert body["dag_run_id"] == self.dag_run_id
+            assert body["dry_run"] is False
+            return httpx.Response(200, json={"task_instances": []})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.clear(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
+        assert response is not None
+
+    def test_clear_task_instances_response(self):
+        expected_response = {"task_instances": [{"task_id": "t1", "state": None}]}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
+            json.loads(request.content)
+            return httpx.Response(200, json=expected_response)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.clear(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
+        assert response == expected_response
