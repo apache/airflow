@@ -46,7 +46,7 @@ async def get_example_extended_sysinfo() -> dict[str, str | int | float | dateti
     load_1 = loadavg[0]
 
     status = logging.INFO
-    status_text = "I am good, sun is shining 🌞"
+    status_text: str | None = "I am good, sun is shining 🌞"
     if cpu_usage > 95 or disk_free_gb < 5:
         status = logging.ERROR
         status_text = "Critical condition!"
