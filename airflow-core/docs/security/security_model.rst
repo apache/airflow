@@ -218,6 +218,13 @@ have access to all Dags in the Airflow installation and they can
 modify any of those Dags - no matter which Dag the task code is executed for. This means that Dag authors can
 modify state of any task instance of any Dag, and there are no finer-grained access controls to limit that access.
 
+This applies to every interface a Dag author's code can reach — including the Task Execution API
+that workers use via the Task SDK. The Execution JWT issued to a running task does **not** carry
+per-Dag authorization: a task holding a valid token can call state-mutating Execution API endpoints
+(triggering Dag runs, clearing Dag runs, reading or writing variables, connections and XComs, etc.)
+for **any** Dag in the installation. The ``ti:self`` token scope restricts cross-task-instance state
+mutation only; it is not a per-Dag access control.
+
 There is an **experimental** multi-team feature in Airflow (``[core] multi_team``) that provides UI-level and
 REST API-level RBAC isolation between teams. However, this feature **does not yet guarantee task-level isolation**.
 At the task execution level, workloads from different teams still share the same Execution API, signing keys,
