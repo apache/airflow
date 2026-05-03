@@ -25,9 +25,6 @@
 Changelog
 ---------
 
-1.36.0
-......
-
 .. warning::
    **Breaking Change:** The default execution mode for paginated (``page_size`` + string SQL) GenericTransfer tasks has changed. Previously, these tasks always ran in deferred mode (using deferrable execution). Starting with this release, they now run synchronously by default unless you explicitly opt in to deferrable mode.
 
