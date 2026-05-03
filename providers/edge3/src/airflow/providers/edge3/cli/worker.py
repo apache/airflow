@@ -336,7 +336,7 @@ class EdgeWorker:
                 if self.versions_match
                 else {
                     "status": logging.WARNING,
-                    "status_text": "Version mismatch on Edge Worker",
+                    "status_text": "Healthy but version mismatch",
                     "version_mismatch_description": "The version between the Edge Worker and the "
                     "Airflow Core is not matching for either the edge or airflow package version. "
                     "Please check if the Edge Provider version is compatible with your Airflow "
