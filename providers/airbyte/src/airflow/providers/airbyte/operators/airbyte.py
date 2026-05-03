@@ -92,11 +92,11 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         # execution_timeout is a hard task-level limit (cancels the job),
         # while timeout only limits how long we wait for the job to finish.
         # If both are set, the earliest deadline wins.
-        end_time = time.time() + self.timeout
+        end_time = time.monotonic() + self.timeout
         execution_deadline = None
 
         if self.execution_timeout is not None:
-            execution_deadline = time.time() + self.execution_timeout.total_seconds()
+            execution_deadline = time.monotonic() + self.execution_timeout.total_seconds()
 
         self.log.info("Job %s was submitted to Airbyte Server", self.job_id)
 
@@ -154,7 +154,14 @@ class AirbyteTriggerSyncOperator(BaseOperator):
 
             if job_id:
                 self.log.info("Cancelling Airbyte job %s due to execution timeout", job_id)
-                hook.cancel_job(job_id=job_id)
+                try:
+                    hook.cancel_job(job_id=job_id)
+                except AirflowException:
+                    self.log.warning(
+                        "Failed to cancel Airbyte job %s after timeout",
+                        job_id,
+                        exc_info=True,
+                    )
             else:
                 self.log.warning("No job_id found; skipping cancellation")
 
@@ -173,4 +180,11 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         )
         if self.job_id:
             self.log.info("on_kill: cancel the airbyte Job %s", self.job_id)
-            hook.cancel_job(self.job_id)
+            try:
+                hook.cancel_job(self.job_id)
+            except Exception:
+                self.log.warning(
+                    "Failed to cancel Airbyte job %s during on_kill",
+                    self.job_id,
+                    exc_info=True,
+                )
