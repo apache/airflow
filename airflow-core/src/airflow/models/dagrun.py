@@ -2005,6 +2005,8 @@ class DagRun(Base, LoggingMixin):
             # to render start_from_trigger in the scheduler. If we need to
             # render the value in a worker, it kind of defeats the purpose of
             # this feature (which is to save a worker process if possible).
+            # Re-enabled on main by #55068 but not backported to 3.2;
+            # decision tracked at https://github.com/apache/airflow/issues/66307
             # elif task.start_trigger_args is not None:
             #     if task.expand_start_from_trigger(context=ti.get_template_context()):
             #         ti.start_date = timezone.utcnow()
