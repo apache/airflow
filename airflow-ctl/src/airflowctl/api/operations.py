@@ -720,6 +720,48 @@ class ProvidersOperations(BaseOperations):
         return super().execute_list(path="providers", data_model=ProviderCollectionResponse)
 
 
+class TasksOperations(BaseOperations):
+    """Tasks operations."""
+
+    def list(self, dag_id: str):
+        """List tasks for a DAG."""
+        self.response = self.client.get(f"/dags/{dag_id}/tasks")
+        return self.response.json()
+
+
+class TaskInstancesOperations(BaseOperations):
+    """TaskInstances operations."""
+    
+    def list(self, dag_id: str, dag_run_id: str):
+        """List task instances for a DAG run."""
+        self.response = self.client.get(
+            f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
+        )
+        return self.response.json()
+
+    def get(self, dag_id: str, dag_run_id: str, task_id: str):
+        """Get a task instance."""
+        self.response = self.client.get(
+            f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+        )
+        return self.response.json()
+
+    def get_dependencies(self, dag_id: str, dag_run_id: str, task_id: str):
+        """Get failed dependencies for a task instance."""
+        self.response = self.client.get(
+            f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies"
+        )
+        return self.response.json()
+
+    def clear(self, dag_id: str, dag_run_id: str):
+        """Clear task instances for a DAG run."""
+        self.response = self.client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json={"dag_run_id": dag_run_id, "dry_run": False},
+        )
+        return self.response.json()
+
+
 class VariablesOperations(BaseOperations):
     """Variable operations."""
 
