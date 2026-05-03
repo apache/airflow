@@ -120,7 +120,9 @@ class FernetFieldsMixin:
             self._password = fernet.encrypt(bytes(value, "utf-8")).decode()
             self.is_encrypted = fernet.is_encrypted
         else:
-            self._password = value
+            # Normalize falsy ("" or None) to None — long-standing invariant
+            # asserted in tests/unit/always/test_connection.py (the "" → None mapping).
+            self._password = None
             self.is_encrypted = False
 
     @declared_attr
