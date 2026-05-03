@@ -5,3 +5,5 @@ If you plan to use an older Celery or Edge provider from older than May 2026, yo
 to install ``lockfile`` and ``python-daemon`` separately.
 These packages are not required for Airflow itself, but are required for the Celery and Edge
 providers in older versions.
+
+TODO(jscheffl): Add a reference to min provider versions post next provider wave after this was merged prior Airflow 3.3.0.
