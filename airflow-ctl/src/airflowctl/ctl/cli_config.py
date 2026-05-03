@@ -948,7 +948,7 @@ POOL_COMMANDS = (
 TASKS_COMMANDS = (
     ActionCommand(
         name="clear",
-        help="Clear task instances for a DAG run",
+        help="Clear task instances for a Dag run",
         func=lazy_load_command("airflowctl.ctl.commands.task_command.clear"),
         args=(
             ARG_DAG_ID,
@@ -988,7 +988,7 @@ TASKS_COMMANDS = (
     ),
     ActionCommand(
         name="states-for-dag-run",
-        help="Get task instance states for a DAG run",
+        help="Get task instance states for a Dag run",
         func=lazy_load_command("airflowctl.ctl.commands.task_command.states_for_dag_run"),
         args=(
             ARG_DAG_ID,
