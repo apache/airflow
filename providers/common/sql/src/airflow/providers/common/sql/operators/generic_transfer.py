@@ -180,6 +180,7 @@ class GenericTransfer(BaseOperator):
                     if rows := self.source_hook.get_records(paginated_sql):
                         self._insert_rows(rows=rows, context=context)
                         offset += self.page_size
+                        self.log.info("Offset increased to %d", offset)
                     else:
                         self.log.info(
                             "No more rows to fetch into %s; ending transfer.",
