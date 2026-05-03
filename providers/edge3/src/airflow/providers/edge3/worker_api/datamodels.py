@@ -198,9 +198,8 @@ class WorkerRegistrationReturn(BaseModel):
             description="Whether the worker and the server have matching versions of Airflow and the Edge Provider. "
             "If False, the worker version is not matching and might need to be upgraded. But version is still "
             "compatible enough to work. If True, worker and server versions match.",
-            default=False,  # If not explicitly given assume it is not compatible
         ),
-    ]
+    ] = False  # If not explicitly given assume it is not compatible
 
 
 class WorkerSetStateReturn(BaseModel):
@@ -230,6 +229,5 @@ class WorkerSetStateReturn(BaseModel):
             description="Whether the worker and the server have matching versions of Airflow and the Edge Provider. "
             "If False, the worker version is not matching and might need to be upgraded. But version is still "
             "compatible enough to work. If True, worker and server versions match.",
-            default=False,  # If not explicitly given assume it is not compatible
         ),
-    ]
+    ] = False  # If not explicitly given assume it is not compatible

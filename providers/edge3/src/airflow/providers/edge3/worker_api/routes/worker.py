@@ -100,7 +100,6 @@ def _assert_version(sysinfo: dict[str, str | int | float | datetime]) -> bool:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, "Edge Worker does not specify the provider version it is running on."
         )
-    print(f"DEBUG DEBUG VERSION MATCH: {versions_match}")
     return versions_match
 
 

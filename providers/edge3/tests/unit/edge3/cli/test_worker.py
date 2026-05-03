@@ -20,6 +20,7 @@ import asyncio
 import contextlib
 import importlib
 import json
+import logging
 import multiprocessing
 import signal
 from datetime import datetime
@@ -683,9 +684,22 @@ class TestEdgeWorker:
         assert "concurrency" in sysinfo
         assert "worker_start_time" in sysinfo
         assert sysinfo["worker_start_time"] == worker_with_job.worker_start_time
-        assert "status" in sysinfo
+        assert sysinfo["status"] == logging.INFO
         assert "status_text" not in sysinfo  # is only defined if extended sysinfo provides this field
         assert sysinfo["concurrency"] == concurrency
+
+    @pytest.mark.asyncio
+    async def test_get_sysinfo_version_mismatch(self, worker_with_job: EdgeWorker):
+        worker_with_job.versions_match = False  # Simulate version mismatch to verify sysinfo
+        sysinfo = await worker_with_job._get_sysinfo()
+        assert "airflow_version" in sysinfo
+        assert "edge_provider_version" in sysinfo
+        assert "python_version" in sysinfo
+        assert "concurrency" in sysinfo
+        assert "worker_start_time" in sysinfo
+        assert sysinfo["worker_start_time"] == worker_with_job.worker_start_time
+        assert sysinfo["status"] == logging.WARNING
+        assert "status_text" in sysinfo
 
     @pytest.mark.asyncio
     async def test_get_sysinfo_extended(self, worker_with_job_and_sysinfo: EdgeWorker):

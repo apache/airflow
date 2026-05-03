@@ -608,7 +608,6 @@ class EdgeWorker:
                 new_maintenance_comments,
                 team_name=self.team_name,
             )
-            print(f"DEBUG DEBUG VERSION MATCH: {worker_info.versions_match}")
             self.versions_match = worker_info.versions_match
             self.queues = worker_info.queues
             if worker_info.concurrency is not None and worker_info.concurrency != self.concurrency:
