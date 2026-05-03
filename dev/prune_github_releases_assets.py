@@ -17,17 +17,21 @@
 # under the License.
 #
 # Maintain Apache Airflow GitHub Releases so that they comply with the
-# ASF release-distribution policy: only authoritative ASF release sources
-# (https://downloads.apache.org/ + https://archive.apache.org/dist/) are
-# linked, with PyPI / ArtifactHub mentioned as convenience mirrors.
+# ASF release-distribution policy: each in-scope release body ends with
+# a disclaimer footer that names the project's official downloads page
+# at airflow.apache.org as the authoritative source, with PyPI /
+# ArtifactHub mentioned as convenience mirrors. The binary asset
+# attachments are removed so users cannot accidentally take a
+# non-authoritative copy from GitHub.
 #
 # What this script does:
 #
 #   1. inventory       — list every release on apache/airflow with the assets
-#                        attached and whether the disclaimer block is already
+#                        attached and whether the disclaimer footer is already
 #                        present in the release body.
 #   2. update-bodies   — for every in-scope release whose body does not yet
-#                        carry the disclaimer block, prepend one.
+#                        carry the disclaimer footer, append one (separated
+#                        from the existing body by a `---` rule).
 #   3. delete-assets   — for every in-scope release that still has assets,
 #                        delete them (irreversible).
 #
@@ -69,105 +73,81 @@ from rich.console import Console
 from rich.table import Table
 
 REPO = "apache/airflow"
-DISCLAIMER_MARKER = "convenience link to an Apache Software"
+DISCLAIMER_MARKER = "The **only authoritative** source for"
 
 console = Console()
 
 CORE_BLOCK = """\
 > [!IMPORTANT]
-> This GitHub Releases entry is a convenience link to an Apache Software
-> Foundation release. The **only authoritative** Apache Airflow release
-> artifacts (source tarballs, detached `.asc` signatures, and `.sha512`
-> checksums) are published by the ASF at:
+> The **only authoritative** source for Apache Airflow {version} release
+> artifacts is the official downloads page at:
 >
-> * **Latest release line:** https://downloads.apache.org/airflow/{version}/
-> * **Older releases (archive):** https://archive.apache.org/dist/airflow/{version}/
+> * https://airflow.apache.org/docs/apache-airflow/{version}/installation/installing-from-sources.html
 >
-> Verify signatures against the project's signing keys at
-> https://downloads.apache.org/airflow/KEYS per the
-> [ASF release verification guide](https://www.apache.org/info/verification.html).
+> That page lists the source tarballs, wheels, detached `.asc` signatures,
+> and `.sha512` checksums published by the ASF, with instructions for
+> verifying each — including the project's signing keys at
+> https://downloads.apache.org/airflow/KEYS.
 >
-> The wheels on PyPI are convenience binaries that are byte-for-byte identical
-> to the corresponding ASF release artifacts — the same `.asc` signatures and
-> `.sha512` checksums published at the URLs above can be used to verify the
-> PyPI files.
+> The wheels on PyPI are convenience binaries that are byte-for-byte
+> identical to the corresponding ASF release artifacts; the same `.asc`
+> signatures and `.sha512` checksums apply to them.
 >
 > * **PyPI:** https://pypi.org/project/apache-airflow/{version}/
-
----
-
 """
 
 HELM_BLOCK = """\
 > [!IMPORTANT]
-> This GitHub Releases entry is a convenience link to an Apache Software
-> Foundation release. The **only authoritative** Apache Airflow Helm chart
-> release artifacts (chart tarballs, detached `.asc` signatures, `.sha512`
-> checksums, and `.prov` provenance files) are published by the ASF at:
+> The **only authoritative** source for the Apache Airflow Helm chart
+> {version} release artifacts is the official downloads page at:
 >
-> * **Latest release line:** https://downloads.apache.org/airflow/helm-chart/{version}/
-> * **Older releases (archive):** https://archive.apache.org/dist/airflow/helm-chart/{version}/
+> * https://airflow.apache.org/docs/helm-chart/{version}/installing-helm-chart-from-sources.html
 >
-> Verify signatures against the project's signing keys at
-> https://downloads.apache.org/airflow/KEYS per the
-> [ASF release verification guide](https://www.apache.org/info/verification.html).
+> That page lists the chart tarball, detached `.asc` signature,
+> `.sha512` checksum, and `.prov` provenance file published by the ASF,
+> with instructions for verifying each — including the project's
+> signing keys at https://downloads.apache.org/airflow/KEYS.
 >
-> The chart on ArtifactHub is a convenience mirror that is byte-for-byte
-> identical to the corresponding ASF release artifact — the same `.asc`
-> signatures and `.sha512` checksums published at the URLs above can be used
-> to verify it.
+> The chart on ArtifactHub is a convenience mirror that is
+> byte-for-byte identical to the corresponding ASF release artifact;
+> the same `.asc` signature and `.sha512` checksum apply to it.
 >
 > * **ArtifactHub:** https://artifacthub.io/packages/helm/apache-airflow/airflow/{version}
-
----
-
 """
 
 CTL_BLOCK = """\
 > [!IMPORTANT]
-> This GitHub Releases entry is a convenience link to an Apache Software
-> Foundation release. The **only authoritative** apache-airflow-ctl release
-> artifacts (source tarballs, detached `.asc` signatures, and `.sha512`
-> checksums) are published by the ASF at:
+> The **only authoritative** source for apache-airflow-ctl {version}
+> release artifacts is the official downloads page at:
 >
-> * **Latest release line:** https://downloads.apache.org/airflow/airflowctl/{version}/
-> * **Older releases (archive):** https://archive.apache.org/dist/airflow/airflowctl/{version}/
+> * https://airflow.apache.org/docs/apache-airflow-ctl/{version}/installation/installing-from-sources.html
 >
-> Verify signatures against the project's signing keys at
-> https://downloads.apache.org/airflow/KEYS per the
-> [ASF release verification guide](https://www.apache.org/info/verification.html).
+> That page lists the source tarballs, wheels, detached `.asc` signatures,
+> and `.sha512` checksums published by the ASF, with instructions for
+> verifying each — including the project's signing keys at
+> https://downloads.apache.org/airflow/KEYS.
 >
-> The wheels on PyPI are convenience binaries that are byte-for-byte identical
-> to the corresponding ASF release artifacts — the same `.asc` signatures and
-> `.sha512` checksums published at the URLs above can be used to verify the
-> PyPI files.
+> The wheels on PyPI are convenience binaries that are byte-for-byte
+> identical to the corresponding ASF release artifacts; the same `.asc`
+> signatures and `.sha512` checksums apply to them.
 >
 > * **PyPI:** https://pypi.org/project/apache-airflow-ctl/{version}/
-
----
-
 """
 
 UPGRADE_CHECK_BLOCK = """\
 > [!IMPORTANT]
-> This GitHub Releases entry is a convenience link to an Apache Software
-> Foundation release. The **only authoritative** apache-airflow-upgrade-check
-> release artifacts are published by the ASF at:
+> The **only authoritative** source for apache-airflow-upgrade-check
+> {version} release artifacts is the ASF distribution at:
 >
-> * **Latest release line:** https://downloads.apache.org/airflow/upgrade-check/{version}/
-> * **Older releases (archive):** https://archive.apache.org/dist/airflow/upgrade-check/{version}/
+> * https://archive.apache.org/dist/airflow/upgrade-check/{version}/
 >
 > Verify signatures against the project's signing keys at
-> https://downloads.apache.org/airflow/KEYS per the
-> [ASF release verification guide](https://www.apache.org/info/verification.html).
+> https://downloads.apache.org/airflow/KEYS.
 >
-> The wheels on PyPI are convenience binaries that are byte-for-byte identical
-> to the corresponding ASF release artifacts.
+> The wheels on PyPI are convenience binaries that are byte-for-byte
+> identical to the corresponding ASF release artifacts.
 >
 > * **PyPI:** https://pypi.org/project/apache-airflow-upgrade-check/{version}/
-
----
-
 """
 
 TEMPLATES = {
@@ -307,7 +287,9 @@ def cmd_update_bodies(releases: list[Release], apply: bool) -> None:
     targets = [r for r in releases if r.in_scope() and not r.has_disclaimer()]
     console.print(f"Bodies to update: [bold]{len(targets)}[/bold]")
     for r in targets:
-        new_body = r.disclaimer_block() + (r.body or "")
+        existing = (r.body or "").rstrip()
+        separator = "\n\n---\n\n" if existing else ""
+        new_body = existing + separator + r.disclaimer_block()
         action = "[red]APPLY[/red]" if apply else "[yellow]DRY  [/yellow]"
         console.print(f"  {action} {r.tag:<35} kind={r.kind:<13} +{len(new_body) - len(r.body or '')} chars")
         if apply:
