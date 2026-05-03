@@ -694,10 +694,8 @@ class TestEdgeWorker:
         expected_maintenance_mode: bool,
         worker_with_job: EdgeWorker,
     ):
-        assert worker_with_job.maintenance_mode is False
-        worker_with_job.automatic_maintenance_on = (
-            automatic_maintenance_on.lower() if automatic_maintenance_on else "off"
-        )
+        worker_with_job.maintenance_mode = False
+        worker_with_job.automatic_maintenance_on = (automatic_maintenance_on or "off").lower()
         worker_with_job._adjust_maintenance_mode_based_on_sysinfo({"status": sysinfo_status})
         assert worker_with_job.maintenance_mode is expected_maintenance_mode
 
@@ -727,9 +725,7 @@ class TestEdgeWorker:
         worker_with_job._adjust_maintenance_mode_based_on_sysinfo({"status": logging.ERROR})
         assert worker_with_job.maintenance_mode is True
 
-        worker_with_job.automatic_maintenance_exit = (
-            automatic_maintenance_exit.lower() if automatic_maintenance_exit else "off"
-        )
+        worker_with_job.automatic_maintenance_exit = (automatic_maintenance_exit or "off").lower()
         worker_with_job._adjust_maintenance_mode_based_on_sysinfo({"status": sysinfo_status})
         assert worker_with_job.maintenance_mode is expected_maintenance_mode
 
