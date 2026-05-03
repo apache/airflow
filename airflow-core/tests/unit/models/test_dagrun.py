@@ -2260,6 +2260,11 @@ def test_schedule_tis_only_one_scheduler_update_succeeds_when_competing(dag_make
     assert refreshed_ti.try_number == 1
 
 
+@pytest.mark.skip(
+    reason="start_from_trigger scheduling path is disabled on v3-2-test "
+    "(re-enabled on main by #55068, not backported); "
+    "tracked at https://github.com/apache/airflow/issues/66307"
+)
 @pytest.mark.need_serialized_dag
 def test_schedule_tis_start_trigger(dag_maker, session):
     """
