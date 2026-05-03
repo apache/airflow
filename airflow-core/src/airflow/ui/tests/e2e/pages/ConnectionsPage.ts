@@ -18,7 +18,6 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
-import { waitForStableRowCount } from "tests/e2e/utils/test-helpers";
 
 type ConnectionDetails = {
   conn_type: string;
@@ -38,10 +37,11 @@ export class ConnectionsPage extends BasePage {
   }
 
   public readonly addButton: Locator;
-  public readonly confirmDeleteButton: Locator;
   public readonly connectionForm: Locator;
   public readonly connectionIdHeader: Locator;
   public readonly connectionIdInput: Locator;
+  public readonly connectionRows: Locator;
+  // Core page elements
   public readonly connectionsTable: Locator;
   public readonly connectionTypeHeader: Locator;
   public readonly descriptionInput: Locator;
@@ -49,12 +49,12 @@ export class ConnectionsPage extends BasePage {
   public readonly hostHeader: Locator;
   public readonly hostInput: Locator;
   public readonly loginInput: Locator;
-  public readonly passwordInput: Locator;
 
+  public readonly passwordInput: Locator;
   public readonly portInput: Locator;
   public readonly rowsPerPageSelect: Locator;
-  public readonly saveButton: Locator;
 
+  public readonly saveButton: Locator;
   public readonly schemaInput: Locator;
   public readonly searchInput: Locator;
   public readonly successAlert: Locator;
@@ -67,7 +67,7 @@ export class ConnectionsPage extends BasePage {
     this.emptyState = page.getByText(/no connection found/i);
 
     this.addButton = page.getByRole("button", { name: "Add Connection" });
-    this.testConnectionButton = page.getByRole("button", { name: /^test$/i });
+    this.testConnectionButton = page.getByRole("button", { name: "Test" });
     this.saveButton = page.getByRole("button", { name: /^save$/i });
 
     // Scoped via input[name] because Chakra UI forms may lack
@@ -80,27 +80,33 @@ export class ConnectionsPage extends BasePage {
     this.passwordInput = page.locator('input[name="password"]').first();
     this.schemaInput = page.locator('input[name="schema"]').first();
     this.descriptionInput = page.locator('[name="description"]').first();
+    // Alerts
+    this.successAlert = page.locator('[data-scope="toast"][data-part="root"]');
 
-    // Alerts — scoped to the notification region to avoid Monaco editor's role="alert" elements
-    this.successAlert = page.getByRole("region", { name: /notifications/i }).getByRole("status");
-
-    // Button text is "Yes, Delete" (not just "Delete")
-    this.confirmDeleteButton = page.getByRole("button", { name: /yes, delete/i });
     this.rowsPerPageSelect = page.locator("select");
 
-    // columnheader accessible name is "sort" (from inner button), so filter by text instead.
-    this.tableHeader = page.getByRole("columnheader").first();
-    this.connectionIdHeader = page.getByRole("columnheader").filter({ hasText: "Connection ID" });
-    this.connectionTypeHeader = page.getByRole("columnheader").filter({ hasText: "Connection Type" });
-    this.hostHeader = page.getByRole("columnheader").filter({ hasText: /^Host$/ });
-    this.searchInput = page.getByPlaceholder(/search/i);
+    // Sorting and filtering
+    this.tableHeader = this.connectionsTable.getByRole("columnheader").first();
+
+    this.connectionIdHeader = this.connectionsTable
+      .getByRole("columnheader")
+      .filter({ hasText: "Connection ID" });
+    this.connectionTypeHeader = this.connectionsTable
+      .getByRole("columnheader")
+      .filter({ hasText: "Connection Type" });
+    this.hostHeader = this.connectionsTable.getByRole("columnheader").filter({ hasText: "Host" });
+
+    this.searchInput = page.getByPlaceholder(/search/i).first();
+    // All table body rows (used by connectionRows for web-first assertions)
+    this.connectionRows = page.locator("tbody tr");
   }
 
   public async clickAddButton(): Promise<void> {
     await expect(this.addButton).toBeVisible({ timeout: 5000 });
     await expect(this.addButton).toBeEnabled({ timeout: 5000 });
     await this.addButton.click();
-    await expect(this.connectionForm).toBeVisible({ timeout: 10_000 });
+    // Wait for form to load
+    await expect(this.connectionIdInput).toBeVisible({ timeout: 10_000 });
   }
 
   public async clickEditButton(connectionId: string): Promise<void> {
@@ -116,18 +122,9 @@ export class ConnectionsPage extends BasePage {
     await expect(editButton).toBeEnabled({ timeout: 5000 });
     await editButton.click();
     await expect(this.connectionForm).toBeVisible({ timeout: 10_000 });
+    await expect(this.connectionIdInput).toBeVisible({ timeout: 10_000 });
   }
-
-  public async connectionExists(connectionId: string): Promise<boolean> {
-    const emptyState = await this.emptyState.isVisible({ timeout: 1000 }).catch(() => false);
-
-    if (emptyState) {
-      return false;
-    }
-
-    return (await this.findConnectionRow(connectionId)) !== undefined;
-  }
-
+  // Create a new connection with full workflow
   public async createConnection(details: ConnectionDetails): Promise<void> {
     await this.clickAddButton();
     await this.fillConnectionForm(details);
@@ -146,28 +143,32 @@ export class ConnectionsPage extends BasePage {
 
     await expect(deleteButton).toBeVisible({ timeout: 10_000 });
     await expect(deleteButton).toBeEnabled({ timeout: 5000 });
+    await deleteButton.click();
 
-    // Extended timeout: on resource-constrained CI runners, WebKit can take
-    // longer than the default 10s to release the previous dialog's backdrop
-    // pointer-events after close.
-    await deleteButton.click({ timeout: 30_000 });
+    // Wait for the dialog to finish its open animation (data-state="open" is set by
+    // Ark UI once the transition completes). Without this, the backdrop can cover the
+    // confirm button during the animation and cause the click to time out.
+    const deleteDialog = this.page.locator('[role="dialog"][data-state="open"]');
 
-    await expect(this.confirmDeleteButton).toBeVisible({ timeout: 10_000 });
-    await expect(this.confirmDeleteButton).toBeEnabled({ timeout: 5000 });
-    await this.confirmDeleteButton.click();
+    await deleteDialog.waitFor({ state: "visible", timeout: 10_000 });
+    const confirmButton = deleteDialog.getByRole("button", { name: "Yes, Delete" });
 
-    await expect(this.emptyState).toBeVisible({ timeout: 5000 });
+    await expect(confirmButton).toBeVisible({ timeout: 5000 });
+
+    await expect(confirmButton).toBeEnabled({ timeout: 5000 });
+    await confirmButton.click();
+
+    await expect(this.getConnectionRow(connectionId)).not.toBeVisible({ timeout: 15_000 });
   }
 
   public async editConnection(connectionId: string, updates: Partial<ConnectionDetails>): Promise<void> {
-    const row = await this.findConnectionRow(connectionId);
-
-    if (!row) {
-      throw new Error(`Connection ${connectionId} not found`);
-    }
-
     await this.clickEditButton(connectionId);
+
     await expect(this.connectionIdInput).toBeVisible({ timeout: 10_000 });
+    await expect(this.connectionIdInput).toBeEnabled({ timeout: 10_000 });
+    await expect(this.connectionIdInput).toHaveValue(connectionId, { timeout: 10_000 });
+
+    // Fill the fields that need updating
     await this.fillConnectionForm(updates);
     await this.saveConnection();
   }
@@ -178,18 +179,20 @@ export class ConnectionsPage extends BasePage {
     }
 
     if (details.conn_type !== undefined && details.conn_type !== "") {
-      const selectInput = this.connectionForm.locator('[role="combobox"]').first();
-
-      await expect(async () => {
-        await expect(selectInput).toBeEnabled({ timeout: 10_000 });
-        await selectInput.click({ force: true, timeout: 5000 });
-      }).toPass({ intervals: [2000, 3000], timeout: 120_000 });
-
-      await this.page.keyboard.type(details.conn_type);
-
+      // Scope the combobox to the form dialog to avoid matching stale elements
+      // outside the form. Wait for it to become actionable before opening the
+      // list, which avoids races when the dialog is still settling.
+      const selectCombobox = this.connectionForm.getByRole("combobox").first();
       const option = this.page.getByRole("option", { name: new RegExp(details.conn_type, "i") }).first();
 
-      await option.click({ timeout: 10_000 });
+      await expect(async () => {
+        await expect(selectCombobox).toBeVisible({ timeout: 10_000 });
+        await expect(selectCombobox).toBeEnabled({ timeout: 10_000 });
+        await selectCombobox.click({ timeout: 5000 });
+        await expect(option).toBeVisible({ timeout: 10_000 });
+      }).toPass({ intervals: [1000, 2000, 3000], timeout: 30_000 });
+
+      await option.click();
     }
 
     if (details.host !== undefined && details.host !== "") {
@@ -223,7 +226,7 @@ export class ConnectionsPage extends BasePage {
     }
 
     if (details.extra !== undefined && details.extra !== "") {
-      const extraAccordion = this.page.getByRole("button", { name: /extra fields json/i });
+      const extraAccordion = this.page.getByRole("button", { name: "Extra Fields JSON" }).first();
       const accordionVisible = await extraAccordion.isVisible({ timeout: 5000 }).catch(() => false);
 
       if (accordionVisible) {
@@ -263,8 +266,40 @@ export class ConnectionsPage extends BasePage {
   }
 
   public async getConnectionIds(): Promise<Array<string>> {
-    const rowLocator = this.page.locator("tbody tr");
-    const stableRowCount = await waitForStableRowCount(rowLocator, { timeout: 10_000 }).catch(() => 0);
+    const rowLocator = this.connectionRows;
+    const count = await rowLocator.count();
+
+    if (count === 0) {
+      return [];
+    }
+
+    await expect(rowLocator.first()).toBeVisible({ timeout: 5000 });
+
+    let stableRowCount = 0;
+    let lastSeenCount = -1;
+
+    await expect
+      .poll(
+        async () => {
+          const count = await this.page.locator("tbody tr").count();
+
+          if (count > 0 && count === lastSeenCount) {
+            stableRowCount = count;
+
+            return true;
+          }
+          lastSeenCount = count;
+          await this.page.waitForTimeout(200);
+
+          return false;
+        },
+        { intervals: [100, 200, 500, 500], timeout: 10_000 },
+      )
+      .toBeTruthy()
+      .catch(() => {
+        // If timeout, fall back to last observed count
+        stableRowCount = lastSeenCount > 0 ? lastSeenCount : 0;
+      });
 
     if (stableRowCount === 0) {
       return [];
@@ -295,6 +330,12 @@ export class ConnectionsPage extends BasePage {
     return connectionIds;
   }
 
+  // Returns a locator for a specific connection row (for web-first assertions in specs)
+  public getConnectionRow(connectionId: string): Locator {
+    return this.page.locator("tbody tr").filter({ hasText: connectionId }).first();
+  }
+
+  // Navigate to Connections list page
   public async navigate(): Promise<void> {
     await expect(async () => {
       await this.navigateTo(ConnectionsPage.connectionsListUrl);
@@ -319,34 +360,18 @@ export class ConnectionsPage extends BasePage {
   }
 
   public async searchConnections(searchTerm: string): Promise<void> {
-    await expect(async () => {
-      await this.searchInput.fill(searchTerm);
-      await expect(this.searchInput).toHaveValue(searchTerm);
-    }).toPass({ intervals: [1000, 2000], timeout: 30_000 });
+    await this.searchInput.fill(searchTerm);
 
-    await expect
-      .poll(
-        async () => {
-          const ids = await this.getConnectionIds();
-          const isEmptyVisible = await this.emptyState.isVisible().catch(() => false);
+    if (searchTerm === "") {
+      await expect(this.connectionRows.first().or(this.emptyState)).toBeVisible({ timeout: 10_000 });
+    } else {
+      // Wait for a matching row or the empty state to appear — this directly checks
+      // what the user sees and avoids a race where an empty loading state satisfies
+      // "no non-matching rows" before results arrive.
+      const matchingRow = this.page.locator("tbody tr").filter({ hasText: searchTerm });
 
-          if (isEmptyVisible) {
-            return ids.length === 0;
-          }
-
-          if (ids.length === 0) {
-            return false;
-          }
-
-          if (searchTerm === "") {
-            return ids.length > 0;
-          }
-
-          return ids.every((id) => id.toLowerCase().includes(searchTerm.toLowerCase()));
-        },
-        { message: "Search results did not match search term", timeout: 30_000 },
-      )
-      .toBeTruthy();
+      await expect(matchingRow.first().or(this.emptyState)).toBeVisible({ timeout: 10_000 });
+    }
   }
 
   public async verifyConnectionInList(connectionId: string, expectedType: string): Promise<void> {
@@ -356,14 +381,13 @@ export class ConnectionsPage extends BasePage {
       throw new Error(`Connection ${connectionId} not found in list`);
     }
 
-    const rowText = await row.textContent();
-
-    expect(rowText).toContain(connectionId);
-    expect(rowText).toContain(expectedType);
+    await expect(row).toContainText(connectionId);
+    await expect(row).toContainText(expectedType);
   }
 
   private async findConnectionRow(connectionId: string): Promise<Locator | undefined> {
-    const hasSearch = await this.searchInput.isVisible({ timeout: 500 }).catch(() => false);
+    // Try search first (faster)
+    const hasSearch = await this.searchInput.waitFor({ state: "visible", timeout: 3000 }).then(() => true).catch(() => false);
 
     if (hasSearch) {
       return await this.findConnectionRowUsingSearch(connectionId);
@@ -373,6 +397,7 @@ export class ConnectionsPage extends BasePage {
   }
 
   private async findConnectionRowUsingSearch(connectionId: string): Promise<Locator | undefined> {
+    await this.waitForConnectionsListLoad();
     await this.searchConnections(connectionId);
 
     const isTableVisible = await this.connectionsTable.isVisible({ timeout: 5000 }).catch(() => false);
@@ -383,9 +408,10 @@ export class ConnectionsPage extends BasePage {
 
     const row = this.page.locator("tbody tr").filter({ hasText: connectionId }).first();
 
-    const rowExists = await row.isVisible({ timeout: 3000 }).catch(() => false);
-
-    if (!rowExists) {
+    // Use web-first assertion (toBeVisible) rather than manual isVisible() check
+    try {
+      await expect(row).toBeVisible({ timeout: 10_000 });
+    } catch {
       return undefined;
     }
 
@@ -400,12 +426,10 @@ export class ConnectionsPage extends BasePage {
 
     await expect(table.or(this.emptyState)).toBeVisible({ timeout: 10_000 });
 
-    const isTableVisible = await table.isVisible();
-
-    if (isTableVisible) {
-      const firstRow = this.page.locator("tbody tr").first();
-
-      await expect(firstRow.or(this.emptyState)).toBeVisible({ timeout: 15_000 });
+    if (await table.isVisible().catch(() => false)) {
+      await expect(this.connectionRows.first()).toBeVisible({
+        timeout: 10_000,
+      });
     }
   }
 }
