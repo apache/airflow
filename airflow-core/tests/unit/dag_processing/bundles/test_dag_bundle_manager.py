@@ -473,6 +473,6 @@ def test_get_all_bundle_names():
     # Any other bundle exposed here comes from a provider's example_dags
     # folder discovered via ProvidersManager. Their presence depends on
     # which providers are installed in the environment, so we only check
-    # the naming prefix instead of pinning an exact list.
+    # the naming suffix instead of pinning an exact list.
     extra = [n for n in bundle_names if n not in {"dags-folder", "example_dags"}]
-    assert all(n.startswith("airflow-provider-") for n in extra)
+    assert all(n.endswith("-example-dags") for n in extra)

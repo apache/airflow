@@ -86,7 +86,7 @@ class TestCliDags:
     @classmethod
     def setup_class(cls):
         with conf_vars({("core", "load_examples"): "True"}):
-            parse_and_sync_to_db(os.devnull, include_examples=True)
+            parse_and_sync_to_db(os.devnull)
         cls.parser = cli_parser.get_parser()
 
     @classmethod

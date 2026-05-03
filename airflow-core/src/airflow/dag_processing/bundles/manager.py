@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
+import logging
 import os
 import warnings
 from typing import TYPE_CHECKING
@@ -30,6 +32,7 @@ from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: TC001
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
+from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -37,6 +40,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from sqlalchemy.orm import Session
+
+log = logging.getLogger(__name__)
 
 _example_dag_bundle_name = "example_dags"
 
@@ -119,35 +124,38 @@ def _add_provider_example_dags_to_bundle(bundle_config_list: list[_ExternalBundl
     - providers installed outside the ``airflow.providers`` namespace package
       are discovered via their entry point.
     """
-    import importlib
-    import logging
-
-    from airflow.providers_manager import ProvidersManager
-
-    log = logging.getLogger(__name__)
+    # Dedup on the resolved on-disk folder rather than the bundle name: distributions
+    # under ``airflow.providers.common.*`` use ``pkgutil.extend_path``, so when several
+    # ``common-*`` packages are installed ``airflow.providers.common.__path__`` has
+    # multiple entries and the inner loop iterates more than once. Path-based dedup
+    # only skips when the same folder is seen twice; distinct folders are preserved.
     seen: set[str] = set()
 
     for package_name in ProvidersManager().providers:
-        # apache-airflow-providers-foo-bar -> airflow.providers.foo.bar
-        if not package_name.startswith("apache-airflow-providers-"):
-            module_name = package_name.replace("-", "_")
-        else:
+        # Heuristic: derive the import path from the canonical
+        # ``apache-airflow-providers-*`` distribution name. Tracked as a follow-up
+        # to record the provider module path on ``ProviderInfo`` (see
+        # https://github.com/apache/airflow/issues/66305).
+        if package_name.startswith("apache-airflow-providers-"):
             suffix = package_name[len("apache-airflow-providers-") :]
             module_name = "airflow.providers." + suffix.replace("-", ".")
+        else:
+            module_name = package_name.replace("-", "_")
         try:
             module = importlib.import_module(module_name)
-        except ImportError:
-            log.warning("Could not import provider module %s for example DAG discovery", module_name)
+            module_paths = list(getattr(module, "__path__", []))
+        except Exception:
+            log.exception("Could not load provider module %s for example DAG discovery", module_name)
             continue
 
-        for module_path in getattr(module, "__path__", []):
+        for module_path in module_paths:
             example_dag_folder = os.path.join(module_path, "example_dags")
             if not os.path.isdir(example_dag_folder):
                 continue
-            bundle_name = f"airflow-provider-{package_name}-example-dags"
-            if bundle_name in seen:
+            if example_dag_folder in seen:
                 continue
-            seen.add(bundle_name)
+            seen.add(example_dag_folder)
+            bundle_name = f"{package_name}-example-dags"
             bundle_config_list.append(
                 _ExternalBundleConfig(
                     name=bundle_name,
