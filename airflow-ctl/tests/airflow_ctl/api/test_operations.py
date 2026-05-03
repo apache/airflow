@@ -1868,6 +1868,45 @@ class TestTaskOperations:
         assert len(response.task_instances) == 1
         assert response.task_instances[0].task_id == "task_1"
 
+    def test_clear(self):
+        """Test clear calls the correct endpoint with correct params."""
+        import httpx
+        from airflowctl.api.datamodels.generated import ClearTaskInstanceCollectionResponse, TaskInstanceResponse
+
+        clear_response = ClearTaskInstanceCollectionResponse(
+            task_instances=[
+                TaskInstanceResponse(
+                    task_id="task_1",
+                    dag_id="example_dag",
+                    dag_run_id="run_1",
+                    logical_date="2025-01-01T00:00:00Z",
+                    start_date="2025-01-01T00:01:00Z",
+                    end_date="2025-01-01T00:05:00Z",
+                    duration=240.0,
+                    state="cleared",
+                    try_number=1,
+                    max_tries=2,
+                    task_display_name="Task 1",
+                )
+            ],
+            total_entries=1,
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/dags/example_dag/clearTaskInstances"
+            body = json.loads(request.content)
+            assert body["only_failed"] is True
+            return httpx.Response(200, json=json.loads(clear_response.model_dump_json()))
+
+        from airflowctl.api.operations import make_api_client, TaskOperations
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        ops = TaskOperations(client=client.client)
+        response = ops.clear("example_dag", only_failed=True)
+        assert response.total_entries == 1
+        assert len(response.task_instances) == 1
+        assert response.task_instances[0].state == "cleared"
+
+
             return httpx.Response(200, json=json.loads(self.plugin_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
