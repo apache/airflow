@@ -66,7 +66,7 @@ Its shape is:
   runtime.
 
 The Python-side launcher is
-[`ExecutableRuntimeCoordinator`](../../providers/sdk/executable/src/airflow/providers/sdk/executable/coordinator.py),
+[`ExecutableCoordinator`](../../providers/sdk/executable/src/airflow/providers/sdk/executable/coordinator.py),
 which already builds command lines of the form
 `<binary> --comm=<addr> --logs=<addr>` for both `dag_parsing_runtime_cmd`
 and `task_execution_runtime_cmd`. The bundle-spec contract
@@ -86,7 +86,7 @@ The two protocols target different deployment shapes:
   [`go-sdk/example/bundle/main.go`](../example/bundle/main.go) was
   written for and the path that
   [`pkg/worker`](../pkg/worker) drives.
-- **Coordinator / `ExecutableRuntimeCoordinator`.** The Python task
+- **Coordinator / `ExecutableCoordinator`.** The Python task
   runner forks a child that runs `<binary> --comm=… --logs=…`,
   bridges its socket to the Airflow supervisor's fd 0, and proxies
   Airflow service calls (`GetConnection`, `GetVariable`, ...) through
@@ -320,7 +320,7 @@ func main() { bundlev1server.Serve(&myBundle{}) }
 
 - A single binary built from one `bundlev1server.Serve` entry point now
   runs under both the Go-native Edge Worker (go-plugin) and the
-  Python-native task runner via `ExecutableRuntimeCoordinator`
+  Python-native task runner via `ExecutableCoordinator`
   (msgpack-over-IPC). Authors do not pick a deployment shape at build
   time.
 - The bundle ZIP produced by `airflow-go-pack` (ADR 0002) becomes
@@ -342,7 +342,7 @@ func main() { bundlev1server.Serve(&myBundle{}) }
 - `--bundle-metadata` still emits the same JSON. `--dump-bundle-spec`
   (ADR 0002) is unaffected. Adding a binary with this ADR's changes
   into an older Edge Worker deployment is safe; adding an older binary
-  into an `ExecutableRuntimeCoordinator` deployment fails fast with a
+  into an `ExecutableCoordinator` deployment fails fast with a
   clear "unknown flag: --comm" stderr message rather than hanging.
 
 ### New ongoing costs
