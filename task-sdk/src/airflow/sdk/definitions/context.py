@@ -73,7 +73,7 @@ class Context(TypedDict, total=False):
     task_instance: RuntimeTaskInstanceProtocol
     task_instance_key_str: str
     task_state: TaskStateAccessor
-    asset_state: NotRequired[AssetStateAccessor]
+    asset_state: AssetStateAccessor
     # `templates_dict` is only set in PythonOperator
     templates_dict: NotRequired[dict[str, Any] | None]
     test_mode: bool

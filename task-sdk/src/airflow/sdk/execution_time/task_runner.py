@@ -256,9 +256,13 @@ class RuntimeTaskInstance(TaskInstance):
             # TODO: right now, asset_state is only provided for single-inlet tasks.
             # Multi-inlet support is deferred — see AssetStateAccessor docstring.
             if len(self.task.inlets) == 1:
-                self._cached_template_context["asset_state"] = AssetStateAccessor(
-                    name=self.task.inlets[0].name
-                )
+                inlet = self.task.inlets[0]
+                if isinstance(inlet, (Asset, AssetNameRef)):
+                    self._cached_template_context["asset_state"] = AssetStateAccessor(name=inlet.name)
+                elif isinstance(inlet, AssetUriRef):
+                    self._cached_template_context["asset_state"] = AssetStateAccessor(uri=inlet.uri)
+                # TODO: AssetAlias maps to multiple concrete assets so there is no single state to bind.
+                # Revisit if/when alias-scoped state access is needed.
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:

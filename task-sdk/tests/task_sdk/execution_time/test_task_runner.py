@@ -67,7 +67,7 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, Dataset, Model
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, AssetUriRef, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import (
     AirflowException,
@@ -86,6 +86,7 @@ from airflow.sdk.execution_time import task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventResult,
     AssetEventsResult,
+    AssetResult,
     BundleInfo,
     ClearAssetStateByName,
     ClearTaskState,
@@ -97,7 +98,9 @@ from airflow.sdk.execution_time.comms import (
     DeleteTaskState,
     DRCount,
     ErrorResponse,
+    GetAssetByUri,
     GetAssetStateByName,
+    GetAssetStateByUri,
     GetConnection,
     GetDag,
     GetDagRunState,
@@ -118,6 +121,7 @@ from airflow.sdk.execution_time.comms import (
     PrevSuccessfulDagRunResult,
     RescheduleTask,
     SetAssetStateByName,
+    SetAssetStateByUri,
     SetRenderedFields,
     SetTaskState,
     SetXCom,
@@ -4939,6 +4943,8 @@ class TestTaskInstanceStateOperations:
         actual = msg or (args[0] if args else None)
         if isinstance(actual, ValidateInletsAndOutlets):
             return InactiveAssetsResult(inactive_assets=[])
+        if isinstance(actual, GetAssetByUri):
+            return AssetResult(name=actual.uri, uri=actual.uri, group="asset")
         return OKResponse(ok=True)
 
     def test_asset_state_get_and_set(self, create_runtime_ti, mock_supervisor_comms):
@@ -4989,3 +4995,37 @@ class TestTaskInstanceStateOperations:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_supervisor_comms.send.assert_any_call(ClearAssetStateByName(name="my_asset"))
+
+    def test_asset_state_uri_ref_inlet(self, create_runtime_ti, mock_supervisor_comms):
+        watched = AssetUriRef(uri="s3://bucket/data")
+
+        class WatcherOperator(BaseOperator):
+            def execute(self, context):
+                context["asset_state"].set("watermark", "2026-04-30")
+                context["asset_state"].get("watermark")
+
+        task = WatcherOperator(task_id="t", inlets=[watched])
+        runtime_ti = create_runtime_ti(task=task)
+        mock_supervisor_comms.send.side_effect = TestTaskInstanceStateOperations._watcher_side_effect
+
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        mock_supervisor_comms.send.assert_any_call(
+            SetAssetStateByUri(uri="s3://bucket/data", key="watermark", value="2026-04-30")
+        )
+        mock_supervisor_comms.send.assert_any_call(
+            GetAssetStateByUri(uri="s3://bucket/data", key="watermark")
+        )
+
+    def test_asset_state_absent_for_alias_inlet(self, create_runtime_ti, mock_supervisor_comms):
+        alias = AssetAlias(name="my_alias")
+
+        class WatcherOperator(BaseOperator):
+            def execute(self, context):
+                assert "asset_state" not in context
+
+        task = WatcherOperator(task_id="t", inlets=[alias])
+        runtime_ti = create_runtime_ti(task=task)
+        mock_supervisor_comms.send.side_effect = TestTaskInstanceStateOperations._watcher_side_effect
+
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())

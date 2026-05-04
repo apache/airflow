@@ -269,7 +269,6 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
             )
 
     # If no backend found the variable, raise a not found error (mirrors _get_connection)
-    from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
     from airflow.sdk.execution_time.comms import ErrorResponse
 
     raise AirflowRuntimeError(
@@ -428,17 +427,14 @@ class TaskStateAccessor:
 
     def get(self, key: str) -> str | None:
         """Return the stored value, or ``None`` if the key does not exist."""
-        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
-        from airflow.sdk.execution_time.comms import GetTaskState, TaskStateResult
+        from airflow.sdk.execution_time.comms import ErrorResponse, GetTaskState, TaskStateResult
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        try:
-            resp = SUPERVISOR_COMMS.send(GetTaskState(ti_id=self._ti_id, key=key))
-        except AirflowRuntimeError as e:
-            if e.error.error == ErrorType.API_SERVER_ERROR and isinstance(e.error.detail, dict):
-                if e.error.detail.get("status_code") == 404:
-                    return None
-            raise
+        resp = SUPERVISOR_COMMS.send(GetTaskState(ti_id=self._ti_id, key=key))
+        if isinstance(resp, ErrorResponse):
+            if resp.error == ErrorType.TASK_STATE_NOT_FOUND:
+                return None
+            raise AirflowRuntimeError(resp)
         if isinstance(resp, TaskStateResult):
             return resp.value
         return None
@@ -502,9 +498,9 @@ class AssetStateAccessor:
 
     def get(self, key: str) -> str | None:
         """Return the stored value, or ``None`` if the key does not exist."""
-        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
         from airflow.sdk.execution_time.comms import (
             AssetStateResult,
+            ErrorResponse,
             GetAssetStateByName,
             GetAssetStateByUri,
             ToSupervisor,
@@ -518,13 +514,11 @@ class AssetStateAccessor:
             msg = GetAssetStateByUri(uri=self._uri, key=key)
         else:
             raise ValueError("Either `name` or `uri` must be provided")
-        try:
-            resp = SUPERVISOR_COMMS.send(msg)
-        except AirflowRuntimeError as e:
-            if e.error.error == ErrorType.API_SERVER_ERROR and isinstance(e.error.detail, dict):
-                if e.error.detail.get("status_code") == 404:
-                    return None
-            raise
+        resp = SUPERVISOR_COMMS.send(msg)
+        if isinstance(resp, ErrorResponse):
+            if resp.error == ErrorType.ASSET_STATE_NOT_FOUND:
+                return None
+            raise AirflowRuntimeError(resp)
         if isinstance(resp, AssetStateResult):
             return resp.value
         return None

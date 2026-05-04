@@ -649,9 +649,15 @@ class TaskStateOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, ti_id: uuid.UUID, key: str) -> TaskStateResponse:
+    def get(self, ti_id: uuid.UUID, key: str) -> TaskStateResponse | ErrorResponse:
         """Get a task state value from the API server."""
-        resp = self.client.get(f"state/ti/{ti_id}/{key}")
+        try:
+            resp = self.client.get(f"state/ti/{ti_id}/{key}")
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.debug("Task state key not found", ti_id=ti_id, key=key)
+                return ErrorResponse(error=ErrorType.TASK_STATE_NOT_FOUND, detail={"key": key})
+            raise
         return TaskStateResponse.model_validate_json(resp.read())
 
     def set(self, ti_id: uuid.UUID, key: str, value: str) -> OKResponse:
@@ -678,7 +684,9 @@ class AssetStateOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, key: str, *, name: str | None = None, uri: str | None = None) -> AssetStateResponse:
+    def get(
+        self, key: str, *, name: str | None = None, uri: str | None = None
+    ) -> AssetStateResponse | ErrorResponse:
         """Get an asset state value from the API server."""
         if name:
             endpoint, params = "state/asset/by-name/value", {"name": name, "key": key}
@@ -686,7 +694,13 @@ class AssetStateOperations:
             endpoint, params = "state/asset/by-uri/value", {"uri": uri, "key": key}
         else:
             raise ValueError("Either `name` or `uri` must be provided")
-        resp = self.client.get(endpoint, params=params)
+        try:
+            resp = self.client.get(endpoint, params=params)
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.debug("Asset state key not found", name=name, uri=uri, key=key)
+                return ErrorResponse(error=ErrorType.ASSET_STATE_NOT_FOUND, detail={"key": key})
+            raise
         return AssetStateResponse.model_validate_json(resp.read())
 
     def set(self, key: str, value: str, *, name: str | None = None, uri: str | None = None) -> OKResponse:

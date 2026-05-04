@@ -1631,7 +1631,11 @@ class ActivitySubprocess(WatchedSubprocess):
             resp = DagResult.from_api_response(dag)
         elif isinstance(msg, GetTaskState):
             task_state = self.client.task_state.get(msg.ti_id, msg.key)
-            resp = TaskStateResult.from_task_state_response(task_state)
+            resp = (
+                task_state
+                if isinstance(task_state, ErrorResponse)
+                else TaskStateResult.from_task_state_response(task_state)
+            )
         elif isinstance(msg, SetTaskState):
             self.client.task_state.set(msg.ti_id, msg.key, msg.value)
             resp = OKResponse(ok=True)
@@ -1643,10 +1647,18 @@ class ActivitySubprocess(WatchedSubprocess):
             resp = OKResponse(ok=True)
         elif isinstance(msg, GetAssetStateByName):
             asset_state = self.client.asset_state.get(msg.key, name=msg.name)
-            resp = AssetStateResult.from_asset_state_response(asset_state)
+            resp = (
+                asset_state
+                if isinstance(asset_state, ErrorResponse)
+                else AssetStateResult.from_asset_state_response(asset_state)
+            )
         elif isinstance(msg, GetAssetStateByUri):
             asset_state = self.client.asset_state.get(msg.key, uri=msg.uri)
-            resp = AssetStateResult.from_asset_state_response(asset_state)
+            resp = (
+                asset_state
+                if isinstance(asset_state, ErrorResponse)
+                else AssetStateResult.from_asset_state_response(asset_state)
+            )
         elif isinstance(msg, SetAssetStateByName):
             self.client.asset_state.set(msg.key, msg.value, name=msg.name)
             resp = OKResponse(ok=True)

@@ -1064,11 +1064,8 @@ class TestTaskStateAccessor:
         mock_supervisor_comms.send.assert_called_once_with(GetTaskState(ti_id=self.TI_ID, key="job_id"))
 
     def test_get_returns_none_on_404(self, mock_supervisor_comms):
-
-        mock_supervisor_comms.send.side_effect = AirflowRuntimeError(
-            ErrorResponse(
-                error=ErrorType.API_SERVER_ERROR, detail={"status_code": 404, "message": "not found"}
-            )
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.TASK_STATE_NOT_FOUND, detail={"key": "missing_key"}
         )
 
         result = TaskStateAccessor(ti_id=self.TI_ID).get("missing_key")
@@ -1076,11 +1073,8 @@ class TestTaskStateAccessor:
         assert result is None
 
     def test_get_raises_on_error(self, mock_supervisor_comms):
-
-        mock_supervisor_comms.send.side_effect = AirflowRuntimeError(
-            ErrorResponse(
-                error=ErrorType.API_SERVER_ERROR, detail={"status_code": 500, "message": "server error"}
-            )
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.GENERIC_ERROR, detail={"message": "server error"}
         )
 
         with pytest.raises(AirflowRuntimeError):
@@ -1136,10 +1130,8 @@ class TestAssetStateAccessor:
         )
 
     def test_get_returns_none_on_404(self, mock_supervisor_comms):
-        mock_supervisor_comms.send.side_effect = AirflowRuntimeError(
-            ErrorResponse(
-                error=ErrorType.API_SERVER_ERROR, detail={"status_code": 404, "message": "not found"}
-            )
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.ASSET_STATE_NOT_FOUND, detail={"key": "missing_key"}
         )
 
         result = AssetStateAccessor(name=self.ASSET_NAME).get("missing_key")
@@ -1147,10 +1139,8 @@ class TestAssetStateAccessor:
         assert result is None
 
     def test_get_raises_on_error(self, mock_supervisor_comms):
-        mock_supervisor_comms.send.side_effect = AirflowRuntimeError(
-            ErrorResponse(
-                error=ErrorType.API_SERVER_ERROR, detail={"status_code": 500, "message": "server error"}
-            )
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.GENERIC_ERROR, detail={"message": "server error"}
         )
 
         with pytest.raises(AirflowRuntimeError):
