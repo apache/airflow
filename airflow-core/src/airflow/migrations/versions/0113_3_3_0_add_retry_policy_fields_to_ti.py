@@ -30,7 +30,7 @@ On PostgreSQL and MySQL 8+, adding nullable columns without defaults
 is a metadata-only operation (no table rewrite).
 
 Revision ID: b8f3e4a1d2c9
-Revises: 9fabad868fdb
+Revises: fde9ed84d07b
 Create Date: 2026-04-16 12:00:00.000000
 
 """

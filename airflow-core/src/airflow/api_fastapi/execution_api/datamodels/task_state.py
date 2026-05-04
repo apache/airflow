@@ -14,15 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import sys
+from airflow.api_fastapi.core_api.base import StrictBaseModel
 
-source = sys.argv[1]
-destination = sys.argv[2]
 
-print("Running script")
-with open(source) as src, open(destination, "w+") as dest:
-    lines = [line.upper() for line in src]
-    print(lines)
-    dest.writelines(lines)
+class TaskStateResponse(StrictBaseModel):
+    """Task state value returned to a worker."""
+
+    value: str
+
+
+class TaskStatePutBody(StrictBaseModel):
+    """Request body for setting a task state value."""
+
+    value: str
