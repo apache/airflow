@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import re
 import warnings
 import weakref
@@ -26,6 +27,7 @@ import pytest
 
 from airflow.sdk import Context, Label, PartitionAtRuntime, TaskGroup
 from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
@@ -437,18 +439,24 @@ class TestDag:
         with pytest.raises(ValueError, match="ContinuousTimetable requires max_active_runs <= 1"):
             dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=25)
 
-    @pytest.mark.parametrize(
-        ("schedule", "expected"),
-        [
-            (PartitionAtRuntime(), True),
-            (None, False),
-            ("@continuous", False),
-            ("@once", False),
-        ],
-    )
-    def test_partitioned_at_runtime_flag(self, schedule, expected):
-        dag = DAG("part-flag", schedule=schedule, start_date=DEFAULT_DATE, max_active_runs=1)
-        assert dag.timetable.partitioned_at_runtime is expected
+    def test_only_partition_at_runtime_has_partitioned_at_runtime_flag(self):
+        """Regression guard: across every BaseTimetable subclass, only PartitionAtRuntime sets partitioned_at_runtime=True."""
+        for mod in (
+            "airflow.sdk.definitions.timetables.assets",
+            "airflow.sdk.definitions.timetables.events",
+            "airflow.sdk.definitions.timetables.interval",
+            "airflow.sdk.definitions.timetables.simple",
+            "airflow.sdk.definitions.timetables.trigger",
+        ):
+            importlib.import_module(mod)
+
+        def all_subclasses(cls):
+            for sub in cls.__subclasses__():
+                yield sub
+                yield from all_subclasses(sub)
+
+        flagged = {c for c in all_subclasses(BaseTimetable) if c.partitioned_at_runtime}
+        assert flagged == {PartitionAtRuntime}
 
     def test_dag_add_task_checks_trigger_rule(self):
         # A non fail stop dag should allow any trigger rule
