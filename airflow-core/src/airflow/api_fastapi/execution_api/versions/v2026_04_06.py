@@ -61,6 +61,23 @@ class AddPartitionKeyField(VersionChange):
             elem.pop("partition_key", None)
 
 
+class AddOutletPartitionKeysField(VersionChange):
+    """Add the `partition_keys` field to AssetEventResponse for runtime-partitioned outlet events."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(AssetEventResponse).field("partition_keys").didnt_exist,
+    )
+
+    @convert_response_to_previous_version_for(AssetEventsResponse)  # type: ignore[arg-type]
+    def remove_partition_keys_from_asset_events(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Remove the `partition_keys` field from each asset event when converting to the previous version."""
+        events = response.body["asset_events"]
+        for elem in events:
+            elem.pop("partition_keys", None)
+
+
 class MovePreviousRunEndpoint(VersionChange):
     """Add new previous-run endpoint and migrate old endpoint."""
 

@@ -672,6 +672,7 @@ class AssetEventResponse(BaseModel):
     source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
     source_map_index: Annotated[int | None, Field(title="Source Map Index")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    partition_keys: Annotated[list[str] | None, Field(title="Partition Keys")] = None
 
 
 class AssetEventsResponse(BaseModel):
