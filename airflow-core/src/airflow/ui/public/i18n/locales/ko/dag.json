@@ -46,7 +46,7 @@
     "count_other": "마감 {{count}}건",
     "referenceType": {
       "AverageRuntimeDeadline": "평균 실행 시간",
-      "DagRunLogicalDateDeadline": "논리적 실행 날짜",
+      "DagRunLogicalDateDeadline": "논리적 날짜",
       "DagRunQueuedAtDeadline": "대기열에 등록된 시각"
     }
   },
