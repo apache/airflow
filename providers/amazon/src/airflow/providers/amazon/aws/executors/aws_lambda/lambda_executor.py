@@ -45,6 +45,11 @@ from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.executors.workloads.base import WorkloadType
+
+    _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
+
 if TYPE_CHECKING:
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
@@ -69,9 +74,8 @@ class AwsLambdaExecutor(BaseExecutor):
     """
 
     supports_multi_team: bool = True
-    # WorkloadType enum values are strings; using literals avoids needing the
-    # import at class definition time on Airflow versions that lack WorkloadType.
-    supported_workload_types: frozenset[str] = frozenset({"ExecuteTask", "ExecuteCallback"})
+    if AIRFLOW_V_3_3_PLUS:
+        supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -221,9 +225,6 @@ class AwsLambdaExecutor(BaseExecutor):
 
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         from airflow.executors import workloads
-
-        if AIRFLOW_V_3_3_PLUS:
-            from airflow.executors.workloads.base import WorkloadType
 
         for workload in workload_items:
             queue: str | None

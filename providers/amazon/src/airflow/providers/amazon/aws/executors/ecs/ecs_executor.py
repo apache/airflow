@@ -53,6 +53,9 @@ from airflow.providers.common.compat.sdk import AirflowException, Stats, timezon
 from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
 
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.executors.workloads.base import WorkloadType
+
 if TYPE_CHECKING:
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -143,7 +146,6 @@ class AwsEcsExecutor(BaseExecutor):
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         """:sphinx-autoapi-skip:."""
         from airflow.executors import workloads
-        from airflow.executors.workloads.base import WorkloadType
 
         for workload in workload_items:
             queue: str | None

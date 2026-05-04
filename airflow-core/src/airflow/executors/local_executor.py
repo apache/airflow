@@ -126,7 +126,7 @@ class LocalExecutor(BaseExecutor):
 
     supports_multi_team: bool = True
     serve_logs: bool = True
-    supported_workload_types: frozenset[str] = frozenset(
+    supported_workload_types: frozenset[WorkloadType] = frozenset(
         {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
     )
 

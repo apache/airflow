@@ -51,21 +51,18 @@ class TestLocalKubernetesExecutor:
     def test_cli_commands_vended(self):
         assert LocalKubernetesExecutor.get_cli_commands()
 
-    def test_queued_tasks(self):
+    def test_slots_occupied_sums_children_without_deprecation(self):
         local_executor_mock = mock.MagicMock()
         k8s_executor_mock = mock.MagicMock()
+        local_executor_mock.slots_occupied = 3
+        k8s_executor_mock.slots_occupied = 2
+        local_executor_mock.running = {("dag_id", "task_id", "2020-08-30", 1)}
+        k8s_executor_mock.running = set()
+
         local_kubernetes_executor = LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
 
-        local_queued_tasks = {("dag_id", "task_id", "2020-08-30", 1): "queued_command"}
-        k8s_queued_tasks = {("dag_id_2", "task_id_2", "2020-08-30", 2): "queued_command"}
-
-        local_executor_mock.queued_tasks = local_queued_tasks
-        k8s_executor_mock.queued_tasks = k8s_queued_tasks
-
-        expected_queued_tasks = {**local_queued_tasks, **k8s_queued_tasks}
-
-        assert local_kubernetes_executor.queued_tasks == expected_queued_tasks
-        assert len(local_kubernetes_executor.queued_tasks) == 2
+        assert local_kubernetes_executor.slots_occupied == 4
+        assert "queued_tasks" not in {c[0] for c in local_executor_mock.method_calls}
 
     def test_running(self):
         local_executor_mock = mock.MagicMock()

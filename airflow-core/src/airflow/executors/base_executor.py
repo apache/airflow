@@ -169,7 +169,7 @@ class BaseExecutor(LoggingMixin):
     """
 
     supports_ad_hoc_ti_run: bool = False
-    supported_workload_types: frozenset[str] = frozenset({WorkloadType.EXECUTE_TASK})
+    supported_workload_types: frozenset[WorkloadType] = frozenset({WorkloadType.EXECUTE_TASK})
     supports_multi_team: bool = False
     sentry_integration: str = ""
 
@@ -256,6 +256,16 @@ class BaseExecutor(LoggingMixin):
         )
         return self.executor_queues[WorkloadType.EXECUTE_TASK]
 
+    @queued_tasks.setter
+    def queued_tasks(self, value: dict) -> None:
+        """Backward-compat setter: writes through to ``executor_queues[WorkloadType.EXECUTE_TASK]``."""
+        warnings.warn(
+            "queued_tasks is deprecated. Use executor_queues[WorkloadType.EXECUTE_TASK] instead.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
+        self.executor_queues[WorkloadType.EXECUTE_TASK] = value
+
     @property
     def queued_callbacks(self) -> dict:
         """Backward-compat property: delegates to ``executor_queues[WorkloadType.EXECUTE_CALLBACK]``."""
@@ -265,6 +275,16 @@ class BaseExecutor(LoggingMixin):
             stacklevel=2,
         )
         return self.executor_queues[WorkloadType.EXECUTE_CALLBACK]
+
+    @queued_callbacks.setter
+    def queued_callbacks(self, value: dict) -> None:
+        """Backward-compat setter: writes through to ``executor_queues[WorkloadType.EXECUTE_CALLBACK]``."""
+        warnings.warn(
+            "queued_callbacks is deprecated. Use executor_queues[WorkloadType.EXECUTE_CALLBACK] instead.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
+        self.executor_queues[WorkloadType.EXECUTE_CALLBACK] = value
 
     @property
     def supports_callbacks(self) -> bool:
@@ -310,7 +330,10 @@ class BaseExecutor(LoggingMixin):
             (key, workload) for queue in self.executor_queues.values() for key, workload in queue.items()
         ]
         all_workloads.sort(
-            key=lambda item: (workloads.WORKLOAD_TYPE_PRIORITY[item[1].type], item[1].sort_key)
+            key=lambda item: (
+                workloads.WORKLOAD_TYPE_PRIORITY.get(item[1].type, len(workloads.WORKLOAD_TYPE_PRIORITY)),
+                item[1].sort_key,
+            )
         )
         return all_workloads[:open_slots]
 
@@ -333,7 +356,7 @@ class BaseExecutor(LoggingMixin):
         :param task_instance: TaskInstance
         :return: True if the task is known to this executor
         """
-        task_queue = self.executor_queues[WorkloadType.EXECUTE_TASK]
+        task_queue = self.executor_queues.get(WorkloadType.EXECUTE_TASK, {})
         return (
             task_instance.id in task_queue
             or task_instance.id in self.running
@@ -436,6 +459,24 @@ class BaseExecutor(LoggingMixin):
 
         if workload_list:
             self._process_workloads(workload_list)
+
+    def trigger_tasks(self, open_slots: int) -> None:
+        """Backward-compat shim: forwards to :meth:`trigger_workloads`."""
+        warnings.warn(
+            "trigger_tasks is deprecated, use trigger_workloads instead.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
+        self.trigger_workloads(open_slots)
+
+    def order_queued_tasks_by_priority(self) -> list:
+        """Backward-compat shim: forwards to :meth:`_get_workloads_to_schedule`."""
+        warnings.warn(
+            "order_queued_tasks_by_priority is deprecated, use _get_workloads_to_schedule instead.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
+        return self._get_workloads_to_schedule(self.parallelism - len(self.running))
 
     # TODO: This should not be using `TaskInstanceState` here, this is just "did the process complete, or did
     # it die". It is possible for the task itself to finish with success, but the state of the task to be set

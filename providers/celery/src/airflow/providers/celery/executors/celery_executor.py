@@ -112,7 +112,7 @@ class CeleryExecutor(BaseExecutor):
 
     supports_ad_hoc_ti_run: bool = True
     if AIRFLOW_V_3_3_PLUS:
-        supported_workload_types: frozenset[str] = _SUPPORTED_WORKLOAD_TYPES
+        supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
     else:
         supports_callbacks: bool = True
     sentry_integration: str = "sentry_sdk.integrations.celery.CeleryIntegration"
@@ -223,7 +223,7 @@ class CeleryExecutor(BaseExecutor):
                     self.workload_publish_retries[key] = retries + 1
                     continue
             if AIRFLOW_V_3_3_PLUS:
-                if key in self.executor_queues[WorkloadType.EXECUTE_TASK]:
+                if key in self.executor_queues.get(WorkloadType.EXECUTE_TASK, {}):
                     self.executor_queues[WorkloadType.EXECUTE_TASK].pop(key)
                 else:
                     self.executor_queues[WorkloadType.EXECUTE_CALLBACK].pop(key, None)

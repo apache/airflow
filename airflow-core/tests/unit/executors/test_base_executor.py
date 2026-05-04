@@ -31,6 +31,7 @@ from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
 from airflow.cli.cli_parser import AirflowHelpFormatter
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
 from airflow.executors.local_executor import LocalExecutor
@@ -374,6 +375,64 @@ def test_base_executor_cannot_send_callback():
     executor = BaseExecutor()
     with pytest.raises(ValueError, match="Callback sink is not ready"):
         executor.send_callback(mock.Mock(spec=CallbackRequest))
+
+
+def test_queued_tasks_setter_emits_warning_and_writes_through():
+    executor = BaseExecutor()
+    new_queue = {"k": "v"}
+    with pytest.warns(RemovedInAirflow4Warning, match="queued_tasks is deprecated"):
+        executor.queued_tasks = new_queue  # type: ignore[misc]
+    assert executor.executor_queues[WorkloadType.EXECUTE_TASK] is new_queue
+
+
+def test_queued_callbacks_setter_emits_warning_and_writes_through():
+    executor = BaseExecutor()
+    new_queue = {"k": "v"}
+    with pytest.warns(RemovedInAirflow4Warning, match="queued_callbacks is deprecated"):
+        executor.queued_callbacks = new_queue  # type: ignore[misc]
+    assert executor.executor_queues[WorkloadType.EXECUTE_CALLBACK] is new_queue
+
+
+def test_trigger_tasks_shim_emits_warning_and_forwards():
+    executor = BaseExecutor()
+    with mock.patch.object(executor, "trigger_workloads") as mocked:
+        with pytest.warns(RemovedInAirflow4Warning, match="trigger_tasks is deprecated"):
+            executor.trigger_tasks(7)
+    mocked.assert_called_once_with(7)
+
+
+def test_order_queued_tasks_by_priority_shim_emits_warning_and_forwards():
+    executor = BaseExecutor()
+    with mock.patch.object(executor, "_get_workloads_to_schedule", return_value=[]) as mocked:
+        with pytest.warns(RemovedInAirflow4Warning, match="order_queued_tasks_by_priority is deprecated"):
+            executor.order_queued_tasks_by_priority()
+    mocked.assert_called_once()
+
+
+def test_has_task_does_not_vivify_executor_queue():
+    executor = BaseExecutor()
+    ti = mock.Mock(spec=TaskInstance)
+    ti.id = "id-1"
+    ti.key = TaskInstanceKey("d", "t", "r", 1, -1)
+    assert executor.has_task(ti) is False
+    assert WorkloadType.EXECUTE_TASK not in executor.executor_queues
+
+
+def test_unknown_workload_type_sorts_last_without_crashing():
+    executor = BaseExecutor()
+    known_key = TaskInstanceKey("d", "t", "r", 1, -1)
+    known_workload = mock.Mock()
+    known_workload.type = WorkloadType.EXECUTE_TASK
+    known_workload.sort_key = 0
+    unknown_workload = mock.Mock()
+    unknown_workload.type = "SomeFutureType"
+    unknown_workload.sort_key = 0
+    executor.executor_queues[WorkloadType.EXECUTE_TASK][known_key] = known_workload
+    executor.executor_queues["SomeFutureType"]["unk"] = unknown_workload  # type: ignore[index]
+
+    scheduled = executor._get_workloads_to_schedule(open_slots=10)
+
+    assert [w for _, w in scheduled] == [known_workload, unknown_workload]
 
 
 @skip_if_force_lowest_dependencies_marker

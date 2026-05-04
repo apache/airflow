@@ -51,10 +51,14 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import Stats, conf
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.executors.workloads.base import WorkloadType
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -228,7 +232,6 @@ class KubernetesExecutor(BaseExecutor):
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         from airflow.executors.workloads import ExecuteTask
-        from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_3_PLUS
 
         # Airflow V3 version
         for w in workloads:
@@ -242,8 +245,6 @@ class KubernetesExecutor(BaseExecutor):
             executor_config = w.ti.executor_config or {}
 
             if AIRFLOW_V_3_3_PLUS:
-                from airflow.executors.workloads.base import WorkloadType
-
                 del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
             else:
                 del self.queued_tasks[key]
@@ -265,8 +266,6 @@ class KubernetesExecutor(BaseExecutor):
         if now - self._last_completed_pod_adoption >= adoption_interval:
             self._last_completed_pod_adoption = now
             self._adopt_completed_pods(self.kube_client)
-
-        from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_3_PLUS
 
         if self.running:
             self.log.debug("self.running: %s", self.running)
@@ -622,12 +621,9 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.kube_client
             assert self.kube_scheduler
-        from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_3_PLUS
 
         self.running.discard(ti.key)
         if AIRFLOW_V_3_3_PLUS:
-            from airflow.executors.workloads.base import WorkloadType
-
             self.executor_queues[WorkloadType.EXECUTE_TASK].pop(ti.key, None)
         else:
             self.queued_tasks.pop(ti.key, None)
