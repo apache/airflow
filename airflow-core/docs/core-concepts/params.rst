@@ -377,7 +377,7 @@ The following features are supported in the Trigger UI Form:
 
             ``Param(5, type=["integer", "string"])``
 
-
+- If a form field is left empty, it is passed as ``None`` value to the params dict.
 - Form fields are rendered in the order of definition of ``params`` in the Dag.
 - If you want to add sections to the Form, add the attribute ``section`` to each field. The text will be used as section label.
   Fields w/o ``section`` will be rendered in the default area.
