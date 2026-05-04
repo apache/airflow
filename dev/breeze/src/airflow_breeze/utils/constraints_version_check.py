@@ -609,7 +609,7 @@ def explain_package_upgrade(
         output_before = Output(title="output_before", file_name=get_temp_file_name())
         execute_command_in_shell(
             shell_params,
-            project_name="constraints",
+            project_name="breeze-constraints",
             command=shlex.join(
                 [
                     "uv",
@@ -635,7 +635,7 @@ def explain_package_upgrade(
         output_after = Output(title="output_after", file_name=get_temp_file_name())
         after_result = execute_command_in_shell(
             shell_params,
-            project_name="constraints",
+            project_name="breeze-constraints",
             command=shlex.join(
                 [
                     "uv",
