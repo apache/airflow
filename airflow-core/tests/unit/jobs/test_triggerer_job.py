@@ -645,6 +645,9 @@ class TestTriggerRunner:
         session.add(trigger_orm)
         session.commit()
 
+        stored_kwargs = trigger_orm.kwargs
+        assert stored_kwargs == kw
+
         runner = TriggerRunner()
         runner.to_create.append(
             workloads.RunTrigger.model_construct(

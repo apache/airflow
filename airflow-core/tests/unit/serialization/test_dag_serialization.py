@@ -867,9 +867,7 @@ class TestStringifiedDAGs:
             assert s.trigger_cls == o.trigger_cls
             assert s.next_method == o.next_method
             assert s.timeout == o.timeout
-            assert BaseSerialization.deserialize(s.trigger_kwargs or {}) == BaseSerialization.deserialize(
-                o.trigger_kwargs or {}
-            )
+            assert BaseSerialization.deserialize(s.trigger_kwargs or {}) == (o.trigger_kwargs or {})
 
         assert [ensure_serialized_asset(i) for i in task.inlets] == serialized_task.inlets
         assert [ensure_serialized_asset(o) for o in task.outlets] == serialized_task.outlets

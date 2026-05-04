@@ -71,6 +71,27 @@ class TriggerFailureReason(str, Enum):
     TRIGGER_FAILURE = "Trigger failure"
 
 
+def _stringify_encoding_keys(d: Any) -> Any:
+    """
+    Convert BaseSerialization Encoding enum keys to their string values recursively.
+
+    On Python 3.10, str(Encoding.TYPE) returns "Encoding.TYPE" instead of "__type__",
+    so serde.serialize confuses it. Converting keys to their value strings
+    here ensures serde stores and retrieves them correctly on all Python versions.
+    """
+    from airflow.serialization.enums import Encoding
+
+    if isinstance(d, dict):
+        return {
+            (k.value if isinstance(k, Encoding) else str(k)): _stringify_encoding_keys(v)
+            for k, v in d.items()
+        }
+    if isinstance(d, (list, tuple)):
+        converted = [_stringify_encoding_keys(i) for i in d]
+        return type(d)(converted)
+    return d
+
+
 class Trigger(Base):
     """
     Base Trigger class.
@@ -146,7 +167,7 @@ class Trigger(Base):
         from airflow.models.crypto import get_fernet
         from airflow.sdk.serde import serialize
 
-        serialized_kwargs = serialize(kwargs)
+        serialized_kwargs = serialize(_stringify_encoding_keys(kwargs))
         return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
 
     @staticmethod

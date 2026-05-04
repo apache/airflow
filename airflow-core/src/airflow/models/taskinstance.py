@@ -1633,19 +1633,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             assert isinstance(self.task, Operator)
 
         if start_trigger_args := self.start_trigger_args:
-            from airflow.serialization.enums import Encoding
-
-            def _normalize(d: Any) -> Any:
-                # trigger_kwargs arrives with Encoding enum keys from BaseSerialization.
-                # On Python 3.10, str(Encoding.TYPE) returns "Encoding.TYPE" not "__type",
-                # so we convert enum keys to their values before passing to serde.serialize.
-                if isinstance(d, dict):
-                    return {
-                        (k.value if isinstance(k, Encoding) else str(k)): _normalize(v) for k, v in d.items()
-                    }
-                return d
-
-            trigger_kwargs = _normalize(start_trigger_args.trigger_kwargs or {})
+            trigger_kwargs = start_trigger_args.trigger_kwargs or {}
             timeout = start_trigger_args.timeout
 
             # Calculate timeout too if it was passed
