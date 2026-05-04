@@ -270,22 +270,23 @@ export class ConnectionsPage extends BasePage {
       return [];
     }
 
+    const headerTexts = await this.page.locator("thead th").allTextContents();
+    const idColumnIndex = headerTexts.findIndex((text) => /connection\s*id/i.test(text));
+
+    if (idColumnIndex === -1) {
+      throw new Error(`"Connection ID" column not found in headers: ${JSON.stringify(headerTexts)}`);
+    }
+
+    const rows = this.page.locator("tbody tr");
     const connectionIds: Array<string> = [];
 
     for (let i = 0; i < stableRowCount; i++) {
       try {
-        const row = rowLocator.nth(i);
-        const cells = row.locator("td");
-        const cellCount = await cells.count();
+        const cell = rows.nth(i).locator("td").nth(idColumnIndex);
+        const text = await cell.textContent({ timeout: 3000 });
 
-        if (cellCount > 1) {
-          // Second cell (after checkbox) contains the connection ID.
-          const idCell = cells.nth(1);
-          const text = await idCell.textContent({ timeout: 3000 });
-
-          if (text !== null && text.trim() !== "") {
-            connectionIds.push(text.trim());
-          }
+        if (text !== null && text.trim() !== "") {
+          connectionIds.push(text.trim());
         }
       } catch {
         continue;

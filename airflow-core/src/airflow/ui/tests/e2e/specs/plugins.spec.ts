@@ -21,7 +21,6 @@ import { expect, test } from "tests/e2e/fixtures";
 test.describe("Plugins Page", () => {
   test.beforeEach(async ({ pluginsPage }) => {
     await pluginsPage.navigate();
-    await pluginsPage.waitForLoad();
   });
 
   test("verify plugins page heading is visible", async ({ pluginsPage }) => {

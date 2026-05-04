@@ -502,14 +502,8 @@ export async function apiDeleteDagRun(source: RequestLike, dagId: string, runId:
  * running tasks during deletion, then delete with one retry on timeout.
  */
 export async function safeCleanupDagRun(source: RequestLike, dagId: string, runId: string): Promise<void> {
-  const request = getRequestContext(source);
-
   try {
-    await request.patch(`${baseUrl}/api/v2/dags/${dagId}/dagRuns/${runId}`, {
-      data: { state: "failed" },
-      headers: { "Content-Type": "application/json" },
-      timeout: 10_000,
-    });
+    await apiSetDagRunState(source, { dagId, runId, state: "failed" });
   } catch {
     // Run may already be terminal or deleted — ignore.
   }

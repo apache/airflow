@@ -57,12 +57,12 @@ class CalendarService:
         granularity: Literal["hourly", "daily"] = "daily",
     ) -> CalendarTimeRangeCollectionResponse:
         """
-        Get calendar data for a DAG including historical and planned runs.
+        Get calendar data for a Dag including historical and planned runs.
 
         Args:
-            dag_id: The DAG ID
+            dag_id: The Dag ID
             session: Database session
-            dag: The DAG object
+            dag: The Dag object
             logical_date: Date range filter for logical_date
             partition_date: Date range filter for partition_date
             granularity: Time granularity ("hourly" or "daily")
@@ -93,7 +93,7 @@ class CalendarService:
         date_filter: RangeFilter,
         granularity: Literal["hourly", "daily"],
     ) -> tuple[list[CalendarTimeRangeResponse], Sequence[Row]]:
-        """Get historical DAG runs from the database."""
+        """Get historical Dag runs from the database."""
         dialect = get_dialect_name(session)
 
         effective_date = sa.func.coalesce(DagRun.partition_date, DagRun.logical_date)
@@ -136,7 +136,7 @@ class CalendarService:
         date_filter: RangeFilter,
         granularity: Literal["hourly", "daily"],
     ) -> list[CalendarTimeRangeResponse]:
-        """Get planned DAG runs based on the DAG's timetable."""
+        """Get planned Dag runs based on the Dag's timetable."""
         if not self._should_calculate_planned_runs(dag, raw_dag_states):
             return []
 

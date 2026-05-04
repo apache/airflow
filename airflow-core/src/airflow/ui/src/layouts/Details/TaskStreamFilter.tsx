@@ -1,5 +1,3 @@
-/* eslint-disable max-lines */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -38,7 +36,7 @@ import { Tooltip } from "src/components/ui";
 import { Menu } from "src/components/ui/Menu";
 
 export const TaskStreamFilter = () => {
-  const { t: translate } = useTranslation(["common", "components", "dag"]);
+  const { t: translate } = useTranslation(["common", "dag"]);
   const { taskId: currentTaskId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -270,7 +268,7 @@ export const TaskStreamFilter = () => {
 
             <Separator my={2} />
 
-            {hasActiveFilter && filterRoot !== undefined ? (
+            {(includeUpstream || includeDownstream) && filterRoot !== undefined ? (
               <Menu.Item asChild value="clear">
                 <Button
                   onClick={() =>

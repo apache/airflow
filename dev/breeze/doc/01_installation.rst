@@ -306,7 +306,7 @@ Then ``breeze`` invoked from any Airflow checkout uses that checkout's source. T
 a fresh worktree pays a one-time ``uvx`` resolve/install; subsequent calls hit the cache.
 
 Alternative: legacy global install (``uv tool`` or ``pipx``)
-............................................................
+------------------------------------------------------------
 
 If you prefer a single global install on ``PATH`` (the pre-ADR-0017 behaviour), you can still
 install Breeze with ``uv tool`` or ``pipx``. This is *not* recommended for setups with multiple

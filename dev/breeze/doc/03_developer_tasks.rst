@@ -694,6 +694,19 @@ You can always stop it via:
 
    breeze down
 
+``breeze down`` discovers every running docker compose project that breeze knows
+about — ``breeze shell``, ``breeze testing``, ``breeze build-docs``, ``breeze db``,
+release-management, registry, ``breeze run``, and prek-hook compose projects — by
+reading the ``com.docker.compose.project`` label that compose sets on every container
+it creates. Each matching project is brought down with ``--remove-orphans`` and
+``--volumes`` (unless ``--preserve-volumes`` is passed). One ``breeze down`` is
+enough to leave the host clean.
+
+If you have an unrelated docker compose project running on the host that does not
+match any breeze prefix, it is left alone by default. Pass ``--all-projects`` to
+also bring those down. To restrict the cleanup to a single named project (useful
+in CI steps), pass ``--project-name <name>``.
+
 These are all available flags of ``down`` command:
 
 .. image:: ./images/output_down.svg

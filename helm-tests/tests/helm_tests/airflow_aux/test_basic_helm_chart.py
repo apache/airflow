@@ -229,7 +229,6 @@ class TestBaseChartTest:
             "cleanup": {"enabled": True},
             "databaseCleanup": {"enabled": True},
             "flower": {"enabled": True},
-            "dagProcessor": {"enabled": True},
             "logs": {"persistence": {"enabled": True}},
             "dags": {"persistence": {"enabled": True}},
             "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
@@ -346,7 +345,6 @@ class TestBaseChartTest:
             values={
                 "labels": {"label1": "value1", "label2": "value2"},
                 "executor": "CeleryExecutor,KubernetesExecutor",
-                "dagProcessor": {"enabled": True},
                 "pgbouncer": {"enabled": True},
                 "redis": {"enabled": True},
                 "networkPolicies": {"enabled": True},
@@ -400,7 +398,6 @@ class TestBaseChartTest:
             values={
                 "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
                 "flower": {"enabled": True},
-                "dagProcessor": {"enabled": True},
             },
             show_only=show_only,
         )

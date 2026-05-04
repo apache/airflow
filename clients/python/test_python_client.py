@@ -76,7 +76,7 @@ def test_python_client():
     with airflow_client.client.ApiClient(configuration) as api_client:
         errors = False
 
-        print("[blue]Getting DAG list")
+        print("[blue]Getting Dag list")
         max_retries = 10
         while max_retries > 0:
             try:
@@ -88,10 +88,10 @@ def test_python_client():
                 time.sleep(6)
                 max_retries -= 1
             else:
-                print("[green]Getting DAG list successful")
+                print("[green]Getting Dag list successful")
                 break
 
-        print("[blue]Getting Tasks for a DAG")
+        print("[blue]Getting Tasks for a Dag")
         try:
             task_api_instance = task_api.TaskApi(api_client)
             api_response = task_api_instance.get_tasks(DAG_ID)
@@ -102,7 +102,7 @@ def test_python_client():
         else:
             print("[green]Getting Tasks successful")
 
-        print("[blue]Triggering a DAG run")
+        print("[blue]Triggering a Dag run")
         dag_run_api_instance = dag_run_api.DagRunApi(api_client)
         try:
             # Create a DAGRun object (no dag_id should be specified because it is read-only property of DAGRun)
@@ -117,7 +117,7 @@ def test_python_client():
             print(f"[red]Exception when calling DAGRunAPI->post_dag_run: {e}\n")
             errors = True
         else:
-            print("[green]Posting DAG Run successful")
+            print("[green]Posting Dag Run successful")
 
         # Get current configuration. Note, this is disabled by default with most installation.
         # You need to set `expose_config = True` in Airflow configuration in order to retrieve configuration.

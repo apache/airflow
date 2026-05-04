@@ -160,7 +160,6 @@ class TestAirflowCommon:
                 "cleanup": {"enabled": True},
                 "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
-                "dagProcessor": {"enabled": True},
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -195,7 +194,6 @@ class TestAirflowCommon:
                 "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
-                "dagProcessor": {"enabled": True},
                 "affinity": {
                     "nodeAffinity": {
                         "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -362,7 +360,6 @@ class TestAirflowCommon:
 
     def test_have_all_variables(self):
         docs = render_chart(
-            values={},
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
@@ -400,9 +397,6 @@ class TestAirflowCommon:
 
     def test_have_all_config_mounts_on_init_containers(self):
         docs = render_chart(
-            values={
-                "dagProcessor": {"enabled": True},
-            },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",

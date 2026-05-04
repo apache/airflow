@@ -63,7 +63,7 @@ export class ProvidersPage extends BasePage {
   public async navigate(): Promise<void> {
     await expect(async () => {
       await this.navigateTo("/providers");
-      await this.page.waitForURL(/.*providers/, { timeout: 10_000 });
+      await this.waitForLoad();
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
@@ -85,8 +85,7 @@ export class ProvidersPage extends BasePage {
   }
 
   public async waitForLoad(): Promise<void> {
-    await expect(this.table).toBeVisible({ timeout: 30_000 });
-    await expect(this.rows.first()).toBeVisible({ timeout: 30_000 });
-    await expect(this.packageLinkAt(0)).toBeVisible({ timeout: 30_000 });
+    await expect(this.table).toBeVisible({ timeout: 10_000 });
+    await expect(this.rows.first()).toBeVisible({ timeout: 10_000 });
   }
 }

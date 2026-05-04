@@ -111,8 +111,8 @@ def get_queue_url():
 
 
 def fetch_dags_from_s3(s3_uri):
-    """Fetch DAGs from S3 and sync them to the local dags directory."""
-    log.info("Fetching DAGs from S3 URI: %s", s3_uri)
+    """Fetch Dags from S3 and sync them to the local dags directory."""
+    log.info("Fetching Dags from S3 URI: %s", s3_uri)
     # Use a named temporary directory for the local dags folder, only tmp is writeable in Lambda
     local_dags_dir = mkdtemp(prefix="airflow_dags_")
     log.info("Setting AIRFLOW__CORE__DAGS_FOLDER to: %s", local_dags_dir)

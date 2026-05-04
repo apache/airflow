@@ -57,12 +57,7 @@ class TestDagProcessor:
 
     def test_disable_wait_for_migration(self):
         docs = render_chart(
-            values={
-                "dagProcessor": {
-                    "enabled": True,
-                    "waitForMigrations": {"enabled": False},
-                },
-            },
+            values={"dagProcessor": {"waitForMigrations": {"enabled": False}}},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
         actual = jmespath.search(
@@ -74,7 +69,6 @@ class TestDagProcessor:
         docs = render_chart(
             values={
                 "dagProcessor": {
-                    "enabled": True,
                     "waitForMigrations": {
                         "enabled": True,
                         "securityContexts": {
@@ -98,7 +92,6 @@ class TestDagProcessor:
         docs = render_chart(
             values={
                 "dagProcessor": {
-                    "enabled": True,
                     "extraContainers": [
                         {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
                     ],
@@ -116,7 +109,6 @@ class TestDagProcessor:
         docs = render_chart(
             values={
                 "dagProcessor": {
-                    "enabled": True,
                     "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
                 },
             },
@@ -131,7 +123,6 @@ class TestDagProcessor:
         docs = render_chart(
             values={
                 "dagProcessor": {
-                    "enabled": True,
                     "extraInitContainers": [
                         {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
                     ],
@@ -149,7 +140,6 @@ class TestDagProcessor:
         docs = render_chart(
             values={
                 "dagProcessor": {
-                    "enabled": True,
                     "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
                 },
             },
@@ -164,7 +154,6 @@ class TestDagProcessor:
         docs = render_chart(
             values={
                 "dagProcessor": {
-                    "enabled": True,
                     "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
                     "extraVolumeMounts": [
                         {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
@@ -187,7 +176,6 @@ class TestDagProcessor:
     def test_should_add_global_volume_and_global_volume_mount(self):
         docs = render_chart(
             values={
-                "dagProcessor": {"enabled": True},
                 "volumes": [{"name": "test-volume", "emptyDir": {}}],
                 "volumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
             },
@@ -207,7 +195,6 @@ class TestDagProcessor:
         docs = render_chart(
             values={
                 "dagProcessor": {
-                    "enabled": True,
                     "env": [
                         {"name": "TEST_ENV_1", "value": "test_env_1"},
                         {
@@ -240,7 +227,6 @@ class TestDagProcessor:
         docs = render_chart(
             values={
                 "dagProcessor": {
-                    "enabled": True,
                     "waitForMigrations": {
                         "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
                     },
@@ -255,7 +241,7 @@ class TestDagProcessor:
 
     def test_scheduler_name(self):
         docs = render_chart(
-            values={"dagProcessor": {"enabled": True}, "schedulerName": "airflow-scheduler"},
+            values={"schedulerName": "airflow-scheduler"},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
@@ -271,7 +257,6 @@ class TestDagProcessor:
         docs = render_chart(
             values={
                 "dagProcessor": {
-                    "enabled": True,
                     "affinity": {
                         "nodeAffinity": {
                             "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -345,7 +330,6 @@ class TestDagProcessor:
         docs = render_chart(
             values={
                 "dagProcessor": {
-                    "enabled": True,
                     "affinity": expected_affinity,
                     "tolerations": [
                         {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
@@ -412,7 +396,6 @@ class TestDagProcessor:
         docs = render_chart(
             values={
                 "dagProcessor": {
-                    "enabled": True,
                     "livenessProbe": {
                         "initialDelaySeconds": 111,
                         "timeoutSeconds": 222,
@@ -445,10 +428,7 @@ class TestDagProcessor:
         ]
 
     def test_livenessprobe_command(self):
-        docs = render_chart(
-            values={"dagProcessor": {"enabled": True}},
-            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
-        )
+        docs = render_chart(show_only=["templates/dag-processor/dag-processor-deployment.yaml"])
         assert (
             "airflow jobs check --local --job-type DagProcessorJob"
             in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
@@ -474,10 +454,7 @@ class TestDagProcessor:
     )
     def test_logs_persistence_changes_volume(self, log_values, expected_volume):
         docs = render_chart(
-            values={
-                "logs": log_values,
-                "dagProcessor": {"enabled": True},
-            },
+            values={"logs": log_values},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
@@ -490,7 +467,6 @@ class TestDagProcessor:
         docs = render_chart(
             values={
                 "dagProcessor": {
-                    "enabled": True,
                     "resources": {
                         "limits": {"cpu": "200m", "memory": "128Mi"},
                         "requests": {"cpu": "300m", "memory": "169Mi"},
@@ -520,10 +496,7 @@ class TestDagProcessor:
         )
 
     def test_resources_are_not_added_by_default(self):
-        docs = render_chart(
-            values={"dagProcessor": {"enabled": True}},
-            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
-        )
+        docs = render_chart(show_only=["templates/dag-processor/dag-processor-deployment.yaml"])
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
 
     @pytest.mark.parametrize(
@@ -539,19 +512,14 @@ class TestDagProcessor:
     def test_strategy(self, strategy, expected_strategy):
         """Strategy should be used when we aren't using both LocalExecutor and workers.persistence."""
         docs = render_chart(
-            values={
-                "dagProcessor": {"enabled": True, "strategy": strategy},
-            },
+            values={"dagProcessor": {"strategy": strategy}},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
         assert expected_strategy == jmespath.search("spec.strategy", docs[0])
 
     def test_default_command_and_args(self):
-        docs = render_chart(
-            values={"dagProcessor": {"enabled": True}},
-            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
-        )
+        docs = render_chart(show_only=["templates/dag-processor/dag-processor-deployment.yaml"])
 
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
@@ -565,11 +533,7 @@ class TestDagProcessor:
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
-        values = {
-            "dagProcessor": {
-                "enabled": True,
-            }
-        }
+        values = {"dagProcessor": {}}
         if revision_history_limit:
             values["dagProcessor"]["revisionHistoryLimit"] = revision_history_limit
         if global_revision_history_limit:
@@ -589,7 +553,7 @@ class TestDagProcessor:
         self, revision_history_limit, global_revision_history_limit, expected
     ):
         """Test that revisionHistoryLimit can be set to 0."""
-        values = {"dagProcessor": {"enabled": True}}
+        values = {"dagProcessor": {}}
         if revision_history_limit is not None:
             values["dagProcessor"]["revisionHistoryLimit"] = revision_history_limit
         if global_revision_history_limit is not None:
@@ -604,13 +568,7 @@ class TestDagProcessor:
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
-            values={
-                "dagProcessor": {
-                    "enabled": True,
-                    "command": command,
-                    "args": args,
-                }
-            },
+            values={"dagProcessor": {"command": command, "args": args}},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
@@ -619,13 +577,7 @@ class TestDagProcessor:
 
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
-            values={
-                "dagProcessor": {
-                    "enabled": True,
-                    "command": ["{{ .Release.Name }}"],
-                    "args": ["{{ .Release.Service }}"],
-                },
-            },
+            values={"dagProcessor": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
@@ -634,7 +586,7 @@ class TestDagProcessor:
 
     def test_dags_volume_mount_with_persistence_true(self):
         docs = render_chart(
-            values={"dagProcessor": {"enabled": True}, "dags": {"gitSync": {"enabled": True}}},
+            values={"dags": {"gitSync": {"enabled": True}}},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
@@ -645,7 +597,7 @@ class TestDagProcessor:
 
     def test_dags_gitsync_sidecar_and_init_container(self):
         docs = render_chart(
-            values={"dagProcessor": {"enabled": True}, "dags": {"gitSync": {"enabled": True}}},
+            values={"dags": {"gitSync": {"enabled": True}}},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
@@ -656,10 +608,7 @@ class TestDagProcessor:
 
     def test_dags_gitsync_with_persistence(self):
         docs = render_chart(
-            values={
-                "dagProcessor": {"enabled": True},
-                "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}},
-            },
+            values={"dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
@@ -673,7 +622,7 @@ class TestDagProcessor:
 
     def test_no_airflow_local_settings(self):
         docs = render_chart(
-            values={"dagProcessor": {"enabled": True}, "airflowLocalSettings": None},
+            values={"airflowLocalSettings": None},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
         volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
@@ -683,7 +632,7 @@ class TestDagProcessor:
 
     def test_airflow_local_settings(self):
         docs = render_chart(
-            values={"dagProcessor": {"enabled": True}, "airflowLocalSettings": "# Well hello!"},
+            values={"airflowLocalSettings": "# Well hello!"},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
         volume_mount = {
@@ -697,12 +646,7 @@ class TestDagProcessor:
 
     def test_should_add_component_specific_annotations(self):
         docs = render_chart(
-            values={
-                "dagProcessor": {
-                    "enabled": True,
-                    "annotations": {"test_annotation": "test_annotation_value"},
-                },
-            },
+            values={"dagProcessor": {"annotations": {"test_annotation": "test_annotation_value"}}},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
         assert "annotations" in jmespath.search("metadata", docs[0])
@@ -711,7 +655,6 @@ class TestDagProcessor:
     def test_validate_if_ssh_params_are_added_with_git_ssh_key(self):
         docs = render_chart(
             values={
-                "dagProcessor": {"enabled": True},
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -759,12 +702,7 @@ class TestDagProcessorServiceAccount:
 
     def test_default_automount_service_account_token(self):
         docs = render_chart(
-            values={
-                "dagProcessor": {
-                    "enabled": True,
-                    "serviceAccount": {"create": True},
-                },
-            },
+            values={"dagProcessor": {"serviceAccount": {"create": True}}},
             show_only=["templates/dag-processor/dag-processor-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
@@ -772,10 +710,7 @@ class TestDagProcessorServiceAccount:
     def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
-                "dagProcessor": {
-                    "enabled": True,
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
-                },
+                "dagProcessor": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}}
             },
             show_only=["templates/dag-processor/dag-processor-serviceaccount.yaml"],
         )

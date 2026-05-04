@@ -31,7 +31,12 @@ from airflow_breeze.commands.common_options import option_dry_run, option_python
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.docker_command_utils import execute_command_in_shell, fix_ownership_using_docker
+from airflow_breeze.utils.docker_command_utils import (
+    bring_compose_project_down,
+    execute_command_in_shell,
+    fix_ownership_using_docker,
+    remove_docker_networks,
+)
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 
@@ -111,15 +116,18 @@ def extract_data(python: str, provider: str | None, allow_unreleased: bool):
         f"python dev/registry/extract_connections.py{provider_flag}"
     )
 
-    with ci_group("Extracting registry data"):
-        result = execute_command_in_shell(
-            shell_params=shell_params,
-            project_name=unique_project_name,
-            command=command,
-            preserve_backend=True,
-        )
-
-    fix_ownership_using_docker()
+    try:
+        with ci_group("Extracting registry data"):
+            result = execute_command_in_shell(
+                shell_params=shell_params,
+                project_name=unique_project_name,
+                command=command,
+                preserve_backend=True,
+            )
+    finally:
+        bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
+        remove_docker_networks([f"{unique_project_name}_default"])
+        fix_ownership_using_docker()
     sys.exit(result.returncode)
 
 
@@ -364,6 +372,8 @@ def _backfill_docker(
                 failed.append(f"{version}/docker-extraction")
     finally:
         shutil.rmtree(backfill_tmp_dir, ignore_errors=True)
+        bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
+        remove_docker_networks([f"{unique_project_name}_default"])
         fix_ownership_using_docker()
 
     return failed

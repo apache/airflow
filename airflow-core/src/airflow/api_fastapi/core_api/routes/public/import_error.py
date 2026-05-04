@@ -54,7 +54,7 @@ from airflow.api_fastapi.core_api.security import (
 from airflow.models import DagModel
 from airflow.models.errors import ParseImportError
 
-REDACTED_STACKTRACE = "REDACTED - you do not have read permission on all DAGs in the file"
+REDACTED_STACKTRACE = "REDACTED - you do not have read permission on all Dags in the file"
 import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors")
 
 
@@ -96,8 +96,8 @@ def get_import_error(
         ).all()
     )
 
-    # No DAGs matched for this file -- either the file genuinely contains
-    # no DAGs (parse failed before any DAG was defined), or the name keys
+    # No Dags matched for this file -- either the file genuinely contains
+    # no Dags (parse failed before any Dag was defined), or the name keys
     # did not resolve. Redact the stacktrace rather than returning the raw
     # error, so the response stays on the deny-by-default side of the
     # authorization check.
@@ -105,14 +105,14 @@ def get_import_error(
         error.stacktrace = REDACTED_STACKTRACE
         return error
 
-    # Can the user read any DAGs in the file?
+    # Can the user read any Dags in the file?
     if not readable_dag_ids.intersection(file_dag_ids):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            "You do not have read permission on any of the DAGs in the file",
+            "You do not have read permission on any of the Dags in the file",
         )
 
-    # Check if user has read access to all the DAGs defined in the file
+    # Check if user has read access to all the Dags defined in the file
     if not file_dag_ids.issubset(readable_dag_ids):
         error.stacktrace = REDACTED_STACKTRACE
     return error
@@ -152,11 +152,11 @@ def get_import_errors(
     auth_manager = get_auth_manager()
     readable_dag_ids = auth_manager.get_authorized_dag_ids(method="GET", user=user)
 
-    # Subquery for files that have any DAGs
+    # Subquery for files that have any Dags
     files_with_any_dags = select(DagModel.relative_fileloc).distinct().subquery()
 
     # Files (identified by ``(relative_fileloc, bundle_name)``) where the
-    # user can read at least one DAG. Used to decide which import errors
+    # user can read at least one Dag. Used to decide which import errors
     # the user is allowed to see at all.
     readable_files_cte = (
         select(DagModel.relative_fileloc, DagModel.bundle_name)
@@ -166,10 +166,10 @@ def get_import_errors(
     )
 
     # Full ``(relative_fileloc, dag_id, bundle_name)`` set for every file
-    # the user can see at least one DAG of. Crucially this is **not**
+    # the user can see at least one Dag of. Crucially this is **not**
     # filtered by ``readable_dag_ids`` -- the per-file authorization
-    # check in the loop below needs the complete DAG set so it can
-    # detect co-located DAGs that the caller is not authorized to read
+    # check in the loop below needs the complete Dag set so it can
+    # detect co-located Dags that the caller is not authorized to read
     # and redact the stacktrace accordingly.
     file_dags_cte = (
         select(DagModel.relative_fileloc, DagModel.dag_id, DagModel.bundle_name)
@@ -185,8 +185,8 @@ def get_import_errors(
 
     # Prepare the import errors query by joining with the CTE above.
     # Each returned row will be a tuple: (ParseImportError, dag_id).
-    # ``dag_id`` is NULL for import errors whose file has no DAGs at all
-    # in ``DagModel`` (parse failed before any DAG was defined).
+    # ``dag_id`` is NULL for import errors whose file has no Dags at all
+    # in ``DagModel`` (parse failed before any Dag was defined).
     import_errors_stmt = (
         select(ParseImportError, file_dags_cte.c.dag_id)
         .outerjoin(
@@ -226,8 +226,8 @@ def get_import_errors(
     for import_error, file_dag_ids_iter in import_errors_result:
         dag_ids = [dag_id for _, dag_id in file_dag_ids_iter if dag_id is not None]
 
-        # No DAGs matched for this file -- either the file genuinely has
-        # no DAGs yet (parse failed before any DAG was defined), or the
+        # No Dags matched for this file -- either the file genuinely has
+        # no Dags yet (parse failed before any Dag was defined), or the
         # name keys did not resolve. Redact the stacktrace before
         # appending so the response stays on the deny-by-default side of
         # the authorization check.
@@ -238,7 +238,7 @@ def get_import_errors(
             continue
 
         dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
-        # Check if user has read access to all the DAGs defined in the file
+        # Check if user has read access to all the Dags defined in the file
         requests: Sequence[IsAuthorizedDagRequest] = [
             {
                 "method": "GET",

@@ -36,13 +36,13 @@ class TaskConcurrencyDep(BaseTIDep):
 
         if (
             ti.task.max_active_tis_per_dag is not None
-            and ti.get_num_running_task_instances(session) >= ti.task.max_active_tis_per_dag
+            and ti.get_num_active_task_instances(session=session) >= ti.task.max_active_tis_per_dag
         ):
             yield self._failing_status(reason="The max task concurrency has been reached.")
             return
         if (
             ti.task.max_active_tis_per_dagrun is not None
-            and ti.get_num_running_task_instances(session, same_dagrun=True)
+            and ti.get_num_active_task_instances(same_dagrun=True, session=session)
             >= ti.task.max_active_tis_per_dagrun
         ):
             yield self._failing_status(reason="The max task concurrency per run has been reached.")

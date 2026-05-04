@@ -1504,12 +1504,12 @@ class TestPostAssetMaterialize(TestAssets):
     def test_should_respond_409_on_multiple_dags(self, test_client):
         response = test_client.post("/assets/2/materialize")
         assert response.status_code == 409
-        assert response.json()["detail"] == "More than one DAG materializes asset with ID: 2"
+        assert response.json()["detail"] == "More than one Dag materializes asset with ID: 2"
 
     def test_should_respond_404_on_multiple_dags(self, test_client):
         response = test_client.post("/assets/3/materialize")
         assert response.status_code == 404
-        assert response.json()["detail"] == "No DAG materializes asset with ID: 3"
+        assert response.json()["detail"] == "No Dag materializes asset with ID: 3"
 
     def test_should_respond_400_if_materialization_runs_denied(self, test_client, session):
         sdm = session.scalar(
@@ -1542,7 +1542,7 @@ class TestPostAssetMaterialize(TestAssets):
 
             assert response.status_code == 403
             assert response.json()["detail"] == (
-                f"User is not authorized to trigger a run for DAG: {self.DAG_ASSET1_ID} that materializes this asset"
+                f"User is not authorized to trigger a run for Dag: {self.DAG_ASSET1_ID} that materializes this asset"
             )
             mock_get_auth_manager.return_value.is_authorized_dag.assert_called_once_with(
                 method="POST",

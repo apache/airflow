@@ -176,7 +176,7 @@ class CloudComposerAirflowCLICommandTrigger(BaseTrigger):
 
 
 class CloudComposerDAGRunTrigger(BaseTrigger):
-    """The trigger wait for the DAG run completion."""
+    """The trigger wait for the Dag run completion."""
 
     def __init__(
         self,
@@ -249,7 +249,7 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         composer_airflow_uri = environment.config.airflow_uri
 
         self.log.info(
-            "Pulling the DAG %s runs from the %s environment...",
+            "Pulling the Dag %s runs from the %s environment...",
             self.composer_dag_id,
             self.environment_id,
         )
@@ -407,7 +407,7 @@ class CloudComposerExternalTaskTrigger(BaseTrigger):
         composer_airflow_uri = environment.config.airflow_uri
 
         self.log.info(
-            "Pulling the DAG '%s' task instances from the '%s' environment...",
+            "Pulling the Dag '%s' task instances from the '%s' environment...",
             self.composer_external_dag_id,
             self.environment_id,
         )

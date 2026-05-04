@@ -222,6 +222,138 @@ class TestDag:
         assert ser is not None
         assert session.scalar(select(DagRun).where(DagRun.dag_id == dag_id)) is not None
 
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_dag_test_syncs_sibling_for_trigger_dagrun(self, test_dags_bundle, session):
+        """
+        Regression test for #64884.
+
+        ``DAG.test()`` must sync sibling DAGs in the bundle even when the parent
+        DAG is already serialized in the metadata DB. Otherwise a parent that
+        uses ``TriggerDagRunOperator`` to fire a sibling fails with a 404 from
+        the in-process Execution API because the sibling was never written.
+        """
+        parent_id = "test_dag_test_trigger_parent"
+        target_id = "test_dag_test_trigger_target"
+
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        parent = dagbag.dags.get(parent_id)
+        assert parent is not None
+
+        # Pre-sync ONLY the parent: simulates the state where the parent was
+        # written previously (e.g. by an earlier dag.test() invocation or by
+        # the DAG processor) but the trigger target has never been synced.
+        sync_dag_to_db(parent, bundle_name="testing")
+        session.commit()
+
+        assert DBDagBag().get_latest_version_of_dag(parent_id, session=session) is not None
+        assert DBDagBag().get_latest_version_of_dag(target_id, session=session) is None
+
+        dr = parent.test()
+
+        assert dr.state == DagRunState.SUCCESS
+        assert DBDagBag().get_latest_version_of_dag(target_id, session=session) is not None
+        assert session.scalar(select(DagRun).where(DagRun.dag_id == target_id)) is not None
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_dag_test_syncs_sibling_for_dynamic_trigger_dagrun(self, test_dags_bundle, session):
+        """
+        Regression test for the dynamic-DAG variant of #64884.
+
+        The bundle re-walk in ``DAG.test()`` must not run under
+        ``_airflow_parsing_context_manager(dag_id=self.dag_id)``: DAG files that
+        use ``get_parsing_context().dag_id`` to early-return would otherwise
+        emit only the parent and the trigger target would be omitted from the
+        bag, leaving it missing from the metadata DB.
+        """
+        parent_id = "test_dag_test_dynamic_trigger_parent"
+        target_id = "test_dag_test_dynamic_trigger_target"
+
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        parent = dagbag.dags.get(parent_id)
+        assert parent is not None
+
+        sync_dag_to_db(parent, bundle_name="testing")
+        session.commit()
+
+        assert DBDagBag().get_latest_version_of_dag(target_id, session=session) is None
+
+        dr = parent.test()
+
+        assert dr.state == DagRunState.SUCCESS
+        assert DBDagBag().get_latest_version_of_dag(target_id, session=session) is not None
+        assert session.scalar(select(DagRun).where(DagRun.dag_id == target_id)) is not None
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_dag_test_falls_back_when_recorded_bundle_no_longer_configured(
+        self, configure_dag_bundles, session
+    ):
+        """
+        If a parent DAG's recorded ``DagModel.bundle_name`` no longer appears in
+        the current bundle config (renamed/removed), ``DAG.test()`` must walk
+        all configured bundles instead of silently skipping the sync.
+        """
+        parent_id = "test_dag_test_trigger_parent"
+        target_id = "test_dag_test_trigger_target"
+
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        parent = dagbag.dags.get(parent_id)
+        assert parent is not None
+
+        # Record the parent under a bundle name that we will NOT include in the
+        # configured bundle list below.
+        sync_dag_to_db(parent, bundle_name="ghost-bundle")
+        session.merge(DagBundleModel(name="ghost-bundle"))
+        session.commit()
+
+        with configure_dag_bundles({"current": TEST_DAGS_FOLDER}):
+            dr = parent.test()
+
+        assert dr.state == DagRunState.SUCCESS
+        assert DBDagBag().get_latest_version_of_dag(target_id, session=session) is not None
+        assert session.scalar(select(DagRun).where(DagRun.dag_id == target_id)) is not None
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_dag_test_only_syncs_owning_bundle_when_parent_already_serialized(
+        self, configure_dag_bundles, session
+    ):
+        """
+        When the parent DAG is already in the DB, ``DAG.test()`` should only
+        re-walk the bundle that owns it, not every configured bundle. Confirms
+        that the perf-sensitive optimization in the fix is in effect.
+        """
+        parent_id = "test_dag_test_trigger_parent"
+
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        parent = dagbag.dags.get(parent_id)
+        assert parent is not None
+
+        sync_dag_to_db(parent, bundle_name="testing")
+        # The owning bundle row needs to exist before dag.test() commits its
+        # bundle-sync; ``configure_dag_bundles`` only writes the unrelated bundle.
+        session.merge(DagBundleModel(name="testing"))
+        session.commit()
+
+        with configure_dag_bundles(
+            {
+                "testing": TEST_DAGS_FOLDER,
+                "unrelated": TEST_DAGS_FOLDER,
+            }
+        ):
+            instantiated: list[str] = []
+            real_init = BundleDagBag.__init__
+
+            def _spy(self, *args, **kwargs):
+                instantiated.append(kwargs.get("bundle_name", ""))
+                real_init(self, *args, **kwargs)
+
+            with mock.patch.object(BundleDagBag, "__init__", _spy):
+                dr = parent.test()
+
+        assert dr.state == DagRunState.SUCCESS
+        # Only the owning bundle should have been parsed.
+        assert "testing" in instantiated
+        assert "unrelated" not in instantiated
+
     def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
@@ -623,7 +755,7 @@ class TestDag:
             logical_date=model.next_dagrun,
             run_type=DagRunType.SCHEDULED,
             session=session,
-            data_interval=(model.next_dagrun, model.next_dagrun),
+            data_interval=(model.next_dagrun, model.next_dagrun + timedelta(days=1)),
             run_after=model.next_dagrun_create_after,
             triggered_by=DagRunTriggeredByType.TEST,
         )
@@ -638,7 +770,7 @@ class TestDag:
         assert model.exceeds_max_non_backfill is True
 
         if catchup is True:
-            assert model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=1)
+            assert model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=2)
         else:
             assert model.next_dagrun_create_after > current_time + timedelta(days=-2)  # allow for fuzz
 
@@ -1050,8 +1182,8 @@ class TestDag:
         assert dag_run.state == State.RUNNING
         assert dag_run.run_type != DagRunType.MANUAL
 
-    @patch("airflow.models.dagrun.Stats")
-    def test_dag_handle_callback_crash(self, mock_stats, testing_dag_bundle):
+    @patch("airflow._shared.observability.metrics.stats.incr")
+    def test_dag_handle_callback_crash(self, mock_incr, testing_dag_bundle):
         """
         Tests avoid crashes from calling dag callbacks exceptions
         """
@@ -1086,7 +1218,7 @@ class TestDag:
         dag_run.execute_dag_callbacks(dag=dag, success=False)
         dag_run.execute_dag_callbacks(dag=dag, success=True)
 
-        mock_stats.incr.assert_called_with(
+        mock_incr.assert_called_with(
             "dag.callback_exceptions",
             tags={"dag_id": "test_dag_callback_crash"},
         )
@@ -1128,7 +1260,10 @@ class TestDag:
             dag_run.execute_dag_callbacks(dag=dag, success=True)
 
     @time_machine.travel(timezone.datetime(2025, 11, 11))
-    @pytest.mark.parametrize(("catchup", "expected_next_dagrun"), [(True, DEFAULT_DATE), (False, None)])
+    @pytest.mark.parametrize(
+        ("catchup", "expected_next_dagrun"),
+        [(True, DEFAULT_DATE + datetime.timedelta(hours=1)), (False, None)],
+    )
     def test_next_dagrun_after_fake_scheduled_previous(
         self, catchup, expected_next_dagrun, testing_dag_bundle
     ):
@@ -1156,7 +1291,7 @@ class TestDag:
             run_type=DagRunType.SCHEDULED,
             logical_date=DEFAULT_DATE,
             state=State.SUCCESS,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE + delta),
         )
         sync_dag_to_db(dag)
         with create_session() as session:
@@ -1169,8 +1304,6 @@ class TestDag:
             # Verify next_dagrun_create_after is scheduled after next_dagrun
             assert model.next_dagrun_create_after > model.next_dagrun
         else:
-            # For catchup=True, even though there is a run for this date already,
-            # it is marked as manual/external, so we should create a scheduled one anyway!
             assert model.next_dagrun == expected_next_dagrun
             assert model.next_dagrun_create_after == expected_next_dagrun + delta
 

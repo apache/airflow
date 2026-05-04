@@ -18,9 +18,9 @@
  */
 import { expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { testConfig } from "playwright.config";
+import { apiTriggerDagRun, waitForDagReady } from "tests/e2e/utils/test-helpers";
 
 import { BasePage } from "./BasePage";
-import { DagsPage } from "./DagsPage";
 
 export class RequiredActionsPage extends BasePage {
   public readonly actionsTable: Locator;
@@ -100,7 +100,7 @@ export class RequiredActionsPage extends BasePage {
       await expect(taskLocator).toBeVisible({ timeout: 20_000 });
       await this.page.mouse.move(0, 0);
       await taskLocator.click({ timeout: 5000 });
-    }).toPass({ intervals: [5000, 10_000, 15_000], timeout: 120_000 });
+    }).toPass({ intervals: [15_000], timeout: 120_000 });
   }
 
   private async clickRequiredActionLink(): Promise<void> {
@@ -228,13 +228,13 @@ export class RequiredActionsPage extends BasePage {
   }
 
   private async runHITLFlow(dagId: string, approve: boolean): Promise<string> {
-    const dagsPage = new DagsPage(this.page);
+    const { baseUrl } = testConfig.connection;
 
-    const dagRunId = await dagsPage.triggerDag(dagId);
-
-    if (dagRunId === null) {
-      throw new Error("Failed to trigger Dag - dagRunId is null");
-    }
+    await waitForDagReady(this.apiRequest, dagId);
+    await this.apiRequest.patch(`${baseUrl}/api/v2/dags/${dagId}`, {
+      data: { is_paused: false },
+    });
+    const { dagRunId } = await apiTriggerDagRun(this.apiRequest, dagId);
 
     await this.waitForDagRunState(dagId, dagRunId, "Running");
 

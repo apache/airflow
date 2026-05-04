@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
+from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, endpoint, schema
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TIRunContext
 
@@ -34,3 +34,20 @@ class AddTeamNameField(VersionChange):
         """Remove the ``team_name`` field from dag_run for older API versions."""
         if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
             response.body["dag_run"].pop("team_name", None)
+
+
+class AddStateEndpoints(VersionChange):
+    """Add task state and asset state CRUD endpoints."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/state/ti/{task_instance_id}/{key}", ["GET"]).didnt_exist,
+        endpoint("/state/ti/{task_instance_id}/{key}", ["PUT"]).didnt_exist,
+        endpoint("/state/ti/{task_instance_id}/{key}", ["DELETE"]).didnt_exist,
+        endpoint("/state/ti/{task_instance_id}", ["DELETE"]).didnt_exist,
+        endpoint("/state/asset/value", ["GET"]).didnt_exist,
+        endpoint("/state/asset/value", ["PUT"]).didnt_exist,
+        endpoint("/state/asset/value", ["DELETE"]).didnt_exist,
+        endpoint("/state/asset/clear", ["DELETE"]).didnt_exist,
+    )

@@ -27,7 +27,15 @@ from importlib import metadata
 from typing import TYPE_CHECKING, Any
 
 import attrs
-from openlineage.client.facet_v2 import job_dependencies_run, parent_run
+from openlineage.client.facet_v2 import (
+    documentation_job,
+    job_dependencies_run,
+    job_type_job,
+    nominal_time_run,
+    ownership_job,
+    parent_run,
+    tags_job,
+)
 from openlineage.client.utils import RedactMixin
 from openlineage.client.uuid import generate_static_uuid
 from sqlalchemy.orm.exc import DetachedInstanceError
@@ -82,7 +90,7 @@ if TYPE_CHECKING:
     from typing import TypeAlias
 
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
-    from openlineage.client.facet_v2 import RunFacet, processing_engine_run
+    from openlineage.client.facet_v2 import JobFacet, RunFacet, processing_engine_run
 
     from airflow.models.asset import AssetEvent
     from airflow.sdk.execution_time.secrets_masker import (
@@ -121,6 +129,7 @@ else:
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 _MAX_DOC_BYTES = 64 * 1024  # 64 kilobytes
+_PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
 
 
 def try_import_from_string(string: str) -> Any:
@@ -162,6 +171,185 @@ def get_operator_provider_version(operator: AnyOperator) -> str | None:
 
 def get_job_name(task: TaskInstance | RuntimeTaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
+
+
+def get_task_instance_from_context():
+    """Return the task instance from the currently executing Airflow task context."""
+    try:
+        from airflow.sdk import get_current_context
+    except (ImportError, AttributeError):
+        from airflow.operators.python import get_current_context  # type: ignore[no-redef]
+
+    task_instance = get_current_context().get("task_instance")
+    if task_instance is None:
+        raise RuntimeError(
+            "No Airflow task instance found in the current context. "
+            "Call this function from within a running Airflow task, "
+            "or pass `task_instance=` explicitly."
+        )
+    return task_instance
+
+
+def next_query_counter_from_context() -> str:
+    """
+    Return the next sequential per-task query counter, suitable for use as a job-name suffix.
+
+    The counter is stored under a private key in the Airflow execution context dict. Airflow
+    creates a fresh context per task and discards it when the task ends, so the counter resets
+    automatically per task and per retry — there is no module-level state to leak.
+
+    When no Airflow execution context is available (for example, the helper was called from a
+    script with an explicit ``task_instance=`` outside a running task), a random suffix
+    is returned instead and a warning is logged.
+    """
+    try:
+        from airflow.sdk import get_current_context
+    except (ImportError, AttributeError, ModuleNotFoundError):
+        from airflow.operators.python import get_current_context  # type: ignore[no-redef]
+
+    try:
+        context = get_current_context()
+
+        query_counter_context_key = "_openlineage_manual_query_counter"
+        # `Context` is a TypedDict, so mypy refuses non-literal keys and types `.get()` of an
+        # unknown key as `object`. At runtime `Context` is a regular `dict`, so
+        # both operations below are safe — the type-ignores silence pure type-checker noise.
+        counter = int(context.get(query_counter_context_key, 0)) + 1  # type: ignore[call-overload]
+        context[query_counter_context_key] = counter  # type: ignore[literal-required]
+        return str(counter)
+    except Exception as err:
+        from airflow.utils.strings import get_random_string
+
+        random_suffix = get_random_string()
+        log.info(
+            "OpenLineage encountered an error when retrieving query counter from context: `%s`. "
+            "Returning random suffix `%s`",
+            err,
+            random_suffix,
+        )
+
+        return random_suffix
+
+
+def get_dag_run_dag_and_task_from_ti(task_instance):
+    """
+    Return a ``(dag_run, dag, task)`` tuple for the given task instance.
+
+    On Airflow 3+, ``task_instance.get_template_context()`` exposes all three objects.
+    On Airflow 2, we fall back to the Ti attributes.
+    """
+    if AIRFLOW_V_3_0_PLUS:
+        context = task_instance.get_template_context()
+        return context["dag_run"], context["dag"], context["task"]
+    task = task_instance.task
+    return task_instance.dag_run, task.dag, task
+
+
+def build_task_event_run_facets(
+    *,
+    task_instance,
+    dag_run,
+    dag,
+    task,
+    task_uuid: str,
+    ti_state: TaskInstanceState,
+    parent_run_id: str,
+    parent_job_name: str | None = None,
+    dr_conf: dict | None = None,
+    additional_run_facets: dict[str, RunFacet] | None = None,
+) -> dict[str, RunFacet]:
+    """Build the task-event run-facet dict."""
+    if dr_conf is None:
+        dr_conf = getattr(dag_run, "conf", {}) or {}
+
+    nominal_start = getattr(dag_run, "data_interval_start", None)
+    nominal_end = getattr(dag_run, "data_interval_end", None)
+    if isinstance(nominal_start, datetime.datetime):
+        nominal_start = nominal_start.isoformat()
+    if isinstance(nominal_end, datetime.datetime):
+        nominal_end = nominal_end.isoformat()
+    nominal_time_facet: dict[str, RunFacet] = (
+        {
+            "nominalTime": nominal_time_run.NominalTimeRunFacet(
+                nominalStartTime=nominal_start, nominalEndTime=nominal_end, producer=_PRODUCER
+            )
+        }
+        if nominal_start
+        else {}
+    )
+
+    return {
+        **(additional_run_facets or {}),
+        **get_user_provided_run_facets(task_instance, ti_state),
+        **get_task_parent_run_facet(
+            parent_run_id=parent_run_id,
+            parent_job_name=parent_job_name or dag.dag_id,
+            dr_conf=dr_conf,
+        ),
+        **get_airflow_run_facet(
+            dag_run=dag_run, dag=dag, task_instance=task_instance, task=task, task_uuid=task_uuid
+        ),
+        **get_airflow_debug_facet(),
+        **get_processing_engine_facet(),
+        **nominal_time_facet,
+    }
+
+
+def build_task_event_job_facets(
+    *,
+    task,
+    dag,
+    additional_job_facets: dict[str, JobFacet] | None = None,
+) -> dict[str, JobFacet]:
+    """Build the task-event job-facet dict."""
+    doc, doc_type = get_task_documentation(task)
+    if not doc:
+        doc, doc_type = get_dag_documentation(dag)
+    documentation_facet: dict[str, JobFacet] = (
+        {
+            "documentation": documentation_job.DocumentationJobFacet(
+                description=doc, contentType=doc_type, producer=_PRODUCER
+            )
+        }
+        if doc
+        else {}
+    )
+
+    owner_source = task if getattr(task, "owner", "airflow") != "airflow" else dag
+    owners = [o.strip() for o in getattr(owner_source, "owner", "").split(",") if o.strip()]
+    ownership_facet: dict[str, JobFacet] = (
+        {
+            "ownership": ownership_job.OwnershipJobFacet(
+                owners=[ownership_job.Owner(name=o) for o in sorted(owners)], producer=_PRODUCER
+            )
+        }
+        if owners
+        else {}
+    )
+
+    dag_tags = getattr(dag, "tags", None) or []
+    tags_facet: dict[str, JobFacet] = (
+        {
+            "tags": tags_job.TagsJobFacet(
+                tags=[
+                    tags_job.TagsJobFacetFields(key=t, value=t, source="AIRFLOW") for t in sorted(dag_tags)
+                ],
+                producer=_PRODUCER,
+            )
+        }
+        if dag_tags
+        else {}
+    )
+
+    return {
+        **(additional_job_facets or {}),
+        "jobType": job_type_job.JobTypeJobFacet(
+            jobType="TASK", integration="AIRFLOW", processingType="BATCH", producer=_PRODUCER
+        ),
+        **documentation_facet,
+        **ownership_facet,
+        **tags_facet,
+    }
 
 
 def _get_parent_run_facet(
@@ -1849,8 +2037,7 @@ def _get_providers_manager_instance():
     Return the ProvidersManager instance to use for OpenLineage converter lookup.
 
     Picks the task-runtime-safe entry point on Airflow 3.2+ and falls back to the legacy
-    ``airflow.providers_manager.ProvidersManager`` on 3.0 / 3.1 and 2.x. Returns ``None``
-    if neither import is available (very old Airflow).
+    ``airflow.providers_manager.ProvidersManager``.
 
     Kept as a module-level function so tests can patch this single seam with a plain
     ``mock.patch(..., return_value=fake_pm)`` instead of juggling ``sys.modules`` or
@@ -1861,14 +2048,10 @@ def _get_providers_manager_instance():
         from airflow.sdk.plugins_manager import ProvidersManagerTaskRuntime
 
         return ProvidersManagerTaskRuntime()
-    except ImportError:
-        pass
-    try:
+    except (ImportError, ModuleNotFoundError, AttributeError):
         from airflow.providers_manager import ProvidersManager
 
         return ProvidersManager()
-    except ImportError:
-        return None
 
 
 def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset | None:
