@@ -31,7 +31,7 @@ from alembic import op
 from sqlalchemy.sql import text
 
 from airflow.migrations.db_types import StringID
-from airflow.migrations.utils import disable_sqlite_fkeys, ignore_sqlite_value_error
+from airflow.migrations.utils import disable_sqlite_fkeys, get_dialect_name, ignore_sqlite_value_error
 
 # revision identifiers, used by Alembic.
 revision = "7582ea3f3dd5"
@@ -43,35 +43,35 @@ airflow_version = "3.1.0"
 
 def upgrade():
     """Make bundle_name not nullable."""
-    dialect_name = op.get_bind().dialect.name
-    if dialect_name == "postgresql":
-        op.execute(
-            text("""
-                INSERT INTO dag_bundle (name) VALUES
-                    ('example_dags'),
-                    ('dags-folder')
-                ON CONFLICT (name) DO NOTHING;
-                """)
-        )
-    if dialect_name == "mysql":
-        op.execute(
-            text("""
-                    INSERT IGNORE INTO dag_bundle (name) VALUES
-                    ('example_dags'),
-                    ('dags-folder');
-                    """)
-        )
-
-    if dialect_name == "sqlite":
-        op.execute(
-            text("""
-                    INSERT OR IGNORE INTO dag_bundle (name) VALUES
-                    ('example_dags'),
-                    ('dags-folder');
-                    """)
-        )
-
     with disable_sqlite_fkeys(op):
+        dialect_name = get_dialect_name(op)
+        if dialect_name == "postgresql":
+            op.execute(
+                text("""
+                    INSERT INTO dag_bundle (name) VALUES
+                        ('example_dags'),
+                        ('dags-folder')
+                    ON CONFLICT (name) DO NOTHING;
+                    """)
+            )
+        if dialect_name == "mysql":
+            op.execute(
+                text("""
+                        INSERT IGNORE INTO dag_bundle (name) VALUES
+                        ('example_dags'),
+                        ('dags-folder');
+                        """)
+            )
+
+        if dialect_name == "sqlite":
+            op.execute(
+                text("""
+                        INSERT OR IGNORE INTO dag_bundle (name) VALUES
+                        ('example_dags'),
+                        ('dags-folder');
+                        """)
+            )
+
         conn = op.get_bind()
         with ignore_sqlite_value_error(), op.batch_alter_table("dag", schema=None) as batch_op:
             conn.execute(

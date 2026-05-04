@@ -172,22 +172,22 @@ def upgrade() -> None:
     #   user-provided DeadlineDefinition, and the actual instance of a Definition is (still) the Deadline.
     #   This feels more intuitive than DeadlineAlert defining the Deadline.
 
-    op.create_table(
-        "deadline_alert",
-        sa.Column("id", sa.Uuid(), default=uuid6.uuid7),
-        sa.Column("created_at", UtcDateTime, nullable=False),
-        sa.Column("serialized_dag_id", sa.Uuid(), nullable=False),
-        sa.Column("name", sa.String(250), nullable=True),
-        sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("reference", sa.JSON(), nullable=False),
-        sa.Column("interval", sa.Float(), nullable=False),
-        sa.Column("callback_def", sa.JSON(), nullable=False),
-        sa.PrimaryKeyConstraint("id", name=op.f("deadline_alert_pkey")),
-    )
-
-    conn = op.get_bind()
-
     with disable_sqlite_fkeys(op):
+        op.create_table(
+            "deadline_alert",
+            sa.Column("id", sa.Uuid(), default=uuid6.uuid7),
+            sa.Column("created_at", UtcDateTime, nullable=False),
+            sa.Column("serialized_dag_id", sa.Uuid(), nullable=False),
+            sa.Column("name", sa.String(250), nullable=True),
+            sa.Column("description", sa.Text(), nullable=True),
+            sa.Column("reference", sa.JSON(), nullable=False),
+            sa.Column("interval", sa.Float(), nullable=False),
+            sa.Column("callback_def", sa.JSON(), nullable=False),
+            sa.PrimaryKeyConstraint("id", name=op.f("deadline_alert_pkey")),
+        )
+
+        conn = op.get_bind()
+
         with op.batch_alter_table("deadline", schema=None) as batch_op:
             batch_op.add_column(sa.Column("deadline_alert_id", sa.Uuid(), nullable=True))
             batch_op.add_column(sa.Column("created_at", UtcDateTime, nullable=True))
