@@ -41,8 +41,14 @@ class WorkloadType(str, Enum):
     TEST_CONNECTION = "TestConnection"
 
 
-# Central executor priority registry: Tuple is ordered from highest priority to lowest.
+# Central executor priority registry: tuple is ordered from highest priority to lowest.
 # Connection tests come last so they only consume slots left over after tasks and callbacks.
+#
+# Adding a new workload type is a three-place change that must stay in sync:
+#   1. ``WorkloadType`` — declare the enum member.
+#   2. ``_workload_type_priority_order`` — insert it at the right priority slot.
+#   3. ``airflow.executors.workloads.QueueableWorkload`` — extend the discriminated union
+#      so ``queue_workload`` can accept the new schema.
 _workload_type_priority_order = (
     WorkloadType.EXECUTE_CALLBACK,
     WorkloadType.EXECUTE_TASK,
