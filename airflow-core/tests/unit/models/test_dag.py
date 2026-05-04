@@ -237,7 +237,7 @@ class TestDag:
         parent_id = "test_dag_test_trigger_parent"
         target_id = "test_dag_test_trigger_target"
 
-        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER))
         parent = dagbag.dags.get(parent_id)
         assert parent is not None
 
@@ -270,7 +270,7 @@ class TestDag:
         parent_id = "test_dag_test_dynamic_trigger_parent"
         target_id = "test_dag_test_dynamic_trigger_target"
 
-        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER))
         parent = dagbag.dags.get(parent_id)
         assert parent is not None
 
@@ -297,7 +297,7 @@ class TestDag:
         parent_id = "test_dag_test_trigger_parent"
         target_id = "test_dag_test_trigger_target"
 
-        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER))
         parent = dagbag.dags.get(parent_id)
         assert parent is not None
 
@@ -325,7 +325,7 @@ class TestDag:
         """
         parent_id = "test_dag_test_trigger_parent"
 
-        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER))
         parent = dagbag.dags.get(parent_id)
         assert parent is not None
 
