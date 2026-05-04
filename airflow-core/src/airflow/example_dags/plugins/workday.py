@@ -36,17 +36,20 @@ log = logging.getLogger(__name__)
 
 
 class AfterWorkdayTimetable(Timetable):
-    _holiday_calendar = None
+    _NOT_LOADED = object()
+    _holiday_calendar = _NOT_LOADED
 
     @classmethod
     def _get_holiday_calendar(cls):
-        if cls._holiday_calendar is None:
+        if cls._holiday_calendar is cls._NOT_LOADED:
             try:
                 from pandas.tseries.holiday import USFederalHolidayCalendar
 
                 cls._holiday_calendar = USFederalHolidayCalendar()
             except ImportError:
                 log.warning("Could not import pandas. Holidays will not be considered.")
+                cls._holiday_calendar = None
+
         return cls._holiday_calendar
 
     def get_next_workday(self, d: DateTime, incr=1) -> DateTime:
