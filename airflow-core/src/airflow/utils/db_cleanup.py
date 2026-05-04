@@ -138,7 +138,9 @@ config_list: list[_TableConfig] = [
         keep_last_group_by=["dag_id"],
         dependent_tables=["task_instance", "deadline"],
     ),
-    _TableConfig(table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    _TableConfig(
+        table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="source_dag_id"
+    ),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
     _TableConfig(table_name="log", recency_column_name="dttm", dag_id_column_name="dag_id"),
     _TableConfig(table_name="sla_miss", recency_column_name="timestamp", dag_id_column_name="dag_id"),
@@ -151,7 +153,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="task_instance_history", recency_column_name="start_date", dag_id_column_name="dag_id"
     ),
-    _TableConfig(table_name="task_reschedule", recency_column_name="start_date", dag_id_column_name="dag_id"),
+    _TableConfig(table_name="task_reschedule", recency_column_name="start_date"),
     _TableConfig(table_name="xcom", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="_xcom_archive", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
@@ -170,7 +172,7 @@ config_list: list[_TableConfig] = [
         keep_last=True,
         keep_last_group_by=["dag_id"],
     ),
-    _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
+    _TableConfig(table_name="deadline", recency_column_name="deadline_time"),
     _TableConfig(table_name="revoked_token", recency_column_name="exp"),
 ]
 
