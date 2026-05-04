@@ -19,6 +19,8 @@ from __future__ import annotations
 import contextlib
 from contextlib import contextmanager
 
+import sqlalchemy as sa
+from alembic import op as alembic_op
 from sqlalchemy import text
 
 
@@ -64,9 +66,7 @@ def mysql_drop_foreignkey_if_exists(constraint_name, table_name, op):
 
 
 def ignore_sqlite_value_error():
-    from alembic import op
-
-    if op.get_bind().dialect.name == "sqlite":
+    if get_dialect_name(alembic_op) == "sqlite":
         return contextlib.suppress(ValueError)
     return contextlib.nullcontext()
 
@@ -120,6 +120,7 @@ def drop_index_if_exists(op, index_name, table_name) -> None:
     if dialect_name == "mysql":
         op.execute(
             text(f"""
+            DROP PROCEDURE IF EXISTS DropIndexIfExists;
             CREATE PROCEDURE DropIndexIfExists()
             BEGIN
                 IF EXISTS (
@@ -149,8 +150,6 @@ def drop_unique_constraints_on_columns(op, table_name, columns) -> None:
     Works in both online and offline mode by using raw SQL for PostgreSQL and MySQL.
     SQLite falls back to batch mode and requires a live connection.
     """
-    import sqlalchemy as sa
-
     dialect_name = get_dialect_name(op)
 
     if dialect_name == "postgresql":
@@ -180,6 +179,7 @@ def drop_unique_constraints_on_columns(op, table_name, columns) -> None:
         cols_in = ", ".join(f"'{c}'" for c in columns)
         op.execute(
             text(f"""
+            DROP PROCEDURE IF EXISTS DropUniqueOnColumns;
             CREATE PROCEDURE DropUniqueOnColumns()
             BEGIN
                 DECLARE done INT DEFAULT FALSE;
@@ -233,6 +233,7 @@ def drop_unique_constraint_if_exists(op, table_name, constraint_name) -> None:
     elif dialect_name == "mysql":
         op.execute(
             text(f"""
+            DROP PROCEDURE IF EXISTS DropUniqueIfExists;
             CREATE PROCEDURE DropUniqueIfExists()
             BEGIN
                 IF EXISTS (
