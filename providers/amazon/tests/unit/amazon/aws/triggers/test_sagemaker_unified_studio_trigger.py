@@ -16,13 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import (
     SageMakerNotebookJobTrigger,
 )
 from airflow.triggers.base import TriggerEvent
+
+import pytest
+
 
 
 @pytest.mark.asyncio
@@ -105,4 +107,3 @@ def test_trigger_serialize():
     assert kwargs["execution_name"] == "my-notebook"
     assert kwargs["waiter_delay"] == 5
     assert kwargs["waiter_max_attempts"] == 10
-
