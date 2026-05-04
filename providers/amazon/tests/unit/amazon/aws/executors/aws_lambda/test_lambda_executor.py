@@ -183,11 +183,13 @@ class TestAwsLambdaExecutor:
     def test_task_sdk_callback(self, mock_executor):
         """Test task sdk callback execution end-to-end."""
         from airflow.executors.workloads import ExecuteCallback
+        from airflow.executors.workloads.base import WorkloadType
         from airflow.models.callback import CallbackKey
 
         callback_id = CallbackKey("callback_123")
 
         workload = mock.Mock(spec=ExecuteCallback)
+        workload.type = WorkloadType.EXECUTE_CALLBACK
         workload.key = callback_id
         workload.callback = mock.Mock()
         workload.callback.key = callback_id
@@ -234,10 +236,13 @@ class TestAwsLambdaExecutor:
     def test_task_sdk_callback_with_queue(self, mock_airflow_key, mock_executor):
         """Test callback workload execution with queue override."""
         from airflow.executors.workloads import ExecuteCallback
+        from airflow.executors.workloads.base import WorkloadType
 
         callback_id = mock_airflow_key()
 
         workload = mock.Mock(spec=ExecuteCallback)
+        workload.type = WorkloadType.EXECUTE_CALLBACK
+        workload.key = callback_id
         workload.callback = mock.Mock()
         workload.callback.key = callback_id
         workload.callback.data = {"queue": "fast-queue"}
