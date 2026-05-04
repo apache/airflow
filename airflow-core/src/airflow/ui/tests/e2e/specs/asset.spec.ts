@@ -24,7 +24,6 @@ test.describe("Assets Page", () => {
   // assetData is triggered once per worker via beforeEach.
   test.beforeEach(async ({ assetData: _data, assetListPage }) => {
     await assetListPage.navigate();
-    await assetListPage.waitForLoad();
   });
 
   test("verify assets page heading", async ({ assetListPage }) => {

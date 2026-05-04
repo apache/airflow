@@ -60,13 +60,9 @@ export class AssetDetailPage extends BasePage {
    * Uses stable selectors based on text content and ARIA roles
    */
   private async verifyStatSection(labelText: string): Promise<void> {
-    const label = this.page.getByText(labelText, { exact: true });
+    const statContainer = this.page.getByTestId("stat").filter({ hasText: labelText });
 
-    await expect(label).toBeVisible();
-
-    // Find the button that follows the label in the same stat section
-    // Navigate to the label's parent container and find the first button within it
-    const statContainer = label.locator("xpath=./parent::*");
+    await expect(statContainer).toBeVisible();
     const button = statContainer.getByRole("button").first();
 
     await expect(button).toBeVisible();
