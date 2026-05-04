@@ -28,7 +28,7 @@ from airflow.providers.sdk.executable.bundle_scanner import (
     ResolvedExecutableBundle,
     read_source_code,
 )
-from airflow.providers.sdk.executable.coordinator import ExecutableRuntimeCoordinator
+from airflow.providers.sdk.executable.coordinator import ExecutableCoordinator
 from airflow.providers.sdk.executable.get_provider_info import get_provider_info
 
 
@@ -50,14 +50,14 @@ def test_get_provider_info_exposes_executable_runtime_components():
             }
         ],
         "runtime-coordinators": [
-            "airflow.providers.sdk.executable.coordinator.ExecutableRuntimeCoordinator",
+            "airflow.providers.sdk.executable.coordinator.ExecutableCoordinator",
         ],
     }
 
 
 def test_executable_provider_entrypoints_are_importable():
-    assert ExecutableRuntimeCoordinator.runtime_name == "executable"
-    assert ExecutableRuntimeCoordinator.file_extension == ""
+    assert ExecutableCoordinator.runtime_name == "executable"
+    assert ExecutableCoordinator.file_extension == ""
 
 
 def _make_executable(path):
@@ -80,35 +80,35 @@ class TestCanHandleDagFile:
         _make_executable(binary)
         _write_metadata(tmp_path, ["tutorial_dag"])
 
-        assert ExecutableRuntimeCoordinator.can_handle_dag_file("test_bundle", str(binary)) is True
+        assert ExecutableCoordinator.can_handle_dag_file("test_bundle", str(binary)) is True
 
     def test_non_executable_file(self, tmp_path):
         regular_file = tmp_path / "my_bundle"
         regular_file.touch()
         _write_metadata(tmp_path, ["tutorial_dag"])
 
-        assert ExecutableRuntimeCoordinator.can_handle_dag_file("test_bundle", str(regular_file)) is False
+        assert ExecutableCoordinator.can_handle_dag_file("test_bundle", str(regular_file)) is False
 
     def test_executable_without_metadata(self, tmp_path):
         binary = tmp_path / "my_bundle"
         _make_executable(binary)
         # No metadata file
 
-        assert ExecutableRuntimeCoordinator.can_handle_dag_file("test_bundle", str(binary)) is False
+        assert ExecutableCoordinator.can_handle_dag_file("test_bundle", str(binary)) is False
 
     def test_nonexistent_path(self):
-        assert ExecutableRuntimeCoordinator.can_handle_dag_file("test_bundle", "/nonexistent/path") is False
+        assert ExecutableCoordinator.can_handle_dag_file("test_bundle", "/nonexistent/path") is False
 
     def test_python_file_not_handled(self, tmp_path):
         py_file = tmp_path / "my_dag.py"
         py_file.write_text("# a python dag")
 
-        assert ExecutableRuntimeCoordinator.can_handle_dag_file("test_bundle", str(py_file)) is False
+        assert ExecutableCoordinator.can_handle_dag_file("test_bundle", str(py_file)) is False
 
 
 class TestDagParsingRuntimeCmd:
     def test_builds_correct_command(self):
-        cmd = ExecutableRuntimeCoordinator.dag_parsing_runtime_cmd(
+        cmd = ExecutableCoordinator.dag_parsing_runtime_cmd(
             dag_file_path="/path/to/my_bundle",
             bundle_name="test_bundle",
             bundle_path="/path/to",
@@ -133,7 +133,7 @@ class TestTaskExecutionRuntimeCmd:
 
         bundle_info = MagicMock(spec=["name", "version"])
 
-        cmd = ExecutableRuntimeCoordinator.task_execution_runtime_cmd(
+        cmd = ExecutableCoordinator.task_execution_runtime_cmd(
             what=what,
             dag_file_path=str(binary),
             bundle_path=str(tmp_path),
@@ -169,7 +169,7 @@ class TestTaskExecutionRuntimeCmd:
         with patch("airflow.providers.common.compat.sdk.conf") as mock_conf:
             mock_conf.get.return_value = str(bundles_dir)
 
-            cmd = ExecutableRuntimeCoordinator.task_execution_runtime_cmd(
+            cmd = ExecutableCoordinator.task_execution_runtime_cmd(
                 what=what,
                 dag_file_path=str(py_file),
                 bundle_path=str(tmp_path),
@@ -198,7 +198,7 @@ class TestTaskExecutionRuntimeCmd:
             mock_conf.get.return_value = None
 
             with pytest.raises(ValueError, match="bundles_folder config must be set"):
-                ExecutableRuntimeCoordinator.task_execution_runtime_cmd(
+                ExecutableCoordinator.task_execution_runtime_cmd(
                     what=what,
                     dag_file_path=str(py_file),
                     bundle_path=str(tmp_path),
@@ -296,7 +296,7 @@ class TestGetCodeFromFile:
         source = tmp_path / "main.go"
         source.write_text("package main\n\nfunc main() {}\n")
 
-        result = ExecutableRuntimeCoordinator.get_code_from_file(str(binary))
+        result = ExecutableCoordinator.get_code_from_file(str(binary))
         assert result == "package main\n\nfunc main() {}\n"
 
     def test_reads_named_source(self, tmp_path):
@@ -306,7 +306,7 @@ class TestGetCodeFromFile:
         source = tmp_path / "my_bundle.go"
         source.write_text("package main\n")
 
-        result = ExecutableRuntimeCoordinator.get_code_from_file(str(binary))
+        result = ExecutableCoordinator.get_code_from_file(str(binary))
         assert result == "package main\n"
 
     def test_no_source_raises(self, tmp_path):
@@ -314,7 +314,7 @@ class TestGetCodeFromFile:
         _make_executable(binary)
 
         with pytest.raises(FileNotFoundError, match="No source code found"):
-            ExecutableRuntimeCoordinator.get_code_from_file(str(binary))
+            ExecutableCoordinator.get_code_from_file(str(binary))
 
 
 class TestReadSourceCode:

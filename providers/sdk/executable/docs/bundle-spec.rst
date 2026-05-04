@@ -20,7 +20,7 @@ Bundle Spec Format
 
 This document specifies the on-disk format of a build artifact produced by an
 Airflow native-executable SDK (Go, Rust, C++, Zig, ...) and consumed by
-:class:`~airflow.providers.sdk.executable.coordinator.ExecutableRuntimeCoordinator`
+:class:`~airflow.providers.sdk.executable.coordinator.ExecutableCoordinator`
 at deployment time.
 
 The goal is a single, language-agnostic *bundle* shape so that scheduler,

@@ -47,4 +47,5 @@ def get_provider_info():
                 },
             }
         },
+        "coordinators": ["airflow.providers.sdk.executable.coordinator.ExecutableCoordinator"],
     }
