@@ -60,7 +60,7 @@ export class RequiredActionsPage extends BasePage {
   public async navigateToRequiredActionsPage(): Promise<void> {
     await expect(async () => {
       await this.navigateTo(RequiredActionsPage.getRequiredActionsUrl());
-      await expect(this.pageHeading).toBeVisible({ timeout: 10_000 });
+      await expect(this.pageHeading).toBeVisible();
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
@@ -133,7 +133,7 @@ export class RequiredActionsPage extends BasePage {
       await informationInput.fill("Approved by test");
     }
 
-    await expect(actionButton).toBeEnabled({ timeout: 10_000 });
+    await expect(actionButton).toBeEnabled();
     await this.clickButtonAndWaitForHITLResponse(actionButton);
 
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
@@ -175,7 +175,7 @@ export class RequiredActionsPage extends BasePage {
 
     const okButton = this.page.getByRole("button", { name: "OK" });
 
-    await expect(okButton).toBeVisible({ timeout: 10_000 });
+    await expect(okButton).toBeVisible();
     await this.clickButtonAndWaitForHITLResponse(okButton);
 
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
@@ -203,7 +203,7 @@ export class RequiredActionsPage extends BasePage {
 
     const respondButton = this.page.getByRole("button", { name: "Respond" });
 
-    await expect(respondButton).toBeVisible({ timeout: 10_000 });
+    await expect(respondButton).toBeVisible();
     await this.clickButtonAndWaitForHITLResponse(respondButton);
 
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
@@ -300,7 +300,7 @@ export class RequiredActionsPage extends BasePage {
     }
 
     await this.navigateToRequiredActionsPage();
-    await expect(this.actionsTable).toBeVisible({ timeout: 10_000 });
+    await expect(this.actionsTable).toBeVisible();
   }
 
   private async waitForDagRunState(dagId: string, runId: string, expectedState: string): Promise<void> {
