@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import datetime
 import traceback
 from collections.abc import AsyncIterator
@@ -288,10 +289,8 @@ class KubernetesPodTrigger(BaseTrigger):
         finally:
             # Stop watching events
             events_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await events_task
-            except asyncio.CancelledError:
-                pass
 
         return self.define_container_state(await self._get_pod())
 

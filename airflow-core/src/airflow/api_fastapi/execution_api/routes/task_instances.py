@@ -227,7 +227,7 @@ def ti_run(
                 extra=json.dumps({"host_name": ti_run_payload.hostname}) if ti_run_payload.hostname else None,
             )
         )
-    # Ensure there is no end date set.
+    # Ensure there is no end date set and clear retry policy overrides from the previous attempt.
     query = query.values(
         end_date=None,
         hostname=ti_run_payload.hostname,
@@ -235,6 +235,8 @@ def ti_run(
         pid=ti_run_payload.pid,
         state=TaskInstanceState.RUNNING,
         last_heartbeat_at=timezone.utcnow(),
+        retry_delay_override=None,
+        retry_reason=None,
     )
 
     try:
@@ -402,7 +404,10 @@ def ti_update_state(
         )
 
     # We exclude_unset to avoid updating fields that are not set in the payload
-    data = ti_patch_payload.model_dump(exclude={"task_outlets", "outlet_events"}, exclude_unset=True)
+    data = ti_patch_payload.model_dump(
+        exclude={"task_outlets", "outlet_events", "retry_delay_seconds", "retry_reason"},
+        exclude_unset=True,
+    )
     query = update(TI).where(TI.id == task_instance_id).values(data)
 
     try:
@@ -536,6 +541,12 @@ def _create_ti_state_update_query_and_update_state(
         elif isinstance(ti_patch_payload, TIRetryStatePayload):
             if ti is not None:
                 ti.prepare_db_for_next_try(session)
+            # Store retry policy overrides so next_retry_datetime() can read them.
+            # These are cleared when the task enters RUNNING (ti_run).
+            query = query.values(
+                retry_delay_override=ti_patch_payload.retry_delay_seconds,
+                retry_reason=(ti_patch_payload.retry_reason[:500] if ti_patch_payload.retry_reason else None),
+            )
         elif isinstance(ti_patch_payload, TISuccessStatePayload):
             if ti is not None:
                 TI.register_asset_changes_in_db(

@@ -109,7 +109,7 @@ export class HomePage extends BasePage {
   public async navigate(): Promise<void> {
     await expect(async () => {
       await this.navigateTo(HomePage.homeUrl);
-      await expect(this.welcomeHeading).toBeVisible({ timeout: 10_000 });
+      await expect(this.welcomeHeading).toBeVisible();
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 

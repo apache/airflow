@@ -173,6 +173,7 @@ def _find_all_integration_folders() -> list[str]:
                 "airflow-core/tests/unit/plugins",
                 "airflow-core/tests/unit/security",
                 "airflow-core/tests/unit/sensors",
+                "airflow-core/tests/unit/state",
                 "airflow-core/tests/unit/task",
                 "airflow-core/tests/unit/testconfig",
                 "airflow-core/tests/unit/timetables",

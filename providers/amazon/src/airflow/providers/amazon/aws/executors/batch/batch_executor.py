@@ -259,8 +259,8 @@ class AwsBatchExecutor(BaseExecutor):
         # if the job fails before the Airflow process on the container has started. These failures
         # can be caused by a Batch API failure, container misconfiguration etc.
         # If the container is able to start up and run the Airflow process, any failures after that
-        # (i.e. DAG failures) will not be marked as Failed by AWS Batch, because Batch on assumes
-        # responsibility for ensuring the process started. Failures in the DAG will be caught by
+        # (i.e. Dag failures) will not be marked as Failed by AWS Batch, because Batch on assumes
+        # responsibility for ensuring the process started. Failures in the Dag will be caught by
         # Airflow, which will be handled separately.
         job_info = self.active_workers.id_to_job_info[job.job_id]
         task_key = self.active_workers.id_to_key[job.job_id]

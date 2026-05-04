@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* eslint-disable max-lines */
 import { chakra, Code, Link } from "@chakra-ui/react";
 import type { TFunction } from "i18next";
 import type { JSX } from "react";

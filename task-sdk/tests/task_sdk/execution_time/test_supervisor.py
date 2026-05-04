@@ -1742,6 +1742,8 @@ REQUEST_TEST_CASES = [
                 "id": TI_ID,
                 "end_date": timezone.parse("2024-10-31T12:00:00Z"),
                 "rendered_map_index": "test retry task",
+                "retry_delay_seconds": None,
+                "retry_reason": None,
             },
             response=OKResponse(ok=True),
         ),

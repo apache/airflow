@@ -28,10 +28,29 @@ class TestJobLauncher:
         ("executor", "rbac", "allow", "expected_accounts"),
         [
             ("KubernetesExecutor", True, True, ["scheduler", "worker"]),
+            (
+                "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor",
+                True,
+                True,
+                ["scheduler", "worker"],
+            ),
             ("CeleryExecutor", True, True, ["worker"]),
+            (
+                "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                True,
+                True,
+                ["worker"],
+            ),
             ("LocalExecutor", True, True, ["scheduler"]),
+            ("airflow.executors.local_executor.LocalExecutor", True, True, ["scheduler"]),
             ("LocalExecutor", False, False, []),
             ("CeleryExecutor,KubernetesExecutor", True, True, ["scheduler", "worker"]),
+            (
+                "CeleryExecutor,airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor",
+                True,
+                True,
+                ["scheduler", "worker"],
+            ),
         ],
     )
     def test_job_launcher_rolebinding(self, executor, rbac, allow, expected_accounts):

@@ -114,6 +114,8 @@ class EdgeWorker:
     """Flag if job processing should be completed and no new jobs fetched for maintenance mode. """
     maintenance_comments: str | None = None
     """Comments for maintenance mode."""
+    versions_match: bool = True
+    """Whether the worker and the server have matching versions of Airflow and the Edge Provider."""
     background_tasks: set[Task] = set()
 
     def __init__(
@@ -154,6 +156,12 @@ class EdgeWorker:
         )
         self.push_logs = self.conf.getboolean("edge", "push_logs")
         self.push_log_chunk_size = self.conf.getint("edge", "push_log_chunk_size")
+        self.automatic_maintenance_on = (
+            self.conf.get("edge", "automatic_maintenance_on", fallback="Off") or "Off"
+        ).lower()
+        self.automatic_maintenance_exit = (
+            self.conf.get("edge", "automatic_maintenance_exit", fallback="Off") or "Off"
+        ).lower()
 
         self.extended_sysinfo: Callable[[], Awaitable[dict[str, str | int | float | datetime]]] | None = None
         extended_sysinfo_func_path = self.conf.get("edge", "extended_system_info_function", fallback=None)
@@ -324,10 +332,52 @@ class EdgeWorker:
             return True
         return False
 
+    def _adjust_maintenance_mode_based_on_sysinfo(
+        self, sysinfo: dict[str, str | int | float | datetime]
+    ) -> None:
+        """Adjust maintenance mode based on sysinfo status and config."""
+        status: int = sysinfo.get("status")  # type: ignore
+        if not self.maintenance_mode and (
+            (status >= logging.WARNING and self.automatic_maintenance_on == "warning")
+            or (status >= logging.ERROR and self.automatic_maintenance_on == "error")
+        ):
+            logger.info(
+                "Entering maintenance mode due to status %s in sysinfo.", logging.getLevelName(status)
+            )
+            self.maintenance_mode = True
+            self.maintenance_comments = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - Automatic maintenance mode entered due to status {logging.getLevelName(status)} in sysinfo."
+        elif (
+            self.maintenance_mode
+            and self.maintenance_comments
+            and "] - Automatic maintenance mode entered due to status " in self.maintenance_comments
+            and (
+                (status < logging.WARNING and self.automatic_maintenance_exit == "info")
+                or (status < logging.ERROR and self.automatic_maintenance_exit == "warning")
+            )
+        ):
+            logger.info("Exiting maintenance mode due to status %s in sysinfo.", logging.getLevelName(status))
+            self.maintenance_mode = False
+            self.maintenance_comments = None
+
     async def _get_sysinfo(self) -> dict[str, str | int | float | datetime]:
         """Produce the sysinfo from worker to post to central site."""
         sysinfo: dict[str, str | int | float | datetime] = {
-            "status": logging.INFO,
+            **(
+                {
+                    "status": logging.INFO,
+                }
+                if self.versions_match
+                else {
+                    "status": logging.WARNING,
+                    "status_text": "Healthy but version mismatch",
+                    "version_mismatch_description": "The version between the Edge Worker and the "
+                    "Airflow Core is not matching for either the edge or airflow package version. "
+                    "Please check if the Edge Provider version is compatible with your Airflow "
+                    "version. The worker will still operate but you might miss some features or "
+                    "have issues. Please consider upgrading the Edge Provider to a compatible "
+                    "version.",
+                }
+            ),
             "airflow_version": airflow_version,
             "edge_provider_version": edge_provider_version,
             "python_version": sys.version,
@@ -341,6 +391,8 @@ class EdgeWorker:
             except Exception:
                 logger.exception("Failed to get extended sysinfo, skipping it.")
 
+        # After grabbing status, check if we need to enter/exit maintenance mode
+        self._adjust_maintenance_mode_based_on_sysinfo(sysinfo)
         return sysinfo
 
     def _get_state(self) -> EdgeWorkerState:
@@ -388,6 +440,7 @@ class EdgeWorker:
                 server=self._execution_api_server_url,
                 log_path=workload.log_path,
             )
+            results_queue.put("OK")
             return 0
         except Exception as e:
             logger.exception("Task execution failed")
@@ -430,13 +483,15 @@ class EdgeWorker:
     async def start(self):
         """Start the execution in a loop until terminated."""
         try:
-            await worker_register(
+            sysinfo = await self._get_sysinfo()
+            register_result = await worker_register(
                 self.hostname,
-                EdgeWorkerState.STARTING,
+                EdgeWorkerState.MAINTENANCE_MODE if self.maintenance_mode else EdgeWorkerState.STARTING,
                 self.queues,
-                await self._get_sysinfo(),
+                sysinfo,
                 self.team_name,
             )
+            self.versions_match = register_result.versions_match
         except EdgeWorkerVersionException as e:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
             raise SystemExit(str(e))
@@ -540,37 +595,44 @@ class EdgeWorker:
             self.background_tasks.add(task)
             task.add_done_callback(self.background_tasks.discard)
 
-        while job.is_running:
+        while job.is_running and results_queue.empty():
             await self._push_logs_in_chunks(job)
             for _ in range(0, self.job_poll_interval * 10):
                 await sleep(0.1)
                 if not job.is_running:
                     break
         await self._push_logs_in_chunks(job)
+        supervisor_msg = (
+            "(Unknown error, no exception details available)"
+            if results_queue.empty()
+            else results_queue.get()
+        )
+        # Ensure that supervisor really ended after we grabbed results from queue
+        while True:
+            if not job.is_running:
+                break
+            await sleep(0.1)
 
         self.jobs.remove(job)
         if job.is_success:
             logger.info("Job completed: %s", job.edge_job.identifier)
             await jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
         else:
-            if results_queue.empty():
-                ex_txt = "(Unknown error, no exception details available)"
-            else:
-                ex = results_queue.get()
-                ex_txt = "\n".join(traceback.format_exception(ex))
-            logger.error("Job failed: %s with:\n%s", job.edge_job.identifier, ex_txt)
+            if isinstance(supervisor_msg, Exception):
+                supervisor_msg = "\n".join(traceback.format_exception(supervisor_msg))
+            logger.error("Job failed: %s with:\n%s", job.edge_job.identifier, supervisor_msg)
             # Push it upwards to logs for better diagnostic as well
             await logs_push(
                 task=job.edge_job.key,
                 log_chunk_time=timezone.utcnow(),
-                log_chunk_data=f"Error executing job:\n{ex_txt}",
+                log_chunk_data=f"Error executing job:\n{supervisor_msg}",
             )
             await jobs_set_state(job.edge_job.key, TaskInstanceState.FAILED)
 
     async def heartbeat(self, new_maintenance_comments: str | None = None) -> bool:
         """Report liveness state of worker to central site with stats."""
-        state = self._get_state()
         sysinfo = await self._get_sysinfo()
+        state = self._get_state()
         worker_state_changed: bool = False
         try:
             worker_info = await worker_set_state(
@@ -579,9 +641,10 @@ class EdgeWorker:
                 len(self.jobs),
                 self.queues,
                 sysinfo,
-                new_maintenance_comments,
+                new_maintenance_comments or self.maintenance_comments,
                 team_name=self.team_name,
             )
+            self.versions_match = worker_info.versions_match
             self.queues = worker_info.queues
             if worker_info.concurrency is not None and worker_info.concurrency != self.concurrency:
                 logger.info(

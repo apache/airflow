@@ -20,6 +20,7 @@ from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.glue_catalog import (
     GlueCatalogCreateDatabaseOperator,
+    GlueCatalogCreateTableOperator,
     GlueCatalogDeleteDatabaseOperator,
 )
 from airflow.providers.common.compat.sdk import DAG, chain
@@ -28,13 +29,23 @@ from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import TriggerRule
+    from airflow.sdk import TriggerRule, task
 else:
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 DAG_ID = "example_glue_catalog"
 
 sys_test_context_task = SystemTestContextBuilder().build()
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_table(database_name: str, table_name: str):
+    """Delete the Glue table."""
+    import boto3
+
+    boto3.client("glue").delete_table(DatabaseName=database_name, Name=table_name)
+
 
 with DAG(
     dag_id=DAG_ID,
@@ -62,9 +73,32 @@ with DAG(
     )
     # [END howto_operator_glue_catalog_delete_database]
 
+    table_name = f"{env_id}_tbl"
+    table_input = {
+        "StorageDescriptor": {
+            "Columns": [{"Name": "id", "Type": "int"}],
+            "Location": f"s3://{env_id}-glue/data/",
+            "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "SerdeInfo": {"SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"},
+        },
+        "TableType": "EXTERNAL_TABLE",
+    }
+
+    # [START howto_operator_glue_catalog_create_table]
+    create_table = GlueCatalogCreateTableOperator(
+        task_id="create_table",
+        database_name=db_name,
+        table_name=table_name,
+        table_input=table_input,
+    )
+    # [END howto_operator_glue_catalog_create_table]
+
     chain(
         test_context,
         create_database,
+        create_table,
+        delete_table(database_name=db_name, table_name=table_name),
         delete_database,
     )
 

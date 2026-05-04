@@ -10643,7 +10643,7 @@
             ]
         },
         "dags": {
-            "description": "DAGs settings.",
+            "description": "Dags settings.",
             "type": "object",
             "x-docsSection": "Airflow",
             "additionalProperties": false,
@@ -10761,7 +10761,7 @@
                             "default": "tests/dags"
                         },
                         "wait": {
-                            "description": "Interval between git sync attempts in seconds. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
+                            "description": "Interval between git sync attempts in seconds. High values are more likely to cause Dags to become out of sync between different components. Low values cause more traffic to the remote git repository.",
                             "type": [
                                 "integer",
                                 "null"
@@ -10769,7 +10769,7 @@
                             "default": null
                         },
                         "period": {
-                            "description": "Interval between git sync attempts in Go-style duration string. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
+                            "description": "Interval between git sync attempts in Go-style duration string. High values are more likely to cause Dags to become out of sync between different components. Low values cause more traffic to the remote git repository.",
                             "type": "string",
                             "default": "5s"
                         },

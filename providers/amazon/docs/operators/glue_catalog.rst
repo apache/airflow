@@ -41,6 +41,20 @@ Reference
 
 * `AWS boto3 Library Documentation for Glue <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html>`__
 
+.. _howto/operator:GlueCatalogCreateTableOperator:
+
+Create a Table
+--------------
+
+To create a table in an AWS Glue Data Catalog database, use
+:class:`~airflow.providers.amazon.aws.operators.glue_catalog.GlueCatalogCreateTableOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_glue_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_glue_catalog_create_table]
+    :end-before: [END howto_operator_glue_catalog_create_table]
+
 .. _howto/operator:GlueCatalogDeleteDatabaseOperator:
 
 Delete a Catalog Database

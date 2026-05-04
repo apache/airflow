@@ -18,16 +18,19 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.providers.amazon.aws.operators.bedrock import BedrockCreateGuardrailOperator
+from airflow.providers.amazon.aws.operators.bedrock import (
+    BedrockCreateGuardrailOperator,
+    BedrockCreateGuardrailVersionOperator,
+    BedrockDeleteGuardrailOperator,
+)
 from airflow.providers.common.compat.sdk import DAG, chain
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import TriggerRule, task
+    from airflow.sdk import TriggerRule
 else:
-    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 DAG_ID = "example_bedrock_guardrail"
@@ -58,17 +61,26 @@ with DAG(
     )
     # [END howto_operator_bedrock_create_guardrail]
 
-    @task(trigger_rule=TriggerRule.ALL_DONE)
-    def delete_guardrail(guardrail_id: str):
-        """Delete the guardrail."""
-        import boto3
+    # [START howto_operator_bedrock_delete_guardrail]
+    delete_guardrail = BedrockDeleteGuardrailOperator(
+        task_id="delete_guardrail",
+        guardrail_identifier=create_guardrail.output,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_bedrock_delete_guardrail]
 
-        boto3.client("bedrock").delete_guardrail(guardrailIdentifier=guardrail_id)
+    # [START howto_operator_bedrock_create_guardrail_version]
+    create_guardrail_version = BedrockCreateGuardrailVersionOperator(
+        task_id="create_guardrail_version",
+        guardrail_identifier=create_guardrail.output,
+    )
+    # [END howto_operator_bedrock_create_guardrail_version]
 
     chain(
         test_context,
         create_guardrail,
-        delete_guardrail(guardrail_id=create_guardrail.output),
+        create_guardrail_version,
+        delete_guardrail,
     )
 
     from tests_common.test_utils.watcher import watcher

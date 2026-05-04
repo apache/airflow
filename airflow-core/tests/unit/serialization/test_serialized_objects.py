@@ -1012,6 +1012,43 @@ class TestSerializedBaseOperator:
         assert result.timestamp() == timestamp
 
 
+class TestRetryPolicySerialization:
+    """Test that retry_policy is serialized as a boolean flag (has_retry_policy)."""
+
+    def test_has_retry_policy_flag_set_when_policy_present(self):
+        """When retry_policy is set, has_retry_policy=True in serialized form."""
+        from airflow.sdk import DAG, BaseOperator
+        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
+        from airflow.serialization.serialized_objects import DagSerialization
+
+        policy = ExceptionRetryPolicy(
+            rules=[RetryRule(exception=ValueError, action=RetryAction.FAIL, reason="bad data")],
+        )
+
+        with DAG(dag_id="test_retry_policy_ser", start_date=DEFAULT_DATE) as dag:
+            BaseOperator(task_id="op_with_policy", retries=3, retry_policy=policy)
+
+        serialized = DagSerialization.serialize_dag(dag)
+        deserialized = DagSerialization.deserialize_dag(serialized)
+
+        task = deserialized.task_dict["op_with_policy"]
+        assert task.has_retry_policy is True
+
+    def test_has_retry_policy_flag_false_when_no_policy(self):
+        """Without retry_policy, has_retry_policy defaults to False."""
+        from airflow.sdk import DAG, BaseOperator
+        from airflow.serialization.serialized_objects import DagSerialization
+
+        with DAG(dag_id="test_no_retry_policy_ser", start_date=DEFAULT_DATE) as dag:
+            BaseOperator(task_id="op_no_policy", retries=3)
+
+        serialized = DagSerialization.serialize_dag(dag)
+        deserialized = DagSerialization.deserialize_dag(serialized)
+
+        task = deserialized.task_dict["op_no_policy"]
+        assert task.has_retry_policy is False
+
+
 class TestKubernetesImportAvoidance:
     """Test that serialization doesn't import kubernetes unnecessarily."""
 
