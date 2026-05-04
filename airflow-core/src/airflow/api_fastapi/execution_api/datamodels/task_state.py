@@ -14,26 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from airflow.sdk.bases.xcom import BaseXCom
-from airflow.sdk.configuration import conf
+from airflow.api_fastapi.core_api.base import StrictBaseModel
 
 
-def resolve_xcom_backend():
-    """
-    Resolve custom XCom class.
+class TaskStateResponse(StrictBaseModel):
+    """Task state value returned to a worker."""
 
-    :returns: returns the custom XCom class if configured.
-    """
-    clazz = conf.getimport("core", "xcom_backend")
-    if clazz is None:
-        return BaseXCom
-    if not issubclass(clazz, BaseXCom):
-        raise TypeError(
-            f"Your custom XCom class `{clazz.__name__}` is not a subclass of `{BaseXCom.__name__}`."
-        )
-    return clazz
+    value: str
 
 
-XCom = resolve_xcom_backend()
+class TaskStatePutBody(StrictBaseModel):
+    """Request body for setting a task state value."""
+
+    value: str

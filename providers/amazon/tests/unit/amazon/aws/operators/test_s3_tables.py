@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.hooks.s3_tables import S3TablesHook
 from airflow.providers.amazon.aws.operators.s3_tables import (
     S3TablesCreateTableBucketOperator,
     S3TablesCreateTableOperator,
+    S3TablesDeleteTableBucketOperator,
     S3TablesDeleteTableOperator,
 )
 
@@ -36,6 +37,8 @@ TABLE_BUCKET_ARN = "arn:aws:s3tables:us-east-1:123456789012:bucket/test-bucket"
 NAMESPACE = "test_namespace"
 TABLE_NAME = "test_table"
 TABLE_ARN = "arn:aws:s3tables:us-east-1:123456789012:bucket/test-bucket/table/test-id"
+BUCKET_NAME = "test-table-bucket"
+BUCKET_ARN = "arn:aws:s3tables:us-east-1:123456789012:bucket/test-table-bucket"
 
 
 class TestS3TablesCreateTableOperator:
@@ -134,10 +137,6 @@ class TestS3TablesDeleteTableOperator:
         validate_template_fields(self.operator)
 
 
-BUCKET_NAME = "test-table-bucket"
-BUCKET_ARN = "arn:aws:s3tables:us-east-1:123456789012:bucket/test-table-bucket"
-
-
 class TestS3TablesCreateTableBucketOperator:
     def setup_method(self):
         self.operator = S3TablesCreateTableBucketOperator(
@@ -209,6 +208,26 @@ class TestS3TablesCreateTableBucketOperator:
 
         with pytest.raises(ClientError):
             op.execute({})
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestS3TablesDeleteTableBucketOperator:
+    def setup_method(self):
+        self.operator = S3TablesDeleteTableBucketOperator(
+            task_id="delete_table_bucket",
+            table_bucket_arn=BUCKET_ARN,
+        )
+
+    @mock.patch.object(S3TablesHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+
+        self.operator.execute({})
+
+        mock_client.delete_table_bucket.assert_called_once_with(tableBucketARN=BUCKET_ARN)
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

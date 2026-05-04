@@ -123,6 +123,20 @@ def get_provider_info():
                         "default": None,
                         "example": None,
                     },
+                    "minimum_acceptable_core_version_for_workers": {
+                        "description": "The minimum acceptable version of the central Airflow site and edge worker to work with.\n\nThis is used to make sure that the central Airflow site and edge workers are compatible with each\nother. When an edge worker connects to the central site, it reports its installed airflow\ncore version. If the version is lower than the minimum acceptable version, the central site will\nnotify the worker during heartbeat and raise an alert. The worker will gracefully terminate and\ndrain jobs and shut down.\n\nIf you know your workers are still compatible with older versions of the central site, you can set\nthis to a lower version to avoid having to update all workers at the same time as the central site.\nDefault is to force matching versions, so relaxing is optional to be configured.\n\nIf the airflow core version between edge worker and central site is not matchning, the worker will\nreport warning status.\n",
+                        "version_added": "3.6.0",
+                        "type": "string",
+                        "default": None,
+                        "example": "3.2.1",
+                    },
+                    "minimum_acceptable_edge_version_for_workers": {
+                        "description": "The minimum acceptable version of the edge worker to work with the central site.\n\nThis is used to make sure that the central Airflow site and edge workers are compatible with each\nother. When an edge worker connects to the central site, it reports its edge version. If the\nversion is lower than the minimum acceptable version, the central site will notify the worker\nduring heartbeat and raise an alert. The worker will gracefully terminate and drain jobs and shut\ndown.\n\nIf you know your edge workers are still compatible with older versions of the central site, you\ncan set this to a lower version to avoid having to update all workers at the same time as the\ncentral site. Default is to force matching versions, so relaxing is optional to be configured.\n\nIf the edge version between edge worker and central site is not matchning, the worker will report\nwarning status.\n",
+                        "version_added": "3.6.0",
+                        "type": "string",
+                        "default": None,
+                        "example": "3.5.0",
+                    },
                     "extended_system_info_function": {
                         "description": "The function to call to get extended system information for the worker.\n\nThe function must be async and return a ``dict[str, str | int | float | datetime]``.\nThe information will be sent to the central site with each heartbeat and can be used for monitoring\nand debugging purposes. All int and float values will also be published to metric collection systems\nlike statsd or otel.\n\nFunction must be provided as a string with the full path to the function. See\nhttps://github.com/apache/airflow/blob/main/providers/edge3/src/airflow/providers/edge3/cli/example_extended_sysinfo.py\nfor an example implementation.\n",
                         "version_added": "3.5.0",

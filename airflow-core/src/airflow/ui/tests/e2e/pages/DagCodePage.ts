@@ -38,7 +38,7 @@ export class DagCodePage extends BasePage {
   public async navigateToCodeTab(dagId: string): Promise<void> {
     await expect(async () => {
       await this.navigateTo(`/dags/${dagId}/code`);
-      await expect(this.editorContainer).toBeVisible({ timeout: 10_000 });
+      await expect(this.editorContainer).toBeVisible();
     }).toPass({ intervals: [2000], timeout: 60_000 });
     await this.waitForCodeReady();
   }
@@ -50,11 +50,7 @@ export class DagCodePage extends BasePage {
 
     await expect(scrollable).toBeVisible({ timeout: 30_000 });
 
-    await expect
-      .poll(async () => scrollable.evaluate((el) => el.scrollHeight > el.clientHeight), {
-        timeout: 10_000,
-      })
-      .toBe(true);
+    await expect.poll(async () => scrollable.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
   }
 
   public async verifyLineNumbersDisplayed(): Promise<void> {
