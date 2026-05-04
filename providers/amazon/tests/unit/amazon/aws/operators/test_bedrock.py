@@ -34,6 +34,7 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCreateKnowledgeBaseOperator,
     BedrockCreateProvisionedModelThroughputOperator,
     BedrockCustomizeModelOperator,
+    BedrockDeleteGuardrailOperator,
     BedrockIngestDataOperator,
     BedrockInvokeModelOperator,
     BedrockRaGOperator,
@@ -870,6 +871,45 @@ class TestBedrockCreateGuardrailOperator:
 
         with pytest.raises(ClientError):
             self.operator.execute({})
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+GUARDRAIL_ID = "abc123"
+
+
+class TestBedrockDeleteGuardrailOperator:
+    def setup_method(self):
+        self.operator = BedrockDeleteGuardrailOperator(
+            task_id="delete_guardrail",
+            guardrail_identifier=GUARDRAIL_ID,
+        )
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+
+        self.operator.execute({})
+
+        mock_client.delete_guardrail.assert_called_once_with(guardrailIdentifier=GUARDRAIL_ID)
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_version(self, mock_conn):
+        op = BedrockDeleteGuardrailOperator(
+            task_id="delete_guardrail",
+            guardrail_identifier=GUARDRAIL_ID,
+            guardrail_version="1",
+        )
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+
+        op.execute({})
+
+        mock_client.delete_guardrail.assert_called_once_with(
+            guardrailIdentifier=GUARDRAIL_ID, guardrailVersion="1"
+        )
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

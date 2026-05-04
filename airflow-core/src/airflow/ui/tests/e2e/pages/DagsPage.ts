@@ -427,7 +427,6 @@ export class DagsPage extends BasePage {
       // Response parsing failed — return null so caller can handle.
     }
 
-    // eslint-disable-next-line unicorn/no-null
     return null;
   }
 

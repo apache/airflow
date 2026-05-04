@@ -56,7 +56,7 @@ class TestAgentDecoratedOperator:
 
         assert result == "The top customer is Acme Corp."
         assert op.prompt == "Who is our top customer?"
-        mock_agent.run_sync.assert_called_once_with("Who is our top customer?")
+        mock_agent.run_sync.assert_called_once_with("Who is our top customer?", usage_limits=None)
 
     @pytest.mark.parametrize(
         "return_value",
@@ -92,7 +92,7 @@ class TestAgentDecoratedOperator:
         op.execute(context={"task_instance": MagicMock()})
 
         assert op.prompt == "Analyze revenue trends"
-        mock_agent.run_sync.assert_called_once_with("Analyze revenue trends")
+        mock_agent.run_sync.assert_called_once_with("Analyze revenue trends", usage_limits=None)
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_toolsets_through(self, mock_hook_cls):

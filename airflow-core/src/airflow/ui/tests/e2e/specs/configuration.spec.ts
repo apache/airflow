@@ -21,7 +21,6 @@ import { expect, test } from "tests/e2e/fixtures";
 test.describe("Configuration Page", () => {
   test.beforeEach(async ({ configurationPage }) => {
     await configurationPage.navigate();
-    await configurationPage.waitForLoad();
   });
 
   test("verify configuration displays", async ({ configurationPage }) => {

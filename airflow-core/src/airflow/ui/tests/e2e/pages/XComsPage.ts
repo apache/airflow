@@ -82,12 +82,14 @@ export class XComsPage extends BasePage {
       await expect(firstLink).toContainText(dagDisplayNamePattern, { ignoreCase: true });
     }).toPass({ timeout: 30_000 });
 
-    await expect(this.tableRows).not.toHaveCount(0);
+    const rows = this.xcomsTable.locator("tbody tr");
 
-    const rowCount = await this.tableRows.count();
+    await expect(rows).not.toHaveCount(0);
+
+    const rowCount = await rows.count();
 
     for (let i = 0; i < Math.min(rowCount, 3); i++) {
-      const dagIdLink = this.tableRows.nth(i).locator("a[href*='/dags/']").first();
+      const dagIdLink = rows.nth(i).locator("a[href*='/dags/']").first();
 
       await expect(dagIdLink).toContainText(dagDisplayNamePattern, { ignoreCase: true });
     }
@@ -114,12 +116,14 @@ export class XComsPage extends BasePage {
       await expect(firstKeyCell).toContainText(keyPattern, { ignoreCase: true });
     }).toPass({ timeout: 30_000 });
 
-    await expect(this.tableRows).not.toHaveCount(0);
+    const rows = this.xcomsTable.locator("tbody tr");
 
-    const rowCount = await this.tableRows.count();
+    await expect(rows).not.toHaveCount(0);
+
+    const rowCount = await rows.count();
 
     for (let i = 0; i < Math.min(rowCount, 3); i++) {
-      const keyCell = this.tableRows.nth(i).locator("td").first();
+      const keyCell = rows.nth(i).locator("td").first();
 
       await expect(keyCell).toContainText(keyPattern, { ignoreCase: true });
     }
@@ -132,7 +136,7 @@ export class XComsPage extends BasePage {
 
     const keyCell = firstRow.locator("td").first();
 
-    await expect(keyCell).not.toHaveText("", { timeout: 10_000 });
+    await expect(keyCell).not.toBeEmpty({ timeout: 10_000 });
 
     const dagIdLink = firstRow.locator("a[href*='/dags/']").first();
 
@@ -154,7 +158,6 @@ export class XComsPage extends BasePage {
     const dataLinks = this.xcomsTable.locator("a[href*='/dags/']");
 
     await expect(dataLinks.first()).toBeVisible({ timeout: 30_000 });
-    await expect(dataLinks).not.toHaveCount(0);
   }
 
   public async verifyXComValuesDisplayed(): Promise<void> {

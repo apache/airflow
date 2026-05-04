@@ -14,20 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Utilities for processing hook-level lineage into OpenLineage events."""
+"""Utilities for processing hook-level lineage and building per-query OpenLineage events."""
 
 from __future__ import annotations
 
-import datetime as dt
 import logging
+from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
-from openlineage.client.event_v2 import Job, Run, RunEvent, RunState
+from openlineage.client.event_v2 import Dataset, Job, Run, RunEvent, RunState
 from openlineage.client.facet_v2 import external_query_run, job_type_job, sql_job
 from openlineage.client.uuid import generate_new_uuid
 
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
 from airflow.providers.openlineage.extractors.base import OperatorLineage
+from airflow.providers.openlineage.plugins.adapter import _PRODUCER
 from airflow.providers.openlineage.plugins.listener import get_openlineage_listener
 from airflow.providers.openlineage.plugins.macros import (
     _get_logical_date,
@@ -38,10 +40,58 @@ from airflow.providers.openlineage.plugins.macros import (
     lineage_root_run_id,
     lineage_run_id,
 )
-from airflow.providers.openlineage.sqlparser import SQLParser, get_openlineage_facets_with_sql
+from airflow.providers.openlineage.sqlparser import (
+    SQLParser,
+    from_table_meta,
+    get_openlineage_facets_with_sql,
+)
 from airflow.providers.openlineage.utils.utils import _get_parent_run_facet
 
+if TYPE_CHECKING:
+    from datetime import datetime
+
 log = logging.getLogger(__name__)
+
+
+def _dialect_from_namespace(query_source_namespace: str) -> str:
+    """Derive a SQL dialect hint from an OpenLineage namespace (e.g. ``snowflake://acct``)."""
+    supported_sql_dialects = frozenset(
+        {
+            "ansi",
+            "bigquery",
+            "databricks",
+            "generic",
+            "hive",
+            "mssql",
+            "mysql",
+            "postgres",
+            "postgresql",
+            "redshift",
+            "snowflake",
+            "sqlite",
+        }
+    )
+    scheme = urlparse(query_source_namespace).scheme or query_source_namespace
+    scheme = scheme.lower()
+    return scheme if scheme in supported_sql_dialects else "generic"
+
+
+def _parse_query_into_datasets(
+    query_text: str,
+    query_source_namespace: str,
+    *,
+    default_database: str | None = None,
+    default_schema: str | None = None,
+) -> tuple[list[Dataset], list[Dataset]]:
+    """Parse SQL text into OpenLineage input/output ``Dataset`` objects."""
+    dialect = _dialect_from_namespace(query_source_namespace)
+    parser = SQLParser(dialect=dialect, default_schema=default_schema)
+    result = parser.parse(parser.split_sql_string(query_text))
+    if not result:
+        return [], []
+    inputs = [from_table_meta(t, default_database, query_source_namespace, False) for t in result.in_tables]
+    outputs = [from_table_meta(t, default_database, query_source_namespace, False) for t in result.out_tables]
+    return inputs, outputs
 
 
 def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful: bool = True) -> None:
@@ -58,14 +108,6 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
         return None
 
     log.info("OpenLineage will process %s SQL hook lineage extra(s).", len(sql_extras))
-
-    common_job_facets: dict = {
-        "jobType": job_type_job.JobTypeJobFacet(
-            jobType="QUERY",
-            integration="AIRFLOW",
-            processingType="BATCH",
-        )
-    }
 
     events: list[RunEvent] = []
     query_count = 0
@@ -124,7 +166,7 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
                 inputs=query_lineage.inputs,
                 outputs=query_lineage.outputs,
                 run_facets=query_lineage.run_facets,
-                job_facets={**common_job_facets, **query_lineage.job_facets},
+                job_facets=query_lineage.job_facets,
             )
         )
 
@@ -185,7 +227,8 @@ def _create_ol_event_pair(
     outputs: list | None = None,
     run_facets: dict | None = None,
     job_facets: dict | None = None,
-    event_time: dt.datetime | None = None,
+    start_event_time: datetime | None = None,
+    end_event_time: datetime | None = None,
 ) -> tuple[RunEvent, RunEvent]:
     """
     Create a START + COMPLETE/FAIL child event pair linked to a task instance.
@@ -193,7 +236,7 @@ def _create_ol_event_pair(
     Handles parent-run facet generation, run-ID creation and event timestamps
     so callers only need to supply the query-specific facets and datasets.
     """
-    parent_facets = _get_parent_run_facet(
+    parent_facet = _get_parent_run_facet(
         parent_run_id=lineage_run_id(task_instance),
         parent_job_name=lineage_job_name(task_instance),
         parent_job_namespace=lineage_job_namespace(),
@@ -201,16 +244,24 @@ def _create_ol_event_pair(
         root_parent_job_name=lineage_root_job_name(task_instance),
         root_parent_job_namespace=lineage_root_job_namespace(task_instance),
     )
+    job_type_facet: dict = {
+        "jobType": job_type_job.JobTypeJobFacet(
+            jobType="QUERY", integration="AIRFLOW", processingType="BATCH", producer=_PRODUCER
+        )
+    }
 
     run = Run(
         runId=str(generate_new_uuid(instant=_get_logical_date(task_instance))),
-        facets={**parent_facets, **(run_facets or {})},
+        facets={**(run_facets or {}), **parent_facet},
     )
-    job = Job(namespace=lineage_job_namespace(), name=job_name, facets=job_facets or {})
-    event_time = event_time or timezone.utcnow()
+    job = Job(
+        namespace=lineage_job_namespace(), name=job_name, facets={**(job_facets or {}), **job_type_facet}
+    )
+    now = timezone.utcnow()
+
     start = RunEvent(
         eventType=RunState.START,
-        eventTime=event_time.isoformat(),
+        eventTime=(start_event_time or now).isoformat(),
         run=run,
         job=job,
         inputs=inputs or [],
@@ -218,7 +269,7 @@ def _create_ol_event_pair(
     )
     end = RunEvent(
         eventType=RunState.COMPLETE if is_successful else RunState.FAIL,
-        eventTime=event_time.isoformat(),
+        eventTime=(end_event_time or now).isoformat(),
         run=run,
         job=job,
         inputs=inputs or [],

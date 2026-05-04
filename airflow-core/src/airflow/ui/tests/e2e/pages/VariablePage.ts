@@ -55,6 +55,7 @@ export class VariablePage extends BasePage {
     await expect(async () => {
       await this.navigateTo("/variables");
       await this.page.waitForURL(/.*variables/, { timeout: 10_000 });
+      await this.waitForLoad();
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 

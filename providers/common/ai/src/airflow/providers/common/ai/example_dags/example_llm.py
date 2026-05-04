@@ -21,6 +21,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from pydantic import BaseModel
+from pydantic_ai.usage import UsageLimits
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.compat.sdk import dag, task
@@ -116,6 +117,30 @@ def example_llm_decorator_structured():
 # [END howto_decorator_llm_structured]
 
 example_llm_decorator_structured()
+
+
+# [START howto_operator_llm_usage_limits]
+@dag
+def example_llm_operator_usage_limits():
+    LLMOperator(
+        task_id="capped_summary",
+        prompt="Summarize the attached design doc in three bullet points.",
+        llm_conn_id="pydanticai_default",
+        system_prompt="You are a concise technical reviewer.",
+        # Fail the task if the run exceeds 5 model requests, 4_000 input
+        # tokens, or 1_000 output tokens.  Useful for guardrails on shared
+        # connections or untrusted prompts.
+        usage_limits=UsageLimits(
+            request_limit=5,
+            input_tokens_limit=4_000,
+            output_tokens_limit=1_000,
+        ),
+    )
+
+
+# [END howto_operator_llm_usage_limits]
+
+example_llm_operator_usage_limits()
 
 
 # [START howto_operator_llm_approval]

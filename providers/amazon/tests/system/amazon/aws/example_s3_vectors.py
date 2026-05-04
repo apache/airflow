@@ -32,7 +32,7 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
-DAG_ID = "example_s3vectors"
+DAG_ID = "example_s3_vectors"
 
 sys_test_context_task = SystemTestContextBuilder().build()
 

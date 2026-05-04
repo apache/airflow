@@ -52,6 +52,8 @@ from airflow.providers.openlineage.utils.utils import (
     _get_tasks_details,
     _truncate_string_to_byte_size,
     build_dag_run_ol_run_id,
+    build_task_event_job_facets,
+    build_task_event_run_facets,
     build_task_instance_ol_run_id,
     get_airflow_dag_run_facet,
     get_airflow_job_facet,
@@ -60,6 +62,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_dag_documentation,
     get_dag_job_dependency_facet,
     get_dag_parent_run_facet,
+    get_dag_run_dag_and_task_from_ti,
     get_fully_qualified_class_name,
     get_job_name,
     get_operator_class,
@@ -93,6 +96,7 @@ from tests_common.test_utils.version_compat import (
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
+_UTILS = "airflow.providers.openlineage.utils.utils"
 
 
 def _asset_alias_event_supports_dest_asset_extra() -> bool:
@@ -4234,6 +4238,162 @@ class TestGetDagJobDependencyFacet:
         ]
 
 
+def test_get_dag_run_dag_and_task_from_ti_af3():
+    ti = MagicMock()
+    ti.get_template_context.return_value = {
+        "dag_run": mock.sentinel.dr,
+        "dag": mock.sentinel.dag,
+        "task": mock.sentinel.task,
+    }
+    with patch(f"{_UTILS}.AIRFLOW_V_3_0_PLUS", True):
+        assert get_dag_run_dag_and_task_from_ti(ti) == (
+            mock.sentinel.dr,
+            mock.sentinel.dag,
+            mock.sentinel.task,
+        )
+
+
+def test_get_dag_run_dag_and_task_from_ti_af2():
+    ti = MagicMock()
+    ti.dag_run = mock.sentinel.dr
+    ti.task = MagicMock(dag=mock.sentinel.dag)
+    expected_task = ti.task
+    with patch(f"{_UTILS}.AIRFLOW_V_3_0_PLUS", False):
+        assert get_dag_run_dag_and_task_from_ti(ti) == (
+            mock.sentinel.dr,
+            mock.sentinel.dag,
+            expected_task,
+        )
+    ti.get_template_context.assert_not_called()
+
+
+@patch(f"{_UTILS}.get_processing_engine_facet", return_value={"processing_engine": "pe"})
+@patch(f"{_UTILS}.get_airflow_debug_facet", return_value={"debug": "d"})
+@patch(f"{_UTILS}.get_airflow_run_facet", return_value={"airflow": "af"})
+@patch(f"{_UTILS}.get_task_parent_run_facet", return_value={"parent": "p"})
+@patch(f"{_UTILS}.get_user_provided_run_facets", return_value={"user": "u"})
+def test_build_task_event_run_facets_composes_all_sections(
+    mock_user, mock_parent, mock_airflow, mock_debug, mock_pe
+):
+    dag = MagicMock(dag_id="my_dag")
+    dag_run = MagicMock(
+        conf={"k": "v"},
+        data_interval_start=datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc),
+        data_interval_end=datetime.datetime(2024, 1, 2, tzinfo=datetime.timezone.utc),
+    )
+    facets = build_task_event_run_facets(
+        task_instance=MagicMock(),
+        dag_run=dag_run,
+        dag=dag,
+        task=MagicMock(),
+        task_uuid="uuid",
+        ti_state=TaskInstanceState.RUNNING,
+        parent_run_id="pid",
+    )
+    assert set(facets) == {"user", "parent", "airflow", "debug", "processing_engine", "nominalTime"}
+    # defaults flow through to downstream helpers
+    mock_parent.assert_called_once_with(parent_run_id="pid", parent_job_name="my_dag", dr_conf={"k": "v"})
+    assert facets["nominalTime"].nominalStartTime == "2024-01-01T00:00:00+00:00"
+    assert facets["nominalTime"].nominalEndTime == "2024-01-02T00:00:00+00:00"
+
+
+@patch(f"{_UTILS}.get_processing_engine_facet", return_value={})
+@patch(f"{_UTILS}.get_airflow_debug_facet", return_value={})
+@patch(f"{_UTILS}.get_airflow_run_facet", return_value={})
+@patch(f"{_UTILS}.get_task_parent_run_facet", return_value={})
+@patch(f"{_UTILS}.get_user_provided_run_facets", return_value={})
+def test_build_task_event_run_facets_omits_nominal_time_when_missing(*_):
+    dag_run = MagicMock(conf={}, data_interval_start=None, data_interval_end=None)
+    facets = build_task_event_run_facets(
+        task_instance=MagicMock(),
+        dag_run=dag_run,
+        dag=MagicMock(dag_id="d"),
+        task=MagicMock(),
+        task_uuid="uuid",
+        ti_state=TaskInstanceState.RUNNING,
+        parent_run_id="pid",
+    )
+    assert "nominalTime" not in facets
+
+
+@patch(f"{_UTILS}.get_processing_engine_facet", return_value={})
+@patch(f"{_UTILS}.get_airflow_debug_facet", return_value={})
+@patch(f"{_UTILS}.get_airflow_run_facet", return_value={})
+@patch(f"{_UTILS}.get_task_parent_run_facet", return_value={"parent": "internal"})
+@patch(f"{_UTILS}.get_user_provided_run_facets", return_value={})
+def test_build_task_event_run_facets_internals_win_over_additional(*_):
+    facets = build_task_event_run_facets(
+        task_instance=MagicMock(),
+        dag_run=MagicMock(conf={}, data_interval_start=None),
+        dag=MagicMock(dag_id="d"),
+        task=MagicMock(),
+        task_uuid="uuid",
+        ti_state=TaskInstanceState.RUNNING,
+        parent_run_id="pid",
+        additional_run_facets={"parent": "malicious", "custom": "ok"},
+    )
+    assert facets["parent"] == "internal"
+    assert facets["custom"] == "ok"
+
+
+def _job_task(**kw):
+    defaults = dict(owner="alice", doc=None, doc_md=None, doc_json=None, doc_yaml=None, doc_rst=None)
+    defaults.update(kw)
+    return MagicMock(**defaults)
+
+
+def _job_dag(**kw):
+    defaults = dict(owner="dag_owner", tags=[], doc_md=None, description=None)
+    defaults.update(kw)
+    return MagicMock(**defaults)
+
+
+def test_build_task_event_job_facets_prefers_task_doc_over_dag_doc():
+    facets = build_task_event_job_facets(
+        task=_job_task(doc_md="task-doc"),
+        dag=_job_dag(doc_md="dag-doc"),
+    )
+    assert facets["documentation"].description == "task-doc"
+    assert facets["documentation"].contentType == "text/markdown"
+
+
+def test_build_task_event_job_facets_owner_falls_back_to_dag_for_default_task_owner():
+    facets = build_task_event_job_facets(
+        task=_job_task(owner="airflow"),
+        dag=_job_dag(owner="dag_owner"),
+    )
+    assert {o.name for o in facets["ownership"].owners} == {"dag_owner"}
+
+
+def test_build_task_event_job_facets_tags_sorted_from_dag():
+    facets = build_task_event_job_facets(
+        task=_job_task(owner="airflow"),
+        dag=_job_dag(owner="", tags=["b", "a"]),
+    )
+    assert [t.key for t in facets["tags"].tags] == ["a", "b"]
+
+
+def test_build_task_event_job_facets_minimal_when_nothing_set():
+    # task.owner=="airflow" triggers dag fallback; dag.owner empty -> no ownership facet
+    facets = build_task_event_job_facets(
+        task=_job_task(owner="airflow"),
+        dag=_job_dag(owner=""),
+    )
+    assert set(facets) == {"jobType"}
+    assert facets["jobType"].jobType == "TASK"
+
+
+def test_build_task_event_job_facets_internals_win_over_additional():
+    facets = build_task_event_job_facets(
+        task=_job_task(),
+        dag=_job_dag(),
+        additional_job_facets={"jobType": "malicious", "custom": "ok"},
+    )
+    assert facets["jobType"] != "malicious"
+    assert facets["jobType"].jobType == "TASK"
+    assert facets["custom"] == "ok"
+
+
 class TestInfoJsonEncodableExtendFields:
     """Exercise the ``_extend_fields`` subclass hook on ``InfoJsonEncodable``."""
 
@@ -4735,3 +4895,61 @@ class TestTranslateAirflowAsset:
             return_value=fake_pm,
         ):
             assert translate_airflow_asset(asset, None) is None
+
+
+class TestNextQueryCounterFromContext:
+    def test_increments_counter_in_context_dict(self):
+        from airflow.providers.openlineage.utils.utils import next_query_counter_from_context
+
+        fake_context: dict = {}
+        context_path = (
+            "airflow.sdk.get_current_context"
+            if AIRFLOW_V_3_0_PLUS
+            else "airflow.operators.python.get_current_context"
+        )
+        with mock.patch(context_path, return_value=fake_context):
+            assert next_query_counter_from_context() == "1"
+            assert next_query_counter_from_context() == "2"
+            assert next_query_counter_from_context() == "3"
+        # The helper persists state in the caller-supplied dict.
+        assert fake_context["_openlineage_manual_query_counter"] == 3
+
+    def test_isolated_per_context(self):
+        """Two separate contexts do not share the counter."""
+        from airflow.providers.openlineage.utils.utils import next_query_counter_from_context
+
+        ctx_a: dict = {}
+        ctx_b: dict = {}
+        context_path = (
+            "airflow.sdk.get_current_context"
+            if AIRFLOW_V_3_0_PLUS
+            else "airflow.operators.python.get_current_context"
+        )
+        with mock.patch(context_path, return_value=ctx_a):
+            assert next_query_counter_from_context() == "1"
+            assert next_query_counter_from_context() == "2"
+        with mock.patch(context_path, return_value=ctx_b):
+            assert next_query_counter_from_context() == "1"
+
+    def test_returns_random_suffix_and_warns_when_no_context(self, caplog):
+        """When `get_current_context` raises (no active task), return a random suffix + log warning."""
+        import logging
+
+        from airflow.providers.openlineage.utils.utils import next_query_counter_from_context
+
+        context_path = (
+            "airflow.sdk.get_current_context"
+            if AIRFLOW_V_3_0_PLUS
+            else "airflow.operators.python.get_current_context"
+        )
+        with (
+            mock.patch(context_path, side_effect=RuntimeError("no context")),
+            caplog.at_level(logging.INFO),
+        ):
+            first = next_query_counter_from_context()
+            second = next_query_counter_from_context()
+
+        assert len(first) == 8
+        assert len(second) == 8
+        assert first != second  # random per call
+        assert "OpenLineage encountered an error when retrieving query counter from context" in caplog.text

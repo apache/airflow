@@ -65,7 +65,6 @@ export const MetricSection = ({
       <Flex justify="space-between">
         <HStack>
           <RouterLink to={`/${kind}?${searchParams.toString()}`}>
-            {/* eslint-disable-next-line unicorn/no-null */}
             <StateBadge fontSize="md" state={state === "no_status" ? null : state}>
               {}
               {capped ? `${runs}+` : runs}

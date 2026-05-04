@@ -1128,3 +1128,41 @@ class BedrockCreateGuardrailOperator(AwsBaseOperator[BedrockHook]):
                 raise
         self.log.info("Guardrail %s: %s", self.guardrail_name, guardrail_id)
         return guardrail_id
+
+
+class BedrockDeleteGuardrailOperator(AwsBaseOperator[BedrockHook]):
+    """
+    Delete an Amazon Bedrock guardrail.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockDeleteGuardrailOperator`
+
+    :param guardrail_identifier: The ID or ARN of the guardrail to delete. (templated)
+    :param guardrail_version: Optional version number to delete a specific version. (templated)
+    """
+
+    aws_hook_class = BedrockHook
+    template_fields: Sequence[str] = aws_template_fields("guardrail_identifier", "guardrail_version")
+
+    def __init__(
+        self,
+        *,
+        guardrail_identifier: str,
+        guardrail_version: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.guardrail_identifier = guardrail_identifier
+        self.guardrail_version = guardrail_version
+
+    def execute(self, context: Context) -> None:
+        self.log.info("Deleting Bedrock guardrail %s", self.guardrail_identifier)
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "guardrailIdentifier": self.guardrail_identifier,
+                "guardrailVersion": self.guardrail_version,
+            }
+        )
+        self.hook.conn.delete_guardrail(**kwargs)
+        self.log.info("Deleted guardrail %s", self.guardrail_identifier)
