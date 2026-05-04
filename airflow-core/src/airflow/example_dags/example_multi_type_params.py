@@ -83,7 +83,7 @@ with DAG(
             title="Dry run",
             description="When enabled, the pipeline validates inputs and logs all actions but skips writes. "
             "You can provide boolean value or complete config json",
-            section="Run settings",
+            section="Multi-type params",
         ),
         "batch_size": Param(
             1000,

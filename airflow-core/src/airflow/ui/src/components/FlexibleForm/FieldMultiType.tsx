@@ -43,13 +43,15 @@ export const FieldMultiType = ({ name, namespace = "default", onUpdate }: Flexib
   const [inputText, setInputText] = useState<string | null>(null);
 
   const schemaTypes = Array.isArray(param.schema.type) ? param.schema.type : [param.schema.type];
-  const nonNullTypes = schemaTypes.filter((t): t is string => Boolean(t));
+  const nonNullTypes = schemaTypes.filter((type): type is string => Boolean(type));
   const stringIsAllowed = nonNullTypes.includes("string");
 
   const storedDisplay =
-    param.value !== null && typeof param.value === "object"
-      ? JSON.stringify(param.value, undefined, 2)
-      : param.value == null ? "" : String(param.value as boolean | number | string);
+    param.value === null || param.value === undefined
+      ? ""
+      : typeof param.value === "object"
+        ? JSON.stringify(param.value, undefined, 2)
+        : String(param.value as boolean | number | string);
 
   const displayValue = inputText ?? storedDisplay;
 

@@ -23,8 +23,11 @@ import { Wrapper } from "src/utils/Wrapper";
 
 import { FieldMultiType } from "./FieldMultiType";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockParamsDict: Record<string, any> = {};
+type ParamEntry = {
+  schema: { type: Array<string> | string | undefined };
+  value: unknown;
+};
+const mockParamsDict: Record<string, ParamEntry> = {};
 const mockSetParamsDict = vi.fn();
 
 vi.mock("src/queries/useParamStore", () => ({
@@ -228,9 +231,9 @@ describe("FieldMultiType", () => {
         value: 0,
       };
       render(<FieldMultiType name="test_param" onUpdate={onUpdate} />, { wrapper: Wrapper });
-      fireEvent.change(screen.getByRole("textbox"), { target: { value: '{"k": 1}' } });
-      expect(onUpdate).toHaveBeenCalledWith('{"k": 1}');
-      expect(mockParamsDict.test_param.value).toEqual({ k: 1 });
+      fireEvent.change(screen.getByRole("textbox"), { target: { value: '{"key": 1}' } });
+      expect(onUpdate).toHaveBeenCalledWith('{"key": 1}');
+      expect(mockParamsDict.test_param.value).toEqual({ key: 1 });
     });
 
     it("signals error for type=['boolean','object'] when input is neither", () => {
