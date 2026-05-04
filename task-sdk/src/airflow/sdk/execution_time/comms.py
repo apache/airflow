@@ -901,28 +901,52 @@ class ClearTaskState(BaseModel):
     type: Literal["ClearTaskState"] = "ClearTaskState"
 
 
-class GetAssetState(BaseModel):
+class GetAssetStateByName(BaseModel):
     name: str
     key: str
-    type: Literal["GetAssetState"] = "GetAssetState"
+    type: Literal["GetAssetStateByName"] = "GetAssetStateByName"
 
 
-class SetAssetState(BaseModel):
+class GetAssetStateByUri(BaseModel):
+    uri: str
+    key: str
+    type: Literal["GetAssetStateByUri"] = "GetAssetStateByUri"
+
+
+class SetAssetStateByName(BaseModel):
     name: str
     key: str
     value: str
-    type: Literal["SetAssetState"] = "SetAssetState"
+    type: Literal["SetAssetStateByName"] = "SetAssetStateByName"
 
 
-class DeleteAssetState(BaseModel):
+class SetAssetStateByUri(BaseModel):
+    uri: str
+    key: str
+    value: str
+    type: Literal["SetAssetStateByUri"] = "SetAssetStateByUri"
+
+
+class DeleteAssetStateByName(BaseModel):
     name: str
     key: str
-    type: Literal["DeleteAssetState"] = "DeleteAssetState"
+    type: Literal["DeleteAssetStateByName"] = "DeleteAssetStateByName"
 
 
-class ClearAssetState(BaseModel):
+class DeleteAssetStateByUri(BaseModel):
+    uri: str
+    key: str
+    type: Literal["DeleteAssetStateByUri"] = "DeleteAssetStateByUri"
+
+
+class ClearAssetStateByName(BaseModel):
     name: str
-    type: Literal["ClearAssetState"] = "ClearAssetState"
+    type: Literal["ClearAssetStateByName"] = "ClearAssetStateByName"
+
+
+class ClearAssetStateByUri(BaseModel):
+    uri: str
+    type: Literal["ClearAssetStateByUri"] = "ClearAssetStateByUri"
 
 
 class GetConnection(BaseModel):
@@ -1115,17 +1139,20 @@ class GetDag(BaseModel):
 
 
 ToSupervisor = Annotated[
-    ClearAssetState
+    ClearAssetStateByName
+    | ClearAssetStateByUri
     | ClearTaskState
     | DeferTask
-    | DeleteAssetState
+    | DeleteAssetStateByName
+    | DeleteAssetStateByUri
     | DeleteTaskState
     | DeleteXCom
     | GetAssetByName
     | GetAssetByUri
     | GetAssetEventByAsset
     | GetAssetEventByAssetAlias
-    | GetAssetState
+    | GetAssetStateByName
+    | GetAssetStateByUri
     | GetConnection
     | GetDagRun
     | GetDagRunState
@@ -1147,7 +1174,8 @@ ToSupervisor = Annotated[
     | PutVariable
     | RescheduleTask
     | RetryTask
-    | SetAssetState
+    | SetAssetStateByName
+    | SetAssetStateByUri
     | SetRenderedFields
     | SetRenderedMapIndex
     | SetTaskState

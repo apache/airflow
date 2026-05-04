@@ -1773,16 +1773,34 @@ class TestTaskStateOperations:
 
 
 class TestAssetStateOperations:
-    ASSET_ID = 42
-
-    def test_get_success(self):
+    def test_get_by_name_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/state/asset/test_asset/watermark":
+            if (
+                request.url.path == "/state/asset/by-name/value"
+                and request.url.params["name"] == "test_asset"
+                and request.url.params["key"] == "watermark"
+            ):
                 return httpx.Response(status_code=200, json={"value": "2026-04-30T00:00:00Z"})
             return httpx.Response(status_code=400)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.asset_state.get(name="test_asset", key="watermark")
+        result = client.asset_state.get(key="watermark", name="test_asset")
+
+        assert isinstance(result, AssetStateResponse)
+        assert result.value == "2026-04-30T00:00:00Z"
+
+    def test_get_by_uri_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if (
+                request.url.path == "/state/asset/by-uri/value"
+                and request.url.params["uri"] == "s3://bucket/key"
+                and request.url.params["key"] == "watermark"
+            ):
+                return httpx.Response(status_code=200, json={"value": "2026-04-30T00:00:00Z"})
+            return httpx.Response(status_code=400)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_state.get(key="watermark", uri="s3://bucket/key")
 
         assert isinstance(result, AssetStateResponse)
         assert result.value == "2026-04-30T00:00:00Z"
@@ -1796,35 +1814,75 @@ class TestAssetStateOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         with pytest.raises(ServerResponseError):
-            client.asset_state.get(name="test_asset", key="watermark")
+            client.asset_state.get(key="watermark", name="test_asset")
 
-    def test_set_success(self):
+    def test_set_by_name_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "PUT"
-            assert request.url.path == "/state/asset/test_asset/watermark"
+            assert request.url.path == "/state/asset/by-name/value"
+            assert request.url.params["name"] == "test_asset"
+            assert request.url.params["key"] == "watermark"
             assert b'"value":"2026-04-30T00:00:00Z"' in request.content
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.asset_state.set(name="test_asset", key="watermark", value="2026-04-30T00:00:00Z")
+        result = client.asset_state.set(key="watermark", value="2026-04-30T00:00:00Z", name="test_asset")
         assert result == OKResponse(ok=True)
 
-    def test_delete_success(self):
+    def test_set_by_uri_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.method == "DELETE"
-            assert request.url.path == "/state/asset/test_asset/watermark"
+            assert request.method == "PUT"
+            assert request.url.path == "/state/asset/by-uri/value"
+            assert request.url.params["uri"] == "s3://bucket/key"
+            assert request.url.params["key"] == "watermark"
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.asset_state.delete(name="test_asset", key="watermark")
+        result = client.asset_state.set(key="watermark", value="2026-04-30T00:00:00Z", uri="s3://bucket/key")
         assert result == OKResponse(ok=True)
 
-    def test_clear_success(self):
+    def test_delete_by_name_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "DELETE"
-            assert request.url.path == "/state/asset/test_asset"
+            assert request.url.path == "/state/asset/by-name/value"
+            assert request.url.params["name"] == "test_asset"
+            assert request.url.params["key"] == "watermark"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_state.delete(key="watermark", name="test_asset")
+        assert result == OKResponse(ok=True)
+
+    def test_delete_by_uri_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == "/state/asset/by-uri/value"
+            assert request.url.params["uri"] == "s3://bucket/key"
+            assert request.url.params["key"] == "watermark"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_state.delete(key="watermark", uri="s3://bucket/key")
+        assert result == OKResponse(ok=True)
+
+    def test_clear_by_name_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == "/state/asset/by-name/clear"
+            assert request.url.params["name"] == "test_asset"
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.asset_state.clear(name="test_asset")
+        assert result == OKResponse(ok=True)
+
+    def test_clear_by_uri_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == "/state/asset/by-uri/clear"
+            assert request.url.params["uri"] == "s3://bucket/key"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_state.clear(uri="s3://bucket/key")
         assert result == OKResponse(ok=True)

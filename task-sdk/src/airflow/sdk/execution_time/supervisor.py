@@ -65,7 +65,8 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     AssetStateResult,
-    ClearAssetState,
+    ClearAssetStateByName,
+    ClearAssetStateByUri,
     ClearTaskState,
     ConnectionResult,
     CreateHITLDetailPayload,
@@ -73,7 +74,8 @@ from airflow.sdk.execution_time.comms import (
     DagRunResult,
     DagRunStateResult,
     DeferTask,
-    DeleteAssetState,
+    DeleteAssetStateByName,
+    DeleteAssetStateByUri,
     DeleteTaskState,
     DeleteVariable,
     DeleteXCom,
@@ -82,7 +84,8 @@ from airflow.sdk.execution_time.comms import (
     GetAssetByUri,
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
-    GetAssetState,
+    GetAssetStateByName,
+    GetAssetStateByUri,
     GetConnection,
     GetDag,
     GetDagRun,
@@ -111,7 +114,8 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
-    SetAssetState,
+    SetAssetStateByName,
+    SetAssetStateByUri,
     SetRenderedFields,
     SetRenderedMapIndex,
     SetTaskState,
@@ -1637,17 +1641,29 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, ClearTaskState):
             self.client.task_state.clear(msg.ti_id, all_map_indices=msg.all_map_indices)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, GetAssetState):
-            asset_state = self.client.asset_state.get(msg.name, msg.key)
+        elif isinstance(msg, GetAssetStateByName):
+            asset_state = self.client.asset_state.get(msg.key, name=msg.name)
             resp = AssetStateResult.from_asset_state_response(asset_state)
-        elif isinstance(msg, SetAssetState):
-            self.client.asset_state.set(msg.name, msg.key, msg.value)
+        elif isinstance(msg, GetAssetStateByUri):
+            asset_state = self.client.asset_state.get(msg.key, uri=msg.uri)
+            resp = AssetStateResult.from_asset_state_response(asset_state)
+        elif isinstance(msg, SetAssetStateByName):
+            self.client.asset_state.set(msg.key, msg.value, name=msg.name)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, DeleteAssetState):
-            self.client.asset_state.delete(msg.name, msg.key)
+        elif isinstance(msg, SetAssetStateByUri):
+            self.client.asset_state.set(msg.key, msg.value, uri=msg.uri)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, ClearAssetState):
-            self.client.asset_state.clear(msg.name)
+        elif isinstance(msg, DeleteAssetStateByName):
+            self.client.asset_state.delete(msg.key, name=msg.name)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, DeleteAssetStateByUri):
+            self.client.asset_state.delete(msg.key, uri=msg.uri)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, ClearAssetStateByName):
+            self.client.asset_state.clear(name=msg.name)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, ClearAssetStateByUri):
+            self.client.asset_state.clear(uri=msg.uri)
             resp = OKResponse(ok=True)
         else:
             log.error("Unhandled request", msg=msg)

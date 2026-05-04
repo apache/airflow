@@ -483,28 +483,43 @@ class AssetStateAccessor:
     # will not be present in ``context`` in those cases. Multi-inlet support
     # ie: ``context['asset_state'][MY_ASSET].get(...)`` can be developed as needed.
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, *, name: str | None = None, uri: str | None = None) -> None:
         self._name = name
+        self._uri = uri
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, AssetStateAccessor):
             return False
-        return self._name == other._name
+        return self._name == other._name and self._uri == other._uri
 
     def __hash__(self) -> int:
-        return hash(self._name)
+        return hash((self._name, self._uri))
 
     def __repr__(self) -> str:
-        return f"<AssetStateAccessor name={self._name!r}>"
+        if self._name is not None:
+            return f"<AssetStateAccessor name={self._name!r}>"
+        return f"<AssetStateAccessor uri={self._uri!r}>"
 
     def get(self, key: str) -> str | None:
         """Return the stored value, or ``None`` if the key does not exist."""
         from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
-        from airflow.sdk.execution_time.comms import AssetStateResult, GetAssetState
+        from airflow.sdk.execution_time.comms import (
+            AssetStateResult,
+            GetAssetStateByName,
+            GetAssetStateByUri,
+            ToSupervisor,
+        )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        msg: ToSupervisor
+        if self._name:
+            msg = GetAssetStateByName(name=self._name, key=key)
+        elif self._uri:
+            msg = GetAssetStateByUri(uri=self._uri, key=key)
+        else:
+            raise ValueError("Either `name` or `uri` must be provided")
         try:
-            resp = SUPERVISOR_COMMS.send(GetAssetState(name=self._name, key=key))
+            resp = SUPERVISOR_COMMS.send(msg)
         except AirflowRuntimeError as e:
             if e.error.error == ErrorType.API_SERVER_ERROR and isinstance(e.error.detail, dict):
                 if e.error.detail.get("status_code") == 404:
@@ -516,24 +531,49 @@ class AssetStateAccessor:
 
     def set(self, key: str, value: str) -> None:
         """Write or overwrite the value for the given key."""
-        from airflow.sdk.execution_time.comms import SetAssetState
+        from airflow.sdk.execution_time.comms import SetAssetStateByName, SetAssetStateByUri, ToSupervisor
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        SUPERVISOR_COMMS.send(SetAssetState(name=self._name, key=key, value=value))
+        msg: ToSupervisor
+        if self._name:
+            msg = SetAssetStateByName(name=self._name, key=key, value=value)
+        elif self._uri:
+            msg = SetAssetStateByUri(uri=self._uri, key=key, value=value)
+        else:
+            raise ValueError("Either `name` or `uri` must be provided")
+        SUPERVISOR_COMMS.send(msg)
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""
-        from airflow.sdk.execution_time.comms import DeleteAssetState
+        from airflow.sdk.execution_time.comms import (
+            DeleteAssetStateByName,
+            DeleteAssetStateByUri,
+            ToSupervisor,
+        )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        SUPERVISOR_COMMS.send(DeleteAssetState(name=self._name, key=key))
+        msg: ToSupervisor
+        if self._name:
+            msg = DeleteAssetStateByName(name=self._name, key=key)
+        elif self._uri:
+            msg = DeleteAssetStateByUri(uri=self._uri, key=key)
+        else:
+            raise ValueError("Either `name` or `uri` must be provided")
+        SUPERVISOR_COMMS.send(msg)
 
     def clear(self) -> None:
         """Delete all state keys for this asset."""
-        from airflow.sdk.execution_time.comms import ClearAssetState
+        from airflow.sdk.execution_time.comms import ClearAssetStateByName, ClearAssetStateByUri, ToSupervisor
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        SUPERVISOR_COMMS.send(ClearAssetState(name=self._name))
+        msg: ToSupervisor
+        if self._name:
+            msg = ClearAssetStateByName(name=self._name)
+        elif self._uri:
+            msg = ClearAssetStateByUri(uri=self._uri)
+        else:
+            raise ValueError("Either `name` or `uri` must be provided")
+        SUPERVISOR_COMMS.send(msg)
 
 
 class MacrosAccessor:

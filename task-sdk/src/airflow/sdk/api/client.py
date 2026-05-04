@@ -678,25 +678,48 @@ class AssetStateOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, name: str, key: str) -> AssetStateResponse:
+    def get(self, key: str, *, name: str | None = None, uri: str | None = None) -> AssetStateResponse:
         """Get an asset state value from the API server."""
-        resp = self.client.get(f"state/asset/{name}/{key}")
+        if name:
+            endpoint, params = "state/asset/by-name/value", {"name": name, "key": key}
+        elif uri:
+            endpoint, params = "state/asset/by-uri/value", {"uri": uri, "key": key}
+        else:
+            raise ValueError("Either `name` or `uri` must be provided")
+        resp = self.client.get(endpoint, params=params)
         return AssetStateResponse.model_validate_json(resp.read())
 
-    def set(self, name: str, key: str, value: str) -> OKResponse:
+    def set(self, key: str, value: str, *, name: str | None = None, uri: str | None = None) -> OKResponse:
         """Set an asset state value via the API server."""
-        body = AssetStatePutBody(value=value)
-        self.client.put(f"state/asset/{name}/{key}", content=body.model_dump_json())
+        if name:
+            endpoint, params = "state/asset/by-name/value", {"name": name, "key": key}
+        elif uri:
+            endpoint, params = "state/asset/by-uri/value", {"uri": uri, "key": key}
+        else:
+            raise ValueError("Either `name` or `uri` must be provided")
+        self.client.put(endpoint, params=params, content=AssetStatePutBody(value=value).model_dump_json())
         return OKResponse(ok=True)
 
-    def delete(self, name: str, key: str) -> OKResponse:
+    def delete(self, key: str, *, name: str | None = None, uri: str | None = None) -> OKResponse:
         """Delete a single asset state key via the API server."""
-        self.client.delete(f"state/asset/{name}/{key}")
+        if name:
+            endpoint, params = "state/asset/by-name/value", {"name": name, "key": key}
+        elif uri:
+            endpoint, params = "state/asset/by-uri/value", {"uri": uri, "key": key}
+        else:
+            raise ValueError("Either `name` or `uri` must be provided")
+        self.client.delete(endpoint, params=params)
         return OKResponse(ok=True)
 
-    def clear(self, name: str) -> OKResponse:
+    def clear(self, *, name: str | None = None, uri: str | None = None) -> OKResponse:
         """Clear all state keys for an asset via the API server."""
-        self.client.delete(f"state/asset/{name}")
+        if name:
+            endpoint, params = "state/asset/by-name/clear", {"name": name}
+        elif uri:
+            endpoint, params = "state/asset/by-uri/clear", {"uri": uri}
+        else:
+            raise ValueError("Either `name` or `uri` must be provided")
+        self.client.delete(endpoint, params=params)
         return OKResponse(ok=True)
 
 

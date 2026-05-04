@@ -43,22 +43,26 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     AssetStateResult,
-    ClearAssetState,
+    ClearAssetStateByName,
+    ClearAssetStateByUri,
     ClearTaskState,
     ConnectionResult,
     DagRunResult,
-    DeleteAssetState,
+    DeleteAssetStateByName,
+    DeleteAssetStateByUri,
     DeleteTaskState,
     ErrorResponse,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
-    GetAssetState,
+    GetAssetStateByName,
+    GetAssetStateByUri,
     GetDagRun,
     GetTaskState,
     GetXCom,
     OKResponse,
-    SetAssetState,
+    SetAssetStateByName,
+    SetAssetStateByUri,
     SetTaskState,
     TaskStateResult,
     VariableResult,
@@ -1119,6 +1123,7 @@ class TestTaskStateAccessor:
 
 class TestAssetStateAccessor:
     ASSET_NAME = "debug_watcher_asset"
+    ASSET_URI = "s3://bucket/key"
 
     def test_get_returns_value(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = AssetStateResult(value="2026-04-30T00:00:00Z")
@@ -1127,7 +1132,7 @@ class TestAssetStateAccessor:
 
         assert result == "2026-04-30T00:00:00Z"
         mock_supervisor_comms.send.assert_called_once_with(
-            GetAssetState(name=self.ASSET_NAME, key="watermark")
+            GetAssetStateByName(name=self.ASSET_NAME, key="watermark")
         )
 
     def test_get_returns_none_on_404(self, mock_supervisor_comms):
@@ -1157,7 +1162,7 @@ class TestAssetStateAccessor:
         AssetStateAccessor(name=self.ASSET_NAME).set("watermark", "2026-04-30T00:00:00Z")
 
         mock_supervisor_comms.send.assert_called_once_with(
-            SetAssetState(name=self.ASSET_NAME, key="watermark", value="2026-04-30T00:00:00Z")
+            SetAssetStateByName(name=self.ASSET_NAME, key="watermark", value="2026-04-30T00:00:00Z")
         )
 
     def test_delete_operation(self, mock_supervisor_comms):
@@ -1166,7 +1171,7 @@ class TestAssetStateAccessor:
         AssetStateAccessor(name=self.ASSET_NAME).delete("watermark")
 
         mock_supervisor_comms.send.assert_called_once_with(
-            DeleteAssetState(name=self.ASSET_NAME, key="watermark")
+            DeleteAssetStateByName(name=self.ASSET_NAME, key="watermark")
         )
 
     def test_clear_operation(self, mock_supervisor_comms):
@@ -1174,4 +1179,39 @@ class TestAssetStateAccessor:
 
         AssetStateAccessor(name=self.ASSET_NAME).clear()
 
-        mock_supervisor_comms.send.assert_called_once_with(ClearAssetState(name=self.ASSET_NAME))
+        mock_supervisor_comms.send.assert_called_once_with(ClearAssetStateByName(name=self.ASSET_NAME))
+
+    def test_get_by_uri(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="2026-04-30T00:00:00Z")
+
+        result = AssetStateAccessor(uri=self.ASSET_URI).get("watermark")
+
+        assert result == "2026-04-30T00:00:00Z"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStateByUri(uri=self.ASSET_URI, key="watermark")
+        )
+
+    def test_set_by_uri(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessor(uri=self.ASSET_URI).set("watermark", "2026-04-30T00:00:00Z")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetAssetStateByUri(uri=self.ASSET_URI, key="watermark", value="2026-04-30T00:00:00Z")
+        )
+
+    def test_delete_by_uri(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessor(uri=self.ASSET_URI).delete("watermark")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            DeleteAssetStateByUri(uri=self.ASSET_URI, key="watermark")
+        )
+
+    def test_clear_by_uri(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessor(uri=self.ASSET_URI).clear()
+
+        mock_supervisor_comms.send.assert_called_once_with(ClearAssetStateByUri(uri=self.ASSET_URI))

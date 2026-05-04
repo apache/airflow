@@ -87,17 +87,17 @@ from airflow.sdk.execution_time.comms import (
     AssetEventResult,
     AssetEventsResult,
     BundleInfo,
-    ClearAssetState,
+    ClearAssetStateByName,
     ClearTaskState,
     ConnectionResult,
     DagResult,
     DagRunStateResult,
     DeferTask,
-    DeleteAssetState,
+    DeleteAssetStateByName,
     DeleteTaskState,
     DRCount,
     ErrorResponse,
-    GetAssetState,
+    GetAssetStateByName,
     GetConnection,
     GetDag,
     GetDagRunState,
@@ -117,7 +117,7 @@ from airflow.sdk.execution_time.comms import (
     PreviousTIResult,
     PrevSuccessfulDagRunResult,
     RescheduleTask,
-    SetAssetState,
+    SetAssetStateByName,
     SetRenderedFields,
     SetTaskState,
     SetXCom,
@@ -4956,9 +4956,9 @@ class TestTaskInstanceStateOperations:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_supervisor_comms.send.assert_any_call(
-            SetAssetState(name="my_asset", key="watermark", value="2026-04-30")
+            SetAssetStateByName(name="my_asset", key="watermark", value="2026-04-30")
         )
-        mock_supervisor_comms.send.assert_any_call(GetAssetState(name="my_asset", key="watermark"))
+        mock_supervisor_comms.send.assert_any_call(GetAssetStateByName(name="my_asset", key="watermark"))
 
     def test_asset_state_delete(self, create_runtime_ti, mock_supervisor_comms):
         watched = Asset(name="my_asset", uri="s3://bucket/data")
@@ -4973,7 +4973,7 @@ class TestTaskInstanceStateOperations:
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_supervisor_comms.send.assert_any_call(DeleteAssetState(name="my_asset", key="watermark"))
+        mock_supervisor_comms.send.assert_any_call(DeleteAssetStateByName(name="my_asset", key="watermark"))
 
     def test_asset_state_clear(self, create_runtime_ti, mock_supervisor_comms):
         watched = Asset(name="my_asset", uri="s3://bucket/data")
@@ -4988,4 +4988,4 @@ class TestTaskInstanceStateOperations:
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_supervisor_comms.send.assert_any_call(ClearAssetState(name="my_asset"))
+        mock_supervisor_comms.send.assert_any_call(ClearAssetStateByName(name="my_asset"))
