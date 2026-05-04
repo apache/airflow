@@ -1805,7 +1805,7 @@ class TestAssetStateOperations:
         assert isinstance(result, AssetStateResponse)
         assert result.value == "2026-04-30T00:00:00Z"
 
-    def test_get_raises_on_404(self):
+    def test_get_returns_error_response_on_404(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             return httpx.Response(
                 status_code=404,
@@ -1813,8 +1813,9 @@ class TestAssetStateOperations:
             )
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        with pytest.raises(ServerResponseError):
-            client.asset_state.get(key="watermark", name="test_asset")
+        result = client.asset_state.get(key="watermark", name="test_asset")
+        assert isinstance(result, ErrorResponse)
+        assert result.error == ErrorType.ASSET_STATE_NOT_FOUND
 
     def test_set_by_name_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:

@@ -269,6 +269,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
             )
 
     # If no backend found the variable, raise a not found error (mirrors _get_connection)
+    from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
     from airflow.sdk.execution_time.comms import ErrorResponse
 
     raise AirflowRuntimeError(
@@ -431,9 +432,7 @@ class TaskStateAccessor:
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         resp = SUPERVISOR_COMMS.send(GetTaskState(ti_id=self._ti_id, key=key))
-        if isinstance(resp, ErrorResponse):
-            if resp.error == ErrorType.TASK_STATE_NOT_FOUND:
-                return None
+        if isinstance(resp, ErrorResponse) and resp.error != ErrorType.TASK_STATE_NOT_FOUND:
             raise AirflowRuntimeError(resp)
         if isinstance(resp, TaskStateResult):
             return resp.value
@@ -515,9 +514,7 @@ class AssetStateAccessor:
         else:
             raise ValueError("Either `name` or `uri` must be provided")
         resp = SUPERVISOR_COMMS.send(msg)
-        if isinstance(resp, ErrorResponse):
-            if resp.error == ErrorType.ASSET_STATE_NOT_FOUND:
-                return None
+        if isinstance(resp, ErrorResponse) and resp.error != ErrorType.ASSET_STATE_NOT_FOUND:
             raise AirflowRuntimeError(resp)
         if isinstance(resp, AssetStateResult):
             return resp.value
