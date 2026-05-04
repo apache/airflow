@@ -258,6 +258,17 @@ _MYSQL_URL_QUERY_TO_CNF: dict[str, str] = {
 }
 
 
+def _strip_newlines(value: str) -> str:
+    """
+    Strip CR/LF from a my.cnf option value to prevent option injection.
+
+    SQLAlchemy's URL parser percent-decodes query values, so a malicious
+    ``sql_alchemy_conn`` containing ``%0A`` (or ``%0D``) could otherwise
+    inject extra lines into the ``[client]`` section we render below.
+    """
+    return value.replace("\n", "").replace("\r", "")
+
+
 def _build_mysql_cnf(url: URL) -> bytes:
     """
     Render the ``[client]`` section of a mysql option file from a SQLAlchemy URL.
@@ -276,7 +287,7 @@ def _build_mysql_cnf(url: URL) -> bytes:
         f"database = {url.database or ''}",
     ]
     lines.extend(
-        f"{cnf_key} = {url.query[url_key]}"
+        f"{cnf_key} = {_strip_newlines(url.query[url_key])}"
         for url_key, cnf_key in _MYSQL_URL_QUERY_TO_CNF.items()
         if url_key in url.query
     )
