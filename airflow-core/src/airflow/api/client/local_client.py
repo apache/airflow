@@ -80,7 +80,10 @@ class Client:
         if api_client is not None:
             parsed_conf = conf
             if isinstance(conf, str):
-                parsed_conf = json.loads(conf)
+                try:
+                    parsed_conf = json.loads(conf)
+                except json.JSONDecodeError as err:
+                    raise AirflowBadRequest(f"Invalid configuration JSON: {err}") from err
             dag_run = api_client.dags.trigger(
                 dag_id,
                 TriggerDAGRunPostBody(
