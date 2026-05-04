@@ -140,16 +140,6 @@ def _get_registered_priority_weight_strategy(
     return plugins_manager.get_priority_weight_strategy_plugins().get(importable_string)
 
 
-# DAG fields whose defaults come from Airflow config, not schema.json.
-DAG_DEFAULTS: dict[str, tuple[str, str, str]] = {
-    "max_active_runs": ("core", "max_active_runs_per_dag", "int"),
-    "max_active_tasks": ("core", "max_active_tasks_per_dag", "int"),
-    "max_consecutive_failed_dag_runs": ("core", "max_consecutive_failed_dag_runs_per_dag", "int"),
-    "catchup": ("scheduler", "catchup_by_default", "bool"),
-    "disable_bundle_versioning": ("dag_processor", "disable_bundle_versioning", "bool"),
-}
-
-
 class _PriorityWeightStrategyNotRegistered(AirflowException):
     def __init__(self, type_string: str) -> None:
         self.type_string = type_string
@@ -1773,7 +1763,8 @@ class DagSerialization(BaseSerialization):
         """Deserializes a DAG from a JSON object."""
         if "dag_id" not in encoded_dag:
             raise DeserializationError(
-                message="Encoded dag object has no dag_id key. You may need to run `airflow dags reserialize`."
+                message="Encoded dag object has no dag_id key. "
+                "You may need to run `airflow dags reserialize`."
             )
 
         dag_id = encoded_dag["dag_id"]
@@ -1877,12 +1868,6 @@ class DagSerialization(BaseSerialization):
         for k in keys_to_set_none:
             setattr(dag, k, None)
 
-        # Apply client_defaults.dag for fields backed by Airflow config.
-        dag_client_defaults = (client_defaults or {}).get("dag", {})
-        for field, cfg_value in dag_client_defaults.items():
-            if field in DAG_DEFAULTS and field not in encoded_dag:
-                setattr(dag, field, cfg_value)
-
         for t in dag.task_dict.values():
             OperatorSerialization.set_task_dag_references(t, dag)
 
@@ -1898,9 +1883,6 @@ class DagSerialization(BaseSerialization):
             return True
 
         # DAG schema defaults exclusion (same pattern as SerializedBaseOperator)
-        if cls._matches_client_defaults(var, attrname):
-            return True
-
         dag_schema_defaults = cls.get_schema_defaults("dag")
         if attrname in dag_schema_defaults:
             if dag_schema_defaults[attrname] == var:
@@ -1932,63 +1914,19 @@ class DagSerialization(BaseSerialization):
         return optional_fields
 
     @classmethod
-    @lru_cache(maxsize=1)
-    def generate_client_defaults(cls) -> dict[str, Any]:
-        """
-        Resolve the current Airflow config value for each field in ``DAG_DEFAULTS``.
-
-        :return: dict mapping each DAG_DEFAULTS field to its current config value
-        """
-        from airflow.configuration import conf
-
-        result: dict[str, Any] = {}
-        for field, (section, key, getter) in DAG_DEFAULTS.items():
-            if getter == "int":
-                result[field] = conf.getint(section, key)
-            else:
-                result[field] = conf.getboolean(section, key)
-        return result
-
-    @classmethod
-    def _matches_client_defaults(cls, var: Any, attrname: str) -> bool:
-        """
-        Check if a DAG field value matches its Airflow config default and should be excluded.
-
-        This implements the client_defaults optimization for DAG fields: values that match
-        the Airflow config default are omitted from the wire payload.
-
-        :param var: The value to check
-        :param attrname: The attribute name
-        :return: True if value matches the config default and should be excluded
-        """
-        try:
-            dag_defaults = cls.generate_client_defaults()
-            if attrname in dag_defaults and var == dag_defaults[attrname]:
-                return True
-        except Exception:
-            # If anything goes wrong with client_defaults, fall back to normal logic
-            pass
-        return False
-
-    @classmethod
     def to_dict(cls, var: Any) -> dict:
         """Stringifies DAGs and operators contained by var and returns a dict of var."""
-        # Clear cached client_defaults to ensure fresh values for this serialisation pass.
+        # Clear any cached client_defaults to ensure fresh generation for this DAG
+        # Clear lru_cache for client defaults
         OperatorSerialization.generate_client_defaults.cache_clear()
-        cls.generate_client_defaults.cache_clear()
 
         json_dict = {"__version": cls.SERIALIZER_VERSION, "dag": cls.serialize_dag(var)}
 
-        # Build client_defaults: always include DAG config defaults; include task
-        # defaults only when they differ from schema defaults.
-        task_defaults = OperatorSerialization.generate_client_defaults()
-        dag_client_defaults = cls.generate_client_defaults()
-
-        client_defaults: dict[str, Any] = {"dag": dag_client_defaults}
-        if task_defaults:
-            client_defaults["tasks"] = task_defaults
-
-        json_dict["client_defaults"] = client_defaults
+        # Add client_defaults section with only values that differ from schema defaults
+        # for tasks
+        client_defaults = OperatorSerialization.generate_client_defaults()
+        if client_defaults:
+            json_dict["client_defaults"] = {"tasks": client_defaults}
 
         # Validate Serialized DAG with Json Schema. Raises Error if it mismatches
         cls.validate_schema(json_dict)
@@ -2332,11 +2270,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
 
     def __getattr__(self, name: str, /) -> Any:
         if name in self.NULLABLE_PROPERTIES:
-            value = self.data["dag"].get(name)
-            if value is None and name in DAG_DEFAULTS:
-                # Not on the wire; use the config default captured at serialisation time.
-                value = self.data.get("client_defaults", {}).get("dag", {}).get(name)
-            return value
+            return self.data["dag"].get(name)
         try:
             return self.data["dag"][name]
         except KeyError:

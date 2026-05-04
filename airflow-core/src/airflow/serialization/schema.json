@@ -430,10 +430,6 @@
             "tasks": {
               "type": "object",
               "description": "Task-level default overrides"
-            },
-            "dag": {
-              "type": "object",
-              "description": "DAG-level config-driven default values captured at parse time"
             }
           },
           "additionalProperties": false
