@@ -24,6 +24,7 @@ type Props = {
   readonly expandLabel: string;
   readonly isCollapseDisabled?: boolean;
   readonly isExpandDisabled?: boolean;
+  readonly isExpanded?: boolean;
   readonly onCollapse: () => void;
   readonly onExpand: () => void;
 };
@@ -33,30 +34,31 @@ export const ExpandCollapseButtons = ({
   expandLabel,
   isCollapseDisabled,
   isExpandDisabled,
+  isExpanded,
   onCollapse,
   onExpand,
   ...rest
 }: Props) => (
-  <ButtonGroup attached size="sm" variant="outline" {...rest}>
+  <ButtonGroup attached colorPalette="brand" size="sm" variant="outline" {...rest}>
     <IconButton
       aria-label={expandLabel}
-      bg="bg"
       data-testid="expand-all-button"
       disabled={isExpandDisabled}
       onClick={onExpand}
       size="sm"
       title={expandLabel}
+      variant={isExpanded === true ? "solid" : "outline"}
     >
       <MdExpand />
     </IconButton>
     <IconButton
       aria-label={collapseLabel}
-      bg="bg"
       data-testid="collapse-all-button"
       disabled={isCollapseDisabled}
       onClick={onCollapse}
       size="sm"
       title={collapseLabel}
+      variant={isExpanded === false ? "solid" : "outline"}
     >
       <MdCompress />
     </IconButton>
