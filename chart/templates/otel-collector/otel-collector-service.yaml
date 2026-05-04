@@ -17,9 +17,9 @@
  under the License.
 */}}
 
-################################
+#########################
 ## OTel Collector Service
-################################
+#########################
 {{- if or .Values.otelCollector.tracesEnabled .Values.otelCollector.metricsEnabled }}
 apiVersion: v1
 kind: Service

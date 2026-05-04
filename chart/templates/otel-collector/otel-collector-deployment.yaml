@@ -17,9 +17,9 @@
  under the License.
 */}}
 
-################################
+############################
 ## OTel Collector Deployment
-################################
+############################
 {{- if or .Values.otelCollector.tracesEnabled .Values.otelCollector.metricsEnabled }}
 {{- $nodeSelector := or .Values.otelCollector.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.otelCollector.affinity .Values.affinity }}

@@ -17,9 +17,9 @@
  under the License.
 */}}
 
-##################################
+#######################################
 ## Airflow OTel Collector NetworkPolicy
-##################################
+#######################################
 {{- if and .Values.networkPolicies.enabled (or .Values.otelCollector.tracesEnabled .Values.otelCollector.metricsEnabled) }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
