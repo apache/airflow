@@ -125,7 +125,7 @@ def get_dags(
     user: GetUserDep,
     dag_runs_limit: int = 10,
 ) -> DAGWithLatestDagRunsCollectionResponse:
-    """Get DAGs with recent DagRun."""
+    """Get Dags with recent DagRun."""
     # Fetch Dags with their latest DagRun and apply filters
     query = generate_dag_with_latest_run_query(
         max_run_filters=[

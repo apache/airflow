@@ -41,7 +41,7 @@ from airflow.api_fastapi.execution_api.versions.v2026_04_06 import (
     MovePreviousRunEndpoint,
     RemoveUpstreamMapIndexesField,
 )
-from airflow.api_fastapi.execution_api.versions.v2026_04_17 import AddTeamNameField
+from airflow.api_fastapi.execution_api.versions.v2026_04_17 import AddStateEndpoints, AddTeamNameField
 from airflow.api_fastapi.execution_api.versions.v2026_06_16 import AddRetryPolicyFields
 
 bundle = VersionBundle(
@@ -50,6 +50,7 @@ bundle = VersionBundle(
     Version(
         "2026-04-17",
         AddTeamNameField,
+        AddStateEndpoints,
     ),
     Version(
         "2026-04-06",

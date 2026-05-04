@@ -596,7 +596,7 @@ paths:
       tags:
       - Asset
       summary: Materialize Asset
-      description: Materialize an asset by triggering a DAG run that produces it.
+      description: Materialize an asset by triggering a Dag run that produces it.
       operationId: materialize_asset
       security:
       - OAuth2PasswordBearer: []
@@ -813,7 +813,7 @@ paths:
       tags:
       - Asset
       summary: Get Dag Asset Queued Events
-      description: Get queued asset events for a DAG.
+      description: Get queued asset events for a Dag.
       operationId: get_dag_asset_queued_events
       security:
       - OAuth2PasswordBearer: []
@@ -919,7 +919,7 @@ paths:
       tags:
       - Asset
       summary: Get Dag Asset Queued Event
-      description: Get a queued asset event for a DAG.
+      description: Get a queued asset event for a Dag.
       operationId: get_dag_asset_queued_event
       security:
       - OAuth2PasswordBearer: []
@@ -980,7 +980,7 @@ paths:
       tags:
       - Asset
       summary: Delete Dag Asset Queued Event
-      description: Delete a queued asset event for a DAG.
+      description: Delete a queued asset event for a Dag.
       operationId: delete_dag_asset_queued_event
       security:
       - OAuth2PasswordBearer: []
@@ -1926,7 +1926,7 @@ paths:
       tags:
       - DagRun
       summary: Delete Dag Run
-      description: Delete a DAG Run entry.
+      description: Delete a Dag Run entry.
       operationId: delete_dag_run
       security:
       - OAuth2PasswordBearer: []
@@ -1981,7 +1981,7 @@ paths:
       tags:
       - DagRun
       summary: Patch Dag Run
-      description: Modify a DAG Run.
+      description: Modify a Dag Run.
       operationId: patch_dag_run
       security:
       - OAuth2PasswordBearer: []
@@ -2174,11 +2174,11 @@ paths:
       tags:
       - DagRun
       summary: Get Dag Runs
-      description: 'Get all DAG Runs.
+      description: 'Get all Dag Runs.
 
 
         This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for
-        all DAGs.
+        all Dags.
 
 
         Supports two pagination modes:
@@ -2732,7 +2732,7 @@ paths:
       tags:
       - DagRun
       summary: Trigger Dag Run
-      description: Trigger a DAG.
+      description: Trigger a Dag.
       operationId: trigger_dag_run
       security:
       - OAuth2PasswordBearer: []
@@ -2801,7 +2801,7 @@ paths:
         if requested.'
       description: "\U0001F6A7 This is an experimental endpoint and may change or\
         \ be removed without notice.Successful response are streamed as newline-delimited\
-        \ JSON (NDJSON). Each line is a JSON object representing the DAG run state."
+        \ JSON (NDJSON). Each line is a JSON object representing the Dag run state."
       operationId: wait_dag_run_until_finished
       security:
       - OAuth2PasswordBearer: []
@@ -2883,7 +2883,7 @@ paths:
       tags:
       - DagRun
       summary: Get List Dag Runs Batch
-      description: Get a list of DAG Runs.
+      description: Get a list of Dag Runs.
       operationId: get_list_dag_runs_batch
       security:
       - OAuth2PasswordBearer: []
@@ -3324,7 +3324,7 @@ paths:
       tags:
       - DAG
       summary: Get Dags
-      description: Get all DAGs.
+      description: Get all Dags.
       operationId: get_dags
       security:
       - OAuth2PasswordBearer: []
@@ -3675,13 +3675,13 @@ paths:
       tags:
       - DAG
       summary: Patch Dags
-      description: 'Patch multiple DAGs.
+      description: 'Patch multiple Dags.
 
 
-        If neither `dag_id_pattern` nor `dag_id_prefix_pattern` is provided, no DAGs
+        If neither `dag_id_pattern` nor `dag_id_prefix_pattern` is provided, no Dags
         will be
 
-        matched regardless of other filters. To match all DAGs, pass a wildcard value
+        matched regardless of other filters. To match all Dags, pass a wildcard value
         such as
 
         `~` or `%` for `dag_id_pattern`.'
@@ -3851,7 +3851,7 @@ paths:
       tags:
       - DAG
       summary: Get Dag
-      description: Get basic information about a DAG.
+      description: Get basic information about a Dag.
       operationId: get_dag
       security:
       - OAuth2PasswordBearer: []
@@ -3904,7 +3904,7 @@ paths:
       tags:
       - DAG
       summary: Patch Dag
-      description: Patch the specific DAG.
+      description: Patch the specific Dag.
       operationId: patch_dag
       security:
       - OAuth2PasswordBearer: []
@@ -3973,7 +3973,7 @@ paths:
       tags:
       - DAG
       summary: Delete Dag
-      description: Delete the specific DAG.
+      description: Delete the specific Dag.
       operationId: delete_dag
       security:
       - OAuth2PasswordBearer: []
@@ -4026,7 +4026,7 @@ paths:
       tags:
       - DAG
       summary: Get Dag Details
-      description: Get details of DAG.
+      description: Get details of Dag.
       operationId: get_dag_details
       security:
       - OAuth2PasswordBearer: []
@@ -4080,7 +4080,7 @@ paths:
       tags:
       - DAG
       summary: Favorite Dag
-      description: Mark the DAG as favorite.
+      description: Mark the Dag as favorite.
       operationId: favorite_dag
       security:
       - OAuth2PasswordBearer: []
@@ -4124,7 +4124,7 @@ paths:
       tags:
       - DAG
       summary: Unfavorite Dag
-      description: Unmark the DAG as favorite.
+      description: Unmark the Dag as favorite.
       operationId: unfavorite_dag
       security:
       - OAuth2PasswordBearer: []
@@ -5787,7 +5787,7 @@ paths:
 
 
         This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to
-        retrieve XCom entries for all DAGs.'
+        retrieve XCom entries for all Dags.'
       operationId: get_xcom_entries
       security:
       - OAuth2PasswordBearer: []
@@ -7395,7 +7395,7 @@ paths:
 
         This endpoint allows specifying `~` as the dag_id, dag_run_id
 
-        to retrieve task instances for all DAGs and DAG runs.
+        to retrieve task instances for all Dags and Dag runs.
 
 
         Supports two pagination modes:
@@ -8746,7 +8746,7 @@ paths:
       tags:
       - Task
       summary: Get Tasks
-      description: Get tasks for DAG.
+      description: Get tasks for Dag.
       operationId: get_tasks
       security:
       - OAuth2PasswordBearer: []
@@ -9413,7 +9413,7 @@ paths:
       tags:
       - DAG Parsing
       summary: Reparse Dag File
-      description: Request re-parsing a DAG file.
+      description: Request re-parsing a Dag file.
       operationId: reparse_dag_file
       security:
       - OAuth2PasswordBearer: []
@@ -9460,7 +9460,7 @@ paths:
       tags:
       - DAG
       summary: Get Dag Tags
-      description: Get all DAG tags.
+      description: Get all Dag tags.
       operationId: get_dag_tags
       security:
       - OAuth2PasswordBearer: []
